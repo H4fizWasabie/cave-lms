@@ -3,350 +3,186 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cave — home variants (prototype)</title>
+<title>The Cave Consult Learning</title>
+<link rel="icon" href="img/favicon.png">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-chrome="public" data-page="home">
 <!--
-  PROTOTYPE: two shortlisted home-page variants (Reader rejected), switchable via ?variant=A|B,
-  on /prototype/mockup/ (sub-shape B: no existing page to host them in).
-  Throwaway code. Winner gets folded into the real Go templates.
-  Photos are picsum.photos placeholders; fonts are self-hosted (see README).
+  PROTOTYPE: The Cave Consult learning portal, home page in two looks (?variant=A|B).
+  Throwaway click-through; the chosen look folds into the real Go templates.
 -->
 
-<!-- ============================ VARIANT A · Catalogue ============================ -->
-<section class="page a" data-variant="A" aria-label="Variant A: Catalogue">
-  <div class="a-utility">
-    <div class="a-wrap">
-      <span>Free, self-paced online courses</span>
-      <span>Certificates anyone can verify</span>
-    </div>
-  </div>
-
-  <header class="a-header">
-    <div class="a-wrap a-header-in">
-      <a class="a-wordmark" href="#">
-        <svg class="a-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9.5L12 4l8 5.5V20h-5.5v-6h-5v6H4z"/></svg>
-        Cave
-      </a>
-      <nav class="a-nav" aria-label="Main">
-        <a href="#courses">Courses</a>
-        <a href="#gallery">Gallery</a>
-        <a href="#verify">Check a certificate</a>
-        <span class="a-nav-sep" aria-hidden="true"></span>
-        <a href="#">Log in</a>
-        <a class="a-register" href="#">Register</a>
-      </nav>
-    </div>
-  </header>
-
-  <div class="a-hero">
-    <div class="a-wrap">
-      <p class="a-eyebrow">Cave Learning — online courses</p>
-      <h1>Learn at your own pace.<br>Finish with a certificate.</h1>
-      <p class="a-lede">Self-paced courses built from lessons, videos and ebooks. Finish with an exam and a certificate anyone can verify.</p>
-      <div class="a-cta-row">
-        <a class="a-btn a-btn-solid" href="#courses">Browse the courses</a>
-        <a class="a-btn a-btn-ghost" href="#verify">Check a certificate</a>
+<!-- ============================ LOOK A ============================ -->
+<main data-look-page="A">
+  <section class="home-hero">
+    <div class="wrap home-hero-in">
+      <div class="home-hero-copy">
+        <h1>Learn to use AI at work.<br> Get certified for it.</h1>
+        <p class="lede">Self-paced online courses from The Cave Consult, built from the same hands-on classes we run for companies and government teams across Malaysia.</p>
+        <div class="cta-row">
+          <a class="btn btn-solid btn-lg" href="courses.html">Browse courses</a>
+          <a class="btn btn-ghost btn-lg" href="verify.html">Check a certificate</a>
+        </div>
       </div>
+      <figure class="home-hero-art">
+        <img src="img/class-whiteboard.jpg" alt="A trainer from The Cave Consult teaching a class on generative AI" fetchpriority="high">
+      </figure>
     </div>
-  </div>
-
-  <div class="a-facts">
-    <div class="a-wrap">
-      <ul class="a-facts-in">
-        <li><strong>4</strong> courses</li>
-        <li><strong>3</strong> open for joining</li>
-        <li><strong>1 click</strong> to join, no approval</li>
-      </ul>
+    <div class="wrap trust">
+      <p>Run by <strong>ISDeT</strong>, the training arm of The Cave Consult, in partnership with <strong>UTM CAIRO</strong>, Universiti Teknologi Malaysia.</p>
     </div>
-  </div>
+  </section>
 
-  <div class="a-promo">
-    <div class="a-wrap a-promo-in">
-      <span class="a-promo-label">Latest from the gallery</span>
-      <a class="a-promo-item" href="#gallery"><img src="https://picsum.photos/seed/cave-prospectus/136/84" alt="" loading="lazy">The 2027 prospectus (PDF)</a>
-      <a class="a-promo-item" href="#gallery"><img src="https://picsum.photos/seed/cave-classroom/136/84" alt="" loading="lazy">A tour of the classroom (3 min)</a>
-    </div>
-  </div>
-
-  <section class="a-section" id="courses">
-    <div class="a-wrap">
-      <div class="a-section-head">
+  <section class="section" id="courses">
+    <div class="wrap">
+      <div class="section-head">
         <h2>Courses</h2>
-        <p>Start any time, work at your own pace. Join with one click — no approval needed.</p>
+        <p>Start any time and join in one click. No approval needed.</p>
       </div>
-      <ul class="a-course-grid">
-        <li class="a-course">
-          <div class="a-course-top">
-            <h3>Data Literacy for Everyone</h3>
-            <span class="a-badge a-badge-open">Open</span>
-          </div>
-          <p class="a-course-desc">Read, question and present numbers with confidence — no maths background needed.</p>
-          <ul class="a-meta">
-            <li>Starts 3 Nov 2026</li>
-            <li>9 lessons</li>
-            <li>Exam · Certificate</li>
-          </ul>
-          <div class="a-course-foot"><a class="a-btn a-btn-solid a-btn-sm" href="#">Join course</a></div>
-        </li>
-        <li class="a-course">
-          <div class="a-course-top">
-            <h3>Practical Business Writing</h3>
-            <span class="a-badge a-badge-open">Open</span>
-          </div>
-          <p class="a-course-desc">Write clear emails, reports and proposals with a small set of repeatable habits.</p>
-          <ul class="a-meta">
-            <li>Starts 12 Jan 2027</li>
-            <li>7 lessons</li>
-            <li>Certificate</li>
-          </ul>
-          <div class="a-course-foot"><a class="a-btn a-btn-solid a-btn-sm" href="#">Join course</a></div>
-        </li>
-        <li class="a-course a-course-closed">
-          <div class="a-course-top">
-            <h3>Digital Skills Foundations</h3>
-            <span class="a-badge a-badge-closed">Closed</span>
-          </div>
-          <p class="a-course-desc">From files and folders to email and video calls — the everyday skills for working online.</p>
-          <ul class="a-meta">
-            <li>Started 5 May 2026</li>
-            <li>12 lessons</li>
-            <li>Exam · Certificate</li>
-          </ul>
-          <div class="a-course-foot"><a class="a-btn a-btn-ghost a-btn-sm" href="#">View course</a></div>
-        </li>
-        <li class="a-course">
-          <div class="a-course-top">
-            <h3>Workplace Health &amp; Safety Essentials</h3>
-            <span class="a-badge a-badge-open">Open</span>
-          </div>
-          <p class="a-course-desc">The essentials every team member needs, with a short exam and a verifiable certificate.</p>
-          <ul class="a-meta">
-            <li>Starts 2 Feb 2027</li>
-            <li>6 lessons</li>
-            <li>Exam · Certificate</li>
-          </ul>
-          <div class="a-course-foot"><a class="a-btn a-btn-solid a-btn-sm" href="#">Join course</a></div>
-        </li>
-      </ul>
+      <ul class="course-grid" id="home-courses"></ul>
     </div>
   </section>
 
-  <section class="a-section a-section-alt" id="gallery">
-    <div class="a-wrap">
-      <div class="a-section-head">
-        <h2>From the gallery</h2>
-        <p>Videos, ebooks and pictures — our promotional material, open to everyone.</p>
+  <section class="section section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>How it works</h2>
       </div>
-      <ul class="a-gallery-row">
-        <li>
-          <a class="a-plate" href="#">
-            <img src="https://picsum.photos/seed/cave-classroom/800/450" alt="A tour of the classroom" loading="lazy">
-            <span class="a-plate-chip">Video · 3 min</span>
-          </a>
-          <div class="a-plate-cap"><strong>A tour of the classroom</strong></div>
-        </li>
-        <li>
-          <a class="a-plate" href="#">
-            <img src="https://picsum.photos/seed/cave-prospectus/800/450" alt="The 2027 prospectus" loading="lazy">
-            <span class="a-plate-chip">Ebook · PDF</span>
-          </a>
-          <div class="a-plate-cap"><strong>The 2027 prospectus</strong></div>
-        </li>
-        <li>
-          <a class="a-plate" href="#">
-            <img src="https://picsum.photos/seed/cave-campus/800/450" alt="Campus in pictures" loading="lazy">
-            <span class="a-plate-chip">Pictures · 12</span>
-          </a>
-          <div class="a-plate-cap"><strong>Campus in pictures</strong></div>
-        </li>
-      </ul>
+      <ol class="steps">
+        <li><span class="step-n">1</span><h3>Join a course</h3><p>Create a free account and join any open course in one click.</p></li>
+        <li><span class="step-n">2</span><h3>Learn at your pace</h3><p>Short videos, readings and ebooks. Stop and continue whenever you like.</p></li>
+        <li><span class="step-n">3</span><h3>Pass the exam</h3><p>A short multiple-choice exam at the end, marked straight away.</p></li>
+        <li><span class="step-n">4</span><h3>Get your certificate</h3><p>Download it as a PDF. Employers can check it online with its ID.</p></li>
+      </ol>
     </div>
   </section>
 
-  <section class="a-verify" id="verify">
-    <div class="a-wrap a-verify-in">
-      <div class="a-verify-copy">
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>What our alumni say</h2>
+      </div>
+      <div class="quotes" id="home-quotes"></div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="gallery">
+    <div class="wrap">
+      <div class="section-head section-head-row">
+        <div>
+          <h2>From the gallery</h2>
+          <p>Videos, guides and pictures from our classes, open to everyone.</p>
+        </div>
+        <a class="link-more" href="gallery.html">Open the gallery</a>
+      </div>
+      <ul class="g-feature" id="home-gallery"></ul>
+    </div>
+  </section>
+
+  <section class="verify-band" id="verify">
+    <div class="wrap verify-band-in">
+      <div>
         <h2>Check a certificate</h2>
-        <p>Every Cave certificate has an ID. Enter it here to see who it was issued to, for which course, and whether it is still valid.</p>
+        <p>Every certificate from The Cave Consult has an ID. Enter it to see who it was issued to, for which course, and whether it is still valid.</p>
       </div>
-      <form class="a-verify-form" onsubmit="return false">
-        <label class="a-visually-hidden" for="a-cert">Certificate ID</label>
-        <input id="a-cert" type="text" placeholder="Certificate ID, e.g. CV-7F3K-92QX">
-        <button class="a-btn a-btn-solid" type="submit">Check</button>
+      <form class="verify-form" data-verify>
+        <label for="home-cert">Certificate ID</label>
+        <div class="verify-row">
+          <input id="home-cert" type="text" placeholder="e.g. TCC-4M8P-Q2RW" autocomplete="off" required>
+          <button class="btn btn-gold" type="submit">Check</button>
+        </div>
       </form>
     </div>
   </section>
+</main>
 
-  <footer class="a-footer">
-    <div class="a-wrap a-footer-in">
-      <div class="a-foot-brand">
-        <span class="a-wordmark">Cave</span>
-        <p>Self-paced online courses with exams and certificates you can verify.</p>
-      </div>
-      <nav class="a-foot-col" aria-label="Courses">
-        <h3>Courses</h3>
-        <a href="#courses">All courses</a>
-        <a href="#gallery">Gallery</a>
-        <a href="#verify">Check a certificate</a>
-      </nav>
-      <nav class="a-foot-col" aria-label="Account">
-        <h3>Account</h3>
-        <a href="#">Log in</a>
-        <a href="#">Register</a>
-        <a href="#">Reset password</a>
-      </nav>
-    </div>
-    <div class="a-wrap a-foot-base">© 2026 Cave · placeholder content for design review</div>
-  </footer>
-</section>
-
-<!-- ============================ VARIANT B · Cinematic ============================ -->
-<section class="page b" data-variant="B" hidden aria-label="Variant B: Cinematic">
+<!-- ============================ LOOK B ============================ -->
+<div class="b" data-look-page="B" hidden>
   <header class="b-header">
     <div class="b-wrap b-header-in">
-      <a class="b-wordmark" href="#">CAVE</a>
+      <a class="b-brand" href="index.html?variant=B"><img src="img/logo-light.svg" alt="The Cave Consult"><span>Learning</span></a>
       <nav class="b-nav" aria-label="Main">
-        <a href="#b-courses">Courses</a>
-        <a href="#b-gallery">Gallery</a>
-        <a href="#b-verify">Verify</a>
+        <a href="courses.html">Courses</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="verify.html">Check a certificate</a>
+        <a href="login.html">Log in</a>
       </nav>
-      <div class="b-nav-cta">
-        <a class="b-login" href="#">Log in</a>
-        <a class="b-pill" href="#">Register</a>
-      </div>
+      <a class="b-pill" href="register.html">Register</a>
     </div>
   </header>
 
   <div class="b-hero">
     <div class="b-wrap b-hero-copy">
-      <p class="b-eyebrow">Online courses · Verified certificates</p>
-      <h1>Learn<br>something real.</h1>
-      <p class="b-sub">Self-paced courses with exams and certificates anyone can check. Watch, read, practise — then prove it.</p>
+      <h1>Learn to use AI at work.<br> Get certified for it.</h1>
+      <p class="b-sub">Self-paced courses from The Cave Consult, with an exam at the end and a certificate anyone can check.</p>
       <div class="b-cta">
-        <a class="b-btn b-btn-accent" href="#b-gallery">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-          Watch the intro
-        </a>
-        <a class="b-btn b-btn-ghost" href="#b-courses">Browse courses</a>
+        <a class="b-btn b-btn-accent" href="gallery.html"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-play"/></svg>Watch a class</a>
+        <a class="b-btn b-btn-ghost" href="courses.html">Browse courses</a>
       </div>
     </div>
     <div class="b-wrap b-plate-wrap">
-      <a class="b-plate" href="#" aria-label="Watch: A tour of the classroom (3 min)">
-        <img class="b-plate-img" src="https://picsum.photos/seed/cave-classroom/1600/686" alt="A tour of the classroom" fetchpriority="high">
-        <span class="b-plate-play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>
-        <span class="b-plate-cap">A tour of the classroom · 3 min</span>
+      <a class="b-plate" href="gallery.html" aria-label="Watch: a day in our Generative AI class, 3 minutes">
+        <img class="b-plate-img" src="img/class-whiteboard.jpg" alt="">
+        <span class="b-plate-play"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-play"/></svg></span>
+        <span class="b-plate-cap"><strong>A day in our Generative AI class</strong> 3 min</span>
       </a>
     </div>
   </div>
 
-  <section class="b-section" id="b-courses">
+  <section class="b-section">
     <div class="b-wrap b-rail-head">
-      <h2>Featured courses</h2>
-      <a class="b-more" href="#">All courses →</a>
+      <h2>Open for joining</h2>
+      <a class="b-more" href="courses.html">All courses</a>
     </div>
-    <div class="b-rail">
-      <article class="b-card">
-        <a class="b-cover" href="#">
-          <img class="b-cover-img" src="https://picsum.photos/seed/cave-data/640/400" alt="Data Literacy for Everyone" loading="lazy">
-          <span class="b-tag b-tag-open">Open</span>
-        </a>
-        <h3>Data Literacy for Everyone</h3>
-        <p>Starts 3 Nov 2026 · 9 lessons · Exam · Certificate</p>
-      </article>
-      <article class="b-card">
-        <a class="b-cover" href="#">
-          <img class="b-cover-img" src="https://picsum.photos/seed/cave-writing/640/400" alt="Practical Business Writing" loading="lazy">
-          <span class="b-tag b-tag-open">Open</span>
-        </a>
-        <h3>Practical Business Writing</h3>
-        <p>Starts 12 Jan 2027 · 7 lessons · Certificate</p>
-      </article>
-      <article class="b-card">
-        <a class="b-cover" href="#">
-          <img class="b-cover-img" src="https://picsum.photos/seed/cave-digital/640/400" alt="Digital Skills Foundations" loading="lazy">
-          <span class="b-tag b-tag-closed">Closed</span>
-        </a>
-        <h3>Digital Skills Foundations</h3>
-        <p>12 lessons · Exam · Certificate</p>
-      </article>
-      <article class="b-card">
-        <a class="b-cover" href="#">
-          <img class="b-cover-img" src="https://picsum.photos/seed/cave-safety/640/400" alt="Workplace Health &amp; Safety Essentials" loading="lazy">
-          <span class="b-tag b-tag-open">Open</span>
-        </a>
-        <h3>Workplace Health &amp; Safety Essentials</h3>
-        <p>Starts 2 Feb 2027 · 6 lessons · Exam · Certificate</p>
-      </article>
-    </div>
+    <div class="b-rail" id="b-rail"></div>
   </section>
 
-  <section class="b-section" id="b-gallery">
+  <section class="b-section">
     <div class="b-wrap b-rail-head">
       <h2>From the gallery</h2>
-      <a class="b-more" href="#">Everything →</a>
+      <a class="b-more" href="gallery.html">Open the gallery</a>
     </div>
-    <div class="b-wrap b-thumbs">
-      <a class="b-thumb" href="#">
-        <span class="b-thumb-art"><img src="https://picsum.photos/seed/cave-classroom/480/300" alt="" loading="lazy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>
-        <span class="b-thumb-cap">A tour of the classroom</span>
-        <span class="b-chip">Video</span>
-      </a>
-      <a class="b-thumb" href="#">
-        <span class="b-thumb-art"><img src="https://picsum.photos/seed/cave-prospectus/480/300" alt="" loading="lazy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C9.8 5.2 7.2 4.5 4.5 4.5v13c2.7 0 5.3.7 7.5 2 2.2-1.3 4.8-2 7.5-2v-13c-2.7 0-5.3.7-7.5 2z"/><path d="M12 6.5v13"/></svg></span>
-        <span class="b-thumb-cap">The 2027 prospectus</span>
-        <span class="b-chip">Ebook</span>
-      </a>
-      <a class="b-thumb" href="#">
-        <span class="b-thumb-art"><img src="https://picsum.photos/seed/cave-campus/480/300" alt="" loading="lazy"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="2"/><path d="M4 19l5-6 3 3 4-5 4 6H4z"/></svg></span>
-        <span class="b-thumb-cap">Campus in pictures</span>
-        <span class="b-chip">Pictures</span>
-      </a>
-      <a class="b-thumb" href="#">
-        <span class="b-thumb-art"><img src="https://picsum.photos/seed/cave-learners/480/300" alt="" loading="lazy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>
-        <span class="b-thumb-cap">What our learners say</span>
-        <span class="b-chip">Video</span>
-      </a>
-    </div>
+    <div class="b-wrap b-thumbs" id="b-thumbs"></div>
   </section>
 
-  <section class="b-verify" id="b-verify">
+  <section class="b-verify">
     <div class="b-wrap b-verify-in">
       <div>
-        <h2>Certificates you can check.</h2>
+        <h2>Check a certificate</h2>
         <p>Enter a certificate ID to see who it was issued to, for which course, and whether it is still valid.</p>
       </div>
-      <form class="b-verify-form" onsubmit="return false">
-        <label class="b-visually-hidden" for="b-cert">Certificate ID</label>
-        <input id="b-cert" type="text" placeholder="CV-7F3K-92QX">
-        <button class="b-btn b-btn-accent" type="submit">Verify</button>
+      <form class="b-verify-form" data-verify>
+        <label for="b-cert">Certificate ID</label>
+        <div class="b-verify-row">
+          <input id="b-cert" type="text" placeholder="e.g. TCC-4M8P-Q2RW" autocomplete="off" required>
+          <button class="b-btn b-btn-accent" type="submit">Check</button>
+        </div>
       </form>
     </div>
   </section>
 
   <footer class="b-footer">
     <div class="b-wrap b-footer-in">
-      <span class="b-wordmark b-wordmark-sm">CAVE</span>
+      <img src="img/logo-light.svg" alt="The Cave Consult" class="b-footer-logo">
       <nav aria-label="Footer">
-        <a href="#b-courses">Courses</a>
-        <a href="#b-gallery">Gallery</a>
-        <a href="#b-verify">Verify a certificate</a>
-        <a href="#">Log in</a>
-        <a href="#">Register</a>
+        <a href="courses.html">Courses</a>
+        <a href="gallery.html">Gallery</a>
+        <a href="verify.html">Check a certificate</a>
+        <a href="tel:+601135667300">011-3566 7300</a>
+        <a href="mailto:admin@thecaveconsult.com">admin@thecaveconsult.com</a>
       </nav>
     </div>
-    <div class="b-wrap b-foot-base">Placeholder content for design review · © 2026 Cave</div>
+    <div class="b-wrap b-foot-base">© 2026 The Cave Consult. Sample content for design review.</div>
   </footer>
-</section>
-
-<!-- ============================ Switcher ============================ -->
-<div class="proto-bar" role="group" aria-label="Prototype variant switcher">
-  <button class="proto-arrow" id="proto-prev" type="button" aria-label="Previous variant">←</button>
-  <span class="proto-label"><span class="proto-tag">PROTOTYPE</span><span id="proto-name">A · Catalogue</span></span>
-  <button class="proto-arrow" id="proto-next" type="button" aria-label="Next variant">→</button>
 </div>
 
-<script src="switcher.js"></script>
+<dialog class="viewer" id="viewer" aria-label="Gallery item">
+  <button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button>
+  <div id="viewer-body"></div>
+</dialog>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

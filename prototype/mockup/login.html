@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in - The Cave Consult Learning</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-chrome="auth" data-page="login">
+<div class="auth">
+  <main class="auth-main">
+    <a class="brand" href="index.html"><img src="img/logo.svg" alt="The Cave Consult" class="brand-logo"><span class="brand-tag">Learning</span></a>
+    <div class="auth-box">
+      <p class="notice" id="verified" hidden><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-check-circle"/></svg>Your email is confirmed. Log in to start learning.</p>
+      <h1>Log in</h1>
+      <p class="auth-sub">Welcome back. Pick up your courses where you left off.</p>
+      <form id="login" class="form">
+        <div class="field">
+          <label for="l-email">Email</label>
+          <input id="l-email" name="email" type="email" autocomplete="email" value="nurulaina.rahman@gmail.com">
+        </div>
+        <div class="field">
+          <div class="field-row"><label for="l-pass">Password</label><a href="#" class="small-link">Forgot password?</a></div>
+          <input id="l-pass" name="password" type="password" autocomplete="current-password" value="demo-password">
+        </div>
+        <button class="btn btn-solid btn-block btn-lg" type="submit">Log in</button>
+      </form>
+      <p class="auth-alt">New here? <a href="register.html">Create an account</a></p>
+      <div class="demo-box">
+        <p>Demo shortcuts</p>
+        <button class="btn btn-ghost btn-sm" type="button" id="as-learner">Continue as Learner</button>
+        <button class="btn btn-ghost btn-sm" type="button" id="as-admin">Continue as Admin</button>
+      </div>
+    </div>
+  </main>
+  <aside class="auth-art">
+    <img src="img/arch.jpg" alt="">
+    <div class="auth-art-copy">
+      <p>Learn to use AI at work. Get certified for it.</p>
+      <span>The Cave Consult, with ISDeT and UTM CAIRO</span>
+    </div>
+  </aside>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

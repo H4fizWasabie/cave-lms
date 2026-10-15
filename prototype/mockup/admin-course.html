@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course - Learning admin</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-chrome="admin" data-page="adminCourse" data-section="Courses">
+<main class="adm-main">
+  <p class="crumbs"><a href="admin-courses.html">Courses</a> <span aria-hidden="true">/</span> <span id="ad-crumb"></span></p>
+  <div class="adm-head">
+    <div><h1 id="ad-title"></h1></div>
+    <div class="adm-head-actions">
+      <a class="btn btn-ghost" id="ad-view" href="#"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-eye"/></svg>View as Learner</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Course sections">
+    <button type="button" role="tab" data-tab="details">Details</button>
+    <button type="button" role="tab" data-tab="lessons">Lessons</button>
+    <button type="button" role="tab" data-tab="exam">Exam</button>
+    <button type="button" role="tab" data-tab="learners">Learners</button>
+  </div>
+
+  <!-- Details -->
+  <section data-panel="details" role="tabpanel">
+    <form class="card form form-cols" id="ad-form">
+      <div class="form-main">
+        <div class="field">
+          <label for="f-title">Title</label>
+          <input id="f-title" name="title" type="text" required placeholder="e.g. Leveraging Generative AI for Business">
+        </div>
+        <div class="field">
+          <label for="f-blurb">Description</label>
+          <textarea id="f-blurb" name="blurb" rows="4" placeholder="One or two sentences that tell a Learner what they will be able to do afterwards."></textarea>
+        </div>
+        <div class="field field-half">
+          <label for="f-start">Start date <span class="opt">optional</span></label>
+          <input id="f-start" name="start" type="text" placeholder="e.g. 3 Nov 2026">
+        </div>
+        <fieldset class="field">
+          <legend>Joining</legend>
+          <label class="radio-card"><input type="radio" name="state" value="open" checked><span><strong>Open</strong><small>Anyone with an account can join in one click.</small></span></label>
+          <label class="radio-card"><input type="radio" name="state" value="closed"><span><strong>Closed</strong><small>No new joins. Learners who already joined keep their access.</small></span></label>
+        </fieldset>
+      </div>
+      <div class="form-side">
+        <div class="field">
+          <span class="label">Cover picture</span>
+          <label class="cover" id="ad-cover-wrap">
+            <img id="ad-cover" src="" alt="">
+            <span class="cover-empty"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-image"/></svg>Add a cover picture</span>
+            <input type="file" id="ad-cover-input" accept="image/jpeg,image/png,image/webp" class="sr">
+          </label>
+          <small>JPEG, PNG or WebP. Shown on the course list and course page.</small>
+        </div>
+      </div>
+      <div class="form-foot">
+        <button type="button" class="btn btn-quiet btn-danger" id="ad-delete"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-trash"/></svg>Delete course</button>
+        <button type="submit" class="btn btn-solid">Save changes</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Lessons -->
+  <section data-panel="lessons" role="tabpanel" hidden>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>Lessons</h2><p class="card-sub"><span id="ad-lcount"></span>. Learners see them in this order.</p></div>
+        <button class="btn btn-solid" type="button" data-dialog="add-lesson"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add lesson</button>
+      </div>
+      <ol class="lb-list" id="ad-lessons"></ol>
+    </div>
+  </section>
+
+  <!-- Exam -->
+  <section data-panel="exam" role="tabpanel" hidden>
+    <div id="ad-exam">
+      <form class="card form" id="ex-settings">
+        <div class="card-head"><div><h2>Exam settings</h2><p class="card-sub">Learners can start the exam once every lesson is complete.</p></div></div>
+        <div class="field-grid">
+          <div class="field"><label for="e-pass">Pass mark</label><div class="suffix"><input id="e-pass" name="pass" type="number" min="1" max="100"><span>%</span></div></div>
+          <div class="field"><label for="e-min">Time limit <span class="opt">optional</span></label><div class="suffix"><input id="e-min" name="minutes" type="number" min="1"><span>min</span></div></div>
+          <div class="field"><label for="e-att">Attempts allowed <span class="opt">optional</span></label><input id="e-att" name="attempts" type="number" min="1" placeholder="Unlimited"></div>
+        </div>
+        <div class="form-foot"><span></span><button class="btn btn-solid" type="submit">Save settings</button></div>
+      </form>
+      <div class="card">
+        <div class="card-head">
+          <div><h2>Questions</h2><p class="card-sub"><span id="ex-qcount"></span>. Shown in a different order for every attempt.</p></div>
+          <button class="btn btn-solid" type="button" data-dialog="new-q"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add question</button>
+        </div>
+        <p class="demo-note" id="ex-note" hidden>Demo: sample questions shown are from Leveraging Generative AI for Business.</p>
+        <ol class="q-list" id="ex-list"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- Learners -->
+  <section data-panel="learners" role="tabpanel" hidden>
+    <div class="card card-flush">
+      <div class="card-head card-head-pad"><div><h2>Enrolled Learners</h2><p class="card-sub" id="ad-ecount"></p></div></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Learner</th><th>Lessons done</th><th class="num">Best exam score</th><th>Certificate</th><th><span class="sr">Actions</span></th></tr></thead>
+          <tbody id="ad-learners"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog class="dlg" id="add-lesson" aria-labelledby="al-h">
+  <form id="al-form" method="dialog">
+    <div class="dlg-head"><h2 id="al-h">Add a lesson</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="seg" role="group" aria-label="Lesson type">
+        <button type="button" data-kind="gallery" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-images"/></svg>A Gallery item</button>
+        <button type="button" data-kind="text" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-text-t"/></svg>Short text</button>
+      </div>
+      <div id="al-gallery">
+        <p class="dlg-help">Pick a video, ebook or picture you already uploaded. The same item can be used in more than one course.</p>
+        <div class="pick-list" id="al-items"></div>
+      </div>
+      <div id="al-text" hidden>
+        <div class="field"><label for="al-title">Lesson title</label><input id="al-title" type="text" placeholder="e.g. Your first prompt"></div>
+        <div class="field"><label for="al-body">Text</label><textarea id="al-body" rows="6" placeholder="Write the lesson. Keep it short: a few paragraphs and one thing to try."></textarea></div>
+      </div>
+    </div>
+    <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-solid" type="submit">Add lesson</button></div>
+  </form>
+</dialog>
+
+<dialog class="dlg" id="new-q" aria-labelledby="nq-h">
+  <form id="nq-form" novalidate>
+    <div class="dlg-head"><h2 id="nq-h">Add a question</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="field"><label for="nq-q">Question</label><textarea id="nq-q" rows="2" placeholder="e.g. Which prompt is most likely to get a useful first draft?"></textarea></div>
+      <div class="field">
+        <span class="label">Options</span>
+        <small>Between 2 and 5 options. Select the one correct answer.</small>
+        <div class="nq-opts" id="nq-opts"></div>
+        <button class="btn btn-quiet btn-sm" type="button" id="nq-add"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add option</button>
+      </div>
+      <p class="field-err" id="nq-err" hidden></p>
+    </div>
+    <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-solid" type="submit">Add question</button></div>
+  </form>
+</dialog>
+
+<dialog class="dlg dlg-sm" id="del-course" aria-labelledby="dc-h">
+  <div class="dlg-head"><h2 id="dc-h">Delete this course?</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+  <div class="dlg-body"><p id="del-msg"></p><p class="dlg-help">Certificates already issued stay valid either way.</p></div>
+  <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Keep it</button><button class="btn btn-danger-solid" type="button" data-close>Delete course</button></div>
+</dialog>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

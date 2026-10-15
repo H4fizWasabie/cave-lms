@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create your account - The Cave Consult Learning</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-chrome="auth" data-page="register">
+<div class="auth">
+  <main class="auth-main">
+    <a class="brand" href="index.html"><img src="img/logo.svg" alt="The Cave Consult" class="brand-logo"><span class="brand-tag">Learning</span></a>
+    <div class="auth-box">
+      <h1>Create your account</h1>
+      <p class="auth-sub">Join any open course in one click once you’re in.</p>
+      <form id="reg" class="form" novalidate>
+        <div class="field">
+          <label for="r-name">Full name</label>
+          <input id="r-name" name="name" type="text" autocomplete="name" required>
+          <small>Written on your certificates exactly as you type it here.</small>
+        </div>
+        <div class="field">
+          <label for="r-email">Email</label>
+          <input id="r-email" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="r-pass">Password</label>
+          <input id="r-pass" name="password" type="password" autocomplete="new-password" required aria-describedby="reg-err">
+          <small>At least 8 characters.</small>
+          <p class="field-err" id="reg-err" hidden>Use at least 8 characters for your password.</p>
+        </div>
+        <button class="btn btn-solid btn-block btn-lg" type="submit">Create account</button>
+      </form>
+      <p class="auth-alt">Already have an account? <a href="login.html">Log in</a></p>
+    </div>
+  </main>
+  <aside class="auth-art">
+    <img src="img/arch.jpg" alt="">
+    <div class="auth-art-copy">
+      <p>“Seriously, this class was extraordinary! I learned so many powerful techniques using AI and ChatGPT that I never even imagined before.”</p>
+      <span>Datin Lyn, Kuala Lumpur</span>
+    </div>
+  </aside>
+</div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

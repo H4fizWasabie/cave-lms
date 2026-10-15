@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard - Learning admin</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-chrome="admin" data-page="admin" data-section="Dashboard">
+<main class="adm-main">
+  <div class="adm-head">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Here’s how your learning site is doing this week.</p>
+    </div>
+    <div class="adm-head-actions">
+      <a class="btn btn-ghost" href="admin-gallery.html?upload=1"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-upload-simple"/></svg>Upload to Gallery</a>
+      <a class="btn btn-solid" href="admin-course.html?new=1"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>New course</a>
+    </div>
+  </div>
+
+  <ul class="stats" id="k-stats"></ul>
+
+  <div class="adm-cols">
+    <section class="card">
+      <div class="card-head"><h2>Courses</h2><a class="link-more" href="admin-courses.html">Manage courses</a></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Course</th><th>State</th><th class="num">Enrolled</th><th class="num">Completed</th></tr></thead>
+          <tbody id="k-courses"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Latest activity</h2></div>
+      <ul class="activity" id="k-activity"></ul>
+    </section>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check a certificate - The Cave Consult Learning</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-chrome="public" data-page="verify">
+<main class="page-pad">
+  <div class="wrap wrap-narrow">
+    <div class="page-head">
+      <h1>Check a certificate</h1>
+      <p>Enter the ID printed on the certificate, under the QR code. We’ll show who it was issued to, for which course, and whether it is still valid.</p>
+    </div>
+    <form class="verify-card" data-verify>
+      <label for="v-id">Certificate ID</label>
+      <div class="verify-row">
+        <input id="v-id" type="text" placeholder="e.g. TCC-4M8P-Q2RW" autocomplete="off" required>
+        <button class="btn btn-solid" type="submit">Check</button>
+      </div>
+    </form>
+    <div id="v-result" aria-live="polite"></div>
+    <p class="demo-note">Demo: try <a href="verify.html?id=TCC-4M8P-Q2RW">TCC-4M8P-Q2RW</a> (valid), <a href="verify.html?id=TCC-9D2L-X7NB">TCC-9D2L-X7NB</a> (revoked) or <a href="verify.html?id=TCC-0000-0000">TCC-0000-0000</a> (unknown).</p>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

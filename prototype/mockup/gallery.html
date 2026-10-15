@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gallery - The Cave Consult Learning</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-chrome="public" data-page="gallery">
+<main class="page-pad">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Gallery</h1>
+      <p>Videos, ebooks and pictures from The Cave Consult classes and events.</p>
+    </div>
+
+    <section class="g-section">
+      <h2 class="h-sm">Featured</h2>
+      <ul class="g-feature" id="promo"></ul>
+    </section>
+
+    <section class="g-section">
+      <div class="g-toolbar">
+        <h2 class="h-sm">Everything</h2>
+        <div class="chips" role="group" aria-label="Format">
+          <button type="button" class="chip" data-fmt="all" aria-pressed="true">All</button>
+          <button type="button" class="chip" data-fmt="video" aria-pressed="false">Videos</button>
+          <button type="button" class="chip" data-fmt="ebook" aria-pressed="false">Ebooks</button>
+          <button type="button" class="chip" data-fmt="picture" aria-pressed="false">Pictures</button>
+        </div>
+        <label class="select-label">Category
+          <select id="cat">
+            <option value="all">All categories</option>
+            <option>Events</option>
+            <option>Guides</option>
+            <option>Course material</option>
+          </select>
+        </label>
+      </div>
+      <ul class="g-grid" id="g-all"></ul>
+      <p class="g-more" id="g-more" hidden><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-lock-simple"/></svg><span><a href="login.html">Log in</a> to see guides and lesson material for Learners.</span></p>
+    </section>
+  </div>
+</main>
+
+<dialog class="viewer" id="viewer" aria-label="Gallery item">
+  <button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button>
+  <div id="viewer-body"></div>
+</dialog>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

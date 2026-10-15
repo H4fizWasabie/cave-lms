@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certificates - Learning admin</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-chrome="admin" data-page="adminCertificates" data-section="Certificates">
+<main class="adm-main">
+  <div class="adm-head">
+    <div>
+      <h1>Certificates</h1>
+      <p>Certificates are issued automatically when a Learner finishes a course and passes its exam.</p>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Certificates">
+    <button type="button" role="tab" data-ctab="issued" aria-selected="true">Issued</button>
+    <button type="button" role="tab" data-ctab="design" aria-selected="false">Certificate design</button>
+  </div>
+
+  <section data-cpanel="issued">
+    <div class="toolbar">
+      <label class="search"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-magnifying-glass"/></svg><span class="sr">Search certificates</span><input id="cs-search" type="search" placeholder="Search by ID or name"></label>
+    </div>
+    <section class="card card-flush">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>ID</th><th>Issued to</th><th>Course</th><th>Issued</th><th>Status</th><th><span class="sr">Actions</span></th></tr></thead>
+          <tbody id="cs-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <section data-cpanel="design" hidden>
+    <div class="design-cols">
+      <form class="card form" id="cs-settings">
+        <div class="card-head"><div><h2>Certificate design</h2><p class="card-sub">Set once. Every new certificate uses it.</p></div></div>
+        <div class="field"><label for="s-org">Organisation name</label><input id="s-org" name="org" type="text"></div>
+        <div class="field"><label for="s-sig">Signatory name</label><input id="s-sig" name="signatory" type="text"></div>
+        <div class="field"><label for="s-title">Signatory title</label><input id="s-title" name="sigtitle" type="text"></div>
+        <div class="field-grid field-grid-2">
+          <div class="field"><label for="s-logo">Logo</label><input id="s-logo" name="logo" type="file" accept="image/png,image/svg+xml,image/jpeg"></div>
+          <div class="field"><label for="s-sign">Signature</label><input id="s-sign" name="signature" type="file" accept="image/png,image/jpeg"></div>
+        </div>
+        <div class="form-foot"><span></span><button class="btn btn-solid" type="submit">Save design</button></div>
+      </form>
+      <div class="card preview-card">
+        <p class="card-sub">Preview</p>
+        <div class="cert cert-mini">
+          <div class="cert-frame">
+            <header class="cert-head"><img id="pv-logo" src="img/logo.svg" alt="" class="cert-logo"><p class="cert-kind">Certificate of completion</p></header>
+            <p class="cert-pre">This certifies that</p>
+            <p class="cert-name">Nurul Aina binti Rahman</p>
+            <p class="cert-course">Leveraging Generative AI for Business</p>
+            <footer class="cert-foot">
+              <div class="cert-sign"><span class="cert-sig" id="pv-sig"></span><span class="cert-line"></span><strong id="pv-signame"></strong><small id="pv-sigtitle"></small></div>
+              <div class="cert-meta"><span>Issued by <strong id="pv-org"></strong></span></div>
+              <div class="cert-qr"><img src="img/qr-TCC-8KQ2-M4TZ.svg" alt=""><strong>TCC-8KQ2-M4TZ</strong></div>
+            </footer>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog class="dlg" id="revoke" aria-labelledby="rv-h">
+  <form id="rv-form">
+    <div class="dlg-head"><h2 id="rv-h">Revoke certificate</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+    <div class="dlg-body">
+      <p id="rv-what"></p>
+      <p class="dlg-help">Once revoked, the check page and the PDF both show it as revoked. This can’t be undone.</p>
+      <label class="check-card"><input type="checkbox" id="rv-reissue" checked><span><strong>Issue a corrected certificate</strong><small>For example when the name was misspelled. Uses the Learner’s current name.</small></span></label>
+      <div class="field"><label for="rv-name">Name on the new certificate</label><input id="rv-name" type="text"></div>
+    </div>
+    <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-danger-solid" type="submit">Revoke</button></div>
+  </form>
+</dialog>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

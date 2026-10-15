@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learners - Learning admin</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-chrome="admin" data-page="adminLearners" data-section="Learners">
+<main class="adm-main">
+  <div class="adm-head">
+    <div>
+      <h1>Learners</h1>
+      <p>Everyone who has registered. To remove someone from a course, open the course and go to Learners.</p>
+    </div>
+  </div>
+  <div class="toolbar">
+    <label class="search"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-magnifying-glass"/></svg><span class="sr">Search Learners</span><input id="al-search" type="search" placeholder="Search by name or email"></label>
+    <span class="muted" id="al-count"></span>
+  </div>
+  <section class="card card-flush">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Learner</th><th>Registered</th><th class="num">Courses</th><th class="num">Certificates</th><th>Latest course progress</th></tr></thead>
+        <tbody id="al-rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

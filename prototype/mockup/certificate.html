@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certificate - The Cave Consult Learning</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-chrome="public" data-role="learner" data-page="certificate">
+<main class="page-pad cert-page">
+  <div class="wrap" id="cert-wrap">
+    <div class="cert-actions">
+      <a class="crumbs-link" href="my-courses.html">My courses</a>
+      <div class="cert-buttons">
+        <button class="btn btn-ghost" type="button" id="ct-copy"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-arrow-square-out"/></svg>Copy check link</button>
+        <a class="btn btn-ghost" id="ct-check" href="#"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-seal-check"/></svg>Check it</a>
+        <button class="btn btn-solid" type="button" id="ct-print"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-download-simple"/></svg>Download PDF</button>
+      </div>
+    </div>
+
+    <div class="cert-scroll">
+      <article class="cert" id="cert" aria-label="Certificate">
+        <div class="cert-frame">
+          <header class="cert-head">
+            <img src="img/logo.svg" alt="The Cave Consult" class="cert-logo">
+            <p class="cert-kind">Certificate of completion</p>
+          </header>
+          <p class="cert-pre">This certifies that</p>
+          <p class="cert-name" id="ct-name"></p>
+          <p class="cert-pre" id="ct-pre">has completed the course and passed its final exam</p>
+          <p class="cert-course" id="ct-course"></p>
+          <footer class="cert-foot">
+            <div class="cert-sign">
+              <span class="cert-sig" id="ct-sig"></span>
+              <span class="cert-line"></span>
+              <strong id="ct-signame"></strong>
+              <small id="ct-sigtitle"></small>
+            </div>
+            <div class="cert-meta">
+              <span>Issued <strong id="ct-date"></strong></span>
+              <span>ISDeT, in partnership with UTM CAIRO</span>
+            </div>
+            <div class="cert-qr">
+              <img id="ct-qr" src="" alt="QR code to check this certificate">
+              <strong id="ct-id"></strong>
+              <small id="ct-url"></small>
+            </div>
+          </footer>
+          <p class="cert-void">Revoked</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

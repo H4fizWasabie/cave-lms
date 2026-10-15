@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gallery - Learning admin</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body data-chrome="admin" data-page="adminGallery" data-section="Gallery">
+<main class="adm-main">
+  <div class="adm-head">
+    <div>
+      <h1>Gallery</h1>
+      <p>Everything you upload lives here. Use items as lessons, or share them on the public Gallery.</p>
+    </div>
+    <div class="adm-head-actions">
+      <button class="btn btn-solid" type="button" id="open-upload"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-upload-simple"/></svg>Upload</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="chips" role="group" aria-label="Format">
+      <button type="button" class="chip" data-fmt="all" aria-pressed="true">All</button>
+      <button type="button" class="chip" data-fmt="video" aria-pressed="false">Videos</button>
+      <button type="button" class="chip" data-fmt="ebook" aria-pressed="false">Ebooks</button>
+      <button type="button" class="chip" data-fmt="picture" aria-pressed="false">Pictures</button>
+    </div>
+    <span class="muted" id="ag-count"></span>
+  </div>
+  <ul class="ag-grid" id="ag-grid"></ul>
+</main>
+
+<dialog class="dlg dlg-lg" id="upload" aria-labelledby="up-heading">
+  <form id="up-form" novalidate>
+    <div class="dlg-head"><h2 id="up-heading">Upload to the Gallery</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+    <div class="dlg-body up-cols">
+      <div>
+        <label class="drop" id="up-drop">
+          <svg class="i" aria-hidden="true"><use href="img/icons.svg#i-upload-simple"/></svg>
+          <strong>Drop a file here, or choose one</strong>
+          <span>MP4 video, PDF ebook, or JPEG, PNG or WebP picture. Up to 2 GB.</span>
+          <input type="file" id="up-file" class="sr" accept="video/mp4,application/pdf,image/jpeg,image/png,image/webp">
+        </label>
+        <div class="up-preview" id="up-preview"></div>
+        <p class="up-err" id="up-err" role="alert" hidden></p>
+        <div class="progress" id="up-progress" hidden><span></span></div>
+      </div>
+      <div class="form">
+        <div class="field"><label for="u-title">Title</label><input id="u-title" name="title" type="text" required></div>
+        <div class="field"><label for="u-desc">Description <span class="opt">optional</span></label><textarea id="u-desc" name="desc" rows="2"></textarea></div>
+        <div class="field-grid field-grid-2">
+          <div class="field"><label for="u-format">Format</label>
+            <select id="u-format" name="format"><option value="video">Video</option><option value="ebook">Ebook</option><option value="picture">Picture</option></select></div>
+          <div class="field"><label for="u-cat">Category <span class="opt">optional</span></label>
+            <input id="u-cat" name="category" list="cats" type="text" placeholder="e.g. Events">
+            <datalist id="cats"><option>Events</option><option>Guides</option><option>Course material</option></datalist></div>
+        </div>
+        <div class="field"><label for="u-vis">Who can see it</label>
+          <select id="u-vis" name="visibility">
+            <option value="everyone">Everyone, including Visitors</option>
+            <option value="learners">Logged-in Learners</option>
+            <option value="members">Only Learners enrolled in a course that uses it</option>
+          </select></div>
+        <label class="check-card"><input type="checkbox" name="promo"><span><strong>Promotional</strong><small>Show it in the Featured row of the public Gallery.</small></span></label>
+        <p class="hint" id="up-promo-hint" hidden>Promotional items are visible to everyone by default.</p>
+      </div>
+    </div>
+    <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-solid" type="submit" id="up-save">Upload</button></div>
+  </form>
+</dialog>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
