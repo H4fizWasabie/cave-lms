@@ -14,8 +14,11 @@ Email delivery is not configured yet. The Mailer reports an explicit error until
 
 ## Tests
 
-Create a dedicated Postgres test database and set `TEST_DATABASE_URL` to it. The HTTP integration test creates a unique schema in that database and drops it when the test finishes. The database user needs permission to create and drop schemas.
-
 ```sh
-TEST_DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/cave_lms_test?sslmode=disable' go test ./...
+./test.sh                        # all tests
+./test.sh -v ./internal/app      # arguments go to go test
 ```
+
+`test.sh` starts a throwaway Postgres on a Unix socket in a temp directory, runs `go test` against it and deletes it afterwards. It needs the Postgres server binaries (`initdb`, `pg_ctl`) installed, but no running server, role or `sudo`.
+
+To use your own database instead, set `TEST_DATABASE_URL` to a dedicated test database and run `go test ./...`. The HTTP integration test creates a unique schema in it and drops it when the test finishes, so the user needs permission to create and drop schemas. Without `TEST_DATABASE_URL`, that test is skipped.
