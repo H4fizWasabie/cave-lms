@@ -1,6 +1,6 @@
 # Cave LMS
 
-A website where anyone can register and join courses, and browse a gallery of videos, ebooks, pictures and promotional material. It borrows LMS concepts but does not deliver learning itself.
+A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material.
 
 ## Language
 
@@ -13,7 +13,7 @@ A person with an account on the site. Anyone can become one.
 _Avoid_: User, member, student
 
 **Admin**:
-The site owner (the client), the only person who uploads Gallery items or manages Courses.
+The site owner (the client), the only person who builds Courses or uploads Gallery items.
 _Avoid_: Instructor, teacher, uploader
 
 **Registration**:
@@ -21,8 +21,8 @@ Creating a Learner account. Open to anyone, with email verification.
 _Avoid_: Sign-up, enrollment
 
 **Course**:
-A named group the Admin creates, such as an intake, that Learners can join and that has Gallery items attached. The site does not run the teaching itself.
-_Avoid_: Class, programme, lesson
+A self-paced, fully online programme the Admin builds from ordered Lessons, with an optional Exam. Learners can join it.
+_Avoid_: Programme, class, module
 
 **Enrollment**:
 A Learner's membership in a Course. Created when the Learner joins, with no Admin approval.
@@ -47,3 +47,15 @@ _Avoid_: Ad, marketing asset
 **Visibility**:
 Who may see a Gallery item: everyone, any logged-in Learner, or only Learners enrolled in a given Course.
 _Avoid_: Permission, access level
+
+**Lesson**:
+One step of a Course: a Gallery item or short text. A Course is its ordered Lessons.
+_Avoid_: Chapter, unit, module
+
+**Exam**:
+An auto-graded multiple-choice test belonging to a Course, with a pass mark.
+_Avoid_: Quiz, test, assessment
+
+**Certificate**:
+A PDF of completion issued automatically when a Learner has finished a Course's Lessons and passed its Exam. It has a unique ID anyone can check.
+_Avoid_: Diploma, award
