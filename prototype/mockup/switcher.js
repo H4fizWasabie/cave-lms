@@ -1,9 +1,8 @@
-/* PROTOTYPE switcher: ?variant=A|B|C, ←/→ keys, floating bar. Throwaway. */
+/* PROTOTYPE switcher: ?variant=A|B, ←/→ keys, floating bar. Throwaway. */
 (function () {
   var VARIANTS = [
     { key: 'a', name: 'Catalogue', label: 'A · Catalogue' },
-    { key: 'b', name: 'Cinematic', label: 'B · Cinematic' },
-    { key: 'c', name: 'Reader', label: 'C · Reader' }
+    { key: 'b', name: 'Cinematic', label: 'B · Cinematic' }
   ];
   var pages = Array.prototype.slice.call(document.querySelectorAll('.page[data-variant]'));
   var nameEl = document.getElementById('proto-name');
