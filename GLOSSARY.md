@@ -49,8 +49,24 @@ Who may see a Gallery item: everyone, any logged-in Learner, or only Learners en
 _Avoid_: Permission, access level
 
 **Lesson**:
-One step of a Course: a Gallery item or short text. A Course is its ordered Lessons.
+One step of a Course: a Gallery item or text, with a title and an optional Objective. A Course is its ordered Lessons.
 _Avoid_: Chapter, unit, module
+
+**Objective**:
+One sentence saying what a Learner can do after a Lesson.
+_Avoid_: Learning outcome, goal, aim
+
+**Course Outline**:
+The ordered titles and Objectives of a Course's Lessons, before their content is written.
+_Avoid_: Syllabus, plan, curriculum
+
+**Brief**:
+The Admin's free-text description of a Course (topic, audience, tone) that the AI writes from.
+_Avoid_: Prompt, instructions
+
+**Draft**:
+Course content the Admin has not yet published, such as anything the AI writes. Learners never see a Draft.
+_Avoid_: Unpublished, pending, suggestion
 
 **Exam**:
 An auto-graded multiple-choice test belonging to a Course, with a pass mark.
