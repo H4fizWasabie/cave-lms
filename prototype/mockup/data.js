@@ -170,7 +170,7 @@ window.DATA = {
 
   /* Admin Brief per Course (saved in demo state once edited). */
   briefs: {
-    genai: 'Generative AI basics for small business owners in Malaysia. Practical and friendly, no jargon. Each Lesson ends with one thing to try at work.'
+    genai: 'Topic: using generative AI at work for business staff, from writing emails and reports to customer replies, marketing and checking results. Audience: busy staff in small businesses with no technical background. Tone: practical, friendly and short, no jargon. Each Lesson ends with one thing to try at work.'
   },
 
   /* Scripted AI writing. Canned output only: nothing is sent anywhere. */

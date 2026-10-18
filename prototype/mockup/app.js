@@ -695,7 +695,7 @@
           (l.err ? '<small class="lb-err" role="alert">' + esc(l.err) + '</small>' : '') + '</span>' +
           '<span class="lb-act"><button type="button" class="icon-btn" data-up="' + i + '" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>' + icon('arrow-up') + '</button>' +
           '<button type="button" class="icon-btn" data-down="' + i + '" aria-label="Move down"' + (i === ls.length - 1 ? ' disabled' : '') + '>' + icon('arrow-down') + '</button>' +
-          '<button type="button" class="icon-btn" aria-label="Edit lesson">' + icon('pencil-simple') + '</button>' +
+          '<button type="button" class="icon-btn" data-edit="' + i + '" aria-label="Edit lesson"' + dis + '>' + icon('pencil-simple') + '</button>' +
           '<button type="button" class="icon-btn icon-danger" data-rm="' + i + '" aria-label="Remove lesson">' + icon('trash') + '</button></span></li>';
       }).join('') : '<li class="empty">No Lessons yet. Write an Outline, or add a Lesson.</li>';
       drawTop();
@@ -773,6 +773,7 @@
       var b = e.target.closest('button'); if (!b || b.disabled) return;
       var i;
       if (b.dataset.write) { writeOne(ls[+b.dataset.write]); return; }
+      if (b.dataset.edit) { openEdit(ls[+b.dataset.edit]); return; }
       if (b.dataset.rewrite) {
         rewriteTarget = ls[+b.dataset.rewrite];
         $('#rw-msg').textContent = '“' + rewriteTarget.title + '” already has text. Rewriting replaces it with new text, and the current text is lost.';
@@ -787,6 +788,24 @@
       drawLessons();
     });
     drawLessons();
+
+    /* edit-lesson dialog: title, Objective and (text Lessons) Markdown text. Status is unchanged. */
+    var editing = null;
+    function openEdit(l) {
+      editing = l;
+      $('#el-title').value = l.title; $('#el-obj').value = l.objective || ''; $('#el-text').value = l.text || '';
+      $('#el-text-wrap').hidden = l.format !== 'text'; $('#el-err').hidden = true;
+      $('#edit-lesson').showModal();
+    }
+    $('#el-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var title = $('#el-title').value.trim(), err = $('#el-err');
+      if (!title) { err.textContent = 'Give the Lesson a title.'; err.hidden = false; return; }
+      editing.title = title;
+      var obj = $('#el-obj').value.trim(); if (obj) editing.objective = obj; else delete editing.objective;
+      if (editing.format === 'text') { var txt = $('#el-text').value.trim(); if (txt) editing.text = txt; else delete editing.text; }
+      $('#edit-lesson').close(); drawLessons(); toast('Lesson saved');
+    });
 
     /* add-lesson dialog */
     var kind = 'gallery', pick = null;
@@ -883,12 +902,15 @@
       $('#nq-add').addEventListener('click', function () { addOpt(); });
       $('#nq-form').addEventListener('submit', function (e) {
         e.preventDefault();
-        var err = $('#nq-err'), filled = $$('.nq-opt input[type=text]', opts).filter(function (x) { return x.value.trim(); }).length;
-        var correct = $('input[name=nq-correct]:checked', opts);
-        if (!$('#nq-q').value.trim()) { err.textContent = 'Write the question.'; err.hidden = false; return; }
-        if (filled < 2) { err.textContent = 'Add at least 2 options.'; err.hidden = false; return; }
-        if (!correct) { err.textContent = 'Choose the one correct answer.'; err.hidden = false; return; }
-        err.hidden = true; $('#new-q').close(); toast('Question added');
+        var err = $('#nq-err'), q = $('#nq-q').value.trim();
+        var items = $$('.nq-opt', opts).map(function (r) { return { on: r.querySelector('input[type=radio]').checked, text: r.querySelector('input[type=text]').value.trim() }; })
+          .filter(function (o) { return o.text; });
+        var chosen = items.filter(function (o) { return o.on; })[0];
+        var fail = !q ? 'Write the question.' : items.length < 2 ? 'Add at least 2 options.' : !chosen ? 'Choose the one correct answer.' : '';
+        if (fail) { err.textContent = fail; err.hidden = false; return; }
+        S.questions[c.id] = qs.concat([{ q: q, options: items.map(function (o) { return o.text; }), correct: items.indexOf(chosen), status: 'published' }]); save(); drawExam();
+        err.hidden = true; $('#nq-q').value = ''; opts.innerHTML = ''; addOpt(); addOpt();
+        $('#new-q').close(); toast('Question added');
       });
       drawExam();
     }
