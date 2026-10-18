@@ -461,6 +461,11 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .dlg-body { padding: 1.3rem 1.4rem; display: grid; gap: 1rem; }
 .dlg-help { color: var(--muted); font-size: .9rem; }
 .dlg-foot { display: flex; justify-content: flex-end; gap: .6rem; padding: 1rem 1.4rem; border-top: 1px solid var(--line); background: #f8f8f5; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+/* Tall dialogs (phones): the body scrolls, the head and foot stay on screen */
+.dlg[open] { display: flex; flex-direction: column; }
+.dlg[open] > form { display: flex; flex-direction: column; min-height: 0; width: 100%; }
+.dlg-body { min-height: 0; overflow-y: auto; }
+.dlg-head, .dlg-foot { flex-shrink: 0; }
 
 /* ============================ Home Look B ============================ */
 body.look-b { background: #121316; }

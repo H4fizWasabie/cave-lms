@@ -46,7 +46,7 @@ body[data-chrome="admin"] { background: #f3f3ef; }
 .card-sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
 .adm-cols .card .table-wrap { margin: 0 -1.4rem -1.4rem; }
 
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; position: relative; }
 .table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 .table th { text-align: left; font-size: .8rem; font-weight: 600; color: var(--muted); padding: .7rem 1rem; border-bottom: 1px solid var(--line); background: #f8f8f5; white-space: nowrap; }
 .table td { padding: .8rem 1rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
