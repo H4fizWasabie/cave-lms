@@ -14,11 +14,15 @@ Use the **Demo** bar at the bottom to jump between roles:
 - **Learner**: My courses, course progress, lessons (video, text, ebook), mark
   complete, exam (real scoring, 70% pass mark, retry on fail), certificate with QR
   code and "Download PDF" (the browser's print-to-PDF, A4 landscape)
-- **Admin**: dashboard, courses (open/close), course editor with Details, Lessons
+- **Admin**: dashboard, courses (open/close), course editor with Details (incl. a Brief for AI writing), Lessons
   (add from Gallery or as text, reorder with up/down), Exam (settings and
-  questions) and Learners (progress, best score, remove), Gallery (upload with
+  questions, "Write questions with AI") and Learners (progress, best score, remove), Gallery (upload with
   preview and file checks, Visibility, Promotional), Learners, Certificates
   (search, revoke and reissue, certificate design)
+- **AI writing** (Admin course editor, scripted): Lessons tab "Write Outline" on an empty Course (up to 30),
+  "Write text", "Rewrite", "Autowrite Course" (the third Lesson fails once, run again to retry), Publish and
+  Back to Draft. Exam tab "Write questions with AI". Drafts never reach Learners. The demo selector on those tabs
+  shows the "unavailable", "not configured" and "over spending limit" messages. "Remove every Lesson" empties a Course.
 
 Nothing is saved to a server. Demo progress lives in the browser tab
 (`sessionStorage`), so a journey hangs together across pages; **Reset** or closing
