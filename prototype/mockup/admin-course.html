@@ -37,6 +37,11 @@
           <label for="f-blurb">Description</label>
           <textarea id="f-blurb" name="blurb" rows="4" placeholder="One or two sentences that tell a Learner what they will be able to do afterwards."></textarea>
         </div>
+        <div class="field">
+          <label for="f-brief">Brief <span class="opt">for AI writing</span></label>
+          <textarea id="f-brief" name="brief" rows="4" placeholder="e.g. Generative AI basics for small business owners. Practical, friendly, no jargon."></textarea>
+          <small>Free text: topic, audience and tone. The AI writes the Outline and Lessons from it. Edit it any time.</small>
+        </div>
         <div class="field field-half">
           <label for="f-start">Start date <span class="opt">optional</span></label>
           <input id="f-start" name="start" type="text" placeholder="e.g. 3 Nov 2026">
@@ -69,10 +74,22 @@
   <section data-panel="lessons" role="tabpanel" hidden>
     <div class="card">
       <div class="card-head">
-        <div><h2>Lessons</h2><p class="card-sub"><span id="ad-lcount"></span>. Learners see them in this order.</p></div>
-        <button class="btn btn-solid" type="button" data-dialog="add-lesson"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add lesson</button>
+        <div><h2>Lessons</h2><p class="card-sub"><span id="ad-lcount"></span>. Learners see published Lessons in this order.</p></div>
+        <div class="head-acts">
+          <button class="btn btn-ghost" type="button" id="ad-outline-btn">Write Outline</button>
+          <button class="btn btn-ghost" type="button" id="ad-autowrite">Autowrite Course</button>
+          <button class="btn btn-ghost" type="button" id="ad-pub-all">Publish all Drafts</button>
+          <button class="btn btn-solid" type="button" data-dialog="add-lesson"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add lesson</button>
+        </div>
       </div>
+      <p class="ai-msg" id="ad-ai-msg" role="alert" hidden></p>
+      <p class="ai-status" id="ad-outline-note" role="status" hidden></p>
+      <p class="ai-status" id="ad-autowrite-status" aria-live="polite" hidden></p>
       <ol class="lb-list" id="ad-lessons"></ol>
+      <div class="demo-note demo-row"><span>Demo only:</span>
+        <button type="button" class="btn btn-quiet btn-sm" id="ad-empty">Remove every Lesson</button>
+        <label>AI replies <select data-ai-demo><option value="ok">AI working</option><option value="unavailable">AI unavailable</option><option value="notConfigured">Not configured</option><option value="overLimit">Over spending limit</option></select></label>
+      </div>
     </div>
   </section>
 
@@ -91,9 +108,15 @@
       <div class="card">
         <div class="card-head">
           <div><h2>Questions</h2><p class="card-sub"><span id="ex-qcount"></span>. Shown in a different order for every attempt.</p></div>
-          <button class="btn btn-solid" type="button" data-dialog="new-q"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add question</button>
+          <div class="head-acts">
+            <button class="btn btn-ghost" type="button" id="ex-ai">Write questions with AI</button>
+            <button class="btn btn-ghost" type="button" id="ex-pub-all">Publish all Drafts</button>
+            <button class="btn btn-solid" type="button" data-dialog="new-q"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Add question</button>
+          </div>
         </div>
+        <p class="ai-status" id="ex-ai-note" role="status" hidden></p>
         <p class="demo-note" id="ex-note" hidden>Demo: sample questions shown are from Leveraging Generative AI for Business.</p>
+        <div class="demo-note demo-row"><span>Demo only:</span><label>AI replies <select data-ai-demo><option value="ok">AI working</option><option value="unavailable">AI unavailable</option><option value="notConfigured">Not configured</option><option value="overLimit">Over spending limit</option></select></label></div>
         <ol class="q-list" id="ex-list"></ol>
       </div>
     </div>
@@ -148,6 +171,36 @@
       <p class="field-err" id="nq-err" hidden></p>
     </div>
     <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-solid" type="submit">Add question</button></div>
+  </form>
+</dialog>
+
+<dialog class="dlg dlg-sm" id="outline" aria-labelledby="ol-h">
+  <form id="ol-form" novalidate>
+    <div class="dlg-head"><h2 id="ol-h">Write an Outline</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="dlg-help">The AI drafts a title and an Objective for each Lesson from the Brief. They arrive as Drafts, so nothing is published until you publish it.</p>
+      <div class="field"><label for="ol-count">How many Lessons?</label><input id="ol-count" type="number" min="1" max="30" value="10"><small>Up to 30.</small></div>
+      <p class="field-err" id="ol-err" role="alert" hidden></p>
+    </div>
+    <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-solid" type="submit">Write Outline</button></div>
+  </form>
+</dialog>
+
+<dialog class="dlg dlg-sm" id="rewrite" aria-labelledby="rw-h">
+  <div class="dlg-head"><h2 id="rw-h">Replace this text?</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+  <div class="dlg-body"><p id="rw-msg"></p><p class="dlg-help">The Lesson stays a Draft, so Learners still don’t see it.</p></div>
+  <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Keep current text</button><button class="btn btn-danger-solid" type="button" id="rw-go">Replace text</button></div>
+</dialog>
+
+<dialog class="dlg dlg-sm" id="write-q" aria-labelledby="wq-h">
+  <form id="wq-form" novalidate>
+    <div class="dlg-head"><h2 id="wq-h">Write questions with AI</h2><button class="dlg-x" type="button" data-close aria-label="Close"><svg class="i" aria-hidden="true"><use href="img/icons.svg#i-x"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="dlg-help">Questions are written from this Course’s published Lessons. Each one arrives as a Draft with its correct answer marked.</p>
+      <div class="field"><label for="wq-count">How many questions?</label><input id="wq-count" type="number" min="1" max="12" value="10"><small>Up to 12 at a time.</small></div>
+      <p class="field-err" id="wq-err" role="alert" hidden></p>
+    </div>
+    <div class="dlg-foot"><button class="btn btn-quiet" type="button" data-close>Cancel</button><button class="btn btn-solid" type="submit" id="wq-go">Write questions</button></div>
   </form>
 </dialog>
 

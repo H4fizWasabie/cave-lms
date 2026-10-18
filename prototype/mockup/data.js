@@ -166,5 +166,74 @@ window.DATA = {
     { who: 'Arjun Nair', what: 'scored 60% on Leveraging Generative AI for Business (pass mark 70%)', when: '1 hr ago', icon: 'exam' },
     { who: 'Siti Khadijah Omar', what: 'received certificate TCC-2R7N-B5QH', when: '3 hr ago', icon: 'certificate' },
     { who: 'Daniel Wong Kah Hoe', what: 'registered', when: 'Yesterday', icon: 'user-circle' }
-  ]
+  ],
+
+  /* Admin Brief per Course (saved in demo state once edited). */
+  briefs: {
+    genai: 'Generative AI basics for small business owners in Malaysia. Practical and friendly, no jargon. Each Lesson ends with one thing to try at work.'
+  },
+
+  /* Scripted AI writing. Canned output only: nothing is sent anywhere. */
+  aiOutline: [
+    { title: 'Your first AI assistant at work', objective: 'Run a simple task with an AI tool and judge the answer.' },
+    { title: 'Writing prompts that work', objective: 'Write a prompt with a role, a task, context and a format.' },
+    { title: 'Turning rough notes into emails', objective: 'Turn a rough idea into a clear email you can send.' },
+    { title: 'Writing reports faster', objective: 'Draft a short report from your notes in under 30 minutes.' },
+    { title: 'Summarising long documents', objective: 'Summarise a long document into five key points.' },
+    { title: 'Meeting notes and action lists', objective: 'Turn meeting notes into an action list with owners.' },
+    { title: 'Spreadsheets with AI help', objective: 'Ask AI to explain a formula and write one you can use.' },
+    { title: 'Product descriptions for your shop', objective: 'Write product descriptions in your own voice.' },
+    { title: 'Planning a week of social posts', objective: 'Plan and write a week of posts with your brand in mind.' },
+    { title: 'Drafting customer replies', objective: 'Draft a customer reply that is polite and accurate.' },
+    { title: 'Checking AI answers before use', objective: 'Check the facts in an AI answer before you use it.' },
+    { title: 'Protecting customer data', objective: 'Name the data you must never paste into a public AI tool.' },
+    { title: 'Simple visuals for marketing', objective: 'Make a simple marketing visual with an AI image tool.' },
+    { title: 'Short videos from a script', objective: 'Turn a short script into a video with an AI tool.' },
+    { title: 'Research with AI', objective: 'Use AI to list sources, then check each one yourself.' },
+    { title: 'Translating for customers', objective: 'Translate a message and have it checked before it goes out.' },
+    { title: 'Drafting quotes and invoices', objective: 'Draft a quote template and check every number in it.' },
+    { title: 'A weekly routine with AI', objective: 'Build a weekly routine that uses AI for admin tasks.' },
+    { title: 'Sharing prompts with your team', objective: 'Build a small prompt library your team can reuse.' },
+    { title: 'Simple rules for AI at work', objective: 'Write three rules your team follows when using AI.' },
+    { title: 'Measuring time saved', objective: 'Track the time AI saves on one task over a month.' },
+    { title: 'Spotting biased wording', objective: 'Spot unfair or biased wording in AI output.' },
+    { title: 'Copyright basics', objective: 'Know when AI output needs a source or permission.' },
+    { title: 'Automating a repeat task', objective: 'Set up a simple AI workflow for one task you repeat.' },
+    { title: 'What a customer chatbot can do', objective: 'Explain what a customer chatbot can and cannot do for you.' },
+    { title: 'Review before anything goes out', objective: 'Set a review step before anything reaches a customer.' },
+    { title: 'Common AI mistakes', objective: 'Recognise the five most common mistakes AI tools make.' },
+    { title: 'Choosing the right AI tool', objective: 'Compare two AI tools by task and by how they handle data.' },
+    { title: 'Your 30-day AI action plan', objective: 'Write a 30-day plan that puts AI into your business.' },
+    { title: 'Keeping your skills current', objective: 'Find ways to keep learning as AI tools change.' }
+  ],
+
+  /* Lesson text in Markdown. {title} is replaced with the Lesson title. */
+  aiLessonText: [
+    '## {title}\n\nThis Lesson takes about five minutes. Read it once, then try the example with a real task from your week.\n\n- Pick one task you repeat every week.\n- Use the four-part prompt from the earlier Lesson.\n- Check the result before you use it.\n\n**Try it now.** Write one prompt for this task, then ask for one change and compare the two answers.',
+    '## {title}\n\nAI tools give better answers when you give them clear instructions. In this Lesson you practise that habit.\n\n- Say who the AI should be.\n- Say exactly what you need.\n- Add the facts it needs to know.\n- Describe the format you want.\n\n**Check your work.** Read the answer as your customer would before you send it.',
+    '## {title}\n\nThis is a short reading for busy people. Keep it to one task today and note what changed.\n\n- Write the task down in one sentence.\n- Ask the AI for a first draft.\n- Ask for one or two changes, not a fresh start.\n- Read the final version out loud before you use it.'
+  ],
+
+  /* Scripted exam questions. Correct is the index of the right option. */
+  aiQuestions: [
+    { q: 'What should you do before sending an AI-written customer email?', options: ['Send it straight away to save time', 'Read it and check the facts and tone', 'Add more adjectives', 'Ask the AI to sign it'], correct: 1 },
+    { q: 'Which is the best use of AI for a busy manager?', options: ['Making final pay decisions alone', 'Drafting a first version of a team update', 'Replacing every staff meeting', 'Choosing legal wording without review'], correct: 1 },
+    { q: 'Why ask the AI for changes instead of starting again?', options: ['It forgets the last answer', 'It keeps the useful parts of the first answer', 'Starting again is not allowed', 'Each new chat must be shorter'], correct: 1 },
+    { q: 'Why do AI tools sometimes give wrong facts?', options: ['They always check a database first', 'They predict likely words and can sound sure while wrong', 'They only use the last email you sent', 'They are not allowed to answer numbers'], correct: 1 },
+    { q: 'Which detail belongs in a good prompt?', options: ['Only the word “help”', 'Who the answer is for and what format you want', 'A guess at the answer', 'Your password'], correct: 1 },
+    { q: 'Before you paste a document into a public AI tool, what should you check?', options: ['Its font size', 'Whether it contains customers’ personal data', 'Its page count', 'Its file colour'], correct: 1 },
+    { q: 'What should a good meeting-notes prompt ask for?', options: ['A poem about the meeting', 'Decisions, action items and owners', 'The weather on the day', 'Each attendee’s hobbies'], correct: 1 },
+    { q: 'What is the best first step when you are unsure about an AI answer?', options: ['Accept it because it sounds sure', 'Check it against a trusted source', 'Delete the question', 'Ask it to repeat itself'], correct: 1 },
+    { q: 'Which tone instruction is clearest?', options: ['Make it nice', 'Friendly and short, under 100 words', 'Do your best', 'Whatever you think is good'], correct: 1 },
+    { q: 'What makes an AI-written social post safer to publish?', options: ['Checking the claims and brand voice first', 'Posting it at midnight', 'Using the longest version', 'Not reading it'], correct: 0 },
+    { q: 'Which is a sign that an AI answer needs checking?', options: ['It has a specific statistic with no source', 'It is short', 'It uses the word “please”', 'It was written in one go'], correct: 0 },
+    { q: 'What is a good way to build a team AI routine?', options: ['Let everyone guess the rules', 'Share tested prompts and agree on review rules', 'Forbid every AI tool', 'Use one prompt for every task forever'], correct: 1 }
+  ],
+
+  /* Messages when the AI cannot help. None of them is the Admin's mistake. */
+  aiErrors: {
+    unavailable: { title: 'AI writing is unavailable right now.', text: 'The AI service did not respond. This is not a mistake in your Course and nothing has changed. Try again in a few minutes.' },
+    notConfigured: { title: 'AI writing is not set up on this site yet.', text: 'The site still needs its AI connection switched on. This is a setup step for the site, not something you did. Nothing has changed.' },
+    overLimit: { title: 'This site has reached its AI writing spending limit for the month.', text: 'No more AI writing runs until the limit resets. This is not a mistake in your Course. Nothing has changed.' }
+  }
 };

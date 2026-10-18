@@ -15,14 +15,38 @@
   function icon(name, cls) { return '<svg class="i ' + (cls || '') + '" aria-hidden="true"><use href="img/icons.svg#i-' + name + '"/></svg>'; }
   function param(k) { return new URLSearchParams(location.search).get(k); }
   function course(id) { return D.courses.filter(function (c) { return c.id === id; })[0]; }
-  function lessonsOf(id) {
-    if (D.lessons[id]) return D.lessons[id];
+  function baseLessons(id) {
+    if (D.lessons[id]) return D.lessons[id].map(function (l) { return Object.assign({}, l); });
     return (D.outlines[id] || []).map(function (t, i) { return { n: i + 1, title: t, format: i % 3 === 1 ? 'text' : 'video', length: i % 3 === 1 ? '5 min read' : (6 + i) + ' min' }; });
   }
+  /* The Admin sees every Lesson, Drafts included. Learners only see published ones, renumbered. */
+  function allLessons(id) { return S.lessons[id] || baseLessons(id); }
+  function lessonsOf(id) {
+    return allLessons(id).filter(function (l) { return !isDraft(l); }).map(function (l, i) { return Object.assign({}, l, { n: i + 1 }); });
+  }
+  function isDraft(x) { return x.status === 'draft'; }
+  /* Same rule for exam questions. */
+  function questionsAdmin(id) { return (S.questions[id] || D.exam[id] || D.exam.genai).slice(); }
+  function questionsOf(id) { return questionsAdmin(id).filter(function (q) { return !isDraft(q); }); }
   var FORMAT = { video: 'Video', ebook: 'Ebook', picture: 'Pictures', text: 'Text' };
   var FORMAT_ICON = { video: 'video-camera', ebook: 'file-pdf', picture: 'image', text: 'text-t' };
   function fmtLabel(g) { return g.format === 'picture' ? g.meta : FORMAT[g.format] + ', ' + g.meta; }
   var VIS = { everyone: 'Everyone', learners: 'Logged-in Learners', members: 'Course members only' };
+
+  /* Tiny Markdown for AI Lesson text: ## headings, paragraphs, - lists, **bold**. */
+  function md(src) {
+    var html = [], inList = false;
+    function inline(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
+    src.split('\n').forEach(function (line) {
+      var li = /^- (.*)$/.exec(line);
+      if (li) { if (!inList) { html.push('<ul>'); inList = true; } html.push('<li>' + inline(li[1]) + '</li>'); return; }
+      if (inList) { html.push('</ul>'); inList = false; }
+      if (/^## /.test(line)) html.push('<h2>' + inline(line.slice(3)) + '</h2>');
+      else if (line.trim()) html.push('<p>' + inline(line) + '</p>');
+    });
+    if (inList) html.push('</ul>');
+    return html.join('');
+  }
 
   function toast(msg) {
     var t = document.createElement('div');
@@ -36,10 +60,10 @@
 
   /* ---------- demo state ---------- */
   function fresh() {
-    return { role: 'visitor', joined: D.start.joined.slice(), done: JSON.parse(JSON.stringify(D.start.done)), certs: Object.assign({}, D.start.certs), attempts: {}, revoked: [], uploads: [] };
+    return { role: 'visitor', joined: D.start.joined.slice(), done: JSON.parse(JSON.stringify(D.start.done)), certs: Object.assign({}, D.start.certs), attempts: {}, revoked: [], uploads: [], lessons: {}, questions: {}, briefs: {}, aiMode: 'ok', aiFailed: false };
   }
   var S;
-  try { S = JSON.parse(sessionStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
+  try { S = Object.assign(fresh(), JSON.parse(sessionStorage.getItem(KEY))); } catch (e) { S = fresh(); }
   function save() { sessionStorage.setItem(KEY, JSON.stringify(S)); }
   function setRole(r) { S.role = r; save(); }
   function isJoined(id) { return S.joined.indexOf(id) >= 0; }
@@ -80,7 +104,7 @@
       '<div class="course-card-body">' +
         '<div class="course-card-top"><h3><a href="course.html?c=' + c.id + '">' + esc(c.title) + '</a></h3>' + (joined ? '<span class="badge badge-joined">Joined</span>' : badge(c)) + '</div>' +
         '<p class="course-card-desc">' + esc(c.blurb) + '</p>' +
-        '<ul class="meta"><li>' + (c.open ? 'Starts ' : 'Started ') + c.start + '</li><li>' + c.lessons + ' lessons</li><li>' + examLine(c) + '</li></ul>' +
+        '<ul class="meta"><li>' + (c.open ? 'Starts ' : 'Started ') + c.start + '</li><li>' + lessonsOf(c.id).length + ' lessons</li><li>' + examLine(c) + '</li></ul>' +
         '<div class="course-card-foot">' + action + '</div>' +
       '</div></li>';
   }
@@ -158,7 +182,7 @@
     $('#b-rail').innerHTML = D.courses.filter(function (c) { return c.open; }).map(function (c) {
       return '<article class="b-card"><a class="b-cover" href="course.html?c=' + c.id + '"><img class="b-cover-img" src="' + c.img + '" alt="" loading="lazy"></a>' +
         '<p class="b-status b-status-open">Starts ' + c.start + '</p><h3><a href="course.html?c=' + c.id + '">' + esc(c.title) + '</a></h3>' +
-        '<p class="b-meta">' + c.lessons + ' lessons, ' + examLine(c).toLowerCase() + '.</p></article>';
+        '<p class="b-meta">' + lessonsOf(c.id).length + ' lessons, ' + examLine(c).toLowerCase() + '.</p></article>';
     }).join('');
     $('#b-thumbs').innerHTML = D.gallery.filter(function (g) { return g.promo; }).map(function (g, i) {
       return '<a class="b-thumb' + (i === 0 ? ' b-thumb-wide' : '') + '" href="gallery.html"><span class="b-thumb-art"><img src="' + g.img + '" alt="" loading="lazy"></span>' +
@@ -199,7 +223,7 @@
     $('#c-blurb').textContent = c.blurb;
     $('#c-badge').innerHTML = badge(c);
     $('#c-facts').innerHTML = '<li>' + icon('clock') + (c.open ? 'Starts ' : 'Started ') + c.start + ', self-paced</li>' +
-      '<li>' + icon('book-open') + c.lessons + ' lessons: videos, readings and ebooks</li>' +
+      '<li>' + icon('book-open') + lessonsOf(c.id).length + ' lessons: videos, readings and ebooks</li>' +
       '<li>' + icon('exam') + (c.exam ? 'Exam: ' + c.exam.questions + ' questions, pass mark ' + c.exam.pass + '%' : 'No exam') + '</li>' +
       '<li>' + icon('certificate') + 'Certificate anyone can check online</li>';
     if (c.learn) {
@@ -370,6 +394,7 @@
   pages.lesson = function () {
     setRole('learner');
     var c = course(param('c')) || D.courses[0], ls = lessonsOf(c.id);
+    if (!ls.length) { location.href = 'course.html?c=' + c.id; return; }
     var n = Math.min(Math.max(parseInt(param('n'), 10) || 1, 1), ls.length), l = ls[n - 1];
     if (!isJoined(c.id)) { S.joined.push(c.id); save(); }
     document.title = l.title + ' - ' + c.title;
@@ -390,7 +415,9 @@
     $('#l-kicker').textContent = 'Lesson ' + n + ' of ' + ls.length;
     $('#l-title').textContent = l.title;
     var body = $('#l-body');
-    if (l.format === 'video') {
+    if (l.text) {
+      body.innerHTML = '<div class="prose">' + md(l.text) + '</div>';
+    } else if (l.format === 'video') {
       body.innerHTML = '<div class="player"><img src="' + (l.img || c.img) + '" alt=""><button class="player-play" type="button" aria-label="Play video">' + icon('play') + '</button>' +
         '<div class="player-bar"><span class="player-time">0:00 / ' + l.length.replace(' min', ':00') + '</span><span class="player-track"><span></span></span></div></div>' +
         '<p class="l-note">In this video, a trainer from ' + esc(D.org.name) + ' walks through real examples you can copy. Pause at any time and try each step yourself.</p>';
@@ -440,7 +467,7 @@
   pages.exam = function () {
     setRole('learner');
     var c = course(param('c')) || D.courses[0], ex = c.exam;
-    var qs = D.exam[c.id] || D.exam.genai;
+    var qs = questionsOf(c.id);
     var root = $('#exam');
     var used = (S.attempts[c.id] || []).length;
     var left = ex.attempts ? ex.attempts - used : null;
@@ -448,6 +475,10 @@
     $('#x-course').href = 'course.html?c=' + c.id;
 
     function intro() {
+      if (!qs.length) {
+        root.innerHTML = '<div class="x-card x-locked"><h1>This exam is not ready yet</h1><p>The Course is still being prepared. Please check back soon.</p></div>';
+        return;
+      }
       if (!allDone(c.id)) {
         var pr = progress(c.id);
         root.innerHTML = '<div class="x-card x-locked">' + icon('lock-simple', 'x-icon') + '<h1>Finish every lesson first</h1><p>The exam opens when all ' + pr.total + ' lessons are complete. You have done ' + pr.done + '.</p>' +
@@ -573,7 +604,7 @@
     $('#ac-rows').innerHTML = D.courses.map(function (c) {
       return '<tr><td><a class="cell-course" href="admin-course.html?c=' + c.id + '"><img src="' + c.img + '" alt=""><span>' + esc(c.title) + '<small>' + (c.open ? 'Starts ' : 'Started ') + c.start + '</small></span></a></td>' +
         '<td><label class="switch"><input type="checkbox" ' + (c.open ? 'checked' : '') + ' data-toggle="' + c.id + '"><span></span><em>' + (c.open ? 'Open' : 'Closed') + '</em></label></td>' +
-        '<td class="num">' + c.lessons + '</td><td>' + (c.exam ? c.exam.questions + ' questions' : '<span class="muted">No exam</span>') + '</td><td class="num">' + c.enrolled + '</td>' +
+        '<td class="num">' + allLessons(c.id).length + '</td><td>' + (c.exam ? c.exam.questions + ' questions' : '<span class="muted">No exam</span>') + '</td><td class="num">' + c.enrolled + '</td>' +
         '<td class="actions"><a class="btn btn-ghost btn-sm" href="admin-course.html?c=' + c.id + '">' + icon('pencil-simple') + 'Edit</a></td></tr>';
     }).join('');
     $$('[data-toggle]').forEach(function (t) {
@@ -594,6 +625,7 @@
       $('#ad-view').href = 'course.html?c=' + c.id;
       var f = $('#ad-form');
       f.title.value = c.title; f.blurb.value = c.blurb; f.start.value = c.start;
+      f.brief.value = S.briefs[c.id] != null ? S.briefs[c.id] : (D.briefs[c.id] || '');
       f.state.value = c.open ? 'open' : 'closed';
       $('#ad-cover').src = c.img;
     } else {
@@ -615,6 +647,7 @@
 
     $('#ad-form').addEventListener('submit', function (e) {
       e.preventDefault();
+      if (!isNew) { S.briefs[c.id] = e.target.brief.value; save(); }
       toast(isNew ? 'Course created. Now add its lessons.' : 'Changes saved');
       if (isNew) setTimeout(function () { location.href = 'admin-course.html?c=genai#lessons'; }, 900);
     });
@@ -624,23 +657,130 @@
     });
     if (!c) return;
 
-    /* lessons */
-    var ls = lessonsOf(c.id).map(function (l) { return Object.assign({}, l); });
+    /* lessons: the Admin sees every Lesson, Drafts included. Each change is saved to demo state. */
+    var ls = allLessons(c.id);
+    var writing = null, aiBusy = false, rewriteTarget = null;
+    var outlineBtn = $('#ad-outline-btn'), autoBtn = $('#ad-autowrite'), pubAll = $('#ad-pub-all');
+    var aiMsg = $('#ad-ai-msg'), autoStatus = $('#ad-autowrite-status'), outNote = $('#ad-outline-note');
+    function needsText(l) { return isDraft(l) && !l.text; }
+    function aiError() { return S.aiMode && S.aiMode !== 'ok' ? D.aiErrors[S.aiMode] : null; }
+    function aiSay(el, err) { el.innerHTML = icon('warning-circle') + '<span><strong>' + esc(err.title) + '</strong> ' + esc(err.text) + '</span>'; el.hidden = false; }
+    function say(el, text) { el.textContent = text; el.hidden = false; }
+    function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+    function lessonText(l) { return D.aiLessonText[Math.abs(ls.indexOf(l)) % D.aiLessonText.length].split('{title}').join(l.title); }
+
+    function drawTop() {
+      var todo = ls.filter(needsText).length, ready = ls.filter(function (l) { return isDraft(l) && l.text; }).length;
+      autoBtn.disabled = aiBusy || !todo;
+      pubAll.disabled = aiBusy || !ready;
+      outlineBtn.disabled = aiBusy;
+    }
     function drawLessons() {
-      $('#ad-lessons').innerHTML = ls.map(function (l, i) {
+      S.lessons[c.id] = ls; save();
+      var drafts = ls.filter(isDraft).length;
+      $('#ad-lcount').textContent = plural(ls.length, 'lesson') + (drafts ? ', ' + drafts + ' Draft' + (drafts === 1 ? '' : 's') : '');
+      $('#ad-lessons').innerHTML = ls.length ? ls.map(function (l, i) {
+        var dis = aiBusy ? ' disabled' : '', ai = '';
+        if (writing === l) ai = '<span class="lb-hint">Writing text…</span>';
+        else if (isDraft(l)) ai = (l.text ? '<button type="button" class="btn btn-ghost btn-sm" data-rewrite="' + i + '"' + dis + '>Rewrite</button>'
+            : '<button type="button" class="btn btn-ghost btn-sm" data-write="' + i + '"' + dis + '>Write text</button>') +
+          '<button type="button" class="btn btn-solid btn-sm" data-publish="' + i + '"' + (l.text && !aiBusy ? '' : ' disabled') + '>Publish</button>';
+        else if (l.ai) ai = (l.text ? '<span class="lb-hint">Turn this Lesson back into a Draft to rewrite it.</span>' : '') +
+          '<button type="button" class="btn btn-quiet btn-sm" data-draft="' + i + '"' + dis + '>Back to Draft</button>';
         return '<li class="lb-row"><span class="lb-n">' + (i + 1) + '</span><span class="lb-ic">' + icon(FORMAT_ICON[l.format]) + '</span>' +
-          '<span class="lb-t"><strong>' + esc(l.title) + '</strong><small>' + (l.format === 'text' ? 'Short text' : 'Gallery item: ' + FORMAT[l.format] + ', ' + esc(l.length)) + '</small></span>' +
+          '<span class="lb-t"><strong>' + esc(l.title) + (isDraft(l) ? ' <span class="badge badge-draft">Draft</span>' : '') + '</strong>' +
+          '<small>' + (l.format === 'text' ? 'Short text' : 'Gallery item: ' + FORMAT[l.format] + ', ' + esc(l.length)) + '</small>' +
+          (l.objective ? '<small class="lb-obj">' + esc(l.objective) + '</small>' : '') +
+          (ai ? '<span class="lb-ai">' + ai + '</span>' : '') +
+          (l.err ? '<small class="lb-err" role="alert">' + esc(l.err) + '</small>' : '') + '</span>' +
           '<span class="lb-act"><button type="button" class="icon-btn" data-up="' + i + '" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>' + icon('arrow-up') + '</button>' +
           '<button type="button" class="icon-btn" data-down="' + i + '" aria-label="Move down"' + (i === ls.length - 1 ? ' disabled' : '') + '>' + icon('arrow-down') + '</button>' +
           '<button type="button" class="icon-btn" aria-label="Edit lesson">' + icon('pencil-simple') + '</button>' +
           '<button type="button" class="icon-btn icon-danger" data-rm="' + i + '" aria-label="Remove lesson">' + icon('trash') + '</button></span></li>';
-      }).join('');
-      $('#ad-lcount').textContent = ls.length + ' lessons';
+      }).join('') : '<li class="empty">No Lessons yet. Write an Outline, or add a Lesson.</li>';
+      drawTop();
     }
+
+    function writeOne(l) {
+      var err = aiError();
+      if (err) { aiSay(aiMsg, err); return; }
+      aiMsg.hidden = true; writing = l; aiBusy = true; drawLessons();
+      setTimeout(function () {
+        writing = null; aiBusy = false; l.text = lessonText(l); delete l.err;
+        drawLessons(); toast('Text written. Read it, then publish.');
+      }, 900);
+    }
+    /* Scripted failure: the third Lesson of the first run fails once. Running again writes the rest. */
+    function autowrite() {
+      var err = aiError();
+      if (err) { aiSay(aiMsg, err); return; }
+      aiMsg.hidden = true;
+      var todo = ls.filter(needsText), total = todo.length, written = 0, failed = 0;
+      aiBusy = true; drawLessons();
+      function show(text) { autoStatus.textContent = text; autoStatus.hidden = false; }
+      function step() {
+        if (!todo.length) {
+          aiBusy = false; writing = null; drawLessons();
+          show(written + ' of ' + total + ' Lessons written.' + (failed ? ' ' + plural(failed, 'Lesson') + ' could not be written. Run Autowrite Course again to retry.' : ''));
+          return;
+        }
+        var l = todo.shift(), turn = written + failed;
+        writing = l; drawLessons();
+        setTimeout(function () {
+          writing = null;
+          if (!S.aiFailed && turn === Math.min(2, total - 1)) {
+            S.aiFailed = true; failed++;
+            l.err = 'The AI could not write this Lesson this time. Your Course is fine: run Autowrite Course again to retry it.';
+          } else { l.text = lessonText(l); delete l.err; written++; }
+          drawLessons(); show(written + ' of ' + total + ' Lessons written'); step();
+        }, 1000);
+      }
+      show('0 of ' + total + ' Lessons written');
+      step();
+    }
+
+    outlineBtn.addEventListener('click', function () {
+      if (ls.length) { say(outNote, 'An Outline needs a Course with no Lessons. This Course has ' + plural(ls.length, 'Lesson') + '. Remove them first, then write the Outline here.'); return; }
+      outNote.hidden = true; $('#ol-count').value = 10; $('#ol-err').hidden = true; $('#outline').showModal();
+    });
+    $('#ol-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var n = Math.floor(Number($('#ol-count').value)), err = $('#ol-err'), ai = aiError();
+      if (!(n >= 1)) return say(err, 'Enter how many Lessons the Course has, from 1 to 30.');
+      if (n > 30) return say(err, 'An Outline can have 30 Lessons at most. Enter 30 or fewer.');
+      if (ai) return say(err, ai.title + ' ' + ai.text);
+      ls = D.aiOutline.slice(0, n).map(function (o) { return { title: o.title, objective: o.objective, format: 'text', length: '5 min read', ai: true, status: 'draft' }; });
+      $('#outline').close(); drawLessons(); toast(plural(n, 'Draft Lesson') + ' added. Write their text next.');
+    });
+    $('#ad-autowrite').addEventListener('click', autowrite);
+    $('#rw-go').addEventListener('click', function () { $('#rewrite').close(); writeOne(rewriteTarget); });
+    pubAll.addEventListener('click', function () {
+      var n = 0, skipped = 0;
+      ls.forEach(function (l) { if (isDraft(l)) { if (l.text) { l.status = 'published'; n++; } else skipped++; } });
+      toast(plural(n, 'Lesson') + ' published.' + (skipped ? ' ' + plural(skipped, 'Draft') + ' still need text, so they stay Drafts.' : ''));
+      drawLessons();
+    });
+    $('#ad-empty').addEventListener('click', function () { ls = []; drawLessons(); toast('This Course has no Lessons now'); });
+    $$('[data-ai-demo]').forEach(function (sel) {
+      sel.value = S.aiMode;
+      sel.addEventListener('change', function () {
+        S.aiMode = sel.value; save();
+        $$('[data-ai-demo]').forEach(function (x) { x.value = sel.value; });
+        toast('Demo: AI actions now show ' + sel.options[sel.selectedIndex].text.toLowerCase());
+      });
+    });
     $('#ad-lessons').addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b) return;
+      var b = e.target.closest('button'); if (!b || b.disabled) return;
       var i;
-      if (b.dataset.up) { i = +b.dataset.up; ls.splice(i - 1, 0, ls.splice(i, 1)[0]); toast('Lesson moved up'); }
+      if (b.dataset.write) { writeOne(ls[+b.dataset.write]); return; }
+      if (b.dataset.rewrite) {
+        rewriteTarget = ls[+b.dataset.rewrite];
+        $('#rw-msg').textContent = '“' + rewriteTarget.title + '” already has text. Rewriting replaces it with new text, and the current text is lost.';
+        $('#rewrite').showModal(); return;
+      }
+      if (b.dataset.publish) { ls[+b.dataset.publish].status = 'published'; toast('Lesson published'); }
+      else if (b.dataset.draft) { ls[+b.dataset.draft].status = 'draft'; toast('Lesson is a Draft again'); }
+      else if (b.dataset.up) { i = +b.dataset.up; ls.splice(i - 1, 0, ls.splice(i, 1)[0]); toast('Lesson moved up'); }
       else if (b.dataset.down) { i = +b.dataset.down; ls.splice(i + 1, 0, ls.splice(i, 1)[0]); toast('Lesson moved down'); }
       else if (b.dataset.rm) { i = +b.dataset.rm; if (!confirm('Remove “' + ls[i].title + '” from this course? The Gallery item itself is kept.')) return; ls.splice(i, 1); toast('Lesson removed'); }
       else return;
@@ -674,7 +814,7 @@
       $('#add-lesson').close(); drawLessons(); toast('Lesson added at the end');
     });
 
-    /* exam */
+    /* exam: questions, Drafts included */
     var ex = c.exam;
     if (!ex) {
       $('#ad-exam').innerHTML = '<div class="empty-state">' + icon('exam') + '<h3>This course has no exam</h3><p>Learners get their certificate as soon as they finish every lesson. Add an exam if you want them to prove what they learned first.</p><button class="btn btn-solid" type="button" id="add-exam">' + icon('plus') + 'Add an exam</button></div>';
@@ -682,15 +822,57 @@
     } else {
       var f2 = $('#ex-settings');
       f2.pass.value = ex.pass; f2.minutes.value = ex.minutes; f2.attempts.value = ex.attempts || '';
-      var qsrc = D.exam[c.id] || D.exam.genai;
       if (!D.exam[c.id]) $('#ex-note').hidden = false;
-      $('#ex-qcount').textContent = (D.exam[c.id] ? qsrc.length : ex.questions) + ' questions';
-      $('#ex-list').innerHTML = qsrc.map(function (q, i) {
-        return '<li class="q-card"><div class="q-head"><span class="q-n">Q' + (i + 1) + '</span><p>' + esc(q.q) + '</p>' +
-          '<span class="lb-act"><button type="button" class="icon-btn" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>' + icon('arrow-up') + '</button><button type="button" class="icon-btn" aria-label="Move down"' + (i === qsrc.length - 1 ? ' disabled' : '') + '>' + icon('arrow-down') + '</button><button type="button" class="icon-btn" aria-label="Edit question">' + icon('pencil-simple') + '</button><button type="button" class="icon-btn icon-danger" aria-label="Remove question">' + icon('trash') + '</button></span></div>' +
-          '<ol class="q-opts">' + q.options.map(function (o, oi) { return '<li class="' + (oi === q.correct ? 'is-correct' : '') + '">' + (oi === q.correct ? icon('check-circle') : '<span class="dot"></span>') + esc(o) + '</li>'; }).join('') + '</ol></li>';
-      }).join('');
       f2.addEventListener('submit', function (e) { e.preventDefault(); toast('Exam settings saved'); });
+
+      var qs = [];
+      function drawExam() {
+        qs = questionsAdmin(c.id); S.questions[c.id] = qs; save();
+        var drafts = qs.filter(isDraft).length;
+        $('#ex-qcount').textContent = plural(qs.length, 'question') + (drafts ? ', ' + drafts + ' Draft' + (drafts === 1 ? '' : 's') : '');
+        $('#ex-list').innerHTML = qs.length ? qs.map(function (q, i) {
+          var acts = isDraft(q) ? '<button type="button" class="btn btn-solid btn-sm" data-qpub="' + i + '">Publish</button>'
+            : q.ai ? '<button type="button" class="btn btn-quiet btn-sm" data-qdraft="' + i + '">Back to Draft</button>' : '';
+          return '<li class="q-card"><div class="q-head"><span class="q-n">Q' + (i + 1) + '</span><p>' + esc(q.q) + (isDraft(q) ? ' <span class="badge badge-draft">Draft</span>' : '') + '</p>' +
+            '<span class="lb-act"><button type="button" class="icon-btn" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>' + icon('arrow-up') + '</button><button type="button" class="icon-btn" aria-label="Move down"' + (i === qs.length - 1 ? ' disabled' : '') + '>' + icon('arrow-down') + '</button><button type="button" class="icon-btn" aria-label="Edit question">' + icon('pencil-simple') + '</button><button type="button" class="icon-btn icon-danger" aria-label="Remove question">' + icon('trash') + '</button></span></div>' +
+            (acts ? '<div class="ai-acts">' + acts + '</div>' : '') +
+            '<ol class="q-opts">' + q.options.map(function (o, oi) { return '<li class="' + (oi === q.correct ? 'is-correct' : '') + '">' + (oi === q.correct ? icon('check-circle') : '<span class="dot"></span>') + esc(o) + '</li>'; }).join('') + '</ol></li>';
+        }).join('') : '<li class="empty">No questions yet. Add one, or write them with AI from published Lessons.</li>';
+        $('#ex-pub-all').disabled = !qs.some(isDraft);
+      }
+      $('#ex-list').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.qpub) qs[+b.dataset.qpub].status = 'published';
+        else if (b.dataset.qdraft) qs[+b.dataset.qdraft].status = 'draft';
+        else return;
+        drawExam();
+      });
+      $('#ex-pub-all').addEventListener('click', function () {
+        var n = 0; qs.forEach(function (q) { if (isDraft(q)) { q.status = 'published'; n++; } });
+        drawExam(); toast(plural(n, 'question') + ' published');
+      });
+      var wqNote = $('#ex-ai-note');
+      $('#ex-ai').addEventListener('click', function () {
+        if (!lessonsOf(c.id).length) { say(wqNote, 'Questions are written from published Lessons. This Course has none yet, so nothing was written. Publish a Lesson first.'); return; }
+        wqNote.hidden = true; $('#wq-count').value = 10; $('#wq-err').hidden = true; $('#write-q').showModal();
+      });
+      $('#wq-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var n = Math.floor(Number($('#wq-count').value)), err = $('#wq-err'), ai = aiError(), have = qs.map(function (q) { return q.q; });
+        if (!(n >= 1)) return say(err, 'Enter how many questions, from 1 to 12.');
+        if (n > 12) return say(err, 'Write at most 12 questions at a time. Enter 12 or fewer.');
+        if (ai) return say(err, ai.title + ' ' + ai.text);
+        var fresh = D.aiQuestions.filter(function (q) { return have.indexOf(q.q) < 0; }).slice(0, n);
+        if (!fresh.length) return say(err, 'The sample questions are all written already. Reset the demo to start again.');
+        var btn = $('#wq-go'); btn.disabled = true; btn.textContent = 'Writing…';
+        setTimeout(function () {
+          btn.disabled = false; btn.textContent = 'Write questions';
+          S.questions[c.id] = qs.concat(fresh.map(function (q) { return Object.assign({}, q, { ai: true, status: 'draft' }); })); save();
+          $('#write-q').close(); drawExam();
+          toast(plural(fresh.length, 'Draft question') + ' added' + (fresh.length < n ? ', the last ones left in the sample set' : '') + '. Check them, then publish.');
+        }, 1000);
+      });
+
       var opts = $('#nq-opts');
       function addOpt(text) {
         if ($$('.nq-opt', opts).length >= 5) { toast('A question can have at most 5 options'); return; }
@@ -708,6 +890,7 @@
         if (!correct) { err.textContent = 'Choose the one correct answer.'; err.hidden = false; return; }
         err.hidden = true; $('#new-q').close(); toast('Question added');
       });
+      drawExam();
     }
 
     /* learners */
@@ -733,7 +916,7 @@
     drawLearners();
 
     $('#ad-delete').addEventListener('click', function () { $('#del-course').showModal(); });
-    $('#del-msg').textContent = c.title + ' has ' + c.enrolled + ' enrolled learners and ' + c.lessons + ' lessons. Close it instead to stop new joins while current learners finish.';
+    $('#del-msg').textContent = c.title + ' has ' + c.enrolled + ' enrolled learners and ' + allLessons(c.id).length + ' lessons. Close it instead to stop new joins while current learners finish.';
   };
 
   pages.adminGallery = function () {
