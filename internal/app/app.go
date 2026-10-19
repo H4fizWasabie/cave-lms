@@ -16,6 +16,7 @@ import (
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
+	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
@@ -29,6 +30,8 @@ type App struct {
 	mailer        mailer.Mailer
 	pages         map[string]*template.Template
 	publicBaseURL string
+	store         *storage.Disk
+	maxUpload     int64
 }
 
 // page is the data every template receives.
@@ -42,6 +45,8 @@ type page struct {
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
+	Items         []galleryItem
+	Item          *galleryItem
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -64,6 +69,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("connect to database: %w", err)
 	}
+	store, err := storage.Open(cfg.StorageDir)
+	if err != nil {
+		return nil, err
+	}
 	goose.SetBaseFS(appFiles)
 	if err = goose.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("set migration dialect: %w", err)
@@ -72,7 +81,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/")}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("GET /register", a.registerForm)
@@ -83,6 +92,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /login", a.login)
 	mux.HandleFunc("POST /logout", a.logout)
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
+	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
+	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
+	mux.HandleFunc("GET /gallery", a.gallery)
+	mux.HandleFunc("GET /gallery/{id}", a.galleryItemPage)
+	mux.HandleFunc("GET /gallery/{id}/file", a.galleryFile)
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

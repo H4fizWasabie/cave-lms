@@ -10,7 +10,7 @@ import (
 )
 
 func TestHomePage(t *testing.T) {
-	application, _, _ := newTestApplication(t)
+	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
 	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 

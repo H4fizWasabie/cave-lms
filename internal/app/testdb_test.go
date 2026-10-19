@@ -16,8 +16,9 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
-// newTestApplication returns the app, its recording Mailer and a handle on its isolated schema.
-func newTestApplication(t *testing.T) (*app.App, *testutil.RecordingMailer, *sql.DB) {
+// newTestApplication returns the app, its recording Mailer, a handle on its isolated schema
+// and the temp directory that holds its uploaded files. opts may change the config first.
+func newTestApplication(t *testing.T, opts ...func(*config.Config)) (*app.App, *testutil.RecordingMailer, *sql.DB, string) {
 	t.Helper()
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -69,16 +70,23 @@ func newTestApplication(t *testing.T) (*app.App, *testutil.RecordingMailer, *sql
 	})
 
 	recorder := &testutil.RecordingMailer{}
-	application, err = app.New(context.Background(), config.Config{
-		DatabaseURL:   scopedURL,
-		PublicBaseURL: "https://cave.example.invalid",
-		EmailFrom:     "Cave LMS <courses@example.invalid>",
-		ListenAddr:    ":8080",
-	}, recorder)
+	storageDir := t.TempDir()
+	cfg := config.Config{
+		DatabaseURL:    scopedURL,
+		PublicBaseURL:  "https://cave.example.invalid",
+		EmailFrom:      "Cave LMS <courses@example.invalid>",
+		ListenAddr:     ":8080",
+		StorageDir:     storageDir,
+		MaxUploadBytes: 2 << 30,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	application, err = app.New(context.Background(), cfg, recorder)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return application, recorder, scopedDB
+	return application, recorder, scopedDB, storageDir
 }
 
 var _ mailer.Mailer = (*testutil.RecordingMailer)(nil)

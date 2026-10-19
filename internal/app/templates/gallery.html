@@ -1,0 +1,13 @@
+{{define "title"}}Gallery · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Gallery</h1>
+    {{range .Items}}
+    <article>
+      <h2><a href="/gallery/{{.ID}}">{{.Title}}</a></h2>
+      <p>{{.Format}}{{if .Category}} · {{.Category}}{{end}}</p>
+    </article>
+    {{else}}
+    <p>Nothing here yet.</p>
+    {{end}}
+    <p><a href="/">Home</a></p>
+{{end}}

@@ -2,6 +2,7 @@
   <link rel="canonical" href="{{.PublicBaseURL}}">{{end}}
 {{define "content"}}
     <h1>Cave LMS</h1>
+    <p><a href="/gallery">Gallery</a></p>
     {{with .Learner}}
     <p>Logged in as {{.Name}}.</p>
     {{if .IsAdmin}}<p><a href="/admin">Admin</a></p>{{end}}
