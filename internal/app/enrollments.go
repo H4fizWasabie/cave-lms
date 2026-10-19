@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"strconv"
 )
 
 // enrolled reports whether the Learner is a member of the Course. It is the only thing that grants Course access.
@@ -11,6 +12,62 @@ func (a *App) enrolled(ctx context.Context, learnerID, courseID int64) (bool, er
 	err := a.db.QueryRowContext(ctx,
 		`SELECT count(*) FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learnerID, courseID).Scan(&n)
 	return n > 0, err
+}
+
+// enrollee is a Learner enrolled in a Course, as the Admin's Course page shows them.
+type enrollee struct {
+	ID    int64
+	Name  string
+	Email string
+}
+
+// adminCourse is the Admin's page for one Course: the Learners enrolled in it.
+func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	rows, err := a.db.QueryContext(r.Context(), `
+		SELECT l.id, l.name, l.email FROM enrollments e JOIN learners l ON l.id = e.learner_id
+		WHERE e.course_id = $1 ORDER BY l.name, l.id`, c.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	defer rows.Close()
+	var list []enrollee
+	for rows.Next() {
+		var e enrollee
+		if err := rows.Scan(&e.ID, &e.Name, &e.Email); err != nil {
+			serverError(w, err)
+			return
+		}
+		list = append(list, e)
+	}
+	if err := rows.Err(); err != nil {
+		serverError(w, err)
+		return
+	}
+	a.render(w, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
+}
+
+// removeLearner is the Admin removing a Learner from a Course. Access ends on the next request.
+func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(),
+		`DELETE FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learnerID, c.ID); err != nil {
+		serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
 // requireLearner guards a Learner page: Visitors are sent to the login page.

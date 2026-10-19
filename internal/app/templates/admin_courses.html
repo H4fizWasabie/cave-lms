@@ -11,6 +11,7 @@
         <td>{{.StartDate}}</td>
         <td>{{if .Open}}Open{{else}}Closed{{end}}</td>
         <td>
+          <a href="/admin/courses/{{.ID}}">Learners</a>
           <a href="/admin/courses/{{.ID}}/edit">Edit</a>
           {{if .Open}}
           <form method="post" action="/admin/courses/{{.ID}}/close"><button>Close</button></form>
