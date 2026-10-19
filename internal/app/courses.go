@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -47,14 +48,13 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	var lessons []lesson
-	var done, total int
-	if enrolled || (learner != nil && learner.IsAdmin) {
-		if lessons, err = a.lessonsOf(r.Context(), c.ID, learner != nil && learner.IsAdmin); err != nil {
-			serverError(w, err)
-			return
-		}
+	// Everyone sees the published Lesson titles, so they know what the Course contains; only members open them.
+	lessons, err := a.lessonsOf(r.Context(), c.ID, learner != nil && learner.IsAdmin)
+	if err != nil {
+		serverError(w, err)
+		return
 	}
+	var done, total int
 	if enrolled {
 		if done, total, err = a.courseProgress(r.Context(), learner.ID, c.ID); err != nil {
 			serverError(w, err)
@@ -175,14 +175,12 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 // courseFor loads the Course named by the {id} path value. When there is none it writes
 // the Not found page and returns false.
 func (a *App) courseFor(w http.ResponseWriter, r *http.Request) (course, bool) {
-	var c course
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		a.courseNotFound(w)
 		return course{}, false
 	}
-	err = a.db.QueryRowContext(r.Context(), `SELECT `+courseColumns+` FROM courses WHERE id = $1`, id).
-		Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open)
+	c, err := a.courseByID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.courseNotFound(w)
 		return course{}, false
@@ -192,6 +190,14 @@ func (a *App) courseFor(w http.ResponseWriter, r *http.Request) (course, bool) {
 		return course{}, false
 	}
 	return c, true
+}
+
+// courseByID loads one Course; sql.ErrNoRows when there is none.
+func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
+	var c course
+	err := a.db.QueryRowContext(ctx, `SELECT `+courseColumns+` FROM courses WHERE id = $1`, id).
+		Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open)
+	return c, err
 }
 
 func (a *App) courseNotFound(w http.ResponseWriter) {

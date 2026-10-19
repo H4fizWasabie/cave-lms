@@ -313,3 +313,18 @@ func TestCertificateSettingsRefuseATooLargeImageOrANonMultipartForm(t *testing.T
 	res, body = s.post("/admin/certificate-settings", url.Values{"organisation_name": {"Cave Academy"}})
 	expectStatus(t, res, body, http.StatusBadRequest, "Certificate details")
 }
+
+func TestRemovingTheLastIncompleteLessonIssuesTheCertificate(t *testing.T) {
+	s := newSite(t)
+	id := s.learnerEnrolledIn("Go Basics", "Variables", "Functions")
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	s.logOut()
+	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
+	res, body := s.post("/admin/lessons/"+s.lessonIDByTitle("Functions")+"/delete", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	s.logOut()
+	s.login("ada@example.com", certPassword)
+	res, body = s.get("/my-certificates")
+	expectStatus(t, res, body, http.StatusOK, "Go Basics")
+}

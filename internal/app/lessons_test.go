@@ -379,3 +379,59 @@ func TestAdminCourseListLinksToItsLessons(t *testing.T) {
 	res, body := s.get("/admin/courses")
 	expectStatus(t, res, body, http.StatusOK, `href="/admin/courses/`+id+`/lessons"`)
 }
+
+func TestEveryoneSeesTheOrderedPublishedLessonTitlesOnTheCoursePage(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	s.addTextLesson(id, "Alpha lesson", "", "a", false)
+	s.addTextLesson(id, "Secret lesson", "", "s", true)
+	s.addTextLesson(id, "Beta lesson", "", "b", false)
+	s.logOut()
+
+	check := func(who string) {
+		t.Helper()
+		res, body := s.get("/courses/" + id)
+		expectStatus(t, res, body, http.StatusOK, "Alpha lesson")
+		if a, b := strings.Index(body, "Alpha lesson"), strings.Index(body, "Beta lesson"); b < a {
+			t.Fatalf("%s: Course page does not list the Lessons in order: %s", who, body)
+		}
+		if strings.Contains(body, "Secret lesson") || strings.Contains(body, "/lessons/") {
+			t.Fatalf("%s: Course page shows a Draft or links into a Lesson: %s", who, body)
+		}
+	}
+	check("a Visitor")
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	check("a non-member")
+	res, body := s.get("/courses/" + id + "/lessons/" + s.lessonIDByTitle("Alpha lesson"))
+	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to open its Lessons.")
+}
+
+func TestVideoBecomesCourseMembersOnlyOnlyOnceItsLessonIsPublished(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	video := s.uploadAs("Lecture", "everyone", mp4File)
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	s.addItemLesson(id, strings.TrimPrefix(video, "/gallery/"), "Lecture lesson", true)
+	visitor := s.second()
+
+	res, body := visitor.get(video)
+	expectStatus(t, res, body, http.StatusOK, "Lecture")
+
+	s.post("/admin/lessons/"+s.lessonIDByTitle("Lecture lesson")+"/publish", nil)
+	res, body = visitor.get(video)
+	if loc := res.Header.Get("Location"); res.StatusCode != http.StatusSeeOther || loc != "/login" {
+		t.Fatalf("Visitor got %d to %q after the Lesson was published, want 303 to /login", res.StatusCode, loc)
+	}
+}
+
+func TestLessonFormSaysWhenAVideoBecomesCourseMembersOnly(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	res, body := s.get("/admin/courses/" + s.onlyCourseID() + "/lessons/new")
+	expectStatus(t, res, body, http.StatusOK, "becomes Course members only once a published Lesson uses it")
+	expectStatus(t, res, body, http.StatusOK, "Lesson content")
+}

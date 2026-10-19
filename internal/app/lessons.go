@@ -143,7 +143,7 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: "Choose a Gallery item."})
 		return
 	}
-	if err == nil {
+	if err == nil && l.Published {
 		err = a.defaultMembersOnly(r.Context(), l.GalleryItemID)
 	}
 	if err != nil {
@@ -297,14 +297,6 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 	a.render(w, http.StatusOK, "lesson", data)
 }
 
-// courseByID loads a Course that a Lesson belongs to. The Lesson's own Course must exist, so an error is a server error.
-func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
-	var c course
-	err := a.db.QueryRowContext(ctx, `SELECT `+courseColumns+` FROM courses WHERE id = $1`, id).
-		Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open)
-	return c, err
-}
-
 func (a *App) editLessonForm(w http.ResponseWriter, r *http.Request) {
 	l, ok := a.lessonByPath(w, r)
 	if !ok {
@@ -345,7 +337,7 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: "Choose a Gallery item."})
 		return
 	}
-	if err == nil {
+	if err == nil && l.Published {
 		err = a.defaultMembersOnly(r.Context(), l.GalleryItemID)
 	}
 	if err != nil {
@@ -360,7 +352,11 @@ func (a *App) deleteLesson(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM lessons WHERE id = $1`, l.ID); err != nil {
+	_, err := a.db.ExecContext(r.Context(), `DELETE FROM lessons WHERE id = $1`, l.ID)
+	if err == nil {
+		err = a.issueEarnedCertificates(r.Context(), l.CourseID)
+	}
+	if err != nil {
 		serverError(w, err)
 		return
 	}
@@ -374,7 +370,14 @@ func (a *App) setLessonPublished(published bool) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if _, err := a.db.ExecContext(r.Context(), `UPDATE lessons SET published = $2 WHERE id = $1`, l.ID, published); err != nil {
+		_, err := a.db.ExecContext(r.Context(), `UPDATE lessons SET published = $2 WHERE id = $1`, l.ID, published)
+		if err == nil && published {
+			err = a.defaultMembersOnly(r.Context(), l.GalleryItemID)
+		}
+		if err == nil && !published {
+			err = a.issueEarnedCertificates(r.Context(), l.CourseID)
+		}
+		if err != nil {
 			serverError(w, err)
 			return
 		}
@@ -388,15 +391,42 @@ func (a *App) publishAllLessons(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE lessons SET published = true WHERE course_id = $1`, c.ID); err != nil {
+	rows, err := a.db.QueryContext(r.Context(),
+		`UPDATE lessons SET published = true WHERE course_id = $1 AND NOT published RETURNING COALESCE(gallery_item_id, 0)`, c.ID)
+	if err != nil {
 		serverError(w, err)
 		return
+	}
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			serverError(w, err)
+			return
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		serverError(w, err)
+		return
+	}
+	if err := rows.Err(); err != nil {
+		serverError(w, err)
+		return
+	}
+	for _, id := range items {
+		if err := a.defaultMembersOnly(r.Context(), id); err != nil {
+			serverError(w, err)
+			return
+		}
 	}
 	http.Redirect(w, r, lessonsPath(c.ID), http.StatusSeeOther)
 }
 
-// defaultMembersOnly makes a video or ebook placed in a Lesson Course members only, unless the Admin has already
-// chosen another Visibility or the item is promotional. Pictures keep their Visibility.
+// defaultMembersOnly makes a video or ebook placed in a published Lesson Course members only, unless the Admin has
+// already chosen another Visibility or the item is promotional. Pictures keep their Visibility. Callers run it when
+// the Lesson is saved published or a Draft is published.
 func (a *App) defaultMembersOnly(ctx context.Context, itemID int64) error {
 	if itemID == 0 {
 		return nil

@@ -87,6 +87,37 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	return err
 }
 
+// issueEarnedCertificates runs issueCertificateIfEarned for every Learner enrolled in the Course, for when the Admin
+// removes a Lesson or Exam question and so may complete the Course for some of them.
+// ponytail: a few queries per Learner (N+1); fine for one Course's roster, batch it if Courses grow past a few hundred.
+func (a *App) issueEarnedCertificates(ctx context.Context, courseID int64) error {
+	rows, err := a.db.QueryContext(ctx, `SELECT learner_id FROM enrollments WHERE course_id = $1`, courseID)
+	if err != nil {
+		return err
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := a.issueCertificateIfEarned(ctx, id, courseID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // queryCertificates runs a query that selects certificateColumns and returns the Certificates it finds.
 func (a *App) queryCertificates(ctx context.Context, query string, args ...any) ([]certificate, error) {
 	rows, err := a.db.QueryContext(ctx, query, args...)

@@ -21,7 +21,7 @@
     <h2>Lessons</h2>
     <ol>
       {{range .Lessons}}
-      <li><a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{if not .Published}} (Draft, hidden from Learners){{end}}{{if .Completed}} (complete){{end}}
+      <li>{{if or $.Enrolled (and $.Learner $.Learner.IsAdmin)}}<a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}{{if not .Published}} (Draft, hidden from Learners){{end}}{{if .Completed}} (complete){{end}}
         {{if and $.Enrolled .Published}}
         <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{.ID}}/{{if .Completed}}incomplete{{else}}complete{{end}}"><button>{{if .Completed}}Mark incomplete{{else}}Mark complete{{end}}</button></form>
         {{end}}</li>
