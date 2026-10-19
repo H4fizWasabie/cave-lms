@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/H4fizWasabie/cave-lms/internal/app"
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
@@ -23,19 +24,20 @@ type site struct {
 	client      *http.Client
 	mail        *testutil.RecordingMailer
 	db          *sql.DB
+	storageDir  string
 }
 
 // newSite serves the app over TLS (session cookies are Secure) to a client
 // that keeps cookies and does not follow redirects.
-func newSite(t *testing.T) *site {
+func newSite(t *testing.T, opts ...func(*config.Config)) *site {
 	t.Helper()
-	application, mail, db := newTestApplication(t)
+	application, mail, db, storageDir := newTestApplication(t, opts...)
 	server := httptest.NewTLSServer(application)
 	t.Cleanup(server.Close)
 	client := server.Client()
 	client.Jar, _ = cookiejar.New(nil)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db}
+	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db, storageDir: storageDir}
 }
 
 func (s *site) do(req *http.Request) (*http.Response, string) {

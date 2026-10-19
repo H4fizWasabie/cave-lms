@@ -2,13 +2,15 @@
 
 ## Run
 
-Set `DATABASE_URL`, `PUBLIC_BASE_URL`, and `EMAIL_FROM`, then run:
+Set `DATABASE_URL`, `PUBLIC_BASE_URL`, `EMAIL_FROM`, and `STORAGE_DIR`, then run:
 
 ```sh
 go run ./cmd/cave-lms
 ```
 
 `LISTEN_ADDR` is optional and defaults to `:8080`. The app applies embedded Postgres migrations before it starts serving.
+
+`STORAGE_DIR` is a directory on the VPS disk that holds every uploaded Gallery file. It is created if missing, must not be under a public web root, and must be included in the nightly backups together with the database. Uploads are capped at about 2 GB each.
 
 Email delivery is not configured yet. The Mailer reports an explicit error until a provider is added.
 

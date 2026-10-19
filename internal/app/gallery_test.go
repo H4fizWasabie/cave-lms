@@ -1,0 +1,312 @@
+package app_test
+
+import (
+	"bytes"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/url"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/H4fizWasabie/cave-lms/internal/config"
+)
+
+// Tiny fabricated files with the right magic numbers.
+var (
+	pdfFile  = []byte("%PDF-1.4\n%fake ebook\n")
+	jpegFile = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01, 0x01, 0x00}
+	pngFile  = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+	webpFile = []byte("RIFF\x00\x00\x00\x00WEBPVP8 fake")
+	mp4File  = []byte("\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2mp41fake")
+)
+
+// upload posts the Gallery upload form as multipart with the given text fields and file content.
+func (s *site) upload(fields map[string]string, content []byte) (*http.Response, string) {
+	s.t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for name, value := range fields {
+		if err := mw.WriteField(name, value); err != nil {
+			s.t.Fatal(err)
+		}
+	}
+	fw, err := mw.CreateFormFile("file", "upload.bin")
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	if _, err := fw.Write(content); err != nil {
+		s.t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		s.t.Fatal(err)
+	}
+	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/admin/gallery", &buf)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	return s.do(req)
+}
+
+func (s *site) getWithHeader(path, key, value string) (*http.Response, []byte) {
+	s.t.Helper()
+	req, err := http.NewRequest(http.MethodGet, s.server.URL+path, nil)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	req.Header.Set(key, value)
+	res, err := s.client.Do(req)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return res, body
+}
+
+func titleFields(title, visibility string) map[string]string {
+	return map[string]string{"title": title, "description": "A description", "category": "Maths", "visibility": visibility}
+}
+
+// uploadAs uploads one file as the Admin and returns the new item's path, e.g. /gallery/3.
+func (s *site) uploadAs(title, visibility string, content []byte) string {
+	s.t.Helper()
+	res, body := s.upload(titleFields(title, visibility), content)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+	return res.Header.Get("Location")
+}
+
+func (s *site) logout() {
+	s.t.Helper()
+	s.post("/logout", url.Values{})
+}
+
+var galleryItemPath = regexp.MustCompile(`^/gallery/\d+$`)
+
+func (s *site) countGalleryItems() int {
+	s.t.Helper()
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM gallery_items`).Scan(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n
+}
+
+func (s *site) storedFiles() int {
+	s.t.Helper()
+	entries, err := os.ReadDir(s.storageDir)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return len(entries)
+}
+
+func TestAdminUploadsPictureAndItDisplays(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+
+	res, body := s.upload(titleFields("Poster", "everyone"), pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	location := res.Header.Get("Location")
+	if !galleryItemPath.MatchString(location) {
+		t.Fatalf("Location = %q, want /gallery/<id>", location)
+	}
+
+	res, body = s.get(location)
+	expectStatus(t, res, body, http.StatusOK, "Poster")
+	if !strings.Contains(body, "<img") {
+		t.Fatalf("picture page has no <img>: %s", body)
+	}
+
+	res, body = s.get(location + "/file")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if got := res.Header.Get("Content-Type"); got != "image/png" {
+		t.Fatalf("Content-Type = %q, want image/png", got)
+	}
+	if body != string(pngFile) {
+		t.Fatalf("served file differs from the upload")
+	}
+}
+
+func TestUploadAcceptsEachAllowedFormatByContent(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	for _, tc := range []struct {
+		name     string
+		content  []byte
+		mimeType string
+	}{
+		{"mp4", mp4File, "video/mp4"},
+		{"pdf", pdfFile, "application/pdf"},
+		{"jpeg", jpegFile, "image/jpeg"},
+		{"png", pngFile, "image/png"},
+		{"webp", webpFile, "image/webp"},
+	} {
+		location := s.uploadAs(tc.name, "everyone", tc.content)
+		res, body := s.get(location + "/file")
+		expectStatus(t, res, body, http.StatusOK, "")
+		if got := res.Header.Get("Content-Type"); got != tc.mimeType {
+			t.Fatalf("%s: Content-Type = %q, want %q", tc.name, got, tc.mimeType)
+		}
+	}
+}
+
+func TestUploadRefusesWrongTypeAndStoresNothing(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+
+	// Named like a picture but the content is an executable header.
+	res, body := s.upload(titleFields("Sneaky", "everyone"), []byte("MZ\x90\x00 not a picture"))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Upload an MP4 video, a PDF ebook, or a JPEG, PNG or WebP picture.")
+	if n := s.countGalleryItems(); n != 0 {
+		t.Fatalf("%d gallery items stored after a wrong-type upload, want 0", n)
+	}
+	if n := s.storedFiles(); n != 0 {
+		t.Fatalf("%d files stored after a wrong-type upload, want 0", n)
+	}
+}
+
+func TestUploadRefusesMissingTitleAndStoresNothing(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+
+	res, body := s.upload(map[string]string{"visibility": "everyone"}, pngFile)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter a title")
+	if n := s.countGalleryItems() + s.storedFiles(); n != 0 {
+		t.Fatalf("%d rows and files stored after an upload without a title, want 0", n)
+	}
+}
+
+func TestUploadRefusesTooLargeAndStoresNothing(t *testing.T) {
+	s := newSite(t, func(c *config.Config) { c.MaxUploadBytes = 1024 })
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+
+	big := append(append([]byte{}, pngFile...), bytes.Repeat([]byte{0}, 2048)...)
+	res, body := s.upload(titleFields("Huge", "everyone"), big)
+	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "too large")
+	if n := s.countGalleryItems() + s.storedFiles(); n != 0 {
+		t.Fatalf("%d rows and files stored after a too-large upload, want 0", n)
+	}
+}
+
+func TestOnlyTheAdminCanUpload(t *testing.T) {
+	s := newSite(t)
+	res, body := s.upload(titleFields("Poster", "everyone"), pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/login" {
+		t.Fatalf("Visitor upload redirected to %q, want /login", loc)
+	}
+
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	res, body = s.upload(titleFields("Poster", "everyone"), pngFile)
+	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
+	if n := s.countGalleryItems(); n != 0 {
+		t.Fatalf("%d gallery items stored by non-Admins, want 0", n)
+	}
+}
+
+func TestVideoRangeRequestSeeks(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Lesson video", "everyone", mp4File)
+
+	res, body := s.getWithHeader(location+"/file", "Range", "bytes=4-7")
+	if res.StatusCode != http.StatusPartialContent {
+		t.Fatalf("range request status = %d, want 206", res.StatusCode)
+	}
+	if want := "bytes 4-7/" + strconv.Itoa(len(mp4File)); res.Header.Get("Content-Range") != want {
+		t.Fatalf("Content-Range = %q, want %q", res.Header.Get("Content-Range"), want)
+	}
+	if string(body) != string(mp4File[4:8]) {
+		t.Fatalf("range body = %q, want %q", body, mp4File[4:8])
+	}
+}
+
+func TestEbookDownloads(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Workbook", "everyone", pdfFile)
+
+	res, body := s.get(location + "/file")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if !strings.HasPrefix(res.Header.Get("Content-Disposition"), "attachment") {
+		t.Fatalf("Content-Disposition = %q, want attachment", res.Header.Get("Content-Disposition"))
+	}
+}
+
+func TestVisitorIsRefusedLoggedInOnlyItem(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Members picture", "learners", pngFile)
+	s.logout()
+
+	res, body := s.get(location)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/login" {
+		t.Fatalf("Visitor page redirected to %q, want /login", loc)
+	}
+	res, body = s.get(location + "/file")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if strings.Contains(body, "\x89PNG") {
+		t.Fatal("Visitor got the file bytes")
+	}
+
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	res, body = s.get(location + "/file")
+	expectStatus(t, res, body, http.StatusOK, "")
+}
+
+func TestGalleryListShowsOnlyWhatTheViewerMaySee(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.uploadAs("Open poster", "everyone", pngFile)
+	s.uploadAs("Members poster", "learners", pngFile)
+	s.logout()
+
+	res, body := s.get("/gallery")
+	expectStatus(t, res, body, http.StatusOK, "Open poster")
+	if strings.Contains(body, "Members poster") {
+		t.Fatal("Visitor sees a logged-in-only item in the Gallery list")
+	}
+}
+
+func TestCourseMembersItemIsAdminOnlyForNow(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Course picture", "everyone", pngFile)
+	if _, err := s.db.Exec(`UPDATE gallery_items SET visibility = 'course_members'`); err != nil {
+		t.Fatal(err)
+	}
+
+	res, body := s.get(location + "/file")
+	expectStatus(t, res, body, http.StatusOK, "")
+
+	s.logout()
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	res, body = s.get(location + "/file")
+	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
+	res, body = s.get(location)
+	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
+}
+
+func TestStoredFilesAreNotPublic(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.uploadAs("Poster", "everyone", pngFile)
+
+	var key string
+	if err := s.db.QueryRow(`SELECT storage_key FROM gallery_items`).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	res, body := s.get("/" + key)
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	res, body = s.get("/gallery/" + key)
+	expectStatus(t, res, body, http.StatusNotFound, "")
+}
