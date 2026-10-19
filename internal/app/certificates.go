@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -97,6 +98,26 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 		list = append(list, c)
 	}
 	return list, rows.Err()
+}
+
+// certificateStatus is the Certificate state the Admin sees for a Learner on a Course: "Issued" with the date of the
+// valid Certificate, "Revoked" when only revoked ones exist, or "None".
+func (a *App) certificateStatus(ctx context.Context, learnerID, courseID int64) (string, error) {
+	var issued time.Time
+	var revoked sql.NullTime
+	err := a.db.QueryRowContext(ctx, `SELECT issued_at, revoked_at FROM certificates
+		WHERE learner_id = $1 AND course_id = $2 ORDER BY revoked_at IS NULL DESC, issued_at DESC LIMIT 1`,
+		learnerID, courseID).Scan(&issued, &revoked)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "None", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if revoked.Valid {
+		return "Revoked", nil
+	}
+	return "Issued " + certificate{IssuedAt: issued}.IssuedOn(), nil
 }
 
 // myCertificates lists the logged-in Learner's Certificates, each with a download link.

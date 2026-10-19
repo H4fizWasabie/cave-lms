@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // second returns a client on the same server with its own cookies, so the Admin and a Learner can both be logged in.
@@ -119,4 +120,97 @@ func TestAdminReachesACoursesLearnersFromTheCourseList(t *testing.T) {
 
 	res, body := s.get("/admin/courses")
 	expectStatus(t, res, body, http.StatusOK, `href="/admin/courses/`+id+`">Learners</a>`)
+}
+
+// adminCourseRow returns the table row on the Admin's Course page for the Learner with the given email.
+func adminCourseRow(t *testing.T, body, email string) string {
+	t.Helper()
+	at := strings.Index(body, email)
+	if at < 0 {
+		t.Fatalf("Course page has no row for %s: %s", email, body)
+	}
+	start := strings.LastIndex(body[:at], "<tr>")
+	end := strings.Index(body[at:], "</tr>")
+	if start < 0 || end < 0 {
+		t.Fatalf("no table row around %s: %s", email, body)
+	}
+	return body[start : at+end]
+}
+
+// expectCells checks that a row contains each cell, written exactly as the table renders it.
+func expectCells(t *testing.T, row string, cells ...string) {
+	t.Helper()
+	for _, c := range cells {
+		if !strings.Contains(row, c) {
+			t.Fatalf("row lacks %s: %s", c, row)
+		}
+	}
+}
+
+func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
+	const pw = "correct horse battery"
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", pw)
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	s.addTextLesson(id, "Variables", "", "Body.", false)
+	s.addTextLesson(id, "Functions", "", "Body.", false)
+	s.saveExamSettings(id, "50", "", "")
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "What is a slice?", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	qids := s.examQuestionIDs(id)
+	variables := s.lessonIDByTitle("Variables")
+	functions := s.lessonIDByTitle("Functions")
+
+	// Ada finishes every Lesson and fails the Exam: 2 of 2, best 0%, no Certificate.
+	ada := s.second()
+	ada.loginAsNewLearner("Ada Lovelace", "ada@example.com", pw)
+	ada.post("/courses/"+id+"/join", nil)
+	ada.markLesson(id, variables, true)
+	ada.markLesson(id, functions, true)
+	res, _ := ada.startExam(id)
+	ada.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"})
+
+	// Bea finishes every Lesson and passes: 2 of 2, best 100%, Certificate issued today.
+	bea := s.second()
+	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", pw)
+	bea.post("/courses/"+id+"/join", nil)
+	bea.markLesson(id, variables, true)
+	bea.markLesson(id, functions, true)
+	res, _ = bea.startExam(id)
+	bea.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+
+	// Cara joined and did nothing: 0 of 2, no score, no Certificate.
+	cara := s.second()
+	cara.loginAsNewLearner("Cara Lamarr", "cara@example.com", pw)
+	cara.post("/courses/"+id+"/join", nil)
+
+	res, body := s.get("/admin/courses/" + id)
+	expectStatus(t, res, body, http.StatusOK, "<th>Progress</th>")
+	today := time.Now().UTC().Format("2 January 2006")
+	expectCells(t, adminCourseRow(t, body, "ada@example.com"), "<td>2 of 2</td>", "<td>0%</td>", "<td>None</td>")
+	expectCells(t, adminCourseRow(t, body, "bea@example.com"), "<td>2 of 2</td>", "<td>100%</td>", "<td>Issued "+today+"</td>")
+	expectCells(t, adminCourseRow(t, body, "cara@example.com"), "<td>0 of 2</td>", "<td>-</td>", "<td>None</td>")
+}
+
+func TestAdminSeesCertificateRevokedAndDashWhenCourseHasNoExam(t *testing.T) {
+	const pw = "correct horse battery"
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", pw)
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	s.addTextLesson(id, "Variables", "", "Body.", false)
+	ada := s.second()
+	ada.loginAsNewLearner("Ada Lovelace", "ada@example.com", pw)
+	ada.post("/courses/"+id+"/join", nil)
+	ada.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	today := time.Now().UTC().Format("2 January 2006")
+
+	_, body := s.get("/admin/courses/" + id)
+	expectCells(t, adminCourseRow(t, body, "ada@example.com"), "<td>1 of 1</td>", "<td>-</td>", "<td>Issued "+today+"</td>")
+
+	if _, err := s.db.Exec(`UPDATE certificates SET revoked_at = now()`); err != nil {
+		t.Fatal(err)
+	}
+	_, body = s.get("/admin/courses/" + id)
+	expectCells(t, adminCourseRow(t, body, "ada@example.com"), "<td>1 of 1</td>", "<td>-</td>", "<td>Revoked</td>")
 }

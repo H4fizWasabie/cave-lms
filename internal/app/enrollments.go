@@ -16,9 +16,13 @@ func (a *App) enrolled(ctx context.Context, learnerID, courseID int64) (bool, er
 
 // enrollee is a Learner enrolled in a Course, as the Admin's Course page shows them.
 type enrollee struct {
-	ID    int64
-	Name  string
-	Email string
+	ID          int64
+	Name        string
+	Email       string
+	Done, Total int    // Lessons completed out of the Course's published Lessons
+	Best        int    // best Exam score, shown when HasBest
+	HasBest     bool   // false when the Learner has no finished attempt
+	Certificate string // "None", "Issued <date>" or "Revoked"
 }
 
 // adminCourse is the Admin's page for one Course: the Learners enrolled in it.
@@ -47,6 +51,22 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	if err := rows.Err(); err != nil {
 		serverError(w, err)
 		return
+	}
+	// ponytail: three small queries per Learner (N+1). Fine for one Course's roster; batch them if a Course grows past a few hundred.
+	for i := range list {
+		e := &list[i]
+		if e.Done, e.Total, err = a.courseProgress(r.Context(), e.ID, c.ID); err != nil {
+			serverError(w, err)
+			return
+		}
+		if e.Best, e.HasBest, err = a.bestExamScore(r.Context(), e.ID, c.ID); err != nil {
+			serverError(w, err)
+			return
+		}
+		if e.Certificate, err = a.certificateStatus(r.Context(), e.ID, c.ID); err != nil {
+			serverError(w, err)
+			return
+		}
 	}
 	a.render(w, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
 }
