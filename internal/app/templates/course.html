@@ -1,0 +1,8 @@
+{{define "title"}}{{.Course.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{.Course.Title}}</h1>
+    <p>{{.Course.Description}}</p>
+    {{with .Course.StartDate}}<p>Start date: {{.}}</p>{{end}}
+    <p>{{if .Course.Open}}Open to new joins{{else}}Closed to new joins{{end}}</p>
+    <p><a href="/courses">All Courses</a></p>
+{{end}}

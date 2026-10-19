@@ -1,0 +1,12 @@
+{{define "title"}}{{if .Course.ID}}Edit Course{{else}}New Course{{end}} · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{if .Course.ID}}Edit Course{{else}}New Course{{end}}</h1>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    <form method="post" action="{{if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}">
+      <label>Title <input name="title" value="{{.Course.Title}}" maxlength="200" required></label>
+      <label>Description <textarea name="description" rows="6" required>{{.Course.Description}}</textarea></label>
+      <label>Start date (optional) <input type="date" name="start_date" value="{{.Course.StartDate}}"></label>
+      <button>Save</button>
+    </form>
+    <p><a href="/admin/courses">Back to Courses</a></p>
+{{end}}

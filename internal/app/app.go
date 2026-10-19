@@ -32,6 +32,7 @@ type App struct {
 	publicBaseURL string
 	store         *storage.Disk
 	maxUpload     int64
+	limiter       rateLimiter
 }
 
 // page is the data every template receives.
@@ -47,6 +48,10 @@ type page struct {
 	OfferLogin    bool
 	Items         []galleryItem
 	Item          *galleryItem
+	OfferReset    bool
+	Token         string
+	Courses       []course
+	Course        *course
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -85,18 +90,33 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("GET /register", a.registerForm)
-	mux.HandleFunc("POST /register", a.register)
+	mux.HandleFunc("POST /register", a.limited(a.register))
 	mux.HandleFunc("GET /verify", a.verify)
 	mux.HandleFunc("POST /verify/resend", a.resendVerification)
 	mux.HandleFunc("GET /login", a.loginForm)
-	mux.HandleFunc("POST /login", a.login)
+	mux.HandleFunc("POST /login", a.limited(a.login))
+	mux.HandleFunc("GET /forgot-password", a.forgotPasswordForm)
+	mux.HandleFunc("POST /forgot-password", a.forgotPassword)
+	mux.HandleFunc("GET /reset-password", a.resetPasswordForm)
+	mux.HandleFunc("POST /reset-password", a.resetPassword)
 	mux.HandleFunc("POST /logout", a.logout)
+	mux.HandleFunc("GET /courses", a.courses)
+	mux.HandleFunc("GET /courses/{id}", a.showCourse)
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
 	mux.HandleFunc("GET /gallery", a.gallery)
 	mux.HandleFunc("GET /gallery/{id}", a.galleryItemPage)
 	mux.HandleFunc("GET /gallery/{id}/file", a.galleryFile)
+	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
+	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
+	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/edit", a.admin(a.editCourseForm))
+	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
+	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
+	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
+	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
+	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

@@ -79,22 +79,26 @@ func (s *site) login(email, password string) (*http.Response, string) {
 	return s.post("/login", url.Values{"email": {email}, "password": {password}})
 }
 
-var verifyLink = regexp.MustCompile(`https://cave\.example\.invalid(/verify\?token=[A-Za-z0-9_-]+)`)
-
-// lastVerifyPath returns the path of the verification link in the latest email to `to`.
-func (s *site) lastVerifyPath(to string) string {
+// lastEmailLinkPath returns the path and query of the link under route in the latest email to `to`.
+func (s *site) lastEmailLinkPath(to, route string) string {
 	s.t.Helper()
+	link := regexp.MustCompile(`https://cave\.example\.invalid(` + regexp.QuoteMeta(route) + `\?token=[A-Za-z0-9_-]+)`)
 	messages := s.mail.Messages()
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].To == to {
-			if m := verifyLink.FindStringSubmatch(messages[i].Body); m != nil {
+			if m := link.FindStringSubmatch(messages[i].Body); m != nil {
 				return m[1]
 			}
-			s.t.Fatalf("email to %s has no verification link: %s", to, messages[i].Body)
+			s.t.Fatalf("email to %s has no %s link: %s", to, route, messages[i].Body)
 		}
 	}
 	s.t.Fatalf("no email sent to %s", to)
 	return ""
+}
+
+// lastVerifyPath returns the path of the verification link in the latest email to `to`.
+func (s *site) lastVerifyPath(to string) string {
+	return s.lastEmailLinkPath(to, "/verify")
 }
 
 // loginAsNewLearner registers, verifies and logs in a new Learner.
