@@ -1,12 +1,18 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
+	"log"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -14,20 +20,35 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-//go:embed migrations/*.sql templates/home.html
+//go:embed migrations/*.sql templates/*.html
 var appFiles embed.FS
 
 type App struct {
-	db      *sql.DB
-	handler http.Handler
-	mailer  mailer.Mailer
+	db            *sql.DB
+	handler       http.Handler
+	mailer        mailer.Mailer
+	pages         map[string]*template.Template
+	publicBaseURL string
+}
+
+// page is the data every template receives.
+type page struct {
+	PublicBaseURL string
+	Learner       *learner
+	Title         string
+	Message       string
+	Error         string
+	Name          string
+	Email         string
+	OfferResend   bool
+	OfferLogin    bool
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
 	if mailer == nil {
 		return nil, fmt.Errorf("mailer is required")
 	}
-	handler, err := homeHandler(cfg.PublicBaseURL)
+	pages, err := parsePages()
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +71,19 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
-	return &App{db: db, handler: handler, mailer: mailer}, nil
+
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/")}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", a.home)
+	mux.HandleFunc("GET /register", a.registerForm)
+	mux.HandleFunc("POST /register", a.register)
+	mux.HandleFunc("GET /verify", a.verify)
+	mux.HandleFunc("POST /verify/resend", a.resendVerification)
+	mux.HandleFunc("GET /login", a.loginForm)
+	mux.HandleFunc("POST /login", a.login)
+	mux.HandleFunc("POST /logout", a.logout)
+	a.handler = rejectCrossOrigin(mux)
+	return a, nil
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -61,17 +94,81 @@ func (a *App) Close() error {
 	return a.db.Close()
 }
 
-func homeHandler(publicBaseURL string) (http.Handler, error) {
-	page, err := template.ParseFS(appFiles, "templates/home.html")
+func (a *App) home(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
 	if err != nil {
-		return nil, fmt.Errorf("parse home page: %w", err)
+		serverError(w, err)
+		return
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := page.ExecuteTemplate(w, "home.html", struct{ PublicBaseURL string }{publicBaseURL}); err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+	a.render(w, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner})
+}
+
+// parsePages pairs each page template with layout.html, keyed by file name without extension.
+func parsePages() (map[string]*template.Template, error) {
+	layout, err := template.ParseFS(appFiles, "templates/layout.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse layout: %w", err)
+	}
+	files, err := fs.Glob(appFiles, "templates/*.html")
+	if err != nil {
+		return nil, err
+	}
+	pages := map[string]*template.Template{}
+	for _, file := range files {
+		name := strings.TrimSuffix(path.Base(file), ".html")
+		if name == "layout" {
+			continue
 		}
+		t, err := template.Must(layout.Clone()).ParseFS(appFiles, file)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", file, err)
+		}
+		pages[name] = t
+	}
+	return pages, nil
+}
+
+func (a *App) render(w http.ResponseWriter, status int, name string, data page) {
+	var buf bytes.Buffer
+	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {
+		serverError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = buf.WriteTo(w)
+}
+
+func serverError(w http.ResponseWriter, err error) {
+	log.Print(err)
+	http.Error(w, "internal server error", http.StatusInternalServerError)
+}
+
+// rejectCrossOrigin is the CSRF protection for every form: browsers mark
+// cross-site requests with Sec-Fetch-Site or Origin, and those are refused.
+// ponytail: hand port of Go 1.25's http.CrossOriginProtection; switch to it once go.mod reaches 1.25.
+func rejectCrossOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && crossOrigin(r) {
+			http.Error(w, "cross-origin request refused", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
-	return mux, nil
+}
+
+func crossOrigin(r *http.Request) bool {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "same-origin", "none":
+		return false
+	case "":
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return false // not a browser form post
+		}
+		u, err := url.Parse(origin)
+		return err != nil || u.Host != r.Host
+	default:
+		return true
+	}
 }

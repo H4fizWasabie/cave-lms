@@ -1,0 +1,12 @@
+{{define "title"}}{{.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{.Title}}</h1>
+    <p>{{.Message}}</p>
+    {{if .OfferResend}}
+    <form method="post" action="/verify/resend">
+      <label>Email <input type="email" name="email" value="{{.Email}}" autocomplete="email" required></label>
+      <button>Send a new link</button>
+    </form>
+    {{end}}
+    {{if .OfferLogin}}<p><a href="/login">Log in</a></p>{{end}}
+{{end}}
