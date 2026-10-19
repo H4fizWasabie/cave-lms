@@ -12,15 +12,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 type site struct {
-	t      *testing.T
-	server *httptest.Server
-	client *http.Client
-	mail   *testutil.RecordingMailer
-	db     *sql.DB
+	t           *testing.T
+	application *app.App
+	server      *httptest.Server
+	client      *http.Client
+	mail        *testutil.RecordingMailer
+	db          *sql.DB
 }
 
 // newSite serves the app over TLS (session cookies are Secure) to a client
@@ -33,7 +35,7 @@ func newSite(t *testing.T) *site {
 	client := server.Client()
 	client.Jar, _ = cookiejar.New(nil)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &site{t: t, server: server, client: client, mail: mail, db: db}
+	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db}
 }
 
 func (s *site) do(req *http.Request) (*http.Response, string) {
@@ -91,6 +93,27 @@ func (s *site) lastVerifyPath(to string) string {
 	}
 	s.t.Fatalf("no email sent to %s", to)
 	return ""
+}
+
+// loginAsNewLearner registers, verifies and logs in a new Learner.
+func (s *site) loginAsNewLearner(name, email, password string) {
+	s.t.Helper()
+	res, body := s.register(name, email, password)
+	expectStatus(s.t, res, body, http.StatusOK, "Check your email")
+	res, body = s.get(s.lastVerifyPath(email))
+	expectStatus(s.t, res, body, http.StatusOK, "Email verified")
+	res, body = s.login(email, password)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+}
+
+// loginAsNewAdmin makes an Admin with the same CreateAdmin step the command line uses, then logs in.
+func (s *site) loginAsNewAdmin(name, email, password string) {
+	s.t.Helper()
+	if err := s.application.CreateAdmin(context.Background(), name, email, password); err != nil {
+		s.t.Fatal(err)
+	}
+	res, body := s.login(email, password)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 }
 
 func expectStatus(t *testing.T, res *http.Response, body string, want int, wantText string) {

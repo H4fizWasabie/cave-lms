@@ -82,6 +82,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /login", a.loginForm)
 	mux.HandleFunc("POST /login", a.login)
 	mux.HandleFunc("POST /logout", a.logout)
+	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

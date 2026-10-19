@@ -4,6 +4,7 @@
     <h1>Cave LMS</h1>
     {{with .Learner}}
     <p>Logged in as {{.Name}}.</p>
+    {{if .IsAdmin}}<p><a href="/admin">Admin</a></p>{{end}}
     <form method="post" action="/logout"><button>Log out</button></form>
     {{else}}
     <p><a href="/register">Register</a> or <a href="/login">log in</a>.</p>

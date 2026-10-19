@@ -26,8 +26,9 @@ const (
 )
 
 type learner struct {
-	ID   int64
-	Name string
+	ID      int64
+	Name    string
+	IsAdmin bool
 }
 
 // currentLearner returns the logged-in Learner, or nil for a Visitor.
@@ -38,8 +39,8 @@ func (a *App) currentLearner(r *http.Request) (*learner, error) {
 	}
 	var l learner
 	err = a.db.QueryRowContext(r.Context(), `
-		SELECT l.id, l.name FROM sessions s JOIN learners l ON l.id = s.learner_id
-		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value)).Scan(&l.ID, &l.Name)
+		SELECT l.id, l.name, l.is_admin FROM sessions s JOIN learners l ON l.id = s.learner_id
+		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value)).Scan(&l.ID, &l.Name, &l.IsAdmin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -57,17 +58,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	password := r.PostFormValue("password")
-	form := page{Name: name, Email: email}
-	switch {
-	case name == "" || len(name) > 200:
-		form.Error = "Enter your name (up to 200 characters)."
-	case !validEmail(email):
-		form.Error = "Enter a valid email address."
-	case len(password) < 8:
-		form.Error = "Use a password of at least 8 characters."
-	case len(password) > 72: // bcrypt's limit
-		form.Error = "Use a password of at most 72 characters."
-	}
+	form := page{Name: name, Email: email, Error: accountFieldError(name, email, password)}
 	if form.Error != "" {
 		a.render(w, http.StatusUnprocessableEntity, "register", form)
 		return
@@ -275,6 +266,21 @@ func setSessionCookie(w http.ResponseWriter, token string, maxAge int) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+// accountFieldError returns a message for the first invalid name, email or password, or "".
+func accountFieldError(name, email, password string) string {
+	switch {
+	case name == "" || len(name) > 200:
+		return "Enter your name (up to 200 characters)."
+	case !validEmail(email):
+		return "Enter a valid email address."
+	case len(password) < 8:
+		return "Use a password of at least 8 characters."
+	case len(password) > 72: // bcrypt's limit
+		return "Use a password of at most 72 characters."
+	}
+	return ""
 }
 
 func validEmail(email string) bool {

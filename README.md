@@ -12,6 +12,18 @@ go run ./cmd/cave-lms
 
 Email delivery is not configured yet. The Mailer reports an explicit error until a provider is added.
 
+## Create the Admin
+
+Registration can never make an Admin. Run this once per deployment, with the same environment as above:
+
+```sh
+CAVE_ADMIN_PASSWORD='a long password' go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
+# or, keeping the password out of the environment:
+printf '%s\n' 'a long password' | go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
+```
+
+The password comes from `CAVE_ADMIN_PASSWORD` if set, otherwise from the first line of stdin. It is never a flag. The account is created verified. If a Learner already uses that email, it is promoted and its password is replaced. The Admin logs in on the normal login page and opens `/admin`.
+
 ## Tests
 
 ```sh
