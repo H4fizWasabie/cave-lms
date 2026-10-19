@@ -12,6 +12,7 @@
         <td>{{if .Open}}Open{{else}}Closed{{end}}</td>
         <td>
           <a href="/admin/courses/{{.ID}}/edit">Edit</a>
+          <a href="/admin/courses/{{.ID}}/exam">Exam</a>
           {{if .Open}}
           <form method="post" action="/admin/courses/{{.ID}}/close"><button>Close</button></form>
           {{else}}
