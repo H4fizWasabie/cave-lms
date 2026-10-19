@@ -47,6 +47,7 @@ type page struct {
 	Token         string
 	Courses       []course
 	Course        *course
+	Enrolled      bool
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -93,6 +94,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /logout", a.logout)
 	mux.HandleFunc("GET /courses", a.courses)
 	mux.HandleFunc("GET /courses/{id}", a.showCourse)
+	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
+	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
+	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))

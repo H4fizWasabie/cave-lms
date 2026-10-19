@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // course is a Course as the pages show it. StartDate is YYYY-MM-DD, or empty when none.
@@ -35,7 +37,19 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "course", page{Course: &c})
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	enrolled := false
+	if learner != nil {
+		if enrolled, err = a.enrolled(r.Context(), learner.ID, c.ID); err != nil {
+			serverError(w, err)
+			return
+		}
+	}
+	a.render(w, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled})
 }
 
 func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {
@@ -124,9 +138,15 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// ponytail: no Enrollments or Lessons yet, so the confirm page is the only guard. Those tickets add
-	// ON DELETE RESTRICT here and show a "cannot delete" message on the foreign key error.
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID); err != nil {
+	// Enrollments (and later Lessons) hold ON DELETE RESTRICT, so the database refuses the delete.
+	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		a.render(w, http.StatusConflict, "delete_course", page{Course: &c,
+			Error: "This Course cannot be deleted because Learners have joined it. Close it instead."})
+		return
+	}
+	if err != nil {
 		serverError(w, err)
 		return
 	}
@@ -160,7 +180,12 @@ func (a *App) courseNotFound(w http.ResponseWriter) {
 }
 
 func (a *App) listCourses(r *http.Request) ([]course, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT `+courseColumns+` FROM courses ORDER BY start_date NULLS LAST, id`)
+	return a.queryCourses(r, `SELECT `+courseColumns+` FROM courses ORDER BY start_date NULLS LAST, id`)
+}
+
+// queryCourses runs a query that selects courseColumns and returns the Courses it finds.
+func (a *App) queryCourses(r *http.Request, query string, args ...any) ([]course, error) {
+	rows, err := a.db.QueryContext(r.Context(), query, args...)
 	if err != nil {
 		return nil, err
 	}
