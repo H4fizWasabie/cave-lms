@@ -86,7 +86,7 @@ func TestOnlyAdminCanRevokeOrReissue(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Status: Valid")
 }
 
-func TestRevokedCertificateShowsRevokedAndLeavesTheLearnersList(t *testing.T) {
+func TestRevokedCertificateShowsRevokedOnTheCheckPageTheListAndThePDF(t *testing.T) {
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -102,9 +102,27 @@ func TestRevokedCertificateShowsRevokedAndLeavesTheLearnersList(t *testing.T) {
 
 	s.login("ada@example.com", certPassword)
 	res, body = s.get("/my-certificates")
-	expectStatus(t, res, body, http.StatusOK, "You have no Certificates yet.")
-	res, body = s.get("/certificates/" + certID + "/pdf")
-	expectStatus(t, res, body, http.StatusNotFound, "There is no Certificate at this address.")
+	expectStatus(t, res, body, http.StatusOK, "Revoked")
+	if ids := certificateIDs(body); len(ids) != 1 || ids[0] != certID {
+		t.Fatalf("Learner's list = %v, want the revoked %s", ids, certID)
+	}
+	for _, who := range []string{"the owner", "the Admin"} {
+		pdf := s.pdfBody("/certificates/" + certID + "/pdf")
+		for _, want := range []string{"REVOKED", "This Certificate has been revoked"} {
+			if !strings.Contains(pdf, want) {
+				t.Fatalf("revoked Certificate PDF for %s lacks %q", who, want)
+			}
+		}
+		s.loginAdmin()
+	}
+}
+
+func TestValidCertificatePDFIsNotMarkedRevoked(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	if pdf := s.pdfBody("/certificates/" + certID + "/pdf"); strings.Contains(pdf, "REVOKED") {
+		t.Fatalf("valid Certificate PDF is marked revoked")
+	}
 }
 
 func TestRevokedCertificateIsNotIssuedAgainAutomatically(t *testing.T) {
@@ -122,7 +140,10 @@ func TestRevokedCertificateIsNotIssuedAgainAutomatically(t *testing.T) {
 	s.markLesson(courseID, lessonID, false)
 	s.markLesson(courseID, lessonID, true)
 	res, body := s.get("/my-certificates")
-	expectStatus(t, res, body, http.StatusOK, "You have no Certificates yet.")
+	expectStatus(t, res, body, http.StatusOK, "Revoked")
+	if ids := certificateIDs(body); len(ids) != 1 || ids[0] != certID {
+		t.Fatalf("Learner's list = %v, want only the revoked %s", ids, certID)
+	}
 }
 
 func TestAdminIssuesACorrectedCertificateWithANewID(t *testing.T) {
@@ -137,14 +158,16 @@ func TestAdminIssuesACorrectedCertificateWithANewID(t *testing.T) {
 	s.login("ada@example.com", certPassword)
 	_, body = s.get("/my-certificates")
 	ids := certificateIDs(body)
-	if len(ids) != 1 || ids[0] == oldID {
-		t.Fatalf("want one new Certificate after reissue, got %v (old %s)", ids, oldID)
+	if len(ids) != 2 || ids[0] != oldID {
+		t.Fatalf("want the revoked and the new Certificate after reissue, got %v (old %s)", ids, oldID)
 	}
-	newID := ids[0]
+	newID := ids[1]
 	pdf := s.pdfBody("/certificates/" + newID + "/pdf")
-	if !strings.Contains(pdf, "Ada Lovelace") {
-		t.Fatalf("corrected PDF lacks the corrected name")
+	if !strings.Contains(pdf, "Ada Lovelace") || strings.Contains(pdf, "REVOKED") {
+		t.Fatalf("corrected PDF lacks the corrected name or is marked revoked")
 	}
+	res, body = s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "Logged in as Ada Lovelace")
 
 	s.logOut()
 	res, body = s.get("/certificates/" + newID)
@@ -166,7 +189,7 @@ func TestReissueNeedsARevokedCertificateAndOneValidAtATime(t *testing.T) {
 
 	s.post("/admin/certificates/"+certID+"/revoke", nil)
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"  "}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter a name for the Certificate.")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter a name for the Certificate")
 
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -197,4 +220,20 @@ func TestAdminFindsCertificatesByNameOrID(t *testing.T) {
 	s.login("ada@example.com", certPassword)
 	res, body = s.get("/admin/certificates")
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
+}
+
+func TestReissueFormIsPrefilledWithTheLearnersCurrentName(t *testing.T) {
+	s := newSite(t)
+	oldID := s.earnedCertificate()
+	s.loginAdmin()
+	s.post("/admin/certificates/"+oldID+"/revoke", nil)
+	res, _ := s.post("/admin/certificates/"+oldID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
+	newID := strings.TrimPrefix(res.Header.Get("Location"), "/admin/certificates?q=")
+	s.post("/admin/certificates/"+newID+"/revoke", nil)
+
+	res, body := s.get("/admin/certificates")
+	expectStatus(t, res, body, http.StatusOK, "Issue corrected Certificate")
+	if n := strings.Count(body, `value="Ada Lovelace"`); n != 2 || strings.Contains(body, `value="Ada"`) {
+		t.Fatalf("reissue forms are not prefilled with the Learner's current name: %s", body)
+	}
 }

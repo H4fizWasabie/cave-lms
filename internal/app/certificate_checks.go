@@ -20,8 +20,7 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 
 // verifyCertificate is public. It shows the name, Course, issue date and status of a Certificate, and nothing else.
 func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
-	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
-		FROM certificates WHERE id = $1`, r.PathValue("id"))
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
 		serverError(w, err)
 		return
@@ -36,8 +35,8 @@ func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 // adminCertificates lists every Certificate, newest first. ?q= matches the Learner's name or the exact ID.
 func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
-		FROM certificates WHERE $1 = '' OR id = $1 OR strpos(lower(learner_name), lower($1)) > 0
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
+		WHERE $1 = '' OR id = $1 OR strpos(lower(learner_name), lower($1)) > 0
 		ORDER BY issued_at DESC, id`, q)
 	if err != nil {
 		serverError(w, err)
@@ -46,7 +45,8 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 	a.render(w, http.StatusOK, "admin_certificates", page{Certificates: list, Query: q})
 }
 
-// revokeCertificate stops a Certificate counting as valid. It leaves the Learner's list and downloads at once.
+// revokeCertificate stops a Certificate counting as valid. From then on its check page, the Learner's list and its PDF
+// show it as revoked.
 func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
 	_, err := a.db.ExecContext(r.Context(), `UPDATE certificates SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, r.PathValue("id"))
 	if err != nil {
@@ -56,12 +56,12 @@ func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/certificates", http.StatusSeeOther)
 }
 
-// reissueCertificate issues a corrected Certificate in place of a revoked one. The new one has a new ID, the name
-// the Admin gives and the Course's current title. The partial unique index refuses it while a valid one exists.
+// reissueCertificate issues a corrected Certificate in place of a revoked one. The name the Admin gives becomes the
+// Learner's name, and the new Certificate, with a new ID, copies it and the Course's current title. The partial
+// unique index refuses it while a valid one exists, and then the name is not changed either.
 func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	old, err := a.queryCertificates(ctx, `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
-		FROM certificates WHERE id = $1`, r.PathValue("id"))
+	old, err := a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
 		serverError(w, err)
 		return
@@ -75,8 +75,8 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimSpace(r.PostFormValue("learner_name"))
-	if name == "" {
-		a.render(w, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Enter a name for the Certificate."})
+	if name == "" || len(name) > 200 {
+		a.render(w, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Enter a name for the Certificate (up to 200 characters)."})
 		return
 	}
 	id, err := newCertificateID()
@@ -84,9 +84,22 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	_, err = a.db.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title)
-		SELECT $1, c.learner_id, c.course_id, $2, co.title FROM certificates c JOIN courses co ON co.id = c.course_id
-		WHERE c.id = $3`, id, name, old[0].ID)
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `UPDATE learners SET name = $2 WHERE id = $1`, old[0].LearnerID, name)
+	if err == nil {
+		_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title)
+			SELECT $1, l.id, c.course_id, l.name, co.title FROM certificates c
+			JOIN learners l ON l.id = c.learner_id JOIN courses co ON co.id = c.course_id
+			WHERE c.id = $2`, id, old[0].ID)
+	}
+	if err == nil {
+		err = tx.Commit()
+	}
 	if isUniqueViolation(err) {
 		a.render(w, http.StatusConflict, "message", page{Title: "Certificate not reissued", Message: "This Learner already has a valid Certificate for this Course."})
 		return

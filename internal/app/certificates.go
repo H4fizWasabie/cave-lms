@@ -27,7 +27,12 @@ type certificate struct {
 	CourseTitle string
 	IssuedAt    time.Time
 	Revoked     bool
+	CurrentName string // the Learner's name now, which a corrected Certificate copies
 }
+
+// certificateColumns must be scanned by queryCertificates. The subquery needs the table unaliased as certificates.
+const certificateColumns = `id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
+	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
 
 // IssuedOn is the issue date as the pages and the PDF show it.
 func (c certificate) IssuedOn() string {
@@ -82,7 +87,7 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	return err
 }
 
-// queryCertificates runs a query that selects id, learner_id, learner_name, course_title, issued_at, revoked (bool).
+// queryCertificates runs a query that selects certificateColumns and returns the Certificates it finds.
 func (a *App) queryCertificates(ctx context.Context, query string, args ...any) ([]certificate, error) {
 	rows, err := a.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -92,7 +97,7 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	var list []certificate
 	for rows.Next() {
 		var c certificate
-		if err := rows.Scan(&c.ID, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt, &c.Revoked); err != nil {
+		if err := rows.Scan(&c.ID, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt, &c.Revoked, &c.CurrentName); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
@@ -120,15 +125,14 @@ func (a *App) certificateStatus(ctx context.Context, learnerID, courseID int64) 
 	return "Issued " + certificate{IssuedAt: issued}.IssuedOn(), nil
 }
 
-// myCertificates lists the logged-in Learner's Certificates, each with a download link.
+// myCertificates lists the logged-in Learner's Certificates, revoked ones included, each with a download link.
 func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
 		serverError(w, err)
 		return
 	}
-	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
-		FROM certificates WHERE learner_id = $1 AND revoked_at IS NULL ORDER BY issued_at, id`, learner.ID)
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE learner_id = $1 ORDER BY issued_at, id`, learner.ID)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -137,6 +141,7 @@ func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 }
 
 // downloadCertificate serves a Certificate PDF to its owner and to the Admin. Anyone else gets Not found.
+// A revoked Certificate still downloads, marked as revoked.
 func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	viewer, err := a.currentLearner(r)
 	if err != nil {
@@ -147,8 +152,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
-		FROM certificates WHERE id = $1 AND revoked_at IS NULL`, r.PathValue("id"))
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
 		serverError(w, err)
 		return
@@ -192,6 +196,12 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 	}
 	if s.OrganisationName != "" {
 		line(30, "B", 18, s.OrganisationName)
+	}
+	if c.Revoked {
+		pdf.SetTextColor(200, 0, 0)
+		line(14, "B", 28, "REVOKED")
+		line(190, "B", 12, "This Certificate has been revoked and is no longer valid.")
+		pdf.SetTextColor(0, 0, 0)
 	}
 	line(48, "B", 32, "Certificate of Completion")
 	line(72, "", 14, "This certifies that")

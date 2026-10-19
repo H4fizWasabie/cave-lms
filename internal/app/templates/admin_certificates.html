@@ -18,7 +18,7 @@
         <td>
           {{if .Revoked}}
           <form method="post" action="/admin/certificates/{{.ID}}/reissue">
-            <label>Corrected name <input type="text" name="learner_name" value="{{.LearnerName}}" required></label>
+            <label>Learner's name (this also updates their account) <input type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></label>
             <button>Issue corrected Certificate</button>
           </form>
           {{else}}

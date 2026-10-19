@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -213,4 +214,22 @@ func TestAdminSeesCertificateRevokedAndDashWhenCourseHasNoExam(t *testing.T) {
 	}
 	_, body = s.get("/admin/courses/" + id)
 	expectCells(t, adminCourseRow(t, body, "ada@example.com"), "<td>1 of 1</td>", "<td>-</td>", "<td>Revoked</td>")
+}
+
+func TestAdminCoursePageShowsIssuedOnceARevokedCertificateIsReplaced(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	id := s.onlyCourseID()
+	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	res, body := s.get("/admin/courses/" + id)
+	expectStatus(t, res, body, http.StatusOK, "<td>Revoked</td>")
+
+	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.get("/admin/courses/" + id)
+	expectStatus(t, res, body, http.StatusOK, "<td>Issued ")
+	if strings.Contains(body, "Revoked") {
+		t.Fatalf("Admin Course page still shows the replaced Certificate as revoked: %s", body)
+	}
 }
