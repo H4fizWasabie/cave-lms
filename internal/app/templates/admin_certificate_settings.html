@@ -1,0 +1,16 @@
+{{define "title"}}Certificate details · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Admin: Certificate details</h1>
+    <p><a href="/admin">Admin area</a></p>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    <form method="post" action="/admin/certificate-settings" enctype="multipart/form-data">
+      <p><label>Organisation name <input name="organisation_name" value="{{.Settings.OrganisationName}}"></label></p>
+      <p><label>Signatory name <input name="signatory_name" value="{{.Settings.SignatoryName}}"></label></p>
+      <p>Images must be JPEG or PNG, up to 5 MB in all.</p>
+      <p><label>Logo (JPEG or PNG) <input type="file" name="logo" accept="image/jpeg,image/png"></label>
+        {{if .Settings.LogoKey}}Logo set. Upload again to replace it.{{else}}No logo yet.{{end}}</p>
+      <p><label>Signature (JPEG or PNG) <input type="file" name="signature" accept="image/jpeg,image/png"></label>
+        {{if .Settings.SignatureKey}}Signature set. Upload again to replace it.{{else}}No signature yet.{{end}}</p>
+      <button>Save</button>
+    </form>
+{{end}}

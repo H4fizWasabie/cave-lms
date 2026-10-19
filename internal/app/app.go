@@ -16,6 +16,7 @@ import (
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
+	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
@@ -29,6 +30,9 @@ type App struct {
 	mailer        mailer.Mailer
 	pages         map[string]*template.Template
 	publicBaseURL string
+	store         *storage.Disk
+	maxUpload     int64
+	limiter       rateLimiter
 }
 
 // page is the data every template receives.
@@ -42,6 +46,29 @@ type page struct {
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
+	Items         []galleryItem
+	Item          *galleryItem
+	Format        string // Gallery filters
+	Category      string
+	Categories    []string
+	OfferReset    bool
+	Token         string
+	Courses       []course
+	Course        *course
+	Exam          *exam
+	Status        *examStatus // the Learner's Exam
+	Attempt       *examAttempt
+	Question      *examQuestion
+	Enrolled      bool
+	Done          int // Lessons the Learner has completed
+	Total         int // published Lessons in the Course
+	Lessons       []lesson
+	Lesson        *lesson
+	Enrollees     []enrollee
+	Certificates  []certificate
+	Certificate   *certificate // the one a verification page shows
+	Query         string       // the Admin's Certificate search
+	Settings      *certificateSettings
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -64,6 +91,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("connect to database: %w", err)
 	}
+	store, err := storage.Open(cfg.StorageDir)
+	if err != nil {
+		return nil, err
+	}
 	goose.SetBaseFS(appFiles)
 	if err = goose.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("set migration dialect: %w", err)
@@ -72,16 +103,84 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/")}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("GET /register", a.registerForm)
-	mux.HandleFunc("POST /register", a.register)
+	mux.HandleFunc("POST /register", a.limited(a.register))
 	mux.HandleFunc("GET /verify", a.verify)
-	mux.HandleFunc("POST /verify/resend", a.resendVerification)
+	mux.HandleFunc("POST /verify/resend", a.limited(a.resendVerification))
 	mux.HandleFunc("GET /login", a.loginForm)
-	mux.HandleFunc("POST /login", a.login)
+	mux.HandleFunc("POST /login", a.limited(a.login))
+	mux.HandleFunc("GET /forgot-password", a.forgotPasswordForm)
+	mux.HandleFunc("POST /forgot-password", a.limited(a.forgotPassword))
+	mux.HandleFunc("GET /reset-password", a.resetPasswordForm)
+	mux.HandleFunc("POST /reset-password", a.resetPassword)
 	mux.HandleFunc("POST /logout", a.logout)
+	mux.HandleFunc("GET /courses", a.courses)
+	mux.HandleFunc("GET /courses/{id}", a.showCourse)
+	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
+	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
+	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
+	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
+	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
+	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
+	mux.HandleFunc("GET /admin/gallery", a.admin(a.adminGallery))
+	mux.HandleFunc("GET /admin/gallery/{id}/edit", a.admin(a.editGalleryForm))
+	mux.HandleFunc("POST /admin/gallery/{id}", a.admin(a.updateGalleryItem))
+	mux.HandleFunc("GET /admin/gallery/{id}/delete", a.admin(a.confirmDeleteGalleryItem))
+	mux.HandleFunc("POST /admin/gallery/{id}/delete", a.admin(a.deleteGalleryItem))
+	mux.HandleFunc("GET /gallery", a.gallery)
+	mux.HandleFunc("GET /gallery/{id}", a.galleryItemPage)
+	mux.HandleFunc("GET /gallery/{id}/file", a.galleryFile)
+	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
+	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
+	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))
+	mux.HandleFunc("GET /admin/courses/{id}", a.admin(a.adminCourse))
+	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/remove", a.admin(a.removeLearner))
+	mux.HandleFunc("GET /admin/courses/{id}/edit", a.admin(a.editCourseForm))
+	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
+	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
+	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
+	mux.HandleFunc("GET /courses/{id}/lessons/{lessonID}", a.requireLearner(a.showLesson))
+	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/complete", a.requireLearner(a.setLessonComplete(true)))
+	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/incomplete", a.requireLearner(a.setLessonComplete(false)))
+	mux.HandleFunc("GET /admin/courses/{id}/lessons", a.admin(a.adminLessons))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/up", a.admin(a.moveLesson(-1)))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/down", a.admin(a.moveLesson(1)))
+	mux.HandleFunc("GET /admin/lessons/{lessonID}/edit", a.admin(a.editLessonForm))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}", a.admin(a.updateLesson))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/delete", a.admin(a.deleteLesson))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/publish", a.admin(a.setLessonPublished(true)))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/unpublish", a.admin(a.setLessonPublished(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/lessons/publish-all", a.admin(a.publishAllLessons))
+	mux.HandleFunc("GET /admin/courses/{id}/lessons/new", a.admin(a.newLessonForm))
+	mux.HandleFunc("POST /admin/courses/{id}/lessons", a.admin(a.createLesson))
+	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
+	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/exam", a.admin(a.adminExam))
+	mux.HandleFunc("POST /admin/courses/{id}/exam", a.admin(a.saveExam))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/new", a.admin(a.newExamQuestionForm))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions", a.admin(a.createExamQuestion))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/{qid}/edit", a.admin(a.editExamQuestionForm))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}", a.admin(a.updateExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/up", a.admin(a.moveExamQuestion(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
+	mux.HandleFunc("GET /courses/{id}/exam", a.requireLearner(a.learnerExam))
+	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
+	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
+	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
+	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
+	mux.HandleFunc("GET /certificates/{id}/pdf", a.downloadCertificate)
+	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
+	mux.HandleFunc("GET /certificates", a.verifyCertificateForm)
+	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
+	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
+	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))
+	mux.HandleFunc("POST /admin/certificates/{id}/reissue", a.admin(a.reissueCertificate))
+	mux.HandleFunc("POST /admin/certificate-settings", a.admin(a.saveCertificateSettings))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
@@ -100,7 +199,12 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner})
+	promo, err := a.galleryItemsFor(r.Context(), learner, true)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	a.render(w, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
 }
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.

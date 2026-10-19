@@ -1,0 +1,31 @@
+{{define "title"}}Exam attempt · {{.Course.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Exam for {{.Course.Title}}</h1>
+    {{with .Attempt}}
+    {{if .Finished}}
+    <h2>Result</h2>
+    <p>Score: {{.Score}}%</p>
+    <p>{{if .Passed}}Passed{{else}}Failed{{end}} (pass mark {{.PassMark}}%)</p>
+    <h2>Wrong answers</h2>
+    <ol>
+      {{range .Questions}}{{if not .Right}}<li>{{.Prompt}} <span>Your answer: {{with .Answer}}{{.}}{{else}}no answer{{end}}</span></li>{{end}}{{end}}
+    </ol>
+    {{else if .TimedOut}}
+    <p>Time ran out. This attempt was not marked.</p>
+    {{else}}
+    {{with .TimeLimit}}<p>Time limit: {{.}} minutes, counted from when you started.</p>{{end}}
+    <form method="post" action="/courses/{{$.Course.ID}}/exam/attempts/{{.ID}}/submit">
+      {{range $q := .Questions}}
+      <fieldset>
+        <legend>{{$q.Prompt}}</legend>
+        {{range $slot, $o := $q.Options}}{{if $o.Text}}
+        <label><input type="radio" name="answer-{{$q.ID}}" value="{{$slot}}"> {{$o.Text}}</label><br>
+        {{end}}{{end}}
+      </fieldset>
+      {{end}}
+      <button>Submit answers</button>
+    </form>
+    {{end}}
+    {{end}}
+    <p><a href="/courses/{{.Course.ID}}/exam">Back to the Exam</a></p>
+{{end}}

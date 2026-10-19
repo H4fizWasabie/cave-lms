@@ -1,0 +1,31 @@
+{{define "title"}}Lessons · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Admin: Lessons of {{.Course.Title}}</h1>
+    <p><a href="/admin/courses/{{.Course.ID}}/lessons/new">New Lesson</a></p>
+    <form method="post" action="/admin/courses/{{.Course.ID}}/lessons/publish-all"><button>Publish all Draft Lessons</button></form>
+    <p><a href="/admin/courses">Back to Courses</a></p>
+    <table>
+      <tr><th>#</th><th>Title</th><th>Content</th><th>State</th><th></th></tr>
+      {{range .Lessons}}
+      <tr>
+        <td>{{.Position}}</td>
+        <td>{{.Title}}{{with .Objective}}<br>{{.}}{{end}}</td>
+        <td>{{if .GalleryItemID}}{{.ItemTitle}}{{else}}Text{{end}}</td>
+        <td>{{if .Published}}Published{{else}}Draft{{end}}</td>
+        <td>
+          <form method="post" action="/admin/lessons/{{.ID}}/up"><button>Up</button></form>
+          <form method="post" action="/admin/lessons/{{.ID}}/down"><button>Down</button></form>
+          <a href="/admin/lessons/{{.ID}}/edit">Edit</a>
+          {{if .Published}}
+          <form method="post" action="/admin/lessons/{{.ID}}/unpublish"><button>Back to Draft</button></form>
+          {{else}}
+          <form method="post" action="/admin/lessons/{{.ID}}/publish"><button>Publish</button></form>
+          {{end}}
+          <form method="post" action="/admin/lessons/{{.ID}}/delete"><button>Remove</button></form>
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="5">No Lessons yet.</td></tr>
+      {{end}}
+    </table>
+{{end}}

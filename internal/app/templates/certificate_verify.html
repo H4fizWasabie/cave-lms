@@ -1,0 +1,16 @@
+{{define "title"}}Check a Certificate · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Check a Certificate</h1>
+    {{with .Certificate}}
+    <article>
+      <p>This certifies that <strong>{{.LearnerName}}</strong></p>
+      <p>has completed <strong>{{.CourseTitle}}</strong></p>
+      <p>Issued {{.IssuedOn}}</p>
+      <p>Status: {{if .Revoked}}Revoked{{else}}Valid{{end}}</p>
+    </article>
+    {{end}}
+    <form method="get" action="/certificates">
+      <label>Certificate ID <input type="text" name="id" required></label>
+      <button>Check</button>
+    </form>
+{{end}}

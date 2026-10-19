@@ -1,0 +1,19 @@
+{{define "title"}}Exam · {{.Course.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Exam for {{.Course.Title}}</h1>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    {{with .Status}}
+    <p>Pass mark: {{.Exam.PassMark}}%</p>
+    <p>{{with .Exam.TimeLimit}}Time limit: {{.}} minutes{{else}}No time limit{{end}}</p>
+    <p>Attempts left: {{.AttemptsLeft}}</p>
+    {{if .HasBest}}<p>Best score: {{.Best}}%</p>{{end}}
+    {{if .Open}}
+    <p><a href="/courses/{{$.Course.ID}}/exam/attempts/{{.Open.ID}}">Continue your attempt</a></p>
+    {{else}}
+    {{with .Blocker}}<p>{{.}}</p>{{else}}
+    <form method="post" action="/courses/{{$.Course.ID}}/exam/attempts"><button>Start the Exam</button></form>
+    {{end}}
+    {{end}}
+    {{end}}
+    <p><a href="/courses/{{.Course.ID}}">Back to the Course</a></p>
+{{end}}

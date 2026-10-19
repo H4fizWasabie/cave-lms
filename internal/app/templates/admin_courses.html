@@ -1,0 +1,30 @@
+{{define "title"}}Courses · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Admin: Courses</h1>
+    <p><a href="/admin/courses/new">New Course</a></p>
+    <p><a href="/admin">Admin area</a></p>
+    <table>
+      <tr><th>Title</th><th>Start date</th><th>State</th><th></th></tr>
+      {{range .Courses}}
+      <tr>
+        <td><a href="/courses/{{.ID}}">{{.Title}}</a></td>
+        <td>{{.StartDate}}</td>
+        <td>{{if .Open}}Open{{else}}Closed{{end}}</td>
+        <td>
+          <a href="/admin/courses/{{.ID}}">Learners</a>
+          <a href="/admin/courses/{{.ID}}/edit">Edit</a>
+          <a href="/admin/courses/{{.ID}}/lessons">Lessons</a>
+          <a href="/admin/courses/{{.ID}}/exam">Exam</a>
+          {{if .Open}}
+          <form method="post" action="/admin/courses/{{.ID}}/close"><button>Close</button></form>
+          {{else}}
+          <form method="post" action="/admin/courses/{{.ID}}/open"><button>Open</button></form>
+          {{end}}
+          <a href="/admin/courses/{{.ID}}/delete">Delete</a>
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="4">No Courses yet.</td></tr>
+      {{end}}
+    </table>
+{{end}}

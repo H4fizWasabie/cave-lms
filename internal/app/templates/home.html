@@ -2,10 +2,21 @@
   <link rel="canonical" href="{{.PublicBaseURL}}">{{end}}
 {{define "content"}}
     <h1>Cave LMS</h1>
+    <p><a href="/gallery">Gallery</a></p>
     {{with .Learner}}
     <p>Logged in as {{.Name}}.</p>
+    {{if .IsAdmin}}<p><a href="/admin">Admin</a></p>{{end}}
+    <p><a href="/courses">Courses</a></p>
+    <p><a href="/my-courses">My Courses</a></p>
     <form method="post" action="/logout"><button>Log out</button></form>
     {{else}}
     <p><a href="/register">Register</a> or <a href="/login">log in</a>.</p>
+    <p><a href="/courses">Courses</a></p>
+    {{end}}
+    {{if .Items}}
+    <h2>Promotional material</h2>
+    <ul>
+      {{range .Items}}<li><a href="/gallery/{{.ID}}">{{.Title}}</a> ({{.Format}})</li>{{end}}
+    </ul>
     {{end}}
 {{end}}

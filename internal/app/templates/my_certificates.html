@@ -1,0 +1,16 @@
+{{define "title"}}My Certificates · Cave LMS{{end}}
+{{define "content"}}
+    <h1>My Certificates</h1>
+    {{range .Certificates}}
+    <article>
+      <h2>{{.CourseTitle}}</h2>
+      <p>Issued {{.IssuedOn}}</p>
+      {{if .Revoked}}<p><strong>Revoked</strong>: this Certificate is no longer valid.</p>{{end}}
+      <p><a href="/certificates/{{.ID}}/pdf">Download PDF</a></p>
+    </article>
+    {{else}}
+    <p>You have no Certificates yet.</p>
+    {{end}}
+    <p><a href="/my-courses">My Courses</a></p>
+    <p><a href="/">Home</a></p>
+{{end}}

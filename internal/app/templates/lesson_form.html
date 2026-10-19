@@ -1,0 +1,30 @@
+{{define "title"}}Lesson · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{if .Lesson.ID}}Edit Lesson{{else}}New Lesson{{end}} for {{.Course.Title}}</h1>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    <form method="post" action="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}{{else}}/admin/courses/{{.Course.ID}}/lessons{{end}}">
+      {{if not .Lesson.ID}}
+      <p><label>Lesson content
+        <select name="kind">
+          <option value="item">One Gallery item</option>
+          <option value="text">Text (Markdown)</option>
+        </select>
+      </label></p>
+      {{end}}
+      <p><label>Title <input type="text" name="title" value="{{.Lesson.Title}}" maxlength="200" required></label></p>
+      <p><label>Objective (one sentence, optional) <input type="text" name="objective" value="{{.Lesson.Objective}}" maxlength="200"></label></p>
+      <p>A video or ebook that everyone may see becomes Course members only once a published Lesson uses it, unless it is promotional.</p>
+      <p><label>Gallery item
+        <select name="gallery_item_id">
+          <option value="">Choose an item</option>
+          {{range .Items}}<option value="{{.ID}}"{{if eq .ID $.Lesson.GalleryItemID}} selected{{end}}>{{.Title}} ({{.Format}})</option>{{end}}
+        </select>
+      </label></p>
+      <p><label>Text (Markdown)<textarea name="body" rows="12" maxlength="20000">{{.Lesson.Body}}</textarea></label></p>
+      {{if not .Lesson.ID}}
+      <p><label><input type="checkbox" name="draft" value="on"> Keep as Draft (Learners will not see it)</label></p>
+      {{end}}
+      <button>Save</button>
+    </form>
+    <p><a href="/admin/courses/{{.Course.ID}}/lessons">Back to the Lessons</a></p>
+{{end}}

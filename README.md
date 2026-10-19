@@ -2,7 +2,7 @@
 
 ## Run
 
-Set `DATABASE_URL`, `PUBLIC_BASE_URL`, and `EMAIL_FROM`, then run:
+Set `DATABASE_URL`, `PUBLIC_BASE_URL`, `EMAIL_FROM`, and `STORAGE_DIR`, then run:
 
 ```sh
 go run ./cmd/cave-lms
@@ -10,7 +10,21 @@ go run ./cmd/cave-lms
 
 `LISTEN_ADDR` is optional and defaults to `:8080`. The app applies embedded Postgres migrations before it starts serving.
 
+`STORAGE_DIR` is a directory on the VPS disk that holds every uploaded Gallery file. It is created if missing, must not be under a public web root, and must be included in the nightly backups together with the database. Uploads are capped at about 2 GB each.
+
 Email delivery is not configured yet. The Mailer reports an explicit error until a provider is added.
+
+## Create the Admin
+
+Registration can never make an Admin. Run this once per deployment, with the same environment as above:
+
+```sh
+CAVE_ADMIN_PASSWORD='a long password' go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
+# or, keeping the password out of the environment:
+printf '%s\n' 'a long password' | go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
+```
+
+The password comes from `CAVE_ADMIN_PASSWORD` if set, otherwise from the first line of stdin. It is never a flag. The account is created verified. If a Learner already uses that email, it is promoted and its password is replaced. The Admin logs in on the normal login page and opens `/admin`.
 
 ## Tests
 

@@ -12,28 +12,32 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/H4fizWasabie/cave-lms/internal/app"
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 type site struct {
-	t      *testing.T
-	server *httptest.Server
-	client *http.Client
-	mail   *testutil.RecordingMailer
-	db     *sql.DB
+	t           *testing.T
+	application *app.App
+	server      *httptest.Server
+	client      *http.Client
+	mail        *testutil.RecordingMailer
+	db          *sql.DB
+	storageDir  string
 }
 
 // newSite serves the app over TLS (session cookies are Secure) to a client
 // that keeps cookies and does not follow redirects.
-func newSite(t *testing.T) *site {
+func newSite(t *testing.T, opts ...func(*config.Config)) *site {
 	t.Helper()
-	application, mail, db := newTestApplication(t)
+	application, mail, db, storageDir := newTestApplication(t, opts...)
 	server := httptest.NewTLSServer(application)
 	t.Cleanup(server.Close)
 	client := server.Client()
 	client.Jar, _ = cookiejar.New(nil)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &site{t: t, server: server, client: client, mail: mail, db: db}
+	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db, storageDir: storageDir}
 }
 
 func (s *site) do(req *http.Request) (*http.Response, string) {
@@ -75,22 +79,47 @@ func (s *site) login(email, password string) (*http.Response, string) {
 	return s.post("/login", url.Values{"email": {email}, "password": {password}})
 }
 
-var verifyLink = regexp.MustCompile(`https://cave\.example\.invalid(/verify\?token=[A-Za-z0-9_-]+)`)
-
-// lastVerifyPath returns the path of the verification link in the latest email to `to`.
-func (s *site) lastVerifyPath(to string) string {
+// lastEmailLinkPath returns the path and query of the link under route in the latest email to `to`.
+func (s *site) lastEmailLinkPath(to, route string) string {
 	s.t.Helper()
+	link := regexp.MustCompile(`https://cave\.example\.invalid(` + regexp.QuoteMeta(route) + `\?token=[A-Za-z0-9_-]+)`)
 	messages := s.mail.Messages()
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].To == to {
-			if m := verifyLink.FindStringSubmatch(messages[i].Body); m != nil {
+			if m := link.FindStringSubmatch(messages[i].Body); m != nil {
 				return m[1]
 			}
-			s.t.Fatalf("email to %s has no verification link: %s", to, messages[i].Body)
+			s.t.Fatalf("email to %s has no %s link: %s", to, route, messages[i].Body)
 		}
 	}
 	s.t.Fatalf("no email sent to %s", to)
 	return ""
+}
+
+// lastVerifyPath returns the path of the verification link in the latest email to `to`.
+func (s *site) lastVerifyPath(to string) string {
+	return s.lastEmailLinkPath(to, "/verify")
+}
+
+// loginAsNewLearner registers, verifies and logs in a new Learner.
+func (s *site) loginAsNewLearner(name, email, password string) {
+	s.t.Helper()
+	res, body := s.register(name, email, password)
+	expectStatus(s.t, res, body, http.StatusOK, "Check your email")
+	res, body = s.get(s.lastVerifyPath(email))
+	expectStatus(s.t, res, body, http.StatusOK, "Email verified")
+	res, body = s.login(email, password)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+}
+
+// loginAsNewAdmin makes an Admin with the same CreateAdmin step the command line uses, then logs in.
+func (s *site) loginAsNewAdmin(name, email, password string) {
+	s.t.Helper()
+	if err := s.application.CreateAdmin(context.Background(), name, email, password); err != nil {
+		s.t.Fatal(err)
+	}
+	res, body := s.login(email, password)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 }
 
 func expectStatus(t *testing.T, res *http.Response, body string, want int, wantText string) {

@@ -1,0 +1,16 @@
+{{define "title"}}My Courses · Cave LMS{{end}}
+{{define "content"}}
+    <h1>My Courses</h1>
+    {{range .Courses}}
+    <article>
+      <h2><a href="/courses/{{.ID}}">{{.Title}}</a></h2>
+      <p>{{.Description}}</p>
+      {{with .StartDate}}<p>Start date: {{.}}</p>{{end}}
+    </article>
+    {{else}}
+    <p>You have not joined any Courses yet.</p>
+    {{end}}
+    <p><a href="/my-certificates">My Certificates</a></p>
+    <p><a href="/courses">All Courses</a></p>
+    <p><a href="/">Home</a></p>
+{{end}}

@@ -1,0 +1,32 @@
+{{define "title"}}{{.Course.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{.Course.Title}}</h1>
+    <p>{{.Course.Description}}</p>
+    {{with .Course.StartDate}}<p>Start date: {{.}}</p>{{end}}
+    <p>{{if .Course.Open}}Open to new joins{{else}}Closed to new joins{{end}}</p>
+    {{if .Learner}}
+      {{if .Enrolled}}
+      <p>You have joined this Course</p>
+      <form method="post" action="/courses/{{.Course.ID}}/leave"><button>Leave this Course</button></form>
+      <p>Progress: {{.Done}} of {{.Total}} Lessons complete</p>
+      <p><a href="/courses/{{.Course.ID}}/exam">Exam</a></p>
+      {{else if .Course.Open}}
+      <form method="post" action="/courses/{{.Course.ID}}/join"><button>Join this Course</button></form>
+      {{end}}
+    {{else}}
+    <p><a href="/login">Log in</a> or <a href="/register">register</a> to join this Course.</p>
+    {{end}}
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    {{if .Lessons}}
+    <h2>Lessons</h2>
+    <ol>
+      {{range .Lessons}}
+      <li>{{if or $.Enrolled (and $.Learner $.Learner.IsAdmin)}}<a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}{{if not .Published}} (Draft, hidden from Learners){{end}}{{if .Completed}} (complete){{end}}
+        {{if and $.Enrolled .Published}}
+        <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{.ID}}/{{if .Completed}}incomplete{{else}}complete{{end}}"><button>{{if .Completed}}Mark incomplete{{else}}Mark complete{{end}}</button></form>
+        {{end}}</li>
+      {{end}}
+    </ol>
+    {{end}}
+    <p><a href="/courses">All Courses</a></p>
+{{end}}

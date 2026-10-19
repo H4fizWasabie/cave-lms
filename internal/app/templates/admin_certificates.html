@@ -1,0 +1,33 @@
+{{define "title"}}Certificates · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Admin: Certificates</h1>
+    <p><a href="/admin">Admin area</a></p>
+    <form method="get" action="/admin/certificates">
+      <label>Search by name or ID <input type="search" name="q" value="{{.Query}}"></label>
+      <button>Search</button>
+    </form>
+    <table>
+      <tr><th>Learner</th><th>Course</th><th>Issued</th><th>Status</th><th>ID</th><th></th></tr>
+      {{range .Certificates}}
+      <tr>
+        <td>{{.LearnerName}}</td>
+        <td>{{.CourseTitle}}</td>
+        <td>{{.IssuedOn}}</td>
+        <td>{{if .Revoked}}Revoked{{else}}Valid{{end}}</td>
+        <td><a href="/certificates/{{.ID}}">{{.ID}}</a></td>
+        <td>
+          {{if .Revoked}}
+          <form method="post" action="/admin/certificates/{{.ID}}/reissue">
+            <label>Learner's name (this also updates their account) <input type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></label>
+            <button>Issue corrected Certificate</button>
+          </form>
+          {{else}}
+          <form method="post" action="/admin/certificates/{{.ID}}/revoke"><button>Revoke</button></form>
+          {{end}}
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="6">{{if .Query}}No Certificates match.{{else}}No Certificates yet.{{end}}</td></tr>
+      {{end}}
+    </table>
+{{end}}
