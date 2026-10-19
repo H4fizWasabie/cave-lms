@@ -29,6 +29,7 @@ type App struct {
 	mailer        mailer.Mailer
 	pages         map[string]*template.Template
 	publicBaseURL string
+	limiter       rateLimiter
 }
 
 // page is the data every template receives.
@@ -42,6 +43,8 @@ type page struct {
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
+	OfferReset    bool
+	Token         string
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -76,11 +79,15 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("GET /register", a.registerForm)
-	mux.HandleFunc("POST /register", a.register)
+	mux.HandleFunc("POST /register", a.limited(a.register))
 	mux.HandleFunc("GET /verify", a.verify)
 	mux.HandleFunc("POST /verify/resend", a.resendVerification)
 	mux.HandleFunc("GET /login", a.loginForm)
-	mux.HandleFunc("POST /login", a.login)
+	mux.HandleFunc("POST /login", a.limited(a.login))
+	mux.HandleFunc("GET /forgot-password", a.forgotPasswordForm)
+	mux.HandleFunc("POST /forgot-password", a.forgotPassword)
+	mux.HandleFunc("GET /reset-password", a.resetPasswordForm)
+	mux.HandleFunc("POST /reset-password", a.resetPassword)
 	mux.HandleFunc("POST /logout", a.logout)
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	a.handler = rejectCrossOrigin(mux)

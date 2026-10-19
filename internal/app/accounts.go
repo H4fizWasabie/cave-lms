@@ -19,10 +19,12 @@ import (
 )
 
 const (
-	sessionCookie      = "__Host-session"
-	sessionLifetime    = 30 * 24 * time.Hour
-	verifyLinkLifetime = 24 * time.Hour
-	purposeVerifyEmail = "verify_email"
+	sessionCookie        = "__Host-session"
+	sessionLifetime      = 30 * 24 * time.Hour
+	verifyLinkLifetime   = 24 * time.Hour
+	purposeVerifyEmail   = "verify_email"
+	purposeResetPassword = "reset_password"
+	resetLinkLifetime    = time.Hour
 )
 
 type learner struct {
@@ -106,18 +108,9 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 
 // sendVerification replaces the Learner's verification link with a new one and emails it.
 func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, learnerID int64, name, email string) error {
-	token, err := newToken()
+	token, err := issueOneTimeToken(ctx, tx, learnerID, purposeVerifyEmail, verifyLinkLifetime)
 	if err != nil {
 		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM one_time_tokens WHERE learner_id = $1 AND purpose = $2`, learnerID, purposeVerifyEmail); err != nil {
-		return fmt.Errorf("delete old verification links: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO one_time_tokens (token_hash, learner_id, purpose, expires_at)
-		VALUES ($1, $2, $3, now() + make_interval(secs => $4))`,
-		hashToken(token), learnerID, purposeVerifyEmail, verifyLinkLifetime.Seconds()); err != nil {
-		return fmt.Errorf("store verification link: %w", err)
 	}
 	return a.mailer.Send(ctx, mailer.Message{
 		To:      email,
@@ -125,6 +118,24 @@ func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, learnerID int64,
 		Body: "Hi " + name + ",\n\nOpen this link within 24 hours to confirm your Cave LMS account:\n\n" +
 			a.publicBaseURL + "/verify?token=" + token + "\n\nIf you didn't register, you can ignore this email.\n",
 	})
+}
+
+// issueOneTimeToken replaces the Learner's links for purpose with a new one and returns the token to email.
+func issueOneTimeToken(ctx context.Context, tx *sql.Tx, learnerID int64, purpose string, lifetime time.Duration) (string, error) {
+	token, err := newToken()
+	if err != nil {
+		return "", err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM one_time_tokens WHERE learner_id = $1 AND purpose = $2`, learnerID, purpose); err != nil {
+		return "", fmt.Errorf("delete old %s links: %w", purpose, err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO one_time_tokens (token_hash, learner_id, purpose, expires_at)
+		VALUES ($1, $2, $3, now() + make_interval(secs => $4))`,
+		hashToken(token), learnerID, purpose, lifetime.Seconds()); err != nil {
+		return "", fmt.Errorf("store %s link: %w", purpose, err)
+	}
+	return token, nil
 }
 
 func (a *App) verify(w http.ResponseWriter, r *http.Request) {
@@ -275,6 +286,13 @@ func accountFieldError(name, email, password string) string {
 		return "Enter your name (up to 200 characters)."
 	case !validEmail(email):
 		return "Enter a valid email address."
+	}
+	return passwordProblem(password)
+}
+
+// passwordProblem says why a password is unacceptable, or returns "" if it is fine.
+func passwordProblem(password string) string {
+	switch {
 	case len(password) < 8:
 		return "Use a password of at least 8 characters."
 	case len(password) > 72: // bcrypt's limit
