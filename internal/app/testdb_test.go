@@ -3,7 +3,9 @@ package app_test
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
+	"os"
 	"testing"
 
 	"github.com/H4fizWasabie/cave-lms/internal/app"
@@ -14,8 +16,13 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 )
 
-func newTestApplication(t *testing.T, databaseURL string) (*app.App, *testutil.RecordingMailer) {
+// newTestApplication returns the app, its recording Mailer and a handle on its isolated schema.
+func newTestApplication(t *testing.T) (*app.App, *testutil.RecordingMailer, *sql.DB) {
 	t.Helper()
+	databaseURL := os.Getenv("TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("set TEST_DATABASE_URL to a dedicated test database")
+	}
 
 	pgConfig, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
@@ -43,7 +50,14 @@ func newTestApplication(t *testing.T, databaseURL string) (*app.App, *testutil.R
 	pgConfig.RuntimeParams["search_path"] = schema
 	scopedURL := stdlib.RegisterConnConfig(pgConfig)
 	var application *app.App
+	scopedDB, err := sql.Open("pgx", scopedURL)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
+		if err := scopedDB.Close(); err != nil {
+			t.Errorf("close scoped database: %v", err)
+		}
 		if application != nil {
 			if err := application.Close(); err != nil {
 				t.Errorf("close app: %v", err)
@@ -64,7 +78,7 @@ func newTestApplication(t *testing.T, databaseURL string) (*app.App, *testutil.R
 	if err != nil {
 		t.Fatal(err)
 	}
-	return application, recorder
+	return application, recorder, scopedDB
 }
 
 var _ mailer.Mailer = (*testutil.RecordingMailer)(nil)

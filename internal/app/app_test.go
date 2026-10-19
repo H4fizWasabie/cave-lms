@@ -3,7 +3,6 @@ package app_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -11,12 +10,7 @@ import (
 )
 
 func TestHomePage(t *testing.T) {
-	databaseURL := os.Getenv("TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("set TEST_DATABASE_URL to a dedicated test database")
-	}
-
-	application, _ := newTestApplication(t, databaseURL)
+	application, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
 	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 

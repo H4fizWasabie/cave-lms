@@ -1,0 +1,12 @@
+{{define "title"}}Register · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Register</h1>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    <form method="post" action="/register">
+      <label>Name <input name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required></label>
+      <label>Email <input type="email" name="email" value="{{.Email}}" autocomplete="email" required></label>
+      <label>Password <input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
+      <button>Register</button>
+    </form>
+    <p>Already registered? <a href="/login">Log in</a>.</p>
+{{end}}

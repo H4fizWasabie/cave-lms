@@ -1,14 +1,11 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="canonical" href="{{.PublicBaseURL}}">
-  <title>Cave LMS</title>
-</head>
-<body>
-  <main>
+{{define "head"}}
+  <link rel="canonical" href="{{.PublicBaseURL}}">{{end}}
+{{define "content"}}
     <h1>Cave LMS</h1>
-  </main>
-</body>
-</html>
+    {{with .Learner}}
+    <p>Logged in as {{.Name}}.</p>
+    <form method="post" action="/logout"><button>Log out</button></form>
+    {{else}}
+    <p><a href="/register">Register</a> or <a href="/login">log in</a>.</p>
+    {{end}}
+{{end}}
