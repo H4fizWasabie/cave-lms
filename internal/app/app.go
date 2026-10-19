@@ -56,6 +56,8 @@ type page struct {
 	Courses       []course
 	Course        *course
 	Exam          *exam
+	Status        *examStatus // the Learner's Exam
+	Attempt       *examAttempt
 	Question      *examQuestion
 	Enrolled      bool
 	Done          int // Lessons the Learner has completed
@@ -162,6 +164,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
+	mux.HandleFunc("GET /courses/{id}/exam", a.requireLearner(a.learnerExam))
+	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
+	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
+	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

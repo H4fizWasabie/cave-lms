@@ -9,6 +9,7 @@
       <p>You have joined this Course</p>
       <form method="post" action="/courses/{{.Course.ID}}/leave"><button>Leave this Course</button></form>
       <p>Progress: {{.Done}} of {{.Total}} Lessons complete</p>
+      <p><a href="/courses/{{.Course.ID}}/exam">Exam</a></p>
       {{else if .Course.Open}}
       <form method="post" action="/courses/{{.Course.ID}}/join"><button>Join this Course</button></form>
       {{end}}
