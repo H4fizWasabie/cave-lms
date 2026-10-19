@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -73,16 +75,11 @@ func mayView(viewer *learner, item galleryItem) bool {
 	return false
 }
 
-// viewItem loads the item named in the path and applies mayView. When it returns false, the response is already written.
-func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, bool) {
+// galleryItemFor loads the item named by the {id} path value. When there is none it writes the Not found page and returns false.
+func (a *App) galleryItemFor(w http.ResponseWriter, r *http.Request) (galleryItem, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		http.NotFound(w, r)
-		return galleryItem{}, false
-	}
-	learner, err := a.currentLearner(r)
-	if err != nil {
-		serverError(w, err)
 		return galleryItem{}, false
 	}
 	item, err := a.loadGalleryItem(r.Context(), id)
@@ -92,6 +89,20 @@ func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, boo
 	}
 	if err != nil {
 		serverError(w, err)
+		return galleryItem{}, false
+	}
+	return item, true
+}
+
+// viewItem loads the item named in the path and applies mayView. When it returns false, the response is already written.
+func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, bool) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		serverError(w, err)
+		return galleryItem{}, false
+	}
+	item, ok := a.galleryItemFor(w, r)
+	if !ok {
 		return galleryItem{}, false
 	}
 	if !mayView(learner, item) {
@@ -120,34 +131,54 @@ func (a *App) loadGalleryItem(ctx context.Context, id int64) (galleryItem, error
 	return scanGalleryItem(a.db.QueryRowContext(ctx, `SELECT `+galleryColumns+` FROM gallery_items WHERE id = $1`, id).Scan)
 }
 
-func (a *App) gallery(w http.ResponseWriter, r *http.Request) {
-	learner, err := a.currentLearner(r)
+// galleryItemsFor lists the Gallery items the viewer may see, newest first. onlyPromotional narrows the list to promotional items.
+func (a *App) galleryItemsFor(ctx context.Context, viewer *learner, onlyPromotional bool) ([]galleryItem, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT `+galleryColumns+` FROM gallery_items WHERE promotional OR NOT $1 ORDER BY created_at DESC, id DESC`, onlyPromotional)
 	if err != nil {
-		serverError(w, err)
-		return
-	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT `+galleryColumns+` FROM gallery_items ORDER BY created_at DESC, id DESC`)
-	if err != nil {
-		serverError(w, err)
-		return
+		return nil, err
 	}
 	defer rows.Close()
 	var items []galleryItem
 	for rows.Next() {
 		item, err := scanGalleryItem(rows.Scan)
 		if err != nil {
-			serverError(w, err)
-			return
+			return nil, err
 		}
-		if mayView(learner, item) { // the same decision as the item page
+		if mayView(viewer, item) {
 			items = append(items, item)
 		}
 	}
-	if err := rows.Err(); err != nil {
+	return items, rows.Err()
+}
+
+// gallery lists what the viewer may see, narrowed by the ?format and ?category filters.
+func (a *App) gallery(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "gallery", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: items})
+	items, err := a.galleryItemsFor(r.Context(), learner, false)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	format, category := r.URL.Query().Get("format"), r.URL.Query().Get("category")
+	var shown []galleryItem
+	seen := map[string]bool{}
+	var categories []string // only categories of items the viewer may see
+	for _, item := range items {
+		if item.Category != "" && !seen[item.Category] {
+			seen[item.Category] = true
+			categories = append(categories, item.Category)
+		}
+		if (format == "" || item.Format == format) && (category == "" || item.Category == category) {
+			shown = append(shown, item)
+		}
+	}
+	sort.Strings(categories)
+	a.render(w, http.StatusOK, "gallery", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: shown,
+		Format: format, Category: category, Categories: categories})
 }
 
 func (a *App) galleryItemPage(w http.ResponseWriter, r *http.Request) {
@@ -316,4 +347,77 @@ func galleryFieldError(item galleryItem, hasFile bool) string {
 		return "Choose who may see this item."
 	}
 	return ""
+}
+
+// adminGallery lists every Gallery item for the Admin to edit or delete. mayView lets the Admin see all of them.
+func (a *App) adminGallery(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	items, err := a.galleryItemsFor(r.Context(), learner, false)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	a.render(w, http.StatusOK, "admin_gallery", page{Learner: learner, Items: items})
+}
+
+func (a *App) editGalleryForm(w http.ResponseWriter, r *http.Request) {
+	item, ok := a.galleryItemFor(w, r)
+	if !ok {
+		return
+	}
+	a.render(w, http.StatusOK, "gallery_edit", page{Item: &item})
+}
+
+// updateGalleryItem saves the Admin's edits. The file itself never changes.
+func (a *App) updateGalleryItem(w http.ResponseWriter, r *http.Request) {
+	item, ok := a.galleryItemFor(w, r)
+	if !ok {
+		return
+	}
+	item.Title = strings.TrimSpace(r.PostFormValue("title"))
+	item.Description = strings.TrimSpace(r.PostFormValue("description"))
+	item.Category = strings.TrimSpace(r.PostFormValue("category"))
+	item.Visibility = r.PostFormValue("visibility")
+	item.Promotional = r.PostFormValue("promotional") == "on"
+	if msg := galleryFieldError(item, true); msg != "" {
+		a.render(w, http.StatusUnprocessableEntity, "gallery_edit", page{Item: &item, Error: msg})
+		return
+	}
+	_, err := a.db.ExecContext(r.Context(),
+		`UPDATE gallery_items SET title = $2, description = $3, category = $4, promotional = $5, visibility = $6 WHERE id = $1`,
+		item.ID, item.Title, item.Description, item.Category, item.Promotional, item.Visibility)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/gallery", http.StatusSeeOther)
+}
+
+func (a *App) confirmDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
+	item, ok := a.galleryItemFor(w, r)
+	if !ok {
+		return
+	}
+	a.render(w, http.StatusOK, "delete_gallery_item", page{Item: &item})
+}
+
+// deleteGalleryItem removes the row, then its stored file.
+func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
+	item, ok := a.galleryItemFor(w, r)
+	if !ok {
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM gallery_items WHERE id = $1`, item.ID); err != nil {
+		serverError(w, err)
+		return
+	}
+	if err := a.store.Remove(item.storageKey); err != nil && !errors.Is(err, os.ErrNotExist) {
+		serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/gallery", http.StatusSeeOther)
 }
