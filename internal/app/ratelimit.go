@@ -21,10 +21,11 @@ type rateLimiter struct {
 	attempts map[string][]time.Time
 }
 
-// limited refuses the request with 429 once its client has made too many attempts in the window.
+// limited refuses the request with 429 once its client has made too many attempts at this form in the window.
+// Each form has its own budget, so failed logins never block a password reset.
 func (a *App) limited(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.limiter.allow(clientAddress(r), time.Now()) {
+		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), time.Now()) {
 			a.render(w, http.StatusTooManyRequests, "message", page{
 				Title:   "Too many attempts",
 				Message: "Too many attempts from your address. Wait 15 minutes and try again.",

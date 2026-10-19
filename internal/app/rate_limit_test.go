@@ -12,10 +12,10 @@ import (
 func TestLoginIsRateLimitedPerClient(t *testing.T) {
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
-	// Registration and login share one budget of ten attempts per address; this setup uses two.
+	// Ten login attempts per address; this setup uses one.
 	s.loginAsNewLearner("Ada", email, password)
 
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 8; i++ {
 		res, body := s.login(email, "wrong password")
 		expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect")
 	}
@@ -118,5 +118,20 @@ func TestForgotPasswordAndResendAreRateLimited(t *testing.T) {
 		}
 		res, body := s.post(path, url.Values{"email": {"ada@example.com"}})
 		expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+	}
+}
+
+func TestFailedLoginsDoNotBlockAPasswordReset(t *testing.T) {
+	s := newSite(t)
+	for i := 0; i < 10; i++ {
+		s.login("ada@example.com", "wrong password")
+	}
+	res, body := s.login("ada@example.com", "wrong password")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+
+	// Each form has its own budget, so a Learner locked out of login can still ask for a reset.
+	res, body = s.post("/forgot-password", url.Values{"email": {"ada@example.com"}})
+	if res.StatusCode == http.StatusTooManyRequests {
+		t.Fatalf("forgot-password refused after failed logins: %s", body)
 	}
 }
