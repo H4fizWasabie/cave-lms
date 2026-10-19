@@ -66,6 +66,8 @@ type page struct {
 	Lesson        *lesson
 	Enrollees     []enrollee
 	Certificates  []certificate
+	Certificate   *certificate // the one a verification page shows
+	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
 }
 
@@ -173,6 +175,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /certificates/{id}/pdf", a.downloadCertificate)
 	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
+	mux.HandleFunc("GET /certificates", a.verifyCertificateForm)
+	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
+	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
+	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))
+	mux.HandleFunc("POST /admin/certificates/{id}/reissue", a.admin(a.reissueCertificate))
 	mux.HandleFunc("POST /admin/certificate-settings", a.admin(a.saveCertificateSettings))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil

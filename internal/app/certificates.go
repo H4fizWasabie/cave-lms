@@ -25,6 +25,7 @@ type certificate struct {
 	LearnerName string
 	CourseTitle string
 	IssuedAt    time.Time
+	Revoked     bool
 }
 
 // IssuedOn is the issue date as the pages and the PDF show it.
@@ -51,7 +52,8 @@ func newCertificateID() (string, error) {
 
 // issueCertificateIfEarned issues the Learner a Certificate for a Course once every published Lesson is complete
 // and, when the Course has a usable Exam, it is passed. The partial unique index keeps one valid Certificate per
-// Learner and Course, so calling it again changes nothing.
+// Learner and Course, so calling it again changes nothing. A revoked Certificate is not issued again automatically:
+// only the Admin's corrected one replaces it.
 func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID int64) error {
 	done, total, err := a.courseProgress(ctx, learnerID, courseID)
 	if err != nil || total == 0 || done < total {
@@ -74,11 +76,12 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	_, err = a.db.ExecContext(ctx, `
 		INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title)
 		SELECT $1, l.id, c.id, l.name, c.title FROM learners l, courses c WHERE l.id = $2 AND c.id = $3
+		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
 		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID)
 	return err
 }
 
-// queryCertificates runs a query that selects id, learner_id, learner_name, course_title, issued_at.
+// queryCertificates runs a query that selects id, learner_id, learner_name, course_title, issued_at, revoked (bool).
 func (a *App) queryCertificates(ctx context.Context, query string, args ...any) ([]certificate, error) {
 	rows, err := a.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -88,7 +91,7 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	var list []certificate
 	for rows.Next() {
 		var c certificate
-		if err := rows.Scan(&c.ID, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt, &c.Revoked); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
@@ -103,7 +106,7 @@ func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at
+	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
 		FROM certificates WHERE learner_id = $1 AND revoked_at IS NULL ORDER BY issued_at, id`, learner.ID)
 	if err != nil {
 		serverError(w, err)
@@ -123,7 +126,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at
+	list, err := a.queryCertificates(r.Context(), `SELECT id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL
 		FROM certificates WHERE id = $1 AND revoked_at IS NULL`, r.PathValue("id"))
 	if err != nil {
 		serverError(w, err)
