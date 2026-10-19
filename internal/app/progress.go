@@ -70,6 +70,9 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 			_, err = a.db.ExecContext(r.Context(), `DELETE FROM lesson_completions WHERE learner_id = $1 AND lesson_id = $2`,
 				learner.ID, l.ID)
 		}
+		if err == nil && complete {
+			err = a.issueCertificateIfEarned(r.Context(), learner.ID, c.ID)
+		}
 		if err != nil {
 			serverError(w, err)
 			return

@@ -65,6 +65,8 @@ type page struct {
 	Lessons       []lesson
 	Lesson        *lesson
 	Enrollees     []enrollee
+	Certificates  []certificate
+	Settings      *certificateSettings
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -168,6 +170,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
+	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
+	mux.HandleFunc("GET /certificates/{id}/pdf", a.downloadCertificate)
+	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
+	mux.HandleFunc("POST /admin/certificate-settings", a.admin(a.saveCertificateSettings))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

@@ -324,6 +324,9 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 		UPDATE exam_attempts SET questions = $2::jsonb, finished_at = now(), score = $3, passed = $4
 		WHERE id = $1 AND finished_at IS NULL AND (time_limit_minutes IS NULL OR NOT (`+examLateSQL+`))`,
 		att.ID, string(raw), score, score >= att.PassMark)
+	if err == nil {
+		err = a.issueCertificateIfEarned(r.Context(), learner.ID, c.ID)
+	}
 	if err != nil {
 		serverError(w, err)
 		return
