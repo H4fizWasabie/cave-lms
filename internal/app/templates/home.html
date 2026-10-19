@@ -13,4 +13,10 @@
     <p><a href="/register">Register</a> or <a href="/login">log in</a>.</p>
     <p><a href="/courses">Courses</a></p>
     {{end}}
+    {{if .Items}}
+    <h2>Promotional material</h2>
+    <ul>
+      {{range .Items}}<li><a href="/gallery/{{.ID}}">{{.Title}}</a> ({{.Format}})</li>{{end}}
+    </ul>
+    {{end}}
 {{end}}

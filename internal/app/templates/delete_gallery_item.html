@@ -1,0 +1,9 @@
+{{define "title"}}Delete Gallery item · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Delete Gallery item</h1>
+    {{with .Item}}
+    <p>Delete &ldquo;{{.Title}}&rdquo; and its file? This cannot be undone.</p>
+    <form method="post" action="/admin/gallery/{{.ID}}/delete"><button>Delete item</button></form>
+    {{end}}
+    <p><a href="/admin/gallery">Cancel</a></p>
+{{end}}

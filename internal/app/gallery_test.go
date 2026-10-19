@@ -310,3 +310,190 @@ func TestStoredFilesAreNotPublic(t *testing.T) {
 	res, body = s.get("/gallery/" + key)
 	expectStatus(t, res, body, http.StatusNotFound, "")
 }
+
+func TestGalleryFiltersByFormat(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.uploadAs("Snapshot", "everyone", pngFile)
+	s.uploadAs("Workbook", "everyone", pdfFile)
+	s.logout()
+
+	res, body := s.get("/gallery?format=ebook")
+	expectStatus(t, res, body, http.StatusOK, "Workbook")
+	if strings.Contains(body, "Snapshot") {
+		t.Fatal("format=ebook lists a picture")
+	}
+}
+
+func TestGalleryFiltersByCategory(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.uploadAs("Algebra", "everyone", pngFile) // category Maths
+	res, body := s.upload(map[string]string{"title": "Circuits", "category": "Physics", "visibility": "everyone"}, pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.logout()
+
+	res, body = s.get("/gallery?category=Physics")
+	expectStatus(t, res, body, http.StatusOK, "Circuits")
+	if strings.Contains(body, "Algebra") {
+		t.Fatal("category=Physics lists a Maths item")
+	}
+}
+
+func TestPromotionalItemsShowOnTheHomePage(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	res, body := s.upload(map[string]string{"title": "Taster lesson", "category": "Maths", "promotional": "on", "visibility": "everyone"}, pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.uploadAs("Plain picture", "everyone", pngFile)
+	s.logout()
+
+	res, body = s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "Taster lesson")
+	if strings.Contains(body, "Plain picture") {
+		t.Fatal("home page lists a non-promotional item")
+	}
+}
+
+func TestPromotionalItemDefaultsToEveryone(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	// No visibility field sent: a promotional item must still be public.
+	res, body := s.upload(map[string]string{"title": "Open promo", "promotional": "on"}, pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.logout()
+
+	res, body = s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "Open promo")
+}
+
+func TestHiddenItemsNeverLeakIntoListings(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.upload(map[string]string{"title": "Members promo", "category": "Secret", "promotional": "on", "visibility": "learners"}, pngFile)
+	s.logout()
+
+	res, body := s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if strings.Contains(body, "Members promo") {
+		t.Fatal("Visitor sees a logged-in-only promotional item on the home page")
+	}
+	res, body = s.get("/gallery")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if strings.Contains(body, "Members promo") || strings.Contains(body, "Secret") {
+		t.Fatal("Visitor sees a hidden item or its category in the Gallery")
+	}
+
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	res, body = s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "Members promo")
+}
+
+func TestAdminListsEveryItemWithEditAndDeleteLinks(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.uploadAs("Open poster", "everyone", pngFile)
+	s.uploadAs("Members poster", "learners", pngFile)
+
+	res, body := s.get("/admin/gallery")
+	expectStatus(t, res, body, http.StatusOK, "Members poster")
+	if !strings.Contains(body, "Open poster") || strings.Count(body, "/edit") != 2 || strings.Count(body, "/delete") != 2 {
+		t.Fatalf("Admin list does not show both items with Edit and Delete: %s", body)
+	}
+}
+
+func TestOnlyTheAdminManagesTheGallery(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Poster", "everyone", pngFile)
+	id := strings.TrimPrefix(location, "/gallery/")
+	s.logout()
+
+	res, body := s.get("/admin/gallery")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/login" {
+		t.Fatalf("Visitor redirected to %q, want /login", loc)
+	}
+	res, body = s.get("/admin/gallery/" + id + "/edit")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	for _, path := range []string{"/admin/gallery", "/admin/gallery/" + id + "/edit", "/admin/gallery/" + id + "/delete"} {
+		res, body = s.get(path)
+		expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
+	}
+	res, body = s.post("/admin/gallery/"+id+"/delete", url.Values{})
+	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
+	if n := s.countGalleryItems(); n != 1 {
+		t.Fatalf("%d gallery items after a Learner's delete, want 1", n)
+	}
+}
+
+func TestAdminEditsAGalleryItem(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Old title", "everyone", pngFile)
+	id := strings.TrimPrefix(location, "/gallery/")
+
+	res, body := s.get("/admin/gallery/" + id + "/edit")
+	expectStatus(t, res, body, http.StatusOK, `value="Old title"`)
+
+	res, body = s.post("/admin/gallery/"+id, url.Values{"title": {"New title"}, "description": {"Fixed"}, "category": {"Physics"}, "promotional": {"on"}, "visibility": {"learners"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/admin/gallery" {
+		t.Fatalf("edit redirected to %q, want /admin/gallery", loc)
+	}
+	res, body = s.get("/gallery/" + id)
+	expectStatus(t, res, body, http.StatusOK, "New title")
+	if strings.Contains(body, "Old title") {
+		t.Fatal("edited item still shows its old title")
+	}
+
+	s.logout()
+	res, body = s.get("/")
+	if strings.Contains(body, "New title") {
+		t.Fatal("Visitor sees the item after it became logged-in only")
+	}
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	res, body = s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "New title")
+}
+
+func TestEditRefusesInvalidInputAndKeepsTheItem(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Keep me", "everyone", pngFile)
+	id := strings.TrimPrefix(location, "/gallery/")
+
+	res, body := s.post("/admin/gallery/"+id, url.Values{"title": {""}, "visibility": {"everyone"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter a title")
+	res, body = s.post("/admin/gallery/"+id, url.Values{"title": {"Renamed"}, "visibility": {"nobody"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose who may see this item.")
+
+	res, body = s.get("/gallery/" + id)
+	expectStatus(t, res, body, http.StatusOK, "Keep me")
+}
+
+func TestAdminDeletesAGalleryItemAndItsFile(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Doomed", "everyone", pngFile)
+	id := strings.TrimPrefix(location, "/gallery/")
+
+	res, body := s.get("/admin/gallery/" + id + "/delete")
+	expectStatus(t, res, body, http.StatusOK, "Doomed")
+
+	res, body = s.post("/admin/gallery/"+id+"/delete", url.Values{})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/admin/gallery" {
+		t.Fatalf("delete redirected to %q, want /admin/gallery", loc)
+	}
+	if n := s.countGalleryItems(); n != 0 {
+		t.Fatalf("%d gallery items after delete, want 0", n)
+	}
+	if n := s.storedFiles(); n != 0 {
+		t.Fatalf("%d stored files after delete, want 0", n)
+	}
+	res, body = s.get(location)
+	expectStatus(t, res, body, http.StatusNotFound, "")
+}
