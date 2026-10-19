@@ -297,3 +297,19 @@ func TestCertificateSettingsRefuseLearnersAndBadImages(t *testing.T) {
 		t.Fatalf("refused logo left %d stored file(s)", len(entries))
 	}
 }
+
+func TestCertificateSettingsRefuseATooLargeImageOrANonMultipartForm(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
+	big := append(pngBytes(t), make([]byte, 5<<20)...)
+	res, body := s.postCertificateSettings(map[string]string{"organisation_name": "Cave Academy", "signatory_name": "Dr Jane Smith"},
+		map[string][]byte{"logo": big})
+	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "Images are limited to 5 MB")
+	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "Certificate details")
+	if strings.Contains(body, "2 GB") {
+		t.Fatalf("certificate settings error speaks of Gallery uploads: %s", body)
+	}
+
+	res, body = s.post("/admin/certificate-settings", url.Values{"organisation_name": {"Cave Academy"}})
+	expectStatus(t, res, body, http.StatusBadRequest, "Certificate details")
+}

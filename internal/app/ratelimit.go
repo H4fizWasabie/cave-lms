@@ -3,6 +3,7 @@ package app
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,12 +35,21 @@ func (a *App) limited(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// clientAddress is the host part of r.RemoteAddr. Behind a reverse proxy such as Caddy that is the
-// proxy's address, so every visitor shares one limit until forwarded headers are trusted.
+// clientAddress is the host part of r.RemoteAddr. When that is loopback, the request came through the local
+// reverse proxy (Caddy), which appends the real client as the last X-Forwarded-For entry; earlier entries are
+// whatever the client sent, so only the last one is trusted.
 func clientAddress(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+			entries := strings.Split(xff[len(xff)-1], ",")
+			if last := strings.TrimSpace(entries[len(entries)-1]); last != "" {
+				return last
+			}
+		}
 	}
 	return host
 }

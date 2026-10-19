@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // course is a Course as the pages show it. StartDate is YYYY-MM-DD, or empty when none.
@@ -160,12 +158,11 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Enrollments and Lessons hold ON DELETE RESTRICT, so the database refuses the delete.
+	// Enrollments, Lessons, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+	if isForeignKeyError(err) {
 		a.render(w, http.StatusConflict, "delete_course", page{Course: &c,
-			Error: "This Course cannot be deleted while it has Lessons or Learners. Remove the Lessons first, or close the Course instead."})
+			Error: "This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates. Close the Course instead."})
 		return
 	}
 	if err != nil {

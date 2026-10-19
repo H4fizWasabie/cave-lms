@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -119,4 +120,17 @@ func TestResetSignsOutEverySessionOfTheLearner(t *testing.T) {
 	if strings.Contains(body, "Logged in") {
 		t.Fatalf("old session still logs in after a password reset: %s", body)
 	}
+}
+
+func TestAFailedEmailSendStillGivesTheNormalAnswer(t *testing.T) {
+	s := newSite(t)
+	const email, password = "ada@example.com", "correct horse battery"
+	s.loginAsNewLearner("Ada", email, password)
+	s.register("Grace", "grace@example.com", password) // left unverified
+	s.mail.FailWith(errors.New("mail server down"))
+
+	res, body := s.forgotPassword(email)
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	res, body = s.post("/verify/resend", url.Values{"email": {"grace@example.com"}})
+	expectStatus(t, res, body, http.StatusOK, "we sent it a new link")
 }

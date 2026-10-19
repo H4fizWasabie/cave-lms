@@ -296,7 +296,7 @@ func TestCourseWithLessonsCannotBeDeleted(t *testing.T) {
 	s.addTextLesson(id, "Variables", "", "Use `:=`.", true)
 
 	res, body := s.post("/admin/courses/"+id+"/delete", nil)
-	expectStatus(t, res, body, http.StatusConflict, "This Course cannot be deleted while it has Lessons or Learners.")
+	expectStatus(t, res, body, http.StatusConflict, "This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates.")
 	res, body = s.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Go Basics</h1>")
 }

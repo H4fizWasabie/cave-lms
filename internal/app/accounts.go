@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -112,6 +113,11 @@ func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, learnerID int64,
 	if err != nil {
 		return err
 	}
+	return a.mailVerification(ctx, name, email, token)
+}
+
+// mailVerification emails the verification link for token.
+func (a *App) mailVerification(ctx context.Context, name, email, token string) error {
 	return a.mailer.Send(ctx, mailer.Message{
 		To:      email,
 		Subject: "Confirm your Cave LMS account",
@@ -194,13 +200,18 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err == nil {
-		if err := a.sendVerification(r.Context(), tx, id, name, to); err != nil {
+		token, err := issueOneTimeToken(r.Context(), tx, id, purposeVerifyEmail, verifyLinkLifetime)
+		if err != nil {
 			serverError(w, err)
 			return
 		}
 		if err := tx.Commit(); err != nil {
 			serverError(w, err)
 			return
+		}
+		// A failed send is only logged: an error page would reveal that the account exists.
+		if err := a.mailVerification(r.Context(), name, to, token); err != nil {
+			log.Printf("send verification email: %v", err)
 		}
 	}
 	a.render(w, http.StatusOK, "message", page{

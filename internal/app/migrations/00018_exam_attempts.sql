@@ -1,11 +1,11 @@
 -- +goose Up
 -- An attempt keeps its own copy of the Exam as it stood when started: the time limit and pass mark, and the
 -- published questions in the order shown, each with its options, correct option and the Learner's answer (JSON).
--- Later Exam edits never change a past attempt. Deleting the Exam deletes its attempts.
+-- Later Exam edits never change a past attempt. Stored attempts are never deleted with their Exam or Course (RESTRICT).
 CREATE TABLE exam_attempts (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     learner_id bigint NOT NULL REFERENCES learners ON DELETE CASCADE,
-    course_id bigint NOT NULL REFERENCES exams ON DELETE CASCADE,
+    course_id bigint NOT NULL REFERENCES exams ON DELETE RESTRICT,
     started_at timestamptz NOT NULL DEFAULT now(),
     time_limit_minutes integer CHECK (time_limit_minutes > 0),
     pass_mark integer NOT NULL CHECK (pass_mark BETWEEN 0 AND 100),

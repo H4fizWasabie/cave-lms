@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -39,18 +40,18 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
+		if err := tx.Commit(); err != nil {
+			serverError(w, err)
+			return
+		}
+		// A failed send is only logged: an error page would reveal that the account exists.
 		if err := a.mailer.Send(r.Context(), mailer.Message{
 			To:      to,
 			Subject: "Reset your Cave LMS password",
 			Body: "Hi " + name + ",\n\nOpen this link within an hour to choose a new password:\n\n" +
 				a.publicBaseURL + "/reset-password?token=" + token + "\n\nIf you didn't ask for this, you can ignore this email.\n",
 		}); err != nil {
-			serverError(w, err)
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			serverError(w, err)
-			return
+			log.Printf("send password reset email: %v", err)
 		}
 	}
 	a.render(w, http.StatusOK, "message", page{

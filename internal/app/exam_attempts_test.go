@@ -319,3 +319,19 @@ func TestStartingAgainResumesTheOpenAttempt(t *testing.T) {
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "You have no attempts left.")
 }
+
+func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "What is a slice?")
+	res, _ := s.startExam(id)
+	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"}) // failed, so no Certificate
+	s.post("/courses/"+id+"/leave", nil)
+	s.loginAdmin()
+	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", nil)
+
+	res, body := s.post("/admin/courses/"+id+"/delete", nil)
+	expectStatus(t, res, body, http.StatusConflict,
+		"This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates.")
+	res, body = s.get("/courses/" + id)
+	expectStatus(t, res, body, http.StatusOK, "<h1>Go Basics</h1>")
+}

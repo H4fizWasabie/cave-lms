@@ -267,14 +267,21 @@ func (a *App) certificateSettingsForm(w http.ResponseWriter, r *http.Request) {
 
 // saveCertificateSettings stores the text fields and any new logo or signature. Nothing is kept unless the whole form is valid.
 func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxCertificateImage)
-	if err := r.ParseMultipartForm(1 << 20); err != nil {
-		a.uploadReadFailed(w, err)
-		return
-	}
 	cur, err := a.certificateSettingsFor(r.Context())
 	if err != nil {
 		serverError(w, err)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxCertificateImage)
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			a.render(w, http.StatusRequestEntityTooLarge, "admin_certificate_settings", page{Settings: &cur,
+				Error: "These files are too large. Images are limited to 5 MB, and nothing was saved."})
+			return
+		}
+		a.render(w, http.StatusBadRequest, "admin_certificate_settings", page{Settings: &cur,
+			Error: "The form could not be read. Try again."})
 		return
 	}
 	next := certificateSettings{

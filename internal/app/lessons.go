@@ -281,6 +281,15 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
+		allowed, err := a.mayView(r.Context(), learner, item)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if !allowed {
+			a.refuseMembersItem(w, r, item)
+			return
+		}
 		data.Item = &item
 	} else {
 		l.HTML = renderMarkdown(l.Body)

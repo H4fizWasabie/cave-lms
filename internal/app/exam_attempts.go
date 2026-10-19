@@ -205,6 +205,19 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Locking the Enrollment row serialises starts by one Learner on one Course, so two quick clicks can never
+	// both pass the open-attempt and attempt-limit checks. The lock is held until the new attempt is committed.
+	tx, err := a.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM enrollments WHERE learner_id = $1 AND course_id = $2 FOR UPDATE`,
+		learner.ID, c.ID); err != nil {
+		serverError(w, err)
+		return
+	}
 	st, err := a.examStatusFor(r.Context(), learner, c)
 	if err != nil {
 		serverError(w, err)
@@ -218,7 +231,10 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		a.render(w, http.StatusConflict, "learner_exam", page{Course: &c, Learner: learner, Status: &st, Error: msg})
 		return
 	}
-	id, err := a.insertAttempt(r.Context(), learner.ID, c.ID)
+	id, err := a.insertAttempt(r.Context(), tx, learner.ID, c.ID)
+	if err == nil {
+		err = tx.Commit()
+	}
 	if err != nil {
 		serverError(w, err)
 		return
@@ -227,7 +243,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 }
 
 // insertAttempt stores a new attempt with the published questions in a shuffled order.
-func (a *App) insertAttempt(ctx context.Context, learnerID, courseID int64) (int64, error) {
+func (a *App) insertAttempt(ctx context.Context, tx *sql.Tx, learnerID, courseID int64) (int64, error) {
 	list, err := a.loadQuestions(ctx, courseID, 0)
 	if err != nil {
 		return 0, err
@@ -244,7 +260,7 @@ func (a *App) insertAttempt(ctx context.Context, learnerID, courseID int64) (int
 		return 0, err
 	}
 	var id int64
-	err = a.db.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		INSERT INTO exam_attempts (learner_id, course_id, time_limit_minutes, pass_mark, questions)
 		SELECT $1, course_id, time_limit_minutes, pass_mark, $3::jsonb FROM exams WHERE course_id = $2
 		RETURNING id`, learnerID, courseID, string(raw)).Scan(&id)
