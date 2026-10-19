@@ -27,6 +27,7 @@ type lesson struct {
 	GalleryItemID int64
 	ItemTitle     string
 	Published     bool
+	Completed     bool          // set on the Course page for the enrolled Learner
 	HTML          template.HTML // the Body rendered as sanitised Markdown, for the Lesson page
 }
 

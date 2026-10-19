@@ -50,13 +50,28 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var lessons []lesson
+	var done, total int
 	if enrolled || (learner != nil && learner.IsAdmin) {
 		if lessons, err = a.lessonsOf(r.Context(), c.ID, learner != nil && learner.IsAdmin); err != nil {
 			serverError(w, err)
 			return
 		}
 	}
-	a.render(w, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons})
+	if enrolled {
+		if done, total, err = a.courseProgress(r.Context(), learner.ID, c.ID); err != nil {
+			serverError(w, err)
+			return
+		}
+		completed, err := a.completedLessons(r.Context(), learner.ID, c.ID)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		for i := range lessons {
+			lessons[i].Completed = completed[lessons[i].ID]
+		}
+	}
+	a.render(w, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total})
 }
 
 func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {

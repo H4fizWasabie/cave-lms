@@ -58,6 +58,8 @@ type page struct {
 	Exam          *exam
 	Question      *examQuestion
 	Enrolled      bool
+	Done          int // Lessons the Learner has completed
+	Total         int // published Lessons in the Course
 	Lessons       []lesson
 	Lesson        *lesson
 	Enrollees     []enrollee
@@ -135,6 +137,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
 	mux.HandleFunc("GET /courses/{id}/lessons/{lessonID}", a.requireLearner(a.showLesson))
+	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/complete", a.requireLearner(a.setLessonComplete(true)))
+	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/incomplete", a.requireLearner(a.setLessonComplete(false)))
 	mux.HandleFunc("GET /admin/courses/{id}/lessons", a.admin(a.adminLessons))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/up", a.admin(a.moveLesson(-1)))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/down", a.admin(a.moveLesson(1)))
