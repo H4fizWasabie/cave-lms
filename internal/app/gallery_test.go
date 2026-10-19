@@ -83,11 +83,6 @@ func (s *site) uploadAs(title, visibility string, content []byte) string {
 	return res.Header.Get("Location")
 }
 
-func (s *site) logout() {
-	s.t.Helper()
-	s.post("/logout", url.Values{})
-}
-
 var galleryItemPath = regexp.MustCompile(`^/gallery/\d+$`)
 
 func (s *site) countGalleryItems() int {
@@ -245,7 +240,7 @@ func TestVisitorIsRefusedLoggedInOnlyItem(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Members picture", "learners", pngFile)
-	s.logout()
+	s.logOut()
 
 	res, body := s.get(location)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -268,7 +263,7 @@ func TestGalleryListShowsOnlyWhatTheViewerMaySee(t *testing.T) {
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Open poster", "everyone", pngFile)
 	s.uploadAs("Members poster", "learners", pngFile)
-	s.logout()
+	s.logOut()
 
 	res, body := s.get("/gallery")
 	expectStatus(t, res, body, http.StatusOK, "Open poster")
@@ -288,7 +283,7 @@ func TestCourseMembersItemIsHiddenFromLearnersOutsideItsCourses(t *testing.T) {
 	res, body := s.get(location + "/file")
 	expectStatus(t, res, body, http.StatusOK, "")
 
-	s.logout()
+	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	res, body = s.get(location + "/file")
 	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
@@ -316,7 +311,7 @@ func TestGalleryFiltersByFormat(t *testing.T) {
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Snapshot", "everyone", pngFile)
 	s.uploadAs("Workbook", "everyone", pdfFile)
-	s.logout()
+	s.logOut()
 
 	res, body := s.get("/gallery?format=ebook")
 	expectStatus(t, res, body, http.StatusOK, "Workbook")
@@ -331,7 +326,7 @@ func TestGalleryFiltersByCategory(t *testing.T) {
 	s.uploadAs("Algebra", "everyone", pngFile) // category Maths
 	res, body := s.upload(map[string]string{"title": "Circuits", "category": "Physics", "visibility": "everyone"}, pngFile)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	s.logout()
+	s.logOut()
 
 	res, body = s.get("/gallery?category=Physics")
 	expectStatus(t, res, body, http.StatusOK, "Circuits")
@@ -346,7 +341,7 @@ func TestPromotionalItemsShowOnTheHomePage(t *testing.T) {
 	res, body := s.upload(map[string]string{"title": "Taster lesson", "category": "Maths", "promotional": "on", "visibility": "everyone"}, pngFile)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.uploadAs("Plain picture", "everyone", pngFile)
-	s.logout()
+	s.logOut()
 
 	res, body = s.get("/")
 	expectStatus(t, res, body, http.StatusOK, "Taster lesson")
@@ -361,7 +356,7 @@ func TestPromotionalItemDefaultsToEveryone(t *testing.T) {
 	// No visibility field sent: a promotional item must still be public.
 	res, body := s.upload(map[string]string{"title": "Open promo", "promotional": "on"}, pngFile)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	s.logout()
+	s.logOut()
 
 	res, body = s.get("/")
 	expectStatus(t, res, body, http.StatusOK, "Open promo")
@@ -371,7 +366,7 @@ func TestHiddenItemsNeverLeakIntoListings(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.upload(map[string]string{"title": "Members promo", "category": "Secret", "promotional": "on", "visibility": "learners"}, pngFile)
-	s.logout()
+	s.logOut()
 
 	res, body := s.get("/")
 	expectStatus(t, res, body, http.StatusOK, "")
@@ -407,7 +402,7 @@ func TestOnlyTheAdminManagesTheGallery(t *testing.T) {
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Poster", "everyone", pngFile)
 	id := strings.TrimPrefix(location, "/gallery/")
-	s.logout()
+	s.logOut()
 
 	res, body := s.get("/admin/gallery")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -449,7 +444,7 @@ func TestAdminEditsAGalleryItem(t *testing.T) {
 		t.Fatal("edited item still shows its old title")
 	}
 
-	s.logout()
+	s.logOut()
 	res, body = s.get("/")
 	if strings.Contains(body, "New title") {
 		t.Fatal("Visitor sees the item after it became logged-in only")
@@ -507,4 +502,36 @@ func TestGalleryFormsOfferCourseMembersOnly(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `value="course_members"`)
 	res, body = s.get("/admin/gallery/" + strings.TrimPrefix(location, "/gallery/") + "/edit")
 	expectStatus(t, res, body, http.StatusOK, `value="course_members"`)
+}
+
+func TestLearnerWhoLeftOrWasRemovedCannotDownloadACourseMembersFile(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	file := s.uploadAs("Diagram", "course_members", pngFile) + "/file"
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	s.addItemLesson(id, strings.TrimPrefix(strings.TrimSuffix(file, "/file"), "/gallery/"), "Diagram lesson", false)
+
+	ada := s.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	ada.post("/courses/"+id+"/join", nil)
+	res, body := ada.get(file)
+	expectStatus(t, res, body, http.StatusOK, "")
+	ada.post("/courses/"+id+"/leave", nil)
+	res, body = ada.get(file)
+	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
+
+	grace := s.second()
+	grace.loginAsNewLearner("Grace", "grace@example.com", "correct horse battery")
+	grace.post("/courses/"+id+"/join", nil)
+	res, body = grace.get(file)
+	expectStatus(t, res, body, http.StatusOK, "")
+	_, body = s.get("/admin/courses/" + id)
+	m := removeLearnerLink.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("Admin Course page has no remove button for Grace: %s", body)
+	}
+	s.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", nil)
+	res, body = grace.get(file)
+	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
 }

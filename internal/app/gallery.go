@@ -174,6 +174,8 @@ func (a *App) galleryItemsFor(ctx context.Context, viewer *learner, onlyPromotio
 		return nil, err
 	}
 	var items []galleryItem
+	// ponytail: one mayView query per course_members item (N+1); fine at this Gallery's size, batch the Enrollment
+	// lookups into one query if the Gallery grows to thousands of items.
 	for _, item := range all {
 		ok, err := a.mayView(ctx, viewer, item)
 		if err != nil {

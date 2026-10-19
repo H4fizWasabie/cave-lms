@@ -335,3 +335,15 @@ func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 	res, body = s.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Go Basics</h1>")
 }
+
+func TestExamWithNoPublishedQuestionsRefusesAStart(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("50", "", "")
+	s.loginAdmin()
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Draft only?", [5]string{"Yes", "No", "", "", ""}, "0", true)
+	s.logOut()
+	s.login("ada@example.com", examPassword)
+
+	res, body := s.startExam(id)
+	expectStatus(t, res, body, http.StatusConflict, "This Exam is not ready yet.")
+}
