@@ -1,0 +1,20 @@
+{{define "title"}}{{if .Question.ID}}Edit question{{else}}New question{{end}} · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{if .Question.ID}}Edit question{{else}}New question{{end}} for {{.Course.Title}}</h1>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    <form method="post" action="{{if .Question.ID}}/admin/courses/{{.Course.ID}}/exam/questions/{{.Question.ID}}{{else}}/admin/courses/{{.Course.ID}}/exam/questions{{end}}">
+      <label>Question <textarea name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></label>
+      <fieldset>
+        <legend>Options (2 to 5). Mark the one correct answer.</legend>
+        {{range $i, $o := .Question.Options}}
+        <p>
+          <label><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> Correct</label>
+          <input name="option" value="{{$o.Text}}" maxlength="500" aria-label="Option {{$i}}">
+        </p>
+        {{end}}
+      </fieldset>
+      {{if not .Question.ID}}<label><input type="checkbox" name="draft" {{if .Question.Draft}}checked{{end}}> Save as Draft (never asked until published)</label>{{end}}
+      <button>Save question</button>
+    </form>
+    <p><a href="/admin/courses/{{.Course.ID}}/exam">Back to the Exam</a></p>
+{{end}}

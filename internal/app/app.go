@@ -55,6 +55,8 @@ type page struct {
 	Token         string
 	Courses       []course
 	Course        *course
+	Exam          *exam
+	Question      *examQuestion
 	Enrolled      bool
 	Enrollees     []enrollee
 }
@@ -132,6 +134,16 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/exam", a.admin(a.adminExam))
+	mux.HandleFunc("POST /admin/courses/{id}/exam", a.admin(a.saveExam))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/new", a.admin(a.newExamQuestionForm))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions", a.admin(a.createExamQuestion))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/{qid}/edit", a.admin(a.editExamQuestionForm))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}", a.admin(a.updateExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/up", a.admin(a.moveExamQuestion(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
