@@ -1,0 +1,36 @@
+{{define "title"}}Exam · {{.Course.Title}} · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Exam for {{.Course.Title}}</h1>
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    <p>Pass mark: {{.Exam.PassMark}}%</p>
+    <p>{{with .Exam.TimeLimit}}Time limit: {{.}} minutes{{else}}No time limit{{end}}</p>
+    <p>{{with .Exam.MaxAttempts}}Attempts allowed: {{.}}{{else}}Unlimited attempts{{end}}</p>
+    <p>{{if .Exam.Usable}}Ready for Learners.{{else}}Not usable yet: publish at least one question.{{end}}</p>
+    <form method="post" action="/admin/courses/{{.Course.ID}}/exam">
+      <label>Pass mark (%) <input name="pass_mark" type="number" min="0" max="100" value="{{.Exam.PassMark}}" required></label>
+      <label>Time limit in minutes (optional) <input name="time_limit" type="number" min="1" value="{{.Exam.TimeLimit}}"></label>
+      <label>Maximum attempts (optional) <input name="max_attempts" type="number" min="1" value="{{.Exam.MaxAttempts}}"></label>
+      <button>Save Exam</button>
+    </form>
+
+    <h2>Questions</h2>
+    <p><a href="/admin/courses/{{.Course.ID}}/exam/questions/new">Add question</a></p>
+    {{range .Exam.Questions}}
+    <div>
+      <p>{{.Prompt}} <strong>{{if .Draft}}Draft{{else}}Published{{end}}</strong></p>
+      <ul>
+        {{range .Options}}{{if .Text}}<li>{{.Text}}{{if .Correct}} (correct){{end}}</li>{{end}}{{end}}
+      </ul>
+      <p>
+        <a href="/admin/courses/{{$.Course.ID}}/exam/questions/{{.ID}}/edit">Edit</a>
+        <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{.ID}}/up"><button>Up</button></form>
+        <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{.ID}}/down"><button>Down</button></form>
+        <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{.ID}}/delete"><button>Delete</button></form>
+      </p>
+      {{if .Draft}}<form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{.ID}}/publish"><button>Publish</button></form>{{end}}
+    </div>
+    {{else}}
+    <p>No questions yet.</p>
+    {{end}}
+    <p><a href="/admin/courses/{{.Course.ID}}">Back to the Course</a></p>
+{{end}}

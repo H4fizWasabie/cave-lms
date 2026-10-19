@@ -1,0 +1,18 @@
+{{define "title"}}{{.Course.Title}} · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{.Course.Title}}</h1>
+    <p><a href="/admin/courses">All Courses</a></p>
+    <h2>Enrolled Learners</h2>
+    <table>
+      <tr><th>Name</th><th>Email</th><th></th></tr>
+      {{range .Enrollees}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td>{{.Email}}</td>
+        <td><form method="post" action="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/remove"><button>Remove</button></form></td>
+      </tr>
+      {{else}}
+      <tr><td colspan="3">No Learners have joined this Course yet.</td></tr>
+      {{end}}
+    </table>
+{{end}}

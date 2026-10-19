@@ -55,9 +55,12 @@ type page struct {
 	Token         string
 	Courses       []course
 	Course        *course
+	Exam          *exam
+	Question      *examQuestion
 	Enrolled      bool
 	Lessons       []lesson
 	Lesson        *lesson
+	Enrollees     []enrollee
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -125,6 +128,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
 	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))
+	mux.HandleFunc("GET /admin/courses/{id}", a.admin(a.adminCourse))
+	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/remove", a.admin(a.removeLearner))
 	mux.HandleFunc("GET /admin/courses/{id}/edit", a.admin(a.editCourseForm))
 	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
@@ -143,6 +148,16 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/courses/{id}/lessons", a.admin(a.createLesson))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/exam", a.admin(a.adminExam))
+	mux.HandleFunc("POST /admin/courses/{id}/exam", a.admin(a.saveExam))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/new", a.admin(a.newExamQuestionForm))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions", a.admin(a.createExamQuestion))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/{qid}/edit", a.admin(a.editExamQuestionForm))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}", a.admin(a.updateExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/up", a.admin(a.moveExamQuestion(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
