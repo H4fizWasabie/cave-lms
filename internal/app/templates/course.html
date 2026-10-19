@@ -15,5 +15,13 @@
     <p><a href="/login">Log in</a> or <a href="/register">register</a> to join this Course.</p>
     {{end}}
     {{with .Error}}<p role="alert">{{.}}</p>{{end}}
+    {{if .Lessons}}
+    <h2>Lessons</h2>
+    <ol>
+      {{range .Lessons}}
+      <li><a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{if not .Published}} (Draft, hidden from Learners){{end}}</li>
+      {{end}}
+    </ol>
+    {{end}}
     <p><a href="/courses">All Courses</a></p>
 {{end}}

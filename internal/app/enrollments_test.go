@@ -194,7 +194,7 @@ func TestCourseWithEnrollmentsCannotBeDeleted(t *testing.T) {
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 
 	res, body := s.post("/admin/courses/"+id+"/delete", nil)
-	expectStatus(t, res, body, http.StatusConflict, "This Course cannot be deleted because Learners have joined it. Close it instead.")
+	expectStatus(t, res, body, http.StatusConflict, "This Course cannot be deleted while it has Lessons or Learners.")
 	res, body = s.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Go Basics</h1>")
 }

@@ -10,6 +10,7 @@
         <select name="visibility">
           <option value="everyone"{{if eq .Item.Visibility "everyone"}} selected{{end}}>Everyone</option>
           <option value="learners"{{if eq .Item.Visibility "learners"}} selected{{end}}>Logged-in Learners</option>
+          <option value="course_members"{{if eq .Item.Visibility "course_members"}} selected{{end}}>Course members only</option>
         </select>
       </label></p>
       <p><label><input type="checkbox" name="promotional" value="on"{{if .Item.Promotional}} checked{{end}}> Promotional material</label></p>

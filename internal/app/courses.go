@@ -49,7 +49,14 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	a.render(w, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled})
+	var lessons []lesson
+	if enrolled || (learner != nil && learner.IsAdmin) {
+		if lessons, err = a.lessonsOf(r.Context(), c.ID, learner != nil && learner.IsAdmin); err != nil {
+			serverError(w, err)
+			return
+		}
+	}
+	a.render(w, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons})
 }
 
 func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {
@@ -138,12 +145,12 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Enrollments (and later Lessons) hold ON DELETE RESTRICT, so the database refuses the delete.
+	// Enrollments and Lessons hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 		a.render(w, http.StatusConflict, "delete_course", page{Course: &c,
-			Error: "This Course cannot be deleted because Learners have joined it. Close it instead."})
+			Error: "This Course cannot be deleted while it has Lessons or Learners. Remove the Lessons first, or close the Course instead."})
 		return
 	}
 	if err != nil {

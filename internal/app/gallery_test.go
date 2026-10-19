@@ -277,7 +277,7 @@ func TestGalleryListShowsOnlyWhatTheViewerMaySee(t *testing.T) {
 	}
 }
 
-func TestCourseMembersItemIsAdminOnlyForNow(t *testing.T) {
+func TestCourseMembersItemIsHiddenFromLearnersOutsideItsCourses(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Course picture", "everyone", pngFile)
@@ -496,4 +496,15 @@ func TestAdminDeletesAGalleryItemAndItsFile(t *testing.T) {
 	}
 	res, body = s.get(location)
 	expectStatus(t, res, body, http.StatusNotFound, "")
+}
+
+func TestGalleryFormsOfferCourseMembersOnly(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Diagram", "everyone", pngFile)
+
+	res, body := s.get("/admin/gallery/new")
+	expectStatus(t, res, body, http.StatusOK, `value="course_members"`)
+	res, body = s.get("/admin/gallery/" + strings.TrimPrefix(location, "/gallery/") + "/edit")
+	expectStatus(t, res, body, http.StatusOK, `value="course_members"`)
 }

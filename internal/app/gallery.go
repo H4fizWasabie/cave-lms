@@ -59,20 +59,26 @@ func sniffType(head []byte) (string, bool) {
 	return "", false
 }
 
-// mayView is the single access decision: may viewer (nil for a Visitor) see this Gallery item?
-// Every page and file download goes through it.
-func mayView(viewer *learner, item galleryItem) bool {
+// mayView is the single access decision: may viewer (nil for a Visitor) see this Gallery item? Every page and file download goes through it.
+// A course_members item is visible to a Learner enrolled in any Course that uses it in a published Lesson.
+func (a *App) mayView(ctx context.Context, viewer *learner, item galleryItem) (bool, error) {
 	if viewer != nil && viewer.IsAdmin {
-		return true
+		return true, nil
 	}
 	switch item.Visibility {
 	case visibilityEveryone:
-		return true
+		return true, nil
 	case visibilityLearners:
-		return viewer != nil
+		return viewer != nil, nil
 	}
-	// ponytail: course_members needs Enrollments and Lessons (#9, #10); until then only Admins see these.
-	return false
+	if viewer == nil {
+		return false, nil
+	}
+	var ok bool
+	err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM lessons l
+		JOIN enrollments e ON e.course_id = l.course_id
+		WHERE l.gallery_item_id = $1 AND l.published AND e.learner_id = $2)`, item.ID, viewer.ID).Scan(&ok)
+	return ok, err
 }
 
 // galleryItemFor loads the item named by the {id} path value. When there is none it writes the Not found page and returns false.
@@ -105,18 +111,33 @@ func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, boo
 	if !ok {
 		return galleryItem{}, false
 	}
-	if !mayView(learner, item) {
+	allowed, err := a.mayView(r.Context(), learner, item)
+	if err != nil {
+		serverError(w, err)
+		return galleryItem{}, false
+	}
+	if !allowed {
 		if learner == nil {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return galleryItem{}, false
 		}
-		a.render(w, http.StatusForbidden, "message", page{
-			Title:   "Members only",
-			Message: "This item is only for members of its Courses.",
-		})
+		a.refuseMembersItem(w, r, item)
 		return galleryItem{}, false
 	}
 	return item, true
+}
+
+// refuseMembersItem answers a Learner who may not see a members-only item: it names the Courses that use the item so the Learner can join one.
+func (a *App) refuseMembersItem(w http.ResponseWriter, r *http.Request, item galleryItem) {
+	courses, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses
+		WHERE id IN (SELECT l.course_id FROM lessons l WHERE l.gallery_item_id = $1 AND l.published)
+		ORDER BY start_date NULLS LAST, id`, item.ID)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	a.render(w, http.StatusForbidden, "members_only", page{Courses: courses,
+		Message: "This item is only for members of its Courses."})
 }
 
 const galleryColumns = `id, title, description, category, format, promotional, visibility, mime_type, size_bytes, storage_key`
@@ -137,18 +158,32 @@ func (a *App) galleryItemsFor(ctx context.Context, viewer *learner, onlyPromotio
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var items []galleryItem
+	var all []galleryItem
 	for rows.Next() {
 		item, err := scanGalleryItem(rows.Scan)
 		if err != nil {
+			rows.Close()
 			return nil, err
 		}
-		if mayView(viewer, item) {
+		all = append(all, item)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var items []galleryItem
+	for _, item := range all {
+		ok, err := a.mayView(ctx, viewer, item)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			items = append(items, item)
 		}
 	}
-	return items, rows.Err()
+	return items, nil
 }
 
 // gallery lists what the viewer may see, narrowed by the ?format and ?category filters.
@@ -332,7 +367,7 @@ func setGalleryField(item *galleryItem, name, value string) {
 	}
 }
 
-// galleryFieldError returns a message for the first invalid field, or "". The Admin form offers only everyone and learners.
+// galleryFieldError returns a message for the first invalid field, or "".
 func galleryFieldError(item galleryItem, hasFile bool) string {
 	switch {
 	case !hasFile:
@@ -343,7 +378,7 @@ func galleryFieldError(item galleryItem, hasFile bool) string {
 		return "Use a description of at most 2000 characters."
 	case utf8.RuneCountInString(item.Category) > 100:
 		return "Use a category of at most 100 characters."
-	case item.Visibility != visibilityEveryone && item.Visibility != visibilityLearners:
+	case item.Visibility != visibilityEveryone && item.Visibility != visibilityLearners && item.Visibility != visibilityCourseMembers:
 		return "Choose who may see this item."
 	}
 	return ""
@@ -411,7 +446,14 @@ func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM gallery_items WHERE id = $1`, item.ID); err != nil {
+	// A Lesson holds ON DELETE RESTRICT on its item, so the database refuses the delete while one uses it.
+	_, err := a.db.ExecContext(r.Context(), `DELETE FROM gallery_items WHERE id = $1`, item.ID)
+	if isForeignKeyError(err) {
+		a.render(w, http.StatusConflict, "delete_gallery_item", page{Item: &item,
+			Error: "This item cannot be deleted because a Lesson uses it. Remove the Lesson first."})
+		return
+	}
+	if err != nil {
 		serverError(w, err)
 		return
 	}

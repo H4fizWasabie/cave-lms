@@ -1,0 +1,19 @@
+{{define "title"}}{{.Lesson.Title}} · {{.Course.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <p><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+    <h1>{{.Lesson.Title}}</h1>
+    {{if not .Lesson.Published}}<p>Draft: Learners cannot see this Lesson.</p>{{end}}
+    {{with .Lesson.Objective}}<p><strong>Objective:</strong> {{.}}</p>{{end}}
+    {{with .Item}}
+    {{if eq .Format "video"}}
+    <video controls preload="metadata" src="/gallery/{{.ID}}/file"></video>
+    {{else if eq .Format "picture"}}
+    <img src="/gallery/{{.ID}}/file" alt="{{.Title}}">
+    {{else}}
+    <p><a href="/gallery/{{.ID}}/file">Download the ebook</a></p>
+    {{end}}
+    {{else}}
+    <div>{{.Lesson.HTML}}</div>
+    {{end}}
+    <p><a href="/courses/{{.Course.ID}}">Back to the Course</a></p>
+{{end}}

@@ -1,0 +1,13 @@
+{{define "title"}}Members only · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Members only</h1>
+    <p>{{.Message}}</p>
+    {{with .Course}}
+      {{if .Open}}
+      <form method="post" action="/courses/{{.ID}}/join"><button>Join this Course</button></form>
+      {{else}}
+      <p>This Course is closed to new joins.</p>
+      {{end}}
+    {{end}}
+    {{range .Courses}}<p><a href="/courses/{{.ID}}">Join {{.Title}} to see it.</a></p>{{end}}
+{{end}}

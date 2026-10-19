@@ -56,6 +56,8 @@ type page struct {
 	Courses       []course
 	Course        *course
 	Enrolled      bool
+	Lessons       []lesson
+	Lesson        *lesson
 }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
@@ -127,6 +129,18 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
+	mux.HandleFunc("GET /courses/{id}/lessons/{lessonID}", a.requireLearner(a.showLesson))
+	mux.HandleFunc("GET /admin/courses/{id}/lessons", a.admin(a.adminLessons))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/up", a.admin(a.moveLesson(-1)))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/down", a.admin(a.moveLesson(1)))
+	mux.HandleFunc("GET /admin/lessons/{lessonID}/edit", a.admin(a.editLessonForm))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}", a.admin(a.updateLesson))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/delete", a.admin(a.deleteLesson))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/publish", a.admin(a.setLessonPublished(true)))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/unpublish", a.admin(a.setLessonPublished(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/lessons/publish-all", a.admin(a.publishAllLessons))
+	mux.HandleFunc("GET /admin/courses/{id}/lessons/new", a.admin(a.newLessonForm))
+	mux.HandleFunc("POST /admin/courses/{id}/lessons", a.admin(a.createLesson))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
 	a.handler = rejectCrossOrigin(mux)
