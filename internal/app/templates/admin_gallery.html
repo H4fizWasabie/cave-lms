@@ -1,0 +1,24 @@
+{{define "title"}}Gallery · Admin · Cave LMS{{end}}
+{{define "content"}}
+    <h1>Admin: Gallery</h1>
+    <p><a href="/admin/gallery/new">Upload to the Gallery</a></p>
+    <p><a href="/admin">Admin area</a></p>
+    <table>
+      <tr><th>Title</th><th>Format</th><th>Category</th><th>Promotional</th><th>Visibility</th><th></th></tr>
+      {{range .Items}}
+      <tr>
+        <td><a href="/gallery/{{.ID}}">{{.Title}}</a></td>
+        <td>{{.Format}}</td>
+        <td>{{.Category}}</td>
+        <td>{{if .Promotional}}Yes{{else}}No{{end}}</td>
+        <td>{{.Visibility}}</td>
+        <td>
+          <a href="/admin/gallery/{{.ID}}/edit">Edit</a>
+          <a href="/admin/gallery/{{.ID}}/delete">Delete</a>
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="6">No items yet.</td></tr>
+      {{end}}
+    </table>
+{{end}}

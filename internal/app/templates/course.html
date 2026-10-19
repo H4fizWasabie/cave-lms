@@ -4,5 +4,16 @@
     <p>{{.Course.Description}}</p>
     {{with .Course.StartDate}}<p>Start date: {{.}}</p>{{end}}
     <p>{{if .Course.Open}}Open to new joins{{else}}Closed to new joins{{end}}</p>
+    {{if .Learner}}
+      {{if .Enrolled}}
+      <p>You have joined this Course</p>
+      <form method="post" action="/courses/{{.Course.ID}}/leave"><button>Leave this Course</button></form>
+      {{else if .Course.Open}}
+      <form method="post" action="/courses/{{.Course.ID}}/join"><button>Join this Course</button></form>
+      {{end}}
+    {{else}}
+    <p><a href="/login">Log in</a> or <a href="/register">register</a> to join this Course.</p>
+    {{end}}
+    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
     <p><a href="/courses">All Courses</a></p>
 {{end}}

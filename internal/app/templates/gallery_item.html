@@ -1,0 +1,16 @@
+{{define "title"}}{{.Item.Title}} · Cave LMS{{end}}
+{{define "content"}}
+    <h1>{{.Item.Title}}</h1>
+    {{with .Item}}
+    <p>{{.Format}}{{if .Category}} · {{.Category}}{{end}}</p>
+    {{if .Description}}<p>{{.Description}}</p>{{end}}
+    {{if eq .Format "video"}}
+    <video controls preload="metadata" src="/gallery/{{.ID}}/file"></video>
+    {{else if eq .Format "picture"}}
+    <img src="/gallery/{{.ID}}/file" alt="{{.Title}}">
+    {{else}}
+    <p><a href="/gallery/{{.ID}}/file">Download the ebook</a></p>
+    {{end}}
+    {{end}}
+    <p><a href="/gallery">Back to the Gallery</a></p>
+{{end}}
