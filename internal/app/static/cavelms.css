@@ -32,6 +32,9 @@
   --radius: 4px;
   --radius-lg: 8px;
   --focus: 0 0 0 3px rgba(210, 166, 73, .5);
+  --gutter: clamp(1.5rem, 4vw, 4rem); /* side margin: grows with the screen so wide screens are used */
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --shadow-lift: 0 10px 24px -14px rgba(31, 33, 36, .28); /* hover on cards and tiles */
 }
 
 /* ============================ Base ============================ */
@@ -47,10 +50,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .i { width: 1.15em; height: 1.15em; flex-shrink: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .muted { color: var(--muted); }
-.wrap { max-width: 74rem; margin: 0 auto; padding: 0 1.5rem; }
-.wrap-narrow { max-width: 46rem; }
+.wrap { max-width: calc(82rem + 2 * var(--gutter)); margin: 0 auto; padding-inline: var(--gutter); }
+.wrap-narrow { max-width: calc(43rem + 2 * var(--gutter)); }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+::selection { background: var(--brand-gold-soft); color: var(--brand-ink); }
+html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-color: var(--line-strong) var(--bg); }
 
 /* ============================ Buttons, badges, bars ============================ */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .62rem 1.15rem; border-radius: var(--radius); border: 1px solid transparent; font-weight: 600; font-size: .95rem; line-height: 1.2; text-decoration: none; cursor: pointer; white-space: nowrap; background: none; }
@@ -89,7 +94,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand-tag { font-weight: 600; font-size: .92rem; color: var(--muted); border-left: 1px solid var(--line-strong); padding-left: .75rem; }
 .site-nav { display: flex; gap: 1.4rem; margin-left: auto; font-size: .94rem; }
 .site-nav a, .hdr-link { text-decoration: none; white-space: nowrap; }
-.site-nav a:hover, .hdr-link:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .35em; }
+.site-nav a, .hdr-link, .footer-col a { background: linear-gradient(var(--brand-gold), var(--brand-gold)) no-repeat 0 100% / 0 2px; padding-bottom: .2em; }
+.site-nav a:hover, .hdr-link:hover, .footer-col a:hover, .site-nav a:focus-visible, .footer-col a:focus-visible { background-size: 100% 2px; }
 .site-header-right { display: flex; align-items: center; gap: 1.1rem; font-size: .94rem; padding-left: 1.4rem; border-left: 1px solid var(--line); }
 
 .site-footer { background: #17181b; color: #b8b8b2; font-size: .92rem; padding: 3rem 0 1.2rem; }
@@ -98,10 +104,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .footer-brand p { max-width: 24rem; }
 .footer-col { display: flex; flex-direction: column; gap: .4rem; }
 .footer-col h2 { font-family: var(--font-body); font-size: .92rem; color: var(--brand-gold); margin-bottom: .35rem; letter-spacing: 0; }
-.footer-col a { color: #e9e8e2; text-decoration: none; }
-.footer-col a:hover { text-decoration: underline; }
+.footer-col a { color: #e9e8e2; text-decoration: none; align-self: flex-start; }
 .footer-col address { font-style: normal; }
-.footer-base { border-top: 1px solid #2d2e32; padding-top: 1rem; font-size: .8rem; color: #8c8c86; }
+.footer-base { background: linear-gradient(#2d2e32, #2d2e32) no-repeat 50% 0 / calc(100% - 2 * var(--gutter)) 1px; padding-top: 1rem; font-size: .8rem; color: #8c8c86; }
 
 /* ============================ Home (Look A) ============================ */
 .home-hero { background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -119,7 +124,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .section-head-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
 
 .course-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-.course-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: grid; grid-template-columns: 10.5rem 1fr; transition: border-color .2s ease; }
+.course-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: grid; grid-template-columns: 10.5rem 1fr; }
 .course-card:hover { border-color: var(--line-strong); }
 
 .course-card-body { padding: 1.2rem 1.35rem 1.25rem; display: flex; flex-direction: column; }
@@ -133,7 +138,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .step-n { display: block; font-family: var(--font-display); font-size: 2.4rem; font-weight: 700; color: var(--brand-gold-deep); line-height: 1; margin-bottom: .7rem; }
 
-.g-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem 1.25rem; }
+.g-grid { --tile: minmax(min(17rem, 100%), 1fr); list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, var(--tile)); gap: 1.6rem 1.25rem; }
+.g-grid-fit { grid-template-columns: repeat(auto-fit, var(--tile)); } /* a short row (the home page's few items) spans the width */
 .g-plate { position: relative; display: block; aspect-ratio: 16/9; overflow: hidden; border-radius: var(--radius); background: var(--line); }
 .g-plate img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -152,7 +158,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .verify-band input::placeholder { color: #9d9e99; }
 
 /* ============================ Inner pages ============================ */
-.page-pad { padding: 2.75rem 0 4rem; }
+.page-pad { padding-block: 2.75rem 4rem; }
 .page-head { margin-bottom: 2rem; }
 .page-head h1 { font-size: 2.4rem; margin-bottom: .45rem; }
 .page-head p { color: var(--muted); max-width: 44rem; }
@@ -252,7 +258,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .mc-more { margin-top: 3rem; }
 
 /* Lesson */
-.lesson-page { padding: 2rem 0 4rem; }
+.lesson-page { padding-block: 2rem 4rem; }
 
 .lesson h1 { font-size: clamp(1.8rem, 3vw, 2.4rem); margin-bottom: 1.5rem; }
 
@@ -360,17 +366,44 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .lesson-objective { color: #45484d; margin-bottom: 1.4rem; }
 .ebook-plain { grid-template-columns: 1fr; }
 
-/* ============================ Motion (gated) ============================ */
+/* ============================ Motion ============================
+   Colour fades run for everyone; movement only without prefers-reduced-motion. Page changes
+   use cross-document View Transitions (no JavaScript); browsers without them load normally. */
+.btn, .site-nav a, .hdr-link, .footer-col a, .lab-tab, .x-opt, .check-card, .icon-btn,
+.lesson-list > li > a, .adm-nav a, .table tbody tr td { transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
+input, select, textarea, .search { transition: border-color .15s ease, box-shadow .2s ease; }
+.course-card, .cert-chip, .tp-card, .tp-show, .stat-link, .g-plate { transition: border-color .2s ease, box-shadow .3s var(--ease-out); }
+.course-card:hover, .cert-chip:hover, .tp-card:hover, .tp-show:hover, .stat-link:hover, .g-tile:hover .g-plate { box-shadow: var(--shadow-lift); }
+.tp-show:hover { border-color: var(--line-strong); }
+
 @media (prefers-reduced-motion: no-preference) {
-  .btn { transition: background-color .2s ease, border-color .2s ease, color .2s ease, transform .15s ease; }
-  .btn:active { transform: translateY(1px); }
-  .g-plate img { transition: transform .65s cubic-bezier(.16, 1, .3, 1); }
-  .g-plate:hover img { transform: scale(1.03); }
-  .home-hero-copy { animation: rise .7s cubic-bezier(.16, 1, .3, 1) both; }
-  
-  .x-result .x-score { animation: pop .6s cubic-bezier(.16, 1, .3, 1) both; }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  @keyframes pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+  @view-transition { navigation: auto; }
+  /* What stays put while the page under it changes. */
+  .site-header { view-transition-name: site-header; }
+  .adm-side { view-transition-name: adm-side; }
+  .lab-tabs:not(.pv-bar .lab-tabs) { view-transition-name: lab-tabs; }
+  ::view-transition-old(root) { animation: fade-out .14s ease-in both; }
+  ::view-transition-new(root) { animation: fade-in .3s var(--ease-out) both; }
+  /* A Gallery picture grows from its tile into its page, and back. */
+  ::view-transition-group(*) { animation-duration: .42s; animation-timing-function: var(--ease-out); }
+  ::view-transition-old(*):only-child, ::view-transition-new(*):only-child { animation-duration: .2s; }
+  ::view-transition-old(*), ::view-transition-new(*) { height: 100%; object-fit: cover; overflow: clip; }
+
+  .site-nav a, .hdr-link, .footer-col a { transition: color .18s ease, background-size .25s var(--ease-out); }
+  .btn:active { transform: scale(.97); }
+  .g-plate img { transition: transform .65s var(--ease-out); }
+  .g-tile:hover .g-plate img { transform: scale(1.04); }
+  .home-hero-copy { animation: rise .7s var(--ease-out) both; }
+  .lab-tabs .lab-tab[aria-current="page"] { border-bottom-color: transparent; }
+  .lab-tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-gold); transform-origin: left; animation: grow-x .35s var(--ease-out) both; }
+  [role="alert"], [role="status"], .result, .ds-now { animation: arrive .4s var(--ease-out) both; }
+  .x-result .x-score { animation: pop .6s var(--ease-out) both; }
+  @keyframes fade-out { to { opacity: 0; } }
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  @keyframes arrive { from { opacity: 0; transform: translateY(-6px); } }
+  @keyframes grow-x { from { transform: scaleX(0); } }
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } }
 }
 
 /* ============================ Smaller screens ============================ */
@@ -390,7 +423,6 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 }
 
 @media (max-width: 720px) {
-  .wrap { padding: 0 1.1rem; }
   .site-header-in { gap: .5rem 1rem; min-height: 0; padding-top: .7rem; padding-bottom: .5rem; }
   .brand-logo { height: 2.1rem; }
   .site-header-right { margin-left: auto; padding-left: 0; border-left: 0; gap: .8rem; }
@@ -399,7 +431,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
   .home-hero-in, .c-hero-in { grid-template-columns: 1fr; gap: 1.8rem; padding-top: 2rem; padding-bottom: 2rem; }
   .home-hero h1 br { display: none; }
   
-  .home-intro, .learn-grid, .learn-pair, .programmes, .course-grid, .g-grid, .footer-in { grid-template-columns: 1fr; }
+  .home-intro, .learn-grid, .learn-pair, .programmes, .course-grid, .footer-in { grid-template-columns: 1fr; }
   .coach { grid-template-columns: 7.5rem 1fr; padding: 1.1rem 1.1rem 0; gap: 1rem; }
   .coach figcaption > strong { font-size: 1.3rem; }
   
@@ -623,7 +655,7 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .lab-detail-head .h-md { margin: .2rem 0 0; }
 .lab-create { margin-top: 1.2rem; max-width: 32rem; }
 .lab-tabs { display: flex; gap: .2rem; border-bottom: 1px solid var(--line-strong); margin-bottom: 1.8rem; overflow-x: auto; scrollbar-width: none; }
-.lab-tab { padding: .7rem 1rem; font-weight: 600; font-size: .95rem; text-decoration: none; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.lab-tab { position: relative; padding: .7rem 1rem; font-weight: 600; font-size: .95rem; text-decoration: none; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .lab-tab:hover { color: var(--brand-ink); }
 .lab-tab[aria-current="page"] { color: var(--brand-ink); border-bottom-color: var(--brand-gold); }
 .lab-tab.is-off { opacity: .45; cursor: not-allowed; }

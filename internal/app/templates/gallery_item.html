@@ -10,9 +10,9 @@
       {{if .Description}}<p class="l-note">{{.Description}}</p>{{end}}
       <div class="g-media">
         {{if eq .Format "video"}}
-        <video controls preload="metadata" src="/gallery/{{.ID}}/file"></video>
+        <video controls preload="metadata" src="/gallery/{{.ID}}/file" style="view-transition-name: g-{{.ID}}"></video>
         {{else if eq .Format "picture"}}
-        <img src="/gallery/{{.ID}}/file" alt="{{.Title}}">
+        <img src="/gallery/{{.ID}}/file" alt="{{.Title}}" style="view-transition-name: g-{{.ID}}">
         {{else}}
         <a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the ebook</a>
         {{end}}
