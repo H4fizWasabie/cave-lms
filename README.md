@@ -12,6 +12,8 @@ go run ./cmd/cave-lms
 
 `STORAGE_DIR` is a directory on the VPS disk that holds every uploaded Gallery file. It is created if missing, must not be under a public web root, and must be included in the nightly backups together with the database. Uploads are capped at about 2 GB each.
 
+To run it on the VPS, see `docs/deploy.md`.
+
 Email delivery is not configured yet. The Mailer reports an explicit error until a provider is added.
 
 ## Create the Admin

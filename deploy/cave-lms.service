@@ -1,0 +1,23 @@
+# Installed to /etc/systemd/system/cave-lms.service by deploy/deploy.sh. See docs/deploy.md.
+[Unit]
+Description=Cave LMS
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+User=cave
+Group=cave
+# Holds DATABASE_URL, PUBLIC_BASE_URL, EMAIL_FROM, STORAGE_DIR and LISTEN_ADDR. Mode 0600, owned by root.
+EnvironmentFile=/etc/cave-lms/env
+ExecStart=/usr/local/bin/cave-lms
+Restart=on-failure
+RestartSec=5
+# Creates /var/lib/cave-lms owned by cave; uploads live under it.
+StateDirectory=cave-lms
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
