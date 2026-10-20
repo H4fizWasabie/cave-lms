@@ -244,7 +244,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 
 // insertAttempt stores a new attempt with the published questions in a shuffled order.
 func (a *App) insertAttempt(ctx context.Context, tx *sql.Tx, learnerID, courseID int64) (int64, error) {
-	list, err := a.loadQuestions(ctx, courseID, 0)
+	list, err := a.loadQuestions(ctx, courseID)
 	if err != nil {
 		return 0, err
 	}

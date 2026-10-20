@@ -180,7 +180,7 @@ func (a *App) loadExam(ctx context.Context, courseID int64) (exam, error) {
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return exam{}, fmt.Errorf("load exam: %w", err)
 	}
-	e.Questions, err = a.loadQuestions(ctx, courseID, 0)
+	e.Questions, err = a.loadQuestions(ctx, courseID)
 	if err != nil {
 		return exam{}, err
 	}
@@ -192,14 +192,19 @@ func (a *App) loadExam(ctx context.Context, courseID int64) (exam, error) {
 	return e, nil
 }
 
-// loadQuestions reads the Exam questions of a Course in order, or only question onlyID when it is not 0.
-func (a *App) loadQuestions(ctx context.Context, courseID, onlyID int64) ([]examQuestion, error) {
+// loadQuestions reads the Exam questions of a Course in order.
+func (a *App) loadQuestions(ctx context.Context, courseID int64) ([]examQuestion, error) {
+	return a.queryQuestions(ctx, `q.course_id = $1`, courseID)
+}
+
+// queryQuestions reads the Exam questions matching the SQL condition where, in order.
+func (a *App) queryQuestions(ctx context.Context, where string, args ...any) ([]examQuestion, error) {
 	rows, err := a.db.QueryContext(ctx, `
 		SELECT q.id, q.prompt, q.is_draft, o.position, o.text, o.is_correct
 		FROM exam_questions q
 		LEFT JOIN exam_options o ON o.question_id = q.id
-		WHERE q.course_id = $1 AND ($2::bigint = 0 OR q.id = $2)
-		ORDER BY q.position, q.id, o.position`, courseID, onlyID)
+		WHERE `+where+`
+		ORDER BY q.position, q.id, o.position`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("load questions: %w", err)
 	}
@@ -383,10 +388,10 @@ func (a *App) examQuestionFor(w http.ResponseWriter, r *http.Request) (course, e
 		return course{}, examQuestion{}, false
 	}
 	qid, err := strconv.ParseInt(r.PathValue("qid"), 10, 64)
-	if err != nil || qid == 0 { // 0 would mean "all questions" to loadQuestions
+	if err != nil {
 		return notFound()
 	}
-	list, err := a.loadQuestions(r.Context(), c.ID, qid)
+	list, err := a.queryQuestions(r.Context(), `q.course_id = $1 AND q.id = $2`, c.ID, qid)
 	if err != nil {
 		serverError(w, err)
 		return course{}, examQuestion{}, false

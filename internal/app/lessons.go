@@ -82,7 +82,7 @@ func (a *App) renderLessonForm(w http.ResponseWriter, r *http.Request, status in
 		serverError(w, err)
 		return
 	}
-	items, err := a.galleryItemsFor(r.Context(), learner, false)
+	items, err := a.galleryItemsFor(r.Context(), learner)
 	if err != nil {
 		serverError(w, err)
 		return
