@@ -29,18 +29,20 @@ Once per VPS. Run as root on the VPS.
    cat > /etc/cave-lms/env <<'EOF'
    DATABASE_URL=postgres:///cave?host=/var/run/postgresql
    PUBLIC_BASE_URL=https://lms.wasabietech.com
-   EMAIL_FROM=noreply@lms.wasabietech.com
+   EMAIL_FROM="Cave LMS <noreply@lms.wasabietech.com>"
    STORAGE_DIR=/var/lib/cave-lms/uploads
    LISTEN_ADDR=127.0.0.1:8088
    EOF
    ```
 
+   Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see Email below).
+
 3. From your machine, run `deploy/deploy.sh` (next section).
-4. Create the Admin on the VPS. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
+4. Create the Admin on the VPS. `systemd-run` runs it as `cave` with the service's own env file. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
 
    ```sh
    read -rsp 'Admin password: ' pw; echo
-   printf '%s\n' "$pw" | sudo -u cave env $(grep -v '^#' /etc/cave-lms/env | xargs) \
+   printf '%s\n' "$pw" | systemd-run --quiet --pipe --wait --collect -p User=cave -p EnvironmentFile=/etc/cave-lms/env \
      /usr/local/bin/cave-lms create-admin --name "Abah" --email you@example.com
    unset pw
    ```
@@ -71,10 +73,16 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
 
 3. Set `PUBLIC_BASE_URL` to the new domain in `/etc/cave-lms/env`.
 4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
-5. Email: the sender domain must be re-verified with the email service (see #12).
+5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see Email below). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
 
 **Standing rule: an old domain keeps redirecting forever.** Never remove an old domain's redirect block, and keep renewing the old domain. A printed or saved Certificate carries its verification link on the domain that was current when the PDF was downloaded. See `docs/adr/0002-old-domains-redirect-forever.md`.
 
 ## Upload limit
 
 The app refuses an upload over 2 GB with its own message. Caddy's `request_body` cap (2100 MiB, about 2.2 GB) sits just above it to leave room for multipart framing. Caddy reads `MB` as 10^6 bytes, so keep `MiB`. Caddy streams the body to the app, so the app's cap trips first and even a 2.2 GB upload gets the app's message (tested 2026-10-20: 2047 MiB stored; 2050 MiB and 2200 MiB refused with 413 and nothing stored). Caddy's cap is a backstop.
+
+## Email
+
+Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `lms.wasabietech.com` is verified in Resend through DNS records at Hostinger (DKIM `resend._domainkey.lms`, plus `send.lms` and `rsend.lms`). Resend's dashboard lists the exact records.
+
+A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.

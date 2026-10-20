@@ -14,7 +14,7 @@ go run ./cmd/cave-lms
 
 To run it on the VPS, see `docs/deploy.md`.
 
-Email delivery is not configured yet. The Mailer reports an explicit error until a provider is added.
+`RESEND_API_KEY` is optional. With it, verification and reset emails are sent through Resend from `EMAIL_FROM`; without it, sending fails with an explicit error.
 
 ## Create the Admin
 

@@ -12,6 +12,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("EMAIL_FROM", "Cave LMS <courses@example.test>")
 	t.Setenv("LISTEN_ADDR", "")
 	t.Setenv("STORAGE_DIR", "/var/lib/cave-lms/uploads")
+	t.Setenv("RESEND_API_KEY", "")
 }
 
 func TestLoadReadsConfiguration(t *testing.T) {
@@ -65,5 +66,20 @@ func TestLoadSetsUploadLimitToAboutTwoGigabytes(t *testing.T) {
 	}
 	if cfg.MaxUploadBytes != 2<<30 {
 		t.Fatalf("MaxUploadBytes = %d, want %d", cfg.MaxUploadBytes, int64(2<<30))
+	}
+}
+
+func TestLoadReadsOptionalResendKey(t *testing.T) {
+	setValidEnvironment(t)
+
+	cfg, err := Load()
+	if err != nil || cfg.ResendAPIKey != "" {
+		t.Fatalf("without a key: cfg.ResendAPIKey = %q, err = %v; want empty, nil", cfg.ResendAPIKey, err)
+	}
+
+	t.Setenv("RESEND_API_KEY", " re_test_key ")
+	cfg, err = Load()
+	if err != nil || cfg.ResendAPIKey != "re_test_key" {
+		t.Fatalf("with a key: cfg.ResendAPIKey = %q, err = %v; want re_test_key, nil", cfg.ResendAPIKey, err)
 	}
 }

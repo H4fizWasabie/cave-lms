@@ -12,7 +12,9 @@ type Config struct {
 	DatabaseURL   string
 	PublicBaseURL string
 	EmailFrom     string
-	ListenAddr    string
+	// ResendAPIKey is optional; when set, email is sent through Resend.
+	ResendAPIKey string
+	ListenAddr   string
 	// StorageDir holds uploaded Gallery files. It must never be a public static path.
 	StorageDir string
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
@@ -24,6 +26,7 @@ func Load() (Config, error) {
 		DatabaseURL:    strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		PublicBaseURL:  strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")),
 		EmailFrom:      strings.TrimSpace(os.Getenv("EMAIL_FROM")),
+		ResendAPIKey:   strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
 		ListenAddr:     strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
 		StorageDir:     strings.TrimSpace(os.Getenv("STORAGE_DIR")),
 		MaxUploadBytes: 2 << 30,
