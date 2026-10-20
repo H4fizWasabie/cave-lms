@@ -168,7 +168,7 @@ func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "my_certificates", page{Learner: learner, Certificates: list})
+	a.render(w, r, http.StatusOK, "my_certificates", page{Learner: learner, Certificates: list})
 }
 
 // downloadCertificate serves a Certificate PDF to its owner and to the Admin. Anyone else gets Not found.
@@ -189,7 +189,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(list) == 0 || (list[0].LearnerID != viewer.ID && !viewer.IsAdmin) {
-		a.render(w, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "There is no Certificate at this address."})
+		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "There is no Certificate at this address."})
 		return
 	}
 	pdf, err := a.certificatePDF(r.Context(), list[0])
@@ -303,7 +303,7 @@ func (a *App) certificateSettingsForm(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "admin_certificate_settings", page{Settings: &s})
+	a.render(w, r, http.StatusOK, "admin_certificate_settings", page{Settings: &s})
 }
 
 // saveCertificateSettings stores the text fields and any new logo or signature. Nothing is kept unless the whole form is valid.
@@ -317,11 +317,11 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(1 << 20); err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			a.render(w, http.StatusRequestEntityTooLarge, "admin_certificate_settings", page{Settings: &cur,
+			a.render(w, r, http.StatusRequestEntityTooLarge, "admin_certificate_settings", page{Settings: &cur,
 				Error: "These files are too large. Images are limited to 5 MB, and nothing was saved."})
 			return
 		}
-		a.render(w, http.StatusBadRequest, "admin_certificate_settings", page{Settings: &cur,
+		a.render(w, r, http.StatusBadRequest, "admin_certificate_settings", page{Settings: &cur,
 			Error: "The form could not be read. Try again."})
 		return
 	}
@@ -339,7 +339,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	fail := func(msg string) {
-		a.render(w, http.StatusUnprocessableEntity, "admin_certificate_settings", page{Settings: &cur, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "admin_certificate_settings", page{Settings: &cur, Error: msg})
 	}
 	logo, msg, err := a.saveCertificateImage(r, "logo")
 	if err != nil {

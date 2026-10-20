@@ -12,7 +12,7 @@ import (
 )
 
 func (a *App) forgotPasswordForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "forgot_password", page{})
+	a.render(w, r, http.StatusOK, "forgot_password", page{})
 }
 
 // forgotPassword answers the same way whether or not the email belongs to a Learner.
@@ -54,21 +54,21 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			log.Printf("send password reset email: %v", err)
 		}
 	}
-	a.render(w, http.StatusOK, "message", page{
+	a.render(w, r, http.StatusOK, "message", page{
 		Title:   "Check your email",
 		Message: "If an account exists for " + email + ", we sent a reset link. Open it within an hour to choose a new password.",
 	})
 }
 
 func (a *App) resetPasswordForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "reset_password", page{Token: r.URL.Query().Get("token")})
+	a.render(w, r, http.StatusOK, "reset_password", page{Token: r.URL.Query().Get("token")})
 }
 
 func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 	token := r.PostFormValue("token")
 	password := r.PostFormValue("password")
 	if problem := passwordProblem(password); problem != "" {
-		a.render(w, http.StatusUnprocessableEntity, "reset_password", page{Token: token, Error: problem})
+		a.render(w, r, http.StatusUnprocessableEntity, "reset_password", page{Token: token, Error: problem})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -93,7 +93,7 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		hashToken(token), purposeResetPassword).Scan(&learnerID, &expired)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		a.render(w, http.StatusBadRequest, "message", page{
+		a.render(w, r, http.StatusBadRequest, "message", page{
 			Title:      "Link not valid",
 			Message:    "This reset link is not valid or has already been used.",
 			OfferReset: true,
@@ -107,7 +107,7 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
-		a.render(w, http.StatusGone, "message", page{
+		a.render(w, r, http.StatusGone, "message", page{
 			Title:      "Link expired",
 			Message:    "This reset link has expired.",
 			OfferReset: true,
@@ -127,7 +127,7 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "message", page{
+	a.render(w, r, http.StatusOK, "message", page{
 		Title:      "Password changed",
 		Message:    "Your password has been changed and you have been logged out everywhere.",
 		OfferLogin: true,

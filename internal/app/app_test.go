@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -20,9 +21,52 @@ func TestHomePage(t *testing.T) {
 	if got := recorder.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
 		t.Fatalf("Content-Type = %q, want text/html", got)
 	}
-	if !strings.Contains(recorder.Body.String(), "<h1>Cave LMS</h1>") || !strings.Contains(recorder.Body.String(), "https://cave.example.invalid") {
-		t.Fatalf("home page did not render configured content: %s", recorder.Body.String())
+	body := recorder.Body.String()
+	if !strings.Contains(body, "https://cave.example.invalid") {
+		t.Fatalf("home page did not render configured content: %s", body)
+	}
+	for _, want := range []string{"Selamat Datang ke CAVELMS", "LEARN → APPLY → BUILD → SUSTAIN", "Coach Adam", "Powered by The Cave Consult (TCC)", "Past programmes", "Certified Professional in Generative AI (CPGAI)"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home page is missing %q", want)
+		}
+	}
+	for text, href := range map[string]string{"Explore eBooks": `/gallery\?format=ebook`, "Join Online Classes": "/courses", "Learn AI Dashboard Development": "/courses"} {
+		if !regexp.MustCompile(`href="` + href + `"[^>]*>` + text + `</a>`).MatchString(body) {
+			t.Errorf("home page has no %q link to %s", text, href)
+		}
 	}
 }
 
 var _ http.Handler = (*app.App)(nil)
+
+func TestStaticFilesAreServedWithCachingAndMissingOnesAre404(t *testing.T) {
+	application, _, _, _ := newTestApplication(t)
+
+	recorder := httptest.NewRecorder()
+	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/static/cavelms.css", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET /static/cavelms.css status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if got := recorder.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/css") {
+		t.Fatalf("Content-Type = %q, want text/css", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); !strings.Contains(got, "max-age=") {
+		t.Fatalf("Cache-Control = %q, want a max-age", got)
+	}
+
+	recorder = httptest.NewRecorder()
+	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/static/missing.css", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("GET /static/missing.css status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestGalleryShowsEbooksAreComingSoonWhileThereAreNone(t *testing.T) {
+	application, _, _, _ := newTestApplication(t)
+	recorder := httptest.NewRecorder()
+	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/gallery?format=ebook", nil))
+
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "eBooks are coming soon.") {
+		t.Fatalf("GET /gallery?format=ebook = %d, want 200 saying eBooks are coming soon; body:\n%s", recorder.Code, recorder.Body.String())
+	}
+}

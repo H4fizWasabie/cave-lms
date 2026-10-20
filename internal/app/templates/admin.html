@@ -1,11 +1,25 @@
-{{define "title"}}Admin area · Cave LMS{{end}}
+{{define "title"}}Admin area · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Admin area</h1>
-    <p><a href="/admin/gallery/new">Upload to the Gallery</a></p>
-    <p><a href="/admin/gallery">Manage the Gallery</a></p>
-    <p><a href="/gallery">Gallery</a></p>
-    <p><a href="/admin/courses">Courses</a></p>
-    <p><a href="/admin/certificates">Certificates</a></p>
-    <p><a href="/admin/certificate-settings">Certificate details</a></p>
-    <p><a href="/">Home</a></p>
+    <div class="adm">
+      {{template "admin-side" "dashboard"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin area</h1>
+            <p>Build Courses, upload to the Gallery and look after Certificates.</p>
+          </div>
+          <div class="adm-head-actions">
+            <a class="btn btn-ghost" href="/admin/gallery/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>Upload to the Gallery</a>
+            <a class="btn btn-solid" href="/admin/courses/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>New Course</a>
+          </div>
+        </div>
+        <ul class="stats">
+          <li><a class="stat stat-link" href="/admin/courses"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>Courses</span><small>Lessons, Exams and enrolled Learners</small></a></li>
+          <li><a class="stat stat-link" href="/admin/gallery"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>Manage the Gallery</span><small>Videos, ebooks and pictures</small></a></li>
+          <li><a class="stat stat-link" href="/admin/certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>Certificates</span><small>Search, revoke and reissue</small></a></li>
+          <li><a class="stat stat-link" href="/admin/certificate-settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span><small>Organisation, logo and signature</small></a></li>
+        </ul>
+        <p class="note"><a href="/gallery">Gallery</a> · <a href="/">Home</a></p>
+      </div>
+    </div>
 {{end}}

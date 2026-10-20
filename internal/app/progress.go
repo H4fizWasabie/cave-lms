@@ -51,7 +51,7 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 			return
 		}
 		if !enrolled {
-			a.render(w, http.StatusForbidden, "members_only", page{Learner: learner, Course: &c,
+			a.render(w, r, http.StatusForbidden, "members_only", page{Learner: learner, Course: &c,
 				Message: "Join this Course to mark its Lessons complete."})
 			return
 		}

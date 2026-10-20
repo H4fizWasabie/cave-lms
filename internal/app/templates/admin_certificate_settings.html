@@ -1,16 +1,29 @@
-{{define "title"}}Certificate details · Admin · Cave LMS{{end}}
+{{define "title"}}Certificate details · Admin · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Admin: Certificate details</h1>
-    <p><a href="/admin">Admin area</a></p>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    <form method="post" action="/admin/certificate-settings" enctype="multipart/form-data">
-      <p><label>Organisation name <input name="organisation_name" value="{{.Settings.OrganisationName}}"></label></p>
-      <p><label>Signatory name <input name="signatory_name" value="{{.Settings.SignatoryName}}"></label></p>
-      <p>Images must be JPEG or PNG, up to 5 MB in all.</p>
-      <p><label>Logo (JPEG or PNG) <input type="file" name="logo" accept="image/jpeg,image/png"></label>
-        {{if .Settings.LogoKey}}Logo set. Upload again to replace it.{{else}}No logo yet.{{end}}</p>
-      <p><label>Signature (JPEG or PNG) <input type="file" name="signature" accept="image/jpeg,image/png"></label>
-        {{if .Settings.SignatureKey}}Signature set. Upload again to replace it.{{else}}No signature yet.{{end}}</p>
-      <button>Save</button>
-    </form>
+    <div class="adm">
+      {{template "admin-side" "design"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin: Certificate details</h1>
+            <p>These appear on every Certificate PDF.</p>
+          </div>
+        </div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="/admin/certificate-settings" enctype="multipart/form-data">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="organisation_name">Organisation name</label><input id="organisation_name" type="text" name="organisation_name" value="{{.Settings.OrganisationName}}"></div>
+              <div class="field"><label for="signatory_name">Signatory name</label><input id="signatory_name" type="text" name="signatory_name" value="{{.Settings.SignatoryName}}"></div>
+            </div>
+            <p class="note">Images must be JPEG or PNG, up to 5 MB in all.</p>
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="logo">Logo (JPEG or PNG)</label><input id="logo" type="file" name="logo" accept="image/jpeg,image/png"><small>{{if .Settings.LogoKey}}Logo set. Upload again to replace it.{{else}}No logo yet.{{end}}</small></div>
+              <div class="field"><label for="signature">Signature (JPEG or PNG)</label><input id="signature" type="file" name="signature" accept="image/jpeg,image/png"><small>{{if .Settings.SignatureKey}}Signature set. Upload again to replace it.{{else}}No signature yet.{{end}}</small></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid">Save</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
 {{end}}

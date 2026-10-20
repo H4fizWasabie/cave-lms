@@ -28,7 +28,7 @@ func (a *App) courses(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "courses", page{Courses: list})
+	a.render(w, r, http.StatusOK, "courses", page{Courses: list})
 }
 
 func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			lessons[i].Completed = completed[lessons[i].ID]
 		}
 	}
-	a.render(w, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total})
+	a.render(w, r, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total})
 }
 
 func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {
@@ -78,11 +78,11 @@ func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "admin_courses", page{Courses: list})
+	a.render(w, r, http.StatusOK, "admin_courses", page{Courses: list})
 }
 
 func (a *App) newCourseForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "course_form", page{Course: &course{}})
+	a.render(w, r, http.StatusOK, "course_form", page{Course: &course{}})
 }
 
 func (a *App) editCourseForm(w http.ResponseWriter, r *http.Request) {
@@ -90,13 +90,13 @@ func (a *App) editCourseForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "course_form", page{Course: &c})
+	a.render(w, r, http.StatusOK, "course_form", page{Course: &c})
 }
 
 func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 	c, msg := courseFromForm(r)
 	if msg != "" {
-		a.render(w, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(),
@@ -117,7 +117,7 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 	c, msg := courseFromForm(r)
 	c.ID = existing.ID
 	if msg != "" {
-		a.render(w, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(),
@@ -150,7 +150,7 @@ func (a *App) confirmDeleteCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "delete_course", page{Course: &c})
+	a.render(w, r, http.StatusOK, "delete_course", page{Course: &c})
 }
 
 func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +161,7 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	// Enrollments, Lessons, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
 	if isForeignKeyError(err) {
-		a.render(w, http.StatusConflict, "delete_course", page{Course: &c,
+		a.render(w, r, http.StatusConflict, "delete_course", page{Course: &c,
 			Error: "This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates. Close the Course instead."})
 		return
 	}
@@ -177,12 +177,12 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 func (a *App) courseFor(w http.ResponseWriter, r *http.Request) (course, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		a.courseNotFound(w)
+		a.courseNotFound(w, r)
 		return course{}, false
 	}
 	c, err := a.courseByID(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		a.courseNotFound(w)
+		a.courseNotFound(w, r)
 		return course{}, false
 	}
 	if err != nil {
@@ -200,8 +200,8 @@ func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
 	return c, err
 }
 
-func (a *App) courseNotFound(w http.ResponseWriter) {
-	a.render(w, http.StatusNotFound, "message", page{Title: "Course not found", Message: "There is no Course at this address."})
+func (a *App) courseNotFound(w http.ResponseWriter, r *http.Request) {
+	a.render(w, r, http.StatusNotFound, "message", page{Title: "Course not found", Message: "There is no Course at this address."})
 }
 
 func (a *App) listCourses(r *http.Request) ([]course, error) {

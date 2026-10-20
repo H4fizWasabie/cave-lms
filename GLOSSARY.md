@@ -1,5 +1,7 @@
 # Cave LMS
 
+CAVELMS is the product's public name ("Learn AI • Build Skills • Create Impact", powered by The Cave Consult). "Cave LMS" is the repo's working name. The home page uses the client's own marketing copy word for word, so it says "online classes" for Courses and "programmes" for The Cave Consult's past in-person programmes, which are not Courses.
+
 A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Paying Learners also build and deploy dashboards from sample spreadsheets in the Lab.
 
 ## Language

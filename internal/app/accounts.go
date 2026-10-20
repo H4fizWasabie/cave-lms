@@ -54,7 +54,7 @@ func (a *App) currentLearner(r *http.Request) (*learner, error) {
 }
 
 func (a *App) registerForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "register", page{})
+	a.render(w, r, http.StatusOK, "register", page{})
 }
 
 func (a *App) register(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +63,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	password := r.PostFormValue("password")
 	form := page{Name: name, Email: email, Error: accountFieldError(name, email, password)}
 	if form.Error != "" {
-		a.render(w, http.StatusUnprocessableEntity, "register", form)
+		a.render(w, r, http.StatusUnprocessableEntity, "register", form)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		form.Error = "This email is already registered. Log in instead."
-		a.render(w, http.StatusConflict, "register", form)
+		a.render(w, r, http.StatusConflict, "register", form)
 		return
 	}
 	if err != nil {
@@ -101,7 +101,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "message", page{
+	a.render(w, r, http.StatusOK, "message", page{
 		Title:   "Check your email",
 		Message: "We sent a verification link to " + email + ". Open it within 24 hours to confirm your account.",
 	})
@@ -158,7 +158,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		hashToken(r.URL.Query().Get("token")), purposeVerifyEmail).Scan(&learnerID, &email, &expired)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		a.render(w, http.StatusBadRequest, "message", page{
+		a.render(w, r, http.StatusBadRequest, "message", page{
 			Title:       "Link not valid",
 			Message:     "This verification link is not valid or has already been used. Enter your email to get a new one.",
 			OfferResend: true,
@@ -166,7 +166,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		serverError(w, err)
 	case expired:
-		a.render(w, http.StatusGone, "message", page{
+		a.render(w, r, http.StatusGone, "message", page{
 			Title:       "Link expired",
 			Message:     "This verification link has expired. Send yourself a new one.",
 			OfferResend: true,
@@ -177,7 +177,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
-		a.render(w, http.StatusOK, "message", page{Title: "Email verified", Message: "Your account is confirmed.", OfferLogin: true})
+		a.render(w, r, http.StatusOK, "message", page{Title: "Email verified", Message: "Your account is confirmed.", OfferLogin: true})
 	}
 }
 
@@ -214,14 +214,14 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 			log.Printf("send verification email: %v", err)
 		}
 	}
-	a.render(w, http.StatusOK, "message", page{
+	a.render(w, r, http.StatusOK, "message", page{
 		Title:   "Check your email",
 		Message: "If " + email + " belongs to an account waiting for verification, we sent it a new link.",
 	})
 }
 
 func (a *App) loginForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "login", page{})
+	a.render(w, r, http.StatusOK, "login", page{})
 }
 
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
@@ -238,11 +238,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil {
-		a.render(w, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect."})
+		a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect."})
 		return
 	}
 	if !verified {
-		a.render(w, http.StatusForbidden, "message", page{
+		a.render(w, r, http.StatusForbidden, "message", page{
 			Title:       "Verify your email first",
 			Message:     "Open the link we emailed you to confirm your account, then log in. Lost it? Send a new one.",
 			OfferResend: true,

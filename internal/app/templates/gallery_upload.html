@@ -1,21 +1,18 @@
-{{define "title"}}Upload to the Gallery · Cave LMS{{end}}
+{{define "title"}}Upload to the Gallery · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Upload to the Gallery</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    <form method="post" action="/admin/gallery" enctype="multipart/form-data">
-      <p><label>Title <input type="text" name="title" value="{{.Item.Title}}" maxlength="200" required></label></p>
-      <p><label>Description <textarea name="description" maxlength="2000">{{.Item.Description}}</textarea></label></p>
-      <p><label>Category <input type="text" name="category" value="{{.Item.Category}}" maxlength="100"></label></p>
-      <p><label>Visibility
-        <select name="visibility">
-          <option value="everyone"{{if eq .Item.Visibility "everyone"}} selected{{end}}>Everyone</option>
-          <option value="learners"{{if eq .Item.Visibility "learners"}} selected{{end}}>Logged-in Learners</option>
-          <option value="course_members"{{if eq .Item.Visibility "course_members"}} selected{{end}}>Course members only</option>
-        </select>
-      </label></p>
-      <p><label><input type="checkbox" name="promotional" value="on"{{if .Item.Promotional}} checked{{end}}> Promotional material</label></p>
-      <p><label>File (MP4 video, PDF ebook, or JPEG, PNG or WebP picture, up to about 2 GB) <input type="file" name="file" required></label></p>
-      <button>Upload</button>
-    </form>
-    <p><a href="/admin">Admin area</a></p>
+    <div class="adm">
+      {{template "admin-side" "gallery"}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/gallery">Back to the Gallery list</a></p>
+        <div class="adm-head"><h1>Upload to the Gallery</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+          <form class="form" method="post" action="/admin/gallery" enctype="multipart/form-data">
+            <div class="field"><label for="file">File</label><input id="file" type="file" name="file" required><small>MP4 video, PDF ebook, or JPEG, PNG or WebP picture, up to about 2 GB.</small></div>
+            {{template "gallery-fields" .}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin">Admin area</a><button class="btn btn-solid">Upload</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
 {{end}}

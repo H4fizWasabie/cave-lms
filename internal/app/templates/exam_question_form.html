@@ -1,20 +1,29 @@
-{{define "title"}}{{if .Question.ID}}Edit question{{else}}New question{{end}} · Admin · Cave LMS{{end}}
+{{define "title"}}{{if .Question.ID}}Edit question{{else}}New question{{end}} · Admin · CAVELMS{{end}}
 {{define "content"}}
-    <h1>{{if .Question.ID}}Edit question{{else}}New question{{end}} for {{.Course.Title}}</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    <form method="post" action="{{if .Question.ID}}/admin/courses/{{.Course.ID}}/exam/questions/{{.Question.ID}}{{else}}/admin/courses/{{.Course.ID}}/exam/questions{{end}}">
-      <label>Question <textarea name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></label>
-      <fieldset>
-        <legend>Options (2 to 5). Mark the one correct answer.</legend>
-        {{range $i, $o := .Question.Options}}
-        <p>
-          <label><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> Correct</label>
-          <input name="option" value="{{$o.Text}}" maxlength="500" aria-label="Option {{$i}}">
-        </p>
-        {{end}}
-      </fieldset>
-      {{if not .Question.ID}}<label><input type="checkbox" name="draft" {{if .Question.Draft}}checked{{end}}> Save as Draft (never asked until published)</label>{{end}}
-      <button>Save question</button>
-    </form>
-    <p><a href="/admin/courses/{{.Course.ID}}/exam">Back to the Exam</a></p>
+    <div class="adm">
+      {{template "admin-side" "courses"}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/exam">Back to the Exam</a></p>
+        <div class="adm-head"><h1>{{if .Question.ID}}Edit question{{else}}New question{{end}} for {{.Course.Title}}</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="{{if .Question.ID}}/admin/courses/{{.Course.ID}}/exam/questions/{{.Question.ID}}{{else}}/admin/courses/{{.Course.ID}}/exam/questions{{end}}">
+            <div class="field"><label for="prompt">Question</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
+            <fieldset class="field">
+              <legend>Options (2 to 5). Mark the one correct answer.</legend>
+              <div class="nq-list">
+                {{range $i, $o := .Question.Options}}
+                <div class="nq-row">
+                  <label class="check"><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> Correct</label>
+                  <input type="text" name="option" value="{{$o.Text}}" maxlength="500" aria-label="Option {{$i}}">
+                </div>
+                {{end}}
+              </div>
+            </fieldset>
+            {{if not .Question.ID}}<label class="check"><input type="checkbox" name="draft" {{if .Question.Draft}}checked{{end}}> Save as Draft (never asked until published)</label>{{end}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/exam">Cancel</a><button class="btn btn-solid">Save question</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
 {{end}}

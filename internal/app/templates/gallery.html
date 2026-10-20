@@ -1,32 +1,35 @@
-{{define "title"}}Gallery · Cave LMS{{end}}
+{{define "title"}}Gallery · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Gallery</h1>
-    <form method="get" action="/gallery">
-      <label>Format
-        <select name="format">
-          <option value="">All</option>
-          <option value="video"{{if eq .Format "video"}} selected{{end}}>Video</option>
-          <option value="ebook"{{if eq .Format "ebook"}} selected{{end}}>Ebook</option>
-          <option value="picture"{{if eq .Format "picture"}} selected{{end}}>Picture</option>
-        </select>
-      </label>
-      <label>Category
-        <select name="category">
-          <option value="">All</option>
-          {{range .Categories}}
-          <option value="{{.}}"{{if eq . $.Category}} selected{{end}}>{{.}}</option>
-          {{end}}
-        </select>
-      </label>
-      <button>Filter</button>
-    </form>
-    {{range .Items}}
-    <article>
-      <h2><a href="/gallery/{{.ID}}">{{.Title}}</a></h2>
-      <p>{{.Format}}{{if .Category}} · {{.Category}}{{end}}</p>
-    </article>
-    {{else}}
-    <p>Nothing here yet.</p>
-    {{end}}
-    <p><a href="/">Home</a></p>
+    <div class="wrap page-pad">
+      <div class="page-head">
+        <h1>Gallery</h1>
+        <p>Videos, ebooks and pictures.</p>
+      </div>
+      <form class="g-toolbar" method="get" action="/gallery">
+        <label class="select-label">Format
+          <select name="format">
+            <option value="">All</option>
+            <option value="video"{{if eq .Format "video"}} selected{{end}}>Video</option>
+            <option value="ebook"{{if eq .Format "ebook"}} selected{{end}}>Ebook</option>
+            <option value="picture"{{if eq .Format "picture"}} selected{{end}}>Picture</option>
+          </select>
+        </label>
+        <label class="select-label">Category
+          <select name="category">
+            <option value="">All</option>
+            {{range .Categories}}
+            <option value="{{.}}"{{if eq . $.Category}} selected{{end}}>{{.}}</option>
+            {{end}}
+          </select>
+        </label>
+        <button class="btn btn-ghost btn-sm">Filter</button>
+      </form>
+      <ul class="g-grid">
+        {{range .Items}}
+        {{template "gallery-tile" .}}
+        {{else}}
+        <li class="empty">{{if eq $.Format "ebook"}}eBooks are coming soon.{{else}}Nothing here yet.{{end}}</li>
+        {{end}}
+      </ul>
+    </div>
 {{end}}

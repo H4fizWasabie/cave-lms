@@ -1,16 +1,27 @@
-{{define "title"}}My Courses · Cave LMS{{end}}
+{{define "title"}}My Courses · CAVELMS{{end}}
 {{define "content"}}
-    <h1>My Courses</h1>
-    {{range .Courses}}
-    <article>
-      <h2><a href="/courses/{{.ID}}">{{.Title}}</a></h2>
-      <p>{{.Description}}</p>
-      {{with .StartDate}}<p>Start date: {{.}}</p>{{end}}
-    </article>
-    {{else}}
-    <p>You have not joined any Courses yet.</p>
-    {{end}}
-    <p><a href="/my-certificates">My Certificates</a></p>
-    <p><a href="/courses">All Courses</a></p>
-    <p><a href="/">Home</a></p>
+    <div class="wrap page-pad">
+      <div class="page-head page-head-row">
+        <div>
+          <h1>My Courses</h1>
+          <p>Courses you have joined. Continue any time.</p>
+        </div>
+        <a class="btn btn-ghost" href="/my-certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>My Certificates</a>
+      </div>
+      <ul class="mc-list">
+        {{range .Courses}}
+        <li class="mc-row mc-row-plain">
+          <div class="mc-main">
+            <h3><a href="/courses/{{.ID}}">{{.Title}}</a></h3>
+            <p class="muted">{{.Description}}</p>
+            {{with .StartDate}}<ul class="meta"><li>Start date: {{.}}</li></ul>{{end}}
+          </div>
+          <a class="btn btn-solid btn-sm" href="/courses/{{.ID}}">Open</a>
+        </li>
+        {{else}}
+        <li class="empty">You have not joined any Courses yet. <a href="/courses">Browse the Courses</a>.</li>
+        {{end}}
+      </ul>
+      <p class="mc-more"><a class="link-more" href="/courses">All Courses</a></p>
+    </div>
 {{end}}

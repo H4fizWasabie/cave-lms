@@ -26,7 +26,7 @@ type rateLimiter struct {
 func (a *App) limited(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), time.Now()) {
-			a.render(w, http.StatusTooManyRequests, "message", page{
+			a.render(w, r, http.StatusTooManyRequests, "message", page{
 				Title:   "Too many attempts",
 				Message: "Too many attempts from your address. Wait 15 minutes and try again.",
 			})

@@ -1,32 +1,60 @@
-{{define "title"}}{{.Course.Title}} · Cave LMS{{end}}
+{{define "title"}}{{.Course.Title}} · CAVELMS{{end}}
 {{define "content"}}
-    <h1>{{.Course.Title}}</h1>
-    <p>{{.Course.Description}}</p>
-    {{with .Course.StartDate}}<p>Start date: {{.}}</p>{{end}}
-    <p>{{if .Course.Open}}Open to new joins{{else}}Closed to new joins{{end}}</p>
-    {{if .Learner}}
-      {{if .Enrolled}}
-      <p>You have joined this Course</p>
-      <form method="post" action="/courses/{{.Course.ID}}/leave"><button>Leave this Course</button></form>
-      <p>Progress: {{.Done}} of {{.Total}} Lessons complete</p>
-      <p><a href="/courses/{{.Course.ID}}/exam">Exam</a></p>
-      {{else if .Course.Open}}
-      <form method="post" action="/courses/{{.Course.ID}}/join"><button>Join this Course</button></form>
-      {{end}}
-    {{else}}
-    <p><a href="/login">Log in</a> or <a href="/register">register</a> to join this Course.</p>
-    {{end}}
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    {{if .Lessons}}
-    <h2>Lessons</h2>
-    <ol>
-      {{range .Lessons}}
-      <li>{{if or $.Enrolled (and $.Learner $.Learner.IsAdmin)}}<a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}{{if not .Published}} (Draft, hidden from Learners){{end}}{{if .Completed}} (complete){{end}}
-        {{if and $.Enrolled .Published}}
-        <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{.ID}}/{{if .Completed}}incomplete{{else}}complete{{end}}"><button>{{if .Completed}}Mark incomplete{{else}}Mark complete{{end}}</button></form>
-        {{end}}</li>
-      {{end}}
-    </ol>
-    {{end}}
-    <p><a href="/courses">All Courses</a></p>
+    <section class="c-hero">
+      <div class="wrap c-hero-in c-hero-plain">
+        <div>
+          <p class="crumbs"><a href="/courses">Courses</a></p>
+          <div class="c-title-row">
+            <h1>{{.Course.Title}}</h1>
+            {{if .Course.Open}}<span class="badge badge-open">Open to new joins</span>{{else}}<span class="badge badge-closed">Closed to new joins</span>{{end}}
+          </div>
+          <p class="lede">{{.Course.Description}}</p>
+          {{with .Course.StartDate}}<ul class="meta"><li>Start date: {{.}}</li></ul>{{end}}
+        </div>
+      </div>
+    </section>
+    <div class="wrap c-body">
+      <div>
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        {{if .Lessons}}
+        <div class="c-block">
+          <h2>Lessons</h2>
+          <ol class="lesson-list">
+            {{range $l := .Lessons}}
+            <li class="{{if $l.Completed}}is-done{{end}}">
+              <div>
+                <span class="ls-n">{{if $l.Completed}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{end}}</span>
+                <span class="ls-t">{{if or $.Enrolled (and $.Learner $.Learner.IsAdmin)}}<a href="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}">{{$l.Title}}</a>{{else}}{{$l.Title}}{{end}}{{if not $l.Published}} <span class="badge badge-closed">(Draft, hidden from Learners)</span>{{end}}{{if $l.Completed}} <span class="sr">(complete)</span>{{end}}</span>
+                {{if and $.Enrolled $l.Published}}
+                <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}/{{if $l.Completed}}incomplete{{else}}complete{{end}}"><button class="btn btn-quiet btn-sm btn-done{{if $l.Completed}} is-done{{end}}">{{if $l.Completed}}Mark incomplete{{else}}Mark complete{{end}}</button></form>
+                {{else}}<span></span>{{end}}
+              </div>
+            </li>
+            {{end}}
+          </ol>
+        </div>
+        {{end}}
+      </div>
+      <aside class="c-side">
+        <div class="panel">
+          {{if .Learner}}
+            {{if .Enrolled}}
+            <p class="panel-k">You have joined this Course</p>
+            <p class="panel-big">{{.Done}} of {{.Total}}</p>
+            <p class="panel-msg">Progress: {{.Done}} of {{.Total}} Lessons complete</p>
+            <a class="btn btn-solid btn-block" href="/courses/{{.Course.ID}}/exam">Exam</a>
+            <form method="post" action="/courses/{{.Course.ID}}/leave"><button class="btn btn-quiet btn-block">Leave this Course</button></form>
+            {{else if .Course.Open}}
+            <p class="panel-msg">Join in one click. No approval needed.</p>
+            <form method="post" action="/courses/{{.Course.ID}}/join"><button class="btn btn-solid btn-block">Join this Course</button></form>
+            {{else}}
+            <p class="panel-msg">This Course is closed to new joins.</p>
+            {{end}}
+          {{else}}
+          <p class="panel-msg"><a href="/login">Log in</a> or <a href="/register">register</a> to join this Course.</p>
+          <a class="btn btn-solid btn-block" href="/register">Register</a>
+          {{end}}
+        </div>
+      </aside>
+    </div>
 {{end}}

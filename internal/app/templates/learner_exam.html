@@ -1,19 +1,27 @@
-{{define "title"}}Exam · {{.Course.Title}} · Cave LMS{{end}}
+{{define "title"}}Exam · {{.Course.Title}} · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Exam for {{.Course.Title}}</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    {{with .Status}}
-    <p>Pass mark: {{.Exam.PassMark}}%</p>
-    <p>{{with .Exam.TimeLimit}}Time limit: {{.}} minutes{{else}}No time limit{{end}}</p>
-    <p>Attempts left: {{.AttemptsLeft}}</p>
-    {{if .HasBest}}<p>Best score: {{.Best}}%</p>{{end}}
-    {{if .Open}}
-    <p><a href="/courses/{{$.Course.ID}}/exam/attempts/{{.Open.ID}}">Continue your attempt</a></p>
-    {{else}}
-    {{with .Blocker}}<p>{{.}}</p>{{else}}
-    <form method="post" action="/courses/{{$.Course.ID}}/exam/attempts"><button>Start the Exam</button></form>
-    {{end}}
-    {{end}}
-    {{end}}
-    <p><a href="/courses/{{.Course.ID}}">Back to the Course</a></p>
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+      <div class="x-card">
+        <svg class="i x-icon" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>
+        <h1>Exam for {{.Course.Title}}</h1>
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        {{with .Status}}
+        <ul class="x-facts">
+          <li><strong>{{.Exam.PassMark}}%</strong>Pass mark: {{.Exam.PassMark}}%</li>
+          <li><strong>{{with .Exam.TimeLimit}}{{.}} min{{else}}None{{end}}</strong>{{with .Exam.TimeLimit}}Time limit: {{.}} minutes{{else}}No time limit{{end}}</li>
+          <li><strong>{{.AttemptsLeft}}</strong>Attempts left: {{.AttemptsLeft}}</li>
+          <li><strong>{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong>{{if .HasBest}}Best score: {{.Best}}%{{else}}No score yet{{end}}</li>
+        </ul>
+        {{if .Open}}
+        <a class="btn btn-solid btn-lg" href="/courses/{{$.Course.ID}}/exam/attempts/{{.Open.ID}}">Continue your attempt</a>
+        {{else}}
+        {{with .Blocker}}<p class="x-help">{{.}}</p>{{else}}
+        <form method="post" action="/courses/{{$.Course.ID}}/exam/attempts"><button class="btn btn-solid btn-lg">Start the Exam</button></form>
+        {{end}}
+        {{end}}
+        {{end}}
+      </div>
+      <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}">Back to the Course</a></p>
+    </div>
 {{end}}

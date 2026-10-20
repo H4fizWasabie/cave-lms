@@ -191,7 +191,7 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "learner_exam", page{Course: &c, Learner: learner, Status: &st})
+	a.render(w, r, http.StatusOK, "learner_exam", page{Course: &c, Learner: learner, Status: &st})
 }
 
 // startAttempt begins an attempt, or returns to the one still open.
@@ -228,7 +228,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if msg := st.Blocker(); msg != "" {
-		a.render(w, http.StatusConflict, "learner_exam", page{Course: &c, Learner: learner, Status: &st, Error: msg})
+		a.render(w, r, http.StatusConflict, "learner_exam", page{Course: &c, Learner: learner, Status: &st, Error: msg})
 		return
 	}
 	id, err := a.insertAttempt(r.Context(), tx, learner.ID, c.ID)
@@ -282,7 +282,7 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "exam_attempt", page{Course: &c, Learner: learner, Attempt: &att})
+	a.render(w, r, http.StatusOK, "exam_attempt", page{Course: &c, Learner: learner, Attempt: &att})
 }
 
 // submitAttempt marks an open attempt. A submission after the time limit and grace is not marked: the
@@ -353,7 +353,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 // attemptFor loads the Learner's attempt named by {attemptID} on the Course. Other Learners' attempts are not found.
 func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID, courseID int64) (examAttempt, bool) {
 	notFound := func() (examAttempt, bool) {
-		a.render(w, http.StatusNotFound, "message", page{Title: "Attempt not found", Message: "There is no Exam attempt at this address."})
+		a.render(w, r, http.StatusNotFound, "message", page{Title: "Attempt not found", Message: "There is no Exam attempt at this address."})
 		return examAttempt{}, false
 	}
 	id, err := strconv.ParseInt(r.PathValue("attemptID"), 10, 64)

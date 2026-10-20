@@ -24,6 +24,9 @@ import (
 //go:embed migrations/*.sql templates/*.html
 var appFiles embed.FS
 
+//go:embed static
+var staticFiles embed.FS
+
 type App struct {
 	db            *sql.DB
 	handler       http.Handler
@@ -106,6 +109,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
+	mux.Handle("GET /static/", staticHandler())
 	mux.HandleFunc("GET /register", a.registerForm)
 	mux.HandleFunc("POST /register", a.limited(a.register))
 	mux.HandleFunc("GET /verify", a.verify)
@@ -204,7 +208,22 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
+	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
+}
+
+// staticHandler serves the embedded stylesheet, fonts and images under /static/, without directory listings.
+// ponytail: file names carry no content hash, so caching is one day; fingerprint names if changes must show sooner.
+func staticHandler() http.Handler {
+	files, _ := fs.Sub(staticFiles, "static")
+	server := http.StripPrefix("/static/", http.FileServerFS(files))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		server.ServeHTTP(w, r)
+	})
 }
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
@@ -232,7 +251,16 @@ func parsePages() (map[string]*template.Template, error) {
 	return pages, nil
 }
 
-func (a *App) render(w http.ResponseWriter, status int, name string, data page) {
+// render writes a page inside layout.html. The header needs the Learner, so it is looked up here when the handler didn't.
+func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name string, data page) {
+	if data.Learner == nil {
+		learner, err := a.currentLearner(r)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		data.Learner = learner
+	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {
 		serverError(w, err)

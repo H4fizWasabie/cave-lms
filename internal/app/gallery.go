@@ -136,7 +136,7 @@ func (a *App) refuseMembersItem(w http.ResponseWriter, r *http.Request, item gal
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusForbidden, "members_only", page{Courses: courses,
+	a.render(w, r, http.StatusForbidden, "members_only", page{Courses: courses,
 		Message: "This item is only for members of its Courses."})
 }
 
@@ -214,7 +214,7 @@ func (a *App) gallery(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sort.Strings(categories)
-	a.render(w, http.StatusOK, "gallery", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: shown,
+	a.render(w, r, http.StatusOK, "gallery", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: shown,
 		Format: format, Category: category, Categories: categories})
 }
 
@@ -228,7 +228,7 @@ func (a *App) galleryItemPage(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "gallery_item", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Item: &item})
+	a.render(w, r, http.StatusOK, "gallery_item", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Item: &item})
 }
 
 func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
@@ -257,7 +257,7 @@ func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) galleryUploadForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "gallery_upload", page{Item: &galleryItem{Visibility: visibilityEveryone}})
+	a.render(w, r, http.StatusOK, "gallery_upload", page{Item: &galleryItem{Visibility: visibilityEveryone}})
 }
 
 // galleryUpload streams the file to disk as it arrives. Nothing is stored unless every field and the file are valid.
@@ -265,7 +265,7 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxUpload)
 	mr, err := r.MultipartReader()
 	if err != nil {
-		a.render(w, http.StatusBadRequest, "message", page{Title: "Upload not read", Message: "The upload form could not be read. Try again."})
+		a.render(w, r, http.StatusBadRequest, "message", page{Title: "Upload not read", Message: "The upload form could not be read. Try again."})
 		return
 	}
 
@@ -280,7 +280,7 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	fail := func(status int, msg string) {
-		a.render(w, status, "gallery_upload", page{Item: &item, Error: msg})
+		a.render(w, r, status, "gallery_upload", page{Item: &item, Error: msg})
 	}
 	for {
 		part, err := mr.NextPart()
@@ -288,13 +288,13 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			a.uploadReadFailed(w, err)
+			a.uploadReadFailed(w, r, err)
 			return
 		}
 		if part.FormName() != "file" {
 			value, err := io.ReadAll(io.LimitReader(part, 4096))
 			if err != nil {
-				a.uploadReadFailed(w, err)
+				a.uploadReadFailed(w, r, err)
 				return
 			}
 			setGalleryField(&item, part.FormName(), strings.TrimSpace(string(value)))
@@ -307,7 +307,7 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 		head := make([]byte, 512)
 		n, err := io.ReadFull(part, head)
 		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-			a.uploadReadFailed(w, err)
+			a.uploadReadFailed(w, r, err)
 			return
 		}
 		head = head[:n]
@@ -318,7 +318,7 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		key, size, err := a.store.Save(io.MultiReader(bytes.NewReader(head), part))
 		if err != nil {
-			a.uploadReadFailed(w, err)
+			a.uploadReadFailed(w, r, err)
 			return
 		}
 		stored = key
@@ -342,10 +342,10 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 // uploadReadFailed answers a failed read: an over-limit upload gets 413, anything else is a server error.
-func (a *App) uploadReadFailed(w http.ResponseWriter, err error) {
+func (a *App) uploadReadFailed(w http.ResponseWriter, r *http.Request, err error) {
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
-		a.render(w, http.StatusRequestEntityTooLarge, "gallery_upload", page{
+		a.render(w, r, http.StatusRequestEntityTooLarge, "gallery_upload", page{
 			Item:  &galleryItem{Visibility: visibilityEveryone},
 			Error: "This file is too large. Uploads are limited to about 2 GB, and nothing was stored.",
 		})
@@ -398,7 +398,7 @@ func (a *App) adminGallery(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "admin_gallery", page{Learner: learner, Items: items})
+	a.render(w, r, http.StatusOK, "admin_gallery", page{Learner: learner, Items: items})
 }
 
 func (a *App) editGalleryForm(w http.ResponseWriter, r *http.Request) {
@@ -406,7 +406,7 @@ func (a *App) editGalleryForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "gallery_edit", page{Item: &item})
+	a.render(w, r, http.StatusOK, "gallery_edit", page{Item: &item})
 }
 
 // updateGalleryItem saves the Admin's edits. The file itself never changes.
@@ -421,7 +421,7 @@ func (a *App) updateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	item.Visibility = r.PostFormValue("visibility")
 	item.Promotional = r.PostFormValue("promotional") == "on"
 	if msg := galleryFieldError(item, true); msg != "" {
-		a.render(w, http.StatusUnprocessableEntity, "gallery_edit", page{Item: &item, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "gallery_edit", page{Item: &item, Error: msg})
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(),
@@ -439,7 +439,7 @@ func (a *App) confirmDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "delete_gallery_item", page{Item: &item})
+	a.render(w, r, http.StatusOK, "delete_gallery_item", page{Item: &item})
 }
 
 // deleteGalleryItem removes the row, then its stored file.
@@ -451,7 +451,7 @@ func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	// A Lesson holds ON DELETE RESTRICT on its item, so the database refuses the delete while one uses it.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM gallery_items WHERE id = $1`, item.ID)
 	if isForeignKeyError(err) {
-		a.render(w, http.StatusConflict, "delete_gallery_item", page{Item: &item,
+		a.render(w, r, http.StatusConflict, "delete_gallery_item", page{Item: &item,
 			Error: "This item cannot be deleted because a Lesson uses it. Remove the Lesson first."})
 		return
 	}
