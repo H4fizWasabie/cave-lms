@@ -43,7 +43,14 @@ func serve() error {
 	if err != nil {
 		return err
 	}
-	application, err := app.New(context.Background(), cfg, mailer.Unconfigured{})
+	var m mailer.Mailer = mailer.Unconfigured{}
+	if cfg.ResendAPIKey != "" {
+		m = mailer.Resend{APIKey: cfg.ResendAPIKey, From: cfg.EmailFrom}
+		log.Printf("Sending email through Resend as %s", cfg.EmailFrom)
+	} else {
+		log.Print("RESEND_API_KEY is not set: emails will not be sent")
+	}
+	application, err := app.New(context.Background(), cfg, m)
 	if err != nil {
 		return err
 	}
