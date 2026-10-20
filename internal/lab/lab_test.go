@@ -145,6 +145,24 @@ func TestGenerateRefusesChoicesThatDoNotFit(t *testing.T) {
 	}
 }
 
+func TestGenerateRefusesARequiredColumnWithBlankCells(t *testing.T) {
+	fin := finance(t)
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	d, err := lab.Read(bytes.NewReader(testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Lain"},
+		[]any{day, 1, 2}, []any{nil, nil, nil}, []any{day, 3, nil})), fin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Lain"}, d)
+	var got lab.Errors
+	if !errors.As(err, &got) || !reflect.DeepEqual(got, lab.Errors{"Row 4, Lain: empty, but this column is required."}) {
+		t.Fatalf("err = %v, want the blank cell in Lain named by its Excel row", err)
+	}
+	if _, _, err := lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Jumlah"}, d); err != nil {
+		t.Fatalf("a blank in a column no required blank uses refused: %v", err)
+	}
+}
+
 func TestGeneratedPageEscapesColumnNamesAndCellText(t *testing.T) {
 	fin := finance(t)
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)

@@ -376,6 +376,7 @@ func TestUnderTheHoodShowsTheGeneratedPageAndDataExplained(t *testing.T) {
 	if _, index := ada.get(path + "/view/"); page != index {
 		t.Fatalf("the hood's index.html is not the preview's:\n%s\n---\n%s", page, index)
 	}
+	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/view/data.json"`)
 	data := html.UnescapeString(parts[5][1])
 	if !strings.Contains(data, `{"Tarikh": "2026-`) || !strings.Contains(data, "62 more rows") {
 		t.Fatalf("data.json excerpt: %s", data)
@@ -390,7 +391,7 @@ func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
 	admin.ageAllPeriods(31)
 
 	res, body := ada.get("/lab")
-	for _, want := range []string{"Your Dashboards are safe", `href="` + path + `"`, `href="` + path + `/download"`, `href="` + empty + `"`} {
+	for _, want := range []string{"Your Dashboards are safe", `src="/lab/demo/finance/"`, `href="` + path + `"`, `href="` + path + `/download"`, `href="` + empty + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 	if strings.Contains(body, `href="/lab/new"`) || strings.Contains(body, `href="`+empty+`/download"`) {
@@ -483,4 +484,36 @@ func TestReuploadKeepsTheColumnChoicesWhileTheyStillFit(t *testing.T) {
 	res, body = ada.get(path + "/columns?again")
 	expectStatus(t, res, body, http.StatusOK, "Your new file does not have every column you chose")
 	expectStatus(t, res, body, http.StatusOK, `<option value="" selected>Skip</option>`)
+}
+
+func TestARenamedRequiredColumnIsFlaggedOnTheColumnsPage(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Nilai"}, []any{day, 5}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path + "/columns")
+	expectStatus(t, res, body, http.StatusOK, "Cave could not find Jumlah, so it picked Nilai for Amount. Did you rename it?")
+	if strings.Contains(body, "could not find Tarikh") {
+		t.Fatalf("Tarikh was found by name: %s", body)
+	}
+}
+
+func TestBlankCellsAreCheckedInTheChosenRequiredColumn(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	ada.postFile(path+"/dataset", "first.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Lain"}, []any{day, 1, 2}, []any{day, 3, nil}))
+
+	res, body := ada.post(path+"/columns", url.Values{"date": {"Tarikh"}, "amount": {"Lain"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Row 3, Lain: empty, but this column is required.")
+
+	full := testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Lain"}, []any{day, 1, 2}, []any{day, 3, 4})
+	ada.postFile(path+"/dataset", "full.xlsx", full)
+	res, body = ada.post(path+"/columns", url.Values{"date": {"Tarikh"}, "amount": {"Lain"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	res, body = ada.postFile(path+"/dataset", "gap.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Lain"}, []any{day, 1, 2}, []any{day, 3, nil}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Row 3, Lain: empty, but this column is required.")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "your Dashboard still uses full.xlsx")
 }

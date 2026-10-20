@@ -33,8 +33,22 @@ type Column struct {
 // a string for Date ("2006-01-02") and Text, a float64 for Number, nil for an empty cell.
 // It is stored as JSON, so json.Unmarshal gives back the same shape.
 type Dataset struct {
-	Columns []Column `json:"columns"`
-	Rows    [][]any  `json:"rows"`
+	Columns    []Column `json:"columns"`
+	Rows       [][]any  `json:"rows"`
+	RowNumbers []int    `json:"rowNumbers,omitempty"` // each row's number in Excel, as blank rows are skipped
+}
+
+// rowNumber is row i's number in Excel.
+func (d *Dataset) rowNumber(i int) int {
+	if i < len(d.RowNumbers) {
+		return d.RowNumbers[i]
+	}
+	return i + 2
+}
+
+// emptyCell reports a blank cell in a column a required blank uses.
+func emptyCell(row int, col string) string {
+	return fmt.Sprintf("Row %d, %s: empty, but this column is required.", row, col)
 }
 
 // Errors is everything wrong with an upload, each in words a Learner can act on.
@@ -115,7 +129,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	for _, b := range t.Blanks {
 		if b.Required && !hasType(d.Columns, b.Type) {
 			errs = append(errs, fmt.Sprintf("Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
-				b.sampleName(), t.Name, b.Label, typeWords[b.Type]))
+				b.SampleName(), t.Name, b.Label, typeWords[b.Type]))
 		}
 	}
 	required, guess := map[string]bool{}, t.Guess(d)
@@ -137,7 +151,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 			col := d.Columns[ci]
 			if c.v == "" {
 				if required[col.Name] {
-					errs = append(errs, fmt.Sprintf("Row %d, %s: empty, but this column is required.", rowNo[ri], col.Name))
+					errs = append(errs, emptyCell(rowNo[ri], col.Name))
 				}
 				continue
 			}
@@ -152,6 +166,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	if errs != nil {
 		return nil, errs
 	}
+	d.RowNumbers = rowNo
 	return d, nil
 }
 

@@ -151,6 +151,9 @@ func TestHRBlocks(t *testing.T) {
 	if active := cfg.Blocks[1]; active["agg"] != "count" || !reflect.DeepEqual(active["where"], []any{"status", "Aktif"}) {
 		t.Errorf("Active block = %v, want a count where status is Aktif", active)
 	}
+	if want := []string{"department", "status", "gender", "joined"}; !reflect.DeepEqual(cfg.Filters, want) {
+		t.Errorf("filters = %v, want %v", cfg.Filters, want)
+	}
 
 	for blank, want := range map[string][]string{
 		"status": {"Headcount", "Headcount by department", "Joins per month", "Staff"},
