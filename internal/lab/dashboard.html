@@ -19,6 +19,13 @@
     const dashboard = {{.Config}};
     fetch("data.json")
       .then(response => response.json())
+      .catch(() => new Promise(done => {
+        // Opened from a file on the computer, browsers block fetch: read the same rows from data.js.
+        const script = document.createElement("script");
+        script.src = "data.js";
+        script.onload = () => done(dashboardRows);
+        document.head.append(script);
+      }))
       .then(rows => drawDashboard(dashboard, rows));
   </script>
 </body>

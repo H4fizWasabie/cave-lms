@@ -642,3 +642,16 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .pv-stage.is-phone .pv-frame { width: 390px; max-width: 100%; height: 760px; border-radius: 26px; border: 10px solid var(--brand-ink); }
 @media (max-width: 999px) { .tp-pick { grid-template-columns: repeat(2, 1fr); } .ws-split { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .tp-pick { grid-template-columns: 1fr; } .pv-stage { padding: .5rem; } .pv-frame { height: 900px; } }
+
+/* Lab: Under the hood (each part of the generated files beside its note) and the read-only Lab. */
+.hood { margin-bottom: 2rem; }
+.hood .h-sm { margin-bottom: .8rem; }
+.hood-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); border: 1px solid var(--line); background: var(--surface); }
+.hood-row + .hood-row { border-top: 0; }
+.hood pre { margin: 0; padding: .9rem 1.1rem; background: #1d1f23; color: #e6e3d8; overflow-x: auto; font-size: .84rem; line-height: 1.55; }
+.hood-note { display: flex; gap: .8rem; padding: .9rem 1.1rem; align-items: flex-start; }
+.hood-note .step-n { flex-shrink: 0; display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 99px; background: var(--brand-gold); color: var(--brand-ink); font-family: var(--font-body); font-size: .86rem; margin: 0; }
+.hood-note p { color: var(--muted); font-size: .92rem; margin: .15rem 0 0; }
+.lab-row-act { display: flex; gap: .4rem; }
+@media (max-width: 999px) { .hood-row { grid-template-columns: 1fr; } }
+.callout .cta-row { margin-top: .8rem; }

@@ -3,21 +3,43 @@
     {{- $url := printf "/lab/dashboards/%d" .D.ID}}
     <div class="wrap page-pad">
       <p class="crumbs"><a href="/lab">Lab</a> / {{.D.Template.Name}} Template</p>
-      <div class="page-head"><h1>{{.D.Name}}</h1></div>
+      <div class="page-head page-head-row">
+        <h1>{{.D.Name}}</h1>
+        {{- if .D.Dataset}}
+        <a class="btn btn-ghost btn-sm" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download zip</a>
+        {{- end}}
+      </div>
+      {{- if .ReadOnly}}
+      <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>Your Lab access has ended, so this Dashboard is read-only. You can preview it, look under the hood and download it. <a href="/lab">See how to unlock the Lab</a>.</p></div>
+      {{- end}}
       <nav class="ws-tabs" aria-label="Dashboard steps">
         <a class="ws-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>1. Dataset</a>
         {{- if .D.Dataset}}
+        {{- if .ReadOnly}}
+        <span class="ws-tab is-off" title="Needs Lab access">2. Columns</span>
+        {{- else}}
         <a class="ws-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>2. Columns</a>
+        {{- end}}
         <a class="ws-tab" href="{{$url}}/preview"{{if eq .Tab "preview"}} aria-current="page"{{end}}>3. Preview</a>
+        <a class="ws-tab" href="{{$url}}/hood"{{if eq .Tab "hood"}} aria-current="page"{{end}}>Under the hood</a>
         {{- else}}
         <span class="ws-tab is-off" title="Upload a Dataset first">2. Columns</span>
         <span class="ws-tab is-off" title="Upload a Dataset first">3. Preview</span>
+        <span class="ws-tab is-off" title="Upload a Dataset first">Under the hood</span>
         {{- end}}
       </nav>
 
       {{- if eq .Tab "dataset"}}
       <div class="ws-split">
         <section>
+          {{- if .ReadOnly}}
+          {{- with .D.Dataset}}
+          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.D.File}}</strong><span class="muted">{{len .Rows}} rows · {{len .Columns}} columns · changed {{$.D.Updated}}</span></div></div>
+          {{- else}}
+          <p class="empty">No Dataset was uploaded.</p>
+          {{- end}}
+          <p class="muted">Uploading a Dataset needs Lab access.</p>
+          {{- else}}
           {{- with .D.Dataset}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.D.File}}</strong><span class="muted">{{len .Rows}} rows · {{len .Columns}} columns · changed {{$.D.Updated}}</span></div></div>
           <h2 class="h-md">Upload a new Dataset</h2>
@@ -37,6 +59,7 @@
             <div class="field"><label for="file">Excel file</label><input id="file" type="file" name="file" accept=".xlsx" required><small>.xlsx only · first sheet · row 1 is the column names · up to 5,000 rows and 2 MB</small></div>
             <div class="form-foot"><button class="btn btn-solid">Upload</button></div>
           </form>
+          {{- end}}
         </section>
         <aside class="panel">
           <span class="panel-k">{{.D.Template.Name}} Template</span>
@@ -48,6 +71,9 @@
 
       {{- else if not .D.Dataset}}
       <p class="empty">Upload a Dataset first. <a href="{{$url}}">Go to the Dataset step</a>.</p>
+
+      {{- else if and .ReadOnly (eq .Tab "columns")}}
+      <p class="empty">Choosing columns needs Lab access. <a href="{{$url}}/preview">See the preview</a>.</p>
 
       {{- else if eq .Tab "columns"}}
       <form class="form ws-narrow" method="post" action="{{$url}}/columns">
@@ -83,6 +109,21 @@
         </nav>
       </div>
       <div class="pv-stage{{if .Phone}} is-phone{{end}}"><iframe class="pv-frame" src="{{$url}}/view/" title="Dashboard preview"></iframe></div>
+
+      {{- else if eq .Tab "hood"}}
+      <p class="muted">Every Dashboard is two files plus the chart library. Cave writes them from the Template; you never edit code.</p>
+      <section class="hood">
+        <h2 class="h-sm"><code>index.html</code>, the page</h2>
+        {{- range .Hood}}
+        {{template "hoodRow" .}}
+        {{- end}}
+      </section>
+      <section class="hood">
+        <h2 class="h-sm"><code>data.json</code>, your Dataset</h2>
+        {{template "hoodRow" .Data}}
+      </section>
+      <p class="muted">Download zip gives you these files to open offline or put on another server. A later Lesson shows how.</p>
       {{- end}}
     </div>
 {{end}}
+{{define "hoodRow"}}<div class="hood-row"><pre><code>{{.Code}}</code></pre><div class="hood-note"><span class="step-n">{{.N}}</span><div><strong>{{.Title}}</strong><p>{{.Note}}</p></div></div></div>{{end}}
