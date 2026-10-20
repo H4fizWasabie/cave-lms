@@ -3,6 +3,7 @@ package lab_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"math"
 	"reflect"
 	"strings"
@@ -160,5 +161,109 @@ func TestGeneratedPageEscapesColumnNamesAndCellText(t *testing.T) {
 		if bytes.Contains(file, []byte("<b>")) || bytes.Contains(file, []byte("<script>alert")) || bytes.Contains(file, []byte("<i>")) || bytes.Contains(file, []byte("</script><b>")) {
 			t.Fatalf("hostile text left unescaped:\n%s", file)
 		}
+	}
+}
+
+// readErrors reads a file it expects Cave to refuse and returns the Learner-worded problems.
+func readErrors(t *testing.T, file []byte) lab.Errors {
+	t.Helper()
+	_, err := lab.Read(bytes.NewReader(file), finance(t))
+	var errs lab.Errors
+	if !errors.As(err, &errs) {
+		t.Fatalf("Read gave %v, want lab.Errors", err)
+	}
+	return errs
+}
+
+func TestReadsEveryDateForm(t *testing.T) {
+	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Bila"},
+		[]any{day, 1.0, "05/11/2026"},        // a real Excel date; day/month/year text in a column Cave has no name for
+		[]any{"05/11/2026", 2.0, "5/1/2026"}, // day/month/year text: 5 November, not May 11
+		[]any{45231, 3.0, "31/12/2026"},      // an Excel date serial number
+	)
+	d, err := lab.Read(bytes.NewReader(file), finance(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Columns[2].Type != lab.Date {
+		t.Fatalf("Bila read as %s, want date", d.Columns[2].Type)
+	}
+	want := [][]any{{"2026-11-05", 1.0, "2026-11-05"}, {"2026-11-05", 2.0, "2026-01-05"}, {"2023-11-01", 3.0, "2026-12-31"}}
+	if !reflect.DeepEqual(d.Rows, want) {
+		t.Fatalf("rows = %v, want %v", d.Rows, want)
+	}
+}
+
+func TestReadsRinggitAmountsAsNumbers(t *testing.T) {
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Harga"},
+		[]any{day, "RM1,200.00", "RM 5"},
+		[]any{day, "1,200", "-RM12.50"},
+		[]any{day, "RM 50", 7},
+	)
+	d, err := lab.Read(bytes.NewReader(file), finance(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Columns[2].Type != lab.Number {
+		t.Fatalf("Harga read as %s, want number", d.Columns[2].Type)
+	}
+	want := [][]any{{"2026-03-05", 1200.0, 5.0}, {"2026-03-05", 1200.0, -12.5}, {"2026-03-05", 50.0, 7.0}}
+	if !reflect.DeepEqual(d.Rows, want) {
+		t.Fatalf("rows = %v, want %v", d.Rows, want)
+	}
+}
+
+func TestListsEveryUnreadableOrMissingCell(t *testing.T) {
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Tarikh", "Kategori", "Jumlah"},
+		[]any{day, nil, 10},             // a blank optional cell is fine
+		[]any{day, "Sewa", "dua ratus"}, // row 3
+		[]any{"31/02/2026", "Sewa", 5},  // row 4
+		[]any{day, "Sewa", nil},         // row 5
+		[]any{nil, "Sewa", 5, "lebih"},  // row 6
+	)
+	got := readErrors(t, file)
+	want := lab.Errors{
+		`Row 3, Jumlah: not a number ("dua ratus"). Type it as a plain number, like 200 or RM1,200.00.`,
+		`Row 4, Tarikh: not a date ("31/02/2026"). Type it as day/month/year, like 05/11/2026.`,
+		`Row 5, Jumlah: empty, but this column is required.`,
+		`Row 6, Tarikh: empty, but this column is required.`,
+		`Row 6 has "lebih" in column D, which has no name in row 1. Name the column or clear the cell.`,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("errors =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestAMissingRequiredColumnIsNamed(t *testing.T) {
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	got := readErrors(t, testutil.XLSX(t, []string{"Tarikh", "Kategori"}, []any{day, "Sewa"}))
+	want := lab.Errors{"Column Jumlah is missing. The Finance Template needs it for Amount, a column of numbers. Did you rename it? Rename it back in row 1 and upload again."}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("errors = %v, want %v", got, want)
+	}
+}
+
+func TestRefusesMoreThan5000Rows(t *testing.T) {
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	rows := make([][]any, 5001)
+	for i := range rows {
+		rows[i] = []any{day, 1}
+	}
+	got := readErrors(t, testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows...))
+	if want := (lab.Errors{"The file has 5,001 rows. The Lab reads up to 5,000 rows. Delete some rows and upload again."}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("errors = %v, want %v", got, want)
+	}
+	if _, err := lab.Read(bytes.NewReader(testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows[:5000]...)), finance(t)); err != nil {
+		t.Fatalf("5,000 rows refused: %v", err)
+	}
+}
+
+func TestACSVIsRefusedWithWhyXLSX(t *testing.T) {
+	got := readErrors(t, []byte("Tarikh,Jumlah\n05/11/2026,RM5\n"))
+	if len(got) != 1 || !strings.Contains(got[0], "A CSV file stores everything as plain text") {
+		t.Fatalf("errors = %v", got)
 	}
 }

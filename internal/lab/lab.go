@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -41,13 +42,22 @@ type Errors []string
 
 func (e Errors) Error() string { return strings.Join(e, "; ") }
 
+// MaxRows is the most data rows the Lab reads from one file.
+const MaxRows = 5000
+
+// WhyXLSX tells a Learner why the Lab takes .xlsx files only.
+const WhyXLSX = "The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that."
+
 // Read reads the first sheet of an .xlsx file, row 1 being the column names, and checks it
-// against the Template. A file Cave cannot use gives Errors.
-// ponytail: basic checks only; #42 adds the row and size caps, Malaysian date and RM forms, per-cell errors.
+// against the Template. A column named like one of a blank's guesses is read as that blank's
+// type; any other column's type comes from its cells. Dates may be real Excel dates,
+// day/month/year text or Excel date serial numbers; numbers may carry RM and thousands commas.
+// A file Cave cannot use gives Errors, every problem listed in row order. Only fully blank rows
+// are skipped.
 func Read(r io.Reader, t *Template) (*Dataset, error) {
 	f, err := excelize.OpenReader(r)
 	if err != nil {
-		return nil, Errors{"This is not an Excel workbook. The Lab reads .xlsx files only: in Excel choose File, Save As, Excel Workbook (.xlsx)."}
+		return nil, Errors{"This is not an .xlsx file. " + WhyXLSX}
 	}
 	defer f.Close()
 	sheet := f.GetSheetList()[0]
@@ -78,54 +88,66 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 
 	dates := dateStyles{f: f, sheet: sheet, known: map[int]bool{}}
-	n := len(d.Columns)
-	var raw [][]string
-	var isDate [][]bool
+	var raw [][]cell // every row with data, as wide as the widest row
+	var rowNo []int  // its row number in Excel
 	for ri, row := range cells[1:] {
 		if strings.TrimSpace(strings.Join(row, "")) == "" {
 			continue // a blank line carries no data
 		}
-		vals, flags := make([]string, n), make([]bool, n)
-		for ci := range vals {
-			if ci < len(row) {
-				vals[ci] = strings.TrimSpace(row[ci])
-				flags[ci] = vals[ci] != "" && dates.at(ci, ri+2)
-			}
+		vals := make([]cell, max(len(row), len(d.Columns)))
+		for ci, v := range row {
+			v = strings.TrimSpace(v)
+			vals[ci] = cell{v, v != "" && dates.at(ci, ri+2)}
 		}
-		raw, isDate = append(raw, vals), append(isDate, flags)
+		raw, rowNo = append(raw, vals), append(rowNo, ri+2)
+	}
+	if len(raw) > MaxRows {
+		return nil, Errors{fmt.Sprintf("The file has %s rows. The Lab reads up to %s rows. Delete some rows and upload again.", thousands(len(raw)), thousands(MaxRows))}
 	}
 
 	for ci := range d.Columns {
-		d.Columns[ci].Type = columnType(raw, isDate, ci)
-	}
-	for ri, vals := range raw {
-		row := make([]any, n)
-		for ci, v := range vals {
-			if v == "" {
-				continue
-			}
-			switch d.Columns[ci].Type {
-			case Date:
-				serial, _ := strconv.ParseFloat(v, 64)
-				day, err := excelize.ExcelDateToTime(serial, false)
-				if err != nil {
-					errs = append(errs, fmt.Sprintf("Row %d, %s: not a date.", ri+2, d.Columns[ci].Name))
-					continue
-				}
-				row[ci] = day.Format("2006-01-02")
-			case Number:
-				row[ci], _ = strconv.ParseFloat(v, 64)
-			default:
-				row[ci] = v
-			}
+		typ, named := t.blankType(d.Columns[ci].Name)
+		if !named {
+			typ = columnType(raw, ci)
 		}
-		d.Rows = append(d.Rows, row)
+		d.Columns[ci].Type = typ
 	}
-
 	for _, b := range t.Blanks {
 		if b.Required && !hasType(d.Columns, b.Type) {
-			errs = append(errs, fmt.Sprintf("The %s Template needs a %s column for %s, and this file has none.", t.Name, b.Type, b.Label))
+			errs = append(errs, fmt.Sprintf("Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
+				b.sampleName(), t.Name, b.Label, typeWords[b.Type]))
 		}
+	}
+	required, guess := map[string]bool{}, t.Guess(d)
+	for _, b := range t.Blanks {
+		if col, ok := guess[b.Key]; ok && b.Required {
+			required[col] = true
+		}
+	}
+
+	for ri, vals := range raw {
+		row := make([]any, len(d.Columns))
+		for ci, c := range vals {
+			if ci >= len(d.Columns) {
+				if c.v != "" {
+					errs = append(errs, fmt.Sprintf("Row %d has %q in column %s, which has no name in row 1. Name the column or clear the cell.", rowNo[ri], c.v, colLetter(ci)))
+				}
+				continue
+			}
+			col := d.Columns[ci]
+			if c.v == "" {
+				if required[col.Name] {
+					errs = append(errs, fmt.Sprintf("Row %d, %s: empty, but this column is required.", rowNo[ri], col.Name))
+				}
+				continue
+			}
+			v, problem := parse(c, col.Type)
+			if problem != "" {
+				errs = append(errs, fmt.Sprintf("Row %d, %s: %s", rowNo[ri], col.Name, problem))
+			}
+			row[ci] = v
+		}
+		d.Rows = append(d.Rows, row)
 	}
 	if errs != nil {
 		return nil, errs
@@ -133,17 +155,50 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	return d, nil
 }
 
-// columnType is Date when every filled cell is a date-formatted number, Number when every one is a number, else Text.
-func columnType(raw [][]string, isDate [][]bool, ci int) Type {
+// cell is a raw cell value; date is true when Excel shows it as a date.
+type cell struct {
+	v    string
+	date bool
+}
+
+var typeWords = map[Type]string{Date: "dates", Number: "numbers", Text: "text"}
+
+// parse reads a filled cell as typ, or says why it cannot.
+func parse(c cell, typ Type) (any, string) {
+	switch typ {
+	case Date:
+		if day, ok := textDate(c.v); ok {
+			return day, ""
+		}
+		// A real Excel date and a date serial number are both a count of days.
+		if n, err := strconv.ParseFloat(c.v, 64); err == nil && n >= 1 && n < 2958466 {
+			if day, err := excelize.ExcelDateToTime(n, false); err == nil {
+				return day.Format("2006-01-02"), ""
+			}
+		}
+		return nil, fmt.Sprintf("not a date (%q). Type it as day/month/year, like 05/11/2026.", c.v)
+	case Number:
+		if n, ok := number(c.v); ok {
+			return n, ""
+		}
+		return nil, fmt.Sprintf("not a number (%q). Type it as a plain number, like 200 or RM1,200.00.", c.v)
+	}
+	return c.v, ""
+}
+
+// columnType is Date when every filled cell is a date, Number when every one is a number, else Text.
+func columnType(raw [][]cell, ci int) Type {
 	allDates, allNumbers, filled := true, true, false
-	for ri, vals := range raw {
-		if vals[ci] == "" {
+	for _, vals := range raw {
+		c := vals[ci]
+		if c.v == "" {
 			continue
 		}
 		filled = true
-		_, err := strconv.ParseFloat(vals[ci], 64)
-		allNumbers = allNumbers && err == nil
-		allDates = allDates && err == nil && isDate[ri][ci]
+		_, isNumber := number(c.v)
+		_, isDate := textDate(c.v)
+		allNumbers = allNumbers && isNumber
+		allDates = allDates && (isDate || c.date && isNumber)
 	}
 	switch {
 	case !filled:
@@ -154,6 +209,42 @@ func columnType(raw [][]string, isDate [][]bool, ci int) Type {
 		return Number
 	}
 	return Text
+}
+
+var (
+	amount  = regexp.MustCompile(`(?i)^-?(rm)?\s*-?(\d{1,3}(,\d{3})+|\d*)(\.\d+)?(e[-+]?\d+)?$`)
+	ringgit = regexp.MustCompile(`(?i)rm|,|\s`)
+	dmy     = regexp.MustCompile(`^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$`)
+)
+
+// number reads 1200, 1,200, RM1,200.00, RM 50 and -RM12.50.
+func number(s string) (float64, bool) {
+	if !amount.MatchString(s) {
+		return 0, false
+	}
+	n, err := strconv.ParseFloat(ringgit.ReplaceAllString(s, ""), 64)
+	return n, err == nil
+}
+
+// textDate reads day/month/year text, so 05/11/2026 is 5 November 2026, as "2006-01-02".
+func textDate(s string) (string, bool) {
+	m := dmy.FindStringSubmatch(s)
+	if m == nil {
+		return "", false
+	}
+	day, err := time.Parse("2/1/2006", m[1]+"/"+m[2]+"/"+m[3])
+	if err != nil {
+		return "", false
+	}
+	return day.Format("2006-01-02"), true
+}
+
+func thousands(n int) string {
+	s := strconv.Itoa(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
 }
 
 func hasType(cols []Column, t Type) bool {
