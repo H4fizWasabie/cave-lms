@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,9 +15,11 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
-// maxDatasetUpload caps an upload request: a 2 MB .xlsx plus the form around it.
-// ponytail: a plain cap; #42 refuses files over 2 MB with the limit stated.
-const maxDatasetUpload = 2<<20 + 64<<10
+// maxDatasetFile is the largest .xlsx the Lab reads; maxDatasetUpload caps the request around it.
+const (
+	maxDatasetFile   = 2 << 20
+	maxDatasetUpload = maxDatasetFile + 64<<10
+)
 
 // dashboard is one of a Learner's Dashboards. Dataset is nil until the first upload.
 type dashboard struct {
@@ -252,6 +255,8 @@ type dashboardPage struct {
 	D      *dashboard
 	Tab    string
 	Errors []string // what was wrong with an upload
+	Upload string   // the refused file's name
+	Again  bool     // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks []blankChoice
 	Phone  bool // preview at phone width
 
@@ -272,7 +277,8 @@ type blankChoice struct {
 
 func (a *App) dashboardTab(tab string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{D: d, Tab: tab, Phone: r.URL.Query().Has("phone")})
+		q := r.URL.Query()
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{D: d, Tab: tab, Phone: q.Has("phone"), Again: q.Has("again")})
 	})
 }
 
@@ -293,22 +299,38 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	a.render(w, r, status, "lab_dashboard", p)
 }
 
-// uploadDataset replaces the Dashboard's Dataset with an uploaded .xlsx and pre-fills the column choices.
-// ponytail: always re-guesses the choices; #42 keeps them when the columns still match.
+// uploadDataset replaces the Dashboard's Dataset with an uploaded .xlsx. The column choices stay when
+// they still fit the new Dataset; otherwise Cave guesses again and sends the Learner to choose columns.
 func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if !a.labOpen(w, r) {
 		return
 	}
+	name := ""
 	refuse := func(errs ...string) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{D: d, Tab: "dataset", Errors: errs})
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{D: d, Tab: "dataset", Errors: errs, Upload: name})
 	}
+	tooBig := "The file is over 2 MB. The Lab reads files up to 2 MB. Delete some rows, or columns you do not need, and upload again."
 	r.Body = http.MaxBytesReader(w, r.Body, maxDatasetUpload)
 	file, header, err := r.FormFile("file")
-	if err != nil {
-		refuse("Choose an Excel file (.xlsx) of up to 2 MB.")
+	var over *http.MaxBytesError
+	switch {
+	case errors.As(err, &over) || r.ContentLength > maxDatasetUpload:
+		refuse(tooBig)
+		return
+	case err != nil:
+		refuse("Choose an Excel file (.xlsx) to upload.")
 		return
 	}
 	defer file.Close()
+	name = header.Filename
+	switch {
+	case !strings.EqualFold(filepath.Ext(name), ".xlsx"):
+		refuse(name + " is not an .xlsx file. " + lab.WhyXLSX)
+		return
+	case header.Size > maxDatasetFile:
+		refuse(tooBig)
+		return
+	}
 	ds, err := lab.Read(file, d.Template)
 	var problems lab.Errors
 	if errors.As(err, &problems) {
@@ -319,22 +341,30 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		serverError(w, err)
 		return
 	}
+	next := dashboardURL(d) + "/preview"
+	choices := d.Choices
+	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); err != nil {
+		choices, next = d.Template.Guess(ds), dashboardURL(d)+"/columns"
+		if d.Dataset != nil {
+			next += "?again"
+		}
+	}
 	dataset, err := json.Marshal(ds)
 	if err != nil {
 		serverError(w, err)
 		return
 	}
-	choices, err := json.Marshal(d.Template.Guess(ds))
+	choicesJSON, err := json.Marshal(choices)
 	if err != nil {
 		serverError(w, err)
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET dataset = $2, dataset_file = $3, choices = $4,
-		updated_at = now() WHERE id = $1`, d.ID, dataset, header.Filename, choices); err != nil {
+		updated_at = now() WHERE id = $1`, d.ID, dataset, name, choicesJSON); err != nil {
 		serverError(w, err)
 		return
 	}
-	http.Redirect(w, r, dashboardURL(d)+"/columns", http.StatusSeeOther)
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 // saveColumns stores the Learner's column choice for each blank; an empty value skips an optional blank.

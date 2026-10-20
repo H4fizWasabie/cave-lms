@@ -23,16 +23,16 @@
           {{- with .D.Dataset}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.D.File}}</strong><span class="muted">{{len .Rows}} rows · {{len .Columns}} columns · changed {{$.D.Updated}}</span></div></div>
           <h2 class="h-md">Upload a new Dataset</h2>
-          <p class="muted">A new upload replaces the old one.</p>
+          <p class="muted">A new upload replaces the old one. If the columns still match, your Dashboard updates straight away.</p>
           {{- else}}
           <h2 class="h-md">Upload your Dataset</h2>
           <p class="muted">Your edited copy of the Sample. Cave checks it against the {{.D.Template.Name}} Template.</p>
           {{- end}}
           {{- with .Errors}}
           <div class="ds-err" role="alert">
-            <p><strong>We could not read that file.</strong></p>
+            <p><strong>We could not read {{or $.Upload "that file"}}</strong></p>
             <ul>{{range .}}<li>{{.}}</li>{{end}}</ul>
-            <p>Fix this in Excel, save, and upload again. Nothing changed.</p>
+            <p>Fix {{if gt (len .) 1}}these{{else}}this{{end}} in Excel, save, and upload again. Nothing changed{{with $.D.Dataset}}: your Dashboard still uses {{$.D.File}}.{{else}}.{{end}}</p>
           </div>
           {{- end}}
           <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
@@ -45,6 +45,7 @@
           <h2 class="h-sm">Start from the Sample</h2>
           <p class="panel-msg">Download it, open it in Excel, add rows or change numbers, save, and upload it here. Required:{{range $i, $b := .D.Template.Blanks}}{{if $b.Required}} {{$b.Label}}{{end}}{{end}}.</p>
           <a class="btn btn-ghost btn-block" href="/lab/samples/{{.D.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the Sample</a>
+          <p class="muted">Dates can be real Excel dates or typed as day/month/year. Amounts like RM1,200.00 are fine.</p>
         </aside>
       </div>
 
@@ -73,6 +74,7 @@
           <h2 class="h-md">Which column fills each blank?</h2>
           <p class="muted">Cave read {{len .D.Dataset.Rows}} rows from {{.D.File}} and guessed from the column names and types. Change any choice; skip an optional blank to hide the parts that need it.</p>
         </div>
+        {{if .Again}}<p class="up-err" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>Your new file does not have every column you chose, so Cave guessed again. Check each choice.</p>{{end}}
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
         {{- range .Blanks}}
         <div class="field map-row">
