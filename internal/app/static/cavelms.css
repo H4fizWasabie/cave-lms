@@ -33,7 +33,19 @@
   --radius-lg: 8px;
   --focus: 0 0 0 3px rgba(210, 166, 73, .5);
   --gutter: clamp(1.5rem, 4vw, 4rem); /* side margin: grows with the screen so wide screens are used */
-  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  /* Motion scale from transitions.dev: pick by what the motion does, not by the number. */
+  --duration-stagger: 40ms;   /* per-item stagger offset */
+  --duration-micro: 80ms;     /* shake segment */
+  --duration-quick: 150ms;    /* hover and press feedback, page fade-out */
+  --duration-fast: 250ms;     /* page fade-in, page-head rise, tabs, check draw */
+  --duration-slow: 400ms;     /* a picture growing into its page, alert arrival */
+  --duration-very-slow: 500ms;/* emphasis: home hero, exam score, Gallery hover zoom */
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --distance-small: 6px;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --blur-medium: 3px;
   --shadow-lift: 0 10px 24px -14px rgba(31, 33, 36, .28); /* hover on cards and tiles */
 }
 
@@ -164,7 +176,6 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .page-head p { color: var(--muted); max-width: 44rem; }
 .page-head-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; flex-wrap: wrap; }
 .check { display: inline-flex; align-items: center; gap: .5rem; font-size: .92rem; cursor: pointer; }
-.check input { width: 1.05rem; height: 1.05rem; accent-color: var(--brand-ink); }
 
 /* Course page */
 .c-hero { background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -203,6 +214,27 @@ select, input[type=text], input[type=email], input[type=password], input[type=nu
 }
 select { width: auto; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand-ink); box-shadow: var(--focus); }
+input[type=checkbox], input[type=radio] {
+  appearance: none; margin: 0; width: 1.05rem; height: 1.05rem; flex-shrink: 0; display: inline-grid; place-content: center;
+  border: 1.5px solid var(--line-strong); border-radius: 3px; background: #fff; cursor: pointer;
+}
+input[type=radio] { border-radius: 50%; }
+input[type=checkbox]:checked { background: var(--brand-ink); border-color: var(--brand-ink); }
+input[type=radio]:checked { border-color: var(--brand-ink); }
+input[type=checkbox]::before, input[type=radio]::before { content: ""; width: .62rem; height: .62rem; }
+/* The tick is a mask so it can be wiped in from the left, like a pen stroke. */
+input[type=checkbox]::before {
+  background: #fff; clip-path: inset(0 100% 0 0);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5.2 4 7.6 8.6 2.6' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+input[type=checkbox]:checked::before { clip-path: inset(0); }
+input[type=radio]::before { width: .5rem; height: .5rem; border-radius: 50%; background: var(--brand-ink); transform: scale(0); }
+input[type=radio]:checked::before { transform: scale(1); }
+input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor: not-allowed; }
+@media (forced-colors: active) {
+  input[type=checkbox], input[type=radio] { appearance: auto; }
+  input[type=checkbox]::before, input[type=radio]::before { content: none; }
+}
 
 /* Verify page */
 .verify-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.4rem; }
@@ -299,7 +331,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 
 .x-opt { display: flex; gap: .8rem; align-items: flex-start; padding: .75rem .9rem; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
 .x-opt:hover { border-color: var(--line-strong); background: #fafaf6; }
-.x-opt input { width: 1.1rem; height: 1.1rem; margin-top: .15rem; accent-color: var(--brand-ink); flex-shrink: 0; }
+.x-opt input { margin-top: .15rem; }
 .x-opt:has(input:checked) { border-color: var(--brand-ink); background: var(--brand-gold-soft); box-shadow: inset 0 0 0 1px var(--brand-ink); }
 .x-submit { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 0; flex-wrap: wrap; }
 .x-submit p { color: var(--muted); }
@@ -370,9 +402,9 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
    Colour fades run for everyone; movement only without prefers-reduced-motion. Page changes
    use cross-document View Transitions (no JavaScript); browsers without them load normally. */
 .btn, .site-nav a, .hdr-link, .footer-col a, .lab-tab, .x-opt, .check-card, .icon-btn,
-.lesson-list > li > a, .adm-nav a, .table tbody tr td { transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
-input, select, textarea, .search { transition: border-color .15s ease, box-shadow .2s ease; }
-.course-card, .cert-chip, .tp-card, .tp-show, .stat-link, .g-plate { transition: border-color .2s ease, box-shadow .3s var(--ease-out); }
+.lesson-list > li > a, .adm-nav a, .table tbody tr td { transition: background-color var(--duration-quick) ease, border-color var(--duration-quick) ease, color var(--duration-quick) ease, transform var(--duration-quick) ease; }
+input, select, textarea, .search { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-quick) ease, background-color var(--duration-quick) ease; }
+.course-card, .cert-chip, .tp-card, .tp-show, .stat-link, .g-plate { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-fast) var(--ease-smooth-out); }
 .course-card:hover, .cert-chip:hover, .tp-card:hover, .tp-show:hover, .stat-link:hover, .g-tile:hover .g-plate { box-shadow: var(--shadow-lift); }
 .tp-show:hover { border-color: var(--line-strong); }
 
@@ -382,26 +414,44 @@ input, select, textarea, .search { transition: border-color .15s ease, box-shado
   .site-header { view-transition-name: site-header; }
   .adm-side { view-transition-name: adm-side; }
   .lab-tabs:not(.pv-bar .lab-tabs) { view-transition-name: lab-tabs; }
-  ::view-transition-old(root) { animation: fade-out .14s ease-in both; }
-  ::view-transition-new(root) { animation: fade-in .3s var(--ease-out) both; }
+  ::view-transition-old(root) { animation: fade-out var(--duration-quick) ease-in both; }
+  ::view-transition-new(root) { animation: fade-in var(--duration-fast) var(--ease-smooth-out) both; }
   /* A Gallery picture grows from its tile into its page, and back. */
-  ::view-transition-group(*) { animation-duration: .42s; animation-timing-function: var(--ease-out); }
-  ::view-transition-old(*):only-child, ::view-transition-new(*):only-child { animation-duration: .2s; }
+  ::view-transition-group(*) { animation-duration: var(--duration-slow); animation-timing-function: var(--ease-smooth-out); }
+  ::view-transition-old(*):only-child, ::view-transition-new(*):only-child { animation-duration: var(--duration-quick); }
   ::view-transition-old(*), ::view-transition-new(*) { height: 100%; object-fit: cover; overflow: clip; }
 
-  .site-nav a, .hdr-link, .footer-col a { transition: color .18s ease, background-size .25s var(--ease-out); }
+  .site-nav a, .hdr-link, .footer-col a { transition: color var(--duration-quick) ease, background-size var(--duration-fast) var(--ease-smooth-out); }
   .btn:active { transform: scale(.97); }
-  .g-plate img { transition: transform .65s var(--ease-out); }
+  .g-plate img { transition: transform var(--duration-very-slow) var(--ease-smooth-out); }
   .g-tile:hover .g-plate img { transform: scale(1.04); }
-  .home-hero-copy { animation: rise .7s var(--ease-out) both; }
+  .home-hero-copy { --rise: var(--distance-medium); animation: rise var(--duration-very-slow) var(--ease-smooth-out) both; }
+  /* Page heads rise in, title first (texts reveal, kept short because Learners see it on every page). */
+  .page-head h1, .page-head p, .c-title-row h1, .lesson > h1, .x-card > h1, .auth-box > h1, .auth-sub { animation: rise var(--duration-fast) var(--ease-smooth-out) both; }
+  .page-head p, .auth-sub { animation-delay: var(--duration-stagger); }
+  /* While a Gallery picture is on its way, its tile breathes (three times at most, then rests). */
+  .g-plate:has(> img) { animation: breathe 1s var(--ease-in-out) 3; } /* 1s: transitions.dev skeleton pulse */
+  /* Checkbox tick draws in; radio dot grows. Unchecking is quicker than checking. */
+  input[type=checkbox]::before { transition: clip-path var(--duration-quick) var(--ease-smooth-out); }
+  input[type=checkbox]:checked::before { transition-duration: var(--duration-fast); transition-delay: var(--duration-micro); }
+  input[type=radio]::before { transition: transform var(--duration-quick) var(--ease-smooth-out); }
+  input[type=radio]:checked::before { transition-duration: var(--duration-fast); }
   .lab-tabs .lab-tab[aria-current="page"] { border-bottom-color: transparent; }
-  .lab-tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-gold); transform-origin: left; animation: grow-x .35s var(--ease-out) both; }
-  [role="alert"], [role="status"], .result, .ds-now { animation: arrive .4s var(--ease-out) both; }
-  .x-result .x-score { animation: pop .6s var(--ease-out) both; }
+  .lab-tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-gold); transform-origin: left; animation: grow-x var(--duration-fast) var(--ease-smooth-out) both; }
+  [role="alert"], [role="status"], .result, .ds-now { animation: arrive var(--duration-slow) var(--ease-smooth-out) both; }
+  /* A form error shakes once (transitions.dev error state shake: legs of 80, 80, 60, 60 ms). */
+  .field-err[role="alert"] { animation: shake calc(var(--duration-micro) * 2 + 60ms * 2) var(--ease-smooth-out) both; }
+  .x-result .x-score { animation: pop var(--duration-very-slow) var(--ease-smooth-out) both; }
   @keyframes fade-out { to { opacity: 0; } }
   @keyframes fade-in { from { opacity: 0; } }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-  @keyframes arrive { from { opacity: 0; transform: translateY(-6px); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(var(--rise, var(--distance-base))); filter: blur(var(--blur-medium)); } }
+  @keyframes arrive { from { opacity: 0; transform: translateY(calc(var(--distance-small) * -1)); } }
+  @keyframes shake {
+    28.57% { transform: translateX(var(--distance-small)); }
+    57.14% { transform: translateX(calc(var(--distance-small) * -1)); }
+    78.57% { transform: translateX(4px); } /* the snippet's overshoot; no token */
+  }
+  @keyframes breathe { 50% { background-color: color-mix(in srgb, var(--line) 50%, var(--surface)); } }
   @keyframes grow-x { from { transform: scaleX(0); } }
   @keyframes pop { from { opacity: 0; transform: scale(.85); } }
 }
@@ -527,7 +577,7 @@ input, select, textarea, .search { transition: border-color .15s ease, box-shado
 .suffix span { display: grid; place-items: center; padding: 0 .8rem; border: 1px solid var(--line-strong); border-left: 0; border-radius: 0 var(--radius) var(--radius) 0; background: #f3f3ef; color: var(--muted); font-size: .9rem; }
 .check-card { display: flex; gap: .8rem; align-items: flex-start; padding: .85rem 1rem; border: 1px solid var(--line-strong); border-radius: var(--radius); cursor: pointer; background: #fff; font-weight: 400; }
 
-.check-card input { margin-top: .2rem; width: 1.05rem; height: 1.05rem; accent-color: var(--brand-ink); flex-shrink: 0; }
+.check-card input { margin-top: .2rem; }
 .check-card strong { display: block; font-size: .95rem; }
 .check-card small { color: var(--muted); font-size: .86rem; }
 .check-card:has(input:checked) { border-color: var(--brand-ink); background: var(--brand-gold-soft); }
@@ -616,7 +666,8 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .q-head p .badge { margin-left: .35rem; vertical-align: .08em; }
 .nq-list { display: grid; gap: .5rem; margin-top: .4rem; }
 .nq-row { display: grid; grid-template-columns: 6.5rem 1fr; gap: .8rem; align-items: center; }
-.nq-row .check input { accent-color: var(--ok); }
+.nq-row .check input:checked { border-color: var(--ok); }
+.nq-row .check input::before { background: var(--ok); }
 .g-tile { display: block; text-decoration: none; }
 .g-tile:hover strong { text-decoration: underline; text-decoration-color: var(--brand-gold); }
 .g-icon { position: absolute; inset: 0; display: grid; place-items: center; color: var(--brand-gold-deep); background: var(--brand-gold-soft); }
