@@ -157,12 +157,14 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingDoesNotRefund(t *testing.T) {
 	_, ada := labLearner(t) // the Plan allows 3 Deployments
 	first := ada.readyDashboard("One")
+	res, body := ada.get(first + "/deploy")
+	expectStatus(t, res, body, http.StatusOK, "It uses 1 of your 3 Deployments left this period.")
 	firstLink := ada.deploy(first)
 	if secondLink := ada.deploy(ada.readyDashboard("Two")); secondLink == firstLink || len(firstLink) < len("/d/")+20 {
 		t.Fatalf("links %s and %s: want two different long random slugs", firstLink, secondLink)
 	}
 
-	res, body := ada.post(first+"/delete", nil)
+	res, body = ada.post(first+"/delete", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if res, _ := ada.get(first); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("the deleted Dashboard still opens: %d", res.StatusCode)
@@ -224,6 +226,12 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 	admin.assignPlan("admin@example.com", admin.onlyPlanID()) // a Plan of their own does not limit them
 	res, body = admin.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
+
+	res, body = admin.get(admin.readyDashboard("Kosong") + "/deploy")
+	expectStatus(t, res, body, http.StatusOK, "A Dashboard can be deployed one time.")
+	if strings.Contains(body, "Deployments left") {
+		t.Fatalf("the Admin is shown a Plan allowance: %s", body)
+	}
 
 	var links []string
 	for _, name := range []string{"Satu", "Dua", "Tiga", "Empat"} { // more than the Plan allows

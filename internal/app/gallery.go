@@ -274,6 +274,9 @@ func (a *App) serveStored(w http.ResponseWriter, r *http.Request, key, contentTy
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// An item's file never changes, as no code replaces it after upload, so browsers keep it and skip a round trip to the server in France.
+	// Private keeps logged-in-only items out of shared caches; a day bounds how long a deleted item lingers.
+	w.Header().Set("Cache-Control", "private, max-age=86400")
 	// ServeContent handles Range requests, so videos can be seeked.
 	http.ServeContent(w, r, "", info.ModTime(), f)
 }
