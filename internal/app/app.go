@@ -236,6 +236,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /admin/plans/periods", a.admin(a.adminPlanPeriods))
 	mux.HandleFunc("POST /admin/plans/periods", a.admin(a.assignPlan))
 	mux.HandleFunc("POST /admin/plans/periods/{id}/end", a.admin(a.endPlanPeriod))
+	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
+	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

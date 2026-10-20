@@ -37,17 +37,19 @@ type dashboard struct {
 
 // dashboardRow is a Dashboard in the Lab list.
 type dashboardRow struct {
-	ID       int64
-	Name     string
-	Template string
-	Updated  string
-	HasData  bool // a Dataset is uploaded, so it can be downloaded
+	ID        int64
+	Name      string
+	Template  string
+	Updated   string
+	HasData   bool   // a Dataset is uploaded, so it can be downloaded
+	TakenDown string // when Cave took its Deployment down; empty if it was not
 }
 
 // labDashboards lists a Learner's Dashboards, most recently changed first.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, template, updated_at, dataset IS NOT NULL FROM dashboards
-		WHERE learner_id = $1 ORDER BY updated_at DESC, id DESC`, learnerID)
+	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at, d.dataset IS NOT NULL, dep.taken_down_at
+		FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id
+		WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +59,12 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 		var d dashboardRow
 		var key string
 		var updated time.Time
-		if err := rows.Scan(&d.ID, &d.Name, &key, &updated, &d.HasData); err != nil {
+		var takenDown sql.NullTime
+		if err := rows.Scan(&d.ID, &d.Name, &key, &updated, &d.HasData, &takenDown); err != nil {
 			return nil, err
+		}
+		if takenDown.Valid {
+			d.TakenDown = takenDown.Time.UTC().Format(periodTime)
 		}
 		d.Template, d.Updated = templateName(key), updated.UTC().Format(periodTime)
 		list = append(list, d)

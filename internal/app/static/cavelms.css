@@ -73,6 +73,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .badge-open { background: var(--ok-soft); color: var(--ok); }
 .badge-closed { background: #ebebe6; color: var(--muted); }
 .badge-joined { background: var(--brand-gold-soft); color: var(--brand-gold-deep); }
+.badge-revoked { background: var(--bad-soft); color: var(--bad); }
 
 .empty { color: var(--muted); padding: 1.2rem 0; list-style: none; }
 .link-more { font-weight: 600; font-size: .93rem; text-decoration: underline; text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; white-space: nowrap; }
@@ -677,3 +678,7 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .tp-pick .tp-card { overflow: hidden; }
 .tp-pick .tp-frame { --z: 5; margin: -1rem -1.2rem .5rem; }
 @media (max-width: 720px) { .tp-grid { grid-template-columns: 1fr; } .tp-frame, .tp-pick .tp-frame { --z: 2; } }
+
+/* Admin: Deployments */
+.takedown { display: flex; gap: .4rem; align-items: center; justify-content: flex-end; }
+.takedown input { min-width: 14rem; }

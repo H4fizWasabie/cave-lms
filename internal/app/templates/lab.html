@@ -64,7 +64,7 @@
         <li class="mc-row mc-row-plain">
           <div class="mc-main">
             <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
-            <ul class="meta"><li>{{.Template}} Template</li><li>Changed {{.Updated}}</li></ul>
+            <ul class="meta"><li>{{.Template}} Template</li><li>Changed {{.Updated}}</li>{{with .TakenDown}}<li><span class="badge badge-revoked">Taken down {{.}}</span></li>{{end}}</ul>
           </div>
           <div class="row-actions">
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">Open</a>

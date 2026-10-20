@@ -71,7 +71,7 @@
 </body>
 </html>
 {{end}}
-{{/* admin-side is the Admin sidebar; pass the current section: "dashboard", "courses", "gallery", "certificates", "design" or "plans". */}}
+{{/* admin-side is the Admin sidebar; pass the current section: "dashboard", "courses", "gallery", "certificates", "design", "plans" or "deployments". */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -84,6 +84,7 @@
           <a href="/admin/certificates"{{if eq . "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>Certificates</span></a>
           <a href="/admin/certificate-settings"{{if eq . "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span></a>
           <a href="/admin/plans"{{if eq . "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>Lab Plans</span></a>
+          <a href="/admin/deployments"{{if eq . "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>Deployments</span></a>
         </nav>
         <div class="adm-side-foot">
           <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>View learning site</span></a>

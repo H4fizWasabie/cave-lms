@@ -4,16 +4,20 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
 // deployment is a Dashboard's Deployment as its owner sees it on the Deploy tab.
 type deployment struct {
-	Path     string // /d/<slug>/
-	Link     string // the full link to share
-	Deployed string // formatted as periodTime
-	Until    string // when it sleeps, slept or was taken down
-	Awake    bool
+	Path      string // /d/<slug>/
+	Link      string // the full link to share
+	Deployed  string // formatted as periodTime
+	Until     string // when it sleeps, slept or was taken down
+	Awake     bool
+	TakenDown bool
+	Reason    string // why Cave took it down
 }
 
 // deploymentOf loads a Dashboard's Deployment; nil if it was never deployed.
@@ -22,8 +26,9 @@ func (a *App) deploymentOf(r *http.Request, dashboardID int64) (*deployment, err
 	var slug string
 	var deployed, until time.Time
 	err := a.db.QueryRowContext(r.Context(), `SELECT slug, deployed_at, LEAST(sleeps_at, COALESCE(taken_down_at, sleeps_at)),
-		sleeps_at > now() AND taken_down_at IS NULL FROM deployments WHERE dashboard_id = $1`, dashboardID).
-		Scan(&slug, &deployed, &until, &dep.Awake)
+		sleeps_at > now() AND taken_down_at IS NULL, taken_down_at IS NOT NULL, takedown_reason
+		FROM deployments WHERE dashboard_id = $1`, dashboardID).
+		Scan(&slug, &deployed, &until, &dep.Awake, &dep.TakenDown, &dep.Reason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -153,4 +158,88 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 				Message: "It was online for 7 days, until " + sleeps.UTC().Format(periodTime) + ". Nothing has been deleted; ask the person who shared the link."})
 		}
 	}
+}
+
+// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when the Learner deleted it.
+type adminDeployment struct {
+	ID        int64
+	Dashboard string
+	Template  string
+	Owner     string
+	Email     string
+	Path      string
+	Link      string
+	Until     string // when it sleeps, slept or was taken down
+	Awake     bool
+	TakenDown bool
+	Reason    string
+}
+
+type adminDeploymentsPage struct {
+	pageBase
+	Deployments []adminDeployment
+}
+
+func (a *App) adminDeployments(w http.ResponseWriter, r *http.Request) {
+	a.renderAdminDeployments(w, r, http.StatusOK, "")
+}
+
+// ponytail: lists every Deployment on one page; add paging when the list gets long.
+func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), COALESCE(d.template, ''), l.name, l.email,
+		dep.slug, LEAST(dep.sleeps_at, COALESCE(dep.taken_down_at, dep.sleeps_at)) AS until,
+		dep.sleeps_at > now() AND dep.taken_down_at IS NULL AS awake, dep.taken_down_at IS NOT NULL, dep.takedown_reason
+		FROM deployments dep
+		JOIN plan_periods pp ON pp.id = dep.period_id
+		JOIN learners l ON l.id = pp.learner_id
+		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
+		ORDER BY awake DESC, until DESC, dep.id DESC`)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	defer rows.Close()
+	p := &adminDeploymentsPage{pageBase: pageBase{Error: msg}}
+	for rows.Next() {
+		var dep adminDeployment
+		var slug string
+		var until time.Time
+		if err := rows.Scan(&dep.ID, &dep.Dashboard, &dep.Template, &dep.Owner, &dep.Email, &slug, &until,
+			&dep.Awake, &dep.TakenDown, &dep.Reason); err != nil {
+			serverError(w, err)
+			return
+		}
+		if dep.Template != "" {
+			dep.Template = templateName(dep.Template)
+		}
+		dep.Path = "/d/" + slug + "/"
+		dep.Link = a.publicBaseURL + dep.Path
+		dep.Until = until.UTC().Format(periodTime)
+		p.Deployments = append(p.Deployments, dep)
+	}
+	if err := rows.Err(); err != nil {
+		serverError(w, err)
+		return
+	}
+	a.render(w, r, status, "admin_deployments", p)
+}
+
+// takeDown puts an awake Deployment to sleep at once and records why; the Learner's Dashboard stays.
+func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
+	reason := strings.TrimSpace(r.PostFormValue("reason"))
+	if reason == "" {
+		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "Give a reason for the Takedown. The Learner sees it in their Lab.")
+		return
+	}
+	if len(reason) > 1000 {
+		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "Keep the reason under 1,000 characters.")
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE deployments SET taken_down_at = now(), takedown_reason = $2
+		WHERE id = $1 AND sleeps_at > now() AND taken_down_at IS NULL`, id, reason); err != nil {
+		serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/deployments", http.StatusSeeOther)
 }

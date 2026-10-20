@@ -159,6 +159,13 @@
         {{- if .Awake}}
         <h2 class="h-md"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>Online</h2>
         <p class="muted">Deployed {{.Deployed}}. Online until <strong>{{.Until}}</strong>, then it sleeps.</p>
+        {{- else if .TakenDown}}
+        <h2 class="h-md">Taken down</h2>
+        <div class="ds-err" role="alert">
+          <p><strong>Cave took this Deployment offline on {{.Until}}.</strong></p>
+          <p><strong>Reason:</strong> {{.Reason}}</p>
+          <p>Your Dashboard is still here and you can download it. The link now says it is inactive.</p>
+        </div>
         {{- else}}
         <h2 class="h-md">Asleep</h2>
         <p class="muted">It was online from {{.Deployed}} to {{.Until}}. The link now says the Dashboard is inactive. Nothing was deleted: it stays here in your Lab.</p>
@@ -169,6 +176,9 @@
           <input id="dep-url" type="text" readonly value="{{.Link}}" title="Select the link and copy it">
           <a class="btn btn-ghost btn-sm" href="{{.Path}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>Open</a>
         </div>
+        {{- if not .Awake}}
+        <p><a class="btn btn-ghost" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download zip</a></p>
+        {{- end}}
         {{- if .Awake}}
         <p class="muted">Select the link to copy it, then share it on WhatsApp or email. To change the numbers, <a href="{{$url}}">upload a new Dataset</a>.</p>
         {{- end}}{{end}}
