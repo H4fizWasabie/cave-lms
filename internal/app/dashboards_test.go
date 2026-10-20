@@ -239,7 +239,15 @@ func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createDashboard("finance", "Kewangan")
 	res, body := ada.postFile(path+"/dataset", "data.csv", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads .xlsx files only")
+	for _, want := range []string{"data.csv is not an .xlsx file.", "A CSV file stores everything as plain text", "Fix this in Excel, save, and upload again. Nothing changed."} {
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This is not an .xlsx file.")
+	res, body = ada.postFile(path+"/dataset", "big.xlsx", bytes.Repeat([]byte("x"), 2<<20+1))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 2 MB.")
+	res, body = ada.postFile(path+"/dataset", "huge.xlsx", bytes.Repeat([]byte("x"), 3<<20))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 2 MB.")
 	res, body = ada.get(path + "/columns")
 	expectStatus(t, res, body, http.StatusOK, "Upload a Dataset first")
 }
@@ -421,4 +429,58 @@ func TestLeavingTheLabCourseAlsoMakesTheLabReadOnly(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `href="`+path+`"`)
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
+}
+
+func TestTheErrorPageListsEveryProblemAndChangesNothing(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	bad := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{day, "dua ratus"}, []any{"31/02/2026", 5}, []any{day, nil})
+	res, body := ada.postFile(path+"/dataset", "bad.xlsx", bad)
+	for _, want := range []string{"We could not read bad.xlsx", "Row 2, Jumlah: not a number (&#34;dua ratus&#34;).", "Row 3, Tarikh: not a date",
+		"Row 4, Jumlah: empty, but this column is required.", "Fix these in Excel, save, and upload again. Nothing changed: your Dashboard still uses finance-sample.xlsx."} {
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+
+	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Column Jumlah is missing. The Finance Template needs it for Amount, a column of numbers. Did you rename it?")
+
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "finance-sample.xlsx")
+	expectStatus(t, res, body, http.StatusOK, "65 rows")
+}
+
+func TestReuploadKeepsTheColumnChoicesWhileTheyStillFit(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	ada.post(path+"/columns", url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Perkara"}, "description": {"Kategori"}})
+
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	same := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jumlah"}, []any{day, "Kopi", "Makan", "RM 12.50"}, []any{"06/03/2026", "Teh", "Makan", "RM3"})
+	res, body := ada.postFile(path+"/dataset", "march.xlsx", same)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview" {
+		t.Fatalf("a matching re-upload redirects to %q, want the preview", loc)
+	}
+	_, data := ada.get(path + "/view/data.json")
+	if !strings.Contains(data, `"Jumlah": 12.5`) || strings.Count(data, "Tarikh") != 2 {
+		t.Fatalf("data.json not updated: %s", data)
+	}
+	res, body = ada.get(path + "/columns")
+	if !regexp.MustCompile(`(?s)name="category".*?<option value="Perkara" selected>`).MatchString(body) {
+		t.Fatalf("the Learner's Category choice was lost: %s", body)
+	}
+
+	moved := testutil.XLSX(t, []string{"Tarikh", "Kumpulan", "Jumlah"}, []any{day, "Makan", 12.5})
+	res, body = ada.postFile(path+"/dataset", "april.xlsx", moved)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/columns?again" {
+		t.Fatalf("a re-upload without the chosen columns redirects to %q, want the columns page", loc)
+	}
+	res, body = ada.get(path + "/columns?again")
+	expectStatus(t, res, body, http.StatusOK, "Your new file does not have every column you chose")
+	expectStatus(t, res, body, http.StatusOK, `<option value="" selected>Skip</option>`)
 }

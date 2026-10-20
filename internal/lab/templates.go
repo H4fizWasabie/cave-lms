@@ -119,3 +119,23 @@ func (t *Template) Guess(d *Dataset) Choices {
 	}
 	return c
 }
+
+// blankType is the type of the first blank one of whose guesses is name.
+func (t *Template) blankType(name string) (Type, bool) {
+	for _, b := range t.Blanks {
+		for _, g := range b.Guess {
+			if strings.EqualFold(name, g) {
+				return b.Type, true
+			}
+		}
+	}
+	return "", false
+}
+
+// sampleName is the blank's column name in the Sample: its first guess, capitalised.
+func (b Blank) sampleName() string {
+	if len(b.Guess) == 0 {
+		return b.Label
+	}
+	return strings.ToUpper(b.Guess[0][:1]) + b.Guess[0][1:]
+}
