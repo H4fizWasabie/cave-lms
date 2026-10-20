@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
 // labAccess is what the Lab access rule finds for one Learner: access needs an active Plan
@@ -57,6 +59,7 @@ type labPage struct {
 	PaymentLink string   // where Upgrade goes; empty shows "Contact us to upgrade"
 	LabCourses  []course // open Courses that include the Lab, offered to a Learner with a Plan but no such Course
 	Dashboards  []dashboardRow
+	Templates   []*lab.Template // previewed on their Samples in the demo
 }
 
 func (a *App) lab(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +68,7 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}}
+	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}, Templates: lab.Templates}
 	if learner != nil {
 		if p.Access, err = a.labAccessOf(r.Context(), learner.ID); err != nil {
 			serverError(w, err)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -145,6 +146,20 @@ type newDashboardPage struct {
 	Templates []*lab.Template
 	Picked    string
 	Name      string
+	Sample    *lab.Dataset // the picked Template's Sample, as Cave reads it
+	Guess     lab.Choices  // Cave's guesses on that Sample
+}
+
+// renderNewDashboard shows /lab/new with the picked Template's Sample read, so the page can name its columns.
+func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
+	t := lab.TemplateByKey(p.Picked)
+	var err error
+	if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err != nil {
+		serverError(w, err)
+		return
+	}
+	p.Guess = t.Guess(p.Sample)
+	a.render(w, r, status, "lab_new", p)
 }
 
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +170,7 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if lab.TemplateByKey(p.Picked) == nil {
 		p.Picked = lab.Templates[0].Key
 	}
-	a.render(w, r, http.StatusOK, "lab_new", p)
+	a.renderNewDashboard(w, r, http.StatusOK, p)
 }
 
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +188,7 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		p.Error = "Keep the name to 80 characters or fewer."
 	}
 	if p.Error != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
+		a.renderNewDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return
 	}
 	learner, _ := a.currentLearner(r)
@@ -327,30 +342,53 @@ func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.For
 // The Deployment (#44) serves the same files under /d/<slug>/ with its sandbox and CORS headers.
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		if name == "charts.js" {
-			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-			_, _ = w.Write(lab.ChartScript)
-			return
-		}
-		if d.Dataset == nil {
+		if name != "charts.js" && d.Dataset == nil {
 			http.NotFound(w, r)
 			return
 		}
-		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+		writeDashboardFile(w, name, d.Template, d.Name, d.Choices, d.Dataset)
+	})
+}
+
+// demoFile serves a Template's demo, /lab/demo/{key}/: the Template drawn from its Sample with Cave's
+// guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.
+func demoFile(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := lab.TemplateByKey(r.PathValue("key"))
+		if t == nil {
+			http.NotFound(w, r)
+			return
+		}
+		ds, err := lab.Read(bytes.NewReader(t.Sample), t)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		w.Header().Set("Cache-Control", "no-store")
-		if name == "data.json" {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write(data)
-			return
-		}
-		// The preview runs same-origin (it needs the session cookie for data.json), so the policy keeps
-		// the page to Cave's own scripts and connections, and to framing by Cave.
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self'")
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(index)
-	})
+		writeDashboardFile(w, name, t, t.Name+" Template", t.Guess(ds), ds)
+	}
+}
+
+// writeDashboardFile writes one of a generated Dashboard's three files: index.html, data.json or charts.js.
+func writeDashboardFile(w http.ResponseWriter, name string, t *lab.Template, title string, c lab.Choices, ds *lab.Dataset) {
+	if name == "charts.js" {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(lab.ChartScript)
+		return
+	}
+	index, data, err := lab.Generate(t, title, c, ds)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	if name == "data.json" {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(data)
+		return
+	}
+	// The preview runs same-origin (it needs the session cookie for data.json), so the policy keeps
+	// the page to Cave's own scripts and connections, and to framing by Cave.
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self'")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(index)
 }

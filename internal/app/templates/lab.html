@@ -63,6 +63,15 @@
         <li><span class="step-n">3</span><strong>Check the Dashboard</strong><span>Cave guesses which column goes where. Look under the hood to see the code.</span></li>
         <li><span class="step-n">4</span><strong>Deploy it</strong><span>One click puts it online for 7 days at a link you can share.</span></li>
       </ol>
+      <h2 class="h-md">Templates, shown with their Samples</h2>
+      <ul class="tp-grid">
+        {{- range .Templates}}
+        <li class="tp-show">
+          <div class="tp-frame"><iframe src="/lab/demo/{{.Key}}/" title="{{.Name}} Template preview" loading="lazy" tabindex="-1" scrolling="no"></iframe></div>
+          <div class="tp-body"><h3>{{.Name}}</h3><p>{{.Blurb}}</p><a href="/lab/demo/{{.Key}}/" target="_blank"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>Open the full preview</a></div>
+        </li>
+        {{- end}}
+      </ul>
       {{- end}}
     </div>
 {{end}}

@@ -30,6 +30,9 @@ type chosenColumn struct {
 // data.json, the Dataset as one object per row. Blocks that need a skipped blank are left out.
 // Choices that do not fit the Dataset give an error worded for the Learner.
 func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []byte, err error) {
+	if t.Build != nil {
+		t, c = t.Build(d)
+	}
 	types := map[string]Type{}
 	for _, col := range d.Columns {
 		types[col.Name] = col.Type
