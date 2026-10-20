@@ -2,6 +2,9 @@ package app_test
 
 import (
 	"bytes"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -472,10 +475,12 @@ func TestEditRefusesInvalidInputAndKeepsTheItem(t *testing.T) {
 func TestAdminDeletesAGalleryItemAndItsFile(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	location := s.uploadAs("Doomed", "everyone", pngFile)
+	location := s.uploadAs("Doomed", "everyone", realPNG(t, 1600, 900))
 	id := strings.TrimPrefix(location, "/gallery/")
+	res, body := s.get(location + "/thumb") // leaves a thumbnail on disk too
+	expectStatus(t, res, body, http.StatusOK, "")
 
-	res, body := s.get("/admin/gallery/" + id + "/delete")
+	res, body = s.get("/admin/gallery/" + id + "/delete")
 	expectStatus(t, res, body, http.StatusOK, "Doomed")
 
 	res, body = s.post("/admin/gallery/"+id+"/delete", url.Values{})
@@ -534,4 +539,78 @@ func TestLearnerWhoLeftOrWasRemovedCannotDownloadACourseMembersFile(t *testing.T
 	s.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", nil)
 	res, body = grace.get(file)
 	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
+}
+
+// realPNG encodes a plain w×h picture, since thumbnails need a file that actually decodes.
+func realPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, w, h))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func TestPictureThumbnailIsASmallJPEG(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Big photo", "everyone", realPNG(t, 1600, 900))
+
+	res, body := s.get(location + "/thumb")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if got := res.Header.Get("Content-Type"); got != "image/jpeg" {
+		t.Fatalf("Content-Type = %q, want image/jpeg", got)
+	}
+	cfg, err := jpeg.DecodeConfig(strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("thumbnail is not a JPEG: %v", err)
+	}
+	if cfg.Width != 800 || cfg.Height != 450 {
+		t.Fatalf("thumbnail is %dx%d, want 800x450", cfg.Width, cfg.Height)
+	}
+
+	ebook := s.uploadAs("Book", "everyone", pdfFile)
+	res, body = s.get(ebook + "/thumb")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+}
+
+func TestVisitorIsRefusedALoggedInOnlyThumbnail(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Members picture", "learners", realPNG(t, 1600, 900))
+	s.logOut()
+
+	res, body := s.get(location + "/thumb")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/login" {
+		t.Fatalf("Visitor thumbnail redirected to %q, want /login", loc)
+	}
+}
+
+func TestPictureThatCannotBeThumbnailedIsServedWhole(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Broken picture", "everyone", pngFile)
+
+	res, body := s.get(location + "/thumb")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if got := res.Header.Get("Content-Type"); got != "image/png" {
+		t.Fatalf("Content-Type = %q, want image/png", got)
+	}
+	if body != string(pngFile) {
+		t.Fatal("thumbnail fallback differs from the upload")
+	}
+}
+
+func TestGalleryTilesShowThumbnails(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	res, body := s.upload(map[string]string{"title": "Taster", "promotional": "on", "visibility": "everyone"}, realPNG(t, 1600, 900))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	thumb := `src="` + res.Header.Get("Location") + `/thumb"`
+
+	for _, path := range []string{"/gallery", "/"} {
+		res, body = s.get(path)
+		expectStatus(t, res, body, http.StatusOK, thumb)
+	}
 }

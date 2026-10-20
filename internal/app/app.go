@@ -140,6 +140,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /gallery", a.gallery)
 	mux.HandleFunc("GET /gallery/{id}", a.galleryItemPage)
 	mux.HandleFunc("GET /gallery/{id}/file", a.galleryFile)
+	mux.HandleFunc("GET /gallery/{id}/thumb", a.galleryThumb)
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
 	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))

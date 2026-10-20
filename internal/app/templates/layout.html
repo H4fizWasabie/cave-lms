@@ -89,7 +89,7 @@
 {{end}}
 
 {{/* gallery-tile is one Gallery item in a grid: the picture itself, or an icon for videos and ebooks. */}}
-{{define "gallery-tile"}}<li><a class="g-tile" href="/gallery/{{.ID}}"><span class="g-plate">{{if eq .Format "picture"}}<img src="/gallery/{{.ID}}/file" alt="" loading="lazy">{{else}}<span class="g-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if eq .Format "video"}}play{{else}}file-pdf{{end}}"/></svg></span>{{end}}</span><span class="g-cap"><strong>{{.Title}}</strong><span>{{.Format}}</span></span></a></li>{{end}}
+{{define "gallery-tile"}}<li><a class="g-tile" href="/gallery/{{.ID}}"><span class="g-plate">{{if eq .Format "picture"}}<img src="/gallery/{{.ID}}/thumb" alt="" loading="lazy">{{else}}<span class="g-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if eq .Format "video"}}play{{else}}file-pdf{{end}}"/></svg></span>{{end}}</span><span class="g-cap"><strong>{{.Title}}</strong><span>{{.Format}}</span></span></a></li>{{end}}
 
 {{/* gallery-fields are the Gallery item fields shared by the upload and edit forms. */}}
 {{define "gallery-fields"}}

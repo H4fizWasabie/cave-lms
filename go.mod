@@ -8,6 +8,7 @@ require (
 	github.com/pressly/goose/v3 v3.22.1
 	github.com/yuin/goldmark v1.7.8
 	golang.org/x/crypto v0.27.0
+	golang.org/x/image v0.20.0
 )
 
 require (

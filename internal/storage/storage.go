@@ -46,6 +46,25 @@ func (d *Disk) Save(r io.Reader) (string, int64, error) {
 	return key, n, nil
 }
 
+// Put writes data under key, replacing any file there. Readers never see a half-written file.
+func (d *Disk) Put(key string, data []byte) error {
+	f, err := os.CreateTemp(d.dir, ".tmp-*")
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), d.path(key))
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
+	}
+	return err
+}
+
 // Open returns the stored file for key. The caller closes it.
 func (d *Disk) Open(key string) (*os.File, error) {
 	return os.Open(d.path(key))
