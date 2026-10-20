@@ -10,21 +10,17 @@
         <div><span class="panel-k">Plan</span><strong>{{.PlanName}}</strong><span class="muted">Ends {{.Ends}}</span></div>
         <div><span class="panel-k">Deployments left this period</span><strong>{{.DeploymentsLeft}} of {{.Deployments}}</strong><span class="muted">Building Dashboards is unlimited</span></div>
       </div>
-      <h2 class="h-md">My Dashboards</h2>
-      <ul class="mc-list">
-        {{- range $.Dashboards}}
-        <li class="mc-row mc-row-plain">
-          <div class="mc-main">
-            <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
-            <ul class="meta"><li>{{.Template}} Template</li><li>Changed {{.Updated}}</li></ul>
-          </div>
-          <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">Open</a>
-        </li>
-        {{- else}}
-        <li class="empty">No Dashboards yet. <a href="/lab/new">Start one from a Template</a>.</li>
-        {{- end}}
-      </ul>
-      {{- end}}{{else}}
+      {{- end}}
+      {{- else if .Dashboards}}
+      <div class="page-head"><h1>Lab</h1></div>
+      <div class="callout">
+        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>
+        <div>
+          <p>{{if .Access.Period}}You have left the Course that includes the Lab.{{else}}Your Plan has ended.{{end}} Your Dashboards are safe: you can still open and download them. Building, uploading and deploying need a Plan and a Course that includes the Lab.</p>
+          <div class="cta-row">{{if .Access.Period}}{{template "labJoin" .}}{{else}}{{template "labUpgrade" .}}{{end}}</div>
+        </div>
+      </div>
+      {{- else}}
       <section class="lab-hero">
         <div>
           <p class="lab-kicker">Lab</p>
@@ -38,22 +34,10 @@
           </div>
           {{- else if .Access.Period}}
           <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>Your Plan is active until {{.Access.Period.Ends}}. The Lab opens inside a Course that includes it: join {{if .LabCourses}}one of these Courses{{else}}such a Course{{end}} to unlock it.</span></p>
-          <div class="cta-row">
-            {{- range .LabCourses}}
-            <a class="btn btn-solid btn-lg" href="/courses/{{.ID}}">Join {{.Title}}</a>
-            {{- else}}
-            <p>No Course that includes the Lab is open to join right now. <a href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Course">Contact us</a>.</p>
-            {{- end}}
-          </div>
+          <div class="cta-row">{{template "labJoin" .}}</div>
           {{- else}}
           <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>Building, uploading and deploying need a Plan. Courses stay free; a Plan adds the Lab for a set period.</span></p>
-          <div class="cta-row">
-            {{- if .PaymentLink}}
-            <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">Upgrade</a>
-            {{- else}}
-            <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Plan">Contact us to upgrade</a>
-            {{- end}}
-          </div>
+          <div class="cta-row">{{template "labUpgrade" .}}</div>
           {{- end}}
         </div>
       </section>
@@ -73,5 +57,40 @@
         {{- end}}
       </ul>
       {{- end}}
+      {{- if or .Access.Open .Dashboards}}
+      <h2 class="h-md">My Dashboards</h2>
+      <ul class="mc-list">
+        {{- range .Dashboards}}
+        <li class="mc-row mc-row-plain">
+          <div class="mc-main">
+            <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
+            <ul class="meta"><li>{{.Template}} Template</li><li>Changed {{.Updated}}</li></ul>
+          </div>
+          <div class="lab-row-act">
+            <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">Open</a>
+            {{- if .HasData}}
+            <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download</a>
+            {{- end}}
+          </div>
+        </li>
+        {{- else}}
+        <li class="empty">No Dashboards yet. <a href="/lab/new">Start one from a Template</a>.</li>
+        {{- end}}
+      </ul>
+      {{- end}}
     </div>
 {{end}}
+{{define "labUpgrade"}}
+            {{- if .PaymentLink}}
+            <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">Upgrade</a>
+            {{- else}}
+            <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Plan">Contact us to upgrade</a>
+            {{- end}}
+{{- end}}
+{{define "labJoin"}}
+            {{- range .LabCourses}}
+            <a class="btn btn-solid btn-lg" href="/courses/{{.ID}}">Join {{.Title}}</a>
+            {{- else}}
+            <p>No Course that includes the Lab is open to join right now. <a href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Course">Contact us</a>.</p>
+            {{- end}}
+{{- end}}

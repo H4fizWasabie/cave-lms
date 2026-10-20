@@ -1,8 +1,11 @@
 package app_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"html"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -236,7 +239,15 @@ func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createDashboard("finance", "Kewangan")
 	res, body := ada.postFile(path+"/dataset", "data.csv", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads .xlsx files only")
+	for _, want := range []string{"data.csv is not an .xlsx file.", "A CSV file stores everything as plain text", "Fix this in Excel, save, and upload again. Nothing changed."} {
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This is not an .xlsx file.")
+	res, body = ada.postFile(path+"/dataset", "big.xlsx", bytes.Repeat([]byte("x"), 2<<20+1))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 2 MB.")
+	res, body = ada.postFile(path+"/dataset", "huge.xlsx", bytes.Repeat([]byte("x"), 3<<20))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 2 MB.")
 	res, body = ada.get(path + "/columns")
 	expectStatus(t, res, body, http.StatusOK, "Upload a Dataset first")
 }
@@ -266,4 +277,210 @@ func TestDeletingALearnerDeletesTheirDashboards(t *testing.T) {
 	if _, err := ada.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
 		t.Fatalf("deleting a Learner with Dashboards failed: %v", err)
 	}
+}
+
+// unzip reads a zip download into file name -> contents.
+func unzip(t *testing.T, body string) map[string]string {
+	t.Helper()
+	zr, err := zip.NewReader(strings.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("not a zip: %v", err)
+	}
+	files := map[string]string{}
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[f.Name] = string(b)
+	}
+	return files
+}
+
+func TestDownloadZipHasThePageItsDataAndTheChartLibrary(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan Kedai")
+	if res, _ := ada.get(path + "/download"); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("a Dashboard with no Dataset downloads: %d", res.StatusCode)
+	}
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+
+	res, body := ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/download"`)
+	res, body = ada.get(path + "/download")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if ct := res.Header.Get("Content-Type"); ct != "application/zip" {
+		t.Fatalf("zip Content-Type = %q", ct)
+	}
+	if cd := res.Header.Get("Content-Disposition"); cd != `attachment; filename="kewangan-kedai.zip"` {
+		t.Fatalf("zip Content-Disposition = %q", cd)
+	}
+	files := unzip(t, body)
+	_, index := ada.get(path + "/view/")
+	_, data := ada.get(path + "/view/data.json")
+	_, charts := ada.get(path + "/view/charts.js")
+	if files["index.html"] != index || files["data.json"] != data || files["charts.js"] != charts {
+		t.Fatalf("zip files differ from the preview's: %v", keys(files))
+	}
+	// Browsers block fetch from a file opened on the computer, so the page falls back to data.js.
+	for _, want := range []string{`fetch("data.json")`, `"data.js"`} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("index.html lacks %s: %s", want, index)
+		}
+	}
+	js, ok := strings.CutPrefix(files["data.js"], "var dashboardRows = ")
+	js, ok2 := strings.CutSuffix(js, ";\n")
+	var rows []map[string]any
+	if !ok || !ok2 || json.Unmarshal([]byte(js), &rows) != nil || len(rows) != 65 {
+		t.Fatalf("data.js does not hold the 65 rows: %.200s", files["data.js"])
+	}
+	if len(files) != 4 {
+		t.Fatalf("zip holds %v, want index.html, data.json, data.js and charts.js", keys(files))
+	}
+}
+
+func keys(m map[string]string) []string {
+	var k []string
+	for n := range m {
+		k = append(k, n)
+	}
+	return k
+}
+
+var hoodCode = regexp.MustCompile(`(?s)<pre><code>(.*?)</code></pre>`)
+
+func TestUnderTheHoodShowsTheGeneratedPageAndDataExplained(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+
+	res, body := ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/hood"`)
+	res, body = ada.get(path + "/hood")
+	for _, want := range []string{"The page&#39;s details", "The layout", "The chart library", "Your column choices", "Load the data, then draw", "Your spreadsheet, as data"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	parts := hoodCode.FindAllStringSubmatch(body, -1)
+	if len(parts) != 6 {
+		t.Fatalf("want 5 parts of index.html and data.json, got %d: %s", len(parts), body)
+	}
+	var page string
+	for _, p := range parts[:5] {
+		page += html.UnescapeString(p[1])
+	}
+	if _, index := ada.get(path + "/view/"); page != index {
+		t.Fatalf("the hood's index.html is not the preview's:\n%s\n---\n%s", page, index)
+	}
+	data := html.UnescapeString(parts[5][1])
+	if !strings.Contains(data, `{"Tarikh": "2026-`) || !strings.Contains(data, "62 more rows") {
+		t.Fatalf("data.json excerpt: %s", data)
+	}
+}
+
+func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
+	admin, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	empty := ada.createDashboard("finance", "Kosong")
+	admin.ageAllPeriods(31)
+
+	res, body := ada.get("/lab")
+	for _, want := range []string{"Your Dashboards are safe", `href="` + path + `"`, `href="` + path + `/download"`, `href="` + empty + `"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	if strings.Contains(body, `href="/lab/new"`) || strings.Contains(body, `href="`+empty+`/download"`) {
+		t.Fatalf("read-only Lab offers New Dashboard, or a zip of a Dashboard with no Dataset: %s", body)
+	}
+
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
+	for _, p := range []string{path, path + "/columns"} {
+		_, body := ada.get(p)
+		if strings.Contains(body, `action="`+path+`/dataset"`) || strings.Contains(body, `action="`+path+`/columns"`) {
+			t.Fatalf("%s still offers a form: %s", p, body)
+		}
+	}
+	for _, p := range []string{path + "/preview", path + "/hood", path + "/view/", path + "/view/data.json", path + "/download"} {
+		if res, body := ada.get(p); res.StatusCode != http.StatusOK {
+			t.Errorf("%s = %d without access, want 200: %.300s", p, res.StatusCode, body)
+		}
+	}
+
+	res, body = ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
+	res, body = ada.post(path+"/columns", url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}})
+	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
+	res, body = ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Baru"}})
+	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
+}
+
+func TestLeavingTheLabCourseAlsoMakesTheLabReadOnly(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	courseID := ada.courseIDByTitle("Excel Dashboards")
+	ada.post("/courses/"+courseID+"/leave", url.Values{"confirm": {"yes"}})
+
+	res, body := ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, `href="`+path+`"`)
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
+}
+
+func TestTheErrorPageListsEveryProblemAndChangesNothing(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	bad := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{day, "dua ratus"}, []any{"31/02/2026", 5}, []any{day, nil})
+	res, body := ada.postFile(path+"/dataset", "bad.xlsx", bad)
+	for _, want := range []string{"We could not read bad.xlsx", "Row 2, Jumlah: not a number (&#34;dua ratus&#34;).", "Row 3, Tarikh: not a date",
+		"Row 4, Jumlah: empty, but this column is required.", "Fix these in Excel, save, and upload again. Nothing changed: your Dashboard still uses finance-sample.xlsx."} {
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+
+	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Column Jumlah is missing. The Finance Template needs it for Amount, a column of numbers. Did you rename it?")
+
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "finance-sample.xlsx")
+	expectStatus(t, res, body, http.StatusOK, "65 rows")
+}
+
+func TestReuploadKeepsTheColumnChoicesWhileTheyStillFit(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	ada.post(path+"/columns", url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Perkara"}, "description": {"Kategori"}})
+
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	same := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jumlah"}, []any{day, "Kopi", "Makan", "RM 12.50"}, []any{"06/03/2026", "Teh", "Makan", "RM3"})
+	res, body := ada.postFile(path+"/dataset", "march.xlsx", same)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview" {
+		t.Fatalf("a matching re-upload redirects to %q, want the preview", loc)
+	}
+	_, data := ada.get(path + "/view/data.json")
+	if !strings.Contains(data, `"Jumlah": 12.5`) || strings.Count(data, "Tarikh") != 2 {
+		t.Fatalf("data.json not updated: %s", data)
+	}
+	res, body = ada.get(path + "/columns")
+	if !regexp.MustCompile(`(?s)name="category".*?<option value="Perkara" selected>`).MatchString(body) {
+		t.Fatalf("the Learner's Category choice was lost: %s", body)
+	}
+
+	moved := testutil.XLSX(t, []string{"Tarikh", "Kumpulan", "Jumlah"}, []any{day, "Makan", 12.5})
+	res, body = ada.postFile(path+"/dataset", "april.xlsx", moved)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/columns?again" {
+		t.Fatalf("a re-upload without the chosen columns redirects to %q, want the columns page", loc)
+	}
+	res, body = ada.get(path + "/columns?again")
+	expectStatus(t, res, body, http.StatusOK, "Your new file does not have every column you chose")
+	expectStatus(t, res, body, http.StatusOK, `<option value="" selected>Skip</option>`)
 }

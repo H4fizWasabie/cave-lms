@@ -154,6 +154,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.dashboardTab("preview"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))
 	mux.HandleFunc("POST /lab/dashboards/{id}/columns", a.withDashboard(a.saveColumns))
+	mux.HandleFunc("GET /lab/dashboards/{id}/hood", a.dashboardTab("hood"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/download", a.withDashboard(a.downloadDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.dashboardFile("index.html"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/data.json", a.dashboardFile("data.json"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/charts.js", a.dashboardFile("charts.js"))

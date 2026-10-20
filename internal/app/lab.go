@@ -74,9 +74,13 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
+		// Only a Learner who once had access has Dashboards, so without access they are listed read-only.
+		if p.Dashboards, err = a.labDashboards(r, learner.ID); err != nil {
+			serverError(w, err)
+			return
+		}
 		switch {
 		case p.Access.Open():
-			p.Dashboards, err = a.labDashboards(r, learner.ID)
 		case p.Access.Period == nil:
 			// ponytail: Upgrade goes to the first Plan with a payment link; one button per Plan if the Admin sells several.
 			err = a.db.QueryRowContext(r.Context(),
