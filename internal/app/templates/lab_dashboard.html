@@ -192,7 +192,7 @@
         {{- else if not .Access.Open}}
         <h2 class="h-md">Deploying needs a Plan</h2>
         <p class="muted">Deploying needs a Plan and a Course that includes the Lab. See the <a href="/lab">Lab page</a> for how to unlock it.</p>
-        {{- else if and (not .Access.Admin) (le .Access.Period.DeploymentsLeft 0)}}{{with .Access.Period}}
+        {{- else if and .Access.CountedPeriod (le .Access.CountedPeriod.DeploymentsLeft 0)}}{{with .Access.CountedPeriod}}
         <div class="ds-err" role="alert">
           <p><strong>No Deployments left this period.</strong></p>
           <p>You have used all {{.Deployments}} Deployments in your Plan period, which ends {{.Ends}}. You can keep building and previewing Dashboards; a new Plan period brings new Deployments.</p>
@@ -202,7 +202,7 @@
         <div class="card">
           <h2 class="h-md">Deploy {{.Dashboard.Name}}?</h2>
           <p>Anyone with the link will see this Dashboard and its data until {{.WouldSleep}}.</p>
-          <p><strong>You can deploy it only once.</strong>{{if not .Access.Admin}} This uses 1 of your {{.Access.Period.DeploymentsLeft}} remaining Deployments.{{end}}</p>
+          <p><strong>You can deploy it only once.</strong>{{with .Access.CountedPeriod}} This uses 1 of your {{.DeploymentsLeft}} remaining Deployments.{{end}}</p>
           <form class="form-foot" method="post" action="{{$url}}/deploy">
             <input type="hidden" name="confirm" value="yes">
             <a class="btn btn-quiet" href="{{$url}}/deploy">Not yet</a>
@@ -215,7 +215,7 @@
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>Anyone with the link can see it.</strong> The link is long and random, so only people you share it with will find it. No log-in needed.</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span><strong>Online for 7 days</strong>, until {{.WouldSleep}}. Then it sleeps: the link says it is inactive and nothing is deleted.</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>Keep it current.</strong> Upload a new Dataset while it is online and visitors see the new numbers.</span></li>
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>Once only.</strong> A Dashboard can be deployed one time.{{if not .Access.Admin}} It uses 1 of your {{.Access.Period.DeploymentsLeft}} Deployments left this period.{{end}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>Once only.</strong> A Dashboard can be deployed one time.{{with .Access.CountedPeriod}} It uses 1 of your {{.DeploymentsLeft}} Deployments left this period.{{end}}</span></li>
         </ul>
         <p><a class="btn btn-solid btn-lg" href="{{$url}}/deploy?confirm">Deploy</a></p>
         {{- end}}

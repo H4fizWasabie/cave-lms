@@ -458,7 +458,7 @@ input, select, textarea, .search { transition: border-color .15s ease, box-shado
   
 }
 
-/* ============================ Admin workspace (ported from the mockup admin.css) ============================ */
+/* ============================ Admin area (ported from the mockup admin.css) ============================ */
 
 .adm { display: grid; grid-template-columns: 15.5rem 1fr; background: #f3f3ef; flex: 1; }
 

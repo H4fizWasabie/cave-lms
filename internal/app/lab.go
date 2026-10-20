@@ -21,6 +21,14 @@ type labAccess struct {
 // Open reports whether the Learner may use the Lab: build, upload and deploy.
 func (l labAccess) Open() bool { return l.Admin || l.Period != nil && l.InLabCourse }
 
+// CountedPeriod is the Plan period a Deploy counts against: nil for the Admin, whose Deploys are unlimited.
+func (l labAccess) CountedPeriod() *activePeriod {
+	if l.Admin {
+		return nil
+	}
+	return l.Period
+}
+
 // activePeriod is the Plan period a Learner is in now.
 type activePeriod struct {
 	ID              int64

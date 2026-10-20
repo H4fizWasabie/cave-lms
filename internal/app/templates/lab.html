@@ -6,12 +6,12 @@
         <div><h1>Lab</h1><p>Build Dashboards from Samples and put them online.</p></div>
         <a class="btn btn-solid" href="/lab/new">New Dashboard</a>
       </div>
-      {{- if not .Access.Admin}}{{with .Access.Period}}
+      {{- with .Access.CountedPeriod}}
       <div class="lab-plan">
         <div><span class="panel-k">Plan</span><strong>{{.PlanName}}</strong><span class="muted">Ends {{.Ends}}</span></div>
         <div><span class="panel-k">Deployments left this period</span><strong>{{.DeploymentsLeft}} of {{.Deployments}}</strong><span class="muted">Building Dashboards is unlimited</span></div>
       </div>
-      {{- end}}{{end}}
+      {{- end}}
       {{- else if .Dashboards}}
       <div class="page-head"><h1>Lab</h1></div>
       <div class="callout">

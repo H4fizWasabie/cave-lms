@@ -111,8 +111,9 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	}
 	var period *int64 // nil for the Admin, whose Deployments count against no period
 	var left int
-	if !acc.Admin && !deployed {
-		period = &acc.Period.ID
+	counted := acc.CountedPeriod()
+	if counted != nil && !deployed {
+		period = &counted.ID
 		// Locking the period row makes two Deploys at once take turns, so the allowance holds.
 		if err := tx.QueryRowContext(r.Context(), `SELECT pp.deployments - (SELECT count(*) FROM deployments WHERE period_id = pp.id)
 			FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE`, *period).Scan(&left); err != nil {
@@ -122,9 +123,9 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	}
 	switch {
 	case deployed:
-	case !acc.Admin && left <= 0:
+	case period != nil && left <= 0:
 		_ = tx.Rollback()
-		acc.Period.DeploymentsLeft = left
+		counted.DeploymentsLeft = left
 		a.renderDeployTab(w, r, http.StatusUnprocessableEntity, d, acc, false)
 		return
 	default:

@@ -627,3 +627,17 @@ func TestAGalleryTileAndItsPageShareTheTransitionName(t *testing.T) {
 	res, body = s.get(path)
 	expectStatus(t, res, body, http.StatusOK, name)
 }
+
+func TestBrowsersKeepGalleryFilesForADay(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	location := s.uploadAs("Photo", "everyone", realPNG(t, 1600, 900))
+
+	for _, path := range []string{location + "/file", location + "/thumb"} {
+		res, body := s.get(path)
+		expectStatus(t, res, body, http.StatusOK, "")
+		if got := res.Header.Get("Cache-Control"); got != "private, max-age=86400" {
+			t.Errorf("%s: Cache-Control = %q, want private, max-age=86400", path, got)
+		}
+	}
+}
