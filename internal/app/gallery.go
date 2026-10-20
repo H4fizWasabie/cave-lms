@@ -6,13 +6,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	_ "image/png" // registers PNG for image.Decode
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/image/draw"
+	_ "golang.org/x/image/webp" // registers WebP for image.Decode
 )
 
 const (
@@ -246,7 +253,15 @@ func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	f, err := a.store.Open(item.storageKey)
+	if item.Format == "ebook" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="cave-gallery-%d.pdf"`, item.ID))
+	}
+	a.serveStored(w, r, item.storageKey, item.MimeType)
+}
+
+// serveStored writes the stored file for key as contentType.
+func (a *App) serveStored(w http.ResponseWriter, r *http.Request, key, contentType string) {
+	f, err := a.store.Open(key)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -257,13 +272,82 @@ func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	w.Header().Set("Content-Type", item.MimeType)
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if item.Format == "ebook" {
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="cave-gallery-%d.pdf"`, item.ID))
-	}
 	// ServeContent handles Range requests, so videos can be seeked.
 	http.ServeContent(w, r, "", info.ModTime(), f)
+}
+
+const (
+	thumbWidth     = 800
+	thumbMaxPixels = 50_000_000 // larger pictures are not decoded, so a huge upload cannot exhaust memory
+)
+
+// thumbKey names a picture's thumbnail in storage, next to the original.
+func thumbKey(item galleryItem) string { return item.storageKey + ".thumb" }
+
+// galleryThumb serves a picture's thumbnail, making and keeping it on first request.
+// A picture that cannot be thumbnailed is served whole.
+func (a *App) galleryThumb(w http.ResponseWriter, r *http.Request) {
+	item, ok := a.viewItem(w, r)
+	if !ok {
+		return
+	}
+	if item.Format != "picture" {
+		http.NotFound(w, r)
+		return
+	}
+	f, err := a.store.Open(thumbKey(item))
+	if err == nil {
+		f.Close()
+	} else if errors.Is(err, os.ErrNotExist) {
+		thumb, err := a.makeThumb(item)
+		if err != nil {
+			log.Printf("thumbnail for gallery item %d: %v", item.ID, err)
+			a.serveStored(w, r, item.storageKey, item.MimeType)
+			return
+		}
+		if err := a.store.Put(thumbKey(item), thumb); err != nil {
+			serverError(w, err)
+			return
+		}
+	}
+	a.serveStored(w, r, thumbKey(item), "image/jpeg")
+}
+
+// makeThumb scales a picture down to thumbWidth wide (never up) as a JPEG, on white for transparent pictures.
+func (a *App) makeThumb(item galleryItem) ([]byte, error) {
+	f, err := a.store.Open(item.storageKey)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	cfg, _, err := image.DecodeConfig(f)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Width*cfg.Height > thumbMaxPixels {
+		return nil, fmt.Errorf("%dx%d is too large to thumbnail", cfg.Width, cfg.Height)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	src, _, err := image.Decode(f)
+	if err != nil {
+		return nil, err
+	}
+	w, h := cfg.Width, cfg.Height
+	if w > thumbWidth {
+		w, h = thumbWidth, max(1, h*thumbWidth/w)
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(dst, dst.Bounds(), image.White, image.Point{}, draw.Src)
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80}); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func (a *App) galleryUploadForm(w http.ResponseWriter, r *http.Request) {
@@ -469,9 +553,11 @@ func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	if err := a.store.Remove(item.storageKey); err != nil && !errors.Is(err, os.ErrNotExist) {
-		serverError(w, err)
-		return
+	for _, key := range []string{item.storageKey, thumbKey(item)} {
+		if err := a.store.Remove(key); err != nil && !errors.Is(err, os.ErrNotExist) {
+			serverError(w, err)
+			return
+		}
 	}
 	http.Redirect(w, r, "/admin/gallery", http.StatusSeeOther)
 }
