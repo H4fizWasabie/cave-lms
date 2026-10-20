@@ -11,14 +11,15 @@ import (
 )
 
 // labAccess is what the Lab access rule finds for one Learner: access needs an active Plan
-// period AND an Enrollment in a Course that includes the Lab.
+// period AND an Enrollment in a Course that includes the Lab, or being the Admin.
 type labAccess struct {
+	Admin       bool          // the Admin always has the Lab, and deploys without a Plan
 	Period      *activePeriod // nil when the Learner has no active Plan period
 	InLabCourse bool          // enrolled in at least one Course that includes the Lab
 }
 
 // Open reports whether the Learner may use the Lab: build, upload and deploy.
-func (l labAccess) Open() bool { return l.Period != nil && l.InLabCourse }
+func (l labAccess) Open() bool { return l.Admin || l.Period != nil && l.InLabCourse }
 
 // activePeriod is the Plan period a Learner is in now.
 type activePeriod struct {
@@ -30,15 +31,15 @@ type activePeriod struct {
 }
 
 // labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
-func (a *App) labAccessOf(ctx context.Context, learnerID int64) (labAccess, error) {
-	var acc labAccess
+func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
+	acc := labAccess{Admin: l.IsAdmin}
 	var p activePeriod
 	var ends time.Time
 	err := a.db.QueryRowContext(ctx, `
 		SELECT pp.id, p.name, pp.ends_at, pp.deployments,
 			pp.deployments - (SELECT count(*) FROM deployments d WHERE d.period_id = pp.id) FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
 		WHERE pp.learner_id = $1 AND pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL
-		ORDER BY pp.starts_at LIMIT 1`, learnerID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.DeploymentsLeft)
+		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.DeploymentsLeft)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 	case err != nil:
@@ -48,7 +49,7 @@ func (a *App) labAccessOf(ctx context.Context, learnerID int64) (labAccess, erro
 		acc.Period = &p
 	}
 	err = a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM enrollments e JOIN courses c ON c.id = e.course_id
-		WHERE e.learner_id = $1 AND c.includes_lab)`, learnerID).Scan(&acc.InLabCourse)
+		WHERE e.learner_id = $1 AND c.includes_lab)`, l.ID).Scan(&acc.InLabCourse)
 	return acc, err
 }
 
@@ -70,7 +71,7 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 	}
 	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}, Templates: lab.Templates}
 	if learner != nil {
-		if p.Access, err = a.labAccessOf(r.Context(), learner.ID); err != nil {
+		if p.Access, err = a.labAccessOf(r.Context(), learner); err != nil {
 			serverError(w, err)
 			return
 		}

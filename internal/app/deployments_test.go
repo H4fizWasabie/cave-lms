@@ -214,3 +214,27 @@ func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "No Dashboards yet.")
 }
+
+func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
+	admin := newSite(t)
+	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	res, body := admin.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
+	admin.createPlan("Lab Monthly", "30", "3", "")
+	admin.assignPlan("admin@example.com", admin.onlyPlanID()) // a Plan of their own does not limit them
+	res, body = admin.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
+
+	var links []string
+	for _, name := range []string{"Satu", "Dua", "Tiga", "Empat"} { // more than the Plan allows
+		links = append(links, admin.deploy(admin.readyDashboard(name)))
+	}
+	for _, link := range links {
+		res, body := admin.second().get(link)
+		expectStatus(t, res, body, http.StatusOK, "")
+	}
+	res, body = admin.get("/admin/deployments")
+	for _, want := range []string{"admin@example.com", "Empat", `href="` + links[0] + `"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}

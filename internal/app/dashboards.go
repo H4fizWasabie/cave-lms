@@ -144,7 +144,7 @@ func (a *App) learnerAccess(r *http.Request) (labAccess, error) {
 	if err != nil {
 		return labAccess{}, err
 	}
-	return a.labAccessOf(r.Context(), learner.ID)
+	return a.labAccessOf(r.Context(), learner)
 }
 
 // labOpen applies the Lab access rule to a request that builds or changes something,
@@ -286,15 +286,15 @@ func (a *App) labSample(w http.ResponseWriter, r *http.Request) {
 type dashboardPage struct {
 	pageBase
 	Dashboard *dashboard
-	Tab      string
-	Errors   []string // what was wrong with an upload
-	Upload   string   // the refused file's name
-	Again    bool     // a re-upload did not fit the column choices, so Cave guessed them again
-	Blanks   []blankChoice
-	Phone    bool // preview at phone width
-	ReadOnly bool // no Lab access: view and download only
-	Hood     []hoodPart
-	Data     hoodPart // the start of data.json, on the Under the hood tab
+	Tab       string
+	Errors    []string // what was wrong with an upload
+	Upload    string   // the refused file's name
+	Again     bool     // a re-upload did not fit the column choices, so Cave guessed them again
+	Blanks    []blankChoice
+	Phone     bool // preview at phone width
+	ReadOnly  bool // no Lab access: view and download only
+	Hood      []hoodPart
+	Data      hoodPart // the start of data.json, on the Under the hood tab
 
 	Access labAccess // the caller looks it up; read-only follows from it
 
