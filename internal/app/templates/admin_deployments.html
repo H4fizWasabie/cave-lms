@@ -1,0 +1,38 @@
+{{define "title"}}Deployments · Admin · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" "deployments"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin: Deployments</h1>
+            <p>Every Dashboard a Learner put online, awake ones first. After a complaint, take one down with a reason: its link goes inactive at once, and the Learner keeps the Dashboard and sees the reason.</p>
+          </div>
+        </div>
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>Dashboard</th><th>Owner</th><th>Link</th><th>Status</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              {{range .Deployments}}
+              <tr{{if not .Awake}} class="is-revoked"{{end}}>
+                <td>{{if .Dashboard}}{{.Dashboard}}<br><small>{{.Template}} Template</small>{{else}}Deleted by the Learner{{end}}</td>
+                <td>{{.Owner}}<br><small>{{.Email}}</small></td>
+                <td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></td>
+                <td>{{if .Awake}}Online until {{.Until}}{{else if .TakenDown}}Taken down {{.Until}}<br><small>Reason: {{.Reason}}</small>{{else}}Asleep since {{.Until}}{{end}}</td>
+                <td class="actions">{{if .Awake}}
+                  <form class="takedown" method="post" action="/admin/deployments/{{.ID}}/takedown">
+                    <label class="sr" for="reason-{{.ID}}">Reason</label>
+                    <input id="reason-{{.ID}}" type="text" name="reason" maxlength="1000" placeholder="Reason, shown to the Learner" required>
+                    <button class="btn btn-danger btn-sm">Take down</button>
+                  </form>{{end}}</td>
+              </tr>
+              {{else}}
+              <tr><td colspan="5">No Deployments yet.</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

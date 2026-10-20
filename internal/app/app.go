@@ -41,7 +41,7 @@ type App struct {
 	limiter       rateLimiter
 }
 
-// page is the data every template receives.
+// page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
 type page struct {
 	PublicBaseURL string
 	Learner       *learner
@@ -76,6 +76,19 @@ type page struct {
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
 }
+
+func (p *page) learnerField() **learner { return &p.Learner }
+
+// pageBase holds what layout.html reads. A page struct embeds it
+// and is passed to render as a pointer, so render can fill in the Learner.
+type pageBase struct {
+	Learner *learner
+	Title   string
+	Message string
+	Error   string
+}
+
+func (p *pageBase) learnerField() **learner { return &p.Learner }
 
 func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
 	if mailer == nil {
@@ -129,6 +142,32 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
 	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
 	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
+	mux.HandleFunc("GET /lab", a.lab)
+	mux.HandleFunc("GET /lab/samples/{file}", a.labSample)
+	mux.HandleFunc("GET /lab/demo/{key}/{$}", demoFile("index.html"))
+	mux.HandleFunc("GET /lab/demo/{key}/data.json", demoFile("data.json"))
+	mux.HandleFunc("GET /lab/demo/{key}/charts.js", demoFile("charts.js"))
+	mux.HandleFunc("GET /lab/new", a.requireLearner(a.newDashboardForm))
+	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
+	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab("dataset"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/columns", a.dashboardTab("columns"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.dashboardTab("preview"))
+	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))
+	mux.HandleFunc("POST /lab/dashboards/{id}/columns", a.withDashboard(a.saveColumns))
+	mux.HandleFunc("GET /lab/dashboards/{id}/hood", a.dashboardTab("hood"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/download", a.withDashboard(a.downloadDashboard))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.dashboardFile("index.html"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/data.json", a.dashboardFile("data.json"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/charts.js", a.dashboardFile("charts.js"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/deploy", a.withDashboard(a.deployTab))
+	mux.HandleFunc("POST /lab/dashboards/{id}/deploy", a.withDashboard(a.deployDashboard))
+	mux.HandleFunc("GET /lab/dashboards/{id}/rename", a.dashboardTab("rename"))
+	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
+	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.dashboardTab("delete"))
+	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
+	mux.HandleFunc("GET /d/{slug}/{$}", a.deploymentFile("index.html"))
+	mux.HandleFunc("GET /d/{slug}/data.json", a.deploymentFile("data.json"))
+	mux.HandleFunc("GET /d/{slug}/charts.js", a.deploymentFile("charts.js"))
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
@@ -189,6 +228,16 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))
 	mux.HandleFunc("POST /admin/certificates/{id}/reissue", a.admin(a.reissueCertificate))
 	mux.HandleFunc("POST /admin/certificate-settings", a.admin(a.saveCertificateSettings))
+	mux.HandleFunc("GET /admin/plans", a.admin(a.adminPlans))
+	mux.HandleFunc("GET /admin/plans/new", a.admin(a.newPlanForm))
+	mux.HandleFunc("POST /admin/plans", a.admin(a.createPlan))
+	mux.HandleFunc("GET /admin/plans/{id}/edit", a.admin(a.editPlanForm))
+	mux.HandleFunc("POST /admin/plans/{id}", a.admin(a.updatePlan))
+	mux.HandleFunc("GET /admin/plans/periods", a.admin(a.adminPlanPeriods))
+	mux.HandleFunc("POST /admin/plans/periods", a.admin(a.assignPlan))
+	mux.HandleFunc("POST /admin/plans/periods/{id}/end", a.admin(a.endPlanPeriod))
+	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
+	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
@@ -283,15 +332,24 @@ func parsePages() (map[string]*template.Template, error) {
 	return pages, nil
 }
 
-// render writes a page inside layout.html. The header needs the Learner, so it is looked up here when the handler didn't.
-func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name string, data page) {
-	if data.Learner == nil {
+// render writes a page inside layout.html. data is a page, or a pointer to a struct embedding pageBase.
+// The header needs the Learner, so it is looked up here when the handler didn't.
+func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
+	if p, ok := data.(page); ok {
+		data = &p
+	}
+	withLearner, ok := data.(interface{ learnerField() **learner })
+	if !ok {
+		serverError(w, fmt.Errorf("render %s: %T is neither a page nor a pointer to a struct embedding pageBase", name, data))
+		return
+	}
+	if field := withLearner.learnerField(); *field == nil {
 		learner, err := a.currentLearner(r)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		data.Learner = learner
+		*field = learner
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

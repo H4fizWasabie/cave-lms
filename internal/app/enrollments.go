@@ -134,6 +134,12 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
+// leaveCoursePage asks the Learner to confirm leaving their only Course that includes the Lab.
+type leaveCoursePage struct {
+	pageBase
+	Course course
+}
+
 func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -143,6 +149,20 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
 		return
+	}
+	if c.IncludesLab && r.PostFormValue("confirm") != "yes" {
+		var lastLabCourse bool
+		err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM enrollments WHERE learner_id = $1 AND course_id = $2)
+			AND NOT EXISTS (SELECT 1 FROM enrollments e JOIN courses c ON c.id = e.course_id
+				WHERE e.learner_id = $1 AND c.includes_lab AND c.id <> $2)`, learner.ID, c.ID).Scan(&lastLabCourse)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if lastLabCourse {
+			a.render(w, r, http.StatusOK, "leave_course", &leaveCoursePage{pageBase{Learner: learner}, c})
+			return
+		}
 	}
 	if _, err := a.db.ExecContext(r.Context(),
 		`DELETE FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learner.ID, c.ID); err != nil {

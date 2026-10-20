@@ -16,7 +16,7 @@
               <tr><th>Title</th><th>Start date</th><th>State</th><th class="actions"><span class="sr">Actions</span></th></tr>
               {{range .Courses}}
               <tr>
-                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a></td>
+                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a>{{if .IncludesLab}} <span class="badge badge-joined">Includes the Lab</span>{{end}}</td>
                 <td>{{.StartDate}}</td>
                 <td>{{if .Open}}<span class="badge badge-open">Open</span>{{else}}<span class="badge badge-closed">Closed</span>{{end}}</td>
                 <td class="actions">

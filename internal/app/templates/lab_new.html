@@ -1,0 +1,37 @@
+{{define "title"}}New Dashboard · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap page-pad">
+      <p class="crumbs"><a href="/lab">Lab</a> / New Dashboard</p>
+      <div class="page-head"><h1>New Dashboard</h1><p>Pick a Template. A Dashboard keeps its Template; to try another, create another Dashboard. You can make as many as you like.</p></div>
+      <ul class="tp-pick">
+        {{- range .Templates}}
+        <li><a class="tp-card{{if eq .Key $.Picked}} is-picked{{end}}" href="/lab/new?t={{.Key}}"{{if eq .Key $.Picked}} aria-current="true"{{end}}><span class="tp-frame"><iframe src="/lab/demo/{{.Key}}/" title="{{.Name}} Template preview" loading="lazy" tabindex="-1" scrolling="no"></iframe></span><strong>{{.Name}}</strong><span>{{.Blurb}}</span></a></li>
+        {{- end}}
+      </ul>
+      {{- range .Templates}}{{if eq .Key $.Picked}}
+      <section class="card">
+        <div class="lab-detail-head">
+          <div><span class="panel-k">{{.Name}} Template</span><h2 class="h-md">What your spreadsheet needs</h2></div>
+          <a class="btn btn-ghost" href="/lab/samples/{{.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the Sample (.xlsx)</a>
+        </div>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>Blank</th><th>Needed</th><th>What goes in it</th><th>Sample column</th></tr></thead>
+          <tbody>
+            {{- range .Blanks}}
+            <tr><th scope="row">{{.Label}}</th><td>{{if .Required}}<span class="badge badge-joined">Required</span>{{else}}<span class="muted">Optional</span>{{end}}</td><td>{{.Help}} <small>A {{.Type}} column</small></td><td><code>{{or (index $.Guess .Key) "-"}}</code></td></tr>
+            {{- else}}
+            <tr><td colspan="4">No blanks. Cave reads your column types (dates, numbers, text) and builds the charts from them.</td></tr>
+            {{- end}}
+          </tbody>
+        </table></div>
+        <p class="muted">The Sample has {{len $.Sample.Rows}} rows and these columns:{{range $.Sample.Columns}} <code>{{.Name}}</code>{{end}}. Open it in Excel, add rows or change numbers, and upload it to your Dashboard. Keep row 1 as the column names.</p>
+        {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        <form class="form lab-create" method="post" action="/lab/dashboards">
+          <input type="hidden" name="template" value="{{.Key}}">
+          <div class="field"><label for="name">Dashboard name</label><input id="name" type="text" name="name" value="{{if $.Name}}{{$.Name}}{{else}}My {{.Name}} Dashboard{{end}}" required maxlength="80"></div>
+          <div class="form-foot"><a class="btn btn-quiet" href="/lab">Cancel</a><button class="btn btn-solid">Create Dashboard</button></div>
+        </form>
+      </section>
+      {{- end}}{{end}}
+    </div>
+{{end}}

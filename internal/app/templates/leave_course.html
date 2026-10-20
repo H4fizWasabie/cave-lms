@@ -1,0 +1,13 @@
+{{define "title"}}Leave {{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap auth-page">
+      <div class="auth-box">
+        <h1>Leave {{.Course.Title}}?</h1>
+        <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>This is your only Course that includes the Lab. If you leave it, your Lab will lock: you can no longer build, upload or deploy Dashboards until you join a Course that includes the Lab again.</p></div>
+        <div class="form-foot">
+          <a class="btn btn-quiet" href="/courses/{{.Course.ID}}">Stay in the Course</a>
+          <form method="post" action="/courses/{{.Course.ID}}/leave"><input type="hidden" name="confirm" value="yes"><button class="btn btn-danger-solid">Leave and lock the Lab</button></form>
+        </div>
+      </div>
+    </div>
+{{end}}

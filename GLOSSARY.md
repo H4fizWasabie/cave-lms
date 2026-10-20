@@ -88,6 +88,10 @@ _Avoid_: Workspace, studio, builder
 Paid access to the Lab for a set period, with limits such as how many Deployments a Learner may make in that period. Building Dashboards is unlimited. The Admin assigns it to a Learner; a Learner without one sees only the demo. Courses stay free to join.
 _Avoid_: Tier, subscription, package, free plan
 
+**Plan period**:
+One stretch of a Learner's Plan, from its start to its end, with its own Deployment allowance. A Plan assigned while another period is running starts when that one ends. Unused Deployments expire with the period.
+_Avoid_: Subscription, term, cycle
+
 **Template**:
 A dashboard design with blanks for columns, such as Finance, Inventory, HR or General.
 _Avoid_: Theme, layout, preset
