@@ -34,8 +34,19 @@ type learner struct {
 	IsAdmin bool
 }
 
+// learnerKey keys the per-request memo of the session lookup that ServeHTTP installs.
+type learnerKey struct{}
+
 // currentLearner returns the logged-in Learner, or nil for a Visitor.
+// The session is looked up at most once per request, however many handlers ask.
 func (a *App) currentLearner(r *http.Request) (*learner, error) {
+	if lookup, ok := r.Context().Value(learnerKey{}).(func() (*learner, error)); ok {
+		return lookup()
+	}
+	return a.lookUpLearner(r)
+}
+
+func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	cookie, err := r.Cookie(sessionCookie)
 	if err != nil {
 		return nil, nil
