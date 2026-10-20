@@ -1,12 +1,17 @@
-{{define "title"}}Register · Cave LMS{{end}}
+{{define "title"}}Register · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Register</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    <form method="post" action="/register">
-      <label>Name <input name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required></label>
-      <label>Email <input type="email" name="email" value="{{.Email}}" autocomplete="email" required></label>
-      <label>Password <input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
-      <button>Register</button>
-    </form>
-    <p>Already registered? <a href="/login">Log in</a>.</p>
+    <div class="wrap auth-page">
+      <div class="auth-box">
+        <h1>Register</h1>
+        <p class="auth-sub">Create a free account to join courses.</p>
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        <form class="form" method="post" action="/register">
+          <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required><small>As it should appear on your certificates.</small></div>
+          <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
+          <div class="field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>At least 8 characters.</small></div>
+          <button class="btn btn-solid btn-block">Register</button>
+        </form>
+        <p class="auth-alt">Already registered? <a href="/login">Log in</a>.</p>
+      </div>
+    </div>
 {{end}}

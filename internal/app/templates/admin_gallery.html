@@ -1,24 +1,37 @@
-{{define "title"}}Gallery · Admin · Cave LMS{{end}}
+{{define "title"}}Gallery · Admin · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Admin: Gallery</h1>
-    <p><a href="/admin/gallery/new">Upload to the Gallery</a></p>
-    <p><a href="/admin">Admin area</a></p>
-    <table>
-      <tr><th>Title</th><th>Format</th><th>Category</th><th>Promotional</th><th>Visibility</th><th></th></tr>
-      {{range .Items}}
-      <tr>
-        <td><a href="/gallery/{{.ID}}">{{.Title}}</a></td>
-        <td>{{.Format}}</td>
-        <td>{{.Category}}</td>
-        <td>{{if .Promotional}}Yes{{else}}No{{end}}</td>
-        <td>{{.Visibility}}</td>
-        <td>
-          <a href="/admin/gallery/{{.ID}}/edit">Edit</a>
-          <a href="/admin/gallery/{{.ID}}/delete">Delete</a>
-        </td>
-      </tr>
-      {{else}}
-      <tr><td colspan="6">No items yet.</td></tr>
-      {{end}}
-    </table>
+    <div class="adm">
+      {{template "admin-side" "gallery"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin: Gallery</h1>
+            <p>Promotional items appear on the home page. Visibility decides who can open each item.</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/gallery/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>Upload to the Gallery</a></div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>Title</th><th>Format</th><th>Category</th><th>Promotional</th><th>Visibility</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              {{range .Items}}
+              <tr>
+                <td><a class="cell-course" href="/gallery/{{.ID}}">{{.Title}}</a></td>
+                <td>{{.Format}}</td>
+                <td>{{.Category}}</td>
+                <td>{{if .Promotional}}Yes{{else}}No{{end}}</td>
+                <td>{{.Visibility}}</td>
+                <td class="actions">
+                  <a class="btn btn-quiet btn-sm" href="/admin/gallery/{{.ID}}/edit">Edit</a>
+                  <a class="btn btn-danger btn-sm" href="/admin/gallery/{{.ID}}/delete">Delete</a>
+                </td>
+              </tr>
+              {{else}}
+              <tr><td colspan="6">No items yet.</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 {{end}}

@@ -1,10 +1,19 @@
-{{define "title"}}Delete Course · Admin · Cave LMS{{end}}
+{{define "title"}}Delete Course · Admin · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Delete Course</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    {{with .Course}}{{if not $.Error}}
-    <p>Delete &ldquo;{{.Title}}&rdquo;? This cannot be undone.</p>
-    <form method="post" action="/admin/courses/{{.ID}}/delete"><button>Delete Course</button></form>
-    {{end}}{{end}}
-    <p><a href="/admin/courses">Cancel</a></p>
+    <div class="adm">
+      {{template "admin-side" "courses"}}
+      <div class="adm-main">
+        <div class="adm-head"><h1>Delete Course</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          {{with .Course}}{{if not $.Error}}
+          <p>Delete &ldquo;{{.Title}}&rdquo;? This cannot be undone.</p>
+          {{end}}{{end}}
+          <div class="form-foot">
+            <a class="btn btn-quiet" href="/admin/courses">Cancel</a>
+            {{with .Course}}{{if not $.Error}}<form method="post" action="/admin/courses/{{.ID}}/delete"><button class="btn btn-danger-solid">Delete Course</button></form>{{end}}{{end}}
+          </div>
+        </div>
+      </div>
+    </div>
 {{end}}

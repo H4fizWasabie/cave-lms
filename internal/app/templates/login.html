@@ -1,12 +1,19 @@
-{{define "title"}}Log in · Cave LMS{{end}}
+{{define "title"}}Log in · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Log in</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    <form method="post" action="/login">
-      <label>Email <input type="email" name="email" value="{{.Email}}" autocomplete="email" required></label>
-      <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
-      <button>Log in</button>
-    </form>
-    <p><a href="/forgot-password">Forgot your password?</a></p>
-    <p>New here? <a href="/register">Register</a>.</p>
+    <div class="wrap auth-page">
+      <div class="auth-box">
+        <h1>Log in</h1>
+        <p class="auth-sub">Welcome back to CAVELMS.</p>
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        <form class="form" method="post" action="/login">
+          <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
+          <div class="field">
+            <div class="field-row"><label for="password">Password</label><a class="small-link" href="/forgot-password">Forgot your password?</a></div>
+            <input id="password" type="password" name="password" autocomplete="current-password" required>
+          </div>
+          <button class="btn btn-solid btn-block">Log in</button>
+        </form>
+        <p class="auth-alt">New here? <a href="/register">Register</a>.</p>
+      </div>
+    </div>
 {{end}}

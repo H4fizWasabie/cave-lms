@@ -64,7 +64,7 @@ func (a *App) adminLessons(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "admin_lessons", page{Course: &c, Lessons: list})
+	a.render(w, r, http.StatusOK, "admin_lessons", page{Course: &c, Lessons: list})
 }
 
 func (a *App) newLessonForm(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +88,7 @@ func (a *App) renderLessonForm(w http.ResponseWriter, r *http.Request, status in
 		return
 	}
 	data.Items = items
-	a.render(w, status, "lesson_form", data)
+	a.render(w, r, status, "lesson_form", data)
 }
 
 // lessonFromForm reads the Lesson form for the given kind ("item" or "text"). msg is the first problem, empty when valid.
@@ -259,7 +259,7 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !enrolled && !learner.IsAdmin {
-		a.render(w, http.StatusForbidden, "members_only", page{Learner: learner, Course: &c,
+		a.render(w, r, http.StatusForbidden, "members_only", page{Learner: learner, Course: &c,
 			Message: "Join this Course to open its Lessons."})
 		return
 	}
@@ -294,7 +294,7 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 	} else {
 		l.HTML = renderMarkdown(l.Body)
 	}
-	a.render(w, http.StatusOK, "lesson", data)
+	a.render(w, r, http.StatusOK, "lesson", data)
 }
 
 func (a *App) editLessonForm(w http.ResponseWriter, r *http.Request) {

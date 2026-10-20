@@ -15,7 +15,7 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/certificates/"+url.PathEscape(id), http.StatusSeeOther)
 		return
 	}
-	a.render(w, http.StatusOK, "certificate_verify", page{})
+	a.render(w, r, http.StatusOK, "certificate_verify", page{})
 }
 
 // verifyCertificate is public. It shows the name, Course, issue date and status of a Certificate, and nothing else.
@@ -26,10 +26,10 @@ func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(list) == 0 {
-		a.render(w, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "No Certificate has this ID."})
+		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "No Certificate has this ID."})
 		return
 	}
-	a.render(w, http.StatusOK, "certificate_verify", page{Certificate: &list[0]})
+	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificate: &list[0]})
 }
 
 // adminCertificates lists every Certificate, newest first. ?q= matches the Learner's name or the exact ID.
@@ -42,7 +42,7 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "admin_certificates", page{Certificates: list, Query: q})
+	a.render(w, r, http.StatusOK, "admin_certificates", page{Certificates: list, Query: q})
 }
 
 // revokeCertificate stops a Certificate counting as valid. From then on its check page, the Learner's list and its PDF
@@ -67,16 +67,16 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(old) == 0 {
-		a.render(w, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "No Certificate has this ID."})
+		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "No Certificate has this ID."})
 		return
 	}
 	if !old[0].Revoked {
-		a.render(w, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Revoke the Certificate before issuing a corrected one."})
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Revoke the Certificate before issuing a corrected one."})
 		return
 	}
 	name := strings.TrimSpace(r.PostFormValue("learner_name"))
 	if name == "" || len(name) > 200 {
-		a.render(w, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Enter a name for the Certificate (up to 200 characters)."})
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Enter a name for the Certificate (up to 200 characters)."})
 		return
 	}
 	id, err := newCertificateID()
@@ -101,7 +101,7 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		err = tx.Commit()
 	}
 	if isUniqueViolation(err) {
-		a.render(w, http.StatusConflict, "message", page{Title: "Certificate not reissued", Message: "This Learner already has a valid Certificate for this Course."})
+		a.render(w, r, http.StatusConflict, "message", page{Title: "Certificate not reissued", Message: "This Learner already has a valid Certificate for this Course."})
 		return
 	}
 	if err != nil {

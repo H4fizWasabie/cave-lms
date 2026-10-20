@@ -43,7 +43,7 @@ func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "exam", page{Course: &c, Exam: &e})
+	a.render(w, r, http.StatusOK, "exam", page{Course: &c, Exam: &e})
 }
 
 // saveExam sets the pass mark, time limit and attempt limit. The first save creates the Exam.
@@ -59,7 +59,7 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 		MaxAttempts: strings.TrimSpace(r.PostFormValue("max_attempts")),
 	}
 	if msg := e.settingsProblem(); msg != "" {
-		a.render(w, http.StatusUnprocessableEntity, "exam", page{Course: &c, Exam: &e, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "exam", page{Course: &c, Exam: &e, Error: msg})
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(), `
@@ -100,7 +100,7 @@ func (a *App) newExamQuestionForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "exam_question_form", page{Course: &c, Question: &examQuestion{}})
+	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Question: &examQuestion{}})
 }
 
 func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +110,7 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 	}
 	q, msg := questionFromForm(r)
 	if msg != "" {
-		a.render(w, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
 		return
 	}
 	if err := a.insertQuestion(r.Context(), c.ID, q); err != nil {
@@ -236,7 +236,7 @@ func (a *App) editExamQuestionForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, http.StatusOK, "exam_question_form", page{Course: &c, Question: &q})
+	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Question: &q})
 }
 
 // updateExamQuestion replaces the prompt and options. Draft state is changed only by publishing.
@@ -248,7 +248,7 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 	q, msg := questionFromForm(r)
 	q.ID, q.Draft = existing.ID, existing.Draft
 	if msg != "" {
-		a.render(w, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
 		return
 	}
 	if err := a.replaceQuestion(r.Context(), c.ID, q); err != nil {
@@ -379,7 +379,7 @@ func (a *App) examQuestionFor(w http.ResponseWriter, r *http.Request) (course, e
 		return course{}, examQuestion{}, false
 	}
 	notFound := func() (course, examQuestion, bool) {
-		a.render(w, http.StatusNotFound, "message", page{Title: "Question not found", Message: "There is no Exam question at this address."})
+		a.render(w, r, http.StatusNotFound, "message", page{Title: "Question not found", Message: "There is no Exam question at this address."})
 		return course{}, examQuestion{}, false
 	}
 	qid, err := strconv.ParseInt(r.PathValue("qid"), 10, 64)

@@ -1,33 +1,46 @@
-{{define "title"}}Certificates · Admin · Cave LMS{{end}}
+{{define "title"}}Certificates · Admin · CAVELMS{{end}}
 {{define "content"}}
-    <h1>Admin: Certificates</h1>
-    <p><a href="/admin">Admin area</a></p>
-    <form method="get" action="/admin/certificates">
-      <label>Search by name or ID <input type="search" name="q" value="{{.Query}}"></label>
-      <button>Search</button>
-    </form>
-    <table>
-      <tr><th>Learner</th><th>Course</th><th>Issued</th><th>Status</th><th>ID</th><th></th></tr>
-      {{range .Certificates}}
-      <tr>
-        <td>{{.LearnerName}}</td>
-        <td>{{.CourseTitle}}</td>
-        <td>{{.IssuedOn}}</td>
-        <td>{{if .Revoked}}Revoked{{else}}Valid{{end}}</td>
-        <td><a href="/certificates/{{.ID}}">{{.ID}}</a></td>
-        <td>
-          {{if .Revoked}}
-          <form method="post" action="/admin/certificates/{{.ID}}/reissue">
-            <label>Learner's name (this also updates their account) <input type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></label>
-            <button>Issue corrected Certificate</button>
-          </form>
-          {{else}}
-          <form method="post" action="/admin/certificates/{{.ID}}/revoke"><button>Revoke</button></form>
-          {{end}}
-        </td>
-      </tr>
-      {{else}}
-      <tr><td colspan="6">{{if .Query}}No Certificates match.{{else}}No Certificates yet.{{end}}</td></tr>
-      {{end}}
-    </table>
+    <div class="adm">
+      {{template "admin-side" "certificates"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin: Certificates</h1>
+            <p>Revoke a Certificate issued in error, or issue a corrected one.</p>
+          </div>
+        </div>
+        <form class="toolbar" method="get" action="/admin/certificates">
+          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">Search by name or ID</span><input type="search" name="q" value="{{.Query}}" placeholder="Search by name or ID"></label>
+          <button class="btn btn-ghost">Search</button>
+        </form>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>Learner</th><th>Course</th><th>Issued</th><th>Status</th><th>ID</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              {{range .Certificates}}
+              <tr{{if .Revoked}} class="is-revoked"{{end}}>
+                <td>{{.LearnerName}}</td>
+                <td>{{.CourseTitle}}</td>
+                <td>{{.IssuedOn}}</td>
+                <td>{{if .Revoked}}Revoked{{else}}Valid{{end}}</td>
+                <td><a href="/certificates/{{.ID}}"><code>{{.ID}}</code></a></td>
+                <td class="actions">
+                  {{if .Revoked}}
+                  <form class="inline-form" method="post" action="/admin/certificates/{{.ID}}/reissue">
+                    <div class="field"><label for="name-{{.ID}}">Learner's name (this also updates their account)</label><input id="name-{{.ID}}" type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></div>
+                    <button class="btn btn-solid btn-sm">Issue corrected Certificate</button>
+                  </form>
+                  {{else}}
+                  <form method="post" action="/admin/certificates/{{.ID}}/revoke"><button class="btn btn-danger btn-sm">Revoke</button></form>
+                  {{end}}
+                </td>
+              </tr>
+              {{else}}
+              <tr><td colspan="6">{{if .Query}}No Certificates match.{{else}}No Certificates yet.{{end}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 {{end}}

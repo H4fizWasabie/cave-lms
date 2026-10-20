@@ -1,12 +1,19 @@
-{{define "title"}}{{if .Course.ID}}Edit Course{{else}}New Course{{end}} · Admin · Cave LMS{{end}}
+{{define "title"}}{{if .Course.ID}}Edit Course{{else}}New Course{{end}} · Admin · CAVELMS{{end}}
 {{define "content"}}
-    <h1>{{if .Course.ID}}Edit Course{{else}}New Course{{end}}</h1>
-    {{with .Error}}<p role="alert">{{.}}</p>{{end}}
-    <form method="post" action="{{if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}">
-      <label>Title <input name="title" value="{{.Course.Title}}" maxlength="200" required></label>
-      <label>Description <textarea name="description" rows="6" required>{{.Course.Description}}</textarea></label>
-      <label>Start date (optional) <input type="date" name="start_date" value="{{.Course.StartDate}}"></label>
-      <button>Save</button>
-    </form>
-    <p><a href="/admin/courses">Back to Courses</a></p>
+    <div class="adm">
+      {{template "admin-side" "courses"}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/courses">Back to Courses</a></p>
+        <div class="adm-head"><h1>{{if .Course.ID}}Edit Course{{else}}New Course{{end}}</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="{{if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}">
+            <div class="field"><label for="title">Title</label><input id="title" type="text" name="title" value="{{.Course.Title}}" maxlength="200" required></div>
+            <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="6" required>{{.Course.Description}}</textarea></div>
+            <div class="field field-half"><label for="start_date">Start date <span class="opt">(optional)</span></label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}"></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses">Cancel</a><button class="btn btn-solid">Save</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
 {{end}}

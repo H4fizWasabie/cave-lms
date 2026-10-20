@@ -51,7 +51,7 @@ func (a *App) admin(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if !learner.IsAdmin {
-			a.render(w, http.StatusForbidden, "message", page{
+			a.render(w, r, http.StatusForbidden, "message", page{
 				Title:   "Admin only",
 				Message: "Only the Admin can open this page.",
 			})
@@ -62,5 +62,5 @@ func (a *App) admin(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func (a *App) adminHome(w http.ResponseWriter, r *http.Request) {
-	a.render(w, http.StatusOK, "admin", page{})
+	a.render(w, r, http.StatusOK, "admin", page{})
 }

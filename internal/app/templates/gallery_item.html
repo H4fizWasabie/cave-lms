@@ -1,16 +1,23 @@
-{{define "title"}}{{.Item.Title}} · Cave LMS{{end}}
+{{define "title"}}{{.Item.Title}} · CAVELMS{{end}}
 {{define "content"}}
-    <h1>{{.Item.Title}}</h1>
-    {{with .Item}}
-    <p>{{.Format}}{{if .Category}} · {{.Category}}{{end}}</p>
-    {{if .Description}}<p>{{.Description}}</p>{{end}}
-    {{if eq .Format "video"}}
-    <video controls preload="metadata" src="/gallery/{{.ID}}/file"></video>
-    {{else if eq .Format "picture"}}
-    <img src="/gallery/{{.ID}}/file" alt="{{.Title}}">
-    {{else}}
-    <p><a href="/gallery/{{.ID}}/file">Download the ebook</a></p>
-    {{end}}
-    {{end}}
-    <p><a href="/gallery">Back to the Gallery</a></p>
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/gallery">Gallery</a></p>
+      {{with .Item}}
+      <div class="page-head">
+        <h1>{{.Title}}</h1>
+        <p><span class="badge badge-joined">{{.Format}}</span>{{if .Category}} {{.Category}}{{end}}</p>
+      </div>
+      {{if .Description}}<p class="l-note">{{.Description}}</p>{{end}}
+      <div class="g-media">
+        {{if eq .Format "video"}}
+        <video controls preload="metadata" src="/gallery/{{.ID}}/file"></video>
+        {{else if eq .Format "picture"}}
+        <img src="/gallery/{{.ID}}/file" alt="{{.Title}}">
+        {{else}}
+        <a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the ebook</a>
+        {{end}}
+      </div>
+      {{end}}
+      <p><a class="link-more" href="/gallery">Back to the Gallery</a></p>
+    </div>
 {{end}}

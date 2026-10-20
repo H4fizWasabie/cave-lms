@@ -3,13 +3,107 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/cavelms.css">
   {{- block "head" .}}{{end}}
-  <title>{{block "title" .}}Cave LMS{{end}}</title>
+  <title>{{block "title" .}}CAVELMS{{end}}</title>
 </head>
 <body>
+  <header class="site-header">
+    <div class="wrap site-header-in">
+      <a class="brand" href="/"><img src="/static/logo.svg" alt="The Cave Consult" class="brand-logo"><span class="brand-tag">CAVELMS</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/courses">Courses</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/certificates">Check a certificate</a>
+      </nav>
+      <div class="site-header-right">
+        {{- with .Learner}}
+        <span class="hdr-who">Logged in as {{.Name}}</span>
+        <a class="hdr-link" href="/my-courses">My courses</a>
+        {{if .IsAdmin}}<a class="btn btn-solid btn-sm" href="/admin">Admin area</a>{{end}}
+        <form method="post" action="/logout"><button class="btn btn-quiet btn-sm">Log out</button></form>
+        {{- else}}
+        <a class="hdr-link" href="/login">Log in</a>
+        <a class="btn btn-solid btn-sm" href="/register">Register</a>
+        {{- end}}
+      </div>
+    </div>
+  </header>
   <main>
     {{template "content" .}}
   </main>
+  <footer class="site-footer">
+    <div class="wrap footer-in">
+      <div class="footer-brand">
+        <img src="/static/logo-light.svg" alt="The Cave Consult" class="footer-logo">
+        <p><strong>CAVELMS</strong>: Learn AI • Build Skills • Create Impact</p>
+        <p>Powered by The Cave Consult (TCC)</p>
+      </div>
+      <nav class="footer-col" aria-label="Learn">
+        <h2>Learn</h2>
+        <a href="/courses">All courses</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/certificates">Check a certificate</a>
+      </nav>
+      <nav class="footer-col" aria-label="Account">
+        <h2>Account</h2>
+        {{- if .Learner}}
+        <a href="/my-courses">My courses</a>
+        <a href="/my-certificates">My certificates</a>
+        {{- else}}
+        <a href="/login">Log in</a>
+        <a href="/register">Register</a>
+        <a href="/forgot-password">Reset password</a>
+        {{- end}}
+      </nav>
+      <div class="footer-col">
+        <h2>Contact</h2>
+        <a href="tel:+60123947200">012-394 7200</a>
+        <a href="mailto:adam.caveconsult@gmail.com">adam.caveconsult@gmail.com</a>
+        <address>11B Bazar Enggang Keramat, Lorong Enggang 4, Taman Keramat, 54200 Kuala Lumpur</address>
+      </div>
+    </div>
+    <div class="wrap footer-base">© 2026 The Cave Consult</div>
+  </footer>
 </body>
 </html>
+{{end}}
+{{/* admin-side is the Admin sidebar; pass the current section: "dashboard", "courses", "gallery", "certificates" or "design". */}}
+{{define "admin-side"}}
+      <aside class="adm-side">
+        <div class="adm-side-top">
+          <a class="adm-brand" href="/admin"><img src="/static/logo-light.svg" alt="The Cave Consult"><span>CAVELMS admin</span></a>
+        </div>
+        <nav class="adm-nav" aria-label="Admin">
+          <a href="/admin"{{if eq . "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>Dashboard</span></a>
+          <a href="/admin/courses"{{if eq . "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>Courses</span></a>
+          <a href="/admin/gallery"{{if eq . "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>Gallery</span></a>
+          <a href="/admin/certificates"{{if eq . "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>Certificates</span></a>
+          <a href="/admin/certificate-settings"{{if eq . "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span></a>
+        </nav>
+        <div class="adm-side-foot">
+          <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>View learning site</span></a>
+        </div>
+      </aside>
+{{end}}
+
+{{/* gallery-tile is one Gallery item in a grid: the picture itself, or an icon for videos and ebooks. */}}
+{{define "gallery-tile"}}<li><a class="g-tile" href="/gallery/{{.ID}}"><span class="g-plate">{{if eq .Format "picture"}}<img src="/gallery/{{.ID}}/file" alt="" loading="lazy">{{else}}<span class="g-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if eq .Format "video"}}play{{else}}file-pdf{{end}}"/></svg></span>{{end}}</span><span class="g-cap"><strong>{{.Title}}</strong><span>{{.Format}}</span></span></a></li>{{end}}
+
+{{/* gallery-fields are the Gallery item fields shared by the upload and edit forms. */}}
+{{define "gallery-fields"}}
+            <div class="field"><label for="title">Title</label><input id="title" type="text" name="title" value="{{.Item.Title}}" maxlength="200" required></div>
+            <div class="field"><label for="description">Description <span class="opt">(optional)</span></label><textarea id="description" name="description" rows="4" maxlength="2000">{{.Item.Description}}</textarea></div>
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="category">Category <span class="opt">(optional)</span></label><input id="category" type="text" name="category" value="{{.Item.Category}}" maxlength="100"></div>
+              <div class="field"><label for="visibility">Visibility</label>
+                <select id="visibility" name="visibility">
+                  <option value="everyone"{{if eq .Item.Visibility "everyone"}} selected{{end}}>Everyone</option>
+                  <option value="learners"{{if eq .Item.Visibility "learners"}} selected{{end}}>Logged-in Learners</option>
+                  <option value="course_members"{{if eq .Item.Visibility "course_members"}} selected{{end}}>Course members only</option>
+                </select>
+              </div>
+            </div>
+            <label class="check-card"><input type="checkbox" name="promotional" value="on"{{if .Item.Promotional}} checked{{end}}><span><strong>Promotional material</strong><small>Shown on the home page and open to everyone.</small></span></label>
 {{end}}

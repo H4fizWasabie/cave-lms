@@ -1,16 +1,25 @@
-{{define "title"}}My Certificates · Cave LMS{{end}}
+{{define "title"}}My Certificates · CAVELMS{{end}}
 {{define "content"}}
-    <h1>My Certificates</h1>
-    {{range .Certificates}}
-    <article>
-      <h2>{{.CourseTitle}}</h2>
-      <p>Issued {{.IssuedOn}}</p>
-      {{if .Revoked}}<p><strong>Revoked</strong>: this Certificate is no longer valid.</p>{{end}}
-      <p><a href="/certificates/{{.ID}}/pdf">Download PDF</a></p>
-    </article>
-    {{else}}
-    <p>You have no Certificates yet.</p>
-    {{end}}
-    <p><a href="/my-courses">My Courses</a></p>
-    <p><a href="/">Home</a></p>
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>My Certificates</h1>
+        <p>Each certificate has an ID that anyone can check on this site.</p>
+      </div>
+      <ul class="cert-list">
+        {{range .Certificates}}
+        <li class="cert-chip">
+          <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
+          <div class="cert-chip-main">
+            <strong>{{.CourseTitle}}</strong>
+            <small>Issued {{.IssuedOn}}</small>
+            {{if .Revoked}}<p class="cert-revoked"><strong>Revoked</strong>: this Certificate is no longer valid.</p>{{end}}
+          </div>
+          <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download PDF</a>
+        </li>
+        {{else}}
+        <li class="empty">You have no Certificates yet.</li>
+        {{end}}
+      </ul>
+      <p class="mc-more"><a class="link-more" href="/my-courses">My Courses</a></p>
+    </div>
 {{end}}

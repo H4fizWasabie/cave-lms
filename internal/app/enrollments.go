@@ -68,7 +68,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	a.render(w, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
+	a.render(w, r, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
 }
 
 // removeLearner is the Admin removing a Learner from a Course. Access ends on the next request.
@@ -122,7 +122,7 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !enrolled && !c.Open {
-		a.render(w, http.StatusConflict, "course", page{Course: &c, Learner: learner, Error: "This Course is closed to new joins."})
+		a.render(w, r, http.StatusConflict, "course", page{Course: &c, Learner: learner, Error: "This Course is closed to new joins."})
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(),
@@ -166,5 +166,5 @@ func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	a.render(w, http.StatusOK, "my_courses", page{Learner: learner, Courses: list})
+	a.render(w, r, http.StatusOK, "my_courses", page{Learner: learner, Courses: list})
 }
