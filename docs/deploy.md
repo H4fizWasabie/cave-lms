@@ -11,7 +11,7 @@ The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` syste
 | Uploads | `/var/lib/cave-lms/uploads` |
 | Database | `cave` on the local Postgres 16, peer auth over the Unix socket |
 
-Back up both the database and the uploads directory (#14).
+Both the database and the uploads directory are backed up every night (see Backups).
 
 ## First install
 
@@ -86,3 +86,54 @@ The app refuses an upload over 2 GB with its own message. Caddy's `request_body`
 Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `lms.wasabietech.com` is verified in Resend through DNS records at Hostinger (DKIM `resend._domainkey.lms`, plus `send.lms` and `rsend.lms`). Resend's dashboard lists the exact records.
 
 A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
+
+## Backups
+
+Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bin/cave-lms-backup` (`deploy/backup.sh`). It dumps the `cave` database with `pg_dump` and backs up the dump plus `/var/lib/cave-lms/uploads` with [restic](https://restic.net) to two encrypted repositories:
+
+| Where | Repository |
+|---|---|
+| On the VPS | `/var/backups/cave-lms/restic` (quick restores after a mistake) |
+| Cloudflare R2 | bucket `cave-lms-backups` (survives losing the VPS) |
+
+Each keeps the last 7 days, 4 weeks and 6 months, and is checked after every run. If the VPS was off at 03:00, the backup runs at boot.
+
+| File on the VPS | Holds |
+|---|---|
+| `/etc/cave-lms/backup.env` | `R2_ENDPOINT`, `R2_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (an R2 token with Object Read & Write on the bucket only), `ALERT_EMAIL`, optional `HEALTHCHECK_URL` |
+| `/etc/cave-lms/restic-password` | the encryption password for both repositories |
+
+Both are root-only (mode 0600). **Keep a copy of the restic password in a password manager**: without it the R2 backups cannot be opened, and if the VPS is lost so is the file.
+
+**A failed backup is noticed.** `cave-lms-backup-failed.service` emails `ALERT_EMAIL` through Resend with the last log lines. If `HEALTHCHECK_URL` is set (a free healthchecks.io check with a 1-day period and grace), a missed or silently skipped backup also raises an email.
+
+Useful commands on the VPS:
+
+```sh
+systemctl start cave-lms-backup            # run a backup now
+journalctl -u cave-lms-backup -n 50        # what the last run did
+systemctl list-timers cave-lms-backup      # when the next run is
+set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
+restic -r /var/backups/cave-lms/restic snapshots
+restic -r "s3:$R2_ENDPOINT/$R2_BUCKET" snapshots
+```
+
+First install: `install -m 600 /dev/null /etc/cave-lms/backup.env` and fill it in, create the password with `(umask 077; openssl rand -base64 32 > /etc/cave-lms/restic-password)`, copy the password into a password manager, then run `deploy/deploy.sh`, which installs restic and enables the timer once both files exist.
+
+### Restoring
+
+On any machine with restic, Postgres and the R2 settings and restic password (from the password manager):
+
+```sh
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... RESTIC_PASSWORD=...
+repo="s3:https://<account id>.r2.cloudflarestorage.com/cave-lms-backups"
+restic -r "$repo" snapshots                       # pick one, or use latest
+restic -r "$repo" restore latest --target /tmp/cave-restore
+# the dump is at /tmp/cave-restore/var/backups/cave-lms/staging/cave.dump
+# the uploads are at /tmp/cave-restore/var/lib/cave-lms/uploads
+createdb cave && pg_restore --no-owner --dbname=cave /tmp/cave-restore/var/backups/cave-lms/staging/cave.dump
+```
+
+Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot restored the Admin account and all 10 Gallery items with their files, and the app served them.
+
+Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database.

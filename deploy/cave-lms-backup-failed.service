@@ -1,0 +1,7 @@
+# Installed to /etc/systemd/system/cave-lms-backup-failed.service by deploy/deploy.sh.
+[Unit]
+Description=Email the Admin that the Cave LMS backup failed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/cave-lms-backup-failed

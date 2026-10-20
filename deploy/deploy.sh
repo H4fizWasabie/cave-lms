@@ -13,6 +13,9 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$build/cave-lms" ./cmd/cave-l
 scp -q "$build/cave-lms" "$host:/usr/local/bin/cave-lms.new"
 scp -q deploy/cave-lms.service "$host:/etc/systemd/system/cave-lms.service"
 scp -q deploy/cave-lms.caddy "$host:/etc/caddy/sites/cave-lms.caddy.new"
+scp -q deploy/backup.sh "$host:/usr/local/bin/cave-lms-backup"
+scp -q deploy/backup-failed.sh "$host:/usr/local/bin/cave-lms-backup-failed"
+scp -q deploy/cave-lms-backup.service deploy/cave-lms-backup.timer deploy/cave-lms-backup-failed.service "$host:/etc/systemd/system/"
 
 ssh "$host" bash -s <<'REMOTE'
 set -euo pipefail
@@ -21,6 +24,15 @@ mv /usr/local/bin/cave-lms.new /usr/local/bin/cave-lms
 systemctl daemon-reload
 systemctl enable --quiet cave-lms
 systemctl restart cave-lms
+
+# Backups need restic and the R2 settings in /etc/cave-lms/backup.env (docs/deploy.md, Backups).
+chmod 755 /usr/local/bin/cave-lms-backup /usr/local/bin/cave-lms-backup-failed
+command -v restic >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq restic >/dev/null
+if [ -f /etc/cave-lms/backup.env ] && [ -f /etc/cave-lms/restic-password ]; then
+	systemctl enable --quiet --now cave-lms-backup.timer
+else
+	echo "backups not enabled yet: /etc/cave-lms/backup.env or restic-password is missing" >&2
+fi
 
 # Swap in the new Caddy site only if the whole Caddyfile still validates; otherwise keep the old one.
 site=/etc/caddy/sites/cave-lms.caddy
