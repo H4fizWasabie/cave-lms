@@ -118,20 +118,26 @@
       });
     }
     function where(rows, w) { return w && cols[w[0]] ? rows.filter(function (r) { return r[w[0]] === w[1]; }) : rows; }
-    function sum(rows, k) { return rows.reduce(function (a, r) { return a + (+r[k] || 0); }, 0); }
+    // The rows a block draws: those matching its where, and with low, those at or below the level.
+    function scope(rows, b) {
+      rows = where(rows, b.where);
+      var l = b.low;
+      return l && cols[l[0]] && cols[l[1]] ? rows.filter(function (r) { return r[l[0]] != null && r[l[1]] != null && +r[l[0]] <= +r[l[1]]; }) : rows;
+    }
+    function sum(rows, k, times) { return rows.reduce(function (a, r) { return a + (+r[k] || 0) * (times ? +r[times] || 0 : 1); }, 0); }
     function money(k) { return !!(k && cols[k] && cols[k].money); }
     function grouped(rows, b) {
       var g = {};
-      where(rows, b.where).forEach(function (r) { var k = r[b.group] == null ? '(blank)' : r[b.group]; g[k] = (g[k] || 0) + (b.of ? +r[b.of] || 0 : 1); });
+      scope(rows, b).forEach(function (r) { var k = r[b.group] == null ? '(blank)' : r[b.group]; g[k] = (g[k] || 0) + (b.of ? +r[b.of] || 0 : 1); });
       return Object.keys(g).map(function (k) { return [k, g[k]]; }).sort(function (a, c) { return c[1] - a[1]; });
     }
     function panel(b, inner) { return '<article class="dpanel' + (b.wide || b.kind === 'table' ? ' wide' : '') + '"><h2>' + esc(b.label) + '</h2>' + inner + '</article>'; }
     function empty(b) { return panel(b, '<p class="dnone">No rows match the filters</p>'); }
 
     function card(b, rows) {
-      var v = b.agg === 'count' ? rows.length : sum(where(rows, b.where), b.of) - (b.minus ? sum(where(rows, b.minus), b.of) : 0);
-      var cls = b.minus ? (v < 0 ? ' is-neg' : ' is-pos') : '';
-      return '<div class="dcard' + cls + '"><span>' + esc(b.label) + '</span><strong>' + fmt(v, money(b.of)) + '</strong></div>';
+      var v = b.agg === 'count' ? scope(rows, b).length : sum(scope(rows, b), b.of, b.times) - (b.minus ? sum(where(rows, b.minus), b.of) : 0);
+      var cls = b.minus ? (v < 0 ? ' is-neg' : ' is-pos') : b.low && v > 0 ? ' is-neg' : '';
+      return '<div class="dcard' + cls + '"><span>' + esc(b.label) + '</span><strong>' + fmt(v, money(b.of) || money(b.times)) + '</strong></div>';
     }
 
     function line(b, rows) {
@@ -191,7 +197,7 @@
     }
 
     function table(b, rows) {
-      var keys = (b.cols || []).filter(function (k) { return cols[k]; }), rs = rows.slice(), sk = b.sort;
+      var keys = (b.cols || []).filter(function (k) { return cols[k]; }), rs = scope(rows, b).slice(), sk = b.sort;
       if (sk && cols[sk]) rs.sort(function (a, c) { var x = a[sk], y = c[sk]; return x < y ? 1 : x > y ? -1 : 0; });
       if (b.limit) rs = rs.slice(0, b.limit);
       var head = keys.map(function (k) { return '<th' + (cols[k].type === 'number' ? ' class="num"' : '') + '>' + esc(cols[k].name) + '</th>'; }).join('');

@@ -93,6 +93,16 @@
 
       {{- else if and .ReadOnly (eq .Tab "columns")}}
       <p class="empty">Choosing columns needs Lab access. <a href="{{$url}}/preview">See the preview</a>.</p>
+      {{- else if and (eq .Tab "columns") (not .D.Template.Blanks)}}
+      <section class="ws-narrow">
+        <h2 class="h-md">{{.D.Template.Name}} has no blanks</h2>
+        <p class="muted">Cave read each column's type and built the charts from them: a card for each number column, a bar chart for the first text column, a line chart by month for the first date column, and a table.</p>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>Column</th><th>Read as</th></tr></thead>
+          <tbody>{{range .D.Dataset.Columns}}<tr><td><code>{{.Name}}</code></td><td>{{.Type}}</td></tr>{{end}}</tbody>
+        </table></div>
+        <p><a class="btn btn-solid" href="{{$url}}/preview">See the preview</a></p>
+      </section>
 
       {{- else if eq .Tab "columns"}}
       <form class="form ws-narrow" method="post" action="{{$url}}/columns">

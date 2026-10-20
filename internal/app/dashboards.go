@@ -158,6 +158,20 @@ type newDashboardPage struct {
 	Templates []*lab.Template
 	Picked    string
 	Name      string
+	Sample    *lab.Dataset // the picked Template's Sample, as Cave reads it
+	Guess     lab.Choices  // Cave's guesses on that Sample
+}
+
+// renderNewDashboard shows /lab/new with the picked Template's Sample read, so the page can name its columns.
+func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
+	t := lab.TemplateByKey(p.Picked)
+	var err error
+	if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err != nil {
+		serverError(w, err)
+		return
+	}
+	p.Guess = t.Guess(p.Sample)
+	a.render(w, r, status, "lab_new", p)
 }
 
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +182,7 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if lab.TemplateByKey(p.Picked) == nil {
 		p.Picked = lab.Templates[0].Key
 	}
-	a.render(w, r, http.StatusOK, "lab_new", p)
+	a.renderNewDashboard(w, r, http.StatusOK, p)
 }
 
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +198,7 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		p.Error = dashboardNameError(p.Name)
 	}
 	if p.Error != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
+		a.renderNewDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return
 	}
 	learner, _ := a.currentLearner(r)
@@ -439,9 +453,30 @@ func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.For
 // same files under /d/<slug>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		serveDashboardFile(w, r, d, name,
-			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self'")
+		serveDashboardFile(w, r, d, name, previewCSP)
 	})
+}
+
+// previewCSP keeps a Dashboard served same-origin (the preview and the demo) to Cave's own scripts and
+// connections, and to framing by Cave. The preview needs the session cookie for data.json, so no sandbox.
+const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self'"
+
+// demoFile serves a Template's demo, /lab/demo/{key}/: the Template drawn from its Sample with Cave's
+// guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.
+func demoFile(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := lab.TemplateByKey(r.PathValue("key"))
+		if t == nil {
+			http.NotFound(w, r)
+			return
+		}
+		ds, err := lab.Read(bytes.NewReader(t.Sample), t)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP)
+	}
 }
 
 // serveDashboardFile writes one of a Dashboard's three files; csp is the index page's Content-Security-Policy.

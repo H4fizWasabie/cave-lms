@@ -2,6 +2,7 @@ package lab
 
 import (
 	_ "embed"
+	"fmt"
 	"strings"
 )
 
@@ -16,6 +17,8 @@ type Template struct {
 	Blocks  []Block
 	Filters []string // blank keys: a Date blank filters by month range, a Text blank by value
 	Sample  []byte   // the .xlsx Learners download
+	// Build, when set, makes the blanks, blocks and choices from the Dataset itself (General has no blanks).
+	Build func(*Dataset) (*Template, Choices)
 }
 
 // Blank is a hole in a Template that one column fills.
@@ -40,6 +43,8 @@ type Block struct {
 	Series string   `json:"series,omitempty"` // line: one line per value of this blank, when chosen
 	Where  []string `json:"where,omitempty"`  // [blank, value]: only rows where the blank holds value, when chosen
 	Minus  []string `json:"minus,omitempty"`  // card: subtract the sum over rows where [blank, value]
+	Times  string   `json:"times,omitempty"`  // card: sum Of times this Number blank, row by row
+	Low    []string `json:"low,omitempty"`    // [a, b]: only rows where blank a is at or below blank b
 	Cols   []string `json:"cols,omitempty"`   // table: blanks shown, in order; skipped ones are left out
 	Sort   string   `json:"sort,omitempty"`   // table: newest first by this blank
 	Limit  int      `json:"limit,omitempty"`  // table: rows shown
@@ -77,8 +82,107 @@ var Finance = &Template{
 	Sample:  financeSample,
 }
 
+//go:embed samples/inventory.xlsx
+var inventorySample []byte
+
+var Inventory = &Template{
+	Key:   "inventory",
+	Name:  "Inventory",
+	Blurb: "Stock on hand: items, value, and what is running low.",
+	Blanks: []Blank{
+		{Key: "item", Label: "Item", Type: Text, Required: true, Help: "The name of each item", Guess: []string{"nama item", "nama barang", "item", "barang", "nama"}},
+		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"}},
+		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"}},
+		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"}},
+		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", Guess: []string{"harga seunit", "harga", "unit price", "price"}},
+	},
+	Blocks: []Block{
+		{Kind: "card", Label: "Total items", Agg: "sum", Of: "quantity"},
+		{Kind: "card", Label: "Stock value", Agg: "sum", Of: "quantity", Times: "price", Needs: []string{"price"}},
+		{Kind: "card", Label: "Low stock", Agg: "count", Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
+		{Kind: "bar", Label: "Stock by category", Group: "category", Of: "quantity"},
+		{Kind: "table", Label: "Running low", Cols: []string{"item", "category", "quantity", "reorder"}, Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
+		{Kind: "table", Label: "All items", Cols: []string{"item", "category", "quantity", "reorder", "price"}},
+	},
+	Filters: []string{"category"},
+	Sample:  inventorySample,
+}
+
+//go:embed samples/hr.xlsx
+var hrSample []byte
+
+var HR = &Template{
+	Key:   "hr",
+	Name:  "HR",
+	Blurb: "Staff: headcount, departments, who joined when.",
+	Blanks: []Blank{
+		{Key: "name", Label: "Name", Type: Text, Required: true, Help: "Each staff member's name", Guess: []string{"nama", "nama pekerja", "name"}},
+		{Key: "department", Label: "Department", Type: Text, Required: true, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department"}},
+		{Key: "joined", Label: "Join date", Type: Date, Help: "The day they started", Guess: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "tarikh"}},
+		{Key: "status", Label: "Status", Type: Text, Help: "Aktif for staff still working", Guess: []string{"status"}},
+		{Key: "gender", Label: "Gender", Type: Text, Help: "Lelaki or Perempuan", Guess: []string{"jantina", "gender"}},
+	},
+	Blocks: []Block{
+		{Kind: "card", Label: "Headcount", Agg: "count"},
+		{Kind: "card", Label: "Active", Agg: "count", Where: []string{"status", "Aktif"}, Needs: []string{"status"}},
+		{Kind: "bar", Label: "Headcount by department", Group: "department"},
+		{Kind: "line", Label: "Joins per month", X: "joined", Wide: true},
+		{Kind: "donut", Label: "Status split", Group: "status"},
+		{Kind: "table", Label: "Staff", Cols: []string{"name", "department", "joined", "status", "gender"}, Sort: "joined"},
+	},
+	Filters: []string{"department", "status", "gender"},
+	Sample:  hrSample,
+}
+
+//go:embed samples/general.xlsx
+var generalSample []byte
+
+var General = &Template{
+	Key:    "general",
+	Name:   "General",
+	Blurb:  "Any table. No blanks to fill: Cave builds the charts from your column types.",
+	Build:  buildGeneral,
+	Sample: generalSample,
+}
+
+// buildGeneral makes one blank per column, filled by that column: a card per Number column, a bar
+// chart for the first Text column, a line chart by month for the first Date column, and a table.
+func buildGeneral(d *Dataset) (*Template, Choices) {
+	t, c := &Template{}, Choices{}
+	first := map[Type]string{}
+	var cols []string
+	for i, col := range d.Columns {
+		key := fmt.Sprintf("c%d", i+1)
+		t.Blanks = append(t.Blanks, Blank{Key: key, Label: col.Name, Type: col.Type})
+		c[key] = col.Name
+		cols = append(cols, key)
+		if first[col.Type] == "" {
+			first[col.Type] = key
+		}
+		if col.Type == Number {
+			t.Blocks = append(t.Blocks, Block{Kind: "card", Label: col.Name, Agg: "sum", Of: key})
+		}
+	}
+	measure := "Rows"
+	if k := first[Number]; k != "" {
+		measure = c[k]
+	}
+	if k := first[Text]; k != "" {
+		t.Blocks = append(t.Blocks, Block{Kind: "bar", Label: measure + " by " + c[k], Group: k, Of: first[Number]})
+		t.Filters = append(t.Filters, k)
+	}
+	table := Block{Kind: "table", Label: "Rows", Cols: cols, Limit: 10}
+	if k := first[Date]; k != "" {
+		t.Blocks = append(t.Blocks, Block{Kind: "line", Label: measure + " by month", X: k, Of: first[Number], Wide: true})
+		t.Filters = append(t.Filters, k)
+		table.Label, table.Sort = "Latest rows", k
+	}
+	t.Blocks = append(t.Blocks, table)
+	return t, c
+}
+
 // Templates are every Template, in the order the Lab offers them.
-var Templates = []*Template{Finance}
+var Templates = []*Template{Finance, Inventory, HR, General}
 
 // TemplateByKey finds a Template by its Key, or nil.
 func TemplateByKey(key string) *Template {
