@@ -20,34 +20,49 @@ type deployment struct {
 	Reason    string // why Cave took it down
 }
 
-// deploymentOf loads a Dashboard's Deployment; nil if it was never deployed.
-func (a *App) deploymentOf(r *http.Request, dashboardID int64) (*deployment, error) {
+// deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
+const deploymentColumns = `dep.slug, dep.deployed_at, LEAST(dep.sleeps_at, COALESCE(dep.taken_down_at, dep.sleeps_at)) AS until,
+	dep.sleeps_at > now() AND dep.taken_down_at IS NULL AS awake, dep.taken_down_at IS NOT NULL, dep.takedown_reason`
+
+// scanDeployment scans a row whose columns are lead's targets followed by deploymentColumns.
+func (a *App) scanDeployment(row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
 	var dep deployment
 	var slug string
 	var deployed, until time.Time
-	err := a.db.QueryRowContext(r.Context(), `SELECT slug, deployed_at, LEAST(sleeps_at, COALESCE(taken_down_at, sleeps_at)),
-		sleeps_at > now() AND taken_down_at IS NULL, taken_down_at IS NOT NULL, takedown_reason
-		FROM deployments WHERE dashboard_id = $1`, dashboardID).
-		Scan(&slug, &deployed, &until, &dep.Awake, &dep.TakenDown, &dep.Reason)
+	if err := row.Scan(append(lead, &slug, &deployed, &until, &dep.Awake, &dep.TakenDown, &dep.Reason)...); err != nil {
+		return dep, err
+	}
+	dep.Path = "/d/" + slug + "/"
+	dep.Link = a.publicBaseURL + dep.Path
+	dep.Deployed, dep.Until = deployed.UTC().Format(periodTime), until.UTC().Format(periodTime)
+	return dep, nil
+}
+
+// deploymentOf loads a Dashboard's Deployment; nil if it was never deployed.
+func (a *App) deploymentOf(r *http.Request, dashboardID int64) (*deployment, error) {
+	dep, err := a.scanDeployment(a.db.QueryRowContext(r.Context(), `SELECT `+deploymentColumns+`
+		FROM deployments dep WHERE dep.dashboard_id = $1`, dashboardID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	dep.Path = "/d/" + slug + "/"
-	dep.Link = a.publicBaseURL + dep.Path
-	dep.Deployed, dep.Until = deployed.UTC().Format(periodTime), until.UTC().Format(periodTime)
 	return &dep, nil
 }
 
 // deployTab is the Deploy tab: the facts and a link to the confirm step (?confirm), or the Deployment.
 func (a *App) deployTab(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	a.renderDeployTab(w, r, http.StatusOK, d, r.URL.Query().Has("confirm"))
+	acc, err := a.learnerAccess(r)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	a.renderDeployTab(w, r, http.StatusOK, d, acc, r.URL.Query().Has("confirm"))
 }
 
-func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int, d *dashboard, confirm bool) {
-	p := &dashboardPage{D: d, Tab: "deploy", Confirm: confirm, WouldSleep: time.Now().Add(awakeFor).UTC().Format(periodTime)}
+func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int, d *dashboard, acc labAccess, confirm bool) {
+	p := &dashboardPage{Dashboard: d, Tab: "deploy", Access: acc, Confirm: confirm, WouldSleep: time.Now().Add(awakeFor).UTC().Format(periodTime)}
 	var err error
 	if p.Deployment, err = a.deploymentOf(r, d.ID); err != nil {
 		serverError(w, err)
@@ -61,7 +76,8 @@ const awakeFor = 7 * 24 * time.Hour
 
 // deployDashboard puts a Dashboard online once, counting it against the active Plan period's allowance.
 func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if !a.labOpen(w, r) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
 		return
 	}
 	if d.Dataset == nil {
@@ -70,12 +86,6 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	}
 	if r.FormValue("confirm") != "yes" {
 		http.Redirect(w, r, dashboardURL(d)+"/deploy?confirm", http.StatusSeeOther)
-		return
-	}
-	learner, _ := a.currentLearner(r)
-	acc, err := a.labAccessOf(r.Context(), learner.ID)
-	if err != nil {
-		serverError(w, err)
 		return
 	}
 	slug, err := newToken()
@@ -104,7 +114,8 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	case deployed:
 	case left <= 0:
 		_ = tx.Rollback()
-		a.renderDeployTab(w, r, http.StatusUnprocessableEntity, d, false)
+		acc.Period.DeploymentsLeft = left
+		a.renderDeployTab(w, r, http.StatusUnprocessableEntity, d, acc, false)
 		return
 	default:
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, period_id, slug, sleeps_at)
@@ -162,17 +173,12 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 
 // adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when the Learner deleted it.
 type adminDeployment struct {
+	deployment
 	ID        int64
 	Dashboard string
 	Template  string
 	Owner     string
 	Email     string
-	Path      string
-	Link      string
-	Until     string // when it sleeps, slept or was taken down
-	Awake     bool
-	TakenDown bool
-	Reason    string
 }
 
 type adminDeploymentsPage struct {
@@ -187,8 +193,7 @@ func (a *App) adminDeployments(w http.ResponseWriter, r *http.Request) {
 // ponytail: lists every Deployment on one page; add paging when the list gets long.
 func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), COALESCE(d.template, ''), l.name, l.email,
-		dep.slug, LEAST(dep.sleeps_at, COALESCE(dep.taken_down_at, dep.sleeps_at)) AS until,
-		dep.sleeps_at > now() AND dep.taken_down_at IS NULL AS awake, dep.taken_down_at IS NOT NULL, dep.takedown_reason
+		`+deploymentColumns+`
 		FROM deployments dep
 		JOIN plan_periods pp ON pp.id = dep.period_id
 		JOIN learners l ON l.id = pp.learner_id
@@ -202,19 +207,14 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	p := &adminDeploymentsPage{pageBase: pageBase{Error: msg}}
 	for rows.Next() {
 		var dep adminDeployment
-		var slug string
-		var until time.Time
-		if err := rows.Scan(&dep.ID, &dep.Dashboard, &dep.Template, &dep.Owner, &dep.Email, &slug, &until,
-			&dep.Awake, &dep.TakenDown, &dep.Reason); err != nil {
+		var err error
+		if dep.deployment, err = a.scanDeployment(rows, &dep.ID, &dep.Dashboard, &dep.Template, &dep.Owner, &dep.Email); err != nil {
 			serverError(w, err)
 			return
 		}
 		if dep.Template != "" {
 			dep.Template = templateName(dep.Template)
 		}
-		dep.Path = "/d/" + slug + "/"
-		dep.Link = a.publicBaseURL + dep.Path
-		dep.Until = until.UTC().Format(periodTime)
 		p.Deployments = append(p.Deployments, dep)
 	}
 	if err := rows.Err(); err != nil {

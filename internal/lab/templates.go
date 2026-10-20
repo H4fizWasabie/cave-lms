@@ -130,7 +130,7 @@ var HR = &Template{
 		{Kind: "donut", Label: "Status split", Group: "status"},
 		{Kind: "table", Label: "Staff", Cols: []string{"name", "department", "joined", "status", "gender"}, Sort: "joined"},
 	},
-	Filters: []string{"department", "status", "gender"},
+	Filters: []string{"department", "status", "gender", "joined"},
 	Sample:  hrSample,
 }
 
@@ -227,17 +227,25 @@ func (t *Template) Guess(d *Dataset) Choices {
 // blankType is the type of the first blank one of whose guesses is name.
 func (t *Template) blankType(name string) (Type, bool) {
 	for _, b := range t.Blanks {
-		for _, g := range b.Guess {
-			if strings.EqualFold(name, g) {
-				return b.Type, true
-			}
+		if b.Named(name) {
+			return b.Type, true
 		}
 	}
 	return "", false
 }
 
-// sampleName is the blank's column name in the Sample: its first guess, capitalised.
-func (b Blank) sampleName() string {
+// Named reports whether col is one of the names Cave guesses for the blank.
+func (b Blank) Named(col string) bool {
+	for _, g := range b.Guess {
+		if strings.EqualFold(col, g) {
+			return true
+		}
+	}
+	return false
+}
+
+// SampleName is the blank's column name in the Sample: its first guess, capitalised.
+func (b Blank) SampleName() string {
 	if len(b.Guess) == 0 {
 		return b.Label
 	}

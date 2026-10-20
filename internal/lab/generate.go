@@ -28,7 +28,8 @@ type chosenColumn struct {
 
 // Generate writes a Dashboard: index.html, which loads charts.js and data.json beside it, and
 // data.json, the Dataset as one object per row. Blocks that need a skipped blank are left out.
-// Choices that do not fit the Dataset give an error worded for the Learner.
+// Choices that do not fit the Dataset give an error worded for the Learner; blank cells in a
+// column chosen for a required blank give Errors, one per cell.
 func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []byte, err error) {
 	if t.Build != nil {
 		t, c = t.Build(d)
@@ -37,7 +38,7 @@ func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []by
 	for _, col := range d.Columns {
 		types[col.Name] = col.Type
 	}
-	columns := map[string]chosenColumn{}
+	columns, required := map[string]chosenColumn{}, map[string]bool{}
 	for _, b := range t.Blanks {
 		col, ok := c[b.Key]
 		switch {
@@ -51,6 +52,18 @@ func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []by
 			return nil, nil, fmt.Errorf("%s needs a %s column, and %s holds %s.", b.Label, b.Type, col, types[col])
 		}
 		columns[b.Key] = chosenColumn{Name: col, Type: b.Type, Money: b.Money}
+		required[col] = required[col] || b.Required
+	}
+	var blanks Errors
+	for ri, row := range d.Rows {
+		for ci, v := range row {
+			if v == nil && required[d.Columns[ci].Name] {
+				blanks = append(blanks, emptyCell(d.rowNumber(ri), d.Columns[ci].Name))
+			}
+		}
+	}
+	if blanks != nil {
+		return nil, nil, blanks
 	}
 
 	var blocks []Block

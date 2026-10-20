@@ -138,24 +138,28 @@ func (a *App) withDashboard(h func(http.ResponseWriter, *http.Request, *dashboar
 	})
 }
 
-// labOpen applies the Lab access rule to a request that builds or changes something,
-// answering 403 when the Learner may not.
-func (a *App) labOpen(w http.ResponseWriter, r *http.Request) bool {
+// learnerAccess applies the Lab access rule to the logged-in Learner.
+func (a *App) learnerAccess(r *http.Request) (labAccess, error) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
-		return false
+		return labAccess{}, err
 	}
-	acc, err := a.labAccessOf(r.Context(), learner.ID)
+	return a.labAccessOf(r.Context(), learner.ID)
+}
+
+// labOpen applies the Lab access rule to a request that builds or changes something,
+// answering 403 when the Learner may not. ok is false when it has answered.
+func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok bool) {
+	acc, err := a.learnerAccess(r)
 	if err != nil {
 		serverError(w, err)
-		return false
+		return acc, false
 	}
 	if !acc.Open() {
 		a.render(w, r, http.StatusForbidden, "message", page{Title: "The Lab is locked",
 			Message: "Building, uploading and deploying need a Plan and a Course that includes the Lab. See the Lab page for how to unlock it."})
 	}
-	return acc.Open()
+	return acc, acc.Open()
 }
 
 // newDashboardPage is /lab/new: pick a Template, see its blanks, download its Sample, name the Dashboard.
@@ -181,7 +185,7 @@ func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status 
 }
 
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
-	if !a.labOpen(w, r) {
+	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
 	p := &newDashboardPage{pageBase: pageBase{Title: "New Dashboard"}, Templates: lab.Templates, Picked: r.URL.Query().Get("t")}
@@ -192,7 +196,7 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
-	if !a.labOpen(w, r) {
+	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
 	p := &newDashboardPage{pageBase: pageBase{Title: "New Dashboard"}, Templates: lab.Templates,
@@ -207,7 +211,11 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.renderNewDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return
 	}
-	learner, _ := a.currentLearner(r)
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
 	var id string
 	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, template, name) VALUES ($1, $2, $3)
 		RETURNING id`, learner.ID, p.Picked, p.Name).Scan(&id); err != nil {
@@ -229,12 +237,13 @@ func dashboardNameError(name string) string {
 
 // renameDashboard changes a Dashboard's name; the rename tab is its form.
 func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if !a.labOpen(w, r) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
 		return
 	}
 	name := strings.TrimSpace(r.FormValue("name"))
 	if msg := dashboardNameError(name); msg != "" {
-		p := &dashboardPage{D: d, Tab: "rename"}
+		p := &dashboardPage{Dashboard: d, Tab: "rename", Access: acc}
 		p.Error = msg
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return
@@ -249,7 +258,7 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 // deleteDashboard deletes a Dashboard and its Dataset; the delete tab asks first. Its Deployment's link
 // then answers "not found", and the Deployment still counts against its period.
 func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if !a.labOpen(w, r) {
+	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
@@ -272,11 +281,11 @@ func (a *App) labSample(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(t.Sample)
 }
 
-// dashboardPage is the Dashboard workspace: tabs Dataset, Columns, Preview, Under the hood and Deploy,
+// dashboardPage is the Dashboard page: tabs Dataset, Columns, Preview, Under the hood and Deploy,
 // plus Rename and Delete.
 type dashboardPage struct {
 	pageBase
-	D        *dashboard
+	Dashboard *dashboard
 	Tab      string
 	Errors   []string // what was wrong with an upload
 	Upload   string   // the refused file's name
@@ -287,8 +296,9 @@ type dashboardPage struct {
 	Hood     []hoodPart
 	Data     hoodPart // the start of data.json, on the Under the hood tab
 
+	Access labAccess // the caller looks it up; read-only follows from it
+
 	// Deploy tab
-	Access     labAccess
 	Deployment *deployment // nil until deployed
 	Confirm    bool        // the confirm step
 	WouldSleep string      // when a Deployment made now would sleep
@@ -300,33 +310,32 @@ type blankChoice struct {
 	Options []string
 	Chosen  string
 	Guess   string
+	Renamed string // the Sample's column name, when Cave found no column by name and guessed by type
 }
 
 func (a *App) dashboardTab(tab string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
+		acc, err := a.learnerAccess(r)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
 		q := r.URL.Query()
-		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{D: d, Tab: tab, Phone: q.Has("phone"), Again: q.Has("again")})
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"), Again: q.Has("again")})
 	})
 }
 
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
-	p.Title = p.D.Name
-	learner, err := a.currentLearner(r)
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-	acc, err := a.labAccessOf(r.Context(), learner.ID)
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-	p.Access, p.ReadOnly = acc, !acc.Open()
-	if p.Tab == "columns" && p.D.Dataset != nil {
-		guess := p.D.Template.Guess(p.D.Dataset)
-		for _, b := range p.D.Template.Blanks {
-			bc := blankChoice{Blank: b, Chosen: p.D.Choices[b.Key], Guess: guess[b.Key]}
-			for _, c := range p.D.Dataset.Columns {
+	d := p.Dashboard
+	p.Title, p.ReadOnly = d.Name, !p.Access.Open()
+	if p.Tab == "columns" && d.Dataset != nil {
+		guess := d.Template.Guess(d.Dataset)
+		for _, b := range d.Template.Blanks {
+			bc := blankChoice{Blank: b, Chosen: d.Choices[b.Key], Guess: guess[b.Key]}
+			if bc.Guess != "" && !b.Named(bc.Guess) {
+				bc.Renamed = b.SampleName()
+			}
+			for _, c := range d.Dataset.Columns {
 				if c.Type == b.Type {
 					bc.Options = append(bc.Options, c.Name)
 				}
@@ -334,8 +343,8 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.Blanks = append(p.Blanks, bc)
 		}
 	}
-	if p.Tab == "hood" && p.D.Dataset != nil {
-		index, data, err := lab.Generate(p.D.Template, p.D.Name, p.D.Choices, p.D.Dataset)
+	if p.Tab == "hood" && d.Dataset != nil {
+		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -350,12 +359,13 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 // uploadDataset replaces the Dashboard's Dataset with an uploaded .xlsx. The column choices stay when
 // they still fit the new Dataset; otherwise Cave guesses again and sends the Learner to choose columns.
 func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if !a.labOpen(w, r) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
 		return
 	}
 	name := ""
 	refuse := func(errs ...string) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{D: d, Tab: "dataset", Errors: errs, Upload: name})
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Errors: errs, Upload: name})
 	}
 	tooBig := "The file is over 2 MB. The Lab reads files up to 2 MB. Delete some rows, or columns you do not need, and upload again."
 	r.Body = http.MaxBytesReader(w, r.Body, maxDatasetUpload)
@@ -391,7 +401,10 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); err != nil {
+	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); errors.As(err, &problems) {
+		refuse(problems...) // blank cells in a column the Learner chose for a required blank
+		return
+	} else if err != nil {
 		choices, next = d.Template.Guess(ds), dashboardURL(d)+"/columns"
 		if d.Dataset != nil {
 			next += "?again"
@@ -417,7 +430,8 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 
 // saveColumns stores the Learner's column choice for each blank; an empty value skips an optional blank.
 func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if !a.labOpen(w, r) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
 		return
 	}
 	if d.Dataset == nil {
@@ -432,8 +446,13 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset); err != nil {
 		d.Choices = c
-		p := &dashboardPage{D: d, Tab: "columns"}
-		p.Error = err.Error()
+		p := &dashboardPage{Dashboard: d, Tab: "columns", Access: acc}
+		var blanks lab.Errors
+		if errors.As(err, &blanks) {
+			p.Errors = blanks
+		} else {
+			p.Error = err.Error()
+		}
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return
 	}
@@ -454,9 +473,7 @@ func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.For
 
 // dashboardFile serves the generated Dashboard to its owner for the preview: index.html, data.json and
 // charts.js side by side, so the page loads the others by relative path. Generated on each request.
-// The preview runs same-origin (it needs the session cookie for data.json), so the policy keeps
-// the page to Cave's own scripts and connections, and to framing by Cave. A Deployment serves the
-// same files under /d/<slug>/ (deploymentFile).
+// A Deployment serves the same files under /d/<slug>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		serveDashboardFile(w, r, d, name, previewCSP)
