@@ -614,3 +614,16 @@ func TestGalleryTilesShowThumbnails(t *testing.T) {
 		expectStatus(t, res, body, http.StatusOK, thumb)
 	}
 }
+
+// The Gallery tile and the item page name the picture alike, so the browser grows one into the other.
+func TestAGalleryTileAndItsPageShareTheTransitionName(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	path := s.uploadAs("Poster", "everyone", pngFile)
+	name := `view-transition-name: g-` + strings.TrimPrefix(path, "/gallery/")
+
+	res, body := s.get("/gallery")
+	expectStatus(t, res, body, http.StatusOK, name)
+	res, body = s.get(path)
+	expectStatus(t, res, body, http.StatusOK, name)
+}
