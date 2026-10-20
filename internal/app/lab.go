@@ -56,6 +56,7 @@ type labPage struct {
 	Access      labAccess
 	PaymentLink string   // where Upgrade goes; empty shows "Contact us to upgrade"
 	LabCourses  []course // open Courses that include the Lab, offered to a Learner with a Plan but no such Course
+	Dashboards  []dashboardRow
 }
 
 func (a *App) lab(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +72,8 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		switch {
+		case p.Access.Open():
+			p.Dashboards, err = a.labDashboards(r, learner.ID)
 		case p.Access.Period == nil:
 			// ponytail: Upgrade goes to the first Plan with a payment link; one button per Plan if the Admin sells several.
 			err = a.db.QueryRowContext(r.Context(),

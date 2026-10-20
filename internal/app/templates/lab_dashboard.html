@@ -1,0 +1,88 @@
+{{define "title"}}{{.D.Name}} · Lab · CAVELMS{{end}}
+{{define "content"}}
+    {{- $url := printf "/lab/dashboards/%d" .D.ID}}
+    <div class="wrap page-pad">
+      <p class="crumbs"><a href="/lab">Lab</a> / {{.D.Template.Name}} Template</p>
+      <div class="page-head"><h1>{{.D.Name}}</h1></div>
+      <nav class="ws-tabs" aria-label="Dashboard steps">
+        <a class="ws-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>1. Dataset</a>
+        {{- if .D.Dataset}}
+        <a class="ws-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>2. Columns</a>
+        <a class="ws-tab" href="{{$url}}/preview"{{if eq .Tab "preview"}} aria-current="page"{{end}}>3. Preview</a>
+        {{- else}}
+        <span class="ws-tab is-off" title="Upload a Dataset first">2. Columns</span>
+        <span class="ws-tab is-off" title="Upload a Dataset first">3. Preview</span>
+        {{- end}}
+      </nav>
+
+      {{- if eq .Tab "dataset"}}
+      <div class="ws-split">
+        <section>
+          {{- with .D.Dataset}}
+          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.D.File}}</strong><span class="muted">{{len .Rows}} rows · {{len .Columns}} columns · changed {{$.D.Updated}}</span></div></div>
+          <h2 class="h-md">Upload a new Dataset</h2>
+          <p class="muted">A new upload replaces the old one.</p>
+          {{- else}}
+          <h2 class="h-md">Upload your Dataset</h2>
+          <p class="muted">Your edited copy of the Sample. Cave checks it against the {{.D.Template.Name}} Template.</p>
+          {{- end}}
+          {{- with .Errors}}
+          <div class="ds-err" role="alert">
+            <p><strong>We could not read that file.</strong></p>
+            <ul>{{range .}}<li>{{.}}</li>{{end}}</ul>
+            <p>Fix this in Excel, save, and upload again. Nothing changed.</p>
+          </div>
+          {{- end}}
+          <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
+            <div class="field"><label for="file">Excel file</label><input id="file" type="file" name="file" accept=".xlsx" required><small>.xlsx only · first sheet · row 1 is the column names · up to 5,000 rows and 2 MB</small></div>
+            <div class="form-foot"><button class="btn btn-solid">Upload</button></div>
+          </form>
+        </section>
+        <aside class="panel">
+          <span class="panel-k">{{.D.Template.Name}} Template</span>
+          <h2 class="h-sm">Start from the Sample</h2>
+          <p class="panel-msg">Download it, open it in Excel, add rows or change numbers, save, and upload it here. Required:{{range $i, $b := .D.Template.Blanks}}{{if $b.Required}} {{$b.Label}}{{end}}{{end}}.</p>
+          <a class="btn btn-ghost btn-block" href="/lab/samples/{{.D.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the Sample</a>
+        </aside>
+      </div>
+
+      {{- else if not .D.Dataset}}
+      <p class="empty">Upload a Dataset first. <a href="{{$url}}">Go to the Dataset step</a>.</p>
+
+      {{- else if eq .Tab "columns"}}
+      <form class="form ws-narrow" method="post" action="{{$url}}/columns">
+        <div>
+          <h2 class="h-md">Which column fills each blank?</h2>
+          <p class="muted">Cave read {{len .D.Dataset.Rows}} rows from {{.D.File}} and guessed from the column names and types. Change any choice; skip an optional blank to hide the parts that need it.</p>
+        </div>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        {{- range .Blanks}}
+        <div class="field map-row">
+          <label for="m-{{.Key}}">{{.Label}}</label>
+          <select id="m-{{.Key}}" name="{{.Key}}">
+            {{- if not .Required}}
+            <option value=""{{if not .Chosen}} selected{{end}}>Skip</option>
+            {{- end}}
+            {{- $chosen := .Chosen}}
+            {{- range .Options}}
+            <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
+            {{- end}}
+          </select>
+          <small>{{if .Required}}Required{{else}}Optional{{end}} · {{.Help}}{{with .Guess}} · Cave's guess: {{.}}{{end}}</small>
+        </div>
+        {{- end}}
+        <div class="form-foot"><button class="btn btn-solid">Save and preview</button></div>
+      </form>
+
+      {{- else if eq .Tab "preview"}}
+      <div class="pv-bar">
+        <p class="muted">This is what people with the link will see. Try the filters.</p>
+        <nav class="ws-tabs" aria-label="Preview width">
+          <a class="ws-tab" href="{{$url}}/preview"{{if not .Phone}} aria-current="page"{{end}}>Desktop</a>
+          <a class="ws-tab" href="{{$url}}/preview?phone"{{if .Phone}} aria-current="page"{{end}}>Phone</a>
+        </nav>
+      </div>
+      <div class="pv-stage{{if .Phone}} is-phone{{end}}"><iframe class="pv-frame" src="{{$url}}/view/" title="Dashboard preview"></iframe></div>
+      {{- end}}
+    </div>
+{{end}}

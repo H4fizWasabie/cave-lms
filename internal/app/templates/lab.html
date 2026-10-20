@@ -2,13 +2,28 @@
 {{define "content"}}
     <div class="wrap page-pad">
       {{- if .Access.Open}}{{with .Access.Period}}
-      <div class="page-head"><h1>Lab</h1><p>Build Dashboards from Samples and put them online.</p></div>
+      <div class="page-head page-head-row">
+        <div><h1>Lab</h1><p>Build Dashboards from Samples and put them online.</p></div>
+        <a class="btn btn-solid" href="/lab/new">New Dashboard</a>
+      </div>
       <div class="lab-plan">
         <div><span class="panel-k">Plan</span><strong>{{.PlanName}}</strong><span class="muted">Ends {{.Ends}}</span></div>
         <div><span class="panel-k">Deployments left this period</span><strong>{{.DeploymentsLeft}} of {{.Deployments}}</strong><span class="muted">Building Dashboards is unlimited</span></div>
       </div>
       <h2 class="h-md">My Dashboards</h2>
-      <ul class="mc-list"><li class="empty">No Dashboards yet.</li></ul>
+      <ul class="mc-list">
+        {{- range $.Dashboards}}
+        <li class="mc-row mc-row-plain">
+          <div class="mc-main">
+            <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
+            <ul class="meta"><li>{{.Template}} Template</li><li>Changed {{.Updated}}</li></ul>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">Open</a>
+        </li>
+        {{- else}}
+        <li class="empty">No Dashboards yet. <a href="/lab/new">Start one from a Template</a>.</li>
+        {{- end}}
+      </ul>
       {{- end}}{{else}}
       <section class="lab-hero">
         <div>
