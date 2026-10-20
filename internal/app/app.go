@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -192,7 +193,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	a.handler.ServeHTTP(w, r)
+	lookup := sync.OnceValues(func() (*learner, error) { return a.lookUpLearner(r) })
+	a.handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), learnerKey{}, lookup)))
 }
 
 func (a *App) Close() error {
