@@ -1,0 +1,33 @@
+{{define "title"}}Plans · Admin · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" "plans"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin: Plans</h1>
+            <p>A Plan sells Lab access for a number of days. Assign one to a Learner after they pay.</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-ghost" href="/admin/plans/periods"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg>Assign to a Learner</a><a class="btn btn-solid" href="/admin/plans/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>New Plan</a></div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>Name</th><th>Length</th><th>Allowance per period</th><th>Payment link</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              {{range .Plans}}
+              <tr>
+                <td>{{.Name}}</td>
+                <td>{{.Days}} days</td>
+                <td>{{.Deployments}} Deployments</td>
+                <td>{{with .PaymentLink}}<a href="{{.}}">{{.}}</a>{{else}}None: Learners see "Contact us to upgrade"{{end}}</td>
+                <td class="actions"><a class="btn btn-quiet btn-sm" href="/admin/plans/{{.ID}}/edit">Edit</a></td>
+              </tr>
+              {{else}}
+              <tr><td colspan="5">No Plans yet.</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}
