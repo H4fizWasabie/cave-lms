@@ -152,9 +152,19 @@ func (a *App) loadGalleryItem(ctx context.Context, id int64) (galleryItem, error
 	return scanGalleryItem(a.db.QueryRowContext(ctx, `SELECT `+galleryColumns+` FROM gallery_items WHERE id = $1`, id).Scan)
 }
 
-// galleryItemsFor lists the Gallery items the viewer may see, newest first. onlyPromotional narrows the list to promotional items.
-func (a *App) galleryItemsFor(ctx context.Context, viewer *learner, onlyPromotional bool) ([]galleryItem, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT `+galleryColumns+` FROM gallery_items WHERE promotional OR NOT $1 ORDER BY created_at DESC, id DESC`, onlyPromotional)
+// galleryItemsFor lists the Gallery items the viewer may see, newest first.
+func (a *App) galleryItemsFor(ctx context.Context, viewer *learner) ([]galleryItem, error) {
+	return a.visibleGalleryItems(ctx, viewer, `TRUE`)
+}
+
+// promotionalItemsFor lists the promotional Gallery items the viewer may see, newest first.
+func (a *App) promotionalItemsFor(ctx context.Context, viewer *learner) ([]galleryItem, error) {
+	return a.visibleGalleryItems(ctx, viewer, `promotional`)
+}
+
+// visibleGalleryItems lists the Gallery items matching the SQL condition where that the viewer may see, newest first.
+func (a *App) visibleGalleryItems(ctx context.Context, viewer *learner, where string) ([]galleryItem, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT `+galleryColumns+` FROM gallery_items WHERE `+where+` ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +205,7 @@ func (a *App) gallery(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	items, err := a.galleryItemsFor(r.Context(), learner, false)
+	items, err := a.galleryItemsFor(r.Context(), learner)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -393,7 +403,7 @@ func (a *App) adminGallery(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	items, err := a.galleryItemsFor(r.Context(), learner, false)
+	items, err := a.galleryItemsFor(r.Context(), learner)
 	if err != nil {
 		serverError(w, err)
 		return

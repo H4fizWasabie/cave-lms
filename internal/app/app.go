@@ -207,7 +207,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		serverError(w, err)
 		return
 	}
-	promo, err := a.galleryItemsFor(r.Context(), learner, true)
+	promo, err := a.promotionalItemsFor(r.Context(), learner)
 	if err != nil {
 		serverError(w, err)
 		return

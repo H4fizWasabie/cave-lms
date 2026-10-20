@@ -288,6 +288,8 @@ func TestUnknownQuestionIsNotFound(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "There is no Exam question at this address.")
 	res, body = s.get("/admin/courses/" + id + "/exam/questions/abc/edit")
 	expectStatus(t, res, body, http.StatusNotFound, "There is no Exam question at this address.")
+	res, body = s.get("/admin/courses/" + id + "/exam/questions/0/edit")
+	expectStatus(t, res, body, http.StatusNotFound, "There is no Exam question at this address.")
 }
 
 func TestDeletingACourseRemovesItsExam(t *testing.T) {
