@@ -57,10 +57,14 @@
             <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
             <ul class="meta"><li>{{.Template}} Template</li><li>Changed {{.Updated}}</li></ul>
           </div>
-          <div class="lab-row-act">
+          <div class="row-actions">
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">Open</a>
             {{- if .HasData}}
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download</a>
+            {{- end}}
+            {{- if $.Access.Open}}
+            <a class="btn btn-quiet btn-sm" href="/lab/dashboards/{{.ID}}/rename" title="Rename"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-pencil-simple"/></svg><span class="sr">Rename</span></a>
+            <a class="btn btn-danger btn-sm" href="/lab/dashboards/{{.ID}}/delete" title="Delete"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">Delete</span></a>
             {{- end}}
           </div>
         </li>

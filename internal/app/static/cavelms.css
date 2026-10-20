@@ -652,6 +652,15 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .hood-note { display: flex; gap: .8rem; padding: .9rem 1.1rem; align-items: flex-start; }
 .hood-note .step-n { flex-shrink: 0; display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 99px; background: var(--brand-gold); color: var(--brand-ink); font-family: var(--font-body); font-size: .86rem; margin: 0; }
 .hood-note p { color: var(--muted); font-size: .92rem; margin: .15rem 0 0; }
-.lab-row-act { display: flex; gap: .4rem; }
 @media (max-width: 999px) { .hood-row { grid-template-columns: 1fr; } }
 .callout .cta-row { margin-top: .8rem; }
+
+/* Lab: Deploy tab */
+.dep { display: grid; gap: 1rem; }
+.dep h2 { display: flex; align-items: center; gap: .5rem; }
+.dep-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: .9rem; }
+.dep-facts li { display: flex; gap: .8rem; align-items: flex-start; }
+.dep-facts .i { flex: none; width: 1.4rem; height: 1.4rem; margin-top: .1rem; color: var(--brand-gold-deep); }
+.dep-link { display: flex; gap: .6rem; align-items: center; }
+.dep-link input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: .9rem; }
+.row-actions { display: flex; gap: .4rem; align-items: center; }
