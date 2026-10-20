@@ -1,0 +1,11 @@
+# Installed to /etc/systemd/system/cave-lms-backup.timer by deploy/deploy.sh. Runs at 03:00 VPS time (MYT).
+[Unit]
+Description=Run the Cave LMS backup every night
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# Run at boot if the VPS was off at 03:00.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
