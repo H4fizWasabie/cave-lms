@@ -15,7 +15,7 @@ A person with an account on the site. Anyone can become one.
 _Avoid_: User, member, student
 
 **Admin**:
-The site owner (the client), the only person who builds Courses or uploads Gallery items.
+A person who runs the site: builds Courses, uploads Gallery items, sells Plans and takes down Deployments. Can use the Lab without a Plan.
 _Avoid_: Instructor, teacher, uploader
 
 **Registration**:
@@ -81,7 +81,7 @@ _Avoid_: Diploma, award
 ### Lab
 
 **Lab**:
-The area where Learners build Dashboards. Open to a Learner with an active Plan who is enrolled in a Course the Admin has marked as including the Lab.
+The area where Learners build Dashboards. Open to a Learner with an active Plan who is enrolled in a Course the Admin has marked as including the Lab. Always open to the Admin.
 _Avoid_: Workspace, studio, builder
 
 **Plan**:

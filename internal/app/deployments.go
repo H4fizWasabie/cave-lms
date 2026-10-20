@@ -75,6 +75,7 @@ func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int
 const awakeFor = 7 * 24 * time.Hour
 
 // deployDashboard puts a Dashboard online once, counting it against the active Plan period's allowance.
+// The Admin's Deployments count against no period.
 func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -101,25 +102,34 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		return
 	}
 	defer tx.Rollback()
-	// Locking the period row makes two Deploys at once take turns, so the allowance holds.
-	var left int
+	// Locking the Dashboard row makes two Deploys of it take turns, so it deploys once.
 	var deployed bool
-	if err := tx.QueryRowContext(r.Context(), `SELECT pp.deployments - (SELECT count(*) FROM deployments WHERE period_id = pp.id),
-		EXISTS (SELECT 1 FROM deployments WHERE dashboard_id = $2) FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE OF pp`,
-		acc.Period.ID, d.ID).Scan(&left, &deployed); err != nil {
+	if err := tx.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM deployments WHERE dashboard_id = d.id)
+		FROM dashboards d WHERE d.id = $1 FOR UPDATE`, d.ID).Scan(&deployed); err != nil {
 		serverError(w, err)
 		return
 	}
+	var period *int64 // nil for the Admin, whose Deployments count against no period
+	var left int
+	if !acc.Admin && !deployed {
+		period = &acc.Period.ID
+		// Locking the period row makes two Deploys at once take turns, so the allowance holds.
+		if err := tx.QueryRowContext(r.Context(), `SELECT pp.deployments - (SELECT count(*) FROM deployments WHERE period_id = pp.id)
+			FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE`, *period).Scan(&left); err != nil {
+			serverError(w, err)
+			return
+		}
+	}
 	switch {
 	case deployed:
-	case left <= 0:
+	case !acc.Admin && left <= 0:
 		_ = tx.Rollback()
 		acc.Period.DeploymentsLeft = left
 		a.renderDeployTab(w, r, http.StatusUnprocessableEntity, d, acc, false)
 		return
 	default:
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, period_id, slug, sleeps_at)
-			VALUES ($1, $2, $3, now() + $4 * interval '1 second')`, d.ID, acc.Period.ID, slug, awakeFor.Seconds()); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, period_id, slug, sleeps_at)
+			SELECT $1, learner_id, $2, $3, now() + $4 * interval '1 second' FROM dashboards WHERE id = $1`, d.ID, period, slug, awakeFor.Seconds()); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -195,8 +205,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), COALESCE(d.template, ''), l.name, l.email,
 		`+deploymentColumns+`
 		FROM deployments dep
-		JOIN plan_periods pp ON pp.id = dep.period_id
-		JOIN learners l ON l.id = pp.learner_id
+		JOIN learners l ON l.id = dep.learner_id
 		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
 		ORDER BY awake DESC, until DESC, dep.id DESC`)
 	if err != nil {
