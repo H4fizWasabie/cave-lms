@@ -3,8 +3,10 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -211,8 +213,31 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
 }
 
+// staticVersions maps each file under static/ to a short hash of its content, so a changed file gets a new URL.
+var staticVersions = func() map[string]string {
+	versions := map[string]string{}
+	_ = fs.WalkDir(staticFiles, "static", func(name string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		content, err := staticFiles.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(content)
+		versions[strings.TrimPrefix(name, "static/")] = hex.EncodeToString(sum[:])[:12]
+		return nil
+	})
+	return versions
+}()
+
+// staticURL is the fingerprinted address of a file under static/, for templates: {{static "cavelms.css"}}.
+func staticURL(name string) string {
+	return "/static/" + name + "?v=" + staticVersions[name]
+}
+
 // staticHandler serves the embedded stylesheet, fonts and images under /static/, without directory listings.
-// ponytail: file names carry no content hash, so caching is one day; fingerprint names if changes must show sooner.
+// A fingerprinted request (?v=) never changes, so browsers may keep it for a year; anything else is kept an hour.
 func staticHandler() http.Handler {
 	files, _ := fs.Sub(staticFiles, "static")
 	server := http.StripPrefix("/static/", http.FileServerFS(files))
@@ -221,14 +246,18 @@ func staticHandler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		if r.URL.Query().Has("v") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+		}
 		server.ServeHTTP(w, r)
 	})
 }
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
