@@ -24,7 +24,7 @@ type activePeriod struct {
 	PlanName        string
 	Ends            string // formatted as periodTime
 	Deployments     int    // the period's allowance
-	DeploymentsLeft int
+	DeploymentsLeft int    // the allowance less Deployments counted against this period
 }
 
 // labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
@@ -33,16 +33,16 @@ func (a *App) labAccessOf(ctx context.Context, learnerID int64) (labAccess, erro
 	var p activePeriod
 	var ends time.Time
 	err := a.db.QueryRowContext(ctx, `
-		SELECT pp.id, p.name, pp.ends_at, pp.deployments FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
+		SELECT pp.id, p.name, pp.ends_at, pp.deployments,
+			pp.deployments - (SELECT count(*) FROM deployments d WHERE d.period_id = pp.id) FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
 		WHERE pp.learner_id = $1 AND pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL
-		ORDER BY pp.starts_at LIMIT 1`, learnerID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments)
+		ORDER BY pp.starts_at LIMIT 1`, learnerID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.DeploymentsLeft)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 	case err != nil:
 		return acc, err
 	default:
 		p.Ends = ends.UTC().Format(periodTime)
-		p.DeploymentsLeft = p.Deployments // Deployments made in this period are subtracted once Deploy exists
 		acc.Period = &p
 	}
 	err = a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM enrollments e JOIN courses c ON c.id = e.course_id
