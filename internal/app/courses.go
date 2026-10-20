@@ -17,9 +17,10 @@ type course struct {
 	Description string
 	StartDate   string
 	Open        bool
+	IncludesLab bool
 }
 
-const courseColumns = `id, title, description, COALESCE(start_date::text, ''), is_open`
+const courseColumns = `id, title, description, COALESCE(start_date::text, ''), is_open, includes_lab`
 
 // courses lists every Course for Visitors and Learners.
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
@@ -100,8 +101,8 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(),
-		`INSERT INTO courses (title, description, start_date) VALUES ($1, $2, NULLIF($3, '')::date)`,
-		c.Title, c.Description, c.StartDate)
+		`INSERT INTO courses (title, description, start_date, includes_lab) VALUES ($1, $2, NULLIF($3, '')::date, $4)`,
+		c.Title, c.Description, c.StartDate, c.IncludesLab)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -121,8 +122,8 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(),
-		`UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date WHERE id = $1`,
-		c.ID, c.Title, c.Description, c.StartDate)
+		`UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date, includes_lab = $5 WHERE id = $1`,
+		c.ID, c.Title, c.Description, c.StartDate, c.IncludesLab)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -196,7 +197,7 @@ func (a *App) courseFor(w http.ResponseWriter, r *http.Request) (course, bool) {
 func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
 	var c course
 	err := a.db.QueryRowContext(ctx, `SELECT `+courseColumns+` FROM courses WHERE id = $1`, id).
-		Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open)
+		Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open, &c.IncludesLab)
 	return c, err
 }
 
@@ -218,7 +219,7 @@ func (a *App) queryCourses(r *http.Request, query string, args ...any) ([]course
 	var list []course
 	for rows.Next() {
 		var c course
-		if err := rows.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open); err != nil {
+		if err := rows.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open, &c.IncludesLab); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
@@ -231,6 +232,7 @@ func courseFromForm(r *http.Request) (c course, msg string) {
 	c.Title = strings.TrimSpace(r.PostFormValue("title"))
 	c.Description = strings.TrimSpace(r.PostFormValue("description"))
 	c.StartDate = strings.TrimSpace(r.PostFormValue("start_date"))
+	c.IncludesLab = r.PostFormValue("includes_lab") == "on"
 	switch {
 	case c.Title == "":
 		msg = "Enter a title."

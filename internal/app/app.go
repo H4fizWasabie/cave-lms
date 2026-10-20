@@ -142,6 +142,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
 	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
 	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
+	mux.HandleFunc("GET /lab", a.lab)
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
