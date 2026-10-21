@@ -100,9 +100,10 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 	var until sql.NullTime
 	var prompt *string
 	var question string
-	if err := a.db.QueryRowContext(r.Context(), `SELECT `+snippetCapColumns+`, c.user_master_prompt, s.master_prompt_question
+	prompts := newMasterPrompts()
+	if err := a.db.QueryRowContext(r.Context(), `SELECT `+snippetCapColumns+`, c.user_master_prompt, s.master_prompt_question, `+masterPromptColumns+`
 		FROM cavetext_accounts c CROSS JOIN cavetext_settings s WHERE c.learner_id = $1`, l.ID).
-		Scan(append(c.dest(&until), &prompt, &question)...); err != nil {
+		Scan(append(append(c.dest(&until), &prompt, &question), prompts.dest()...)...); err != nil {
 		fail(fmt.Errorf("read CaveText account: %w", err))
 		return
 	}
@@ -112,9 +113,10 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 		fail(fmt.Errorf("count Snippets: %w", err))
 		return
 	}
-	// A Pro Learner's cap is unlimited: null. proUntil is null without Pro.
+	// A Pro Learner's cap is unlimited: null. proUntil is null without Pro. The Image and Dashboard master prompts go
+	// in full to Pro only; a free Learner gets their names, to show them locked.
 	me := map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early, "pro": c.Pro, "proUntil": nil,
-		"userMasterPrompt": prompt, "masterPromptQuestion": question}
+		"userMasterPrompt": prompt, "masterPromptQuestion": question, "masterPrompts": prompts.forLearner(c.Pro)}
 	if c.Pro {
 		me["cap"], me["proUntil"] = nil, c.ProUntil
 	}

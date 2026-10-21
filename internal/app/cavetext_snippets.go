@@ -134,7 +134,12 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(s, others); problem != "" {
+	reserved, err := reservedShortcuts(r.Context(), tx)
+	if err != nil {
+		fail(err)
+		return
+	}
+	if problem := snippetProblem(s, clashList(reserved, others, 0)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -187,7 +192,12 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(s, others); problem != "" {
+	reserved, err := reservedShortcuts(r.Context(), tx)
+	if err != nil {
+		fail(err)
+		return
+	}
+	if problem := snippetProblem(s, clashList(reserved, others, 0)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -211,7 +221,7 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 
 // replaceCaveTextSnippets replaces the Learner's whole Snippet set (an import) in one transaction. A set over the cap
 // is cut to the cap first, and the answer says how many were skipped. Every kept Snippet is then checked against the
-// kept ones before it; one refused and nothing is written.
+// master prompts' shortcuts and the kept ones before it; one refused and nothing is written.
 func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	var in struct{ Snippets []snippetIn }
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10<<20)).Decode(&in); err != nil {
@@ -233,14 +243,21 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		fail(err)
 		return
 	}
+	reserved, err := reservedShortcuts(r.Context(), tx)
+	if err != nil {
+		fail(err)
+		return
+	}
 	skipped := len(in.Snippets) - c.Keep(len(in.Snippets))
 	list := make([]caveTextSnippet, len(in.Snippets)-skipped)
+	before := clashList(reserved, nil, len(list)) // grows by each kept Snippet once it passes
 	for i := range list {
 		list[i] = in.Snippets[i].snippet()
-		if problem := snippetProblem(list[i], list[:i]); problem != "" {
+		if problem := snippetProblem(list[i], before); problem != "" {
 			writeJSONError(w, http.StatusUnprocessableEntity, problem)
 			return
 		}
+		before = append(before, list[i])
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM cavetext_snippets WHERE learner_id = $1`, l.ID); err != nil {
 		fail(err)

@@ -262,7 +262,7 @@ func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
 		res, body = ada.get(path)
 		expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
 	}
-	for _, path := range []string{give, end, "/admin/cavetext/settings"} {
+	for _, path := range []string{give, end, "/admin/cavetext/settings", "/admin/cavetext/master-prompts"} {
 		res, body := visitor.post(path, url.Values{"price": {"0"}})
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 		res, body = ada.post(path, url.Values{"price": {"0"}})
@@ -284,7 +284,8 @@ func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
 	for _, c := range []struct {
 		path string
 		form url.Values
-	}{{give, nil}, {"/admin/cavetext/settings", url.Values{"price": {"1"}, "payment_link": {"https://evil.example/pay"}}}} {
+	}{{give, nil}, {"/admin/cavetext/settings", url.Values{"price": {"1"}, "payment_link": {"https://evil.example/pay"}}},
+		{"/admin/cavetext/master-prompts", masterPromptForm("Evil", "/evil", "x", "Dash", "/dash", "y")}} {
 		for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
 			req, _ := http.NewRequest(http.MethodPost, s.server.URL+c.path, strings.NewReader(c.form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
