@@ -127,7 +127,7 @@ func (a *App) withDashboard(h func(http.ResponseWriter, *http.Request, *dashboar
 	return a.requireLearner(func(w http.ResponseWriter, r *http.Request) {
 		d, err := a.ownDashboard(r)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if d == nil {
@@ -152,7 +152,7 @@ func (a *App) learnerAccess(r *http.Request) (labAccess, error) {
 func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok bool) {
 	acc, err := a.learnerAccess(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return acc, false
 	}
 	if !acc.Open() {
@@ -177,7 +177,7 @@ func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status 
 	t := lab.TemplateByKey(p.Picked)
 	var err error
 	if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	p.Guess = t.Guess(p.Sample)
@@ -213,13 +213,13 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	var id string
 	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, template, name) VALUES ($1, $2, $3)
 		RETURNING id`, learner.ID, p.Picked, p.Name).Scan(&id); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/lab/dashboards/"+id, http.StatusSeeOther)
@@ -249,7 +249,7 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET name = $2, updated_at = now() WHERE id = $1`, d.ID, name); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
@@ -262,7 +262,7 @@ func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
@@ -317,7 +317,7 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		acc, err := a.learnerAccess(r)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		q := r.URL.Query()
@@ -346,7 +346,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	if p.Tab == "hood" && d.Dataset != nil {
 		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		p.Hood = hoodParts(string(index))
@@ -396,7 +396,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		return
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	next := dashboardURL(d) + "/preview"
@@ -412,17 +412,17 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	dataset, err := json.Marshal(ds)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	choicesJSON, err := json.Marshal(choices)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET dataset = $2, dataset_file = $3, choices = $4,
 		updated_at = now() WHERE id = $1`, d.ID, dataset, name, choicesJSON); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
@@ -458,12 +458,12 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	choices, err := json.Marshal(c)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET choices = $2, updated_at = now() WHERE id = $1`,
 		d.ID, choices); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, dashboardURL(d)+"/preview", http.StatusSeeOther)
@@ -471,12 +471,12 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 
 func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.FormatInt(d.ID, 10) }
 
-// dashboardFile serves the generated Dashboard to its owner for the preview: index.html, data.json and
+// dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, data.json and
 // charts.js side by side, so the page loads the others by relative path. Generated on each request.
 // A Deployment serves the same files under /d/<slug>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		serveDashboardFile(w, r, d, name, previewCSP)
+		a.serveDashboardFile(w, r, d, name, previewCSP)
 	})
 }
 
@@ -486,7 +486,7 @@ const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style
 
 // demoFile serves a Template's demo, /lab/demo/{key}/: the Template drawn from its Sample with Cave's
 // guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.
-func demoFile(name string) http.HandlerFunc {
+func (a *App) demoFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		t := lab.TemplateByKey(r.PathValue("key"))
 		if t == nil {
@@ -495,15 +495,15 @@ func demoFile(name string) http.HandlerFunc {
 		}
 		ds, err := lab.Read(bytes.NewReader(t.Sample), t)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
-		serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP)
+		a.serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP)
 	}
 }
 
 // serveDashboardFile writes one of a Dashboard's three files; csp is the index page's Content-Security-Policy.
-func serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp string) {
+func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp string) {
 	if name == "charts.js" {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(lab.ChartScript)
@@ -515,7 +515,7 @@ func serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, na
 	}
 	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -531,7 +531,7 @@ func serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, na
 
 // downloadDashboard is the Dashboard as a zip that opens offline: index.html, data.json, charts.js and
 // data.js, the same rows as a script, which the page reads when the browser blocks fetch from a file.
-// Open to the owner with or without Lab access.
+// Open to its Learner with or without Lab access.
 func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if d.Dataset == nil {
 		http.NotFound(w, r)
@@ -539,7 +539,7 @@ func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashb
 	}
 	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	var buf bytes.Buffer
@@ -558,12 +558,12 @@ func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashb
 			_, err = fw.Write(f.body)
 		}
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}
 	if err := zw.Close(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/zip")

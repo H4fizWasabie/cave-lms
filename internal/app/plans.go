@@ -32,7 +32,7 @@ type planFormPage struct {
 func (a *App) adminPlans(w http.ResponseWriter, r *http.Request) {
 	plans, err := a.listPlans(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "admin_plans", &plansPage{Plans: plans})
@@ -60,7 +60,7 @@ func (a *App) createPlan(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO plans (name, days, deployments, payment_link) VALUES ($1, $2, $3, $4)`,
 		p.Name, p.Days, p.Deployments, p.PaymentLink)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/plans", http.StatusSeeOther)
@@ -81,7 +81,7 @@ func (a *App) updatePlan(w http.ResponseWriter, r *http.Request) {
 		`UPDATE plans SET name = $2, days = $3, deployments = $4, payment_link = $5 WHERE id = $1`,
 		p.ID, p.Name, p.Days, p.Deployments, p.PaymentLink)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/plans", http.StatusSeeOther)
@@ -96,7 +96,7 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 		err = a.db.QueryRowContext(r.Context(), `SELECT id, name, days, deployments, payment_link FROM plans WHERE id = $1`, id).
 			Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.PaymentLink)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return p, false
 		}
 	}
@@ -177,7 +177,7 @@ const periodTime = "2006-01-02 15:04 UTC"
 func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 	p, err := a.planPeriodsPage(r, r.URL.Query().Get("email"))
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	status := http.StatusOK
@@ -193,7 +193,7 @@ func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 	p, err := a.planPeriodsPage(r, r.PostFormValue("email"))
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if p.HolderID == 0 {
@@ -211,7 +211,7 @@ func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 		)) AS at) s
 		WHERE p.id = $2`, p.HolderID, planID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
@@ -237,7 +237,7 @@ func (a *App) endPlanPeriod(w http.ResponseWriter, r *http.Request) {
 			`UPDATE plan_periods SET ended_early_at = now() WHERE id = $1 AND ended_early_at IS NULL AND ends_at > now()`, id)
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/plans/periods?email="+url.QueryEscape(email), http.StatusSeeOther)

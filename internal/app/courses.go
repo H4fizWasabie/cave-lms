@@ -26,7 +26,7 @@ const courseColumns = `id, title, description, COALESCE(start_date::text, ''), i
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
 	list, err := a.listCourses(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "courses", page{Courses: list})
@@ -39,31 +39,31 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	enrolled := false
 	if learner != nil {
 		if enrolled, err = a.enrolled(r.Context(), learner.ID, c.ID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}
 	// Everyone sees the published Lesson titles, so they know what the Course contains; only members open them.
 	lessons, err := a.lessonsOf(r.Context(), c.ID, learner != nil && learner.IsAdmin)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	var done, total int
 	if enrolled {
 		if done, total, err = a.courseProgress(r.Context(), learner.ID, c.ID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		completed, err := a.completedLessons(r.Context(), learner.ID, c.ID)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		for i := range lessons {
@@ -76,7 +76,7 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {
 	list, err := a.listCourses(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "admin_courses", page{Courses: list})
@@ -104,7 +104,7 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO courses (title, description, start_date, includes_lab) VALUES ($1, $2, NULLIF($3, '')::date, $4)`,
 		c.Title, c.Description, c.StartDate, c.IncludesLab)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
@@ -125,7 +125,7 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 		`UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date, includes_lab = $5 WHERE id = $1`,
 		c.ID, c.Title, c.Description, c.StartDate, c.IncludesLab)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
@@ -139,7 +139,7 @@ func (a *App) setCourseOpen(open bool) http.HandlerFunc {
 			return
 		}
 		if _, err := a.db.ExecContext(r.Context(), `UPDATE courses SET is_open = $2 WHERE id = $1`, c.ID, open); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
@@ -167,7 +167,7 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
@@ -187,7 +187,7 @@ func (a *App) courseFor(w http.ResponseWriter, r *http.Request) (course, bool) {
 		return course{}, false
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return course{}, false
 	}
 	return c, true

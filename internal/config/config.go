@@ -17,6 +17,8 @@ type Config struct {
 	ListenAddr   string
 	// StorageDir holds uploaded Gallery files. It must never be a public static path.
 	StorageDir string
+	// OwnerEmail names the Owner, the one Admin who sees the System log. Optional: unset, nobody does.
+	OwnerEmail string
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
 }
@@ -29,6 +31,7 @@ func Load() (Config, error) {
 		ResendAPIKey:   strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
 		ListenAddr:     strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
 		StorageDir:     strings.TrimSpace(os.Getenv("STORAGE_DIR")),
+		OwnerEmail:     strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
 		MaxUploadBytes: 2 << 30,
 	}
 	if cfg.DatabaseURL == "" {

@@ -10,7 +10,6 @@ import (
 	"image/jpeg"
 	_ "image/png" // registers PNG for image.Decode
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -101,7 +100,7 @@ func (a *App) galleryItemFor(w http.ResponseWriter, r *http.Request) (galleryIte
 		return galleryItem{}, false
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return galleryItem{}, false
 	}
 	return item, true
@@ -111,7 +110,7 @@ func (a *App) galleryItemFor(w http.ResponseWriter, r *http.Request) (galleryIte
 func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, bool) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return galleryItem{}, false
 	}
 	item, ok := a.galleryItemFor(w, r)
@@ -120,7 +119,7 @@ func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, boo
 	}
 	allowed, err := a.mayView(r.Context(), learner, item)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return galleryItem{}, false
 	}
 	if !allowed {
@@ -140,7 +139,7 @@ func (a *App) refuseMembersItem(w http.ResponseWriter, r *http.Request, item gal
 		WHERE id IN (SELECT l.course_id FROM lessons l WHERE l.gallery_item_id = $1 AND l.published)
 		ORDER BY start_date NULLS LAST, id`, item.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusForbidden, "members_only", page{Courses: courses,
@@ -209,12 +208,12 @@ func (a *App) visibleGalleryItems(ctx context.Context, viewer *learner, where st
 func (a *App) gallery(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	items, err := a.galleryItemsFor(r.Context(), learner)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	format, category := r.URL.Query().Get("format"), r.URL.Query().Get("category")
@@ -242,7 +241,7 @@ func (a *App) galleryItemPage(w http.ResponseWriter, r *http.Request) {
 	}
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "gallery_item", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Item: &item})
@@ -263,13 +262,13 @@ func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 func (a *App) serveStored(w http.ResponseWriter, r *http.Request, key, contentType string) {
 	f, err := a.store.Open(key)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
@@ -306,12 +305,12 @@ func (a *App) galleryThumb(w http.ResponseWriter, r *http.Request) {
 	} else if errors.Is(err, os.ErrNotExist) {
 		thumb, err := a.makeThumb(item)
 		if err != nil {
-			log.Printf("thumbnail for gallery item %d: %v", item.ID, err)
+			a.logError(r, fmt.Errorf("thumbnail for gallery item %d: %w", item.ID, err))
 			a.serveStored(w, r, item.storageKey, item.MimeType)
 			return
 		}
 		if err := a.store.Put(thumbKey(item), thumb); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}
@@ -431,7 +430,7 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
 		item.Title, item.Description, item.Category, item.Format, item.Promotional, item.Visibility, item.storageKey, item.MimeType, item.SizeBytes).Scan(&item.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	committed = true
@@ -448,7 +447,7 @@ func (a *App) uploadReadFailed(w http.ResponseWriter, r *http.Request, err error
 		})
 		return
 	}
-	serverError(w, err)
+	a.serverError(w, r, err)
 }
 
 func setGalleryField(item *galleryItem, name, value string) {
@@ -487,12 +486,12 @@ func galleryFieldError(item galleryItem, hasFile bool) string {
 func (a *App) adminGallery(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	items, err := a.galleryItemsFor(r.Context(), learner)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "admin_gallery", page{Learner: learner, Items: items})
@@ -525,7 +524,7 @@ func (a *App) updateGalleryItem(w http.ResponseWriter, r *http.Request) {
 		`UPDATE gallery_items SET title = $2, description = $3, category = $4, promotional = $5, visibility = $6 WHERE id = $1`,
 		item.ID, item.Title, item.Description, item.Category, item.Promotional, item.Visibility)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/gallery", http.StatusSeeOther)
@@ -553,12 +552,12 @@ func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	for _, key := range []string{item.storageKey, thumbKey(item)} {
 		if err := a.store.Remove(key); err != nil && !errors.Is(err, os.ErrNotExist) {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}

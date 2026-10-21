@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -39,6 +38,8 @@ type App struct {
 	store         *storage.Disk
 	maxUpload     int64
 	limiter       rateLimiter
+	ownerEmail    string        // the Owner's, from OWNER_EMAIL; empty means no Owner
+	done          chan struct{} // closed by Close, to stop the daily System log prune
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -122,7 +123,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, done: make(chan struct{})}
+	if err := a.pruneSystemLog(ctx); err != nil {
+		a.logError(nil, fmt.Errorf("prune System log: %w", err))
+	}
+	go a.pruneDaily(a.done)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.Handle("GET /static/", staticHandler())
@@ -144,9 +149,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
 	mux.HandleFunc("GET /lab", a.lab)
 	mux.HandleFunc("GET /lab/samples/{file}", a.labSample)
-	mux.HandleFunc("GET /lab/demo/{key}/{$}", demoFile("index.html"))
-	mux.HandleFunc("GET /lab/demo/{key}/data.json", demoFile("data.json"))
-	mux.HandleFunc("GET /lab/demo/{key}/charts.js", demoFile("charts.js"))
+	mux.HandleFunc("GET /lab/demo/{key}/{$}", a.demoFile("index.html"))
+	mux.HandleFunc("GET /lab/demo/{key}/data.json", a.demoFile("data.json"))
+	mux.HandleFunc("GET /lab/demo/{key}/charts.js", a.demoFile("charts.js"))
 	mux.HandleFunc("GET /lab/new", a.requireLearner(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab("dataset"))
@@ -238,6 +243,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/plans/periods/{id}/end", a.admin(a.endPlanPeriod))
 	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
 	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
+	mux.HandleFunc("GET /admin/log", a.requireOwner(a.systemLog))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
@@ -248,18 +254,19 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) Close() error {
+	close(a.done)
 	return a.db.Close()
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	promo, err := a.promotionalItemsFor(r.Context(), learner)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
@@ -340,30 +347,25 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 	}
 	withLearner, ok := data.(interface{ learnerField() **learner })
 	if !ok {
-		serverError(w, fmt.Errorf("render %s: %T is neither a page nor a pointer to a struct embedding pageBase", name, data))
+		a.serverError(w, r, fmt.Errorf("render %s: %T is neither a page nor a pointer to a struct embedding pageBase", name, data))
 		return
 	}
 	if field := withLearner.learnerField(); *field == nil {
 		learner, err := a.currentLearner(r)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		*field = learner
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = buf.WriteTo(w)
-}
-
-func serverError(w http.ResponseWriter, err error) {
-	log.Print(err)
-	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
 
 // rejectCrossOrigin is the CSRF protection for every form: browsers mark

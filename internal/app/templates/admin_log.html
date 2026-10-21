@@ -1,0 +1,33 @@
+{{define "title"}}System log · Admin · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" "log"}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>System log</h1>
+            <p>Errors and start-ups from the last 30 days, newest first. Only you, the Owner, see this page.</p>
+          </div>
+        </div>
+        <p class="note"><a href="/admin/log"{{if not .ErrorsOnly}} aria-current="page"{{end}}>Everything</a> · <a href="/admin/log?level=error"{{if .ErrorsOnly}} aria-current="page"{{end}}>Errors only</a></p>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>Time</th><th>Level</th><th>Page</th><th>Message</th></tr>
+              {{range .Lines}}
+              <tr>
+                <td><small>{{.At}}</small></td>
+                <td>{{if eq .Level "error"}}<span class="badge badge-revoked">error</span>{{else}}<span class="badge badge-closed">info</span>{{end}}</td>
+                <td>{{if .Method}}{{.Method}} {{.Path}}{{end}}</td>
+                <td>{{.Message}}</td>
+              </tr>
+              {{else}}
+              <tr><td colspan="4">Nothing logged{{if .ErrorsOnly}}: no errors{{end}}.</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+        {{if or .Newer .Older}}<p class="note">{{with .Newer}}<a href="/admin/log?page={{.}}{{if $.ErrorsOnly}}&amp;level=error{{end}}">Newer</a>{{end}}{{if and .Newer .Older}} · {{end}}{{with .Older}}<a href="/admin/log?page={{.}}{{if $.ErrorsOnly}}&amp;level=error{{end}}">Older</a>{{end}}</p>{{end}}
+      </div>
+    </div>
+{{end}}

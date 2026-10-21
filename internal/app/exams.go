@@ -40,7 +40,7 @@ func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
 	}
 	e, err := a.loadExam(r.Context(), c.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "exam", page{Course: &c, Exam: &e})
@@ -71,7 +71,7 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 			max_attempts = EXCLUDED.max_attempts`,
 		c.ID, e.PassMark, e.TimeLimit, e.MaxAttempts)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
@@ -114,7 +114,7 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.insertQuestion(r.Context(), c.ID, q); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
@@ -257,7 +257,7 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.replaceQuestion(r.Context(), c.ID, q); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
@@ -305,7 +305,7 @@ func (a *App) moveExamQuestion(down bool) http.HandlerFunc {
 			return
 		}
 		if err := a.swapQuestion(r.Context(), c.ID, q.ID, down); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
@@ -357,7 +357,7 @@ func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
 		err = a.issueEarnedCertificates(r.Context(), c.ID) // the Exam may have no published questions left
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
@@ -370,7 +370,7 @@ func (a *App) publishExamQuestion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE exam_questions SET is_draft = false WHERE id = $1 AND course_id = $2`, q.ID, c.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
@@ -393,7 +393,7 @@ func (a *App) examQuestionFor(w http.ResponseWriter, r *http.Request) (course, e
 	}
 	list, err := a.queryQuestions(r.Context(), `q.course_id = $1 AND q.id = $2`, c.ID, qid)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return course{}, examQuestion{}, false
 	}
 	if len(list) == 0 {

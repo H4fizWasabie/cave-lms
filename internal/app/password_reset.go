@@ -3,7 +3,7 @@ package app
 import (
 	"database/sql"
 	"errors"
-	"log"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,7 +20,7 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -31,17 +31,17 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRowContext(r.Context(),
 		`SELECT id, name, email FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &name, &to)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if err == nil {
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeResetPassword, resetLinkLifetime)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if err := tx.Commit(); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		// A failed send is only logged: an error page would reveal that the account exists.
@@ -51,7 +51,7 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			Body: "Hi " + name + ",\n\nOpen this link within an hour to choose a new password:\n\n" +
 				a.publicBaseURL + "/reset-password?token=" + token + "\n\nIf you didn't ask for this, you can ignore this email.\n",
 		}); err != nil {
-			log.Printf("send password reset email: %v", err)
+			a.logError(r, fmt.Errorf("send password reset email: %w", err))
 		}
 	}
 	a.render(w, r, http.StatusOK, "message", page{
@@ -73,12 +73,12 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -100,11 +100,11 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	case err != nil:
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	case expired:
 		if err := tx.Commit(); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		a.render(w, r, http.StatusGone, "message", page{
@@ -115,16 +115,16 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `UPDATE learners SET password_hash = $1 WHERE id = $2`, string(hash), learnerID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	// Ending every session means a reset also signs out whoever held the old password.
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM sessions WHERE learner_id = $1`, learnerID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "message", page{

@@ -179,7 +179,7 @@ func (a *App) openAttempt(ctx context.Context, learnerID, courseID int64) (*exam
 func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -188,7 +188,7 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 	}
 	st, err := a.examStatusFor(r.Context(), learner, c)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "learner_exam", page{Course: &c, Learner: learner, Status: &st})
@@ -198,7 +198,7 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -209,18 +209,18 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	// both pass the open-attempt and attempt-limit checks. The lock is held until the new attempt is committed.
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM enrollments WHERE learner_id = $1 AND course_id = $2 FOR UPDATE`,
 		learner.ID, c.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	st, err := a.examStatusFor(r.Context(), learner, c)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if st.Open != nil {
@@ -236,7 +236,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		err = tx.Commit()
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, attemptPath(c.ID, id), http.StatusSeeOther)
@@ -271,7 +271,7 @@ func (a *App) insertAttempt(ctx context.Context, tx *sql.Tx, learnerID, courseID
 func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -290,7 +290,7 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -307,7 +307,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	}
 	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if !enrolled {
@@ -332,7 +332,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, err := json.Marshal(att.Questions)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	// The time check is in the same UPDATE, so a late submission marks nothing.
@@ -344,7 +344,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 		err = a.issueCertificateIfEarned(r.Context(), learner.ID, c.ID)
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, attemptPath(c.ID, att.ID), http.StatusSeeOther)
@@ -366,7 +366,7 @@ func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID, cour
 		return notFound()
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return examAttempt{}, false
 	}
 	return att, true
