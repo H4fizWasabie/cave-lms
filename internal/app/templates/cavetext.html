@@ -44,11 +44,13 @@
         {{- if .PaymentLink}}
         <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">{{if .Cap.Pro}}Renew{{else}}Buy{{end}} CaveText Pro</a>
         {{- else}}
-        <p>To {{if .Cap.Pro}}renew{{else}}buy{{end}} CaveText Pro, pay the Admin {{.Price}} and tell them the email you log in with. They give you Pro here once you have paid. <a href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">Contact us</a>.</p>
+        <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">Contact us to {{if .Cap.Pro}}renew{{else}}buy{{end}} CaveText Pro</a>
         {{- end}}
-        {{- if not .Account}}<p class="muted">Sign in to CaveText first, so the Admin can find you.</p>{{end}}
+        {{- if not .Account}}<p class="muted">Sign in to CaveText first, so we can find you.</p>{{end}}
       </div>
       {{- end}}
+      {{- if or (not .Learner) .Account}}
       <p><a href="{{.Extension}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>Get the CaveText extension for Chrome</a></p>
+      {{- end}}
     </div>
 {{end}}

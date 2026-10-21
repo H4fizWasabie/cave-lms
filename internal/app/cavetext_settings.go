@@ -26,7 +26,7 @@ func (a *App) caveTextSettingsForm(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, fmt.Errorf("read CaveText settings: %w", err))
 		return
 	}
-	v.Price = fmt.Sprintf("%d.%02d", sen/100, sen%100)
+	v.Price = strings.TrimPrefix(rm(sen), "RM")
 	if r.URL.Query().Has("saved") {
 		v.Message = "Saved."
 	}
@@ -41,8 +41,10 @@ func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case !ok || sen > maxProPriceSen:
 		v.Error = "Enter the price in RM, like 25 or 25.50."
+	case sen == 0:
+		v.Error = "Enter a price more than 0, like 25 or 25.50."
 	case v.PaymentLink != "" && !isWebLink(v.PaymentLink):
-		v.Error = "Enter the payment link as a full web address starting with https://, or leave it empty."
+		v.Error = "Enter the payment link as a full web address starting with http:// or https://, or leave it empty."
 	}
 	if v.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_cavetext_settings", v)

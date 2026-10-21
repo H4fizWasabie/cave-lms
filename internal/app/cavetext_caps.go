@@ -40,20 +40,31 @@ type rowQueryer interface {
 func learnerSnippetCap(ctx context.Context, q rowQueryer, learnerID int64) (snippetCap, error) {
 	var c snippetCap
 	var until sql.NullTime
-	err := q.QueryRowContext(ctx, `
-		SELECT c.place <= s.early_places, CASE WHEN c.place <= s.early_places THEN s.early_cap ELSE s.late_cap END,
-			EXISTS (SELECT 1 FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
-				AND p.starts_at <= now() AND p.ends_at > now() AND p.ended_early_at IS NULL),
-			(SELECT max(p.ends_at) FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
-				AND p.ends_at > now() AND p.ended_early_at IS NULL)
-		FROM cavetext_accounts c CROSS JOIN cavetext_settings s WHERE c.learner_id = $1`, learnerID).Scan(&c.Early, &c.Cap, &c.Pro, &until)
+	err := q.QueryRowContext(ctx, `SELECT `+snippetCapColumns+`
+		FROM cavetext_accounts c CROSS JOIN cavetext_settings s WHERE c.learner_id = $1`, learnerID).Scan(c.dest(&until)...)
 	if err != nil {
 		return c, fmt.Errorf("resolve Snippet cap: %w", err)
 	}
+	c.setUntil(until)
+	return c, nil
+}
+
+// snippetCapColumns is the one definition of an early place and an active CaveText Pro: four columns over
+// cavetext_accounts c and cavetext_settings s, scanned with snippetCap.dest. learnerSnippetCap and the Admin
+// CaveText Learners page both select it, so they can't disagree.
+const snippetCapColumns = `c.place <= s.early_places, CASE WHEN c.place <= s.early_places THEN s.early_cap ELSE s.late_cap END,
+	EXISTS (SELECT 1 FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
+		AND p.starts_at <= now() AND p.ends_at > now() AND p.ended_early_at IS NULL),
+	(SELECT max(p.ends_at) FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
+		AND p.ends_at > now() AND p.ended_early_at IS NULL)`
+
+// dest is where the snippetCapColumns scan to; pass until to setUntil after the scan.
+func (c *snippetCap) dest(until *sql.NullTime) []any { return []any{&c.Early, &c.Cap, &c.Pro, until} }
+
+func (c *snippetCap) setUntil(until sql.NullTime) {
 	if c.Pro {
 		c.ProUntil = until.Time.UTC()
 	}
-	return c, nil
 }
 
 func countSnippets(ctx context.Context, q rowQueryer, learnerID int64) (int, error) {

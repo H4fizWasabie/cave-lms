@@ -125,6 +125,25 @@ func TestRenewingProEarlyStartsTheNewYearWhenTheRunningOneEnds(t *testing.T) {
 	near(t, "Pro until after a lapse", *ada.me(token).ProUntil, time.Now().AddDate(1, 0, 0))
 }
 
+func TestTwoRenewalsWhileProRunsChainOneYearAfterAnother(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.givePro("ada@example.com")
+	s.agePro(100)
+	first := *ada.me(token).ProUntil
+
+	s.givePro("ada@example.com")
+	s.givePro("ada@example.com")
+	if me := ada.me(token); !me.Pro || !me.ProUntil.Equal(first.AddDate(2, 0, 0)) {
+		t.Fatalf("after two renewals, me = %+v, want Pro until %v", me, first.AddDate(2, 0, 0))
+	}
+	// Past the second year, the third is running.
+	s.agePro(365 + 366)
+	if me := ada.me(token); !me.Pro || !me.ProUntil.Equal(first.AddDate(2, 0, 0).AddDate(0, 0, -365-366)) {
+		t.Fatalf("in the third year, me = %+v, want Pro until the third period ends", me)
+	}
+}
+
 func TestEndingProEarlyTakesEffectAtOnce(t *testing.T) {
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
@@ -143,6 +162,11 @@ func TestEndingProEarlyTakesEffectAtOnce(t *testing.T) {
 	_, body = s.get("/admin/cavetext")
 	if strings.Contains(body, "/end-pro") {
 		t.Fatalf("a Learner without Pro still has an End Pro button: %s", body)
+	}
+	// The renewal queued behind the ended period never starts.
+	s.agePro(400)
+	if me := ada.me(token); me.Pro || me.ProUntil != nil {
+		t.Fatalf("in the queued renewal's year, me = %+v, want free", me)
 	}
 
 	// Pro given after ending early starts now.
@@ -253,6 +277,30 @@ func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "No CaveText Learner")
 }
 
+func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	give := s.proAction("ada@example.com", "pro")
+	for _, c := range []struct {
+		path string
+		form url.Values
+	}{{give, nil}, {"/admin/cavetext/settings", url.Values{"price": {"1"}, "payment_link": {"https://evil.example/pay"}}}} {
+		for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
+			req, _ := http.NewRequest(http.MethodPost, s.server.URL+c.path, strings.NewReader(c.form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set(header, value)
+			res, body := s.do(req)
+			expectStatus(t, res, body, http.StatusForbidden, "cross-origin request refused")
+		}
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("a cross-origin post gave Pro")
+	}
+	res, body := s.get("/admin/cavetext/settings")
+	expectStatus(t, res, body, http.StatusOK, `name="price" value="25"`)
+	expectStatus(t, res, body, http.StatusOK, `name="payment_link" value=""`)
+}
+
 func (s *site) saveCaveTextSettings(price, link string) (*http.Response, string) {
 	s.t.Helper()
 	return s.post("/admin/cavetext/settings", url.Values{"price": {price}, "payment_link": {link}})
@@ -262,7 +310,7 @@ func TestAnyAdminEditsTheProPriceAndPaymentLink(t *testing.T) {
 	s := caveTextAdminSite(t)
 	res, body := s.get("/admin/cavetext/settings")
 	expectStatus(t, res, body, http.StatusOK, "<h1>Admin: CaveText settings</h1>")
-	for _, want := range []string{`name="price" value="25.00"`, `name="payment_link" value=""`} {
+	for _, want := range []string{`name="price" value="25"`, `name="payment_link" value=""`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("settings page lacks %s", want)
 		}
@@ -271,6 +319,12 @@ func TestAnyAdminEditsTheProPriceAndPaymentLink(t *testing.T) {
 		res, body = s.saveCaveTextSettings(bad[0], bad[1])
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
 	}
+	for _, free := range []string{"0", "0.00"} {
+		res, body = s.saveCaveTextSettings(free, "")
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "more than 0")
+	}
+	res, body = s.saveCaveTextSettings("25", "ftp://bcl.my/pay")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "http:// or https://")
 	res, body = s.saveCaveTextSettings("30.5", "https://bcl.my/pay/cavetext")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get(res.Header.Get("Location"))
@@ -281,7 +335,7 @@ func TestAnyAdminEditsTheProPriceAndPaymentLink(t *testing.T) {
 	res, body = s.saveCaveTextSettings("25", "")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/admin/cavetext/settings")
-	expectStatus(t, res, body, http.StatusOK, `name="price" value="25.00"`)
+	expectStatus(t, res, body, http.StatusOK, `name="price" value="25"`)
 	expectStatus(t, res, body, http.StatusOK, `name="payment_link" value=""`)
 }
 
@@ -310,10 +364,10 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	ada.fillSnippets(token, 3)
 
-	// No payment link: pay the Admin.
+	// No payment link: contact us, as on the Lab page.
 	res, body := ada.get("/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "3 of 5 Snippets")
-	for _, want := range []string{"Free", "RM25 a year", "pay the Admin", `href="https://cavetext.wasabietech.com"`} {
+	for _, want := range []string{"Free", "RM25 a year", `href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">Contact us to buy CaveText Pro</a>`, `href="https://cavetext.wasabietech.com"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the free Learner's CaveText page lacks %s", want)
 		}
@@ -330,8 +384,8 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 			t.Errorf("with a payment link the CaveText page lacks %s", want)
 		}
 	}
-	if strings.Contains(body, "pay the Admin") {
-		t.Errorf("the page still says pay the Admin with a payment link set")
+	if strings.Contains(body, "Contact us to buy") {
+		t.Errorf("the page still says Contact us with a payment link set")
 	}
 
 	// Pro: unlimited, with the expiry.
@@ -367,5 +421,8 @@ func TestTheCaveTextPageAsksALearnerNewToCaveTextToSignIn(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("the new Learner's CaveText page lacks %s", want)
 		}
+	}
+	if n := strings.Count(body, "Get the CaveText extension"); n != 1 {
+		t.Errorf("the new Learner's CaveText page links the extension %d times, want once", n)
 	}
 }

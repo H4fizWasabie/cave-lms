@@ -20,7 +20,7 @@
                 <td>{{.Place}}{{if .Early}} (early){{end}}</td>
                 <td>{{.Name}}<br><span class="muted">{{.Email}}</span></td>
                 <td>{{if .Pro}}Pro{{else}}Free{{end}}</td>
-                <td>{{with .ProUntil}}{{.}}{{else}}-{{end}}</td>
+                <td>{{with .Until}}{{.}}{{else}}-{{end}}</td>
                 <td>{{.Snippets}}</td>
                 <td class="actions">
                   <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro"><button class="btn btn-solid btn-sm">{{if .Pro}}Renew Pro{{else}}Give Pro{{end}}</button></form>

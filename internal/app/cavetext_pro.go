@@ -15,14 +15,20 @@ const proLength = "12 months"
 
 // caveTextLearnerRow is one CaveText Learner on the Admin CaveText Learners page.
 type caveTextLearnerRow struct {
-	ID       int64
-	Place    int64
-	Name     string
-	Email    string
-	Early    bool
-	Pro      bool
-	ProUntil string
+	ID    int64
+	Place int64
+	Name  string
+	Email string
+	snippetCap
 	Snippets int
+}
+
+// Until is when the Learner's Pro ends, or empty without Pro.
+func (r caveTextLearnerRow) Until() string {
+	if !r.Pro {
+		return ""
+	}
+	return r.ProUntil.Format(periodTime)
 }
 
 type caveTextLearnersPage struct {
@@ -44,11 +50,7 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	}
 	p.EarlyTaken = thousands(taken) + " of " + thousands(places)
 	rows, err := a.db.QueryContext(r.Context(), `
-		SELECT c.learner_id, c.place, l.name, l.email, c.place <= s.early_places,
-			EXISTS (SELECT 1 FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
-				AND p.starts_at <= now() AND p.ends_at > now() AND p.ended_early_at IS NULL),
-			(SELECT max(p.ends_at) FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
-				AND p.ends_at > now() AND p.ended_early_at IS NULL),
+		SELECT c.learner_id, c.place, l.name, l.email, `+snippetCapColumns+`,
 			(SELECT count(*) FROM cavetext_snippets n WHERE n.learner_id = c.learner_id)
 		FROM cavetext_accounts c JOIN learners l ON l.id = c.learner_id CROSS JOIN cavetext_settings s
 		ORDER BY c.place`)
@@ -60,13 +62,11 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var row caveTextLearnerRow
 		var until sql.NullTime
-		if err := rows.Scan(&row.ID, &row.Place, &row.Name, &row.Email, &row.Early, &row.Pro, &until, &row.Snippets); err != nil {
+		if err := rows.Scan(append(append([]any{&row.ID, &row.Place, &row.Name, &row.Email}, row.dest(&until)...), &row.Snippets)...); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		if row.Pro {
-			row.ProUntil = until.Time.UTC().Format(periodTime)
-		}
+		row.setUntil(until)
 		p.Learners = append(p.Learners, row)
 	}
 	if err := rows.Err(); err != nil {
@@ -133,7 +133,7 @@ type caveTextPage struct {
 	Count       int
 	ProUntil    string
 	Price       string // in RM: RM25
-	PaymentLink string // where Buy goes; empty tells the Learner to pay the Admin
+	PaymentLink string // where Buy goes; empty asks the Learner to contact us
 	EarlyPlaces string
 	EarlyCap    int
 	LateCap     int
