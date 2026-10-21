@@ -144,7 +144,7 @@ func TestHRBlocks(t *testing.T) {
 	hr := template(t, "hr")
 	d := readSample(t, hr)
 	cfg := generate(t, hr, hr.Guess(d), d)
-	all := []string{"Headcount", "Active", "Headcount by department", "Joins per month", "Status split", "Staff"}
+	all := []string{"Headcount", "Active", "Headcount by department", "Status split", "Joins per month", "Staff"}
 	if got := labels(cfg); !reflect.DeepEqual(got, all) {
 		t.Fatalf("blocks = %v, want %v", got, all)
 	}

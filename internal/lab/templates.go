@@ -49,7 +49,7 @@ type Block struct {
 	Cols   []string `json:"cols,omitempty"`   // table: blanks shown, in order; skipped ones are left out
 	Sort   string   `json:"sort,omitempty"`   // table: newest first by this blank
 	Limit  int      `json:"limit,omitempty"`  // table: rows shown
-	Wide   bool     `json:"wide,omitempty"`   // spans the full width
+	Wide   bool     `json:"wide,omitempty"`   // spans the full width, as does a half-width block left without a half-width neighbour
 	Needs  []string `json:"-"`                // blanks the block needs beyond Of, X and Group
 	Unless string   `json:"-"`                // left out when this blank is chosen
 }
@@ -130,8 +130,8 @@ var HR = &Template{
 		{Kind: "card", Label: "Headcount", Agg: "count"},
 		{Kind: "card", Label: "Active", Agg: "count", Where: []string{"status", "Aktif"}, Needs: []string{"status"}},
 		{Kind: "bar", Label: "Headcount by department", Group: "department"},
-		{Kind: "line", Label: "Joins per month", X: "joined", Wide: true},
 		{Kind: "donut", Label: "Status split", Group: "status"},
+		{Kind: "line", Label: "Joins per month", X: "joined", Wide: true},
 		{Kind: "table", Label: "Staff", Cols: []string{"name", "department", "joined", "status", "gender"}, Sort: "joined"},
 	},
 	Filters: []string{"department", "status", "gender", "joined"},
