@@ -57,6 +57,16 @@ type caveTextMe struct {
 
 	UserMasterPrompt     *string `json:"userMasterPrompt"`
 	MasterPromptQuestion string  `json:"masterPromptQuestion"`
+
+	MasterPrompts []masterPrompt `json:"masterPrompts"`
+}
+
+// masterPrompt is the Image or Dashboard master prompt as me sends it; a free Learner gets kind and name only.
+type masterPrompt struct {
+	Kind     string  `json:"kind"`
+	Name     string  `json:"name"`
+	Shortcut *string `json:"shortcut"`
+	Body     *string `json:"body"`
 }
 
 func (s *site) me(token string) caveTextMe {

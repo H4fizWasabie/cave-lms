@@ -22,6 +22,24 @@
             <div class="form-actions"><button class="btn btn-solid">Save</button></div>
           </form>
         </div>
+        <div class="card">
+          <h2>Image and Dashboard master prompts</h2>
+          <p class="note">Every CaveText Pro Learner inserts these as they are, with one click or their shortcut; free Learners see their names, locked. Write them in CaveText snippet syntax, so form fields like {formtext: name=subject} work. No Snippet can take or clash with their shortcuts. CaveText picks up a change at its next refresh.</p>
+          {{with .PromptsError}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          {{with .PromptsMessage}}<p class="field-ok" role="status">{{.}}</p>{{end}}
+          {{with .Clashing}}<p class="field-err" role="status">{{.}} {{if eq . 1}}Learner has a Snippet whose shortcut clashes{{else}}Learners have a Snippet whose shortcut clashes{{end}} with a master prompt's. Their Snippets stay, but those clashing with it may fire first, and editing one asks for another shortcut.</p>{{end}}
+          <form class="form" method="post" action="/admin/cavetext/master-prompts">
+            {{range .Prompts}}
+            <h3>{{.Label}} master prompt</h3>
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="{{.Kind}}_name">Name</label><input id="{{.Kind}}_name" type="text" name="{{.Kind}}_name" value="{{.Name}}" maxlength="{{$.MaxMasterPromptName}}" required></div>
+              <div class="field"><label for="{{.Kind}}_shortcut">Shortcut</label><input id="{{.Kind}}_shortcut" type="text" name="{{.Kind}}_shortcut" value="{{.Shortcut}}" required spellcheck="false" autocomplete="off"></div>
+            </div>
+            <div class="field"><label for="{{.Kind}}_body">Prompt</label><textarea id="{{.Kind}}_body" name="{{.Kind}}_body" rows="10" maxlength="{{$.MaxMasterPromptBody}}" required spellcheck="false">{{.Body}}</textarea></div>
+            {{end}}
+            <div class="form-actions"><button class="btn btn-solid">Save master prompts</button></div>
+          </form>
+        </div>
       </div>
     </div>
 {{end}}
