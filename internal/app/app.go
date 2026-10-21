@@ -249,6 +249,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
 	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
 	mux.HandleFunc("POST /cavetext/api/sign-out", a.caveTextAPI(a.caveTextSignOut))
+	mux.HandleFunc("GET /cavetext/api/snippets", a.caveTextAPI(a.caveTextSnippets))
+	mux.HandleFunc("POST /cavetext/api/snippets", a.caveTextAPI(a.createCaveTextSnippet))
+	mux.HandleFunc("PUT /cavetext/api/snippets", a.caveTextAPI(a.replaceCaveTextSnippets))
+	mux.HandleFunc("PUT /cavetext/api/snippets/{id}", a.caveTextAPI(a.updateCaveTextSnippet))
+	mux.HandleFunc("DELETE /cavetext/api/snippets/{id}", a.caveTextAPI(a.deleteCaveTextSnippet))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
