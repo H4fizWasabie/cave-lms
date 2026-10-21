@@ -42,7 +42,7 @@ func TestHeaderShowsTheCAVELMSLogo(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 
-	m := regexp.MustCompile(`<a class="brand" href="/"><img src="(/static/[^"]+)" alt="CAVELMS"`).FindStringSubmatch(recorder.Body.String())
+	m := regexp.MustCompile(`<a class="brand" href="/"><img src="(/static/[^"]+)" alt="CAVELMS, your digital learning hub"`).FindStringSubmatch(recorder.Body.String())
 	if m == nil {
 		t.Fatalf("header has no CAVELMS logo linking home: %s", recorder.Body.String())
 	}
