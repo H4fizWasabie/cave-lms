@@ -262,6 +262,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("PUT /cavetext/api/snippets", a.caveTextAPI(a.replaceCaveTextSnippets))
 	mux.HandleFunc("PUT /cavetext/api/snippets/{id}", a.caveTextAPI(a.updateCaveTextSnippet))
 	mux.HandleFunc("DELETE /cavetext/api/snippets/{id}", a.caveTextAPI(a.deleteCaveTextSnippet))
+	mux.HandleFunc("PUT /cavetext/api/user-master-prompt", a.caveTextAPI(a.saveUserMasterPrompt))
+	mux.HandleFunc("DELETE /cavetext/api/user-master-prompt", a.caveTextAPI(a.deleteUserMasterPrompt))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }

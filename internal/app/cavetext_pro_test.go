@@ -303,7 +303,7 @@ func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
 
 func (s *site) saveCaveTextSettings(price, link string) (*http.Response, string) {
 	s.t.Helper()
-	return s.post("/admin/cavetext/settings", url.Values{"price": {price}, "payment_link": {link}})
+	return s.post("/admin/cavetext/settings", url.Values{"price": {price}, "payment_link": {link}, "question": {"What do you know about me?"}})
 }
 
 func TestAnyAdminEditsTheProPriceAndPaymentLink(t *testing.T) {
