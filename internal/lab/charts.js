@@ -17,11 +17,11 @@
     '.dh .dq{color:#1c2430;font-size:1rem;font-weight:600}',
     '.df{display:flex;flex-wrap:wrap;gap:.6rem .9rem}',
     '.df label{display:grid;gap:.2rem;font-size:.78rem;font-weight:600;color:#5b6573}',
-    '.dcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));gap:.8rem;margin-bottom:.8rem}',
+    '.dcards{display:grid;grid-template-columns:var(--cols,1fr);gap:.8rem;margin-bottom:.8rem}',
     '.dcard{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:.9rem 1rem;display:grid;gap:.15rem}',
     '.dcard span{font-size:.82rem;color:#5b6573;font-weight:600}',
-    '.dcard strong{font-size:1.45rem;font-variant-numeric:tabular-nums;letter-spacing:-.01em}',
-    '.dcard:first-child{grid-column:span 2}.dcard:first-child strong{font-size:2.1rem}',
+    '.dcard strong{overflow-wrap:anywhere;font-size:1.45rem;font-variant-numeric:tabular-nums;letter-spacing:-.01em}',
+    '.dcard:first-child strong{font-size:2.1rem}',
     '.dcard.is-pos strong{color:#2d7a52}.dcard.is-neg strong{color:#b4432a}',
     '.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}',
     '.dpanel{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:1rem 1.1rem;min-width:0}',
@@ -48,7 +48,7 @@
     '.dtable .num{text-align:right;font-variant-numeric:tabular-nums}',
     '.dnone{color:#6b7482;font-size:.88rem;padding:1rem 0;text-align:center}',
     '@media (max-width:640px){main{padding:1.1rem .9rem .6rem}.dh h1{font-size:1.3rem}.df{width:100%}.df label{flex:1 1 8rem}' +
-      '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard strong{font-size:1.15rem}.dcard:first-child strong{font-size:1.6rem}' +
+      '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard:first-child,.dcard:last-child:nth-child(even){grid-column:span 2}.dcard strong{font-size:1.15rem}.dcard:first-child strong{font-size:1.6rem}' +
       '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}'
   ].join('\n');
 
@@ -109,6 +109,18 @@
       draw();
     });
     var cardsEl = document.getElementById('cards'), chartsEl = document.getElementById('charts');
+    // One row of up to four cards, the first twice as wide, so the row ends flush with the charts below.
+    // ponytail: a fifth card and on (General, one per Number column) wraps to a second row; cap or regrid if that shows up.
+    var cardCount = Math.min(4, blocks.filter(function (b) { return b.kind === 'card'; }).length);
+    if (cardCount > 1) cardsEl.style.setProperty('--cols', 'minmax(0,2fr) repeat(' + (cardCount - 1) + ',minmax(0,1fr))');
+    // Panels sit two to a row; tables, and a half-width panel with no half-width neighbour, span the row, so no gap is left.
+    var panels = blocks.filter(function (b) { return b.kind !== 'card'; });
+    for (var i = 0; i < panels.length; i++) {
+      if (panels[i].kind === 'table') panels[i].wide = true;
+      if (panels[i].wide) continue;
+      if (panels[i + 1] && !panels[i + 1].wide && panels[i + 1].kind !== 'table') i++;
+      else panels[i].wide = true;
+    }
 
     function rowsNow() {
       return all.filter(function (r) {
@@ -136,7 +148,7 @@
     }
     // finding is the one thing the chart shows, written under its name: its peak, top group or largest share.
     function panel(b, inner, finding) {
-      return '<article class="dpanel' + (b.wide || b.kind === 'table' ? ' wide' : '') + '"><h2>' + esc(b.label) + '</h2>' +
+      return '<article class="dpanel' + (b.wide ? ' wide' : '') + '"><h2>' + esc(b.label) + '</h2>' +
         (finding ? '<p class="dfind">' + esc(finding) + '</p>' : '') + inner + '</article>';
     }
     function empty(b) { return panel(b, '<p class="dnone">No rows match the filters</p>'); }
