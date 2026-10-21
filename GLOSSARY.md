@@ -139,6 +139,13 @@ _Avoid_: Template (that is for the Lab), prompt
 **Folder**:
 A named group a Learner puts their Snippets in.
 
+**Snippet cap**:
+How many Snippets a free Learner may keep: the early cap (10) for an Early place, otherwise the late cap (5). Over it a Learner can still edit and delete, but not add. The Owner sets both caps and the number of early places.
+_Avoid_: Limit, quota
+
+**Early place**:
+A place number within the first early places (1,000). A Learner's place is handed out at their first CaveText sign-in and kept for good.
+
 **CaveText Pro**:
 A paid yearly upgrade to CaveText, one level only, bought separately from Courses and from Plans. It raises the Snippet cap and opens the Master prompts.
 _Avoid_: Plan (that is for the Lab), subscription

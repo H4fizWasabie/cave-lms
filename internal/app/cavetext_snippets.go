@@ -138,6 +138,15 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
+	c, err := learnerSnippetCap(r.Context(), tx, l.ID)
+	if err != nil {
+		fail(err)
+		return
+	}
+	if len(others) >= c.Cap {
+		writeJSONError(w, http.StatusForbidden, overCapMessage(len(others), c))
+		return
+	}
 	if err := tx.QueryRowContext(r.Context(), `
 		INSERT INTO cavetext_snippets (learner_id, folder, name, shortcut, body, with_master_prompt)
 		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
@@ -201,7 +210,8 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 }
 
 // replaceCaveTextSnippets replaces the Learner's whole Snippet set (an import) in one transaction. Every Snippet is
-// checked against the ones before it in the set first; one refused and nothing is written.
+// checked against the ones before it in the set first; one refused and nothing is written. A set over the cap is
+// cut to the cap, and the answer says how many were skipped.
 func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	var in struct{ Snippets []snippetIn }
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10<<20)).Decode(&in); err != nil {
@@ -226,6 +236,13 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		return
 	}
 	defer tx.Rollback()
+	c, err := learnerSnippetCap(r.Context(), tx, l.ID)
+	if err != nil {
+		fail(err)
+		return
+	}
+	skipped := max(len(list)-c.Cap, 0)
+	list = list[:len(list)-skipped]
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM cavetext_snippets WHERE learner_id = $1`, l.ID); err != nil {
 		fail(err)
 		return
@@ -244,7 +261,11 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		fail(err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"snippets": list})
+	answer := map[string]any{"snippets": list, "skipped": skipped}
+	if skipped > 0 {
+		answer["message"] = skippedMessage(len(list), skipped)
+	}
+	writeJSON(w, http.StatusOK, answer)
 }
 
 // shortcutProblem says why a shortcut can't be saved beside the others, or "". These are the rules the extension's

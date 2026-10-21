@@ -56,9 +56,9 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 type caveTextLearner struct {
-	ID    int64  `json:"-"`
-	Name  string `json:"name"`
-	Place int64  `json:"place"`
+	ID    int64
+	Name  string
+	Place int64
 	token []byte
 }
 
@@ -90,7 +90,19 @@ func (a *App) caveTextAPI(h func(http.ResponseWriter, *http.Request, *caveTextLe
 }
 
 func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
-	writeJSON(w, http.StatusOK, l)
+	c, err := learnerSnippetCap(r.Context(), a.db, l.ID)
+	if err != nil {
+		a.logError(r, err)
+		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		return
+	}
+	n, err := countSnippets(r.Context(), a.db, l.ID)
+	if err != nil {
+		a.logError(r, fmt.Errorf("count Snippets: %w", err))
+		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early})
 }
 
 func (a *App) caveTextSignOut(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
