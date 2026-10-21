@@ -1,7 +1,7 @@
 {{define "title"}}System log · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" "log"}}
+      {{template "admin-side" (side "log" $.Learner)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>

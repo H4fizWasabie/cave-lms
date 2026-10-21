@@ -314,9 +314,21 @@ func staticHandler() http.Handler {
 	})
 }
 
+// adminSidebar is what the admin-side template reads: the current section, and whether to show the
+// System log, which only the Owner may know of.
+type adminSidebar struct {
+	Section string
+	Owner   bool
+}
+
+// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner)}}.
+func adminSide(section string, l *learner) adminSidebar {
+	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner}
+}
+
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}

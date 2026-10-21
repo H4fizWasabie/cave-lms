@@ -1,7 +1,7 @@
 {{define "title"}}Courses · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" "courses"}}
+      {{template "admin-side" (side "courses" $.Learner)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>

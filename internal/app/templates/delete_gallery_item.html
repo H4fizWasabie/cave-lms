@@ -1,7 +1,7 @@
 {{define "title"}}Delete Gallery item · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" "gallery"}}
+      {{template "admin-side" (side "gallery" $.Learner)}}
       <div class="adm-main">
         <div class="adm-head"><h1>Delete Gallery item</h1></div>
         <div class="card">
