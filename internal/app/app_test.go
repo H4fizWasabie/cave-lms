@@ -37,6 +37,22 @@ func TestHomePage(t *testing.T) {
 	}
 }
 
+func TestHeaderShowsTheCAVELMSLogo(t *testing.T) {
+	application, _, _, _ := newTestApplication(t)
+	recorder := httptest.NewRecorder()
+	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	m := regexp.MustCompile(`<a class="brand" href="/"><img src="(/static/[^"]+)" alt="CAVELMS"`).FindStringSubmatch(recorder.Body.String())
+	if m == nil {
+		t.Fatalf("header has no CAVELMS logo linking home: %s", recorder.Body.String())
+	}
+	logo := httptest.NewRecorder()
+	application.ServeHTTP(logo, httptest.NewRequest(http.MethodGet, m[1], nil))
+	if logo.Code != http.StatusOK || !strings.Contains(logo.Body.String(), "<svg") {
+		t.Fatalf("GET %s = %d, want the logo SVG", m[1], logo.Code)
+	}
+}
+
 var _ http.Handler = (*app.App)(nil)
 
 func TestStaticFilesAreServedWithCachingAndMissingOnesAre404(t *testing.T) {
