@@ -57,6 +57,10 @@ func TestOnlyTheOwnerFindsTheSystemLog(t *testing.T) {
 	if !strings.Contains(body, `href="/admin/log"`) {
 		t.Errorf("the Owner's Admin area has no System log link:\n%s", body)
 	}
+	_, body = s.get("/admin/plans")
+	if !strings.Contains(body, `href="/admin/log"`) {
+		t.Errorf("the Owner's Admin sidebar has no System log link:\n%s", body)
+	}
 
 	s.logOut()
 	res, body := s.get("/admin/log")
@@ -71,6 +75,10 @@ func TestOnlyTheOwnerFindsTheSystemLog(t *testing.T) {
 	_, body = s.get("/admin")
 	if strings.Contains(body, `href="/admin/log"`) {
 		t.Errorf("another Admin's Admin area links to the System log:\n%s", body)
+	}
+	_, body = s.get("/admin/plans")
+	if strings.Contains(body, `href="/admin/log"`) {
+		t.Errorf("another Admin's sidebar links to the System log:\n%s", body)
 	}
 }
 

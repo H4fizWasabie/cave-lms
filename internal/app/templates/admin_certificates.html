@@ -1,7 +1,7 @@
 {{define "title"}}Certificates · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" "certificates"}}
+      {{template "admin-side" (side "certificates" $.Learner)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>

@@ -71,20 +71,21 @@
 </body>
 </html>
 {{end}}
-{{/* admin-side is the Admin sidebar; pass the current section: "dashboard", "courses", "gallery", "certificates", "design", "plans", "deployments" or "log" (the System log, which has no sidebar entry: only the Owner may know of it). */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "deployments" or "log". The System log item shows for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
           <a class="adm-brand" href="/admin"><img src="{{static "logo-light.svg"}}" alt="The Cave Consult"><span>CAVELMS admin</span></a>
         </div>
         <nav class="adm-nav" aria-label="Admin">
-          <a href="/admin"{{if eq . "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>Dashboard</span></a>
-          <a href="/admin/courses"{{if eq . "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>Courses</span></a>
-          <a href="/admin/gallery"{{if eq . "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>Gallery</span></a>
-          <a href="/admin/certificates"{{if eq . "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>Certificates</span></a>
-          <a href="/admin/certificate-settings"{{if eq . "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span></a>
-          <a href="/admin/plans"{{if eq . "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>Lab Plans</span></a>
-          <a href="/admin/deployments"{{if eq . "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>Deployments</span></a>
+          <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>Dashboard</span></a>
+          <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>Courses</span></a>
+          <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>Gallery</span></a>
+          <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>Certificates</span></a>
+          <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span></a>
+          <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>Lab Plans</span></a>
+          <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>Deployments</span></a>
+          {{if .Owner}}<a href="/admin/log"{{if eq .Section "log"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>System log</span></a>{{end}}
         </nav>
         <div class="adm-side-foot">
           <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>View learning site</span></a>

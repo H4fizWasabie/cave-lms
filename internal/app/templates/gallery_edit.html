@@ -1,7 +1,7 @@
 {{define "title"}}Edit Gallery item · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" "gallery"}}
+      {{template "admin-side" (side "gallery" $.Learner)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/gallery">Back to the Gallery list</a></p>
         <div class="adm-head"><h1>Edit Gallery item</h1></div>
