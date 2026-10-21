@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 )
@@ -46,11 +47,13 @@ func (s *site) caveText(method, path, token string) (*http.Response, string) {
 }
 
 type caveTextMe struct {
-	Name         string `json:"name"`
-	Place        int    `json:"place"`
-	Cap          int    `json:"cap"`
-	SnippetCount int    `json:"snippetCount"`
-	Early        bool   `json:"early"`
+	Name         string     `json:"name"`
+	Place        int        `json:"place"`
+	Cap          int        `json:"cap"`
+	SnippetCount int        `json:"snippetCount"`
+	Early        bool       `json:"early"`
+	Pro          bool       `json:"pro"`
+	ProUntil     *time.Time `json:"proUntil"`
 }
 
 func (s *site) me(token string) caveTextMe {

@@ -1,0 +1,38 @@
+{{define "title"}}CaveText Learners · Admin · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "cavetext" $.Learner)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>Admin: CaveText Learners</h1>
+            <p>Every Learner who has signed in to CaveText, by place. Give a Learner CaveText Pro after they pay: it lasts 12 months, starting when any Pro they have ends. A Learner shows here once they have signed in to CaveText.</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-ghost" href="/admin/cavetext/settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg>CaveText settings</a></div>
+        </div>
+        <p class="note"><strong>{{.EarlyTaken}}</strong> early places taken</p>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>Place</th><th>Learner</th><th>CaveText</th><th>Pro until</th><th>Snippets</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              {{range .Learners}}
+              <tr>
+                <td>{{.Place}}{{if .Early}} (early){{end}}</td>
+                <td>{{.Name}}<br><span class="muted">{{.Email}}</span></td>
+                <td>{{if .Pro}}Pro{{else}}Free{{end}}</td>
+                <td>{{with .ProUntil}}{{.}}{{else}}-{{end}}</td>
+                <td>{{.Snippets}}</td>
+                <td class="actions">
+                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro"><button class="btn btn-solid btn-sm">{{if .Pro}}Renew Pro{{else}}Give Pro{{end}}</button></form>
+                  {{if .Pro}}<form method="post" action="/admin/cavetext/learners/{{.ID}}/end-pro"><button class="btn btn-danger btn-sm">End Pro now</button></form>{{end}}
+                </td>
+              </tr>
+              {{else}}
+              <tr><td colspan="6">No Learner has signed in to CaveText yet.</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}
