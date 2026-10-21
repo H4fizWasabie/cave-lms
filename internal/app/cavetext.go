@@ -104,7 +104,12 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 		fail(fmt.Errorf("count Snippets: %w", err))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early})
+	// A Pro Learner's cap is unlimited: null. proUntil is null without Pro.
+	me := map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early, "pro": c.Pro, "proUntil": nil}
+	if c.Pro {
+		me["cap"], me["proUntil"] = nil, c.ProUntil
+	}
+	writeJSON(w, http.StatusOK, me)
 }
 
 func (a *App) caveTextSignOut(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {

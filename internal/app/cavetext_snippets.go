@@ -143,7 +143,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if len(others) >= c.Cap {
+	if c.Full(len(others)) {
 		writeJSONError(w, http.StatusForbidden, overCapMessage(len(others), c))
 		return
 	}
@@ -233,7 +233,7 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		fail(err)
 		return
 	}
-	skipped := max(len(in.Snippets)-c.Cap, 0)
+	skipped := len(in.Snippets) - c.Keep(len(in.Snippets))
 	list := make([]caveTextSnippet, len(in.Snippets)-skipped)
 	for i := range list {
 		list[i] = in.Snippets[i].snippet()
