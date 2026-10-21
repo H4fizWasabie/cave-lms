@@ -271,6 +271,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .field-row { display: flex; justify-content: space-between; align-items: baseline; }
 .small-link { font-size: .86rem; color: var(--muted); }
 .field-err { color: var(--bad); font-size: .88rem; font-weight: 600; }
+.field-ok { color: var(--ok); font-size: .88rem; font-weight: 600; }
 [aria-invalid="true"] { border-color: var(--bad) !important; }
 .opt { font-weight: 400; color: var(--muted); font-size: .84rem; }
 

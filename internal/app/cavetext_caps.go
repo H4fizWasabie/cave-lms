@@ -74,6 +74,9 @@ func (a *App) caveTextCapsForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v.EarlyPlaces, v.EarlyCap, v.LateCap = strconv.Itoa(places), strconv.Itoa(early), strconv.Itoa(late)
+	if r.URL.Query().Has("saved") {
+		v.Message = "Saved."
+	}
 	a.render(w, r, http.StatusOK, "admin_cavetext_caps", v)
 }
 
@@ -98,5 +101,5 @@ func (a *App) saveCaveTextCaps(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, fmt.Errorf("save CaveText caps: %w", err))
 		return
 	}
-	http.Redirect(w, r, "/admin/cavetext/caps", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/cavetext/caps?saved", http.StatusSeeOther)
 }

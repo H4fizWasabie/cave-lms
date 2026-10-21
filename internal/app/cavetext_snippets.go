@@ -209,22 +209,14 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 	writeJSON(w, http.StatusOK, s)
 }
 
-// replaceCaveTextSnippets replaces the Learner's whole Snippet set (an import) in one transaction. Every Snippet is
-// checked against the ones before it in the set first; one refused and nothing is written. A set over the cap is
-// cut to the cap, and the answer says how many were skipped.
+// replaceCaveTextSnippets replaces the Learner's whole Snippet set (an import) in one transaction. A set over the cap
+// is cut to the cap first, and the answer says how many were skipped. Every kept Snippet is then checked against the
+// kept ones before it; one refused and nothing is written.
 func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	var in struct{ Snippets []snippetIn }
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10<<20)).Decode(&in); err != nil {
 		writeJSONError(w, http.StatusBadRequest, "CaveText sent Snippets CAVELMS can't read.")
 		return
-	}
-	list := make([]caveTextSnippet, len(in.Snippets))
-	for i, sn := range in.Snippets {
-		list[i] = sn.snippet()
-		if problem := snippetProblem(list[i], list[:i]); problem != "" {
-			writeJSONError(w, http.StatusUnprocessableEntity, problem)
-			return
-		}
 	}
 	fail := func(err error) {
 		a.logError(r, fmt.Errorf("replace Snippets: %w", err))
@@ -241,8 +233,15 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		fail(err)
 		return
 	}
-	skipped := max(len(list)-c.Cap, 0)
-	list = list[:len(list)-skipped]
+	skipped := max(len(in.Snippets)-c.Cap, 0)
+	list := make([]caveTextSnippet, len(in.Snippets)-skipped)
+	for i := range list {
+		list[i] = in.Snippets[i].snippet()
+		if problem := snippetProblem(list[i], list[:i]); problem != "" {
+			writeJSONError(w, http.StatusUnprocessableEntity, problem)
+			return
+		}
+	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM cavetext_snippets WHERE learner_id = $1`, l.ID); err != nil {
 		fail(err)
 		return

@@ -90,16 +90,18 @@ func (a *App) caveTextAPI(h func(http.ResponseWriter, *http.Request, *caveTextLe
 }
 
 func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
+	fail := func(err error) {
+		a.logError(r, fmt.Errorf("show CaveText account: %w", err))
+		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+	}
 	c, err := learnerSnippetCap(r.Context(), a.db, l.ID)
 	if err != nil {
-		a.logError(r, err)
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		fail(err)
 		return
 	}
 	n, err := countSnippets(r.Context(), a.db, l.ID)
 	if err != nil {
-		a.logError(r, fmt.Errorf("count Snippets: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		fail(fmt.Errorf("count Snippets: %w", err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early})

@@ -207,3 +207,58 @@ func TestOnlyTheOwnerEditsTheCaveTextCaps(t *testing.T) {
 	res, body = s.get("/admin/cavetext/caps")
 	expectStatus(t, res, body, http.StatusOK, `name="early_cap" value="15"`)
 }
+
+func TestAnImportOverTheCapChecksOnlyTheSnippetsItKeeps(t *testing.T) {
+	s := newCaveTextSite(t)
+	s.nextPlace(1001)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	var set []snippet
+	for i := range 5 {
+		set = append(set, snippet{Folder: "Kept", Name: fmt.Sprintf("I%d", i), Shortcut: fmt.Sprintf("/i%d", i), Body: "x"})
+	}
+	clash := snippet{Folder: "Kept", Name: "Clash", Shortcut: "/i0", Body: "x"}
+
+	res, body := ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": append(set[:5:5], clash)})
+	expectStatus(t, res, body, http.StatusOK, `"skipped":1`)
+	if n := len(ada.snippets(token)); n != 5 {
+		t.Fatalf("Snippets = %d, want the 5 kept", n)
+	}
+
+	// A clash among the kept ones still refuses the whole import.
+	res, body = ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": append([]snippet{set[0], clash}, set[1:]...)})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	if n := len(ada.snippets(token)); n != 5 {
+		t.Fatalf("Snippets after a refused import = %d, want the 5 from before", n)
+	}
+}
+
+func TestTheCaveTextCapsRefuseACrossOriginSave(t *testing.T) {
+	s := caveTextOwnerSite(t)
+	form := url.Values{"early_places": {"1"}, "early_cap": {"1"}, "late_cap": {"1"}}
+	for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
+		req, _ := http.NewRequest(http.MethodPost, s.server.URL+"/admin/cavetext/caps", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set(header, value)
+		res, body := s.do(req)
+		expectStatus(t, res, body, http.StatusForbidden, "cross-origin request refused")
+	}
+	res, body := s.get("/admin/cavetext/caps")
+	expectStatus(t, res, body, http.StatusOK, `name="early_cap" value="10"`)
+}
+
+func TestSavingTheCaveTextCapsSaysSaved(t *testing.T) {
+	s := caveTextOwnerSite(t)
+	res, body := s.get("/admin/cavetext/caps")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if strings.Contains(body, "Saved.") {
+		t.Fatalf("the caps page says Saved. before any save")
+	}
+	if strings.Contains(body, "nobody loses") || !strings.Contains(body, "never deletes a Snippet") {
+		t.Fatalf("the caps page doesn't say plainly that a cap change never deletes a Snippet")
+	}
+	res, body = s.saveCaps("1000", "12", "5")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.get(res.Header.Get("Location"))
+	expectStatus(t, res, body, http.StatusOK, "Saved.")
+	expectStatus(t, res, body, http.StatusOK, `name="early_cap" value="12"`)
+}

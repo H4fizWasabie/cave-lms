@@ -6,11 +6,12 @@
         <div class="adm-head">
           <div>
             <h1>Admin: CaveText caps</h1>
-            <p>How many Snippets a Learner may keep free. The first Learners to sign in to CaveText, up to the early places, get the early cap; everyone after gets the late cap. A change applies to every Learner at once, and nobody loses Snippets they already have. Only you, the Owner, see this page.</p>
+            <p>How many Snippets a Learner may keep free. The first Learners to sign in to CaveText, up to the early places, get the early cap; everyone after gets the late cap. A change applies to every Learner at once and never deletes a Snippet; a Learner over a lowered cap can still edit and delete, but not add. Only you, the Owner, see this page.</p>
           </div>
         </div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
           <form class="form" method="post" action="/admin/cavetext/caps">
             <div class="field-grid field-grid-2">
               <div class="field"><label for="early_places">Early places</label><input id="early_places" type="number" min="0" max="1000000" step="1" name="early_places" value="{{.EarlyPlaces}}" required></div>
