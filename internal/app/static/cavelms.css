@@ -1,8 +1,8 @@
 /* CAVELMS styles, ported from the agreed mockup (prototype/mockup, Look A). No build step. */
 
 /* ============================ BRAND ============================
-   Swap the client's brand here: two colours, two fonts, one logo file (img/logo.svg,
-   plus img/logo-light.svg for dark backgrounds). Everything else derives from these. */
+   Swap the client's brand here: two colours, two fonts, and the logo files (static/cavelms.svg
+   in the header, static/logo-light.svg on dark backgrounds). Everything else derives from these. */
 :root {
   --brand-ink: #1f2124;        /* charcoal: text, primary buttons */
   --brand-gold: #d2a649;       /* gold from the logo's arch: fills and accents */
