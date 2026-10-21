@@ -94,24 +94,22 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 		a.logError(r, fmt.Errorf("show CaveText account: %w", err))
 		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
 	}
-	c, err := learnerSnippetCap(r.Context(), a.db, l.ID)
-	if err != nil {
-		fail(err)
+	// The User master prompt is null when none is saved; a lapsed Learner keeps theirs, and CaveText inserts it only
+	// with Pro. Every Learner gets the question, so a free Learner sees it, with Copy, beside the locked box.
+	var c snippetCap
+	var until sql.NullTime
+	var prompt *string
+	var question string
+	if err := a.db.QueryRowContext(r.Context(), `SELECT `+snippetCapColumns+`, c.user_master_prompt, s.master_prompt_question
+		FROM cavetext_accounts c CROSS JOIN cavetext_settings s WHERE c.learner_id = $1`, l.ID).
+		Scan(append(c.dest(&until), &prompt, &question)...); err != nil {
+		fail(fmt.Errorf("read CaveText account: %w", err))
 		return
 	}
+	c.setUntil(until)
 	n, err := countSnippets(r.Context(), a.db, l.ID)
 	if err != nil {
 		fail(fmt.Errorf("count Snippets: %w", err))
-		return
-	}
-	// The User master prompt is null when none is saved; a lapsed Learner keeps theirs, and CaveText inserts it only
-	// with Pro. Every Learner gets the question, so a free Learner sees it beside the locked box.
-	var prompt *string
-	var question string
-	if err := a.db.QueryRowContext(r.Context(), `
-		SELECT c.user_master_prompt, s.master_prompt_question FROM cavetext_accounts c CROSS JOIN cavetext_settings s
-		WHERE c.learner_id = $1`, l.ID).Scan(&prompt, &question); err != nil {
-		fail(fmt.Errorf("read User master prompt: %w", err))
 		return
 	}
 	// A Pro Learner's cap is unlimited: null. proUntil is null without Pro.

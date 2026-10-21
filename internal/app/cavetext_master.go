@@ -24,7 +24,7 @@ func (a *App) saveUserMasterPrompt(w http.ResponseWriter, r *http.Request, l *ca
 		return
 	}
 	if n := utf8.RuneCountInString(in.Text); n > maxUserMasterPrompt {
-		writeJSONError(w, http.StatusUnprocessableEntity, fmt.Sprintf("A User master prompt can have up to 8,000 characters; this one has %s. Shorten it, then save.", thousands(n)))
+		writeJSONError(w, http.StatusUnprocessableEntity, fmt.Sprintf("A User master prompt can have up to %s characters; this one has %s. Shorten it, then save.", thousands(maxUserMasterPrompt), thousands(n)))
 		return
 	}
 	fail := func(err error) {

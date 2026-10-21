@@ -21,6 +21,9 @@ type caveTextSettingsView struct {
 // maxQuestion bounds the question's length in characters.
 const maxQuestion = 2000
 
+// MaxQuestion is maxQuestion for the page's maxlength.
+func (caveTextSettingsView) MaxQuestion() int { return maxQuestion }
+
 // maxProPriceSen bounds the price, so a typo can't ask a Learner for a fortune.
 const maxProPriceSen = 9999999
 
@@ -55,7 +58,7 @@ func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 	case v.Question == "":
 		v.Error = "Enter the question Learners ask an AI chatbot for their User master prompt."
 	case utf8.RuneCountInString(v.Question) > maxQuestion:
-		v.Error = "Shorten the question to 2,000 characters or fewer."
+		v.Error = fmt.Sprintf("Shorten the question to %s characters or fewer.", thousands(maxQuestion))
 	}
 	if v.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_cavetext_settings", v)

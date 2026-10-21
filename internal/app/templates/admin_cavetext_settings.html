@@ -18,7 +18,7 @@
               <div class="field"><label for="price">Pro price (RM a year)</label><input id="price" type="text" inputmode="decimal" name="price" value="{{.Price}}" required></div>
               <div class="field"><label for="payment_link">Payment link <span class="opt">(optional)</span></label><input id="payment_link" type="url" name="payment_link" value="{{.PaymentLink}}" placeholder="https://"></div>
             </div>
-            <div class="field"><label for="question">User master prompt question</label><textarea id="question" name="question" rows="5" maxlength="2000" required>{{.Question}}</textarea></div>
+            <div class="field"><label for="question">User master prompt question</label><textarea id="question" name="question" rows="5" maxlength="{{.MaxQuestion}}" required>{{.Question}}</textarea></div>
             <div class="form-actions"><button class="btn btn-solid">Save</button></div>
           </form>
         </div>

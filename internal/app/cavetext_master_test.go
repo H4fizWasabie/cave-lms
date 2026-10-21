@@ -3,7 +3,9 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -56,6 +58,42 @@ func TestAProLearnerSavesOneUserMasterPromptAndDeletesItToReplaceIt(t *testing.T
 	ada.deleteUserMasterPrompt(token) // deleting none is fine
 	res, body = ada.saveUserMasterPrompt(token, "I am Ada, now an engineer.")
 	expectStatus(t, res, body, http.StatusOK, "now an engineer")
+}
+
+// Two browsers saving at the same moment: one is kept, the other is told to delete it first, never both overwriting.
+func TestTwoUserMasterPromptsSavedAtOnceKeepOneAndRefuseTheOther(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.givePro("ada@example.com")
+
+	texts := []string{"I am Ada, from the laptop.", "I am Ada, from the phone."}
+	statuses := make([]int, len(texts))
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i, text := range texts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			res, _ := ada.saveUserMasterPrompt(token, text)
+			statuses[i] = res.StatusCode
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	got := append([]int(nil), statuses...)
+	sort.Ints(got)
+	if got[0] != http.StatusOK || got[1] != http.StatusConflict {
+		t.Fatalf("statuses = %v, want one 200 and one 409", statuses)
+	}
+	kept := texts[0]
+	if statuses[1] == http.StatusOK {
+		kept = texts[1]
+	}
+	if got := userMasterPrompt(ada.me(token)); got != kept {
+		t.Fatalf("User master prompt = %q, want the one answered 200, %q", got, kept)
+	}
 }
 
 func TestAUserMasterPromptOverEightThousandCharactersIsRefused(t *testing.T) {
