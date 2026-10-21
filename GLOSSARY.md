@@ -96,6 +96,10 @@ _Avoid_: Subscription, term, cycle
 A dashboard design with blanks for columns, such as Finance, Inventory, HR or General.
 _Avoid_: Theme, layout, preset
 
+**Dashboard question**:
+The one thing a Template's Dashboard answers, shown under its name. General has none. Unrelated to the questions in an Exam.
+_Avoid_: Goal, purpose, insight
+
 **Sample**:
 The Excel file Cave provides for a Template. Learners only ever work with Samples, never their own data.
 _Avoid_: Example file, demo data

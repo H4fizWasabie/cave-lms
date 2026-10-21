@@ -14,17 +14,20 @@
     '.dh{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:flex-end;margin-bottom:1.2rem}',
     '.dh h1{font-size:1.6rem;letter-spacing:-.01em}',
     '.dh p{color:#5b6573;font-size:.88rem;margin:.2rem 0 0}',
+    '.dh .dq{color:#1c2430;font-size:1rem;font-weight:600}',
     '.df{display:flex;flex-wrap:wrap;gap:.6rem .9rem}',
     '.df label{display:grid;gap:.2rem;font-size:.78rem;font-weight:600;color:#5b6573}',
     '.dcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));gap:.8rem;margin-bottom:.8rem}',
     '.dcard{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:.9rem 1rem;display:grid;gap:.15rem}',
     '.dcard span{font-size:.82rem;color:#5b6573;font-weight:600}',
     '.dcard strong{font-size:1.45rem;font-variant-numeric:tabular-nums;letter-spacing:-.01em}',
+    '.dcard:first-child{grid-column:span 2}.dcard:first-child strong{font-size:2.1rem}',
     '.dcard.is-pos strong{color:#2d7a52}.dcard.is-neg strong{color:#b4432a}',
     '.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}',
     '.dpanel{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:1rem 1.1rem;min-width:0}',
     '.dpanel.wide{grid-column:1/-1}',
     '.dpanel h2{font-size:.98rem;margin-bottom:.7rem}',
+    '.dpanel .dfind{margin:-.5rem 0 .7rem;font-size:.84rem;color:#5b6573}',
     '.dchart{width:100%;height:auto}.dchart text{font-size:11px;fill:#6b7482}.dchart .grid{stroke:#eceef2}',
     '.dlegend{display:flex;gap:1rem;font-size:.82rem;color:#5b6573;margin:-.3rem 0 .4rem}',
     '.dlegend span,.ddonut li{display:flex;align-items:center;gap:.4rem}',
@@ -45,7 +48,7 @@
     '.dtable .num{text-align:right;font-variant-numeric:tabular-nums}',
     '.dnone{color:#6b7482;font-size:.88rem;padding:1rem 0;text-align:center}',
     '@media (max-width:640px){main{padding:1.1rem .9rem .6rem}.dh h1{font-size:1.3rem}.df{width:100%}.df label{flex:1 1 8rem}' +
-      '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard strong{font-size:1.15rem}' +
+      '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard strong{font-size:1.15rem}.dcard:first-child strong{font-size:1.6rem}' +
       '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}'
   ].join('\n');
 
@@ -64,8 +67,8 @@
     return money ? (n < 0 ? '-RM' + s.replace('-', '') : 'RM' + s) : s;
   }
   function short(n, money) {
-    var a = Math.abs(n), s = a >= 1e6 ? (n / 1e6).toFixed(1) + 'm' : a >= 1e3 ? (n / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k' : String(Math.round(n));
-    return (money ? 'RM' : '') + s;
+    var a = Math.abs(n), s = a >= 1e6 ? (a / 1e6).toFixed(1) + 'm' : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k' : String(Math.round(a));
+    return (n < 0 ? '-' : '') + (money ? 'RM' : '') + s;
   }
   function dmy(iso) { var p = String(iso).split('-'); return +p[2] + ' ' + MONTHS[+p[1] - 1] + ' ' + p[0]; }
   function monthName(ym) { return MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4); }
@@ -131,7 +134,11 @@
       scope(rows, b).forEach(function (r) { var k = r[b.group] == null ? '(blank)' : r[b.group]; g[k] = (g[k] || 0) + (b.of ? +r[b.of] || 0 : 1); });
       return Object.keys(g).map(function (k) { return [k, g[k]]; }).sort(function (a, c) { return c[1] - a[1]; });
     }
-    function panel(b, inner) { return '<article class="dpanel' + (b.wide || b.kind === 'table' ? ' wide' : '') + '"><h2>' + esc(b.label) + '</h2>' + inner + '</article>'; }
+    // finding is the one thing the chart shows, written under its name: its peak, top group or largest share.
+    function panel(b, inner, finding) {
+      return '<article class="dpanel' + (b.wide || b.kind === 'table' ? ' wide' : '') + '"><h2>' + esc(b.label) + '</h2>' +
+        (finding ? '<p class="dfind">' + esc(finding) + '</p>' : '') + inner + '</article>';
+    }
     function empty(b) { return panel(b, '<p class="dnone">No rows match the filters</p>'); }
 
     function card(b, rows) {
@@ -152,8 +159,9 @@
       keys.sort();
       if (!keys.length) return empty(b);
       var names = Object.keys(series).sort(), max = 0;
-      names.forEach(function (s) { keys.forEach(function (k) { max = Math.max(max, series[s][k] || 0); }); });
-      max = nice(max);
+      var peak = null;
+      names.forEach(function (s) { keys.forEach(function (k) { var v = series[s][k] || 0; if (!peak || v > peak[2]) peak = [s, k, v]; }); });
+      max = nice(Math.max(0, peak[2]));
       var div = String(max)[0] === '2' ? 4 : 5;
       var W = Math.max(280, chartsEl.clientWidth - 40), H = W < 500 ? 190 : 240, L = 54, B = 26, T = 10, R = 22, w = W - L - R, h = H - B - T;
       var X = function (i) { return L + (keys.length === 1 ? w / 2 : i * w / (keys.length - 1)); }, Y = function (v) { return T + h - v / max * h; };
@@ -172,7 +180,8 @@
         keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="3.5" fill="' + c + '"><title>' + esc(s) + ', ' + monthName(k) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
       });
       var legend = by ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + seriesColour(s, si) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
-      return panel(b, legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dchart" role="img" aria-label="' + esc(b.label) + '">' + svg + '</svg>');
+      var finding = keys.length > 1 && peak[2] > 0 ? 'Peak: ' + (by ? peak[0] + ', ' : '') + monthName(peak[1]) + ', ' + short(peak[2], m) : '';
+      return panel(b, legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dchart" role="img" aria-label="' + esc(b.label) + '">' + svg + '</svg>', finding);
     }
 
     function bar(b, rows) {
@@ -181,19 +190,22 @@
       var max = g[0][1] || 1;
       return panel(b, '<ul class="dbars">' + g.map(function (x) {
         return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span><span class="dbar-t"><span style="width:' + Math.max(0, x[1] / max * 100).toFixed(1) + '%"></span></span><span class="dbar-v">' + short(x[1], m) + '</span></li>';
-      }).join('') + '</ul>');
+      }).join('') + '</ul>', g.length > 1 && g[0][1] > 0 ? 'Top: ' + g[0][0] + ', ' + short(g[0][1], m) : '');
     }
 
     function donut(b, rows) {
       var g = grouped(rows, b), m = money(b.of), tot = g.reduce(function (a, x) { return a + x[1]; }, 0);
       if (!tot) return empty(b);
+      // Named before the tail folds into Other, which can outweigh the largest group.
+      var finding = g.length > 1 ? 'Largest: ' + g[0][0] + ', ' + Math.round(g[0][1] / tot * 100) + '%' : '';
       if (g.length > 6) { var rest = g.slice(5).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, 5).concat([['Other', rest]]); }
       var acc = 0, r = 60, C = 2 * Math.PI * r, segs = g.map(function (x, i) {
         var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + PALETTE[i] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
         acc += len; return s;
       }).join('');
       return panel(b, '<div class="ddonut"><svg viewBox="0 0 160 160" role="img" aria-label="' + esc(b.label) + '">' + segs + '<text x="80" y="86" text-anchor="middle" class="dtot">' + short(tot, m) + '</text></svg><ul>' +
-        g.map(function (x, i) { return '<li><i style="background:' + PALETTE[i] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>');
+        g.map(function (x, i) { return '<li><i style="background:' + PALETTE[i] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
+        finding);
     }
 
     function table(b, rows) {
