@@ -60,6 +60,13 @@ func readMasterPrompts(ctx context.Context, q rowQueryer) (masterPrompts, error)
 	return p, err
 }
 
+// clashList is what a Snippet's shortcut is checked against: the master prompts' shortcuts, then others, in a new
+// slice (never reserved's backing array) with room for `room` more, so a caller checking a set one by one can grow it.
+func clashList(reserved, others []caveTextSnippet, room int) []caveTextSnippet {
+	list := make([]caveTextSnippet, 0, len(reserved)+len(others)+room)
+	return append(append(list, reserved...), others...)
+}
+
 // reservedShortcuts are the master prompts' shortcuts, part of every Learner's clash check.
 func reservedShortcuts(ctx context.Context, q rowQueryer) ([]caveTextSnippet, error) {
 	p, err := readMasterPrompts(ctx, q)
@@ -98,8 +105,8 @@ func (p *masterPrompts) problem() string {
 		case utf8.RuneCountInString(x.Body) > maxMasterPromptBody:
 			return fmt.Sprintf("Shorten the %s master prompt to %s characters or fewer.", x.Label, thousands(maxMasterPromptBody))
 		}
-		if problem := shortcutProblem(x.Shortcut, others); problem != "" {
-			return fmt.Sprintf("%s master prompt: %s", x.Label, problem)
+		if why := shortcutProblem(x.Shortcut, others); why != "" {
+			return fmt.Sprintf("%s master prompt: %s", x.Label, why)
 		}
 	}
 	return ""

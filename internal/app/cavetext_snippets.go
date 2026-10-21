@@ -139,7 +139,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(s, append(reserved, others...)); problem != "" {
+	if problem := snippetProblem(s, clashList(reserved, others, 0)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -197,7 +197,7 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(s, append(reserved, others...)); problem != "" {
+	if problem := snippetProblem(s, clashList(reserved, others, 0)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -250,12 +250,14 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	}
 	skipped := len(in.Snippets) - c.Keep(len(in.Snippets))
 	list := make([]caveTextSnippet, len(in.Snippets)-skipped)
+	before := clashList(reserved, nil, len(list)) // grows by each kept Snippet once it passes
 	for i := range list {
 		list[i] = in.Snippets[i].snippet()
-		if problem := snippetProblem(list[i], append(reserved, list[:i]...)); problem != "" {
+		if problem := snippetProblem(list[i], before); problem != "" {
 			writeJSONError(w, http.StatusUnprocessableEntity, problem)
 			return
 		}
+		before = append(before, list[i])
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM cavetext_snippets WHERE learner_id = $1`, l.ID); err != nil {
 		fail(err)
