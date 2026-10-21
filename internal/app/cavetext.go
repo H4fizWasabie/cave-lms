@@ -104,8 +104,19 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 		fail(fmt.Errorf("count Snippets: %w", err))
 		return
 	}
+	// The User master prompt is null when none is saved; a lapsed Learner keeps theirs, and CaveText inserts it only
+	// with Pro. Every Learner gets the question, so a free Learner sees it beside the locked box.
+	var prompt *string
+	var question string
+	if err := a.db.QueryRowContext(r.Context(), `
+		SELECT c.user_master_prompt, s.master_prompt_question FROM cavetext_accounts c CROSS JOIN cavetext_settings s
+		WHERE c.learner_id = $1`, l.ID).Scan(&prompt, &question); err != nil {
+		fail(fmt.Errorf("read User master prompt: %w", err))
+		return
+	}
 	// A Pro Learner's cap is unlimited: null. proUntil is null without Pro.
-	me := map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early, "pro": c.Pro, "proUntil": nil}
+	me := map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early, "pro": c.Pro, "proUntil": nil,
+		"userMasterPrompt": prompt, "masterPromptQuestion": question}
 	if c.Pro {
 		me["cap"], me["proUntil"] = nil, c.ProUntil
 	}

@@ -6,14 +6,20 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
-// caveTextSettingsView is the CaveText settings page any Admin edits: Pro's price, shown in RM, and its payment link.
+// caveTextSettingsView is the CaveText settings page any Admin edits: Pro's price, shown in RM, its payment link, and
+// the question shown beside the User master prompt box.
 type caveTextSettingsView struct {
 	pageBase
 	Price       string
 	PaymentLink string
+	Question    string
 }
+
+// maxQuestion bounds the question's length in characters.
+const maxQuestion = 2000
 
 // maxProPriceSen bounds the price, so a typo can't ask a Learner for a fortune.
 const maxProPriceSen = 9999999
@@ -21,8 +27,8 @@ const maxProPriceSen = 9999999
 func (a *App) caveTextSettingsForm(w http.ResponseWriter, r *http.Request) {
 	v := &caveTextSettingsView{pageBase: pageBase{Title: "CaveText settings"}}
 	var sen int
-	if err := a.db.QueryRowContext(r.Context(), `SELECT pro_price_sen, pro_payment_link FROM cavetext_settings WHERE id = 1`).
-		Scan(&sen, &v.PaymentLink); err != nil {
+	if err := a.db.QueryRowContext(r.Context(), `SELECT pro_price_sen, pro_payment_link, master_prompt_question FROM cavetext_settings WHERE id = 1`).
+		Scan(&sen, &v.PaymentLink, &v.Question); err != nil {
 		a.serverError(w, r, fmt.Errorf("read CaveText settings: %w", err))
 		return
 	}
@@ -36,7 +42,8 @@ func (a *App) caveTextSettingsForm(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 	v := &caveTextSettingsView{pageBase: pageBase{Title: "CaveText settings"},
 		Price:       strings.TrimSpace(r.PostFormValue("price")),
-		PaymentLink: strings.TrimSpace(r.PostFormValue("payment_link"))}
+		PaymentLink: strings.TrimSpace(r.PostFormValue("payment_link")),
+		Question:    strings.TrimSpace(r.PostFormValue("question"))}
 	sen, ok := parseRM(v.Price)
 	switch {
 	case !ok || sen > maxProPriceSen:
@@ -45,13 +52,17 @@ func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 		v.Error = "Enter a price more than 0, like 25 or 25.50."
 	case v.PaymentLink != "" && !isWebLink(v.PaymentLink):
 		v.Error = "Enter the payment link as a full web address starting with http:// or https://, or leave it empty."
+	case v.Question == "":
+		v.Error = "Enter the question Learners ask an AI chatbot for their User master prompt."
+	case utf8.RuneCountInString(v.Question) > maxQuestion:
+		v.Error = "Shorten the question to 2,000 characters or fewer."
 	}
 	if v.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_cavetext_settings", v)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE cavetext_settings SET pro_price_sen = $1, pro_payment_link = $2 WHERE id = 1`,
-		sen, v.PaymentLink); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE cavetext_settings SET pro_price_sen = $1, pro_payment_link = $2, master_prompt_question = $3 WHERE id = 1`,
+		sen, v.PaymentLink, v.Question); err != nil {
 		a.serverError(w, r, fmt.Errorf("save CaveText settings: %w", err))
 		return
 	}

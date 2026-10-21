@@ -54,6 +54,9 @@ type caveTextMe struct {
 	Early        bool       `json:"early"`
 	Pro          bool       `json:"pro"`
 	ProUntil     *time.Time `json:"proUntil"`
+
+	UserMasterPrompt     *string `json:"userMasterPrompt"`
+	MasterPromptQuestion string  `json:"masterPromptQuestion"`
 }
 
 func (s *site) me(token string) caveTextMe {
