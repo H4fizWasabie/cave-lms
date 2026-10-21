@@ -127,3 +127,19 @@ _Avoid_: Publish (that is for Course content), hosting, site
 **Takedown**:
 The Admin putting a Deployment to sleep early, with a recorded reason. The Dashboard itself stays.
 _Avoid_: Ban, removal, unpublish
+
+**CaveText**:
+The browser extension that turns a typed shortcut in an AI chat box into a saved prompt. A Learner signs in to it with their CAVELMS account.
+_Avoid_: Snippet app, plugin
+
+**Snippet**:
+A saved prompt in CaveText: a name, a shortcut and a body. Each Learner keeps their own, up to their Snippet cap.
+_Avoid_: Template (that is for the Lab), prompt
+
+**CaveText Pro**:
+A paid yearly upgrade to CaveText, one level only, bought separately from Courses and from Plans. It raises the Snippet cap and opens the Master prompts.
+_Avoid_: Plan (that is for the Lab), subscription
+
+**Master prompt**:
+A ready prompt a CaveText Pro Learner inserts with one click or its shortcut. There are three. The User master prompt is the Learner's own context, written by an AI chatbot they asked what it knows about them and pasted into CaveText; it cannot be edited, only deleted and replaced, and it sits above a Snippet's task when inserted. The Image and Dashboard master prompts are written by the client, the same for every Pro Learner, and inserted as they are.
+_Avoid_: Meta prompt, profile, system prompt, Prompt set
