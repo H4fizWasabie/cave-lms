@@ -22,7 +22,7 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if len(list) == 0 {
@@ -39,7 +39,7 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 		WHERE $1 = '' OR id = $1 OR strpos(lower(learner_name), lower($1)) > 0
 		ORDER BY issued_at DESC, id`, q)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "admin_certificates", page{Certificates: list, Query: q})
@@ -50,7 +50,7 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
 	_, err := a.db.ExecContext(r.Context(), `UPDATE certificates SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, r.PathValue("id"))
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/certificates", http.StatusSeeOther)
@@ -63,7 +63,7 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	old, err := a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if len(old) == 0 {
@@ -81,12 +81,12 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := newCertificateID()
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -105,7 +105,7 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/certificates?q="+url.QueryEscape(id), http.StatusSeeOther)

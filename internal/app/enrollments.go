@@ -35,7 +35,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 		SELECT l.id, l.name, l.email FROM enrollments e JOIN learners l ON l.id = e.learner_id
 		WHERE e.course_id = $1 ORDER BY l.name, l.id`, c.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -43,28 +43,28 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var e enrollee
 		if err := rows.Scan(&e.ID, &e.Name, &e.Email); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		list = append(list, e)
 	}
 	if err := rows.Err(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	// ponytail: three small queries per Learner (N+1). Fine for one Course's roster; batch them if a Course grows past a few hundred.
 	for i := range list {
 		e := &list[i]
 		if e.Done, e.Total, err = a.courseProgress(r.Context(), e.ID, c.ID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if e.Best, e.HasBest, err = a.bestExamScore(r.Context(), e.ID, c.ID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if e.Certificate, err = a.certificateStatus(r.Context(), e.ID, c.ID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}
@@ -84,7 +84,7 @@ func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := a.db.ExecContext(r.Context(),
 		`DELETE FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learnerID, c.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
@@ -95,7 +95,7 @@ func (a *App) requireLearner(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		learner, err := a.currentLearner(r)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if learner == nil {
@@ -109,7 +109,7 @@ func (a *App) requireLearner(h http.HandlerFunc) http.HandlerFunc {
 func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -118,7 +118,7 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if !enrolled && !c.Open {
@@ -128,7 +128,7 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	if _, err := a.db.ExecContext(r.Context(),
 		`INSERT INTO enrollments (learner_id, course_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		learner.ID, c.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
@@ -143,7 +143,7 @@ type leaveCoursePage struct {
 func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -156,7 +156,7 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 			AND NOT EXISTS (SELECT 1 FROM enrollments e JOIN courses c ON c.id = e.course_id
 				WHERE e.learner_id = $1 AND c.includes_lab AND c.id <> $2)`, learner.ID, c.ID).Scan(&lastLabCourse)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if lastLabCourse {
@@ -166,7 +166,7 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := a.db.ExecContext(r.Context(),
 		`DELETE FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learner.ID, c.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
@@ -176,14 +176,14 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	list, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses
 		WHERE id IN (SELECT course_id FROM enrollments WHERE learner_id = $1)
 		ORDER BY start_date NULLS LAST, id`, learner.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "my_courses", page{Learner: learner, Courses: list})

@@ -61,7 +61,7 @@ func serve() error {
 		Handler:           application,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	log.Printf("Cave LMS listening on %s", cfg.ListenAddr)
+	application.Started(cfg.ListenAddr)
 	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

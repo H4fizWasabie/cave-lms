@@ -14,6 +14,8 @@ go run ./cmd/cave-lms
 
 To run it on the VPS, see `docs/deploy.md`.
 
+`OWNER_EMAIL` is optional. It names the Owner, the one Admin who sees the System log at `/admin/log`; without it nobody does, though errors are still logged.
+
 `RESEND_API_KEY` is optional. With it, verification and reset emails are sent through Resend from `EMAIL_FROM`; without it, sending fails with an explicit error.
 
 ## Create the Admin

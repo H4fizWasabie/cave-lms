@@ -18,6 +18,14 @@ _Avoid_: User, member, student
 A person who runs the site: builds Courses, uploads Gallery items, sells Plans and takes down Deployments. Can use the Lab without a Plan.
 _Avoid_: Instructor, teacher, uploader
 
+**Owner**:
+The one Admin who can see the System log, named by an email address set on the server.
+_Avoid_: Super admin, root
+
+**System log**:
+What the site records about its own running: errors and start-ups, kept 30 days. Only the Owner sees it.
+_Avoid_: Audit log, activity log, history
+
 **Registration**:
 Creating a Learner account. Open to anyone, with email verification.
 _Avoid_: Sign-up, enrollment

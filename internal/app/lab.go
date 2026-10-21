@@ -74,18 +74,18 @@ type labPage struct {
 func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}, Templates: lab.Templates}
 	if learner != nil {
 		if p.Access, err = a.labAccessOf(r.Context(), learner); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		// Only a Learner who once had access has Dashboards, so without access they are listed read-only.
 		if p.Dashboards, err = a.labDashboards(r, learner.ID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		switch {
@@ -99,7 +99,7 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 				WHERE includes_lab AND is_open ORDER BY start_date NULLS LAST, id`)
 		}
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}

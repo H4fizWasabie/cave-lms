@@ -252,7 +252,7 @@ func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Upload a Dataset first")
 }
 
-func TestOnlyTheOwnerReachesADashboard(t *testing.T) {
+func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
 	admin, ada := labLearner(t)
 	path := ada.createDashboard("finance", "Kewangan")
 	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())

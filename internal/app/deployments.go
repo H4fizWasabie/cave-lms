@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// deployment is a Dashboard's Deployment as its owner sees it on the Deploy tab.
+// deployment is a Dashboard's Deployment as its Learner sees it on the Deploy tab.
 type deployment struct {
 	Path      string // /d/<slug>/
 	Link      string // the full link to share
@@ -55,7 +55,7 @@ func (a *App) deploymentOf(r *http.Request, dashboardID int64) (*deployment, err
 func (a *App) deployTab(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, err := a.learnerAccess(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.renderDeployTab(w, r, http.StatusOK, d, acc, r.URL.Query().Has("confirm"))
@@ -65,7 +65,7 @@ func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int
 	p := &dashboardPage{Dashboard: d, Tab: "deploy", Access: acc, Confirm: confirm, WouldSleep: time.Now().Add(awakeFor).UTC().Format(periodTime)}
 	var err error
 	if p.Deployment, err = a.deploymentOf(r, d.ID); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.renderDashboard(w, r, status, p)
@@ -91,14 +91,14 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	}
 	slug, err := newToken()
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	slug = slug[:22] // 132 random bits, short enough to share
 
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -106,7 +106,7 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	var deployed bool
 	if err := tx.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM deployments WHERE dashboard_id = d.id)
 		FROM dashboards d WHERE d.id = $1 FOR UPDATE`, d.ID).Scan(&deployed); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	var period *int64 // nil for the Admin, whose Deployments count against no period
@@ -117,7 +117,7 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		// Locking the period row makes two Deploys at once take turns, so the allowance holds.
 		if err := tx.QueryRowContext(r.Context(), `SELECT pp.deployments - (SELECT count(*) FROM deployments WHERE period_id = pp.id)
 			FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE`, *period).Scan(&left); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}
@@ -131,11 +131,11 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	default:
 		if _, err := tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, period_id, slug, sleeps_at)
 			SELECT $1, learner_id, $2, $3, now() + $4 * interval '1 second' FROM dashboards WHERE id = $1`, d.ID, period, slug, awakeFor.Seconds()); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if err := tx.Commit(); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}
@@ -152,14 +152,14 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments
 			WHERE slug = $1 AND sleeps_at > now() AND taken_down_at IS NULL)`, slug)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if d != nil {
 			if name == "data.json" {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 			}
-			serveDashboardFile(w, r, d, name, "sandbox allow-scripts")
+			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts")
 			return
 		}
 		var sleeps time.Time
@@ -171,7 +171,7 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			a.render(w, r, http.StatusNotFound, "message", page{Title: "Not found",
 				Message: "There is no Dashboard at this link. It may have been deleted, or the link was copied wrongly."})
 		case err != nil:
-			serverError(w, err)
+			a.serverError(w, r, err)
 		case takenDown:
 			a.render(w, r, http.StatusOK, "message", page{Title: "This Dashboard is asleep",
 				Message: "Cave took it offline early. If you think this is a mistake, contact The Cave Consult."})
@@ -188,7 +188,7 @@ type adminDeployment struct {
 	ID        int64
 	Dashboard string
 	Template  string
-	Owner     string
+	Learner   string
 	Email     string
 }
 
@@ -210,7 +210,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
 		ORDER BY awake DESC, until DESC, dep.id DESC`)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -218,8 +218,8 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	for rows.Next() {
 		var dep adminDeployment
 		var err error
-		if dep.deployment, err = a.scanDeployment(rows, &dep.ID, &dep.Dashboard, &dep.Template, &dep.Owner, &dep.Email); err != nil {
-			serverError(w, err)
+		if dep.deployment, err = a.scanDeployment(rows, &dep.ID, &dep.Dashboard, &dep.Template, &dep.Learner, &dep.Email); err != nil {
+			a.serverError(w, r, err)
 			return
 		}
 		if dep.Template != "" {
@@ -228,7 +228,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 		p.Deployments = append(p.Deployments, dep)
 	}
 	if err := rows.Err(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, status, "admin_deployments", p)
@@ -248,7 +248,7 @@ func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE deployments SET taken_down_at = now(), takedown_reason = $2
 		WHERE id = $1 AND sleeps_at > now() AND taken_down_at IS NULL`, id, reason); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/deployments", http.StatusSeeOther)

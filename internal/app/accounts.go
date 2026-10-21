@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -32,6 +31,7 @@ type learner struct {
 	ID      int64
 	Name    string
 	IsAdmin bool
+	IsOwner bool // the Admin whose email is OWNER_EMAIL
 }
 
 // learnerKey keys the per-request memo of the session lookup that ServeHTTP installs.
@@ -53,8 +53,9 @@ func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	}
 	var l learner
 	err = a.db.QueryRowContext(r.Context(), `
-		SELECT l.id, l.name, l.is_admin FROM sessions s JOIN learners l ON l.id = s.learner_id
-		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value)).Scan(&l.ID, &l.Name, &l.IsAdmin)
+		SELECT l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2)
+		FROM sessions s JOIN learners l ON l.id = s.learner_id
+		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value), a.ownerEmail).Scan(&l.ID, &l.Name, &l.IsAdmin, &l.IsOwner)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -80,12 +81,12 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -100,16 +101,16 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	// Commit only once the email is sent, so a failed send leaves no half-made account.
 	if err := a.sendVerification(r.Context(), tx, id, name, email); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "message", page{
@@ -175,7 +176,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 			OfferResend: true,
 		})
 	case err != nil:
-		serverError(w, err)
+		a.serverError(w, r, err)
 	case expired:
 		a.render(w, r, http.StatusGone, "message", page{
 			Title:       "Link expired",
@@ -185,7 +186,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		})
 	default:
 		if _, err := a.db.ExecContext(r.Context(), `UPDATE learners SET verified_at = now() WHERE id = $1 AND verified_at IS NULL`, learnerID); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		a.render(w, r, http.StatusOK, "message", page{Title: "Email verified", Message: "Your account is confirmed.", OfferLogin: true})
@@ -196,7 +197,7 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -207,22 +208,22 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRowContext(r.Context(),
 		`SELECT id, name, email FROM learners WHERE lower(email) = lower($1) AND verified_at IS NULL`, email).Scan(&id, &name, &to)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if err == nil {
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeVerifyEmail, verifyLinkLifetime)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if err := tx.Commit(); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		// A failed send is only logged: an error page would reveal that the account exists.
 		if err := a.mailVerification(r.Context(), name, to, token); err != nil {
-			log.Printf("send verification email: %v", err)
+			a.logError(r, fmt.Errorf("send verification email: %w", err))
 		}
 	}
 	a.render(w, r, http.StatusOK, "message", page{
@@ -245,7 +246,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	err := a.db.QueryRowContext(r.Context(),
 		`SELECT id, password_hash, verified_at IS NOT NULL FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil {
@@ -264,14 +265,14 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := newToken()
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	// ponytail: expired session rows are never deleted; add a cleanup when the table grows.
 	if _, err := a.db.ExecContext(r.Context(),
 		`INSERT INTO sessions (token_hash, learner_id, expires_at) VALUES ($1, $2, now() + make_interval(secs => $3))`,
 		hashToken(token), id, sessionLifetime.Seconds()); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	setSessionCookie(w, token, int(sessionLifetime.Seconds()))
@@ -281,7 +282,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(sessionCookie); err == nil {
 		if _, err := a.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE token_hash = $1`, hashToken(cookie.Value)); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}

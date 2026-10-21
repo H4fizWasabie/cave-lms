@@ -43,7 +43,7 @@ func (a *App) admin(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		learner, err := a.currentLearner(r)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if learner == nil {

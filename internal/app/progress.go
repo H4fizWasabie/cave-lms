@@ -38,7 +38,7 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		learner, err := a.currentLearner(r)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		c, ok := a.courseFor(w, r)
@@ -47,7 +47,7 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 		}
 		enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if !enrolled {
@@ -74,7 +74,7 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 			err = a.issueCertificateIfEarned(r.Context(), learner.ID, c.ID)
 		}
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)

@@ -61,7 +61,7 @@ func (a *App) adminLessons(w http.ResponseWriter, r *http.Request) {
 	}
 	list, err := a.lessonsOf(r.Context(), c.ID, true)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "admin_lessons", page{Course: &c, Lessons: list})
@@ -79,12 +79,12 @@ func (a *App) newLessonForm(w http.ResponseWriter, r *http.Request) {
 func (a *App) renderLessonForm(w http.ResponseWriter, r *http.Request, status int, data page) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	items, err := a.galleryItemsFor(r.Context(), learner)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	data.Items = items
@@ -147,7 +147,7 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 		err = a.defaultMembersOnly(r.Context(), l.GalleryItemID)
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, lessonsPath(c.ID), http.StatusSeeOther)
@@ -189,7 +189,7 @@ func (a *App) lessonByPath(w http.ResponseWriter, r *http.Request) (lesson, bool
 		return lesson{}, false
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return lesson{}, false
 	}
 	return l, true
@@ -206,7 +206,7 @@ func (a *App) moveLesson(dir int) http.HandlerFunc {
 		ctx := r.Context()
 		tx, err := a.db.BeginTx(ctx, nil)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		defer tx.Rollback()
@@ -220,18 +220,18 @@ func (a *App) moveLesson(dir int) http.HandlerFunc {
 			WHERE course_id = $1 AND position `+op+` $2 ORDER BY position `+order+`, id `+order+` LIMIT 1`,
 			l.CourseID, l.Position).Scan(&otherID, &otherPos)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if err == nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE lessons SET position = CASE WHEN id = $1 THEN $2::integer ELSE $3::integer END WHERE id IN ($1, $4)`,
 				l.ID, otherPos, l.Position, otherID); err != nil {
-				serverError(w, err)
+				a.serverError(w, r, err)
 				return
 			}
 		}
 		if err := tx.Commit(); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
@@ -246,7 +246,7 @@ func lessonsPath(courseID int64) string {
 func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	c, ok := a.courseFor(w, r)
@@ -255,7 +255,7 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 	}
 	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if !enrolled && !learner.IsAdmin {
@@ -278,12 +278,12 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 	if l.GalleryItemID != 0 {
 		item, err := a.loadGalleryItem(r.Context(), l.GalleryItemID)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		allowed, err := a.mayView(r.Context(), learner, item)
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		if !allowed {
@@ -304,7 +304,7 @@ func (a *App) editLessonForm(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := a.courseByID(r.Context(), l.CourseID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.renderLessonForm(w, r, http.StatusOK, page{Course: &c, Lesson: &l})
@@ -324,7 +324,7 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
 	c, err := a.courseByID(r.Context(), l.CourseID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if msg != "" {
@@ -341,7 +341,7 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 		err = a.defaultMembersOnly(r.Context(), l.GalleryItemID)
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
@@ -357,7 +357,7 @@ func (a *App) deleteLesson(w http.ResponseWriter, r *http.Request) {
 		err = a.issueEarnedCertificates(r.Context(), l.CourseID)
 	}
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
@@ -378,7 +378,7 @@ func (a *App) setLessonPublished(published bool) http.HandlerFunc {
 			err = a.issueEarnedCertificates(r.Context(), l.CourseID)
 		}
 		if err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
@@ -394,7 +394,7 @@ func (a *App) publishAllLessons(w http.ResponseWriter, r *http.Request) {
 	rows, err := a.db.QueryContext(r.Context(),
 		`UPDATE lessons SET published = true WHERE course_id = $1 AND NOT published RETURNING COALESCE(gallery_item_id, 0)`, c.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	var items []int64
@@ -402,22 +402,22 @@ func (a *App) publishAllLessons(w http.ResponseWriter, r *http.Request) {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if err := rows.Err(); err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	for _, id := range items {
 		if err := a.defaultMembersOnly(r.Context(), id); err != nil {
-			serverError(w, err)
+			a.serverError(w, r, err)
 			return
 		}
 	}

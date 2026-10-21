@@ -160,23 +160,23 @@ func (a *App) certificateStatus(ctx context.Context, learnerID, courseID int64) 
 func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE learner_id = $1 ORDER BY issued_at, id`, learner.ID)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "my_certificates", page{Learner: learner, Certificates: list})
 }
 
-// downloadCertificate serves a Certificate PDF to its owner and to the Admin. Anyone else gets Not found.
+// downloadCertificate serves a Certificate PDF to its Learner and to the Admin. Anyone else gets Not found.
 // A revoked Certificate still downloads, marked as revoked.
 func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	viewer, err := a.currentLearner(r)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if viewer == nil {
@@ -185,7 +185,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if len(list) == 0 || (list[0].LearnerID != viewer.ID && !viewer.IsAdmin) {
@@ -194,7 +194,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	}
 	pdf, err := a.certificatePDF(r.Context(), list[0])
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/pdf")
@@ -300,7 +300,7 @@ func (a *App) certificateSettingsFor(ctx context.Context) (certificateSettings, 
 func (a *App) certificateSettingsForm(w http.ResponseWriter, r *http.Request) {
 	s, err := a.certificateSettingsFor(r.Context())
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "admin_certificate_settings", page{Settings: &s})
@@ -310,7 +310,7 @@ func (a *App) certificateSettingsForm(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	cur, err := a.certificateSettingsFor(r.Context())
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxCertificateImage)
@@ -343,7 +343,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	logo, msg, err := a.saveCertificateImage(r, "logo")
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if logo != "" {
@@ -355,7 +355,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	signature, msg, err := a.saveCertificateImage(r, "signature")
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	if signature != "" {
@@ -373,7 +373,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 		logo_key = COALESCE(NULLIF($3, ''), logo_key), signature_key = COALESCE(NULLIF($4, ''), signature_key) WHERE id = 1`,
 		next.OrganisationName, next.SignatoryName, logo, signature)
 	if err != nil {
-		serverError(w, err)
+		a.serverError(w, r, err)
 		return
 	}
 	committed = true
