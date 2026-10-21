@@ -101,8 +101,16 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 	const email, password = "ada@example.com", "correct horse battery"
 	s.register("Ada Lovelace", email, password)
 	s.get(s.lastVerifyPath(email))
-	for _, next := range []string{"https://evil.example/", "//evil.example/", `/\evil.example/`} {
-		res, body := s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {next}})
+	// Browsers drop tabs and newlines from URLs, so "/\t/evil.example" would land on //evil.example.
+	// Form values arrive decoded, so these also cover next=/%09/evil.example.
+	for _, next := range []string{"https://evil.example/", "//evil.example/", `/\evil.example/`,
+		"/\t/evil.example/", "/\n/evil.example/", "/\r/evil.example/", "/\r\n/evil.example/", "\t//evil.example/"} {
+		res, body := s.get("/login?next=" + url.QueryEscape(next))
+		expectStatus(t, res, body, http.StatusOK, "")
+		if strings.Contains(body, "evil.example") {
+			t.Fatalf("login page for next=%q carries it on", next)
+		}
+		res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {next}})
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 		if got := res.Header.Get("Location"); got != "/" {
 			t.Fatalf("next=%q redirected to %q, want /", next, got)
@@ -152,6 +160,27 @@ func TestCaveTextPlacesAreAssignedOnceAndNeverReused(t *testing.T) {
 	again.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	if me := again.me(again.connect()); me.Place != 3 {
 		t.Fatalf("Ada's place after re-registering = %d, want 3", me.Place)
+	}
+}
+
+func TestDeletingALearnerSignsOutCaveTextAndRemovesTheirAccount(t *testing.T) {
+	s := newCaveTextSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+	token := s.connect()
+	s.me(token)
+
+	// There is no delete-account page yet; a Learner is deleted by removing the row.
+	if _, err := s.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	res, body := s.caveText(http.MethodGet, "me", token)
+	expectSignedOut(t, res, body)
+	var accounts int
+	if err := s.db.QueryRow(`SELECT count(*) FROM cavetext_accounts`).Scan(&accounts); err != nil {
+		t.Fatal(err)
+	}
+	if accounts != 0 {
+		t.Fatalf("%d CaveText accounts left after deleting the Learner, want 0", accounts)
 	}
 }
 
