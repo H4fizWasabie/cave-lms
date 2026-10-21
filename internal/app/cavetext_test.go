@@ -46,8 +46,11 @@ func (s *site) caveText(method, path, token string) (*http.Response, string) {
 }
 
 type caveTextMe struct {
-	Name  string `json:"name"`
-	Place int    `json:"place"`
+	Name         string `json:"name"`
+	Place        int    `json:"place"`
+	Cap          int    `json:"cap"`
+	SnippetCount int    `json:"snippetCount"`
+	Early        bool   `json:"early"`
 }
 
 func (s *site) me(token string) caveTextMe {

@@ -246,6 +246,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
 	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
 	mux.HandleFunc("GET /admin/log", a.requireOwner(a.systemLog))
+	mux.HandleFunc("GET /admin/cavetext/caps", a.requireOwner(a.caveTextCapsForm))
+	mux.HandleFunc("POST /admin/cavetext/caps", a.requireOwner(a.saveCaveTextCaps))
 	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
 	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
 	mux.HandleFunc("POST /cavetext/api/sign-out", a.caveTextAPI(a.caveTextSignOut))

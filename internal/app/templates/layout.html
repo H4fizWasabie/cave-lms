@@ -71,7 +71,7 @@
 </body>
 </html>
 {{end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "deployments" or "log". The System log item shows for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "deployments", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -85,6 +85,7 @@
           <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span></a>
           <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>Lab Plans</span></a>
           <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>Deployments</span></a>
+          {{if .Owner}}<a href="/admin/cavetext/caps"{{if eq .Section "cavetext-caps"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>CaveText caps</span></a>{{end}}
           {{if .Owner}}<a href="/admin/log"{{if eq .Section "log"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>System log</span></a>{{end}}
         </nav>
         <div class="adm-side-foot">
