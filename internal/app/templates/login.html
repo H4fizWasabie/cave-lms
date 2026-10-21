@@ -6,6 +6,7 @@
         <p class="auth-sub">Welcome back to CAVELMS.</p>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <form class="form" method="post" action="/login">
+          {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
           <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
           <div class="field">
             <div class="field-row"><label for="password">Password</label><a class="small-link" href="/forgot-password">Forgot your password?</a></div>

@@ -16,6 +16,8 @@ To run it on the VPS, see `docs/deploy.md`.
 
 `OWNER_EMAIL` is optional. It names the Owner, the one Admin who sees the System log at `/admin/log`; without it nobody does, though errors are still logged.
 
+`CAVETEXT_EXTENSION_IDS` is optional: the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`. Unset, CaveText sign-in is refused. The unpacked development build's ID is `omcdclpagggfcjlhpkohpcgdmfbelohd`; add the Chrome Web Store ID once it is published.
+
 `RESEND_API_KEY` is optional. With it, verification and reset emails are sent through Resend from `EMAIL_FROM`; without it, sending fails with an explicit error.
 
 ## Create the Admin

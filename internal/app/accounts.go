@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 
@@ -233,11 +234,26 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) loginForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "login", page{})
+	a.render(w, r, http.StatusOK, "login", page{Next: localPath(r.URL.Query().Get("next"))})
+}
+
+// localPath returns next if it is a path on this site, else "", so a login link can't send anyone off-site.
+// Control characters are refused outright: browsers drop tabs and newlines, so "/\t/evil.com" becomes "//evil.com".
+func localPath(next string) string {
+	if strings.ContainsFunc(next, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return ""
+	}
+	u, err := url.Parse(next)
+	if err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(u.Path, "/") ||
+		strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+		return ""
+	}
+	return next
 }
 
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
+	next := localPath(r.PostFormValue("next"))
 	var (
 		id       int64
 		hash     string
@@ -250,7 +266,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil {
-		a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect."})
+		a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect.", Next: next})
 		return
 	}
 	if !verified {
@@ -276,7 +292,10 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setSessionCookie(w, token, int(sessionLifetime.Seconds()))
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	if next == "" {
+		next = "/"
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {

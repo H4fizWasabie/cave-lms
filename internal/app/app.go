@@ -30,16 +30,17 @@ var appFiles embed.FS
 var staticFiles embed.FS
 
 type App struct {
-	db            *sql.DB
-	handler       http.Handler
-	mailer        mailer.Mailer
-	pages         map[string]*template.Template
-	publicBaseURL string
-	store         *storage.Disk
-	maxUpload     int64
-	limiter       rateLimiter
-	ownerEmail    string        // the Owner's, from OWNER_EMAIL; empty means no Owner
-	done          chan struct{} // closed by Close, to stop the daily System log prune
+	db                   *sql.DB
+	handler              http.Handler
+	mailer               mailer.Mailer
+	pages                map[string]*template.Template
+	publicBaseURL        string
+	store                *storage.Disk
+	maxUpload            int64
+	limiter              rateLimiter
+	ownerEmail           string        // the Owner's, from OWNER_EMAIL; empty means no Owner
+	caveTextExtensionIDs []string      // the extensions the CaveText connect page may send tokens to
+	done                 chan struct{} // closed by Close, to stop the daily System log prune
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -76,6 +77,7 @@ type page struct {
 	Certificate   *certificate // the one a verification page shows
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
+	Next          string // where the login page goes after logging in
 }
 
 func (p *page) learnerField() **learner { return &p.Learner }
@@ -123,7 +125,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, done: make(chan struct{})}
 	if err := a.pruneSystemLog(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("prune System log: %w", err))
 	}
@@ -244,6 +246,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
 	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
 	mux.HandleFunc("GET /admin/log", a.requireOwner(a.systemLog))
+	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
+	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
+	mux.HandleFunc("POST /cavetext/api/sign-out", a.caveTextAPI(a.caveTextSignOut))
 	a.handler = rejectCrossOrigin(mux)
 	return a, nil
 }
@@ -382,10 +387,11 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 
 // rejectCrossOrigin is the CSRF protection for every form: browsers mark
 // cross-site requests with Sec-Fetch-Site or Origin, and those are refused.
+// The CaveText API is exempt: it is called from the extension and takes a bearer token, never a cookie.
 // ponytail: hand port of Go 1.25's http.CrossOriginProtection; switch to it once go.mod reaches 1.25.
 func rejectCrossOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && crossOrigin(r) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !strings.HasPrefix(r.URL.Path, "/cavetext/api/") && crossOrigin(r) {
 			http.Error(w, "cross-origin request refused", http.StatusForbidden)
 			return
 		}
