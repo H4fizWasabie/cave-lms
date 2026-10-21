@@ -7,16 +7,17 @@ import (
 )
 
 // Template is a Dashboard design: blanks the Learner fills with columns, and blocks drawn from them.
-// A block is left out when a blank it needs is skipped. To add a Template, define it below with its
-// Sample embedded from samples/ and list it in Templates.
+// A block is left out when a blank it needs is skipped; the first card left is drawn largest. To add
+// a Template, define it below with its Sample embedded from samples/ and list it in Templates.
 type Template struct {
-	Key     string // in URLs and stored on each Dashboard; never changes
-	Name    string
-	Blurb   string
-	Blanks  []Blank
-	Blocks  []Block
-	Filters []string // blank keys: a Date blank filters by month range, a Text blank by value
-	Sample  []byte   // the .xlsx Learners download
+	Key      string // in URLs and stored on each Dashboard; never changes
+	Name     string
+	Blurb    string
+	Question string // the Dashboard question, shown under its name; General has none
+	Blanks   []Blank
+	Blocks   []Block
+	Filters  []string // blank keys: a Date blank filters by month range, a Text blank by value
+	Sample   []byte   // the .xlsx Learners download
 	// Build, when set, makes the blanks, blocks and choices from the Dataset itself (General has no blanks).
 	Build func(*Dataset) (*Template, Choices)
 }
@@ -57,9 +58,10 @@ type Block struct {
 var financeSample []byte
 
 var Finance = &Template{
-	Key:   "finance",
-	Name:  "Finance",
-	Blurb: "Money in and out: totals, balance, spending by month and category.",
+	Key:      "finance",
+	Name:     "Finance",
+	Blurb:    "Money in and out: totals, balance, spending by month and category.",
+	Question: "Am I spending more than I earn?",
 	Blanks: []Blank{
 		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each transaction", Guess: []string{"tarikh", "date"}},
 		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "How much, in RM", Guess: []string{"jumlah", "amaun", "amount", "total"}},
@@ -68,10 +70,10 @@ var Finance = &Template{
 		{Key: "description", Label: "Description", Type: Text, Help: "A short note on each transaction", Guess: []string{"perkara", "butiran", "keterangan", "description", "item"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Money in", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Needs: []string{"type"}},
-		{Kind: "card", Label: "Money out", Agg: "sum", Of: "amount", Where: []string{"type", "Keluar"}, Needs: []string{"type"}},
 		{Kind: "card", Label: "Balance", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Minus: []string{"type", "Keluar"}, Needs: []string{"type"}},
 		{Kind: "card", Label: "Total", Agg: "sum", Of: "amount", Unless: "type"},
+		{Kind: "card", Label: "Money in", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Needs: []string{"type"}},
+		{Kind: "card", Label: "Money out", Agg: "sum", Of: "amount", Where: []string{"type", "Keluar"}, Needs: []string{"type"}},
 		{Kind: "card", Label: "Transactions", Agg: "count"},
 		{Kind: "line", Label: "By month", X: "date", Of: "amount", Series: "type", Wide: true},
 		{Kind: "bar", Label: "Spending by category", Group: "category", Of: "amount", Where: []string{"type", "Keluar"}},
@@ -86,9 +88,10 @@ var Finance = &Template{
 var inventorySample []byte
 
 var Inventory = &Template{
-	Key:   "inventory",
-	Name:  "Inventory",
-	Blurb: "Stock on hand: items, value, and what is running low.",
+	Key:      "inventory",
+	Name:     "Inventory",
+	Blurb:    "Stock on hand: items, value, and what is running low.",
+	Question: "What do I need to reorder?",
 	Blanks: []Blank{
 		{Key: "item", Label: "Item", Type: Text, Required: true, Help: "The name of each item", Guess: []string{"nama item", "nama barang", "item", "barang", "nama"}},
 		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"}},
@@ -97,8 +100,8 @@ var Inventory = &Template{
 		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", Guess: []string{"harga seunit", "harga", "unit price", "price"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Total items", Agg: "sum", Of: "quantity"},
 		{Kind: "card", Label: "Stock value", Agg: "sum", Of: "quantity", Times: "price", Needs: []string{"price"}},
+		{Kind: "card", Label: "Total items", Agg: "sum", Of: "quantity"},
 		{Kind: "card", Label: "Low stock", Agg: "count", Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
 		{Kind: "bar", Label: "Stock by category", Group: "category", Of: "quantity"},
 		{Kind: "table", Label: "Running low", Cols: []string{"item", "category", "quantity", "reorder"}, Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
@@ -112,9 +115,10 @@ var Inventory = &Template{
 var hrSample []byte
 
 var HR = &Template{
-	Key:   "hr",
-	Name:  "HR",
-	Blurb: "Staff: headcount, departments, who joined when.",
+	Key:      "hr",
+	Name:     "HR",
+	Blurb:    "Staff: headcount, departments, who joined when.",
+	Question: "Is the team growing, and where?",
 	Blanks: []Blank{
 		{Key: "name", Label: "Name", Type: Text, Required: true, Help: "Each staff member's name", Guess: []string{"nama", "nama pekerja", "name"}},
 		{Key: "department", Label: "Department", Type: Text, Required: true, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department"}},

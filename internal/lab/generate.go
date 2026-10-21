@@ -93,7 +93,7 @@ func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []by
 	}
 	var page bytes.Buffer
 	// template.JS is safe here: encoding/json escapes <, >, & and U+2028/2029, so no text can end the script.
-	err = dashboardPage.Execute(&page, map[string]any{"Name": name, "Config": template.JS(config)})
+	err = dashboardPage.Execute(&page, map[string]any{"Name": name, "Question": t.Question, "Config": template.JS(config)})
 	if err != nil {
 		return nil, nil, err
 	}
