@@ -133,8 +133,11 @@ The browser extension that turns a typed shortcut in an AI chat box into a saved
 _Avoid_: Snippet app, plugin
 
 **Snippet**:
-A saved prompt in CaveText: a name, a shortcut and a body. Each Learner keeps their own, up to their Snippet cap.
+A saved prompt in CaveText: a name, a shortcut and a body, sitting in a Folder. Each Learner keeps their own, up to their Snippet cap.
 _Avoid_: Template (that is for the Lab), prompt
+
+**Folder**:
+A named group a Learner puts their Snippets in.
 
 **CaveText Pro**:
 A paid yearly upgrade to CaveText, one level only, bought separately from Courses and from Plans. It raises the Snippet cap and opens the Master prompts.

@@ -82,7 +82,7 @@ func (a *App) caveTextAPI(h func(http.ResponseWriter, *http.Request, *caveTextLe
 		}
 		if err != nil {
 			a.logError(r, fmt.Errorf("look up CaveText token: %w", err))
-			writeJSONError(w, http.StatusInternalServerError, "CAVELMS had a problem. Try again later.")
+			writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
 			return
 		}
 		h(w, r, &l)
@@ -96,7 +96,7 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 func (a *App) caveTextSignOut(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM cavetext_tokens WHERE token_hash = $1`, l.token); err != nil {
 		a.logError(r, fmt.Errorf("revoke CaveText token: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, "CAVELMS had a problem. Try again later.")
+		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

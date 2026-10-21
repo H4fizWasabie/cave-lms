@@ -188,3 +188,66 @@ func TestShortcutClashesAreRefusedWithAMessage(t *testing.T) {
 		t.Fatalf("Snippets = %s, want %s", got, want)
 	}
 }
+
+func TestAnIdBelowOneIsNoSnippet(t *testing.T) {
+	s := newCaveTextSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+	token := s.connect()
+	for _, path := range []string{"snippets/0", "snippets/-1"} {
+		res, body := s.caveTextSend(http.MethodPut, path, token, snippet{Folder: "Work", Name: "Review", Shortcut: "/review", Body: "x"})
+		expectStatus(t, res, body, http.StatusNotFound, `"error"`)
+	}
+	if got := s.snippets(token); len(got) != 0 {
+		t.Fatalf("Snippets = %s, want none", describe(got))
+	}
+}
+
+func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
+	s := newCaveTextSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+	token := s.connect()
+	s.createSnippet(token, snippet{Folder: "Work", Name: "Review", Shortcut: "/review", Body: "old"})
+	s.createSnippet(token, snippet{Folder: "Work", Name: "TLDR", Shortcut: "/tldr", Body: "old"})
+	before := `[Work/Review /review "old" master=true][Work/TLDR /tldr "old" master=true]`
+
+	for _, c := range []struct {
+		set     []snippet
+		message string
+	}{
+		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: "Two", Shortcut: "/ONE", Body: "2"}}, `"One\" already uses /one."`},
+		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: "Two", Shortcut: "/o", Body: "2"}}, `/o would always fire before /one (\"One\") finished typing.`},
+		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: " ", Shortcut: "/two", Body: "2"}}, "A name is needed."},
+		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: "Two", Shortcut: "/t wo", Body: "2"}}, "Shortcuts cannot contain spaces."},
+	} {
+		res, body := s.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": c.set})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.message)
+		if got := describe(s.snippets(token)); got != before {
+			t.Fatalf("Snippets after a refused import = %s, want %s", got, before)
+		}
+	}
+
+	off := false
+	// The set replaces the old one, so it may reuse an old shortcut.
+	res, body := s.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": []snippet{
+		{Folder: "Kept", Name: "Review", Shortcut: "/review", Body: "new"},
+		{Folder: "Kept", Name: "Yo", Shortcut: "/yo", Body: "Yo!", WithMasterPrompt: &off},
+	}})
+	expectStatus(t, res, body, http.StatusOK, `"snippets"`)
+	var got struct{ Snippets []snippet }
+	if err := json.Unmarshal([]byte(body), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := `[Kept/Review /review "new" master=true][Kept/Yo /yo "Yo!" master=false]`
+	if d := describe(got.Snippets); d != want {
+		t.Fatalf("answer = %s, want %s", d, want)
+	}
+	if d := describe(s.snippets(token)); d != want {
+		t.Fatalf("Snippets = %s, want %s", d, want)
+	}
+
+	res, body = s.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": []snippet{}})
+	expectStatus(t, res, body, http.StatusOK, `"snippets":[]`)
+	if got := s.snippets(token); len(got) != 0 {
+		t.Fatalf("Snippets after importing none = %s", describe(got))
+	}
+}
