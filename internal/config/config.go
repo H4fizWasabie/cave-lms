@@ -5,6 +5,7 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -19,6 +20,9 @@ type Config struct {
 	StorageDir string
 	// OwnerEmail names the Owner, the one Admin who sees the System log. Optional: unset, nobody does.
 	OwnerEmail string
+	// CaveTextExtensionIDs are the Chrome extension IDs the CaveText connect page may send a token to,
+	// from CAVETEXT_EXTENSION_IDS (comma-separated). Empty: CaveText sign-in is refused.
+	CaveTextExtensionIDs []string
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
 }
@@ -50,8 +54,20 @@ func Load() (Config, error) {
 	if cfg.StorageDir == "" {
 		return Config{}, fmt.Errorf("STORAGE_DIR is required")
 	}
+	for _, id := range strings.Split(os.Getenv("CAVETEXT_EXTENSION_IDS"), ",") {
+		if id = strings.TrimSpace(id); id == "" {
+			continue
+		}
+		// The ID becomes a host name in the redirect, so only Chrome's own ID alphabet is accepted.
+		if !extensionID.MatchString(id) {
+			return Config{}, fmt.Errorf("CAVETEXT_EXTENSION_IDS: %q is not a Chrome extension ID", id)
+		}
+		cfg.CaveTextExtensionIDs = append(cfg.CaveTextExtensionIDs, id)
+	}
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = ":8080"
 	}
 	return cfg, nil
 }
+
+var extensionID = regexp.MustCompile(`^[a-p]{32}$`)

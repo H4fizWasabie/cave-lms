@@ -13,6 +13,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("LISTEN_ADDR", "")
 	t.Setenv("STORAGE_DIR", "/var/lib/cave-lms/uploads")
 	t.Setenv("RESEND_API_KEY", "")
+	t.Setenv("CAVETEXT_EXTENSION_IDS", "")
 }
 
 func TestLoadReadsConfiguration(t *testing.T) {
@@ -81,5 +82,20 @@ func TestLoadReadsOptionalResendKey(t *testing.T) {
 	cfg, err = Load()
 	if err != nil || cfg.ResendAPIKey != "re_test_key" {
 		t.Fatalf("with a key: cfg.ResendAPIKey = %q, err = %v; want re_test_key, nil", cfg.ResendAPIKey, err)
+	}
+}
+
+func TestLoadReadsCaveTextExtensionIDs(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("CAVETEXT_EXTENSION_IDS", " omcdclpagggfcjlhpkohpcgdmfbelohd, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ,")
+
+	cfg, err := Load()
+	if err != nil || strings.Join(cfg.CaveTextExtensionIDs, " ") != "omcdclpagggfcjlhpkohpcgdmfbelohd aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("CaveTextExtensionIDs = %q, err = %v", cfg.CaveTextExtensionIDs, err)
+	}
+
+	t.Setenv("CAVETEXT_EXTENSION_IDS", "evil.example/x")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CAVETEXT_EXTENSION_IDS") {
+		t.Fatalf("Load() error = %v, want CAVETEXT_EXTENSION_IDS error", err)
 	}
 }

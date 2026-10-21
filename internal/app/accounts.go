@@ -233,11 +233,20 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) loginForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "login", page{})
+	a.render(w, r, http.StatusOK, "login", page{Next: localPath(r.URL.Query().Get("next"))})
+}
+
+// localPath returns next if it is a path on this site, else "", so a login link can't send anyone off-site.
+func localPath(next string) string {
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+		return ""
+	}
+	return next
 }
 
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
+	next := localPath(r.PostFormValue("next"))
 	var (
 		id       int64
 		hash     string
@@ -250,7 +259,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil {
-		a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect."})
+		a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect.", Next: next})
 		return
 	}
 	if !verified {
@@ -276,7 +285,10 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setSessionCookie(w, token, int(sessionLifetime.Seconds()))
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	if next == "" {
+		next = "/"
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
