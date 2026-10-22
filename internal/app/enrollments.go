@@ -79,7 +79,7 @@ func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
 	}
 	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
 	if err != nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(),

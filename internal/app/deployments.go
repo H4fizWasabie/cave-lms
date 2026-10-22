@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // deployment is a Dashboard's Deployment as its Learner sees it on the Deploy tab.
@@ -166,18 +168,23 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 		var takenDown bool
 		err = a.db.QueryRowContext(r.Context(), `SELECT sleeps_at, taken_down_at IS NOT NULL FROM deployments
 			WHERE slug = $1 AND dashboard_id IS NOT NULL`, slug).Scan(&sleeps, &takenDown)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			a.render(w, r, http.StatusNotFound, "message", page{Title: "Not found",
-				Message: "There is no Dashboard at this link. It may have been deleted, or the link was copied wrongly."})
-		case err != nil:
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
+			return
+		}
+		lang, langErr := a.language(r)
+		if langErr != nil {
+			a.serverError(w, r, langErr)
+			return
+		}
+		switch {
+		case err != nil:
+			a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "lab.dep.gone.title"), Message: text.T(lang, "lab.dep.gone")})
 		case takenDown:
-			a.render(w, r, http.StatusOK, "message", page{Title: "This Dashboard is asleep",
-				Message: "Cave took it offline early. If you think this is a mistake, contact The Cave Consult."})
+			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"), Message: text.T(lang, "lab.dep.sleeping-taken")})
 		default:
-			a.render(w, r, http.StatusOK, "message", page{Title: "This Dashboard is asleep",
-				Message: "It was online for 7 days, until " + sleeps.UTC().Format(periodTime) + ". Nothing has been deleted; ask the person who shared the link."})
+			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"),
+				Message: text.T(lang, "lab.dep.sleeping", sleeps.UTC().Format(periodTime))})
 		}
 	}
 }
