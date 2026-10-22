@@ -92,8 +92,8 @@ func TestNonMemberIsAskedToJoinBeforeOpeningALesson(t *testing.T) {
 	s.logOut()
 
 	res, body := s.get(lessonPath)
-	if loc := res.Header.Get("Location"); res.StatusCode != http.StatusSeeOther || loc != "/login" {
-		t.Fatalf("Visitor got %d to %q, want 303 to /login", res.StatusCode, loc)
+	if loc := res.Header.Get("Location"); res.StatusCode != http.StatusSeeOther || loc != "/login?next="+url.QueryEscape(lessonPath) {
+		t.Fatalf("Visitor got %d to %q, want 303 to /login with next", res.StatusCode, loc)
 	}
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	res, body = s.get(lessonPath)

@@ -99,7 +99,7 @@ func TestMyExamsIsInTheClassroomMenuAndSendsAVisitorToLogIn(t *testing.T) {
 
 	res, body := s.get("/my-exams")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if loc := res.Header.Get("Location"); loc != "/login" {
-		t.Fatalf("Visitor My exams redirected to %q, want /login", loc)
+	if loc := res.Header.Get("Location"); loc != "/login?next=%2Fmy-exams" {
+		t.Fatalf("Visitor My exams redirected to %q, want /login?next=%%2Fmy-exams", loc)
 	}
 }

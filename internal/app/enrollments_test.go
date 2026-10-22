@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -175,10 +176,31 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 
 func TestVisitorIsSentToLogInFromMyCourses(t *testing.T) {
 	s := newSite(t)
-	res, body := s.get("/my-courses")
+	res, body := s.get("/my-courses?tab=all")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	loginURL := res.Header.Get("Location")
+	if loginURL != "/login?next=%2Fmy-courses%3Ftab%3Dall" {
+		t.Fatalf("Visitor My Courses redirected to %q, want the login page with next", loginURL)
+	}
+	res, body = s.get(loginURL)
+	expectStatus(t, res, body, http.StatusOK, `name="next" value="/my-courses?tab=all"`)
+
+	const email, password = "ada@example.com", "correct horse battery"
+	s.register("Ada Lovelace", email, password)
+	s.get(s.lastVerifyPath(email))
+	res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {"/my-courses?tab=all"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if got := res.Header.Get("Location"); got != "/my-courses?tab=all" {
+		t.Fatalf("login redirected to %q, want back to My Courses", got)
+	}
+}
+
+func TestVisitorPostingToALearnerPageIsSentToPlainLogIn(t *testing.T) {
+	s := newSite(t)
+	res, body := s.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Mine"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/login" {
-		t.Fatalf("Visitor My Courses redirected to %q, want /login", loc)
+		t.Fatalf("Visitor POST redirected to %q, want /login", loc)
 	}
 }
 

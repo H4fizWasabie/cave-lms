@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -97,7 +98,8 @@ func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
-// requireLearner guards a Learner page: Visitors are sent to the login page.
+// requireLearner guards a Learner page: Visitors are sent to the login page,
+// which returns them to the page they asked for when it was a GET.
 func (a *App) requireLearner(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		learner, err := a.currentLearner(r)
@@ -106,7 +108,11 @@ func (a *App) requireLearner(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if learner == nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			login := "/login"
+			if r.Method == http.MethodGet {
+				login += "?next=" + url.QueryEscape(r.URL.RequestURI())
+			}
+			http.Redirect(w, r, login, http.StatusSeeOther)
 			return
 		}
 		h(w, r)

@@ -297,8 +297,8 @@ func TestExamIsForEnrolledLearnersAndTheirOwnAttempts(t *testing.T) {
 	s.logOut()
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if res.Header.Get("Location") != "/login" {
-		t.Fatalf("visitor redirected to %q, want /login", res.Header.Get("Location"))
+	if want := "/login?next=" + url.QueryEscape("/courses/"+id+"/exam"); res.Header.Get("Location") != want {
+		t.Fatalf("visitor redirected to %q, want %q", res.Header.Get("Location"), want)
 	}
 }
 

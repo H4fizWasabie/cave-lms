@@ -16,8 +16,8 @@ func TestMyMembershipIsInTheShopMenuAndSendsAVisitorToLogIn(t *testing.T) {
 
 	res, body := s.get("/my-membership")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if loc := res.Header.Get("Location"); loc != "/login" {
-		t.Fatalf("Visitor My membership redirected to %q, want /login", loc)
+	if loc := res.Header.Get("Location"); loc != "/login?next=%2Fmy-membership" {
+		t.Fatalf("Visitor My membership redirected to %q, want /login?next=%%2Fmy-membership", loc)
 	}
 }
 
