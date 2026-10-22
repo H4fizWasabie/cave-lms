@@ -17,6 +17,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp" // registers WebP for image.Decode
 )
@@ -91,12 +92,12 @@ func (a *App) mayView(ctx context.Context, viewer *learner, item galleryItem) (b
 func (a *App) galleryItemFor(w http.ResponseWriter, r *http.Request) (galleryItem, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return galleryItem{}, false
 	}
 	item, err := a.loadGalleryItem(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return galleryItem{}, false
 	}
 	if err != nil {
@@ -142,8 +143,12 @@ func (a *App) refuseMembersItem(w http.ResponseWriter, r *http.Request, item gal
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusForbidden, "members_only", page{Courses: courses,
-		Message: "This item is only for members of its Courses."})
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusForbidden, "members_only", page{Courses: courses, Message: text.T(lang, "gallery.members-only")})
 }
 
 const galleryColumns = `id, title, description, category, format, promotional, visibility, mime_type, size_bytes, storage_key`
@@ -296,7 +301,7 @@ func (a *App) galleryThumb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if item.Format != "picture" {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	f, err := a.store.Open(thumbKey(item))

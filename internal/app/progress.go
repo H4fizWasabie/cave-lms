@@ -60,7 +60,7 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 			return
 		}
 		if l.CourseID != c.ID || !l.Published {
-			http.NotFound(w, r)
+			a.notFound(w, r)
 			return
 		}
 		if complete {

@@ -2,32 +2,32 @@
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
     <div class="wrap page-pad">
-      <p class="crumbs"><a href="/lab">Lab</a> / {{.Dashboard.Template.Name}} Template</p>
+      <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.template-name" .Dashboard.Template.Name}}</p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>
         {{- if .Dashboard.Dataset}}
-        <a class="btn btn-ghost btn-sm" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download zip</a>
+        <a class="btn btn-ghost btn-sm" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "lab.d.zip"}}</a>
         {{- end}}
       </div>
       {{- if .ReadOnly}}
-      <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>Your Lab access has ended, so this Dashboard is read-only. You can preview it, look under the hood and download it. <a href="/lab">See how to unlock the Lab</a>.</p></div>
+      <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>{{t .Lang "lab.d.read-only"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p></div>
       {{- end}}
-      <nav class="lab-tabs" aria-label="Dashboard steps">
-        <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>1. Dataset</a>
+      <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
+        <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
         {{- if .Dashboard.Dataset}}
         {{- if .ReadOnly}}
-        <span class="lab-tab is-off" title="Needs Lab access">2. Columns</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.needs-access"}}">{{t .Lang "lab.d.tab.columns"}}</span>
         {{- else}}
-        <a class="lab-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>2. Columns</a>
+        <a class="lab-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.columns"}}</a>
         {{- end}}
-        <a class="lab-tab" href="{{$url}}/preview"{{if eq .Tab "preview"}} aria-current="page"{{end}}>3. Preview</a>
-        <a class="lab-tab" href="{{$url}}/hood"{{if eq .Tab "hood"}} aria-current="page"{{end}}>Under the hood</a>
-        <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>Deploy</a>
+        <a class="lab-tab" href="{{$url}}/preview"{{if eq .Tab "preview"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.preview"}}</a>
+        <a class="lab-tab" href="{{$url}}/hood"{{if eq .Tab "hood"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.hood"}}</a>
+        <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
-        <span class="lab-tab is-off" title="Upload a Dataset first">2. Columns</span>
-        <span class="lab-tab is-off" title="Upload a Dataset first">3. Preview</span>
-        <span class="lab-tab is-off" title="Upload a Dataset first">Under the hood</span>
-        <span class="lab-tab is-off" title="Upload a Dataset first">Deploy</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.columns"}}</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.preview"}}</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.hood"}}</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.deploy"}}</span>
         {{- end}}
       </nav>
 
@@ -36,188 +36,188 @@
         <section>
           {{- if .ReadOnly}}
           {{- with .Dashboard.Dataset}}
-          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{len .Rows}} rows · {{len .Columns}} columns · changed {{$.Dashboard.Updated}}</span></div></div>
+          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
           {{- else}}
-          <p class="empty">No Dataset was uploaded.</p>
+          <p class="empty">{{t .Lang "lab.d.no-dataset"}}</p>
           {{- end}}
-          <p class="muted">Uploading a Dataset needs Lab access.</p>
+          <p class="muted">{{t .Lang "lab.d.upload-needs-access"}}</p>
           {{- else}}
           {{- with .Dashboard.Dataset}}
-          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{len .Rows}} rows · {{len .Columns}} columns · changed {{$.Dashboard.Updated}}</span></div></div>
-          <h2 class="h-md">Upload a new Dataset</h2>
-          <p class="muted">A new upload replaces the old one. If the columns still match, your Dashboard updates straight away.</p>
+          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
+          <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
+          <p class="muted">{{t $.Lang "lab.d.upload-new-body"}}</p>
           {{- else}}
-          <h2 class="h-md">Upload your Dataset</h2>
-          <p class="muted">Your edited copy of the Sample. Cave checks it against the {{.Dashboard.Template.Name}} Template.</p>
+          <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
+          <p class="muted">{{t .Lang "lab.d.upload-yours-body" .Dashboard.Template.Name}}</p>
           {{- end}}
           {{- with .Errors}}
           <div class="ds-err" role="alert">
-            <p><strong>We could not read {{or $.Upload "that file"}}</strong></p>
+            <p><strong>{{if $.Upload}}{{t $.Lang "lab.d.not-read" $.Upload}}{{else}}{{t $.Lang "lab.d.not-read-file"}}{{end}}</strong></p>
             <ul>{{range .}}<li>{{.}}</li>{{end}}</ul>
-            <p>Fix {{if gt (len .) 1}}these{{else}}this{{end}} in Excel, save, and upload again. Nothing changed{{with $.Dashboard.Dataset}}: your Dashboard still uses {{$.Dashboard.File}}.{{else}}.{{end}}</p>
+            <p>{{if gt (len .) 1}}{{t $.Lang "lab.d.fix-these"}}{{else}}{{t $.Lang "lab.d.fix-this"}}{{end}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
-            <div class="field"><label for="file">Excel file</label><input id="file" type="file" name="file" accept=".xlsx" required><small>.xlsx only · first sheet · row 1 is the column names · up to 5,000 rows and 2 MB</small></div>
-            <div class="form-foot"><button class="btn btn-solid">Upload</button></div>
+            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.d.file-limits"}}</small></div>
+            <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>
           {{- end}}
         </section>
         <aside class="panel">
-          <span class="panel-k">{{.Dashboard.Template.Name}} Template</span>
-          <h2 class="h-sm">Start from the Sample</h2>
-          <p class="panel-msg">Download it, open it in Excel, add rows or change numbers, save, and upload it here. Required:{{range $i, $b := .Dashboard.Template.Blanks}}{{if $b.Required}} {{$b.Label}}{{end}}{{end}}.</p>
-          <a class="btn btn-ghost btn-block" href="/lab/samples/{{.Dashboard.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the Sample</a>
-          <p class="muted">Dates can be real Excel dates or typed as day/month/year. Amounts like RM1,200.00 are fine.</p>
+          <span class="panel-k">{{t .Lang "lab.template-name" .Dashboard.Template.Name}}</span>
+          <h2 class="h-sm">{{t .Lang "lab.d.start-sample"}}</h2>
+          <p class="panel-msg">{{t .Lang "lab.d.start-sample-body"}}{{range $i, $b := .Dashboard.Template.Blanks}}{{if $b.Required}} {{$b.Label}}{{end}}{{end}}.</p>
+          <a class="btn btn-ghost btn-block" href="/lab/samples/{{.Dashboard.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "lab.d.download-sample"}}</a>
+          <p class="muted">{{t .Lang "lab.d.dates-amounts"}}</p>
         </aside>
       </div>
 
       {{- else if eq .Tab "rename"}}
       <form class="form lab-narrow" method="post" action="{{$url}}/rename">
-        <h2 class="h-md">Rename this Dashboard</h2>
+        <h2 class="h-md">{{t .Lang "lab.d.rename"}}</h2>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-        <div class="field"><label for="name">Name</label><input id="name" name="name" value="{{.Dashboard.Name}}" maxlength="80" required></div>
-        <div class="form-foot"><a class="btn btn-quiet" href="/lab">Cancel</a><button class="btn btn-solid">Save</button></div>
+        <div class="field"><label for="name">{{t .Lang "account.name"}}</label><input id="name" name="name" value="{{.Dashboard.Name}}" maxlength="80" required></div>
+        <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.d.save"}}</button></div>
       </form>
 
       {{- else if eq .Tab "delete"}}
       <div class="card lab-narrow">
-        <p>Delete &ldquo;{{.Dashboard.Name}}&rdquo;? Its Dataset goes too. If it was deployed, its link will say &ldquo;not found&rdquo;, and deleting does not give the Deployment back. This cannot be undone.</p>
+        <p>{{t .Lang "lab.d.delete-ask" .Dashboard.Name}}</p>
         <div class="form-foot">
-          <a class="btn btn-quiet" href="/lab">Cancel</a>
-          <form method="post" action="{{$url}}/delete"><button class="btn btn-danger-solid">Delete Dashboard</button></form>
+          <a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a>
+          <form method="post" action="{{$url}}/delete"><button class="btn btn-danger-solid">{{t .Lang "lab.d.delete"}}</button></form>
         </div>
       </div>
       {{- else if not .Dashboard.Dataset}}
-      <p class="empty">Upload a Dataset first. <a href="{{$url}}">Go to the Dataset step</a>.</p>
+      <p class="empty">{{t .Lang "lab.d.upload-first-p"}} <a href="{{$url}}">{{t .Lang "lab.d.go-dataset"}}</a>.</p>
 
       {{- else if and .ReadOnly (eq .Tab "columns")}}
-      <p class="empty">Choosing columns needs Lab access. <a href="{{$url}}/preview">See the preview</a>.</p>
+      <p class="empty">{{t .Lang "lab.d.columns-need-access"}} <a href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a>.</p>
       {{- else if and (eq .Tab "columns") (not .Dashboard.Template.Blanks)}}
       <section class="lab-narrow">
-        <h2 class="h-md">{{.Dashboard.Template.Name}} has no blanks</h2>
-        <p class="muted">Cave read each column's type and built the charts from them: a card for each number column, a bar chart for the first text column, a line chart by month for the first date column, and a table.</p>
+        <h2 class="h-md">{{t .Lang "lab.d.no-blanks" .Dashboard.Template.Name}}</h2>
+        <p class="muted">{{t .Lang "lab.d.no-blanks-body"}}</p>
         <div class="table-wrap"><table class="table">
-          <thead><tr><th>Column</th><th>Read as</th></tr></thead>
-          <tbody>{{range .Dashboard.Dataset.Columns}}<tr><td><code>{{.Name}}</code></td><td>{{.Type}}</td></tr>{{end}}</tbody>
+          <thead><tr><th>{{t .Lang "lab.d.column"}}</th><th>{{t .Lang "lab.d.read-as"}}</th></tr></thead>
+          <tbody>{{range .Dashboard.Dataset.Columns}}<tr><td><code>{{.Name}}</code></td><td>{{t $.Lang (print "lab.type." .Type)}}</td></tr>{{end}}</tbody>
         </table></div>
-        <p><a class="btn btn-solid" href="{{$url}}/preview">See the preview</a></p>
+        <p><a class="btn btn-solid" href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a></p>
       </section>
 
       {{- else if eq .Tab "columns"}}
       <form class="form lab-narrow" method="post" action="{{$url}}/columns">
         <div>
-          <h2 class="h-md">Which column fills each blank?</h2>
-          <p class="muted">Cave read {{len .Dashboard.Dataset.Rows}} rows from {{.Dashboard.File}} and guessed from the column names and types. Change any choice; skip an optional blank to hide the parts that need it.</p>
+          <h2 class="h-md">{{t .Lang "lab.d.which-column"}}</h2>
+          <p class="muted">{{tn .Lang "lab.d.cave-read" (len .Dashboard.Dataset.Rows) .Dashboard.File}}</p>
         </div>
-        {{if .Again}}<p class="up-err" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>Your new file does not have every column you chose, so Cave guessed again. Check each choice.</p>{{end}}
+        {{if .Again}}<p class="up-err" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t .Lang "lab.d.again"}}</p>{{end}}
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
         {{- with .Errors}}
-        <div class="ds-err" role="alert"><ul>{{range .}}<li>{{.}}</li>{{end}}</ul><p>Pick another column, or fill these cells in Excel and upload again.</p></div>
+        <div class="ds-err" role="alert"><ul>{{range .}}<li>{{.}}</li>{{end}}</ul><p>{{t $.Lang "lab.d.pick-another"}}</p></div>
         {{- end}}
         {{- range .Blanks}}
         <div class="field map-row">
           <label for="m-{{.Key}}">{{.Label}}</label>
           <select id="m-{{.Key}}" name="{{.Key}}">
             {{- if not .Required}}
-            <option value=""{{if not .Chosen}} selected{{end}}>Skip</option>
+            <option value=""{{if not .Chosen}} selected{{end}}>{{t $.Lang "lab.d.skip"}}</option>
             {{- end}}
             {{- $chosen := .Chosen}}
             {{- range .Options}}
             <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
             {{- end}}
           </select>
-          <small>{{if .Required}}Required{{else}}Optional{{end}} · {{.Help}}{{with .Guess}} · Cave's guess: {{.}}{{end}}</small>
+          <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{.Help}}{{with .Guess}} · {{t $.Lang "lab.d.guess" .}}{{end}}</small>
           {{- if .Renamed}}
-          <small class="field-err">Cave could not find {{.Renamed}}, so it picked {{.Guess}} for {{.Label}}. Did you rename it?</small>
+          <small class="field-err">{{t $.Lang "lab.d.renamed" .Renamed .Guess .Label}}</small>
           {{- end}}
         </div>
         {{- end}}
-        <div class="form-foot"><button class="btn btn-solid">Save and preview</button></div>
+        <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.save-preview"}}</button></div>
       </form>
 
       {{- else if eq .Tab "preview"}}
       <div class="pv-bar">
-        <p class="muted">This is what people with the link will see. Try the filters.</p>
-        <nav class="lab-tabs" aria-label="Preview width">
-          <a class="lab-tab" href="{{$url}}/preview"{{if not .Phone}} aria-current="page"{{end}}>Desktop</a>
-          <a class="lab-tab" href="{{$url}}/preview?phone"{{if .Phone}} aria-current="page"{{end}}>Phone</a>
+        <p class="muted">{{t .Lang "lab.d.preview-note"}}</p>
+        <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.preview-width"}}">
+          <a class="lab-tab" href="{{$url}}/preview"{{if not .Phone}} aria-current="page"{{end}}>{{t .Lang "lab.d.desktop"}}</a>
+          <a class="lab-tab" href="{{$url}}/preview?phone"{{if .Phone}} aria-current="page"{{end}}>{{t .Lang "lab.d.phone"}}</a>
         </nav>
       </div>
-      <div class="pv-stage{{if .Phone}} is-phone{{end}}"><iframe class="pv-frame" src="{{$url}}/view/" title="Dashboard preview"></iframe></div>
+      <div class="pv-stage{{if .Phone}} is-phone{{end}}"><iframe class="pv-frame" src="{{$url}}/view/" title="{{t .Lang "lab.d.preview-title"}}"></iframe></div>
 
       {{- else if eq .Tab "hood"}}
-      <p class="muted">Every Dashboard is two files plus the chart library. Cave writes them from the Template; you never edit code.</p>
+      <p class="muted">{{t .Lang "lab.d.hood-intro"}}</p>
       <section class="hood">
-        <h2 class="h-sm"><code>index.html</code>, the page</h2>
+        <h2 class="h-sm"><code>index.html</code>{{t .Lang "lab.d.hood-page"}}</h2>
         {{- range .Hood}}
         {{template "hoodRow" .}}
         {{- end}}
       </section>
       <section class="hood">
-        <h2 class="h-sm"><code>data.json</code>, your Dataset</h2>
+        <h2 class="h-sm"><code>data.json</code>{{t .Lang "lab.d.hood-data"}}</h2>
         {{template "hoodRow" .Data}}
-        <p><a href="{{$url}}/view/data.json" target="_blank">Open the whole data.json</a></p>
+        <p><a href="{{$url}}/view/data.json" target="_blank">{{t .Lang "lab.d.hood-open-data"}}</a></p>
       </section>
-      <p class="muted">Download zip gives you these files to open offline or put on another server. A later Lesson shows how.</p>
+      <p class="muted">{{t .Lang "lab.d.hood-zip"}}</p>
       {{- else if eq .Tab "deploy"}}
       <section class="lab-narrow dep">
         {{- if .Deployment}}{{with .Deployment}}
         {{- if .Awake}}
-        <h2 class="h-md"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>Online</h2>
-        <p class="muted">Deployed {{.Deployed}}. Online until <strong>{{.Until}}</strong>, then it sleeps.</p>
+        <h2 class="h-md"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>{{t $.Lang "lab.dep.online"}}</h2>
+        <p class="muted">{{t $.Lang "lab.dep.online-body" .Deployed .Until}}</p>
         {{- else if .TakenDown}}
-        <h2 class="h-md">Taken down</h2>
+        <h2 class="h-md">{{t $.Lang "lab.dep.taken-down"}}</h2>
         <div class="ds-err" role="alert">
-          <p><strong>Cave took this Deployment offline on {{.Until}}.</strong></p>
-          <p><strong>Reason:</strong> {{.Reason}}</p>
-          <p>Your Dashboard is still here and you can download it. The link now says it is inactive.</p>
+          <p><strong>{{t $.Lang "lab.dep.taken-down-on" .Until}}</strong></p>
+          <p><strong>{{t $.Lang "lab.dep.reason"}}</strong> {{.Reason}}</p>
+          <p>{{t $.Lang "lab.dep.taken-down-body"}}</p>
         </div>
         {{- else}}
-        <h2 class="h-md">Asleep</h2>
-        <p class="muted">It was online from {{.Deployed}} to {{.Until}}. The link now says the Dashboard is inactive. Nothing was deleted: it stays here in your Lab.</p>
-        <p class="muted">A Dashboard cannot be deployed again. A later Lesson shows how to put it on your own server.</p>
+        <h2 class="h-md">{{t $.Lang "lab.dep.asleep"}}</h2>
+        <p class="muted">{{t $.Lang "lab.dep.asleep-body" .Deployed .Until}}</p>
+        <p class="muted">{{t $.Lang "lab.dep.once-only-asleep"}}</p>
         {{- end}}
         <div class="dep-link">
-          <label class="sr" for="dep-url">Link</label>
-          <input id="dep-url" type="text" readonly value="{{.Link}}" title="Select the link and copy it">
-          <a class="btn btn-ghost btn-sm" href="{{.Path}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>Open</a>
+          <label class="sr" for="dep-url">{{t $.Lang "lab.dep.link"}}</label>
+          <input id="dep-url" type="text" readonly value="{{.Link}}" title="{{t $.Lang "lab.dep.select-link"}}">
+          <a class="btn btn-ghost btn-sm" href="{{.Path}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.open"}}</a>
         </div>
         {{- if not .Awake}}
-        <p><a class="btn btn-ghost" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download zip</a></p>
+        <p><a class="btn btn-ghost" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.d.zip"}}</a></p>
         {{- end}}
         {{- if .Awake}}
-        <p class="muted">Select the link to copy it, then share it on WhatsApp or email. To change the numbers, <a href="{{$url}}">upload a new Dataset</a>.</p>
+        <p class="muted">{{t $.Lang "lab.dep.share"}} <a href="{{$url}}">{{t $.Lang "lab.dep.share-upload"}}</a>.</p>
         {{- end}}{{end}}
         {{- else if not .Access.Open}}
-        <h2 class="h-md">Deploying needs a Plan</h2>
-        <p class="muted">Deploying needs a Plan and a Course that includes the Lab. See the <a href="/lab">Lab page</a> for how to unlock it.</p>
+        <h2 class="h-md">{{t .Lang "lab.dep.needs-plan"}}</h2>
+        <p class="muted">{{t .Lang "lab.dep.needs-plan-body"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p>
         {{- else if and .Access.CountedPeriod (le .Access.CountedPeriod.DeploymentsLeft 0)}}{{with .Access.CountedPeriod}}
         <div class="ds-err" role="alert">
-          <p><strong>No Deployments left this period.</strong></p>
-          <p>You have used all {{.Deployments}} Deployments in your Plan period, which ends {{.Ends}}. You can keep building and previewing Dashboards; a new Plan period brings new Deployments.</p>
+          <p><strong>{{t $.Lang "lab.dep.none-left"}}</strong></p>
+          <p>{{t $.Lang "lab.dep.none-left-body" .Deployments .Ends}}</p>
         </div>
         {{- end}}
         {{- else if .Confirm}}
         <div class="card">
-          <h2 class="h-md">Deploy {{.Dashboard.Name}}?</h2>
-          <p>Anyone with the link will see this Dashboard and its data until {{.WouldSleep}}.</p>
-          <p><strong>You can deploy it only once.</strong>{{with .Access.CountedPeriod}} This uses 1 of your {{.DeploymentsLeft}} remaining Deployments.{{end}}</p>
+          <h2 class="h-md">{{t .Lang "lab.dep.confirm" .Dashboard.Name}}</h2>
+          <p>{{t .Lang "lab.dep.confirm-body" .WouldSleep}}</p>
+          <p><strong>{{t .Lang "lab.dep.only-once"}}</strong>{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.uses-one" .DeploymentsLeft}}{{end}}</p>
           <form class="form-foot" method="post" action="{{$url}}/deploy">
             <input type="hidden" name="confirm" value="yes">
-            <a class="btn btn-quiet" href="{{$url}}/deploy">Not yet</a>
-            <button class="btn btn-solid">Deploy now</button>
+            <a class="btn btn-quiet" href="{{$url}}/deploy">{{t .Lang "lab.dep.not-yet"}}</a>
+            <button class="btn btn-solid">{{t .Lang "lab.dep.deploy-now"}}</button>
           </form>
         </div>
         {{- else}}
-        <h2 class="h-md">Put this Dashboard online</h2>
+        <h2 class="h-md">{{t .Lang "lab.dep.put-online"}}</h2>
         <ul class="dep-facts">
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>Anyone with the link can see it.</strong> The link is long and random, so only people you share it with will find it. No log-in needed.</span></li>
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span><strong>Online for 7 days</strong>, until {{.WouldSleep}}. Then it sleeps: the link says it is inactive and nothing is deleted.</span></li>
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>Keep it current.</strong> Upload a new Dataset while it is online and visitors see the new numbers.</span></li>
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>Once only.</strong> A Dashboard can be deployed one time.{{with .Access.CountedPeriod}} It uses 1 of your {{.DeploymentsLeft}} Deployments left this period.{{end}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-link"}}</strong> {{t .Lang "lab.dep.fact-link-body"}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span><strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body" .WouldSleep}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-current"}}</strong> {{t .Lang "lab.dep.fact-current-body"}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-once"}}</strong> {{t .Lang "lab.dep.fact-once-body"}}{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.fact-uses" .DeploymentsLeft}}{{end}}</span></li>
         </ul>
-        <p><a class="btn btn-solid btn-lg" href="{{$url}}/deploy?confirm">Deploy</a></p>
+        <p><a class="btn btn-solid btn-lg" href="{{$url}}/deploy?confirm">{{t .Lang "lab.d.tab.deploy"}}</a></p>
         {{- end}}
       </section>
       {{- end}}

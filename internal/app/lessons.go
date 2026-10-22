@@ -177,7 +177,7 @@ func renderMarkdown(src string) template.HTML {
 func (a *App) lessonByPath(w http.ResponseWriter, r *http.Request) (lesson, bool) {
 	id, err := strconv.ParseInt(r.PathValue("lessonID"), 10, 64)
 	if err != nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return lesson{}, false
 	}
 	var l lesson
@@ -185,7 +185,7 @@ func (a *App) lessonByPath(w http.ResponseWriter, r *http.Request) (lesson, bool
 		LEFT JOIN gallery_items g ON g.id = l.gallery_item_id WHERE l.id = $1`, id).
 		Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.Published)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return lesson{}, false
 	}
 	if err != nil {
@@ -266,12 +266,12 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 	l, ok := a.lessonByPath(w, r)
 	if !ok || l.CourseID != c.ID {
 		if ok {
-			http.NotFound(w, r)
+			a.notFound(w, r)
 		}
 		return
 	}
 	if !l.Published && !learner.IsAdmin {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	data := page{Learner: learner, Course: &c, Lesson: &l}

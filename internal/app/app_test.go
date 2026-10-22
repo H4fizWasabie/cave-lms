@@ -115,7 +115,9 @@ func TestStaticFilesAreServedWithCachingAndMissingOnesAre404(t *testing.T) {
 func TestGalleryShowsEbooksAreComingSoonWhileThereAreNone(t *testing.T) {
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
-	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/gallery?format=ebook", nil))
+	req := httptest.NewRequest(http.MethodGet, "/gallery?format=ebook", nil)
+	req.Header.Set("Accept-Language", "en")
+	application.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "eBooks are coming soon.") {
 		t.Fatalf("GET /gallery?format=ebook = %d, want 200 saying eBooks are coming soon; body:\n%s", recorder.Code, recorder.Body.String())

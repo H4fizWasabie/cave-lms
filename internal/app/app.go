@@ -145,6 +145,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	go a.pruneDaily(a.done)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
+	mux.HandleFunc("/", a.notFound) // any other address
 	mux.Handle("GET /static/", staticHandler())
 	mux.HandleFunc("GET /privacy", a.privacy)
 	mux.HandleFunc("GET /register", a.registerForm)
@@ -368,9 +369,18 @@ func adminSide(section string, l *learner, lang string) adminSidebar {
 	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
 }
 
+// galleryTile is what the gallery-tile template reads: an item and the page's language.
+type galleryTile struct {
+	galleryItem
+	Lang string
+}
+
+// tile is the template function behind {{template "gallery-tile" (tile . $.Lang)}}.
+func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, lang} }
+
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "t": text.T, "tn": text.N}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
