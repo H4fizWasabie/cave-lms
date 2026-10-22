@@ -157,9 +157,8 @@ type caveTextPage struct {
 	Account     bool // the Learner has signed in to CaveText
 	Cap         snippetCap
 	Count       int
-	ProUntil    string // the day Pro ends, in the page's language
-	Price       string // in RM: RM25
-	PaymentLink string // where Buy goes; empty asks the Learner to contact us
+	ProUntil    string  // the day Pro ends, in the page's language
+	Offers      []offer // CaveText Pro and the Pro Plan
 	EarlyPlaces string
 	EarlyCap    int
 	LateCap     int
@@ -182,12 +181,11 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, fmt.Errorf("read CaveText settings: %w", err))
 		return
 	}
-	pro, err := a.priceOf(r.Context(), caveTextProProduct)
-	if err != nil {
+	if p.Offers, err = a.offersOf(r.Context(), caveTextProProduct, proPlanProduct); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	p.Price, p.PaymentLink, p.EarlyPlaces = rm(pro.Sen), pro.PaymentLink, thousands(places)
+	p.EarlyPlaces = thousands(places)
 	if learner != nil {
 		if err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)`, learner.ID).Scan(&p.Account); err != nil {
 			a.serverError(w, r, err)
@@ -209,6 +207,7 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			p.ProUntil = text.Date(lang, p.Cap.ProUntil)
+			p.Offers[0].Renew = true
 		}
 	}
 	a.render(w, r, http.StatusOK, "cavetext", p)
