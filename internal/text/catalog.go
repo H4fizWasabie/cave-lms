@@ -795,6 +795,7 @@ var catalog = map[string]entry{
 		ms: "Snippet anda melebihi Had Snippet percuma anda, iaitu %d. Anda tetap menyimpan, menggunakan dan menyunting kesemua %d, tetapi tidak boleh menambah lagi sehingga anda di bawah had, atau dapatkan CaveText Pro.",
 	},
 	"cavetext.pro-price":          {en: "CaveText Pro: %s a year", ms: "CaveText Pro: %s setahun"},
+	"cavetext.pro-fee":            {en: "A payment processing fee, which depends on the payment method you choose, is added at checkout.", ms: "Caj pemprosesan pembayaran, bergantung pada kaedah pembayaran yang anda pilih, ditambah semasa pembayaran."},
 	"cavetext.pro.unlimited":      {en: "Unlimited Snippets", ms: "Snippet tanpa had"},
 	"cavetext.pro.unlimited-body": {en: "Save as many Snippets as you like. If Pro lapses you keep every one.", ms: "Simpan seberapa banyak Snippet yang anda mahu. Jika Pro tamat, anda tetap menyimpan kesemuanya."},
 	"cavetext.pro.user":           {en: "User master prompt", ms: "User master prompt"},

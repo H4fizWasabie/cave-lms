@@ -33,6 +33,9 @@
       {{- end}}
       {{- end}}
       <h2 class="h-md">{{t .Lang "cavetext.pro-price" .Price}}</h2>
+      {{- if .PaymentLink}}
+      <p class="note">{{t .Lang "cavetext.pro-fee"}}</p>
+      {{- end}}
       <ol class="lab-steps">
         <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.unlimited"}}</strong><span>{{t .Lang "cavetext.pro.unlimited-body"}}</span></li>
         <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.user"}}</strong><span>{{t .Lang "cavetext.pro.user-body"}}</span></li>
