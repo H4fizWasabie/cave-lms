@@ -181,44 +181,37 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	case learnerID == 0:
 		return "names no Learner; kept for an Admin", tx.Commit()
 	case !readable || subtotal < form.Sen:
-		if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2 WHERE order_number = $1`, order, learnerID); err != nil {
-			return "", fmt.Errorf("mark payment's Learner: %w", err)
+		if err := markPayment(ctx, tx, order, learnerID, false); err != nil {
+			return "", err
 		}
 		if !readable {
 			return fmt.Sprintf("unreadable amount %q; kept for an Admin", b.Data.Main.Subtotal), tx.Commit()
 		}
 		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(form.Sen)), tx.Commit()
 	}
-	planned := true // false when a Pro Plan gave no Plan period, for warnNoLabPlan once committed
-	switch form.Product {
-	case caveTextProProduct:
+	if form.Product != labPlanProduct {
 		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
-			return "", err
-		}
-		if err := givePro(ctx, tx, learnerID); err != nil {
-			return "", err
-		}
-	case labPlanProduct:
-		planned, err := giveLabPlan(ctx, tx, learnerID)
-		if err != nil {
-			return "", err
-		}
-		if !planned {
-			if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2 WHERE order_number = $1`, order, learnerID); err != nil {
-				return "", fmt.Errorf("mark payment's Learner: %w", err)
-			}
-			return "no Plan is marked as the Lab Plan; kept for an Admin", tx.Commit()
-		}
-	case proPlanProduct:
-		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
-			return "", err
-		}
-		if planned, err = giveProPlan(ctx, tx, learnerID); err != nil {
 			return "", err
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = true WHERE order_number = $1`, order, learnerID); err != nil {
-		return "", fmt.Errorf("mark payment granted: %w", err)
+	planned := true // false when no Plan is marked as the Lab Plan, so a Lab Plan or Pro Plan gave no Plan period
+	switch form.Product {
+	case caveTextProProduct:
+		err = givePro(ctx, tx, learnerID)
+	case labPlanProduct:
+		planned, err = giveLabPlan(ctx, tx, learnerID)
+	case proPlanProduct:
+		planned, err = giveProPlan(ctx, tx, learnerID)
+	}
+	if err != nil {
+		return "", err
+	}
+	granted := planned || form.Product != labPlanProduct // a Pro Plan still gave CaveText Pro
+	if err := markPayment(ctx, tx, order, learnerID, granted); err != nil {
+		return "", err
+	}
+	if !granted {
+		return "no Plan is marked as the Lab Plan; kept for an Admin", tx.Commit()
 	}
 	if err := tx.Commit(); err != nil {
 		return "", err
@@ -268,4 +261,12 @@ func (a *App) paymentDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/cavetext", http.StatusSeeOther)
+}
+
+// markPayment names the Learner the payment is for and whether it gave them the product.
+func markPayment(ctx context.Context, db execer, order string, learnerID int64, granted bool) error {
+	if _, err := db.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = $3 WHERE order_number = $1`, order, learnerID, granted); err != nil {
+		return fmt.Errorf("mark payment's Learner: %w", err)
+	}
+	return nil
 }

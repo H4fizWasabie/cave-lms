@@ -128,8 +128,6 @@
       </aside>
 {{end}}
 
-{{/* gallery-tile is one Gallery item in a grid, given as (tile . $.Lang): the picture itself, or an icon for videos and ebooks.
-   Its transition name matches the picture or video on the item's page, so the browser grows one into the other. */}}
 {{/* offers lists a Learner page's .Offers side by side: each product's price, its Normal price crossed out when set,
 and Buy to its payment link, or Contact us without one. Visitors see the prices without buttons. */}}
 {{define "offers"}}
@@ -153,6 +151,9 @@ and Buy to its payment link, or Contact us without one. Visitors see the prices 
       <p class="note">{{t $.Lang "offers.fee"}}</p>
       {{- break}}{{end}}{{end}}
 {{- end}}
+
+{{/* gallery-tile is one Gallery item in a grid, given as (tile . $.Lang): the picture itself, or an icon for videos and ebooks.
+   Its transition name matches the picture or video on the item's page, so the browser grows one into the other. */}}
 {{define "gallery-tile"}}<li><a class="g-tile" href="/gallery/{{.ID}}"><span class="g-plate" style="view-transition-name: g-{{.ID}}">{{if eq .Format "picture"}}<img src="/gallery/{{.ID}}/thumb" alt="" loading="lazy">{{else}}<span class="g-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if eq .Format "video"}}play{{else}}file-pdf{{end}}"/></svg></span>{{end}}</span><span class="g-cap"><strong>{{.Title}}</strong><span>{{t .Lang (print "gallery.format." .Format)}}</span></span></a></li>{{end}}
 
 {{/* gallery-fields are the Gallery item fields shared by the upload and edit forms. */}}

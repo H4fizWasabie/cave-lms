@@ -170,7 +170,7 @@ func (a *App) changePro(w http.ResponseWriter, r *http.Request, change func(lear
 		return
 	}
 	if err := change(id); err != nil {
-		a.serverError(w, r, fmt.Errorf("change CaveText Pro: %w", err))
+		a.serverError(w, r, fmt.Errorf("change CaveText Learner %d: %w", id, err))
 		return
 	}
 	http.Redirect(w, r, "/admin/cavetext", http.StatusSeeOther)
@@ -242,7 +242,9 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			p.ProUntil = text.Date(lang, p.Cap.ProUntil)
-			p.Offers[0].Renew = true
+			for i := range p.Offers {
+				p.Offers[i].Renew = p.Offers[i].Product == caveTextProProduct
+			}
 		}
 	}
 	a.render(w, r, http.StatusOK, "cavetext", p)

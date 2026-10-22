@@ -21,11 +21,12 @@ ALTER TABLE plans RENAME COLUMN pro TO lab;
 ALTER INDEX plans_one_pro RENAME TO plans_one_lab;
 
 -- +goose Down
+-- Each Plan's own payment_link is gone for good: Plans come back with an empty one.
 ALTER INDEX plans_one_lab RENAME TO plans_one_pro;
 ALTER TABLE plans RENAME COLUMN lab TO pro;
 ALTER TABLE plans ADD COLUMN payment_link text NOT NULL DEFAULT '';
 ALTER TABLE cavetext_settings
-	ADD COLUMN pro_price_sen integer NOT NULL DEFAULT 2500 CHECK (pro_price_sen >= 0),
+	ADD COLUMN pro_price_sen integer NOT NULL DEFAULT 3500 CHECK (pro_price_sen >= 0),
 	ADD COLUMN pro_payment_link text NOT NULL DEFAULT '';
 UPDATE cavetext_settings SET pro_price_sen = p.price_sen, pro_payment_link = p.payment_link
 	FROM prices p WHERE p.product = 'cavetext-pro';
