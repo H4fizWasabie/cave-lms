@@ -17,6 +17,8 @@ type myMembershipPage struct {
 	ProUntil  string
 }
 
+// myMembership shows the logged-in Learner their current Plan until its last queued period ends,
+// their CaveText Pro and their Snippet cap.
 func (a *App) myMembership(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -31,23 +33,29 @@ func (a *App) myMembership(w http.ResponseWriter, r *http.Request) {
 	p := &myMembershipPage{pageBase: pageBase{Learner: learner}}
 	ctx := r.Context()
 	acc, err := a.labAccessOf(ctx, learner)
-	if err == nil && acc.Period != nil {
-		p.PlanName = acc.Period.PlanName
-		var until time.Time
-		// The next Plan period would start when the last one ends: with one active, that is after now.
-		err = a.db.QueryRowContext(ctx, `SELECT s.at FROM `+nextPlanStart, learner.ID).Scan(&until)
-		p.PlanUntil = text.Date(lang, until.UTC())
-	}
-	if err == nil {
-		err = a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)`, learner.ID).Scan(&p.CaveText)
-	}
-	if err == nil && p.CaveText {
-		p.Cap, err = learnerSnippetCap(ctx, a.db, learner.ID)
-		p.ProUntil = text.Date(lang, p.Cap.ProUntil)
-	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if acc.Period != nil {
+		var until time.Time
+		// The next Plan period would start when the last one ends: with one active, that is after now.
+		if err := a.db.QueryRowContext(ctx, `SELECT s.at FROM `+nextPlanStart, learner.ID).Scan(&until); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.PlanName, p.PlanUntil = acc.Period.PlanName, text.Date(lang, until.UTC())
+	}
+	if err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)`, learner.ID).Scan(&p.CaveText); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if p.CaveText {
+		if p.Cap, err = learnerSnippetCap(ctx, a.db, learner.ID); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.ProUntil = text.Date(lang, p.Cap.ProUntil)
 	}
 	a.render(w, r, http.StatusOK, "my_membership", p)
 }
