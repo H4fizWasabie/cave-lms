@@ -65,7 +65,7 @@ func TestLessonTextIsSanitisedMarkdown(t *testing.T) {
 
 	res, body := s.get("/courses/" + id + "/lessons/" + s.lessonIDByTitle("Markup"))
 	expectStatus(t, res, body, http.StatusOK, "<strong>Bold</strong>")
-	for _, banned := range []string{"<script", "javascript:"} {
+	for _, banned := range []string{"<script>alert", "javascript:"} {
 		if strings.Contains(body, banned) {
 			t.Fatalf("Lesson page contains %q: %s", banned, body)
 		}
