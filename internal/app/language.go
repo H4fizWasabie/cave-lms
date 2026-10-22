@@ -23,6 +23,17 @@ type chrome struct {
 
 func (c *chrome) chromeField() *chrome { return c }
 
+// newChrome is the header data for a page in lang. When the Courses menu cannot be loaded it is left
+// empty and the error returned, so the error page can still show the rest of the header.
+func (a *App) newChrome(r *http.Request, lang string) (chrome, error) {
+	c := chrome{Lang: lang, Here: here(r)}
+	latest, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE is_open ORDER BY created_at DESC, id DESC LIMIT 3`)
+	if err == nil {
+		c.Latest = latest
+	}
+	return c, err
+}
+
 // here is where the language switch on a page comes back to. A page shown in answer to a form post
 // sends it home instead, since its address may take only posts.
 func here(r *http.Request) string {

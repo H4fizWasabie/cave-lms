@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -73,6 +74,26 @@ func TestTheCoursesMenuListsTheThreeLatestOpenCoursesThenAllCourses(t *testing.T
 	head := header(t, body)
 	expectInOrder(t, head, ">Delta<", ">Gamma<", ">Beta<", ">All courses<")
 	expectNone(t, head, "Alpha", "Epsilon")
+}
+
+func TestTheErrorPageKeepsTheCoursesMenuAndDropsItWhenCoursesFail(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
+	s.createCourse("Alpha", "First.", "")
+	s.logOut()
+
+	if _, err := s.db.Exec(`ALTER TABLE programmes RENAME TO programmes_gone`); err != nil {
+		t.Fatal(err)
+	}
+	res, body := s.get("/programmes")
+	expectStatus(t, res, body, http.StatusInternalServerError, "")
+	expectInOrder(t, header(t, body), ">Courses<", ">Alpha<", ">All courses<")
+
+	restore := breakCourses(t, s)
+	defer restore()
+	res, body = s.get("/courses")
+	expectStatus(t, res, body, http.StatusInternalServerError, "")
+	expectInOrder(t, header(t, body), ">Courses<", ">All courses<")
 }
 
 func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
