@@ -7,6 +7,8 @@ cavelms.com {
 	}
 	# Remove once real email delivery (#12) lands and the site is announced.
 	header X-Robots-Tag "noindex, nofollow"
+	# Users are in Malaysia, ~200 ms from the VPS: smaller responses mean fewer round trips. Caddy only compresses text types.
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:8088
 }
 
