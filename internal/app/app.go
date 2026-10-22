@@ -278,6 +278,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/cavetext/caps", a.requireOwner(a.saveCaveTextCaps))
 	mux.HandleFunc("GET /admin/cavetext", a.admin(a.adminCaveTextLearners))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/pro", a.admin(a.giveCaveTextPro))
+	mux.HandleFunc("POST /admin/cavetext/learners/{id}/pro-plan", a.admin(a.giveCaveTextProPlan))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/end-pro", a.admin(a.endCaveTextPro))
 	mux.HandleFunc("POST /admin/cavetext/payments/done", a.admin(a.paymentDone))
 	mux.HandleFunc("GET /admin/prices", a.admin(a.adminPrices))

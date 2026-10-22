@@ -94,6 +94,41 @@ func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
 	a.changePro(w, r, func(id int64) error { return givePro(r.Context(), a.db, id) })
 }
 
+// giveCaveTextProPlan gives a CaveText Learner the Pro Plan, as giveProPlan does, in one transaction.
+func (a *App) giveCaveTextProPlan(w http.ResponseWriter, r *http.Request) {
+	a.changePro(w, r, func(id int64) error {
+		tx, err := a.db.BeginTx(r.Context(), nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		planned, err := giveProPlan(r.Context(), tx, id)
+		if err == nil {
+			err = tx.Commit()
+		}
+		if err == nil && !planned {
+			a.warnNoLabPlan(id)
+		}
+		return err
+	})
+}
+
+// giveProPlan gives the Learner the Pro Plan: a year of CaveText Pro, as givePro does, and a period of the Lab Plan,
+// as giveLabPlan does. planned is false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the
+// caller writes warnNoLabPlan once its transaction has committed.
+func giveProPlan(ctx context.Context, db execer, learnerID int64) (planned bool, err error) {
+	if err := givePro(ctx, db, learnerID); err != nil {
+		return false, err
+	}
+	return giveLabPlan(ctx, db, learnerID)
+}
+
+// warnNoLabPlan writes to the System log that the Learner got the Pro Plan's CaveText Pro without its Plan period,
+// so the Admin sees the missed setting.
+func (a *App) warnNoLabPlan(learnerID int64) {
+	a.writeLog("error", fmt.Sprintf("Learner %d got CaveText Pro without a Plan period: no Plan is marked as the Lab Plan", learnerID), "", "")
+}
+
 // givePro gives the Learner a year of CaveText Pro and nothing else, starting now or when their running Pro ends,
 // so renewing early loses no days.
 // ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.

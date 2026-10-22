@@ -1117,6 +1117,7 @@ var catalog = map[string]entry{
 	"ctadmin.learners.pro-until":       {en: "Pro until", ms: "Pro hingga"},
 	"ctadmin.learners.early":           {en: "(early)", ms: "(awal)"},
 	"ctadmin.learners.give":            {en: "Give Pro", ms: "Berikan Pro"},
+	"ctadmin.learners.give-pro-plan":   {en: "Give Pro Plan", ms: "Berikan Pelan Pro"},
 	"ctadmin.learners.renew":           {en: "Renew Pro", ms: "Perbaharui Pro"},
 	"ctadmin.learners.end":             {en: "End Pro now", ms: "Tamatkan Pro sekarang"},
 	"ctadmin.learners.none":            {en: "No Learner has signed in to CaveText yet.", ms: "Belum ada Pelajar yang log masuk ke CaveText."},

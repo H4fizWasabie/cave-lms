@@ -189,6 +189,7 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 		}
 		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(form.Sen)), tx.Commit()
 	}
+	planned := true // false when a Pro Plan gave no Plan period, for warnNoLabPlan once committed
 	switch form.Product {
 	case caveTextProProduct:
 		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
@@ -208,13 +209,24 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 			}
 			return "no Plan is marked as the Lab Plan; kept for an Admin", tx.Commit()
 		}
-	default:
-		return fmt.Sprintf("paid on the %s form, which gives nothing yet; kept for an Admin", form.Product), tx.Commit()
+	case proPlanProduct:
+		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
+			return "", err
+		}
+		if planned, err = giveProPlan(ctx, tx, learnerID); err != nil {
+			return "", err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = true WHERE order_number = $1`, order, learnerID); err != nil {
 		return "", fmt.Errorf("mark payment granted: %w", err)
 	}
-	return fmt.Sprintf("gave Learner %d %s", learnerID, form.Product), tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	if !planned {
+		a.warnNoLabPlan(learnerID)
+	}
+	return fmt.Sprintf("gave Learner %d %s", learnerID, form.Product), nil
 }
 
 // unmatchedPayment is a Payment that gave nothing, waiting on the Admin CaveText Learners page.

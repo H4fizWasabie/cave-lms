@@ -281,11 +281,11 @@ func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
 func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	give := s.proAction("ada@example.com", "pro")
+	give, givePlan := s.proAction("ada@example.com", "pro"), s.proAction("ada@example.com", "pro-plan")
 	for _, c := range []struct {
 		path string
 		form url.Values
-	}{{give, nil}, {"/admin/cavetext/settings", url.Values{"question": {"Evil question?"}}},
+	}{{give, nil}, {givePlan, nil}, {"/admin/cavetext/settings", url.Values{"question": {"Evil question?"}}},
 		{"/admin/cavetext/master-prompts", masterPromptForm("Evil", "/evil", "x", "Dash", "/dash", "y")}} {
 		for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
 			req, _ := http.NewRequest(http.MethodPost, s.server.URL+c.path, strings.NewReader(c.form.Encode()))
