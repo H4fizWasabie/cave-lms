@@ -13,10 +13,12 @@ const (
 	languageLifetime = 365 * 24 * time.Hour
 )
 
-// chrome is what render fills in for layout.html on every page: the page's language and its own address.
+// chrome is what render fills in for layout.html on every page: the page's language, its own address
+// and the header's Courses menu.
 type chrome struct {
-	Lang string
-	Here string // path and query of this page for the language switch to come back to, or "" for home
+	Lang   string
+	Here   string   // path and query of this page for the language switch to come back to, or "" for home
+	Latest []course // the 3 newest open Courses
 }
 
 func (c *chrome) chromeField() *chrome { return c }

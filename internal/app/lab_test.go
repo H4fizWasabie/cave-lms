@@ -26,7 +26,7 @@ func TestVisitorSeesWhatTheLabIsWithRegister(t *testing.T) {
 	res, body := s.get("/")
 	expectStatus(t, res, body, http.StatusOK, `<a href="/lab">Lab</a>`)
 	res, body = s.get("/lab")
-	for _, want := range []string{"Turn a spreadsheet into a live dashboard", "Register to get started", `href="/register"`} {
+	for _, want := range []string{"From static dashboard to hosted dashboard", "Register to get started", `href="/register"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }

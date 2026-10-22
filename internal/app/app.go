@@ -442,7 +442,12 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			a.serverError(w, r, err)
 			return
 		}
-		*c.chromeField() = chrome{Lang: lang, Here: here(r)}
+		latest, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE is_open ORDER BY created_at DESC, id DESC LIMIT 3`)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		*c.chromeField() = chrome{Lang: lang, Here: here(r), Latest: latest}
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

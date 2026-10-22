@@ -67,7 +67,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
 ::selection { background: var(--brand-gold-soft); color: var(--brand-ink); }
-html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-color: var(--line-strong) var(--bg); }
+html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-color: var(--line-strong) var(--bg); scroll-padding-top: 5rem; }
 
 /* ============================ Buttons, badges, bars ============================ */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .62rem 1.15rem; border-radius: var(--radius); border: 1px solid transparent; font-weight: 600; font-size: .95rem; line-height: 1.2; text-decoration: none; cursor: pointer; white-space: nowrap; background: none; }
@@ -125,6 +125,9 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .hdr-panel nav { display: flex; flex-direction: column; gap: .85rem; align-self: stretch; padding-bottom: .9rem; border-bottom: 1px solid var(--line); }
 .hdr-panel nav a { text-decoration: none; }
 .hdr-panel .btn-quiet { padding-left: 0; }
+/* The site menus open under their button in the wide header, and as groups inside the narrow header's Menu. */
+.site-nav .hdr-panel { right: auto; left: 0; max-width: 20rem; }
+.hdr-panel .hdr-panel { position: static; min-width: 0; padding: .85rem 0 0 1rem; border: 0; box-shadow: none; }
 
 .site-footer { background: #17181b; color: #b8b8b2; font-size: .92rem; padding: 3rem 0 1.2rem; }
 .footer-in { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.3fr; gap: 2.5rem; margin-bottom: 2rem; }

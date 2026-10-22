@@ -159,7 +159,7 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 	res, body = s.get("/my-courses")
 	expectStatus(t, res, body, http.StatusOK, "Go Basics")
 	expectStatus(t, res, body, http.StatusOK, "Rust Basics")
-	if strings.Contains(body, "Java Basics") {
+	if strings.Contains(content(body), "Java Basics") { // the header's Courses menu lists it
 		t.Fatalf("My Courses lists a Course Ada has not joined: %s", body)
 	}
 	if strings.Contains(body, "You have not joined any Courses yet.") {
@@ -168,7 +168,7 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 
 	s.post("/courses/"+goID+"/leave", nil)
 	res, body = s.get("/my-courses")
-	if strings.Contains(body, "Go Basics") {
+	if strings.Contains(content(body), "Go Basics") {
 		t.Fatalf("My Courses still lists a Course Ada left: %s", body)
 	}
 }

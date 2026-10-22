@@ -68,10 +68,10 @@ func TestTheNotFoundAndErrorPagesAreInMalayAndEnglish(t *testing.T) {
 func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	visitor := newSite(t)
 	_, body := visitor.getAsking("/lab", "ms")
-	expectLanguage(t, body, "ms", "Tukar hamparan kerja menjadi dashboard langsung. Tanpa kod.")
+	expectLanguage(t, body, "ms", "Daripada dashboard statik kepada dashboard yang dihoskan")
 	expectAll(t, body, "Daftar untuk bermula", "Templat, dipaparkan dengan Sampelnya")
 	_, body = visitor.getAsking("/lab", "en")
-	expectLanguage(t, body, "en", "Turn a spreadsheet into a live dashboard. No code.")
+	expectLanguage(t, body, "en", "From static dashboard to hosted dashboard")
 
 	admin, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")

@@ -19,6 +19,13 @@ var catalog = map[string]entry{
 	"nav.cavetext":        {en: "CaveText", ms: "CaveText"},
 	"nav.check-cert":      {en: "Check a certificate", ms: "Semak sijil"},
 	"nav.my-courses":      {en: "My courses", ms: "Kursus saya"},
+	"nav.home":            {en: "Home", ms: "Utama"},
+	"nav.welcome":         {en: "Welcome", ms: "Selamat datang"},
+	"nav.about":           {en: "About CAVELMS", ms: "Tentang CAVELMS"},
+	"nav.classroom":       {en: "Classroom", ms: "Kelas"},
+	"nav.shop":            {en: "Shop", ms: "Kedai"},
+	"nav.program":         {en: "Program", ms: "Program"},
+	"nav.certification":   {en: "Certification", ms: "Pensijilan"},
 
 	// Layout: footer
 	"footer.powered-by":      {en: "Powered by The Cave Consult (TCC)", ms: "Dikuasakan oleh The Cave Consult (TCC)"},
@@ -433,7 +440,7 @@ var catalog = map[string]entry{
 		en: "Your Dashboards are safe: you can still open and download them. Building, uploading and deploying need a Plan.",
 		ms: "Dashboard anda selamat: anda masih boleh membuka dan memuat turunnya. Membina, memuat naik dan membuat Deployment memerlukan Pelan.",
 	},
-	"lab.hero": {en: "Turn a spreadsheet into a live dashboard. No code.", ms: "Tukar hamparan kerja menjadi dashboard langsung. Tanpa kod."},
+	"lab.hero": {en: "From static dashboard to hosted dashboard", ms: "Daripada dashboard statik kepada dashboard yang dihoskan"},
 	"lab.hero-lede": {
 		en: "Start from a Template, fill it with your own Excel data or our Sample, and share it with a link. Then look under the hood to see how a web page really works.",
 		ms: "Mulakan daripada Templat, isikan dengan data Excel anda sendiri atau Sampel kami, dan kongsikannya dengan pautan. Kemudian lihat di sebalik tabir untuk melihat bagaimana halaman web sebenarnya berfungsi.",
