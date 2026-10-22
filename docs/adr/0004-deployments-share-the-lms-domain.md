@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0007
+---
+
 # Deployments share the LMS domain, behind a sandbox
 
 Deployments are served by Cave itself at `lms.wasabietech.com/d/<slug>`, with an unguessable slug and the header `Content-Security-Policy: sandbox allow-scripts` on every Dashboard page. The sandbox gives the page a null origin, so its scripts cannot read or set Cave's cookies, submit forms or open popups; the Dataset it loads therefore needs `Access-Control-Allow-Origin: *`. A separate domain is the stronger wall (it also keeps a flagged Dashboard from getting the whole LMS domain flagged as phishing) but costs money and setup we don't need yet: only paying, enrolled Learners can deploy, they only use Samples, and the page is Cave's own Template code. A subdomain of `wasabietech.com` was rejected as no better: it can set cookies for the parent domain and shares its reputation. Move Deployments to a separate domain before strangers or Learners without a Plan can deploy, or when Learners move to another server.

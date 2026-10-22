@@ -2,7 +2,7 @@
 
 CAVELMS is the product's public name ("Learn AI • Build Skills • Create Impact", powered by The Cave Consult). "Cave LMS" is the repo's working name. The Malay home page uses the client's own marketing copy word for word, and the English one translates it, so it says "online classes" for Courses and "programmes" for The Cave Consult's past in-person programmes, which are not Courses.
 
-A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Paying Learners also build and deploy dashboards from sample spreadsheets in the Lab.
+A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Paying Learners also build and deploy dashboards in the Lab, from sample spreadsheets or their own.
 
 The site is written in Malay and English. Each term gives the Malay word the site uses for it; product names stay in English, and Coach Adam may override any of them.
 
@@ -111,19 +111,29 @@ _Avoid_: Diploma, award
 ### Lab
 
 **Lab**:
-The area where Learners build Dashboards. Open to a Learner with an active Plan who is enrolled in a Course the Admin has marked as including the Lab. Always open to the Admin.
+The area where Learners build Dashboards. Open to a Learner with an active Plan. Always open to the Admin.
 _Malay_: Lab (kept in English)
 _Avoid_: Workspace, studio, builder
 
 **Plan**:
-Paid access to the Lab for a set period, with limits such as how many Deployments a Learner may make in that period. Building Dashboards is unlimited. The Admin assigns it to a Learner; a Learner without one sees only the demo. Courses stay free to join.
+Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one with CaveText Pro, or the Admin assigns one by hand; a Learner without one sees only the demo. Courses stay free to join.
 _Malay_: Pelan
 _Avoid_: Tier, subscription, package, free plan
 
+**Pro Plan**:
+The one Plan the Admin marks as the one CaveText Pro comes with.
+_Malay_: Pelan Pro
+_Avoid_: Bundle, package
+
 **Plan period**:
-One stretch of a Learner's Plan, from its start to its end, with its own Deployment allowance. A Plan assigned while another period is running starts when that one ends. Unused Deployments expire with the period.
+One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Datasets are kept for 90 days, then deleted unless a new period has started.
 _Malay_: Tempoh Pelan
 _Avoid_: Subscription, term, cycle
+
+**Storage allowance**:
+How much Dataset data a Learner may keep while they have an active Plan period, such as 1 GB.
+_Malay_: Had storan
+_Avoid_: Quota, space, storage plan, subscription
 
 **Template**:
 A dashboard design with blanks for columns, such as Finance, Inventory, HR or General.
@@ -136,12 +146,12 @@ _Malay_: Soalan Dashboard
 _Avoid_: Goal, purpose, insight
 
 **Sample**:
-The Excel file Cave provides for a Template. Learners only ever work with Samples, never their own data.
+The Excel file Cave provides for a Template, showing the shape of data it expects. A Learner may edit it or upload their own data instead.
 _Malay_: Sampel
 _Avoid_: Example file, demo data
 
 **Dataset**:
-A Learner's edited copy of a Sample, uploaded to the Lab. It belongs to exactly one Dashboard and is replaced by each new upload. Never a Gallery item.
+A Learner's Excel data, their own or an edited Sample, uploaded to the Lab. It belongs to exactly one Dashboard and is replaced by each new upload. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
 
@@ -151,7 +161,7 @@ _Malay_: Dashboard (kept in English)
 _Avoid_: Report, chart, app
 
 **Deployment**:
-A Dashboard put online for anyone with its link, once, for 7 days. Updating its Dataset updates it while it is awake. Afterwards it sleeps: its link shows it as inactive and nothing is deleted, and it cannot be deployed again.
+A Dashboard put online for anyone with its link. It is awake while the Learner has an active Plan period, and updating its Dataset updates it. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site
 
@@ -184,12 +194,12 @@ A place within the first early places, a number the Owner sets. A Learner's plac
 _Malay_: Tempat awal
 
 **CaveText Pro**:
-A paid yearly upgrade to CaveText, one level only, bought separately from Courses and from Plans. It raises the Snippet cap and opens the Master prompts.
+The paid yearly bundle, one level only, at a price the Admin sets. It raises the Snippet cap, opens the Master prompts, and comes with a Plan for the same year. Courses stay free.
 _Malay_: CaveText Pro (kept in English)
-_Avoid_: Plan (that is for the Lab), subscription
+_Avoid_: Subscription, storage service
 
 **Pro payment**:
-One paid order for CaveText Pro on the payment form. It gives a year of CaveText Pro at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each order counts once. One that names no Learner, pays less than the price or was paid on a form other than the current payment link is unmatched: it waits for an Admin to give Pro by hand and mark it done. Test Mode payments never count.
+One paid order for CaveText Pro on the payment form. It gives a year of CaveText Pro, and its Plan, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each order counts once. One that names no Learner, pays less than the price or was paid on a form other than the current payment link is unmatched: it waits for an Admin to give Pro by hand and mark it done. Test Mode payments never count.
 _Malay_: Bayaran Pro
 _Avoid_: Subscription, purchase, transaction
 
