@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -230,10 +232,25 @@ func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 }
 
 // nextPlanStart is s.at, when the next Plan period of the Learner $1 starts: now, or when their last Plan period
-// ends if that is later. assignPlan and giveProQuery both queue after it, so a Learner's periods never overlap.
+// ends if that is later. assignPlan and giveLabPlan both queue after it, so a Learner's periods never overlap.
 const nextPlanStart = `(SELECT GREATEST(now(), (
 	SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM plan_periods WHERE learner_id = $1
 )) AS at) s`
+
+// giveLabPlan gives the Learner a period of the Plan marked as the Lab Plan, queued after nextPlanStart, with its
+// allowances copied so editing the Plan never changes the period. planned is false when no Plan is marked.
+func giveLabPlan(ctx context.Context, db execer, learnerID int64) (planned bool, err error) {
+	res, err := db.ExecContext(ctx, `
+		INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments, storage_mb)
+		SELECT $1, p.id, s.at, s.at + make_interval(days => p.days), p.deployments, p.storage_mb
+		FROM plans p, `+nextPlanStart+`
+		WHERE p.lab`, learnerID)
+	if err != nil {
+		return false, fmt.Errorf("give Lab Plan: %w", err)
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
 
 // assignPlan gives a Learner a new period of a Plan. It starts now, or when the Learner's
 // last period ends if that is later, so stacked periods lose no days.

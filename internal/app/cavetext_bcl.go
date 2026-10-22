@@ -197,6 +197,17 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 		if err := givePro(ctx, tx, learnerID); err != nil {
 			return "", err
 		}
+	case labPlanProduct:
+		planned, err := giveLabPlan(ctx, tx, learnerID)
+		if err != nil {
+			return "", err
+		}
+		if !planned {
+			if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2 WHERE order_number = $1`, order, learnerID); err != nil {
+				return "", fmt.Errorf("mark payment's Learner: %w", err)
+			}
+			return "no Plan is marked as the Lab Plan; kept for an Admin", tx.Commit()
+		}
 	default:
 		return fmt.Sprintf("paid on the %s form, which gives nothing yet; kept for an Admin", form.Product), tx.Commit()
 	}

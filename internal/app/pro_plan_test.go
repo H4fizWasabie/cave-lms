@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // markLabPlan marks the Plan with this name as the Lab Plan, with its button on the Admin's Plans page.
@@ -55,13 +56,106 @@ func TestTheAdminMarksOnePlanAsTheLabPlanAndCanChangeIt(t *testing.T) {
 	}
 }
 
-// labPlanSite is bclSite with a 30-day "Lab Month" Plan of 5 Deployments marked as the Lab Plan.
+const (
+	labFormURL     = "https://shop.bcl.my/form/lab-plan"
+	proPlanFormURL = "https://shop.bcl.my/form/pro-plan"
+)
+
+// labPlanSite is bclSite with a 30-day "Lab Month" Plan of 5 Deployments marked as the Lab Plan, and payment links
+// for all three products.
 func labPlanSite(t *testing.T) *site {
 	t.Helper()
 	s := bclSite(t)
+	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL, "lab-plan_link": labFormURL, "pro-plan_link": proPlanFormURL})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.createPlan("Lab Month", "30", "5")
 	s.markLabPlan("Lab Month")
 	return s
+}
+
+// paidLabPlan is a paid RM89 order on the Lab Plan form naming email in both email fields.
+func paidLabPlan(order, email string) bclPayment {
+	p := paid(order, email)
+	p.formURL, p.subtotal = labFormURL, "89.00"
+	return p
+}
+
+// expectLabMonth checks a period of the Lab Plan with this status, lasting its 30 days from starts.
+func expectLabMonth(t *testing.T, p shownPeriod, status string, starts time.Time) {
+	t.Helper()
+	if p.plan != "Lab Month" || p.deployments != "5" || p.status != status {
+		t.Fatalf("period = %+v, want Lab Month, 5 Deployments, %s", p, status)
+	}
+	near(t, "Plan period start", p.starts, starts)
+	near(t, "Plan period end", p.ends, starts.AddDate(0, 0, 30))
+}
+
+func TestALabPlanPaymentGivesALabPlanPeriodAtOnceAndNoCaveTextPro(t *testing.T) {
+	s := labPlanSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(paidLabPlan("LINK-1", "ada@example.com"))
+	periods := s.periodsOf("ada@example.com")
+	if len(periods) != 1 {
+		t.Fatalf("periods = %+v, want 1", periods)
+	}
+	expectLabMonth(t, periods[0], "Active", time.Now())
+	res, body := ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, "0 of 5")
+	if ada.me(token).Pro {
+		t.Fatal("a Lab Plan Payment gave CaveText Pro")
+	}
+
+	// Paying while the period runs queues the next one after it.
+	s.bclPay(paidLabPlan("LINK-2", "ada@example.com"))
+	periods = s.periodsOf("ada@example.com")
+	if len(periods) != 2 {
+		t.Fatalf("periods = %+v, want 2", periods)
+	}
+	expectLabMonth(t, periods[1], "Upcoming", periods[0].ends)
+}
+
+func TestALabPlanPeriodQueuesAfterAHandAssignedPlanPeriod(t *testing.T) {
+	s := labPlanSite(t)
+	s.createPlan("Lab Week", "7", "3")
+	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	_, body := s.get("/admin/plans")
+	week := regexp.MustCompile(`<td>Lab Week</td>[\s\S]*?href="/admin/plans/(\d+)/edit"`).FindStringSubmatch(body)
+	if week == nil {
+		t.Fatalf("no Lab Week edit link: %s", body)
+	}
+	res, body := s.assignPlan("ada@example.com", week[1])
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.bclPay(paidLabPlan("LINK-1", "ada@example.com"))
+	periods := s.periodsOf("ada@example.com")
+	if len(periods) != 2 || periods[0].plan != "Lab Week" || periods[0].status != "Active" {
+		t.Fatalf("periods = %+v, want the hand-assigned one first and active", periods)
+	}
+	expectLabMonth(t, periods[1], "Upcoming", periods[0].ends)
+}
+
+func TestLabPlanPaymentsUnderThePriceNamingNoLearnerOrWithNoLabPlanMarkedWaitAsUnmatched(t *testing.T) {
+	s := labPlanSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	under := paidLabPlan("LINK-1", "ada@example.com")
+	under.subtotal = "25.00" // the CaveText Pro price, not the Lab Plan's
+	s.bclPay(under)
+	s.bclPay(paidLabPlan("LINK-2", "nobody@example.com"))
+	if _, err := s.db.Exec(`UPDATE plans SET lab = false`); err != nil { // no Admin action unmarks it
+		t.Fatal(err)
+	}
+	s.bclPay(paidLabPlan("LINK-3", "ada@example.com"))
+	if periods := s.periodsOf("ada@example.com"); len(periods) != 0 {
+		t.Fatalf("periods = %+v, want none", periods)
+	}
+	if ada.me(token).Pro {
+		t.Fatal("an unmatched Lab Plan Payment gave CaveText Pro")
+	}
+	_, body := s.get("/admin/cavetext")
+	for _, order := range []string{"LINK-1", "LINK-2", "LINK-3"} {
+		if got := unmatchedProduct(t, body, order); got != "Lab Plan" {
+			t.Errorf("%s is shown as for %q, want Lab Plan", order, got)
+		}
+	}
 }
 
 // expectOnlyTheLabDemo checks the Learner has no Plan period and sees only the Lab's demo.
