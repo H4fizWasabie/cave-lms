@@ -14,6 +14,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("STORAGE_DIR", "/var/lib/cave-lms/uploads")
 	t.Setenv("RESEND_API_KEY", "")
 	t.Setenv("CAVETEXT_EXTENSION_IDS", "")
+	t.Setenv("BCL_WEBHOOK_KEY", "")
 }
 
 func TestLoadReadsConfiguration(t *testing.T) {
@@ -97,5 +98,20 @@ func TestLoadReadsCaveTextExtensionIDs(t *testing.T) {
 	t.Setenv("CAVETEXT_EXTENSION_IDS", "evil.example/x")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CAVETEXT_EXTENSION_IDS") {
 		t.Fatalf("Load() error = %v, want CAVETEXT_EXTENSION_IDS error", err)
+	}
+}
+
+func TestLoadReadsALongEnoughBCLWebhookKey(t *testing.T) {
+	setValidEnvironment(t)
+	key := strings.Repeat("k", 32)
+	t.Setenv("BCL_WEBHOOK_KEY", " "+key+" ")
+	cfg, err := Load()
+	if err != nil || cfg.BCLWebhookKey != key {
+		t.Fatalf("BCLWebhookKey = %q, err = %v; want %q, nil", cfg.BCLWebhookKey, err, key)
+	}
+
+	t.Setenv("BCL_WEBHOOK_KEY", "short")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BCL_WEBHOOK_KEY") {
+		t.Fatalf("Load() error = %v, want BCL_WEBHOOK_KEY error", err)
 	}
 }

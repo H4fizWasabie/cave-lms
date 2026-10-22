@@ -23,6 +23,9 @@ type Config struct {
 	// CaveTextExtensionIDs are the Chrome extension IDs the CaveText connect page may send a token to,
 	// from CAVETEXT_EXTENSION_IDS (comma-separated). Empty: CaveText sign-in is refused.
 	CaveTextExtensionIDs []string
+	// BCLWebhookKey, from BCL_WEBHOOK_KEY, is the secret part of the address BCL posts payment webhooks to.
+	// Empty: every webhook is refused.
+	BCLWebhookKey string
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
 }
@@ -36,6 +39,7 @@ func Load() (Config, error) {
 		ListenAddr:     strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
 		StorageDir:     strings.TrimSpace(os.Getenv("STORAGE_DIR")),
 		OwnerEmail:     strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
+		BCLWebhookKey:  strings.TrimSpace(os.Getenv("BCL_WEBHOOK_KEY")),
 		MaxUploadBytes: 2 << 30,
 	}
 	if cfg.DatabaseURL == "" {
@@ -63,6 +67,10 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("CAVETEXT_EXTENSION_IDS: %q is not a Chrome extension ID", id)
 		}
 		cfg.CaveTextExtensionIDs = append(cfg.CaveTextExtensionIDs, id)
+	}
+	// The key is the webhook's only proof of origin, so a short one is refused.
+	if k := cfg.BCLWebhookKey; k != "" && len(k) < 32 {
+		return Config{}, fmt.Errorf("BCL_WEBHOOK_KEY must be at least 32 characters")
 	}
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = ":8080"

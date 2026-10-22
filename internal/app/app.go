@@ -48,6 +48,7 @@ type App struct {
 	limiter              rateLimiter
 	ownerEmail           string        // the Owner's, from OWNER_EMAIL; empty means no Owner
 	caveTextExtensionIDs []string      // the extensions the CaveText connect page may send tokens to
+	bclWebhookKey        string        // the secret in BCL's webhook address; empty refuses every webhook
 	done                 chan struct{} // closed by Close, to stop the daily System log prune
 }
 
@@ -138,7 +139,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
 	if err := a.pruneSystemLog(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("prune System log: %w", err))
 	}
@@ -273,6 +274,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /cavetext", a.caveTextHome)
 	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
 	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
+	mux.HandleFunc("POST /cavetext/bcl/{key}", a.bclWebhook)
 	mux.HandleFunc("POST /cavetext/api/sign-out", a.caveTextAPI(a.caveTextSignOut))
 	mux.HandleFunc("GET /cavetext/api/snippets", a.caveTextAPI(a.caveTextSnippets))
 	mux.HandleFunc("POST /cavetext/api/snippets", a.caveTextAPI(a.createCaveTextSnippet))
