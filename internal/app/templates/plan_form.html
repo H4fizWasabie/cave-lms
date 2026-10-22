@@ -1,21 +1,21 @@
-{{define "title"}}{{if .Plan.ID}}Edit Plan{{else}}New Plan{{end}} · Admin · CAVELMS{{end}}
+{{define "title"}}{{if .Plan.ID}}{{t .Lang "plans.edit"}}{{else}}{{t .Lang "plans.new"}}{{end}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "plans" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/plans">Back to Plans</a></p>
-        <div class="adm-head"><h1>{{if .Plan.ID}}Edit Plan{{else}}New Plan{{end}}</h1></div>
+        <p class="crumbs"><a href="/admin/plans">{{t .Lang "plans.back"}}</a></p>
+        <div class="adm-head"><h1>{{if .Plan.ID}}{{t .Lang "plans.edit"}}{{else}}{{t .Lang "plans.new"}}{{end}}</h1></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="{{if .Plan.ID}}/admin/plans/{{.Plan.ID}}{{else}}/admin/plans{{end}}">
-            <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{.Plan.Name}}" maxlength="200" required></div>
+            <div class="field"><label for="name">{{t .Lang "account.name"}}</label><input id="name" type="text" name="name" value="{{.Plan.Name}}" maxlength="200" required></div>
             <div class="field-grid field-grid-2">
-              <div class="field"><label for="days">Length in days</label><input id="days" type="number" name="days" value="{{.Plan.Days}}" min="1" required></div>
-              <div class="field"><label for="deployments">Deployments per period</label><input id="deployments" type="number" name="deployments" value="{{.Plan.Deployments}}" min="0" required></div>
+              <div class="field"><label for="days">{{t .Lang "plans.form.days"}}</label><input id="days" type="number" name="days" value="{{.Plan.Days}}" min="1" required></div>
+              <div class="field"><label for="deployments">{{t .Lang "plans.form.deployments"}}</label><input id="deployments" type="number" name="deployments" value="{{.Plan.Deployments}}" min="0" required></div>
             </div>
-            <div class="field"><label for="payment_link">Payment link <span class="opt">(optional)</span></label><input id="payment_link" type="url" name="payment_link" value="{{.Plan.PaymentLink}}" placeholder="https://"></div>
-            {{if .Plan.ID}}<p class="note">Changing the allowance applies to periods assigned from now on, not to ones already assigned.</p>{{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/plans">Cancel</a><button class="btn btn-solid">Save</button></div>
+            <div class="field"><label for="payment_link">{{t .Lang "plans.payment-link"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="payment_link" type="url" name="payment_link" value="{{.Plan.PaymentLink}}" placeholder="https://"></div>
+            {{if .Plan.ID}}<p class="note">{{t .Lang "plans.form.edit-note"}}</p>{{end}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/plans">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>
         </div>
       </div>

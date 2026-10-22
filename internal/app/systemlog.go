@@ -115,7 +115,7 @@ type systemLogView struct {
 
 // systemLog lists the System log newest first, systemLogPage lines a page; ?level=error shows errors only.
 func (a *App) systemLog(w http.ResponseWriter, r *http.Request) {
-	v := &systemLogView{pageBase: pageBase{Title: "System log"}, ErrorsOnly: r.URL.Query().Get("level") == "error", Page: 1}
+	v := &systemLogView{ErrorsOnly: r.URL.Query().Get("level") == "error", Page: 1}
 	// 30 days rarely fill more than a few pages; the cap keeps the OFFSET from overflowing.
 	if n, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && n > 1 && n <= 100000 {
 		v.Page = n

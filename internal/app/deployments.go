@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // deployment is a Dashboard's Deployment as its Learner sees it on the Deploy tab.
@@ -202,7 +204,17 @@ func (a *App) adminDeployments(w http.ResponseWriter, r *http.Request) {
 }
 
 // ponytail: lists every Deployment on one page; add paging when the list gets long.
-func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msg string) {
+// renderAdminDeployments shows the list, with the error under msgKey ("" for none) in the page's language.
+func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msgKey string) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	msg := ""
+	if msgKey != "" {
+		msg = text.T(lang, msgKey)
+	}
 	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), COALESCE(d.template, ''), l.name, l.email,
 		`+deploymentColumns+`
 		FROM deployments dep
@@ -238,11 +250,11 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	if reason == "" {
-		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "Give a reason for the Takedown. The Learner sees it in their Lab.")
+		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "deployments.err.reason")
 		return
 	}
 	if len(reason) > 1000 {
-		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "Keep the reason under 1,000 characters.")
+		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "deployments.err.reason-long")
 		return
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)

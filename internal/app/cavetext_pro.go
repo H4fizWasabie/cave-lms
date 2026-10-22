@@ -36,12 +36,17 @@ func (r caveTextLearnerRow) Until() string {
 type caveTextLearnersPage struct {
 	pageBase
 	Learners   []caveTextLearnerRow
-	EarlyTaken string // "N of 1,000", from the early places setting
+	EarlyTaken string // "N of 1,000" in the page's language, from the early places setting
 }
 
 // adminCaveTextLearners lists every Learner who has signed in to CaveText, in place order.
 func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
-	p := &caveTextLearnersPage{pageBase: pageBase{Title: "CaveText Learners"}}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p := &caveTextLearnersPage{}
 	// Places are never reused, so a deleted Learner's early place stays taken: count from the place sequence.
 	var taken, places int
 	if err := a.db.QueryRowContext(r.Context(), `
@@ -50,7 +55,7 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, fmt.Errorf("count early places: %w", err))
 		return
 	}
-	p.EarlyTaken = thousands(taken) + " of " + thousands(places)
+	p.EarlyTaken = text.T(lang, "ctadmin.learners.n-of", thousands(taken), thousands(places))
 	rows, err := a.db.QueryContext(r.Context(), `
 		SELECT c.learner_id, c.place, l.name, l.email, `+snippetCapColumns+`,
 			(SELECT count(*) FROM cavetext_snippets n WHERE n.learner_id = c.learner_id)
@@ -107,7 +112,7 @@ func (a *App) changePro(w http.ResponseWriter, r *http.Request, query string) {
 		}
 	}
 	if !found {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Learner not found", Message: "No CaveText Learner has this address."})
+		a.adminNotFound(w, r, "ctadmin.learners.not-found.title", "ctadmin.learners.not-found")
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), query, id); err != nil {

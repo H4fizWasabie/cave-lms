@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // caveTextSettingsView is the CaveText settings page any Admin edits: Pro's price, shown in RM, its payment link, and
@@ -34,7 +36,7 @@ const maxProPriceSen = 9999999
 
 // caveTextSettings reads the page as saved; a refused save then puts back what the Admin posted.
 func (a *App) caveTextSettings(r *http.Request) (*caveTextSettingsView, error) {
-	v := &caveTextSettingsView{pageBase: pageBase{Title: "CaveText settings"}, Prompts: newMasterPrompts()}
+	v := &caveTextSettingsView{Prompts: newMasterPrompts()}
 	var sen int
 	if err := a.db.QueryRowContext(r.Context(), `SELECT s.pro_price_sen, s.pro_payment_link, s.master_prompt_question, `+masterPromptColumns+`
 		FROM cavetext_settings s WHERE id = 1`).Scan(append([]any{&sen, &v.PaymentLink, &v.Question}, v.Prompts.dest()...)...); err != nil {
@@ -55,16 +57,26 @@ func (a *App) caveTextSettingsForm(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	if r.URL.Query().Has("saved") {
-		v.Message = "Saved."
+		v.Message = text.T(lang, "admin.common.saved")
 	}
 	if r.URL.Query().Has("prompts-saved") {
-		v.PromptsMessage = "Master prompts saved."
+		v.PromptsMessage = text.T(lang, "ctadmin.prompts.saved")
 	}
 	a.render(w, r, http.StatusOK, "admin_cavetext_settings", v)
 }
 
 func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	v := &caveTextSettingsView{
 		Price:       strings.TrimSpace(r.PostFormValue("price")),
 		PaymentLink: strings.TrimSpace(r.PostFormValue("payment_link")),
@@ -72,15 +84,15 @@ func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 	sen, ok := parseRM(v.Price)
 	switch {
 	case !ok || sen > maxProPriceSen:
-		v.Error = "Enter the price in RM, like 25 or 25.50."
+		v.Error = text.T(lang, "ctadmin.settings.err.price")
 	case sen == 0:
-		v.Error = "Enter a price more than 0, like 25 or 25.50."
+		v.Error = text.T(lang, "ctadmin.settings.err.zero")
 	case v.PaymentLink != "" && !isWebLink(v.PaymentLink):
-		v.Error = "Enter the payment link as a full web address starting with http:// or https://, or leave it empty."
+		v.Error = text.T(lang, "ctadmin.settings.err.link")
 	case v.Question == "":
-		v.Error = "Enter the question Learners ask an AI chatbot for their User master prompt."
+		v.Error = text.T(lang, "ctadmin.settings.err.question")
 	case utf8.RuneCountInString(v.Question) > maxQuestion:
-		v.Error = fmt.Sprintf("Shorten the question to %s characters or fewer.", thousands(maxQuestion))
+		v.Error = text.T(lang, "ctadmin.settings.err.question-long", thousands(maxQuestion))
 	}
 	if v.Error != "" {
 		saved, err := a.caveTextSettings(r)
