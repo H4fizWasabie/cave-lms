@@ -46,10 +46,11 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 	expectLanguage(t, body, "en", "Courses you have joined.")
 }
 
-func TestTheLessonAndLeavePagesAreInMalayAndEnglish(t *testing.T) {
+func TestTheLessonPagesAreInMalayAndEnglish(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
-	id := s.createLabCourse("Excel Dashboards")
+	s.createCourse("Excel Dashboards", "Dashboards from Excel.", "")
+	id := s.courseIDByTitle("Excel Dashboards")
 	s.addTextLesson(id, "Pivot tables", "Build a pivot table.", "Drag the *fields*.", false)
 	lesson := "/courses/" + id + "/lessons/" + s.lessonIDByTitle("Pivot tables")
 	s.logOut()
@@ -67,12 +68,6 @@ func TestTheLessonAndLeavePagesAreInMalayAndEnglish(t *testing.T) {
 	expectAll(t, body, "<strong>Objektif:</strong> Build a pivot table.", "<em>fields</em>")
 	_, body = s.getAsking(lesson, "en")
 	expectLanguage(t, body, "en", "Back to the Course")
-
-	_, body = s.postAsking("/courses/"+id+"/leave", "ms", nil)
-	expectLanguage(t, body, "ms", "Tinggalkan Excel Dashboards?")
-	expectAll(t, body, "Lab anda akan dikunci", "Kekal dalam Kursus", "Tinggalkan dan kunci Lab")
-	_, body = s.postAsking("/courses/"+id+"/leave", "en", nil)
-	expectLanguage(t, body, "en", "Leave Excel Dashboards?")
 
 	_, body = s.getAsking("/courses/999999", "ms")
 	expectLanguage(t, body, "ms", "Kursus tidak dijumpai")

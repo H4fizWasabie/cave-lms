@@ -17,8 +17,8 @@
       <div class="callout">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>
         <div>
-          <p>{{if .Access.Period}}{{t .Lang "lab.left-course"}}{{else}}{{t .Lang "lab.plan-ended"}}{{end}} {{t .Lang "lab.safe"}}</p>
-          <div class="cta-row">{{if .Access.Period}}{{template "labJoin" .}}{{else}}{{template "labUpgrade" .}}{{end}}</div>
+          <p>{{t .Lang "lab.plan-ended"}} {{t .Lang "lab.safe"}}</p>
+          <div class="cta-row">{{template "labUpgrade" .}}</div>
         </div>
       </div>
       {{- template "labTemplates" .}}
@@ -34,9 +34,6 @@
             <a class="btn btn-solid btn-lg" href="/register">{{t .Lang "lab.register"}}</a>
             <a class="btn btn-ghost btn-lg" href="/login">{{t .Lang "header.log-in"}}</a>
           </div>
-          {{- else if .Access.Period}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{if .LabCourses}}{{t .Lang "lab.why-join-these" .Access.Period.Ends}}{{else}}{{t .Lang "lab.why-join-such" .Access.Period.Ends}}{{end}}</span></p>
-          <div class="cta-row">{{template "labJoin" .}}</div>
           {{- else}}
           <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "lab.why-plan"}}</span></p>
           <div class="cta-row">{{template "labUpgrade" .}}</div>
@@ -83,13 +80,6 @@
             <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">{{t .Lang "lab.upgrade"}}</a>
             {{- else}}
             <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Plan">{{t .Lang "lab.contact-upgrade"}}</a>
-            {{- end}}
-{{- end}}
-{{define "labJoin"}}
-            {{- range .LabCourses}}
-            <a class="btn btn-solid btn-lg" href="/courses/{{.ID}}">{{t $.Lang "lab.join" .Title}}</a>
-            {{- else}}
-            <p>{{t .Lang "lab.no-course"}} <a href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Course">{{t .Lang "lab.contact"}}</a>.</p>
             {{- end}}
 {{- end}}
 {{define "labTemplates"}}
