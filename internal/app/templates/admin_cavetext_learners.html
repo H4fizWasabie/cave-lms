@@ -47,7 +47,7 @@
                 <td>{{.PayerName}}<br><span class="muted">{{.PayerEmail}}</span></td>
                 <td>{{with .CAVELMSEmail}}{{.}}{{else}}-{{end}}</td>
                 <td>{{.Paid}}</td>
-                <td class="actions"><form method="post" action="/admin/cavetext/payments/{{.Order}}/done"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.payments.done"}}</button></form></td>
+                <td class="actions"><form method="post" action="/admin/cavetext/payments/done"><input type="hidden" name="order" value="{{.Order}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.payments.done"}}</button></form></td>
               </tr>
               {{end}}
             </table>

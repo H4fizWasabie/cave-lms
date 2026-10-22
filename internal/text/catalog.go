@@ -1143,7 +1143,7 @@ var catalog = map[string]entry{
 	"ctadmin.learners.end":             {en: "End Pro now", ms: "Tamatkan Pro sekarang"},
 	"ctadmin.learners.none":            {en: "No Learner has signed in to CaveText yet.", ms: "Belum ada Pelajar yang log masuk ke CaveText."},
 	"ctadmin.payments.heading":         {en: "Payments not matched", ms: "Bayaran yang tidak dipadankan"},
-	"ctadmin.payments.intro":           {en: "Paid on the CaveText Pro form but gave no Pro: the emails match no Learner, or less than the price was paid. Find the Learner, give them Pro above, then mark the payment done.", ms: "Dibayar melalui borang CaveText Pro tetapi tidak memberi Pro: e-mel tidak sepadan dengan mana-mana Pelajar, atau bayaran kurang daripada harga. Cari Pelajar itu, berikan Pro di atas, kemudian tandakan bayaran itu selesai."},
+	"ctadmin.payments.intro":           {en: "Paid for CaveText Pro but gave no Pro: the emails match no Learner, less than the price was paid, or it was paid on a form other than the payment link. Find the Learner, give them Pro above, then mark the payment done.", ms: "Dibayar untuk CaveText Pro tetapi tidak memberi Pro: e-mel tidak sepadan dengan mana-mana Pelajar, bayaran kurang daripada harga, atau ia dibayar melalui borang selain pautan pembayaran. Cari Pelajar itu, berikan Pro di atas, kemudian tandakan bayaran itu selesai."},
 	"ctadmin.payments.received":        {en: "Received", ms: "Diterima"},
 	"ctadmin.payments.order":           {en: "Order", ms: "Pesanan"},
 	"ctadmin.payments.payer":           {en: "Payer", ms: "Pembayar"},

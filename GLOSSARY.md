@@ -189,7 +189,7 @@ _Malay_: CaveText Pro (kept in English)
 _Avoid_: Plan (that is for the Lab), subscription
 
 **Pro payment**:
-One paid order for CaveText Pro on the payment form. It gives a year of CaveText Pro at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each order counts once. One that names no Learner, or pays less than the price, is unmatched: it waits for an Admin to give Pro by hand and mark it done.
+One paid order for CaveText Pro on the payment form. It gives a year of CaveText Pro at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each order counts once. One that names no Learner, pays less than the price or was paid on a form other than the current payment link is unmatched: it waits for an Admin to give Pro by hand and mark it done. Test Mode payments never count.
 _Malay_: Bayaran Pro
 _Avoid_: Subscription, purchase, transaction
 
