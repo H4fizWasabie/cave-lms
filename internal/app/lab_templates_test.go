@@ -42,7 +42,7 @@ func TestVisitorSeesEveryTemplatePreviewedButCannotBuild(t *testing.T) {
 }
 
 func TestLearnerWithoutAccessSeesEveryTemplatePreviewedButCannotBuild(t *testing.T) {
-	_, ada, _, _, _ := labSetup(t)
+	_, ada, _, _ := labSetup(t)
 	expectDemoPreviews(t, ada)
 	res, body := ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusForbidden, "The Lab is locked")

@@ -18,11 +18,10 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// labLearner returns the Admin and Ada, who has an active Plan and has joined a Course that includes the Lab.
+// labLearner returns the Admin and Ada, who has an active Plan and no Enrollment.
 func labLearner(t *testing.T) (admin, ada *site) {
-	admin, ada, planID, labCourse, _ := labSetup(t)
+	admin, ada, planID, _ := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
-	ada.post("/courses/"+labCourse+"/join", nil)
 	return admin, ada
 }
 
@@ -99,7 +98,7 @@ func TestCreatingADashboardNeedsANameAndAKnownTemplate(t *testing.T) {
 }
 
 func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
-	_, ada, _, _, _ := labSetup(t) // no Plan
+	_, ada, _, _ := labSetup(t) // no Plan
 	res, body := ada.get("/lab")
 	if strings.Contains(body, `href="/lab/new"`) {
 		t.Fatalf("New Dashboard offered without access: %s", body)
@@ -418,18 +417,6 @@ func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 	res, body = ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Baru"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
-}
-
-func TestLeavingTheLabCourseAlsoMakesTheLabReadOnly(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createDashboard("finance", "Kewangan")
-	courseID := ada.courseIDByTitle("Excel Dashboards")
-	ada.post("/courses/"+courseID+"/leave", url.Values{"confirm": {"yes"}})
-
-	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`"`)
-	res, body = ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
 }
 
 func TestTheErrorPageListsEveryProblemAndChangesNothing(t *testing.T) {

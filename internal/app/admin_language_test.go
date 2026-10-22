@@ -24,7 +24,7 @@ func TestTheAdminCourseScreensAreInMalayAndEnglishWithTitlesAsWritten(t *testing
 	for path, want := range map[string]string{
 		"/admin":                           "Bina Kursus",
 		"/admin/courses":                   "Kursus Baharu",
-		"/admin/courses/new":               "Termasuk Lab",
+		"/admin/courses/new":               "Penerangan",
 		"/admin/courses/" + id:             "Pelajar yang menyertai",
 		"/admin/courses/" + id + "/edit":   "Sunting Kursus",
 		"/admin/courses/" + id + "/delete": "Padam Kursus",
