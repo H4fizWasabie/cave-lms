@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yuin/goldmark"
 )
@@ -92,8 +93,8 @@ func (a *App) renderLessonForm(w http.ResponseWriter, r *http.Request, status in
 	a.render(w, r, status, "lesson_form", data)
 }
 
-// lessonFromForm reads the Lesson form for the given kind ("item" or "text"). msg is the first problem, empty when valid.
-func lessonFromForm(r *http.Request, kind string) (l lesson, msg string) {
+// lessonFromForm reads the Lesson form for the given kind ("item" or "text"). msg is the first problem, in lang, empty when valid.
+func lessonFromForm(r *http.Request, lang, kind string) (l lesson, msg string) {
 	l.Title = strings.TrimSpace(r.PostFormValue("title"))
 	l.Objective = strings.TrimSpace(r.PostFormValue("objective"))
 	l.Body = strings.TrimSpace(r.PostFormValue("body"))
@@ -101,25 +102,25 @@ func lessonFromForm(r *http.Request, kind string) (l lesson, msg string) {
 	case "item":
 		id, err := strconv.ParseInt(r.PostFormValue("gallery_item_id"), 10, 64)
 		if err != nil || id <= 0 {
-			msg = "Choose a Gallery item."
+			msg = text.T(lang, "adm.lessons.err.item")
 		}
 		l.GalleryItemID = id
 		l.Body = ""
 	case "text":
 		if l.Body == "" {
-			msg = "Write the text of the Lesson."
+			msg = text.T(lang, "adm.lessons.err.text")
 		}
 	default:
-		msg = "Choose whether the Lesson is a Gallery item or text."
+		msg = text.T(lang, "adm.lessons.err.kind")
 	}
 	switch {
 	case msg != "":
 	case l.Title == "" || utf8.RuneCountInString(l.Title) > 200:
-		msg = "Enter a title (up to 200 characters)."
+		msg = text.T(lang, "adm.err.title-200")
 	case utf8.RuneCountInString(l.Objective) > 200 || strings.ContainsAny(l.Objective, "\r\n"):
-		msg = "Write the Objective as one sentence of at most 200 characters."
+		msg = text.T(lang, "adm.lessons.err.objective")
 	case utf8.RuneCountInString(l.Body) > 20000:
-		msg = "Use text of at most 20000 characters."
+		msg = text.T(lang, "adm.lessons.err.body")
 	}
 	return l, msg
 }
@@ -129,19 +130,24 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	l, msg := lessonFromForm(r, r.PostFormValue("kind"))
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	l, msg := lessonFromForm(r, lang, r.PostFormValue("kind"))
 	l.CourseID = c.ID
 	l.Published = r.PostFormValue("draft") != "on"
 	if msg != "" {
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: msg})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(), `
+	_, err = a.db.ExecContext(r.Context(), `
 		INSERT INTO lessons (course_id, position, title, objective, body, gallery_item_id, published)
 		VALUES ($1, (SELECT COALESCE(max(position), 0) + 1 FROM lessons WHERE course_id = $1), $2, $3, $4, $5, $6)`,
 		c.ID, l.Title, l.Objective, l.Body, nullID(l.GalleryItemID), l.Published)
 	if isForeignKeyError(err) {
-		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: "Choose a Gallery item."})
+		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: text.T(lang, "adm.lessons.err.item")})
 		return
 	}
 	if err == nil && l.Published {
@@ -326,7 +332,12 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	if existing.GalleryItemID != 0 {
 		kind = "item"
 	}
-	l, msg := lessonFromForm(r, kind)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	l, msg := lessonFromForm(r, lang, kind)
 	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
 	c, err := a.courseByID(r.Context(), l.CourseID)
 	if err != nil {
@@ -340,7 +351,7 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	_, err = a.db.ExecContext(r.Context(), `UPDATE lessons SET title = $2, objective = $3, body = $4, gallery_item_id = $5 WHERE id = $1`,
 		l.ID, l.Title, l.Objective, l.Body, nullID(l.GalleryItemID))
 	if isForeignKeyError(err) {
-		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: "Choose a Gallery item."})
+		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: text.T(lang, "adm.lessons.err.item")})
 		return
 	}
 	if err == nil && l.Published {

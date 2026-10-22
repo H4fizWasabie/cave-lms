@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -51,9 +52,10 @@ func (a *App) admin(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if !learner.IsAdmin {
+			lang := requestLanguage(learner.Lang, r)
 			a.render(w, r, http.StatusForbidden, "message", page{
-				Title:   "Admin only",
-				Message: "Only the Admin can open this page.",
+				Title:   text.T(lang, "adm.only.title"),
+				Message: text.T(lang, "adm.only"),
 			})
 			return
 		}

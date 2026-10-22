@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // exam is the Exam page's data. The numeric settings stay strings so a rejected form shows what was typed.
@@ -58,11 +60,16 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 		TimeLimit:   strings.TrimSpace(r.PostFormValue("time_limit")),
 		MaxAttempts: strings.TrimSpace(r.PostFormValue("max_attempts")),
 	}
-	if msg := e.settingsProblem(); msg != "" {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if msg := e.settingsProblem(lang); msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "exam", page{Course: &c, Exam: &e, Error: msg})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(), `
+	_, err = a.db.ExecContext(r.Context(), `
 		INSERT INTO exams (course_id, pass_mark, time_limit_minutes, max_attempts)
 		VALUES ($1, $2, NULLIF($3, '')::integer, NULLIF($4, '')::integer)
 		ON CONFLICT (course_id) DO UPDATE SET
@@ -77,19 +84,19 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
 }
 
-// settingsProblem returns the first problem with the settings form, empty when it is valid.
-func (e exam) settingsProblem() string {
+// settingsProblem returns the first problem with the settings form, in lang, empty when it is valid.
+func (e exam) settingsProblem(lang string) string {
 	if n, err := strconv.Atoi(e.PassMark); err != nil || n < 0 || n > 100 {
-		return "Enter the pass mark as a whole number from 0 to 100."
+		return text.T(lang, "adm.exam.err.pass-mark")
 	}
 	if e.TimeLimit != "" {
 		if n, err := strconv.Atoi(e.TimeLimit); err != nil || n < 1 {
-			return "Enter the time limit in minutes, or leave it empty."
+			return text.T(lang, "adm.exam.err.time-limit")
 		}
 	}
 	if e.MaxAttempts != "" {
 		if n, err := strconv.Atoi(e.MaxAttempts); err != nil || n < 1 {
-			return "Enter the maximum attempts as a whole number, or leave it empty."
+			return text.T(lang, "adm.exam.err.attempts")
 		}
 	}
 	return ""
@@ -108,7 +115,12 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	q, msg := questionFromForm(r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	q, msg := questionFromForm(r, lang)
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
 		return
@@ -144,8 +156,8 @@ func (a *App) insertQuestion(ctx context.Context, courseID int64, q examQuestion
 	return tx.Commit()
 }
 
-// questionFromForm reads the question form. msg is the first problem found, empty when the form is valid.
-func questionFromForm(r *http.Request) (q examQuestion, msg string) {
+// questionFromForm reads the question form. msg is the first problem found, in lang, empty when the form is valid.
+func questionFromForm(r *http.Request, lang string) (q examQuestion, msg string) {
 	q.Prompt = strings.TrimSpace(r.PostFormValue("prompt"))
 	q.Draft = r.PostFormValue("draft") == "on"
 	raw := r.PostForm["option"]
@@ -159,11 +171,11 @@ func questionFromForm(r *http.Request) (q examQuestion, msg string) {
 	correct, err := strconv.Atoi(r.PostFormValue("correct"))
 	switch {
 	case q.Prompt == "":
-		msg = "Enter the question."
+		msg = text.T(lang, "adm.exam.err.prompt")
 	case filled < 2 || len(raw) > len(q.Options):
-		msg = "Enter between 2 and 5 options."
+		msg = text.T(lang, "adm.exam.err.options")
 	case err != nil || correct < 0 || correct >= len(q.Options) || q.Options[correct].Text == "":
-		msg = "Mark the correct option, and make sure it has text."
+		msg = text.T(lang, "adm.exam.err.correct")
 	default:
 		q.Options[correct].Correct = true
 	}
@@ -250,7 +262,12 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	q, msg := questionFromForm(r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	q, msg := questionFromForm(r, lang)
 	q.ID, q.Draft = existing.ID, existing.Draft
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
@@ -384,7 +401,12 @@ func (a *App) examQuestionFor(w http.ResponseWriter, r *http.Request) (course, e
 		return course{}, examQuestion{}, false
 	}
 	notFound := func() (course, examQuestion, bool) {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Question not found", Message: "There is no Exam question at this address."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return course{}, examQuestion{}, false
+		}
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "adm.exam.q-not-found.title"), Message: text.T(lang, "adm.exam.q-not-found")})
 		return course{}, examQuestion{}, false
 	}
 	qid, err := strconv.ParseInt(r.PathValue("qid"), 10, 64)

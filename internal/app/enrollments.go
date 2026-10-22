@@ -24,13 +24,18 @@ type enrollee struct {
 	Done, Total int    // Lessons completed out of the Course's published Lessons
 	Best        int    // best Exam score, shown when HasBest
 	HasBest     bool   // false when the Learner has no finished attempt
-	Certificate string // "None", "Issued <date>" or "Revoked"
+	Certificate string // "None", "Issued <date>" or "Revoked", in the page's language
 }
 
 // adminCourse is the Admin's page for one Course: the Learners enrolled in it.
 func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
+		return
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	rows, err := a.db.QueryContext(r.Context(), `
@@ -65,7 +70,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		if e.Certificate, err = a.certificateStatus(r.Context(), e.ID, c.ID); err != nil {
+		if e.Certificate, err = a.certificateStatus(r.Context(), lang, e.ID, c.ID); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

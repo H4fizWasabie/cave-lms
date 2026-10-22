@@ -1,42 +1,42 @@
-{{define "title"}}Certificates · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "admin.side.certificates"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "certificates" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: Certificates</h1>
-            <p>Revoke a Certificate issued in error, or issue a corrected one.</p>
+            <h1>{{t .Lang "adm.certs.title"}}</h1>
+            <p>{{t .Lang "adm.certs.lede"}}</p>
           </div>
         </div>
         <form class="toolbar" method="get" action="/admin/certificates">
-          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">Search by name or ID</span><input type="search" name="q" value="{{.Query}}" placeholder="Search by name or ID"></label>
-          <button class="btn btn-ghost">Search</button>
+          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "adm.certs.search-by"}}</span><input type="search" name="q" value="{{.Query}}" placeholder="{{t .Lang "adm.certs.search-by"}}"></label>
+          <button class="btn btn-ghost">{{t .Lang "adm.certs.search"}}</button>
         </form>
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Learner</th><th>Course</th><th>Issued</th><th>Status</th><th>ID</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              <tr><th>{{t .Lang "adm.certs.learner"}}</th><th>{{t .Lang "adm.certs.course"}}</th><th>{{t .Lang "adm.certs.issued"}}</th><th>{{t .Lang "adm.certs.status"}}</th><th>ID</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Certificates}}
               <tr{{if .Revoked}} class="is-revoked"{{end}}>
                 <td>{{.LearnerName}}</td>
                 <td>{{.CourseTitle}}</td>
-                <td>{{.IssuedOn}}</td>
-                <td>{{if .Revoked}}Revoked{{else}}Valid{{end}}</td>
+                <td>{{.IssuedIn $.Lang}}</td>
+                <td>{{if .Revoked}}{{t $.Lang "adm.course.cert-revoked"}}{{else}}{{t $.Lang "adm.certs.valid"}}{{end}}</td>
                 <td><a href="/certificates/{{.ID}}"><code>{{.ID}}</code></a></td>
                 <td class="actions">
                   {{if .Revoked}}
                   <form class="inline-form" method="post" action="/admin/certificates/{{.ID}}/reissue">
-                    <div class="field"><label for="name-{{.ID}}">Learner's name (this also updates their account)</label><input id="name-{{.ID}}" type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></div>
-                    <button class="btn btn-solid btn-sm">Issue corrected Certificate</button>
+                    <div class="field"><label for="name-{{.ID}}">{{t $.Lang "adm.certs.name"}}</label><input id="name-{{.ID}}" type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></div>
+                    <button class="btn btn-solid btn-sm">{{t $.Lang "adm.certs.reissue"}}</button>
                   </form>
                   {{else}}
-                  <form method="post" action="/admin/certificates/{{.ID}}/revoke"><button class="btn btn-danger btn-sm">Revoke</button></form>
+                  <form method="post" action="/admin/certificates/{{.ID}}/revoke"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.certs.revoke"}}</button></form>
                   {{end}}
                 </td>
               </tr>
               {{else}}
-              <tr><td colspan="6">{{if .Query}}No Certificates match.{{else}}No Certificates yet.{{end}}</td></tr>
+              <tr><td colspan="6">{{if .Query}}{{t .Lang "adm.certs.no-match"}}{{else}}{{t .Lang "adm.certs.none"}}{{end}}</td></tr>
               {{end}}
             </table>
           </div>

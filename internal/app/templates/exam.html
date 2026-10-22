@@ -1,57 +1,57 @@
-{{define "title"}}Exam · {{.Course.Title}} · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "adm.exam"}} · {{.Course.Title}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}">Back to the Course</a></p>
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}">{{t .Lang "adm.exam.back"}}</a></p>
         <div class="adm-head">
           <div>
-            <h1>Exam for {{.Course.Title}}</h1>
-            <p>{{if .Exam.Usable}}Ready for Learners.{{else}}Not usable yet: publish at least one question.{{end}}</p>
+            <h1>{{t .Lang "adm.exam.title" .Course.Title}}</h1>
+            <p>{{if .Exam.Usable}}{{t .Lang "adm.exam.usable"}}{{else}}{{t .Lang "adm.exam.unusable"}}{{end}}</p>
           </div>
         </div>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <div class="card">
           <div class="card-head">
             <div>
-              <h2>Settings</h2>
-              <p class="card-sub">Pass mark: {{.Exam.PassMark}}% · {{with .Exam.TimeLimit}}Time limit: {{.}} minutes{{else}}No time limit{{end}} · {{with .Exam.MaxAttempts}}Attempts allowed: {{.}}{{else}}Unlimited attempts{{end}}</p>
+              <h2>{{t .Lang "adm.exam.settings"}}</h2>
+              <p class="card-sub">{{t .Lang "adm.exam.pass-is" .Exam.PassMark}} · {{with .Exam.TimeLimit}}{{t $.Lang "adm.exam.time-is" .}}{{else}}{{t .Lang "adm.exam.no-time"}}{{end}} · {{with .Exam.MaxAttempts}}{{t $.Lang "adm.exam.attempts-is" .}}{{else}}{{t .Lang "adm.exam.unlimited"}}{{end}}</p>
             </div>
           </div>
           <form class="form" method="post" action="/admin/courses/{{.Course.ID}}/exam">
             <div class="field-grid">
-              <div class="field"><label for="pass_mark">Pass mark</label><div class="suffix"><input id="pass_mark" name="pass_mark" type="number" min="0" max="100" value="{{.Exam.PassMark}}" required><span>%</span></div></div>
-              <div class="field"><label for="time_limit">Time limit <span class="opt">(optional)</span></label><div class="suffix"><input id="time_limit" name="time_limit" type="number" min="1" value="{{.Exam.TimeLimit}}"><span>minutes</span></div></div>
-              <div class="field"><label for="max_attempts">Maximum attempts <span class="opt">(optional)</span></label><input id="max_attempts" name="max_attempts" type="number" min="1" value="{{.Exam.MaxAttempts}}"></div>
+              <div class="field"><label for="pass_mark">{{t .Lang "adm.exam.pass-mark"}}</label><div class="suffix"><input id="pass_mark" name="pass_mark" type="number" min="0" max="100" value="{{.Exam.PassMark}}" required><span>%</span></div></div>
+              <div class="field"><label for="time_limit">{{t .Lang "adm.exam.time-limit"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><div class="suffix"><input id="time_limit" name="time_limit" type="number" min="1" value="{{.Exam.TimeLimit}}"><span>{{t .Lang "adm.exam.minutes"}}</span></div></div>
+              <div class="field"><label for="max_attempts">{{t .Lang "adm.exam.max-attempts"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="max_attempts" name="max_attempts" type="number" min="1" value="{{.Exam.MaxAttempts}}"></div>
             </div>
-            <div class="form-actions"><button class="btn btn-solid">Save Exam</button></div>
+            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.exam.save"}}</button></div>
           </form>
         </div>
         <div class="card">
           <div class="card-head">
-            <h2>Questions</h2>
-            <a class="btn btn-ghost btn-sm" href="/admin/courses/{{.Course.ID}}/exam/questions/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>Add question</a>
+            <h2>{{t .Lang "adm.exam.questions"}}</h2>
+            <a class="btn btn-ghost btn-sm" href="/admin/courses/{{.Course.ID}}/exam/questions/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.exam.add"}}</a>
           </div>
           <ol class="q-list">
             {{range $q := .Exam.Questions}}
             <li class="q-card">
               <div class="q-head">
                 <span class="q-n"></span>
-                <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}Draft{{else}}Published{{end}}</strong></p>
+                <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
                 <div class="lb-act">
-                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/edit">Edit</a>
-                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/up"><button class="icon-btn" aria-label="Up" title="Move up"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
-                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/down"><button class="icon-btn" aria-label="Down" title="Move down"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
-                  {{if $q.Draft}}<form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/publish"><button class="btn btn-ghost btn-sm">Publish</button></form>{{end}}
-                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/delete"><button class="btn btn-danger btn-sm">Delete</button></form>
+                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
+                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/up"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
+                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/down"><button class="icon-btn" aria-label="{{t $.Lang "adm.down"}}" title="{{t $.Lang "adm.move-down"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
+                  {{if $q.Draft}}<form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
+                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/delete"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
                 </div>
               </div>
               <ul class="q-opts">
-                {{range $q.Options}}{{if .Text}}<li{{if .Correct}} class="is-correct"{{end}}><span class="dot"></span>{{.Text}}{{if .Correct}} (correct){{end}}</li>{{end}}{{end}}
+                {{range $q.Options}}{{if .Text}}<li{{if .Correct}} class="is-correct"{{end}}><span class="dot"></span>{{.Text}}{{if .Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}</li>{{end}}{{end}}
               </ul>
             </li>
             {{else}}
-            <li class="empty">No questions yet.</li>
+            <li class="empty">{{t .Lang "adm.exam.none"}}</li>
             {{end}}
           </ol>
         </div>

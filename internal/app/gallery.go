@@ -364,9 +364,14 @@ func (a *App) galleryUploadForm(w http.ResponseWriter, r *http.Request) {
 // galleryUpload streams the file to disk as it arrives. Nothing is stored unless every field and the file are valid.
 func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxUpload)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	mr, err := r.MultipartReader()
 	if err != nil {
-		a.render(w, r, http.StatusBadRequest, "message", page{Title: "Upload not read", Message: "The upload form could not be read. Try again."})
+		a.render(w, r, http.StatusBadRequest, "message", page{Title: text.T(lang, "adm.gallery.unread.title"), Message: text.T(lang, "adm.gallery.unread")})
 		return
 	}
 
@@ -389,44 +394,44 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			a.uploadReadFailed(w, r, err)
+			a.uploadReadFailed(w, r, lang, err)
 			return
 		}
 		if part.FormName() != "file" {
 			value, err := io.ReadAll(io.LimitReader(part, 4096))
 			if err != nil {
-				a.uploadReadFailed(w, r, err)
+				a.uploadReadFailed(w, r, lang, err)
 				return
 			}
 			setGalleryField(&item, part.FormName(), strings.TrimSpace(string(value)))
 			continue
 		}
 		if stored != "" {
-			fail(http.StatusBadRequest, "Upload one file at a time.")
+			fail(http.StatusBadRequest, text.T(lang, "adm.gallery.err.one-file"))
 			return
 		}
 		head := make([]byte, 512)
 		n, err := io.ReadFull(part, head)
 		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-			a.uploadReadFailed(w, r, err)
+			a.uploadReadFailed(w, r, lang, err)
 			return
 		}
 		head = head[:n]
 		mimeType, ok := sniffType(head)
 		if !ok {
-			fail(http.StatusUnprocessableEntity, "Upload an MP4 video, a PDF ebook, or a JPEG, PNG or WebP picture.")
+			fail(http.StatusUnprocessableEntity, text.T(lang, "adm.gallery.err.type"))
 			return
 		}
 		key, size, err := a.store.Save(io.MultiReader(bytes.NewReader(head), part))
 		if err != nil {
-			a.uploadReadFailed(w, r, err)
+			a.uploadReadFailed(w, r, lang, err)
 			return
 		}
 		stored = key
 		item.storageKey, item.MimeType, item.SizeBytes, item.Format = key, mimeType, size, allowedTypes[mimeType]
 	}
 
-	if msg := galleryFieldError(item, stored != ""); msg != "" {
+	if msg := galleryFieldError(lang, item, stored != ""); msg != "" {
 		fail(http.StatusUnprocessableEntity, msg)
 		return
 	}
@@ -442,13 +447,13 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/gallery/%d", item.ID), http.StatusSeeOther)
 }
 
-// uploadReadFailed answers a failed read: an over-limit upload gets 413, anything else is a server error.
-func (a *App) uploadReadFailed(w http.ResponseWriter, r *http.Request, err error) {
+// uploadReadFailed answers a failed read in lang: an over-limit upload gets 413, anything else is a server error.
+func (a *App) uploadReadFailed(w http.ResponseWriter, r *http.Request, lang string, err error) {
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
 		a.render(w, r, http.StatusRequestEntityTooLarge, "gallery_upload", page{
 			Item:  &galleryItem{Visibility: visibilityEveryone},
-			Error: "This file is too large. Uploads are limited to about 2 GB, and nothing was stored.",
+			Error: text.T(lang, "adm.gallery.err.too-large"),
 		})
 		return
 	}
@@ -470,19 +475,19 @@ func setGalleryField(item *galleryItem, name, value string) {
 	}
 }
 
-// galleryFieldError returns a message for the first invalid field, or "".
-func galleryFieldError(item galleryItem, hasFile bool) string {
+// galleryFieldError returns a message in lang for the first invalid field, or "".
+func galleryFieldError(lang string, item galleryItem, hasFile bool) string {
 	switch {
 	case !hasFile:
-		return "Choose a file to upload."
+		return text.T(lang, "adm.gallery.err.no-file")
 	case item.Title == "" || utf8.RuneCountInString(item.Title) > 200:
-		return "Enter a title (up to 200 characters)."
+		return text.T(lang, "adm.err.title-200")
 	case utf8.RuneCountInString(item.Description) > 2000:
-		return "Use a description of at most 2000 characters."
+		return text.T(lang, "adm.gallery.err.description")
 	case utf8.RuneCountInString(item.Category) > 100:
-		return "Use a category of at most 100 characters."
+		return text.T(lang, "adm.gallery.err.category")
 	case item.Visibility != visibilityEveryone && item.Visibility != visibilityLearners && item.Visibility != visibilityCourseMembers:
-		return "Choose who may see this item."
+		return text.T(lang, "adm.gallery.err.visibility")
 	}
 	return ""
 }
@@ -521,11 +526,16 @@ func (a *App) updateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	item.Category = strings.TrimSpace(r.PostFormValue("category"))
 	item.Visibility = r.PostFormValue("visibility")
 	item.Promotional = r.PostFormValue("promotional") == "on"
-	if msg := galleryFieldError(item, true); msg != "" {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if msg := galleryFieldError(lang, item, true); msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "gallery_edit", page{Item: &item, Error: msg})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(),
+	_, err = a.db.ExecContext(r.Context(),
 		`UPDATE gallery_items SET title = $2, description = $3, category = $4, promotional = $5, visibility = $6 WHERE id = $1`,
 		item.ID, item.Title, item.Description, item.Category, item.Promotional, item.Visibility)
 	if err != nil {
@@ -552,8 +562,12 @@ func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	// A Lesson holds ON DELETE RESTRICT on its item, so the database refuses the delete while one uses it.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM gallery_items WHERE id = $1`, item.ID)
 	if isForeignKeyError(err) {
-		a.render(w, r, http.StatusConflict, "delete_gallery_item", page{Item: &item,
-			Error: "This item cannot be deleted because a Lesson uses it. Remove the Lesson first."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusConflict, "delete_gallery_item", page{Item: &item, Error: text.T(lang, "adm.gallery.err.in-use")})
 		return
 	}
 	if err != nil {
