@@ -1046,6 +1046,8 @@ var catalog = map[string]entry{
 	"plans.deployments.other": {en: "%d Deployments", ms: "%d Deployment"},
 	"plans.no-link":           {en: `None: Learners see "Contact us to upgrade"`, ms: "Tiada: Pelajar diminta menghubungi kami untuk menaik taraf"},
 	"plans.none":              {en: "No Plans yet.", ms: "Belum ada Pelan."},
+	"plans.pro":               {en: "Pro Plan", ms: "Pelan Pro"},
+	"plans.make-pro":          {en: "Make Pro Plan", ms: "Jadikan Pelan Pro"},
 	"plans.create":            {en: "Create a Plan", ms: "Cipta Pelan"},
 	"plans.first":             {en: "first.", ms: "dahulu."},
 	"plans.form.days":         {en: "Length in days", ms: "Tempoh dalam hari"},
