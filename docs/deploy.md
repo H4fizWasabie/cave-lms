@@ -1,6 +1,6 @@
 # Deploying Cave LMS
 
-The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (and, until the switch in Changing the domain is finished, `lms.wasabietech.com`; `www.cavelms.com` redirects) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
+The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (`www.cavelms.com` and the old `lms.wasabietech.com` redirect to it) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
 
 | What | Where on the VPS |
 |---|---|
@@ -79,7 +79,7 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
 4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
 5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see Email below). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
 
-A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect. The move from `lms.wasabietech.com` to `cavelms.com` is at that middle step: the BCL webhook, the CaveText extension and `EMAIL_FROM` have moved; what remains is the redirect, once the extension is in use.
+A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect.
 
 **Standing rule: an old domain keeps redirecting forever.** Never remove an old domain's redirect block, and keep renewing the old domain. A printed or saved Certificate carries its verification link on the domain that was current when the PDF was downloaded. See `docs/adr/0002-old-domains-redirect-forever.md`.
 
