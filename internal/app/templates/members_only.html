@@ -1,18 +1,18 @@
-{{define "title"}}Members only · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "members-only.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap auth-page">
       <div class="auth-box">
         <span class="auth-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg></span>
-        <h1>Members only</h1>
+        <h1>{{t .Lang "members-only.title"}}</h1>
         <p class="auth-sub">{{.Message}}</p>
         {{with .Course}}
           {{if .Open}}
-          <form method="post" action="/courses/{{.ID}}/join"><button class="btn btn-solid">Join this Course</button></form>
+          <form method="post" action="/courses/{{.ID}}/join"><button class="btn btn-solid">{{t $.Lang "course.join"}}</button></form>
           {{else}}
-          <p>This Course is closed to new joins.</p>
+          <p>{{t $.Lang "course.closed"}}</p>
           {{end}}
         {{end}}
-        {{range .Courses}}<p><a class="link-more" href="/courses/{{.ID}}">Join {{.Title}} to see it.</a></p>{{end}}
+        {{range .Courses}}<p><a class="link-more" href="/courses/{{.ID}}">{{t $.Lang "members-only.join-to-see" .Title}}</a></p>{{end}}
       </div>
     </div>
 {{end}}

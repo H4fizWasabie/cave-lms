@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -259,8 +260,13 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !enrolled && !learner.IsAdmin {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		a.render(w, r, http.StatusForbidden, "members_only", page{Learner: learner, Course: &c,
-			Message: "Join this Course to open its Lessons."})
+			Message: text.T(lang, "lesson.join-to-open")})
 		return
 	}
 	l, ok := a.lessonByPath(w, r)

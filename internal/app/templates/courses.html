@@ -1,9 +1,9 @@
-{{define "title"}}Courses · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "nav.courses"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
       <div class="page-head">
-        <h1>Courses</h1>
-        <p>Start any time and join in one click. No approval needed.</p>
+        <h1>{{t .Lang "nav.courses"}}</h1>
+        <p>{{t .Lang "courses.intro"}}</p>
       </div>
       <ul class="course-grid">
         {{range .Courses}}
@@ -11,15 +11,15 @@
           <div class="course-card-body">
             <div class="course-card-top">
               <h3><a href="/courses/{{.ID}}">{{.Title}}</a></h3>
-              {{if .Open}}<span class="badge badge-open">Open to new joins</span>{{else}}<span class="badge badge-closed">Closed to new joins</span>{{end}}
+              {{if .Open}}<span class="badge badge-open">{{t $.Lang "course.open"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "course.closed-badge"}}</span>{{end}}
             </div>
             <p class="course-card-desc">{{.Description}}</p>
-            {{with .StartDate}}<ul class="meta"><li>Start date: {{.}}</li></ul>{{end}}
-            <div class="course-card-foot"><a class="link-more" href="/courses/{{.ID}}">View course</a></div>
+            {{with .StartOn $.Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}
+            <div class="course-card-foot"><a class="link-more" href="/courses/{{.ID}}">{{t $.Lang "courses.view"}}</a></div>
           </div>
         </li>
         {{else}}
-        <li class="empty">No Courses yet.</li>
+        <li class="empty">{{t .Lang "courses.none"}}</li>
         {{end}}
       </ul>
     </div>

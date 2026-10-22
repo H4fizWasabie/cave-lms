@@ -1,12 +1,12 @@
-{{define "title"}}My Courses · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "my-courses.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
       <div class="page-head page-head-row">
         <div>
-          <h1>My Courses</h1>
-          <p>Courses you have joined. Continue any time.</p>
+          <h1>{{t .Lang "my-courses.title"}}</h1>
+          <p>{{t .Lang "my-courses.intro"}}</p>
         </div>
-        <a class="btn btn-ghost" href="/my-certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>My Certificates</a>
+        <a class="btn btn-ghost" href="/my-certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{t .Lang "my-certificates.title"}}</a>
       </div>
       <ul class="mc-list">
         {{range .Courses}}
@@ -14,14 +14,14 @@
           <div class="mc-main">
             <h3><a href="/courses/{{.ID}}">{{.Title}}</a></h3>
             <p class="muted">{{.Description}}</p>
-            {{with .StartDate}}<ul class="meta"><li>Start date: {{.}}</li></ul>{{end}}
+            {{with .StartOn $.Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}
           </div>
-          <a class="btn btn-solid btn-sm" href="/courses/{{.ID}}">Open</a>
+          <a class="btn btn-solid btn-sm" href="/courses/{{.ID}}">{{t $.Lang "my-courses.open"}}</a>
         </li>
         {{else}}
-        <li class="empty">You have not joined any Courses yet. <a href="/courses">Browse the Courses</a>.</li>
+        <li class="empty">{{t .Lang "my-courses.none"}} <a href="/courses">{{t .Lang "my-courses.browse"}}</a>.</li>
         {{end}}
       </ul>
-      <p class="mc-more"><a class="link-more" href="/courses">All Courses</a></p>
+      <p class="mc-more"><a class="link-more" href="/courses">{{t .Lang "my-courses.all"}}</a></p>
     </div>
 {{end}}

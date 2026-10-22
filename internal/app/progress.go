@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"net/http"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // courseProgress counts the Learner's completed Lessons against the Course's published Lessons.
@@ -51,8 +53,13 @@ func (a *App) setLessonComplete(complete bool) http.HandlerFunc {
 			return
 		}
 		if !enrolled {
+			lang, err := a.language(r)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
 			a.render(w, r, http.StatusForbidden, "members_only", page{Learner: learner, Course: &c,
-				Message: "Join this Course to mark its Lessons complete."})
+				Message: text.T(lang, "lesson.join-to-mark")})
 			return
 		}
 		l, ok := a.lessonByPath(w, r)

@@ -4,8 +4,8 @@
       <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
       <article class="lesson">
         <h1>{{.Lesson.Title}}</h1>
-        {{if not .Lesson.Published}}<p class="callout">Draft: Learners cannot see this Lesson.</p>{{end}}
-        {{with .Lesson.Objective}}<p class="lesson-objective"><strong>Objective:</strong> {{.}}</p>{{end}}
+        {{if not .Lesson.Published}}<p class="callout">{{t .Lang "lesson.draft"}}</p>{{end}}
+        {{with .Lesson.Objective}}<p class="lesson-objective"><strong>{{t $.Lang "lesson.objective"}}</strong> {{.}}</p>{{end}}
         {{with .Item}}
         <div class="g-media">
           {{if eq .Format "video"}}
@@ -16,7 +16,7 @@
           <div class="ebook ebook-plain">
             <div class="ebook-info">
               <h2>{{.Title}}</h2>
-              <a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download the ebook</a>
+              <a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lesson.download-ebook"}}</a>
             </div>
           </div>
           {{end}}
@@ -25,6 +25,6 @@
         <div class="prose">{{.Lesson.HTML}}</div>
         {{end}}
       </article>
-      <div class="lesson-foot"><a class="btn btn-ghost" href="/courses/{{.Course.ID}}">Back to the Course</a></div>
+      <div class="lesson-foot"><a class="btn btn-ghost" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></div>
     </div>
 {{end}}
