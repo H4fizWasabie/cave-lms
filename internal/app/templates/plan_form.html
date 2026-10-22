@@ -14,7 +14,6 @@
               <div class="field"><label for="deployments">{{t .Lang "plans.form.deployments"}}</label><input id="deployments" type="number" name="deployments" value="{{.Plan.Deployments}}" min="0" required></div>
             </div>
             <div class="field"><label for="storage">{{t .Lang "plans.form.storage"}}</label><input id="storage" type="number" name="storage" value="{{.Plan.StorageMB}}" min="0" required></div>
-            <div class="field"><label for="payment_link">{{t .Lang "plans.payment-link"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="payment_link" type="url" name="payment_link" value="{{.Plan.PaymentLink}}" placeholder="https://"></div>
             {{if .Plan.ID}}<p class="note">{{t .Lang "plans.form.edit-note"}}</p>{{end}}
             <div class="form-foot"><a class="btn btn-quiet" href="/admin/plans">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>

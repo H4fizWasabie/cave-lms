@@ -44,7 +44,7 @@ func TestLearnerWithoutAPlanIsOfferedUpgrade(t *testing.T) {
 		t.Fatalf("a Learner is asked to register: %s", body)
 	}
 
-	s.createPlan("Lab Monthly", "30", "3", "https://pay.example.com/lab")
+	s.savePrices(map[string]string{"lab-plan_link": "https://pay.example.com/lab"})
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `href="https://pay.example.com/lab">Upgrade</a>`)
 	if strings.Contains(body, "Contact us to upgrade") {

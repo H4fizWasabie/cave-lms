@@ -28,7 +28,7 @@ func bclSite(t *testing.T) *site {
 		c.BCLWebhookKey = bclKey
 	})
 	s.loginAsNewAdmin("Abah", ownerEmail, "correct horse battery")
-	res, body := s.saveCaveTextSettings("25", proFormURL)
+	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	return s
 }

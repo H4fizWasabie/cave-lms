@@ -6,7 +6,6 @@
         <div class="adm-head">
           <div>
             <h1>{{t .Lang "ctadmin.settings.heading"}}</h1>
-            <p>{{t .Lang "ctadmin.settings.intro"}}</p>
             <p>{{t .Lang "ctadmin.settings.question-intro"}}</p>
           </div>
         </div>
@@ -14,10 +13,6 @@
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
           <form class="form" method="post" action="/admin/cavetext/settings">
-            <div class="field-grid field-grid-2">
-              <div class="field"><label for="price">{{t .Lang "ctadmin.settings.price"}}</label><input id="price" type="text" inputmode="decimal" name="price" value="{{.Price}}" required></div>
-              <div class="field"><label for="payment_link">{{t .Lang "plans.payment-link"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="payment_link" type="url" name="payment_link" value="{{.PaymentLink}}" placeholder="https://"></div>
-            </div>
             <div class="field"><label for="question">{{t .Lang "ctadmin.settings.question"}}</label><textarea id="question" name="question" rows="5" maxlength="{{.MaxQuestion}}" required>{{.Question}}</textarea></div>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>

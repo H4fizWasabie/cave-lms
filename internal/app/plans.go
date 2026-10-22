@@ -12,15 +12,14 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// plan is a Plan as the Admin pages show it. PaymentLink is empty when none is set.
+// plan is a Plan as the Admin pages show it.
 type plan struct {
 	ID          int64
 	Name        string
 	Days        int
 	Deployments int
 	storageAllowance
-	PaymentLink string
-	Pro         bool // the Pro Plan, the one CaveText Pro comes with
+	Lab bool // the Lab Plan, the one Plan sold on its own and with the Pro Plan
 }
 
 type plansPage struct {
@@ -66,8 +65,8 @@ func (a *App) createPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`INSERT INTO plans (name, days, deployments, storage_mb, payment_link) VALUES ($1, $2, $3, $4, $5)`,
-		p.Name, p.Days, p.Deployments, p.StorageMB, p.PaymentLink)
+		`INSERT INTO plans (name, days, deployments, storage_mb) VALUES ($1, $2, $3, $4)`,
+		p.Name, p.Days, p.Deployments, p.StorageMB)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -92,8 +91,8 @@ func (a *App) updatePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`UPDATE plans SET name = $2, days = $3, deployments = $4, storage_mb = $5, payment_link = $6 WHERE id = $1`,
-		p.ID, p.Name, p.Days, p.Deployments, p.StorageMB, p.PaymentLink)
+		`UPDATE plans SET name = $2, days = $3, deployments = $4, storage_mb = $5 WHERE id = $1`,
+		p.ID, p.Name, p.Days, p.Deployments, p.StorageMB)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -101,8 +100,8 @@ func (a *App) updatePlan(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/plans", http.StatusSeeOther)
 }
 
-// markProPlan makes the Plan named by the {id} path value the Pro Plan, taking the mark from any other.
-func (a *App) markProPlan(w http.ResponseWriter, r *http.Request) {
+// markLabPlan makes the Plan named by the {id} path value the Lab Plan, taking the mark from any other.
+func (a *App) markLabPlan(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.planFor(w, r)
 	if !ok {
 		return
@@ -110,8 +109,8 @@ func (a *App) markProPlan(w http.ResponseWriter, r *http.Request) {
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err == nil {
 		defer tx.Rollback()
-		if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET pro = false WHERE pro AND id <> $1`, p.ID); err == nil {
-			if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET pro = true WHERE id = $1`, p.ID); err == nil {
+		if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET lab = false WHERE lab AND id <> $1`, p.ID); err == nil {
+			if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET lab = true WHERE id = $1`, p.ID); err == nil {
 				err = tx.Commit()
 			}
 		}
@@ -129,8 +128,8 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 	var p plan
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err == nil {
-		err = a.db.QueryRowContext(r.Context(), `SELECT id, name, days, deployments, storage_mb, payment_link FROM plans WHERE id = $1`, id).
-			Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.StorageMB, &p.PaymentLink)
+		err = a.db.QueryRowContext(r.Context(), `SELECT id, name, days, deployments, storage_mb FROM plans WHERE id = $1`, id).
+			Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.StorageMB)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
 			return p, false
@@ -144,7 +143,7 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 }
 
 func (a *App) listPlans(r *http.Request) ([]plan, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, days, deployments, storage_mb, payment_link, pro FROM plans ORDER BY name, id`)
+	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, days, deployments, storage_mb, lab FROM plans ORDER BY name, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +151,7 @@ func (a *App) listPlans(r *http.Request) ([]plan, error) {
 	var list []plan
 	for rows.Next() {
 		var p plan
-		if err := rows.Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.StorageMB, &p.PaymentLink, &p.Pro); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.StorageMB, &p.Lab); err != nil {
 			return nil, err
 		}
 		list = append(list, p)
@@ -163,7 +162,6 @@ func (a *App) listPlans(r *http.Request) ([]plan, error) {
 // planFromForm reads the Plan form. msg is the first problem found, in lang, empty when the form is valid.
 func planFromForm(lang string, r *http.Request) (p plan, msg string) {
 	p.Name = strings.TrimSpace(r.PostFormValue("name"))
-	p.PaymentLink = strings.TrimSpace(r.PostFormValue("payment_link"))
 	days, daysErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("days")))
 	deployments, deploymentsErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("deployments")))
 	storage, storageErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("storage")))
@@ -177,8 +175,6 @@ func planFromForm(lang string, r *http.Request) (p plan, msg string) {
 		msg = text.T(lang, "plans.err.deployments")
 	case storageErr != nil || storage < 0:
 		msg = text.T(lang, "plans.err.storage")
-	case p.PaymentLink != "" && !isWebLink(p.PaymentLink):
-		msg = text.T(lang, "plans.err.link")
 	}
 	return p, msg
 }

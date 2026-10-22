@@ -90,7 +90,7 @@ func TestAProPeriodGetsTheProPlansStorageAllowance(t *testing.T) {
 	s := bclSite(t)
 	res, body := s.post("/admin/plans", url.Values{"name": {"Pro Year"}, "days": {"365"}, "deployments": {"5"}, "storage": {"3"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	s.markProPlan("Pro Year")
+	s.markLabPlan("Pro Year")
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paid("LINK-1", "ada@example.com"))
 	res, body = ada.get("/lab")

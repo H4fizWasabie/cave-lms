@@ -623,7 +623,7 @@ func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T
 	}
 	s := newSite(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	s.createPlan("Lab Monthly", "30", "3", "")
+	s.createPlan("Lab Monthly", "30", "3")
 	ada := s.second()
 	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.assignPlan("ada@example.com", s.onlyPlanID())

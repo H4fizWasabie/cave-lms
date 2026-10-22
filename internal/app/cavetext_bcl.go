@@ -109,10 +109,9 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	order := b.Data.Main.Order.String()
-	var priceSen int
-	var link string
-	if err := a.db.QueryRowContext(r.Context(), `SELECT pro_price_sen, pro_payment_link FROM cavetext_settings WHERE id = 1`).Scan(&priceSen, &link); err != nil {
-		note("error", "order %s: read CaveText settings: %v", order, err)
+	pro, err := a.priceOf(r.Context(), caveTextProProduct)
+	if err != nil {
+		note("error", "order %s: %v", order, err)
 		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
@@ -126,7 +125,7 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	case order == "":
 		note("info", "paid order with no order number on %s; ignored", b.Data.FormURL)
 	default:
-		outcome, err := a.recordProPayment(r.Context(), &b, order, priceSen, sameForm(b.Data.FormURL, link))
+		outcome, err := a.recordProPayment(r.Context(), &b, order, pro.Sen, sameForm(b.Data.FormURL, pro.PaymentLink))
 		if err != nil {
 			note("error", "order %s: %v", order, err)
 			http.Error(w, "server error", http.StatusInternalServerError)
@@ -138,7 +137,7 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // recordProPayment keeps a paid order and, when it is on the Pro form, gives its Learner Pro and its Plan, in one
-// transaction, then writes the missing Pro Plan warning if there was none. It says what happened, for the System log.
+// transaction, then writes the missing Lab Plan warning if there was none. It says what happened, for the System log.
 func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order string, priceSen int, onProForm bool) (string, error) {
 	subtotal, readable := parseRM(b.Data.Main.Subtotal.String())
 	cavelms, payer := b.cavelmsEmail(), b.Data.Main.PayerEmail.String()
@@ -196,7 +195,7 @@ func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order str
 		return "", err
 	}
 	if !planned {
-		a.warnNoProPlan(learnerID)
+		a.warnNoLabPlan(learnerID)
 	}
 	return fmt.Sprintf("gave Learner %d Pro", learnerID), nil
 }
