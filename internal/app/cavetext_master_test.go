@@ -164,7 +164,7 @@ func TestTheUserMasterPromptIsNotASnippetAndNeverCountsTowardTheCap(t *testing.T
 
 func (s *site) saveCaveTextQuestion(question string) (*http.Response, string) {
 	s.t.Helper()
-	return s.post("/admin/cavetext/settings", url.Values{"price": {"25"}, "payment_link": {""}, "question": {question}})
+	return s.post("/admin/cavetext/settings", url.Values{"question": {question}})
 }
 
 func TestAnyAdminEditsTheQuestionShownBesideTheUserMasterPromptBox(t *testing.T) {

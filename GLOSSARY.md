@@ -121,14 +121,24 @@ _Malay_: Lab (kept in English)
 _Avoid_: Workspace, studio, builder
 
 **Plan**:
-Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one with CaveText Pro, or the Admin assigns one by hand; a Learner without one sees only the demo. Courses stay free to join.
+Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; a Learner without one sees only the demo. Courses stay free to join.
 _Malay_: Pelan
 _Avoid_: Tier, subscription, package, free plan
 
+**Lab Plan**:
+The one Plan the Admin marks to be sold on its own, a year of the Lab with its hosting and storage, at a price the Admin sets. The Pro Plan comes with the same Plan, with the same limits. Other Plans exist only to be assigned by hand.
+_Malay_: Pelan Lab
+_Avoid_: Lab subscription, hosting plan
+
 **Pro Plan**:
-The one Plan the Admin marks as the one CaveText Pro comes with.
+CaveText Pro and the Lab Plan together, bought in one Payment, at a price the Admin sets below the two bought apart. It gives nothing the two do not give separately.
 _Malay_: Pelan Pro
-_Avoid_: Bundle, package
+_Avoid_: Bundle, package, combo
+
+**Normal price**:
+The price a Learner would pay without a promotion, shown crossed out beside a lower current price. Only the current price decides whether a Payment is enough.
+_Malay_: Harga biasa
+_Avoid_: Original price, list price, RRP
 
 **Plan period**:
 One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Datasets are kept for 90 days, then deleted unless a new period has started.
@@ -199,14 +209,14 @@ A place within the first early places, a number the Owner sets. A Learner's plac
 _Malay_: Tempat awal
 
 **CaveText Pro**:
-The paid yearly bundle, one level only, at a price the Admin sets. It raises the Snippet cap, opens the Master prompts, and comes with a Plan for the same year. Courses stay free.
+A paid year of CaveText's extras, one level only, at a price the Admin sets. It lifts the Snippet cap and opens the Master prompts. It does not include the Lab: that is the Lab Plan, or both together as the Pro Plan. Buying it again starts a new year when the current one ends. Courses stay free.
 _Malay_: CaveText Pro (kept in English)
 _Avoid_: Subscription, storage service
 
-**Pro payment**:
-One paid order for CaveText Pro on the payment form. It gives a year of CaveText Pro, and its Plan, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each order counts once. One that names no Learner, pays less than the price or was paid on a form other than the current payment link is unmatched: it waits for an Admin to give Pro by hand and mark it done. Test Mode payments never count.
-_Malay_: Bayaran Pro
-_Avoid_: Subscription, purchase, transaction
+**Payment**:
+One paid order on the payment form of CaveText Pro, the Lab Plan or the Pro Plan. The form decides what it gives: a year of CaveText Pro, a period of the Lab Plan, or both, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each comes after any of the same kind still running, with no credit for time already paid. Each order counts once. One that names no Learner, pays less than that product's current price or was paid on a form that is no current payment link is unmatched: it waits for an Admin to give it by hand and mark it done. Test Mode payments never count.
+_Malay_: Bayaran
+_Avoid_: Subscription, purchase, transaction, Pro payment
 
 **Master prompt**:
 A ready prompt a CaveText Pro Learner inserts with one click or its shortcut. There are three. The User master prompt is the Learner's own context, written by an AI chatbot they asked what it knows about them and pasted into CaveText; it cannot be edited, only deleted and replaced, and it sits above a Snippet's task when inserted. The Image and Dashboard master prompts are written by the client, the same for every Pro Learner, and inserted as they are.

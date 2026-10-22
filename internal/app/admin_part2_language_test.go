@@ -13,20 +13,19 @@ func TestThePlanPagesAndTheirErrorsAreInMalayAndEnglish(t *testing.T) {
 
 	_, body := s.get("/admin/plans")
 	expectLanguage(t, body, "ms", "Pentadbir: Pelan")
-	expectAll(t, body, "Lab Monthly", "30 hari", "3 Deployment", "Tiada: Pelajar diminta")
+	expectAll(t, body, "Lab Monthly", "30 hari", "3 Deployment", "Jadikan Pelan Lab")
 	_, body = s.get("/admin/plans/new")
 	expectLanguage(t, body, "ms", "Pelan baharu")
 	_, body = s.get("/admin/plans/" + planID + "/edit")
 	expectLanguage(t, body, "ms", "Sunting Pelan")
 	res, body := s.get("/admin/plans/999999/edit")
 	expectStatus(t, res, body, http.StatusNotFound, "Pelan tidak dijumpai")
-	for _, c := range []struct{ name, days, deployments, link, want string }{
-		{" ", "30", "3", "", "Masukkan nama."},
-		{"Lab", "0", "3", "", "1 atau lebih"},
-		{"Lab", "30", "-1", "", "0 atau lebih"},
-		{"Lab", "30", "3", "javascript:alert(1)", "https://"},
+	for _, c := range []struct{ name, days, deployments, want string }{
+		{" ", "30", "3", "Masukkan nama."},
+		{"Lab", "0", "3", "1 atau lebih"},
+		{"Lab", "30", "-1", "0 atau lebih"},
 	} {
-		res, body := s.createPlan(c.name, c.days, c.deployments, c.link)
+		res, body := s.createPlan(c.name, c.days, c.deployments)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)
 		expectLanguage(t, body, "ms", c.want)
 	}
@@ -106,18 +105,15 @@ func TestTheCaveTextSettingsPageAndItsErrorsAreInMalayAndEnglish(t *testing.T) {
 
 	_, body := s.get("/admin/cavetext/settings")
 	expectLanguage(t, body, "ms", "Pentadbir: Tetapan CaveText")
-	expectAll(t, body, "Harga Pro (RM setahun)", "Soalan User master prompt", "Master prompt Image", "Simpan master prompt")
-	for _, c := range []struct{ price, link, question, want string }{
-		{"abc", "", "Q?", "Masukkan harga dalam RM"},
-		{"0", "", "Q?", "Masukkan harga lebih daripada 0"},
-		{"25", "ftp://x", "Q?", "Masukkan pautan pembayaran"},
-		{"25", "", " ", "Masukkan soalan"},
-		{"25", "", strings.Repeat("x", 2001), "Pendekkan soalan kepada 2,000 aksara"},
+	expectAll(t, body, "Soalan User master prompt", "Master prompt Image", "Simpan master prompt")
+	for _, c := range []struct{ question, want string }{
+		{" ", "Masukkan soalan"},
+		{strings.Repeat("x", 2001), "Pendekkan soalan kepada 2,000 aksara"},
 	} {
-		res, body := s.post("/admin/cavetext/settings", url.Values{"price": {c.price}, "payment_link": {c.link}, "question": {c.question}})
+		res, body := s.saveCaveTextQuestion(c.question)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)
 	}
-	res, body := s.saveCaveTextSettings("25", "")
+	res, body := s.saveCaveTextQuestion("Q?")
 	_, body = s.get(res.Header.Get("Location"))
 	expectAll(t, body, "Disimpan.")
 

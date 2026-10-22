@@ -35,15 +35,6 @@ func expectInOrder(t *testing.T, body string, wants ...string) {
 	}
 }
 
-func expectNone(t *testing.T, body string, unwanted ...string) {
-	t.Helper()
-	for _, u := range unwanted {
-		if strings.Contains(body, u) {
-			t.Errorf("has %q", u)
-		}
-	}
-}
-
 func TestTheHeaderShowsTheSevenSectionsInMalayAndEnglishButNoCommunity(t *testing.T) {
 	s := newSite(t)
 	for _, path := range []string{"/", "/courses", "/certificates"} {

@@ -6,6 +6,13 @@ set -euo pipefail
 host="${CAVE_HOST:-vps}"
 cd "$(git rev-parse --show-toplevel)"
 
+# Deploying a checkout that lacks origin/main would roll production back, so refuse it.
+git fetch -q origin main
+if ! git merge-base --is-ancestor origin/main HEAD; then
+	echo "This checkout is behind origin/main; deploying it would roll production back. Merge or pull origin/main first." >&2
+	exit 1
+fi
+
 build="$(mktemp -d)"
 trap 'rm -rf "$build"' EXIT
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$build/cave-lms" ./cmd/cave-lms

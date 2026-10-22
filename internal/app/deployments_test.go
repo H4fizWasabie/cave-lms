@@ -204,7 +204,7 @@ func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *t
 		paths, links = append(paths, path), append(links, ada.deploy(path))
 	}
 	plan := admin.onlyPlanID()
-	res, body := admin.post("/admin/plans/"+plan, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"1"}, "storage": {"1024"}, "payment_link": {""}})
+	res, body := admin.post("/admin/plans/"+plan, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"1"}, "storage": {"1024"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	admin.ageAllPeriods(31)
 	admin.assignPlan("ada@example.com", plan) // renews with 1 awake at once
@@ -268,7 +268,7 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := admin.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
-	admin.createPlan("Lab Monthly", "30", "3", "")
+	admin.createPlan("Lab Monthly", "30", "3")
 	admin.assignPlan("admin@example.com", admin.onlyPlanID()) // a Plan of their own does not limit them
 	res, body = admin.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)

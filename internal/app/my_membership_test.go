@@ -51,7 +51,7 @@ func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T
 	expectInOrder(t, content(body), "Lab Monthly", "Hingga "+text.Date("ms", last))
 }
 
-func TestMyMembershipShowsCaveTextProAndTheSnippetCap(t *testing.T) {
+func TestMyMembershipShowsCaveTextProAndTheSnippetCapButNoPlanFromCaveTextProAlone(t *testing.T) {
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada", "ada@example.com")
 
@@ -59,9 +59,9 @@ func TestMyMembershipShowsCaveTextProAndTheSnippetCap(t *testing.T) {
 	expectInOrder(t, content(body), "CaveText Pro", "Free", "Snippet cap", "10 Snippets")
 
 	s.givePro("ada@example.com")
-	until := expectProFor(t, ada, token, 365)
+	until := expectProForAYear(t, ada, token)
 	_, body = ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "Unlimited")
+	expectInOrder(t, content(body), "No Plan", `href="/cavetext"`, "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "Unlimited")
 	_, body = ada.getAsking("/my-membership", "ms")
 	expectInOrder(t, content(body), "CaveText Pro", "Hingga "+text.Date("ms", until.UTC()), "Had Snippet", "Tanpa had")
 }

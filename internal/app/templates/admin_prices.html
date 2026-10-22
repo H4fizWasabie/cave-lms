@@ -1,0 +1,29 @@
+{{define "title"}}{{t .Lang "admin.side.prices"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "prices" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "prices.heading"}}</h1>
+            <p>{{t .Lang "prices.intro"}}</p>
+          </div>
+        </div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
+          <form class="form" method="post" action="/admin/prices">
+            {{range .Prices}}
+            <h2>{{t $.Lang (print "prices." .Product)}}</h2>
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="{{.Product}}_price">{{t $.Lang "prices.price"}}</label><input id="{{.Product}}_price" type="text" inputmode="decimal" name="{{.Product}}_price" value="{{.PriceIn}}" required></div>
+              <div class="field"><label for="{{.Product}}_normal">{{t $.Lang "prices.normal"}} <span class="opt">{{t $.Lang "admin.common.optional"}}</span></label><input id="{{.Product}}_normal" type="text" inputmode="decimal" name="{{.Product}}_normal" value="{{.NormalIn}}"></div>
+            </div>
+            <div class="field"><label for="{{.Product}}_link">{{t $.Lang "plans.payment-link"}} <span class="opt">{{t $.Lang "admin.common.optional"}}</span></label><input id="{{.Product}}_link" type="url" name="{{.Product}}_link" value="{{.PaymentLink}}" placeholder="https://"></div>
+            {{end}}
+            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+{{end}}

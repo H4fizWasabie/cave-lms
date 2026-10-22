@@ -76,10 +76,10 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 // labPage is /lab: the demo for Visitors and Learners without access, the Lab itself for those with it.
 type labPage struct {
 	pageBase
-	Access      labAccess
-	PaymentLink string // where Upgrade goes; empty shows "Contact us to upgrade"
-	Dashboards  []dashboardRow
-	Templates   []*lab.Template // previewed on their Samples in the demo
+	Access     labAccess
+	Offers     []offer // Upgrade: the Lab Plan and the Pro Plan, for a Learner without access
+	Dashboards []dashboardRow
+	Templates  []*lab.Template // previewed on their Samples in the demo
 }
 
 func (a *App) lab(w http.ResponseWriter, r *http.Request) {
@@ -100,9 +100,7 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !p.Access.Open() {
-			// ponytail: Upgrade goes to the first Plan with a payment link; one button per Plan if the Admin sells several.
-			err = a.db.QueryRowContext(r.Context(),
-				`SELECT COALESCE((SELECT payment_link FROM plans WHERE payment_link <> '' ORDER BY id LIMIT 1), '')`).Scan(&p.PaymentLink)
+			p.Offers, err = a.offersOf(r.Context(), labPlanProduct, proPlanProduct)
 		}
 		if err != nil {
 			a.serverError(w, r, err)

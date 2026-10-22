@@ -28,7 +28,7 @@ func bclSite(t *testing.T) *site {
 		c.BCLWebhookKey = bclKey
 	})
 	s.loginAsNewAdmin("Abah", ownerEmail, "correct horse battery")
-	res, body := s.saveCaveTextSettings("25", proFormURL)
+	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	return s
 }
@@ -199,6 +199,11 @@ func TestAPaymentNamingNoLearnerWaitsOnTheAdminPageUntilMarkedDone(t *testing.T)
 			t.Errorf("the unmatched payments lack %q:\n%s", want, body)
 		}
 	}
+	for order, product := range map[string]string{"LINK-7": "CaveText Pro", "LINK-8": "CaveText Pro", "LINK-9": "-"} {
+		if got := unmatchedProduct(t, body, order); got != product {
+			t.Errorf("%s is shown as for %q, want %q", order, got, product)
+		}
+	}
 	if !regexp.MustCompile(`action="/admin/cavetext/payments/done"[^>]*>\s*<input type="hidden" name="order" value="LINK-7">`).MatchString(body) {
 		t.Fatalf("no Done button for LINK-7:\n%s", body)
 	}
@@ -215,6 +220,17 @@ func TestAPaymentNamingNoLearnerWaitsOnTheAdminPageUntilMarkedDone(t *testing.T)
 	if _, body = s.get("/admin/cavetext"); !strings.Contains(body, "LINK-8") {
 		t.Errorf("a Learner marked LINK-8 done")
 	}
+}
+
+// unmatchedProduct reads which product's form the unmatched payment order came from, as the Admin's CaveText
+// Learners page shows it.
+func unmatchedProduct(t *testing.T, body, order string) string {
+	t.Helper()
+	m := regexp.MustCompile(`<td>` + order + `</td>[\s\S]*?<td class="product">([^<]*)</td>`).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("no product shown for %s:\n%s", order, body)
+	}
+	return m[1]
 }
 
 func TestABCLWebhookWithAWrongKeyIsRefused(t *testing.T) {

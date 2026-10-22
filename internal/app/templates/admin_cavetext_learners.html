@@ -24,6 +24,7 @@
                 <td>{{.Snippets}}</td>
                 <td class="actions">
                   <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro"><button class="btn btn-solid btn-sm">{{if .Pro}}{{t $.Lang "ctadmin.learners.renew"}}{{else}}{{t $.Lang "ctadmin.learners.give"}}{{end}}</button></form>
+                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro-plan"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.learners.give-pro-plan"}}</button></form>
                   {{if .Pro}}<form method="post" action="/admin/cavetext/learners/{{.ID}}/end-pro"><button class="btn btn-danger btn-sm">{{t $.Lang "ctadmin.learners.end"}}</button></form>{{end}}
                 </td>
               </tr>
@@ -39,7 +40,7 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "ctadmin.payments.received"}}</th><th>{{t .Lang "ctadmin.payments.order"}}</th><th>{{t .Lang "ctadmin.payments.payer"}}</th><th>{{t .Lang "ctadmin.payments.cavelms-email"}}</th><th>{{t .Lang "ctadmin.payments.paid"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "ctadmin.payments.received"}}</th><th>{{t .Lang "ctadmin.payments.order"}}</th><th>{{t .Lang "ctadmin.payments.payer"}}</th><th>{{t .Lang "ctadmin.payments.cavelms-email"}}</th><th>{{t .Lang "ctadmin.payments.paid"}}</th><th>{{t .Lang "ctadmin.payments.product"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Unmatched}}
               <tr>
                 <td>{{.When}}</td>
@@ -47,6 +48,7 @@
                 <td>{{.PayerName}}<br><span class="muted">{{.PayerEmail}}</span></td>
                 <td>{{with .CAVELMSEmail}}{{.}}{{else}}-{{end}}</td>
                 <td>{{.Paid}}</td>
+                <td class="product">{{with .Product}}{{t $.Lang (printf "prices.%s" .)}}{{else}}-{{end}}</td>
                 <td class="actions"><form method="post" action="/admin/cavetext/payments/done"><input type="hidden" name="order" value="{{.Order}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.payments.done"}}</button></form></td>
               </tr>
               {{end}}

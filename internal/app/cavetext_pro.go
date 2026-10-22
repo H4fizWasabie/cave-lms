@@ -13,7 +13,7 @@ import (
 // caveTextSite is where the extension's own page links; it leads on to the Chrome Web Store.
 const caveTextSite = "https://cavetext.cavelms.com"
 
-// proLength is how long CaveText Pro lasts when no Plan is marked as the Pro Plan; with one, Pro lasts its days.
+// proLength is how long a CaveText Pro year lasts.
 const proLength = "12 months"
 
 // caveTextLearnerRow is one CaveText Learner on the Admin CaveText Learners page.
@@ -89,50 +89,59 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_cavetext_learners", p)
 }
 
-// giveCaveTextPro gives a CaveText Learner Pro and a period of the Pro Plan, as givePro does.
+// giveCaveTextPro gives a CaveText Learner a year of CaveText Pro, as givePro does.
 func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
+	a.changePro(w, r, func(id int64) error { return givePro(r.Context(), a.db, id) })
+}
+
+// giveCaveTextProPlan gives a CaveText Learner the Pro Plan, as giveProPlan does, in one transaction.
+func (a *App) giveCaveTextProPlan(w http.ResponseWriter, r *http.Request) {
 	a.changePro(w, r, func(id int64) error {
-		planned, err := givePro(r.Context(), a.db, id)
+		tx, err := a.db.BeginTx(r.Context(), nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		planned, err := giveProPlan(r.Context(), tx, id)
+		if err == nil {
+			err = tx.Commit()
+		}
 		if err == nil && !planned {
-			a.warnNoProPlan(id)
+			a.warnNoLabPlan(id)
 		}
 		return err
 	})
 }
 
-// giveProQuery gives the Learner $1 Pro and a period of the Pro Plan, both lasting the Pro Plan's days. Pro starts
-// now or when their running Pro ends; the period starts now or when their last Plan period ends, any Plan's, so
-// periods never overlap and renewing early loses no days. The Pro Plan's allowances are copied, so editing it never
-// changes the period. Without a Pro Plan, Pro lasts proLength and no period is made: rows affected is 0.
-// ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
-const giveProQuery = `
-	WITH pro_plan AS (SELECT id, days, deployments, storage_mb FROM plans WHERE pro),
-	pro AS (
-		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
-		SELECT $1, s.at, s.at + COALESCE((SELECT make_interval(days => days) FROM pro_plan), '` + proLength + `'::interval)
-		FROM (SELECT GREATEST(now(), (
-			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
-		)) AS at) s
-		RETURNING learner_id)
-	INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments, storage_mb)
-	SELECT pro.learner_id, p.id, s.at, s.at + make_interval(days => p.days), p.deployments, p.storage_mb
-	FROM pro, pro_plan p, ` + nextPlanStart
-
-// givePro gives the Learner Pro and its Plan, as giveProQuery does. planned is false when no Plan is marked as the
-// Pro Plan, so only Pro was given: the caller writes warnNoProPlan once its transaction has committed.
-func givePro(ctx context.Context, db execer, learnerID int64) (planned bool, err error) {
-	res, err := db.ExecContext(ctx, giveProQuery, learnerID)
-	if err != nil {
-		return false, fmt.Errorf("give Pro: %w", err)
+// giveProPlan gives the Learner the Pro Plan: a year of CaveText Pro, as givePro does, and a period of the Lab Plan,
+// as giveLabPlan does. planned is false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the
+// caller writes warnNoLabPlan once its transaction has committed.
+func giveProPlan(ctx context.Context, db execer, learnerID int64) (planned bool, err error) {
+	if err := givePro(ctx, db, learnerID); err != nil {
+		return false, err
 	}
-	n, err := res.RowsAffected()
-	return n > 0, err
+	return giveLabPlan(ctx, db, learnerID)
 }
 
-// warnNoProPlan writes to the System log that the Learner got Pro without a Plan period, so the Admin sees the
-// missed setting.
-func (a *App) warnNoProPlan(learnerID int64) {
-	a.writeLog("error", fmt.Sprintf("Learner %d got CaveText Pro without a Plan period: no Plan is marked as the Pro Plan", learnerID), "", "")
+// warnNoLabPlan writes to the System log that the Learner got the Pro Plan's CaveText Pro without its Plan period,
+// so the Admin sees the missed setting.
+func (a *App) warnNoLabPlan(learnerID int64) {
+	a.writeLog("error", fmt.Sprintf("Learner %d got CaveText Pro without a Plan period: no Plan is marked as the Lab Plan", learnerID), "", "")
+}
+
+// givePro gives the Learner a year of CaveText Pro and nothing else, starting now or when their running Pro ends,
+// so renewing early loses no days.
+// ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
+func givePro(ctx context.Context, db execer, learnerID int64) error {
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
+		SELECT $1, s.at, s.at + '`+proLength+`'::interval
+		FROM (SELECT GREATEST(now(), (
+			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
+		)) AS at) s`, learnerID); err != nil {
+		return fmt.Errorf("give Pro: %w", err)
+	}
+	return nil
 }
 
 // endCaveTextPro ends a Learner's Pro at once: the running period and any given to follow it. Their Plan periods
@@ -161,7 +170,7 @@ func (a *App) changePro(w http.ResponseWriter, r *http.Request, change func(lear
 		return
 	}
 	if err := change(id); err != nil {
-		a.serverError(w, r, fmt.Errorf("change CaveText Pro: %w", err))
+		a.serverError(w, r, fmt.Errorf("change CaveText Learner %d: %w", id, err))
 		return
 	}
 	http.Redirect(w, r, "/admin/cavetext", http.StatusSeeOther)
@@ -183,9 +192,8 @@ type caveTextPage struct {
 	Account     bool // the Learner has signed in to CaveText
 	Cap         snippetCap
 	Count       int
-	ProUntil    string // the day Pro ends, in the page's language
-	Price       string // in RM: RM25
-	PaymentLink string // where Buy goes; empty asks the Learner to contact us
+	ProUntil    string  // the day Pro ends, in the page's language
+	Offers      []offer // CaveText Pro and the Pro Plan
 	EarlyPlaces string
 	EarlyCap    int
 	LateCap     int
@@ -202,13 +210,17 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := &caveTextPage{pageBase: pageBase{Learner: learner, Title: "CaveText"}, Extension: caveTextSite}
-	var sen, places int
-	if err := a.db.QueryRowContext(r.Context(), `SELECT pro_price_sen, pro_payment_link, early_places, early_cap, late_cap FROM cavetext_settings WHERE id = 1`).
-		Scan(&sen, &p.PaymentLink, &places, &p.EarlyCap, &p.LateCap); err != nil {
+	var places int
+	if err := a.db.QueryRowContext(r.Context(), `SELECT early_places, early_cap, late_cap FROM cavetext_settings WHERE id = 1`).
+		Scan(&places, &p.EarlyCap, &p.LateCap); err != nil {
 		a.serverError(w, r, fmt.Errorf("read CaveText settings: %w", err))
 		return
 	}
-	p.Price, p.EarlyPlaces = rm(sen), thousands(places)
+	if p.Offers, err = a.offersOf(r.Context(), caveTextProProduct, proPlanProduct); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p.EarlyPlaces = thousands(places)
 	if learner != nil {
 		if err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)`, learner.ID).Scan(&p.Account); err != nil {
 			a.serverError(w, r, err)
@@ -230,6 +242,9 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			p.ProUntil = text.Date(lang, p.Cap.ProUntil)
+			for i := range p.Offers {
+				p.Offers[i].Renew = p.Offers[i].Product == caveTextProProduct
+			}
 		}
 	}
 	a.render(w, r, http.StatusOK, "cavetext", p)

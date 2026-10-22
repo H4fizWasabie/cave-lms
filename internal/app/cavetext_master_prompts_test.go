@@ -149,11 +149,11 @@ func TestAnyAdminEditsTheImageAndDashboardMasterPrompts(t *testing.T) {
 	res, body = ada.caveTextSend(http.MethodPost, "snippets", token, snippet{Folder: "Work", Name: "Pic", Shortcut: "/pic", Body: "x"})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, `\"Picture\" already uses /pic.`)
 
-	// The price form leaves the master prompts as they are.
-	res, body = s.saveCaveTextSettings("25", "")
+	// The question form leaves the master prompts as they are.
+	res, body = s.saveCaveTextQuestion("What do you know about me?")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if got := describePrompts(ada.me(token)); got != "[image Picture /pic body=30][dashboard Charts /charts body=28]" {
-		t.Fatalf("after saving the price: %s", got)
+		t.Fatalf("after saving the question: %s", got)
 	}
 }
 

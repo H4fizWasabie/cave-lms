@@ -281,11 +281,11 @@ func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
 func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	give := s.proAction("ada@example.com", "pro")
+	give, givePlan := s.proAction("ada@example.com", "pro"), s.proAction("ada@example.com", "pro-plan")
 	for _, c := range []struct {
 		path string
 		form url.Values
-	}{{give, nil}, {"/admin/cavetext/settings", url.Values{"price": {"1"}, "payment_link": {"https://evil.example/pay"}}},
+	}{{give, nil}, {givePlan, nil}, {"/admin/cavetext/settings", url.Values{"question": {"Evil question?"}}},
 		{"/admin/cavetext/master-prompts", masterPromptForm("Evil", "/evil", "x", "Dash", "/dash", "y")}} {
 		for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
 			req, _ := http.NewRequest(http.MethodPost, s.server.URL+c.path, strings.NewReader(c.form.Encode()))
@@ -299,46 +299,10 @@ func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
 		t.Fatalf("a cross-origin post gave Pro")
 	}
 	res, body := s.get("/admin/cavetext/settings")
-	expectStatus(t, res, body, http.StatusOK, `name="price" value="25"`)
-	expectStatus(t, res, body, http.StatusOK, `name="payment_link" value=""`)
-}
-
-func (s *site) saveCaveTextSettings(price, link string) (*http.Response, string) {
-	s.t.Helper()
-	return s.post("/admin/cavetext/settings", url.Values{"price": {price}, "payment_link": {link}, "question": {"What do you know about me?"}})
-}
-
-func TestAnyAdminEditsTheProPriceAndPaymentLink(t *testing.T) {
-	s := caveTextAdminSite(t)
-	res, body := s.get("/admin/cavetext/settings")
-	expectStatus(t, res, body, http.StatusOK, "<h1>Admin: CaveText settings</h1>")
-	for _, want := range []string{`name="price" value="25"`, `name="payment_link" value=""`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("settings page lacks %s", want)
-		}
+	expectStatus(t, res, body, http.StatusOK, "")
+	if strings.Contains(body, "Evil question?") {
+		t.Fatalf("a cross-origin post changed the question")
 	}
-	for _, bad := range [][2]string{{"", ""}, {"-1", ""}, {"abc", ""}, {"25.001", ""}, {"100000", ""}, {"25", "not a link"}, {"25", "javascript:alert(1)"}} {
-		res, body = s.saveCaveTextSettings(bad[0], bad[1])
-		expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-	}
-	for _, free := range []string{"0", "0.00"} {
-		res, body = s.saveCaveTextSettings(free, "")
-		expectStatus(t, res, body, http.StatusUnprocessableEntity, "more than 0")
-	}
-	res, body = s.saveCaveTextSettings("25", "ftp://bcl.my/pay")
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "http:// or https://")
-	res, body = s.saveCaveTextSettings("30.5", "https://bcl.my/pay/cavetext")
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = s.get(res.Header.Get("Location"))
-	expectStatus(t, res, body, http.StatusOK, "Saved.")
-	expectStatus(t, res, body, http.StatusOK, `name="price" value="30.50"`)
-	expectStatus(t, res, body, http.StatusOK, `name="payment_link" value="https://bcl.my/pay/cavetext"`)
-
-	res, body = s.saveCaveTextSettings("25", "")
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = s.get("/admin/cavetext/settings")
-	expectStatus(t, res, body, http.StatusOK, `name="price" value="25"`)
-	expectStatus(t, res, body, http.StatusOK, `name="payment_link" value=""`)
 }
 
 func TestTheCaveTextPageShowsAVisitorWhatProGivesAndAsksThemToLogIn(t *testing.T) {
@@ -382,14 +346,14 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 	}
 
 	// With a payment link and a new price, Buy opens it.
-	s.saveCaveTextSettings("30.50", "https://bcl.my/pay/cavetext")
+	s.savePrices(map[string]string{"cavetext-pro_price": "30.50", "cavetext-pro_link": "https://bcl.my/pay/cavetext"})
 	_, body = ada.get("/cavetext")
 	for _, want := range []string{"RM30.50 a year", "A payment processing fee, which depends on the payment method you choose, is added at checkout.", `href="https://bcl.my/pay/cavetext"`, "Buy CaveText Pro</a>"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("with a payment link the CaveText page lacks %s", want)
 		}
 	}
-	if strings.Contains(body, "Contact us to buy") {
+	if strings.Contains(body, "Contact us to buy CaveText Pro") {
 		t.Errorf("the page still says Contact us with a payment link set")
 	}
 
