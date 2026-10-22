@@ -86,17 +86,6 @@ func TestTheLabShowsStorageUsedAndPeriodsKeepTheirAllowance(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "of 1 GB")
 }
 
-func TestAProPeriodGetsTheProPlansStorageAllowance(t *testing.T) {
-	s := bclSite(t)
-	res, body := s.post("/admin/plans", url.Values{"name": {"Pro Year"}, "days": {"365"}, "deployments": {"5"}, "storage": {"3"}})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	s.markLabPlan("Pro Year")
-	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	s.bclPay(paid("LINK-1", "ada@example.com"))
-	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "0 KB of 3 MB")
-}
-
 func TestAnUploadOverTheStorageAllowanceIsRefusedAndReplacingOrDeletingFreesSpace(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
 	first := ada.createDashboard("finance", "One")

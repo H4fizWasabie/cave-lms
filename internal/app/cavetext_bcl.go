@@ -76,14 +76,14 @@ func (b *bclWebhookBody) cavelmsEmail() string {
 	return ""
 }
 
-// sameForm says whether a webhook's form address is the Pro payment link, ignoring case and a trailing slash.
+// sameForm says whether a webhook's form address is a payment link, ignoring case and a trailing slash.
 func sameForm(formURL, link string) bool {
 	norm := func(s string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), "/")) }
 	return link != "" && norm(formURL) == norm(link)
 }
 
-// bclWebhook takes BCL's webhooks. A paid, live order on the form the CaveText Pro payment link points to gives a
-// year of Pro to the Learner named in the form's CAVELMS email field, or failing that the payer's email, creating
+// bclWebhook takes BCL's webhooks. A paid, live order on the form a product's payment link points to gives that
+// product (see recordPayment) to the Learner named in the form's CAVELMS email field, or failing that the payer's email, creating
 // their CaveText account if they have not signed in yet. Each order counts once. A paid, live order that names no
 // Learner, pays less than the price or comes from another form is kept for an Admin. Test Mode payments, unpaid
 // orders and other events are answered 200 and only noted in the System log, so BCL does not retry them. A database
@@ -109,11 +109,18 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	order := b.Data.Main.Order.String()
-	pro, err := a.priceOf(r.Context(), caveTextProProduct)
-	if err != nil {
-		note("error", "order %s: %v", order, err)
-		http.Error(w, "server error", http.StatusInternalServerError)
-		return
+	var form price // the product whose payment link is the paid form; none when Product is empty
+	for _, product := range products {
+		p, err := a.priceOf(r.Context(), product)
+		if err != nil {
+			note("error", "order %s: %v", order, err)
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		if sameForm(b.Data.FormURL, p.PaymentLink) {
+			form = p
+			break
+		}
 	}
 	switch {
 	case b.Event != "payment-success":
@@ -125,7 +132,7 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	case order == "":
 		note("info", "paid order with no order number on %s; ignored", b.Data.FormURL)
 	default:
-		outcome, err := a.recordProPayment(r.Context(), &b, order, pro.Sen, sameForm(b.Data.FormURL, pro.PaymentLink))
+		outcome, err := a.recordPayment(r.Context(), &b, order, form)
 		if err != nil {
 			note("error", "order %s: %v", order, err)
 			http.Error(w, "server error", http.StatusInternalServerError)
@@ -136,9 +143,10 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// recordProPayment keeps a paid order and, when it is on the Pro form, gives its Learner Pro and its Plan, in one
-// transaction, then writes the missing Lab Plan warning if there was none. It says what happened, for the System log.
-func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order string, priceSen int, onProForm bool) (string, error) {
+// recordPayment keeps a paid order on the form of product (none when form.Product is empty) and, when it names a
+// Learner and pays at least the product's price, gives that Learner the product, in one transaction. It says what
+// happened, for the System log.
+func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string, form price) (string, error) {
 	subtotal, readable := parseRM(b.Data.Main.Subtotal.String())
 	cavelms, payer := b.cavelmsEmail(), b.Data.Main.PayerEmail.String()
 	tx, err := a.db.BeginTx(ctx, nil)
@@ -146,16 +154,16 @@ func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order str
 		return "", err
 	}
 	defer tx.Rollback()
-	res, err := tx.ExecContext(ctx, `INSERT INTO cavetext_payments (order_number, payer_name, payer_email, cavelms_email, subtotal_sen)
-		VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`, order, b.Data.Main.PayerName.String(), payer, cavelms, subtotal)
+	res, err := tx.ExecContext(ctx, `INSERT INTO cavetext_payments (order_number, payer_name, payer_email, cavelms_email, subtotal_sen, product)
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')) ON CONFLICT DO NOTHING`, order, b.Data.Main.PayerName.String(), payer, cavelms, subtotal, form.Product)
 	if err != nil {
 		return "", fmt.Errorf("keep payment: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return "already received", tx.Commit()
 	}
-	if !onProForm {
-		return fmt.Sprintf("paid on %s, not the CaveText Pro payment link; kept for an Admin", b.Data.FormURL), tx.Commit()
+	if form.Product == "" {
+		return fmt.Sprintf("paid on %s, no current payment link; kept for an Admin", b.Data.FormURL), tx.Commit()
 	}
 	var learnerID int64
 	for _, email := range []string{cavelms, payer} {
@@ -172,46 +180,45 @@ func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order str
 		return "", fmt.Errorf("find Learner: %w", err)
 	case learnerID == 0:
 		return "names no Learner; kept for an Admin", tx.Commit()
-	case !readable || subtotal < priceSen:
+	case !readable || subtotal < form.Sen:
 		if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2 WHERE order_number = $1`, order, learnerID); err != nil {
 			return "", fmt.Errorf("mark payment's Learner: %w", err)
 		}
 		if !readable {
 			return fmt.Sprintf("unreadable amount %q; kept for an Admin", b.Data.Main.Subtotal), tx.Commit()
 		}
-		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(priceSen)), tx.Commit()
+		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(form.Sen)), tx.Commit()
 	}
-	if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
-		return "", err
-	}
-	planned, err := givePro(ctx, tx, learnerID)
-	if err != nil {
-		return "", err
+	switch form.Product {
+	case caveTextProProduct:
+		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
+			return "", err
+		}
+		if err := givePro(ctx, tx, learnerID); err != nil {
+			return "", err
+		}
+	default:
+		return fmt.Sprintf("paid on the %s form, which gives nothing yet; kept for an Admin", form.Product), tx.Commit()
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = true WHERE order_number = $1`, order, learnerID); err != nil {
 		return "", fmt.Errorf("mark payment granted: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return "", err
-	}
-	if !planned {
-		a.warnNoLabPlan(learnerID)
-	}
-	return fmt.Sprintf("gave Learner %d Pro", learnerID), nil
+	return fmt.Sprintf("gave Learner %d %s", learnerID, form.Product), tx.Commit()
 }
 
-// unmatchedPayment is a Pro payment that gave no Pro, waiting on the Admin CaveText Learners page.
+// unmatchedPayment is a Payment that gave nothing, waiting on the Admin CaveText Learners page.
 type unmatchedPayment struct {
 	Order, PayerName, PayerEmail, CAVELMSEmail, Paid string
+	Product                                          string // whose form it was paid on, as prices keys it; empty for none
 	Received                                         time.Time
 }
 
 // When is when the payment arrived, as the page shows it.
 func (p unmatchedPayment) When() string { return p.Received.UTC().Format(periodTime) }
 
-// unmatchedPayments lists the Pro payments that gave no Pro and no Admin has marked done, oldest first.
+// unmatchedPayments lists the Payments that gave nothing and no Admin has marked done, oldest first.
 func (a *App) unmatchedPayments(ctx context.Context) ([]unmatchedPayment, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT order_number, received_at, payer_name, payer_email, cavelms_email, subtotal_sen
+	rows, err := a.db.QueryContext(ctx, `SELECT order_number, received_at, payer_name, payer_email, cavelms_email, subtotal_sen, COALESCE(product, '')
 		FROM cavetext_payments WHERE NOT granted AND done_at IS NULL ORDER BY received_at`)
 	if err != nil {
 		return nil, err
@@ -221,7 +228,7 @@ func (a *App) unmatchedPayments(ctx context.Context) ([]unmatchedPayment, error)
 	for rows.Next() {
 		var p unmatchedPayment
 		var sen int
-		if err := rows.Scan(&p.Order, &p.Received, &p.PayerName, &p.PayerEmail, &p.CAVELMSEmail, &sen); err != nil {
+		if err := rows.Scan(&p.Order, &p.Received, &p.PayerName, &p.PayerEmail, &p.CAVELMSEmail, &sen, &p.Product); err != nil {
 			return nil, err
 		}
 		p.Paid = rm(sen)
