@@ -149,9 +149,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	}
 
 	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
-	if err := a.pruneSystemLog(ctx); err != nil {
-		a.logError(nil, fmt.Errorf("prune System log: %w", err))
-	}
+	a.dailyPrune(ctx)
 	go a.pruneDaily(a.done)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
