@@ -502,6 +502,42 @@ func (a *App) dropDataset(r *http.Request, key string) {
 	}
 }
 
+// datasetKeepDays is how long a Learner's Datasets outlive their last Plan period.
+const datasetKeepDays = 90
+
+// pruneDatasets deletes the Datasets of every Learner with no Plan period active, upcoming, or ended within
+// datasetKeepDays, from the store and the records, and returns how many it deleted. A Learner who never had a
+// Plan period counts as long lapsed. The Dashboards and their Deployments stay, the Deployments asleep.
+// The Admin's Datasets are never pruned.
+func (a *App) pruneDatasets(ctx context.Context) (int, error) {
+	rows, err := a.db.QueryContext(ctx, `WITH gone AS (
+		SELECT d.id, d.dataset_key FROM dashboards d JOIN learners l ON l.id = d.learner_id
+		WHERE d.dataset_key IS NOT NULL AND NOT l.is_admin AND NOT EXISTS (SELECT 1 FROM plan_periods pp
+			WHERE pp.learner_id = l.id AND LEAST(pp.ends_at, COALESCE(pp.ended_early_at, pp.ends_at)) > now() - make_interval(days => $1))
+		FOR UPDATE OF d)
+		UPDATE dashboards d SET dataset_key = NULL, dataset_file = '', dataset_size = 0 FROM gone WHERE d.id = gone.id
+		RETURNING gone.dataset_key`, datasetKeepDays)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return 0, err
+		}
+		keys = append(keys, key)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, key := range keys {
+		a.dropDataset(nil, key)
+	}
+	return len(keys), nil
+}
+
 // copyDatasetsToStore is a one-off step at startup: it moves every Dataset still in the old dataset column into
 // the store. Once 00069 drops the column there is nothing left to copy. The JSON's size stands in for the
 // uploaded file's, which was never kept.
