@@ -10,11 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// IssuedIn is the issue date in lang, as the Admin's Certificate list shows it.
-func (c certificate) IssuedIn(lang string) string {
-	return text.Date(lang, c.IssuedAt.UTC())
-}
-
 // verifyCertificateForm is the public ID box. An ID typed into it goes to that Certificate's verification page.
 func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 	if id := strings.TrimSpace(r.URL.Query().Get("id")); id != "" {

@@ -35,12 +35,7 @@ type certificate struct {
 const certificateColumns = `id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
 	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
 
-// IssuedOn is the issue date as the Admin pages show it.
-func (c certificate) IssuedOn() string {
-	return c.IssuedAt.UTC().Format("2 January 2006")
-}
-
-// IssuedIn is the issue date written in lang, as the Learner's pages, the check page and the PDF show it.
+// IssuedIn is the issue date written in lang, as the Learner's pages, the check page, the PDF and the Admin list show it.
 func (c certificate) IssuedIn(lang string) string {
 	return text.Date(lang, c.IssuedAt.UTC())
 }
