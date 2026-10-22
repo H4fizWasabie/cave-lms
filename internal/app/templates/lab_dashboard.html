@@ -212,13 +212,13 @@
         {{- else if .Confirm}}
         <div class="card">
           <h2 class="h-md">{{t .Lang "lab.dep.confirm" .Dashboard.Name}}</h2>
-          <p>{{t .Lang "lab.dep.confirm-body"}}</p>
+          <p>{{if .Access.Admin}}{{t .Lang "lab.dep.confirm-body-admin"}}{{else}}{{t .Lang "lab.dep.confirm-body"}}{{end}}</p>
           <p><strong>{{t .Lang "lab.dep.only-once"}}</strong>{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.uses-one" .DeploymentsLeft}}{{end}}</p>
           <form method="post" action="{{$url}}/deploy">
             <input type="hidden" name="confirm" value="yes">
             {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
             <div class="field"><label for="dep-name">{{t .Lang "lab.dep.name"}}</label><input id="dep-name" type="text" name="name" value="{{.DeployName}}" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" autocomplete="off" autocapitalize="none" spellcheck="false" required><small>{{t .Lang "lab.dep.name-hint" .Prefix}}</small></div>
-            <label class="check-card"><input type="checkbox" name="publish" value="yes" required><span><strong>{{t .Lang "lab.dep.publish"}}</strong><small>{{t .Lang "lab.dep.publish-sub"}}</small></span></label>
+            <label class="check-card"><input type="checkbox" name="right" value="yes" required><span><strong>{{t .Lang "lab.dep.right"}}</strong><small>{{t .Lang "lab.dep.right-sub"}}</small></span></label>
             <div class="form-foot">
               <a class="btn btn-quiet" href="{{$url}}/deploy">{{t .Lang "lab.dep.not-yet"}}</a>
               <button class="btn btn-solid">{{t .Lang "lab.dep.deploy-now"}}</button>
@@ -229,7 +229,7 @@
         <h2 class="h-md">{{t .Lang "lab.dep.put-online"}}</h2>
         <ul class="dep-facts">
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-link"}}</strong> {{t .Lang "lab.dep.fact-link-body"}}</span></li>
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span><strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body"}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{if .Access.Admin}}<strong>{{t .Lang "lab.dep.fact-days-admin"}}</strong> {{t .Lang "lab.dep.fact-days-admin-body"}}{{else}}<strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body"}}{{end}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-current"}}</strong> {{t .Lang "lab.dep.fact-current-body"}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-once"}}</strong> {{t .Lang "lab.dep.fact-once-body"}}{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.fact-uses" .DeploymentsLeft}}{{end}}</span></li>
         </ul>

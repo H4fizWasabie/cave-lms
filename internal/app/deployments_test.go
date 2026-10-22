@@ -29,10 +29,10 @@ func (s *site) deploy(path string) string {
 	return s.deployAs(path, "dash-"+path[strings.LastIndex(path, "/")+1:])
 }
 
-// deployAs deploys the Dashboard at path under name, ticking the right to publish, and returns its link's path.
+// deployAs deploys the Dashboard at path under name, ticking that they have the right to put its data online, and returns its link's path.
 func (s *site) deployAs(path, name string) string {
 	s.t.Helper()
-	res, body := s.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {name}, "publish": {"yes"}})
+	res, body := s.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {name}, "right": {"yes"}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	_, body = s.get(path + "/deploy")
 	m := deploymentLink.FindStringSubmatch(body)
@@ -62,8 +62,8 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	res, body = ada.get(path + "/deploy?confirm")
 	expectStatus(t, res, body, http.StatusOK, `<input type="hidden" name="confirm" value="yes">`)
 	expectStatus(t, res, body, http.StatusOK, "You can deploy it only once")
-	for _, want := range []string{`name="name"`, `pattern="[a-z0-9]+(-[a-z0-9]+)*"`, `type="checkbox" name="publish" value="yes" required`,
-		"I have the right to publish this data", "Anyone with the link can see this Dashboard and its data", "https://cave.example.invalid/d/"} {
+	for _, want := range []string{`name="name"`, `pattern="[a-z0-9]+(-[a-z0-9]+)*"`, `type="checkbox" name="right" value="yes" required`,
+		"I have the right to put this data online", "Anyone with the link can see this Dashboard and its data", "https://cave.example.invalid/d/"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 
@@ -96,8 +96,8 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	if acao := res.Header.Get("Access-Control-Allow-Origin"); acao != "*" {
 		t.Fatalf("the data's Access-Control-Allow-Origin = %q", acao)
 	}
-	if cc := res.Header.Get("Cache-Control"); cc != "public, max-age=31536000, immutable" {
-		t.Fatalf("the data's Cache-Control = %q, want public for a year", cc)
+	if cc := res.Header.Get("Cache-Control"); cc != "public, max-age=300" {
+		t.Fatalf("the data's Cache-Control = %q, want public for 5 minutes, so sleep and Takedown take effect", cc)
 	}
 	res, script := visitor.get(link + "charts.js")
 	expectStatus(t, res, script, http.StatusOK, "function drawDashboard")
@@ -216,6 +216,10 @@ func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *t
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "3 of 1")
 	fourth := ada.readyDashboard("Four")
+	res, body = ada.get(fourth + "/deploy?confirm")
+	if strings.Contains(body, "-2") {
+		t.Fatalf("the Deploy tab shows a negative number of free Deployments: %s", body)
+	}
 	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Awake now: 3 of the 1 your Plan allows.")
 
@@ -274,6 +278,13 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 	if strings.Contains(body, "free Deployments") {
 		t.Fatalf("the Admin is shown a Plan allowance: %s", body)
 	}
+	_, confirm := admin.get(admin.readyDashboard("Sahkan") + "/deploy?confirm")
+	for _, page := range []string{body, confirm} {
+		if strings.Contains(page, "while your Plan is active") {
+			t.Fatalf("the Admin is told their Deployment depends on a Plan: %s", page)
+		}
+	}
+	expectStatus(t, res, confirm, http.StatusOK, "Anyone with the link can see this Dashboard and its data")
 
 	var links []string
 	for _, name := range []string{"Satu", "Dua", "Tiga", "Empat"} { // more than the Plan allows
@@ -311,18 +322,18 @@ func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
 		{"cavelms", "is reserved"},
 		{"kedai-lama", "is already taken"},
 	} {
-		res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {c.name}, "publish": {"yes"}})
+		res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {c.name}, "right": {"yes"}})
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, `name="name"`) // back on the confirm step
 	}
 	bob := admin.second()
 	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
 	admin.assignPlan("bob@example.com", admin.onlyPlanID())
-	res, body := bob.post(bob.readyDashboard("Bob")+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-lama"}, "publish": {"yes"}})
+	res, body := bob.post(bob.readyDashboard("Bob")+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-lama"}, "right": {"yes"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "is already taken")
 
 	res, body = ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-baru"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tick that you have the right to publish this data")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tick that you have the right to put this data online")
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, `value="kedai-baru"`)
 	if _, body = ada.get(path + "/deploy"); deploymentLink.MatchString(body) {
 		t.Fatalf("deployed after a refusal: %s", body)

@@ -57,14 +57,14 @@ type deployment struct {
 	Reason    string // why Cave took it down
 }
 
-// depAwake is true for an awake Deployment, aliased dep: its Dashboard is not deleted, it is not taken down,
-// and its Learner is the Admin or has an active Plan period.
-const depAwake = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at IS NULL AND EXISTS (SELECT 1 FROM learners owner
+// deploymentAwakeSQL is an SQL condition, true for an awake Deployment aliased dep: its Dashboard is not deleted,
+// it is not taken down, and its Learner is the Admin or has an active Plan period.
+const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at IS NULL AND EXISTS (SELECT 1 FROM learners owner
 	WHERE owner.id = dep.learner_id AND (owner.is_admin OR EXISTS (SELECT 1 FROM plan_periods pp WHERE pp.learner_id = owner.id
-		AND pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL))))`
+		AND ` + activePeriodSQL + `))))`
 
 // deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
-const deploymentColumns = `dep.name, dep.deployed_at, ` + depAwake + ` AS awake, dep.taken_down_at, dep.takedown_reason`
+const deploymentColumns = `dep.name, dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason`
 
 // scanDeployment scans a row whose columns are lead's targets followed by deploymentColumns.
 func (a *App) scanDeployment(row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
@@ -119,7 +119,7 @@ func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int
 }
 
 // deployDashboard puts a Dashboard online once, under the name its Learner picked and with their word that they
-// may publish its data, if they have fewer awake Deployments than their active Plan period allows. The Admin's
+// have the right to put its data online, if they have fewer awake Deployments than their active Plan period allows. The Admin's
 // Deployments count against nothing.
 func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
@@ -145,6 +145,14 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		p.Error = text.T(lang, msgKey)
 		a.renderDeployTab(w, r, http.StatusUnprocessableEntity, p)
 	}
+	if key := nameError(name); key != "" {
+		refuse(key)
+		return
+	}
+	if r.PostFormValue("right") != "yes" {
+		refuse("lab.dep.err.right")
+		return
+	}
 
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -166,7 +174,7 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	counted := acc.CountedPeriod()
 	if counted != nil {
 		// Locking the period row makes two Deploys at once take turns, so the allowance holds.
-		if err := tx.QueryRowContext(r.Context(), `SELECT (SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+depAwake+`)
+		if err := tx.QueryRowContext(r.Context(), `SELECT (SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+deploymentAwakeSQL+`)
 			FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE`, counted.ID).Scan(&counted.Awake); err != nil {
 			a.serverError(w, r, err)
 			return
@@ -176,14 +184,6 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 			a.renderDeployTab(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Access: acc})
 			return
 		}
-	}
-	if key := nameError(name); key != "" {
-		refuse(key)
-		return
-	}
-	if r.PostFormValue("publish") != "yes" {
-		refuse("lab.dep.err.publish")
-		return
 	}
 	// The row outlives its Dashboard, so the unique name is never given to another Deployment.
 	_, err = tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, name)
@@ -211,7 +211,7 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 		depName := r.PathValue("name")
 		w.Header().Set("Cache-Control", "no-store")
 		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments dep
-			WHERE dep.name = $1 AND `+depAwake+`)`, depName)
+			WHERE dep.name = $1 AND `+deploymentAwakeSQL+`)`, depName)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
@@ -220,7 +220,8 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			if name == "data" {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 			}
-			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts", "public, max-age=31536000, immutable")
+			// Five minutes, not for good: a Deployment that sleeps or is taken down must stop showing its data soon.
+			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts", "public, max-age=300")
 			return
 		}
 		var takenDown bool
