@@ -44,6 +44,7 @@ type App struct {
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
+	datasets             storage.Store // where Dataset data lives (ADR 0008)
 	maxUpload            int64
 	limiter              rateLimiter
 	ownerEmail           string        // the Owner's, from OWNER_EMAIL; empty means no Owner
@@ -135,11 +136,18 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = goose.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("set migration dialect: %w", err)
 	}
+	// Datasets move into the store between 00068, which adds their keys, and 00069, which drops the old column.
+	if err = goose.UpToContext(ctx, db, "migrations", 68); err != nil {
+		return nil, fmt.Errorf("apply database migrations: %w", err)
+	}
+	if err = copyDatasetsToStore(ctx, db, store); err != nil {
+		return nil, fmt.Errorf("copy Datasets to the store: %w", err)
+	}
 	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
 	if err := a.pruneSystemLog(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("prune System log: %w", err))
 	}
@@ -181,7 +189,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /lab/dashboards/{id}/hood", a.dashboardTab("hood"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/download", a.withDashboard(a.downloadDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.dashboardFile("index.html"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/view/data.json", a.dashboardFile("data.json"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/data/{key}", a.dashboardFile("data"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/charts.js", a.dashboardFile("charts.js"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/deploy", a.withDashboard(a.deployTab))
 	mux.HandleFunc("POST /lab/dashboards/{id}/deploy", a.withDashboard(a.deployDashboard))
@@ -190,7 +198,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.dashboardTab("delete"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
 	mux.HandleFunc("GET /d/{slug}/{$}", a.deploymentFile("index.html"))
-	mux.HandleFunc("GET /d/{slug}/data.json", a.deploymentFile("data.json"))
+	mux.HandleFunc("GET /d/{slug}/data/{key}", a.deploymentFile("data"))
 	mux.HandleFunc("GET /d/{slug}/charts.js", a.deploymentFile("charts.js"))
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))

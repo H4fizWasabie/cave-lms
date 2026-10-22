@@ -17,7 +17,7 @@
   <script src="charts.js"></script>
   <script>
     const dashboard = {{.Config}};
-    fetch("data.json")
+    fetch({{.Data}})
       .then(response => response.json())
       .catch(() => new Promise(done => {
         // Opened from a file on the computer, browsers block fetch: read the same rows from data.js.

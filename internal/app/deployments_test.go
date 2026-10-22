@@ -74,14 +74,17 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 
 	visitor := ada.second() // no session
 	res, page := visitor.get(link)
-	expectStatus(t, res, page, http.StatusOK, `fetch("data.json")`)
+	expectStatus(t, res, page, http.StatusOK, `fetch("data/dataset-`)
 	if csp := res.Header.Get("Content-Security-Policy"); csp != "sandbox allow-scripts" {
 		t.Fatalf("Dashboard page CSP = %q", csp)
 	}
-	res, data := visitor.get(link + "data.json")
+	res, data := visitor.get(link + visitor.dataOf(link))
 	expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
 	if acao := res.Header.Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Fatalf("data.json Access-Control-Allow-Origin = %q", acao)
+		t.Fatalf("the data's Access-Control-Allow-Origin = %q", acao)
+	}
+	if cc := res.Header.Get("Cache-Control"); cc != "public, max-age=31536000, immutable" {
+		t.Fatalf("the data's Cache-Control = %q, want public for a year", cc)
 	}
 	res, script := visitor.get(link + "charts.js")
 	expectStatus(t, res, script, http.StatusOK, "function drawDashboard")
@@ -96,13 +99,14 @@ func TestADeploymentSleepsAfter7DaysAndCannotBeDeployedAgain(t *testing.T) {
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
 	visitor := ada.second()
+	data := visitor.dataOf(link)
 
 	ada.ageAllDeployments(6)
-	if res, page := visitor.get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data.json")`) {
+	if res, page := visitor.get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data/`) {
 		t.Fatalf("6 days in, the Deployment is not awake: %d", res.StatusCode)
 	}
 	ada.ageAllDeployments(2)
-	for _, p := range []string{link, link + "data.json"} {
+	for _, p := range []string{link, link + data} {
 		res, body := visitor.get(p)
 		expectStatus(t, res, body, http.StatusOK, "This Dashboard is asleep")
 		if strings.Contains(body, "Tarikh") {
@@ -131,7 +135,7 @@ func TestADeploymentKeepsIts7DaysWhenThePlanEnds(t *testing.T) {
 	link := ada.deploy(ada.readyDashboard("Kewangan"))
 	other := ada.readyDashboard("Stok")
 	admin.ageAllPeriods(40)
-	if res, page := ada.second().get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data.json")`) {
+	if res, page := ada.second().get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data/`) {
 		t.Fatalf("the Deployment stopped when the Plan ended: %d %s", res.StatusCode, page)
 	}
 	res, body := ada.get(other + "/deploy")
@@ -148,7 +152,7 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{day, "Kopi", "Dapur", "Keluar", 4321.5})
 	res, body := ada.postFile(path+"/dataset", "new.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	_, data := ada.second().get(link + "data.json")
+	_, data := ada.second().get(link + ada.second().dataOf(link))
 	if !strings.Contains(data, "4321.5") || strings.Count(data, "Tarikh") != 1 {
 		t.Fatalf("the Deployment does not show the new Dataset: %s", data)
 	}

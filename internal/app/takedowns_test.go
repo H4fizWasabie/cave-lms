@@ -43,7 +43,7 @@ func TestOnlyTheAdminSeesDeploymentsOrTakesThemDown(t *testing.T) {
 	if res, _ := ada.second().get("/admin/deployments"); res.StatusCode != http.StatusSeeOther {
 		t.Fatalf("a Visitor got %d for the Deployments list", res.StatusCode)
 	}
-	if _, page := ada.second().get(link); !strings.Contains(page, `fetch("data.json")`) {
+	if _, page := ada.second().get(link); !strings.Contains(page, `fetch("data/`) {
 		t.Fatalf("a Learner took the Deployment down: %s", page)
 	}
 }
@@ -57,14 +57,15 @@ func TestTakedownNeedsAReasonAndSleepsTheDeploymentAtOnce(t *testing.T) {
 
 	res, body := admin.post(action, url.Values{"reason": {"  "}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Give a reason")
-	if _, page := ada.second().get(link); !strings.Contains(page, `fetch("data.json")`) {
+	if _, page := ada.second().get(link); !strings.Contains(page, `fetch("data/`) {
 		t.Fatalf("a Takedown without a reason took the Deployment down: %s", page)
 	}
 
+	data := ada.second().dataOf(link)
 	reason := "Shared under a real company's name."
 	res, body = admin.post(action, url.Values{"reason": {reason}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	for _, p := range []string{link, link + "data.json"} {
+	for _, p := range []string{link, link + data} {
 		res, page := ada.second().get(p)
 		expectStatus(t, res, page, http.StatusOK, "Cave took it offline early")
 		if strings.Contains(page, "Tarikh") {
