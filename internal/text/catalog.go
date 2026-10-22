@@ -28,6 +28,128 @@ var catalog = map[string]entry{
 	"footer.reset-password":  {en: "Reset password", ms: "Set semula kata laluan"},
 	"footer.contact":         {en: "Contact", ms: "Hubungi"},
 
+	// ---- Privacy notice (/privacy) and the Register consent line: begin ----
+	// The facts are recorded in docs/adr/0006. Change the date in privacy.updated whenever the notice changes.
+	"privacy.link":     {en: "Privacy Notice", ms: "Notis Privasi"},
+	"privacy.updated":  {en: "Last updated 22 October 2026", ms: "Kemas kini terakhir 22 Oktober 2026"},
+	"register.consent": {en: "By registering you confirm you are 18 or older and agree to the", ms: "Dengan mendaftar, anda mengesahkan bahawa anda berumur 18 tahun ke atas dan bersetuju dengan"},
+	"privacy.intro": {
+		en: "This notice explains what personal data CAVELMS and CaveText accounts hold, why, where it goes and what you can do about it, as the Personal Data Protection Act 2010 (PDPA) requires.",
+		ms: "Notis ini menerangkan data peribadi yang disimpan oleh akaun CAVELMS dan CaveText, sebabnya, ke mana data itu pergi dan apa yang boleh anda lakukan mengenainya, seperti yang dikehendaki oleh Akta Perlindungan Data Peribadi 2010 (PDPA).",
+	},
+	"privacy.prevails": {
+		en: "This notice is in Malay and English. If the two differ, the English version prevails.",
+		ms: "Notis ini ada dalam bahasa Melayu dan bahasa Inggeris. Jika kedua-duanya berbeza, versi bahasa Inggeris diguna pakai.",
+	},
+	"privacy.who.title": {en: "Who looks after your data", ms: "Siapa yang menjaga data anda"},
+	"privacy.who.p": {
+		en: "The Cave Consult (TCC), which runs CAVELMS, is the data user: it decides what data is collected and why. Wasabie Tech builds and hosts the site for The Cave Consult and is its data processor: it handles the data only to run the site, on The Cave Consult's instructions.",
+		ms: "The Cave Consult (TCC), yang mengendalikan CAVELMS, ialah pengguna data: ia menentukan data yang dikumpul dan sebabnya. Wasabie Tech membina dan mengehos laman ini untuk The Cave Consult dan ialah pemproses datanya: ia mengendalikan data hanya untuk menjalankan laman ini, atas arahan The Cave Consult.",
+	},
+	"privacy.collect.title": {en: "What we collect and why", ms: "Data yang kami kumpul dan sebabnya"},
+	"privacy.collect.p": {
+		en: "All of it comes from you, as you register and use the site. Your name, email address and a password are needed to register; without them we cannot give you an account.",
+		ms: "Semuanya datang daripada anda, semasa anda mendaftar dan menggunakan laman ini. Nama, alamat e-mel dan kata laluan diperlukan untuk mendaftar; tanpanya kami tidak dapat memberi anda akaun.",
+	},
+	"privacy.collect.account": {
+		en: "Your account: your name, email address, password (kept only as a one-way hash, never as you typed it) and whether you have verified your email. We use them to log you in, to put your name on your Certificates, and to send you the verification and password reset emails.",
+		ms: "Akaun anda: nama, alamat e-mel, kata laluan (disimpan sebagai hash sehala sahaja, bukan seperti yang anda taip) dan sama ada anda telah mengesahkan e-mel anda. Kami menggunakannya untuk log masuk anda, meletakkan nama anda pada Sijil anda, dan menghantar e-mel pengesahan dan set semula kata laluan kepada anda.",
+	},
+	"privacy.collect.sessions": {
+		en: "Your logins: a cookie in your browser and a matching record on the server keep you logged in until you log out or the login expires.",
+		ms: "Log masuk anda: satu kuki dalam pelayar anda dan rekod yang sepadan di pelayan mengekalkan log masuk anda sehingga anda log keluar atau log masuk itu tamat tempoh.",
+	},
+	"privacy.collect.progress": {
+		en: "Your Course progress: the Courses you join, the Lessons you complete, and your Exam attempts and scores, so that you can carry on where you left off and earn Certificates.",
+		ms: "Kemajuan Kursus anda: Kursus yang anda sertai, Pelajaran yang anda selesaikan, serta percubaan dan markah Peperiksaan anda, supaya anda boleh menyambung dari tempat anda berhenti dan memperoleh Sijil.",
+	},
+	"privacy.collect.certificates": {
+		en: "Your Certificates: your name, the Course and the date. Anyone who has a Certificate's ID can check it on this site and will see your name on it.",
+		ms: "Sijil anda: nama anda, Kursus dan tarikh. Sesiapa yang mempunyai ID sesuatu Sijil boleh menyemaknya di laman ini dan akan melihat nama anda padanya.",
+	},
+	"privacy.collect.lab": {
+		en: "Your Lab work: your Dashboards, the Datasets you upload to them and your Deployments. A Deployment's link is public: anyone who has it can open the Dashboard. The Lab is for the Samples it provides, so do not upload anyone else's personal data to it.",
+		ms: "Kerja Lab anda: Dashboard anda, Set data yang anda muat naik kepadanya dan Deployment anda. Pautan sesuatu Deployment adalah awam: sesiapa yang memilikinya boleh membuka Dashboard itu. Lab adalah untuk Sampel yang disediakannya, jadi jangan muat naik data peribadi orang lain ke dalamnya.",
+	},
+	"privacy.collect.plans": {
+		en: "Your Plans: which Lab Plan you have and when each Plan period starts and ends, so that the Lab is open to you while it runs.",
+		ms: "Pelan anda: Pelan Lab yang anda miliki dan bila setiap Tempoh Pelan bermula dan berakhir, supaya Lab dibuka untuk anda sepanjang tempoh itu.",
+	},
+	"privacy.collect.cavetext": {
+		en: "Your CaveText account: its place (where you came in the order of first CaveText sign-ins), your Snippets, your User master prompt, your CaveText Pro periods, and the sign-in tokens that keep the CaveText extension signed in, so that CaveText works the same in every browser you sign in to.",
+		ms: "Akaun CaveText anda: tempatnya (kedudukan anda dalam urutan log masuk pertama CaveText), Snippet anda, User master prompt anda, tempoh CaveText Pro anda, dan token log masuk yang mengekalkan sambungan CaveText dalam keadaan log masuk, supaya CaveText berfungsi sama dalam setiap pelayar yang anda log masuk.",
+	},
+	"privacy.collect.language": {
+		en: "Your language: the language you pick, saved on your account and in a cookie.",
+		ms: "Bahasa anda: bahasa yang anda pilih, disimpan pada akaun anda dan dalam kuki.",
+	},
+	"privacy.collect.log": {
+		en: "The System log: errors the site runs into, with the kind of request and the page address, kept 30 days so that faults can be found and fixed.",
+		ms: "Log sistem: ralat yang berlaku pada laman ini, bersama jenis permintaan dan alamat halaman, disimpan 30 hari supaya kerosakan dapat dikesan dan dibaiki.",
+	},
+	"privacy.see.title": {en: "Who can see it", ms: "Siapa yang boleh melihatnya"},
+	"privacy.see.admins": {
+		en: "Admins, the people who run the site, can see Learners' names, email addresses and Course progress, and whether they have a Plan or CaveText Pro, so that they can run Courses, issue Certificates and help Learners.",
+		ms: "Pentadbir, iaitu orang yang mengendalikan laman ini, boleh melihat nama, alamat e-mel dan kemajuan Kursus Pelajar, serta sama ada mereka mempunyai Pelan atau CaveText Pro, supaya mereka dapat mengendalikan Kursus, mengeluarkan Sijil dan membantu Pelajar.",
+	},
+	"privacy.see.private": {
+		en: "No one reads your Snippets or your User master prompt, unless you ask us for help with them, it is needed to keep the service secure, or the law requires it. Admin screens show only how many Snippets a Learner has, never what they say.",
+		ms: "Tiada sesiapa membaca Snippet atau User master prompt anda, kecuali jika anda meminta bantuan kami mengenainya, ia perlu untuk memastikan perkhidmatan ini selamat, atau undang-undang menghendakinya. Skrin Pentadbir hanya menunjukkan bilangan Snippet seseorang Pelajar, bukan isinya.",
+	},
+	"privacy.see.others": {
+		en: "We do not sell your data or share it with anyone else, apart from the service providers below that keep the site running, or when the law requires it.",
+		ms: "Kami tidak menjual data anda atau berkongsinya dengan sesiapa, selain penyedia perkhidmatan di bawah yang memastikan laman ini berjalan, atau apabila undang-undang menghendakinya.",
+	},
+	"privacy.where.title": {en: "Where it is stored", ms: "Di mana ia disimpan"},
+	"privacy.where.p1": {
+		en: "The site runs on a server in France, rented from Contabo. Every night the data is backed up, encrypted, to that server and to Cloudflare R2, which may keep it in the United States. Verification and password reset emails are sent through Resend, in the United States, which sees your name and email address as it delivers them.",
+		ms: "Laman ini berjalan pada pelayan di Perancis, yang disewa daripada Contabo. Setiap malam data disandarkan, dalam bentuk tersulit, ke pelayan itu dan ke Cloudflare R2, yang mungkin menyimpannya di Amerika Syarikat. E-mel pengesahan dan set semula kata laluan dihantar melalui Resend, di Amerika Syarikat, yang melihat nama dan alamat e-mel anda semasa menghantarnya.",
+	},
+	"privacy.where.p2": {
+		en: "So your data leaves Malaysia. It goes to these providers only so that the site can run, can be restored after a fault, and can send you emails.",
+		ms: "Oleh itu data anda keluar dari Malaysia. Ia dihantar kepada penyedia ini hanya supaya laman ini dapat berjalan, dapat dipulihkan selepas kerosakan, dan dapat menghantar e-mel kepada anda.",
+	},
+	"privacy.keep.title": {en: "How long we keep it", ms: "Berapa lama kami menyimpannya"},
+	"privacy.keep.p": {
+		en: "We keep your data until you ask us to delete your account. An account that is not used is not deleted on its own. After a deletion, copies stay in the backups for up to 6 months, until the backups that hold them expire. The System log keeps each entry for 30 days.",
+		ms: "Kami menyimpan data anda sehingga anda meminta kami memadam akaun anda. Akaun yang tidak digunakan tidak dipadam dengan sendirinya. Selepas pemadaman, salinannya kekal dalam sandaran sehingga 6 bulan, sehingga sandaran yang menyimpannya tamat tempoh. Log sistem menyimpan setiap catatan selama 30 hari.",
+	},
+	"privacy.pay.title": {en: "Payments", ms: "Pembayaran"},
+	"privacy.pay.p": {
+		en: "CaveText Pro and Plans are paid through the payment provider, or arranged directly with The Cave Consult. CAVELMS never sees your card details.",
+		ms: "CaveText Pro dan Pelan dibayar melalui penyedia pembayaran, atau diuruskan terus dengan The Cave Consult. CAVELMS tidak pernah melihat butiran kad anda.",
+	},
+	"privacy.cookies.title": {en: "Cookies and email", ms: "Kuki dan e-mel"},
+	"privacy.cookies.p": {
+		en: "CAVELMS sets only two cookies: one that keeps you logged in and one that remembers your language. There are no analytics, advertising or tracking cookies. We send only the emails your account needs, such as email verification and password reset, and no marketing email.",
+		ms: "CAVELMS hanya menetapkan dua kuki: satu untuk mengekalkan log masuk anda dan satu untuk mengingati bahasa anda. Tiada kuki analitik, pengiklanan atau penjejakan. Kami hanya menghantar e-mel yang diperlukan oleh akaun anda, seperti pengesahan e-mel dan set semula kata laluan, dan tiada e-mel pemasaran.",
+	},
+	"privacy.adults.title": {en: "For adults only", ms: "Untuk orang dewasa sahaja"},
+	"privacy.adults.p": {
+		en: "CAVELMS is for people aged 18 or older. If you are under 18, please do not register.",
+		ms: "CAVELMS adalah untuk mereka yang berumur 18 tahun ke atas. Jika anda berumur bawah 18 tahun, sila jangan mendaftar.",
+	},
+	"privacy.rights.title": {en: "Your rights", ms: "Hak anda"},
+	"privacy.rights.p1": {
+		en: "You can ask for a copy of your data, ask us to correct it (your name included), or ask us to delete your account, which also withdraws your consent. Email us from the address on your account, so that we know the request is yours, and we will do it within 21 days.",
+		ms: "Anda boleh meminta salinan data anda, meminta kami membetulkannya (termasuk nama anda), atau meminta kami memadam akaun anda, yang juga menarik balik persetujuan anda. E-mel kami daripada alamat pada akaun anda, supaya kami tahu permintaan itu daripada anda, dan kami akan melaksanakannya dalam tempoh 21 hari.",
+	},
+	"privacy.rights.p2": {
+		en: "Deleting your account removes everything on it, your Certificates included, so download your Certificates first.",
+		ms: "Memadam akaun anda akan membuang semua yang ada padanya, termasuk Sijil anda, jadi muat turun Sijil anda dahulu.",
+	},
+	"privacy.changes.title": {en: "Changes to this notice", ms: "Perubahan pada notis ini"},
+	"privacy.changes.p": {
+		en: "If we ever want to use your data for a new purpose, we will tell you before it applies. Whenever this notice changes, the date at the top changes too.",
+		ms: "Jika kami ingin menggunakan data anda untuk tujuan baharu, kami akan memberitahu anda sebelum ia berkuat kuasa. Setiap kali notis ini berubah, tarikh di bahagian atas juga berubah.",
+	},
+	"privacy.contact.title": {en: "Contact us about your data", ms: "Hubungi kami mengenai data anda"},
+	"privacy.contact.p": {
+		en: "For a copy, a correction, a deletion or any question about your data, contact The Cave Consult:",
+		ms: "Untuk salinan, pembetulan, pemadaman atau sebarang soalan mengenai data anda, hubungi The Cave Consult:",
+	},
+	// ---- Privacy notice and the Register consent line: end ----
+
 	// Layout: Admin sidebar
 	"admin.brand":              {en: "CAVELMS admin", ms: "Pentadbir CAVELMS"},
 	"admin.nav":                {en: "Admin", ms: "Pentadbir"},
