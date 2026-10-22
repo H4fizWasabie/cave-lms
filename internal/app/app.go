@@ -147,8 +147,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = copyDatasetsToStore(ctx, db, datasets); err != nil {
 		return nil, fmt.Errorf("copy Datasets to the store: %w", err)
 	}
-	// Missing ones are applied too: a migration merged from a parallel branch can number below one already run.
-	if err = goose.UpContext(ctx, db, "migrations", goose.WithAllowMissing()); err != nil {
+	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
@@ -200,9 +199,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.dashboardTab("delete"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
-	mux.HandleFunc("GET /d/{slug}/{$}", a.deploymentFile("index.html"))
-	mux.HandleFunc("GET /d/{slug}/data/{key}", a.deploymentFile("data"))
-	mux.HandleFunc("GET /d/{slug}/charts.js", a.deploymentFile("charts.js"))
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/charts.js", a.deploymentFile("charts.js"))
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))

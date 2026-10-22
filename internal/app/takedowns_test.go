@@ -12,13 +12,13 @@ var takedownAction = regexp.MustCompile(`action="(/admin/deployments/\d+/takedow
 
 func TestAdminSeesEveryDeploymentAwakeOnesFirst(t *testing.T) {
 	admin, ada := labLearner(t)
-	asleep := ada.deploy(ada.readyDashboard("Kewangan Lama"))
+	asleep := ada.deployAs(ada.readyDashboard("Kewangan Lama"), "kewangan-lama")
 	admin.ageAllPeriods(31) // Ada's Plan ends
 	awake := admin.deploy(admin.readyDashboard("Kewangan Baru"))
 
 	res, body := admin.get("/admin/deployments")
 	for _, want := range []string{"Ada", "ada@example.com", "Finance", "Kewangan Baru", "Awake", "Asleep: the Learner has no active Plan",
-		`href="` + asleep + `"`, `href="` + awake + `"`} {
+		"<code>kewangan-lama</code>", `href="` + asleep + `"`, `href="` + awake + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 	if strings.Index(body, awake) > strings.Index(body, asleep) {

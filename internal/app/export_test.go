@@ -4,7 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"text/template/parse"
+
+	"github.com/pressly/goose/v3"
 )
+
+// MigrateDownTo undoes every migration after version, as if the database were from before them, for tests.
+func MigrateDownTo(ctx context.Context, db *sql.DB, version int64) error {
+	goose.SetBaseFS(appFiles)
+	return goose.DownToContext(ctx, db, "migrations", version)
+}
 
 // PruneSystemLog runs the daily System log prune now, for tests.
 func (a *App) PruneSystemLog(ctx context.Context) error { return a.pruneSystemLog(ctx) }
