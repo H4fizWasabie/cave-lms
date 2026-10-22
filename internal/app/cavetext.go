@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -39,12 +40,8 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
 		return
 	}
-	// The NOT EXISTS keeps a repeat sign-in from using up a place number; only two first sign-ins racing skip one.
-	if _, err := a.db.ExecContext(r.Context(), `
-		INSERT INTO cavetext_accounts (learner_id) SELECT $1
-		WHERE NOT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)
-		ON CONFLICT DO NOTHING`, learner.ID); err != nil {
-		a.serverError(w, r, fmt.Errorf("create CaveText account: %w", err))
+	if err := ensureCaveTextAccount(r.Context(), a.db, learner.ID); err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	token, err := newToken()
@@ -151,4 +148,19 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // writeJSONError answers with a message the extension shows as is.
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+// ensureCaveTextAccount gives the Learner a CaveText account, with the next place, unless they have one: at their
+// first sign-in, or when a Pro payment arrives first. The NOT EXISTS keeps a repeat from using up a place number;
+// only two first ones racing skip one.
+func ensureCaveTextAccount(ctx context.Context, db interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, learnerID int64) error {
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO cavetext_accounts (learner_id) SELECT $1
+		WHERE NOT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)
+		ON CONFLICT DO NOTHING`, learnerID); err != nil {
+		return fmt.Errorf("create CaveText account: %w", err)
+	}
+	return nil
 }
