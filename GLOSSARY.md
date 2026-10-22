@@ -121,7 +121,7 @@ _Malay_: Lab (kept in English)
 _Avoid_: Workspace, studio, builder
 
 **Plan**:
-Paid access to the Lab for a set period, such as a year, at a price the Admin sets, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one with CaveText Pro, or the Admin assigns one by hand; a Learner without one sees only the demo. Courses stay free to join.
+Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one with CaveText Pro, or the Admin assigns one by hand; a Learner without one sees only the demo. Courses stay free to join.
 _Malay_: Pelan
 _Avoid_: Tier, subscription, package, free plan
 
