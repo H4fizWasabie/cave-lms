@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 const examPassword = "correct horse battery"
@@ -318,6 +319,17 @@ func TestStartingAgainResumesTheOpenAttempt(t *testing.T) {
 	s.submitExam(first, map[string]string{qids[0]: "1"})
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "You have no attempts left.")
+}
+
+func TestStartingAnExamNeedsOnlyOneDatabaseConnection(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("50", "", "", "Q1")
+	s.application.SetMaxDBConns(1)
+	s.client.Timeout = 5 * time.Second
+	res, body := s.startExam(id)
+	if res.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start status = %d, want %d: %s", res.StatusCode, http.StatusSeeOther, body)
+	}
 }
 
 func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {

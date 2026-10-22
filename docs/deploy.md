@@ -9,7 +9,7 @@ The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` syste
 | Caddy site | `/etc/caddy/sites/cave-lms.caddy` (from `deploy/cave-lms.caddy`) |
 | Settings | `/etc/cave-lms/env`, root-owned, mode 0600 |
 | Uploads | `/var/lib/cave-lms/uploads` |
-| Database | `cave` on the local Postgres 16, peer auth over the Unix socket |
+| Database | `cave` on the local Postgres 16, peer auth over the Unix socket. Postgres allows 100 connections shared with the other apps on the VPS; the app holds at most 25 (`maxDBConns` in `internal/app/app.go`) |
 
 Both the database and the uploads directory are backed up every night (see Backups).
 

@@ -15,6 +15,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -29,6 +30,12 @@ var appFiles embed.FS
 
 //go:embed static
 var staticFiles embed.FS
+
+// Postgres allows 100 connections shared with the other apps on the VPS; unlimited would let a burst take them all.
+const (
+	maxDBConns     = 25
+	dbConnLifetime = 30 * time.Minute
+)
 
 type App struct {
 	db                   *sql.DB
@@ -108,6 +115,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
+	db.SetMaxOpenConns(maxDBConns)
+	db.SetMaxIdleConns(maxDBConns)
+	db.SetConnMaxLifetime(dbConnLifetime)
 	defer func() {
 		if err != nil {
 			_ = db.Close()

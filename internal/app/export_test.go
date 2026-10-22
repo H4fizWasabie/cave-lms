@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"text/template/parse"
 )
 
@@ -64,3 +65,9 @@ func TemplateTextKeys() ([]string, error) {
 	}
 	return keys, nil
 }
+
+// DBStats reports the app's database pool, for tests.
+func (a *App) DBStats() sql.DBStats { return a.db.Stats() }
+
+// SetMaxDBConns shrinks the database pool, for tests.
+func (a *App) SetMaxDBConns(n int) { a.db.SetMaxOpenConns(n) }
