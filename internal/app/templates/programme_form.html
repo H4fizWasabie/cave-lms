@@ -1,0 +1,25 @@
+{{define "title"}}{{if .Programme.ID}}{{t .Lang "programmes.edit"}}{{else}}{{t .Lang "programmes.new"}}{{end}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "programmes" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/programmes">{{t .Lang "programmes.back"}}</a></p>
+        <div class="adm-head"><h1>{{if .Programme.ID}}{{t .Lang "programmes.edit"}}{{else}}{{t .Lang "programmes.new"}}{{end}}</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="{{if .Programme.ID}}/admin/programmes/{{.Programme.ID}}{{else}}/admin/programmes{{end}}" enctype="multipart/form-data">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Programme.Title}}" maxlength="200" required></div>
+              <div class="field"><label for="starts_on">{{t .Lang "programmes.form.starts-on"}}</label><input id="starts_on" type="date" name="starts_on" value="{{.Programme.StartsValue}}" required></div>
+            </div>
+            <div class="field"><label for="blurb">{{t .Lang "programmes.form.blurb"}}</label><textarea id="blurb" name="blurb" rows="4" maxlength="2000">{{.Programme.Blurb}}</textarea></div>
+            <div class="field"><label for="link">{{t .Lang "programmes.form.link"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="link" type="url" name="link" value="{{.Programme.Link}}" placeholder="https://"></div>
+            {{with .Programme.PictureKey}}<img class="programme-pic" src="/programmes/pictures/{{.}}" alt="">{{end}}
+            <div class="field"><label for="picture">{{t .Lang "programmes.form.picture"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="picture" type="file" name="picture" accept="image/jpeg,image/png,image/webp"><small>{{t .Lang "programmes.form.picture-hint"}}</small></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/programmes">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
+          </form>
+          {{if .Programme.ID}}<form method="post" action="/admin/programmes/{{.Programme.ID}}/delete"><button class="btn btn-danger btn-sm">{{t .Lang "adm.delete"}}</button></form>{{end}}
+        </div>
+      </div>
+    </div>
+{{end}}
