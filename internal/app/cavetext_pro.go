@@ -134,7 +134,7 @@ type caveTextPage struct {
 	Cap         snippetCap
 	Count       int
 	ProUntil    string // the day Pro ends, in the page's language
-	Price      string // in RM: RM25
+	Price       string // in RM: RM25
 	PaymentLink string // where Buy goes; empty asks the Learner to contact us
 	EarlyPlaces string
 	EarlyCap    int
