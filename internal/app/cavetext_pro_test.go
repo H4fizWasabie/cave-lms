@@ -377,11 +377,14 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 	if strings.Contains(body, "Buy CaveText Pro</a>") {
 		t.Errorf("Buy shows with no payment link: %s", body)
 	}
+	if strings.Contains(body, "processing fee") {
+		t.Errorf("the gateway fee note shows with no payment link")
+	}
 
 	// With a payment link and a new price, Buy opens it.
 	s.saveCaveTextSettings("30.50", "https://bcl.my/pay/cavetext")
 	_, body = ada.get("/cavetext")
-	for _, want := range []string{"RM30.50 a year", `href="https://bcl.my/pay/cavetext"`, "Buy CaveText Pro</a>"} {
+	for _, want := range []string{"RM30.50 a year", "A payment processing fee, which depends on the payment method you choose, is added at checkout.", `href="https://bcl.my/pay/cavetext"`, "Buy CaveText Pro</a>"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("with a payment link the CaveText page lacks %s", want)
 		}
