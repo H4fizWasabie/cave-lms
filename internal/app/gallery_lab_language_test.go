@@ -112,7 +112,8 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.switchLanguage("ms", "/")
 	_, body := s.get("/lab")
-	expectLanguage(t, body, "ms", "Hubungi kami untuk naik taraf")
+	expectLanguage(t, body, "ms", "Hubungi kami untuk membeli Pelan Lab")
+	expectAll(t, body, "RM89 setahun", "Hubungi kami untuk membeli Pelan Pro", `<s><span class="sr">Harga biasa </span>RM119</s>`)
 	res, body := s.get("/lab/new")
 	expectStatus(t, res, body, http.StatusForbidden, "Lab dikunci")
 }

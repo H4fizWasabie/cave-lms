@@ -467,8 +467,6 @@ var catalog = map[string]entry{
 	"lab.cancel":           {en: "Cancel", ms: "Batal"},
 	"lab.none":             {en: "No Dashboards yet.", ms: "Belum ada Dashboard."},
 	"lab.none-start":       {en: "Start one from a Template", ms: "Mulakan satu daripada Templat"},
-	"lab.upgrade":          {en: "Upgrade", ms: "Naik taraf"},
-	"lab.contact-upgrade":  {en: "Contact us to upgrade", ms: "Hubungi kami untuk naik taraf"},
 	"lab.templates":        {en: "Templates, shown with their Samples", ms: "Templat, dipaparkan dengan Sampelnya"},
 	"lab.template-preview": {en: "%s Template preview", ms: "Pratonton Templat %s"},
 	"lab.full-preview":     {en: "Open the full preview", ms: "Buka pratonton penuh"},
@@ -787,8 +785,7 @@ var catalog = map[string]entry{
 		en: "You have more Snippets than your free cap of %d. You keep, use and edit all %d, but can't add one until you are under the cap, or get CaveText Pro.",
 		ms: "Snippet anda melebihi Had Snippet percuma anda, iaitu %d. Anda tetap menyimpan, menggunakan dan menyunting kesemua %d, tetapi tidak boleh menambah lagi sehingga anda di bawah had, atau dapatkan CaveText Pro.",
 	},
-	"cavetext.pro-price":          {en: "CaveText Pro: %s a year", ms: "CaveText Pro: %s setahun"},
-	"cavetext.pro-fee":            {en: "A payment processing fee, which depends on the payment method you choose, is added at checkout.", ms: "Caj pemprosesan pembayaran, bergantung pada kaedah pembayaran yang anda pilih, ditambah semasa pembayaran."},
+	"cavetext.pro-what":           {en: "What CaveText Pro gives", ms: "Apa yang CaveText Pro berikan"},
 	"cavetext.pro.unlimited":      {en: "Unlimited Snippets", ms: "Snippet tanpa had"},
 	"cavetext.pro.unlimited-body": {en: "Save as many Snippets as you like. If Pro lapses you keep every one.", ms: "Simpan seberapa banyak Snippet yang anda mahu. Jika Pro tamat, anda tetap menyimpan kesemuanya."},
 	"cavetext.pro.user":           {en: "User master prompt", ms: "User master prompt"},
@@ -797,10 +794,6 @@ var catalog = map[string]entry{
 	"cavetext.pro.ready-body":     {en: "Ready prompts for images and analytics dashboards, inserted with one click.", ms: "Prompt sedia untuk imej dan dashboard analitik, dimasukkan dengan satu klik."},
 	"cavetext.pro.year":           {en: "12 months", ms: "12 bulan"},
 	"cavetext.pro.year-body":      {en: "Pro lasts a year from the day it starts. Renew early and the new year starts when this one ends.", ms: "Pro kekal setahun dari hari ia bermula. Perbaharui awal dan tahun baharu bermula apabila tahun ini tamat."},
-	"cavetext.buy":                {en: "Buy CaveText Pro", ms: "Beli CaveText Pro"},
-	"cavetext.renew":              {en: "Renew CaveText Pro", ms: "Perbaharui CaveText Pro"},
-	"cavetext.contact-buy":        {en: "Contact us to buy CaveText Pro", ms: "Hubungi kami untuk membeli CaveText Pro"},
-	"cavetext.contact-renew":      {en: "Contact us to renew CaveText Pro", ms: "Hubungi kami untuk memperbaharui CaveText Pro"},
 	"cavetext.sign-in-first":      {en: "Sign in to CaveText first, so we can find you.", ms: "Log masuk ke CaveText dahulu, supaya kami dapat mencari anda."},
 
 	// CaveText API messages, shown by the extension as they come
@@ -1137,6 +1130,21 @@ var catalog = map[string]entry{
 	"ctadmin.payments.done":            {en: "Done", ms: "Selesai"},
 	"ctadmin.learners.not-found.title": {en: "Learner not found", ms: "Pelajar tidak dijumpai"},
 	"ctadmin.learners.not-found":       {en: "No CaveText Learner has this address.", ms: "Tiada Pelajar CaveText di alamat ini."},
+
+	"offers.heading":       {en: "Choose what to buy", ms: "Pilih apa yang hendak dibeli"},
+	"offers.price":         {en: "%s a year", ms: "%s setahun"},
+	"offers.normal":        {en: "Normal price", ms: "Harga biasa"},
+	"offers.cavetext-pro":  {en: "A year of CaveText's extras: unlimited Snippets and master prompts.", ms: "Setahun ciri tambahan CaveText: Snippet tanpa had dan master prompt."},
+	"offers.lab-plan":      {en: "The Lab: build, upload and deploy live dashboards, with hosting and storage.", ms: "Lab: bina, muat naik dan deploy dashboard langsung, dengan hosting dan storan."},
+	"offers.pro-plan":      {en: "CaveText Pro and the Lab Plan in one payment.", ms: "CaveText Pro dan Pelan Lab dalam satu pembayaran."},
+	"offers.buy":           {en: "Buy %s", ms: "Beli %s"},
+	"offers.renew":         {en: "Renew %s", ms: "Perbaharui %s"},
+	"offers.contact-buy":   {en: "Contact us to buy %s", ms: "Hubungi kami untuk membeli %s"},
+	"offers.contact-renew": {en: "Contact us to renew %s", ms: "Hubungi kami untuk memperbaharui %s"},
+	"offers.fee": {
+		en: "A payment processing fee, which depends on the payment method you choose, is added at checkout.",
+		ms: "Caj pemprosesan pembayaran, bergantung pada kaedah pembayaran yang anda pilih, ditambah semasa pembayaran.",
+	},
 
 	"prices.heading": {en: "Admin: Prices", ms: "Pentadbir: Harga"},
 	"prices.intro": {

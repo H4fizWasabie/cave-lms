@@ -130,6 +130,29 @@
 
 {{/* gallery-tile is one Gallery item in a grid, given as (tile . $.Lang): the picture itself, or an icon for videos and ebooks.
    Its transition name matches the picture or video on the item's page, so the browser grows one into the other. */}}
+{{/* offers lists a Learner page's .Offers side by side: each product's price, its Normal price crossed out when set,
+and Buy to its payment link, or Contact us without one. Visitors see the prices without buttons. */}}
+{{define "offers"}}
+      <ul class="offers">
+        {{- range .Offers}}
+        <li class="offer">
+          <h3>{{t $.Lang (print "prices." .Product)}}</h3>
+          <p class="offer-price"><strong>{{t $.Lang "offers.price" .Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
+          <p class="muted">{{t $.Lang (print "offers." .Product)}}</p>
+          {{- if $.Learner}}
+          {{- if .PaymentLink}}
+          <a class="btn btn-gold" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          {{- else}}
+          <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang (print "offers.contact-" (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          {{- end}}
+          {{- end}}
+        </li>
+        {{- end}}
+      </ul>
+      {{- range .Offers}}{{if .PaymentLink}}
+      <p class="note">{{t $.Lang "offers.fee"}}</p>
+      {{- break}}{{end}}{{end}}
+{{- end}}
 {{define "gallery-tile"}}<li><a class="g-tile" href="/gallery/{{.ID}}"><span class="g-plate" style="view-transition-name: g-{{.ID}}">{{if eq .Format "picture"}}<img src="/gallery/{{.ID}}/thumb" alt="" loading="lazy">{{else}}<span class="g-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if eq .Format "video"}}play{{else}}file-pdf{{end}}"/></svg></span>{{end}}</span><span class="g-cap"><strong>{{.Title}}</strong><span>{{t .Lang (print "gallery.format." .Format)}}</span></span></a></li>{{end}}
 
 {{/* gallery-fields are the Gallery item fields shared by the upload and edit forms. */}}

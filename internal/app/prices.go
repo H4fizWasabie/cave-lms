@@ -40,6 +40,30 @@ func (a *App) priceOf(ctx context.Context, product string) (price, error) {
 	return p, nil
 }
 
+// offer is one product as a Learner page offers it: its price, its Normal price crossed out when set, and Buy,
+// which opens its payment link or, with none, asks the Learner to contact us.
+type offer struct {
+	Product, Price, Normal, PaymentLink string // Price and Normal in RM: RM25; Normal empty when none
+	Renew                               bool   // Buy reads Renew: the Learner already has the product
+}
+
+// offersOf reads the products' prices as offers, in the order given.
+func (a *App) offersOf(ctx context.Context, products ...string) ([]offer, error) {
+	var offers []offer
+	for _, product := range products {
+		p, err := a.priceOf(ctx, product)
+		if err != nil {
+			return nil, err
+		}
+		o := offer{Product: product, Price: rm(p.Sen), PaymentLink: p.PaymentLink}
+		if p.NormalSen > 0 {
+			o.Normal = rm(p.NormalSen)
+		}
+		offers = append(offers, o)
+	}
+	return offers, nil
+}
+
 type pricesPage struct {
 	pageBase
 	Prices []price

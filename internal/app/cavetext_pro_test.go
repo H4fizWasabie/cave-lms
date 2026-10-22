@@ -353,7 +353,7 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 			t.Errorf("with a payment link the CaveText page lacks %s", want)
 		}
 	}
-	if strings.Contains(body, "Contact us to buy") {
+	if strings.Contains(body, "Contact us to buy CaveText Pro") {
 		t.Errorf("the page still says Contact us with a payment link set")
 	}
 
