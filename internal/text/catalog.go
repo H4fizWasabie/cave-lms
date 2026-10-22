@@ -1166,6 +1166,10 @@ var catalog = map[string]entry{
 		en: "Enter the payment link as a full web address starting with http:// or https://, or leave it empty.",
 		ms: "Masukkan pautan pembayaran sebagai alamat web penuh yang bermula dengan http:// atau https://, atau biarkan kosong.",
 	},
+	"prices.err.link-shared": {
+		en: "Enter a payment link no other product uses, so a payment gives the product paid for, or leave it empty.",
+		ms: "Masukkan pautan pembayaran yang tidak digunakan oleh produk lain, supaya bayaran memberikan produk yang dibayar, atau biarkan kosong.",
+	},
 
 	"ctadmin.settings.heading": {en: "Admin: CaveText settings", ms: "Pentadbir: Tetapan CaveText"},
 	"ctadmin.settings.question-intro": {

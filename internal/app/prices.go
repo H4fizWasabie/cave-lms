@@ -102,6 +102,7 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := &pricesPage{}
+	links := map[string]bool{} // the BCL webhook gives the first product whose link matches, so no two may share one
 	for _, product := range products {
 		pr := price{Product: product,
 			PriceIn:     strings.TrimSpace(r.PostFormValue(product + "_price")),
@@ -122,7 +123,10 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 			msg = "prices.err.normal-low"
 		case pr.PaymentLink != "" && !isWebLink(pr.PaymentLink):
 			msg = "prices.err.link"
+		case pr.PaymentLink != "" && links[pr.PaymentLink]:
+			msg = "prices.err.link-shared"
 		}
+		links[pr.PaymentLink] = true
 		if msg != "" && p.Error == "" {
 			p.Error = text.T(lang, "prices."+product) + ": " + text.T(lang, msg)
 		}

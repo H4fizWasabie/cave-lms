@@ -66,6 +66,8 @@ func TestThePricesPageRefusesANormalPriceNotAboveThePriceAndOtherMistakes(t *tes
 		{map[string]string{"cavetext-pro_price": "0"}, "CaveText Pro: Enter a price more than 0"},
 		{map[string]string{"pro-plan_link": "javascript:alert(1)"}, "Pro Plan: Enter the payment link"},
 		{map[string]string{"lab-plan_link": "ftp://bcl.my/pay"}, "http:// or https://"},
+		{map[string]string{"lab-plan_link": "https://bcl.my/pay/same", "pro-plan_link": "https://bcl.my/pay/same"},
+			"Pro Plan: Enter a payment link no other product uses"}, // the webhook would give the first product it matches
 	} {
 		res, body := s.savePrices(c.changes)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)
