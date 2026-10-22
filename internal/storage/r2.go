@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -17,7 +18,7 @@ import (
 // R2 keeps objects in a private Cloudflare R2 bucket through its S3-compatible API (ADR 0008).
 // Requests are signed here with AWS Signature Version 4: three object calls do not justify an SDK.
 type R2 struct {
-	base              string // https://<account>.r2.cloudflarestorage.com/<bucket>/
+	host, bucket      string // <account>.r2.cloudflarestorage.com and the bucket's name
 	accessKey, secret string
 	client            *http.Client
 }
@@ -25,7 +26,8 @@ type R2 struct {
 // NewR2 returns the store for bucket in account, reached with an R2 API token's access key and secret.
 func NewR2(account, bucket, accessKey, secret string) *R2 {
 	return &R2{
-		base:      "https://" + account + ".r2.cloudflarestorage.com/" + url.PathEscape(bucket) + "/",
+		host:      account + ".r2.cloudflarestorage.com",
+		bucket:    bucket,
 		accessKey: accessKey,
 		secret:    secret,
 		client:    &http.Client{Timeout: time.Minute},
@@ -33,24 +35,26 @@ func NewR2(account, bucket, accessKey, secret string) *R2 {
 }
 
 // Put writes data under key, replacing any object there.
-func (r *R2) Put(key string, data []byte) error {
-	_, err := r.do(http.MethodPut, key, data)
+func (r *R2) Put(ctx context.Context, key string, data []byte) error {
+	_, err := r.do(ctx, http.MethodPut, key, data)
 	return err
 }
 
 // Get returns the object stored under key.
-func (r *R2) Get(key string) ([]byte, error) {
-	return r.do(http.MethodGet, key, nil)
+func (r *R2) Get(ctx context.Context, key string) ([]byte, error) {
+	return r.do(ctx, http.MethodGet, key, nil)
 }
 
 // Delete removes the object under key; R2 answers a missing key with success, as Disk does.
-func (r *R2) Delete(key string) error {
-	_, err := r.do(http.MethodDelete, key, nil)
+func (r *R2) Delete(ctx context.Context, key string) error {
+	_, err := r.do(ctx, http.MethodDelete, key, nil)
 	return err
 }
 
-func (r *R2) do(method, key string, body []byte) ([]byte, error) {
-	req, err := http.NewRequest(method, r.base+url.PathEscape(key), bytes.NewReader(body))
+func (r *R2) do(ctx context.Context, method, key string, body []byte) ([]byte, error) {
+	path := "/" + r.bucket + "/" + key
+	u := &url.URL{Scheme: "https", Host: r.host, Path: path, RawPath: uriEncode(path)}
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +99,7 @@ func sign(req *http.Request, body []byte, accessKey, secret, region string, now 
 		headers.WriteString(name + ":" + values[name] + "\n")
 	}
 	signed := strings.Join(names, ";")
-	canonical := strings.Join([]string{req.Method, req.URL.EscapedPath(), req.URL.RawQuery, headers.String(), signed, payload}, "\n")
+	canonical := strings.Join([]string{req.Method, uriEncode(req.URL.Path), req.URL.RawQuery, headers.String(), signed, payload}, "\n")
 
 	scope := day + "/" + region + "/s3/aws4_request"
 	key := []byte("AWS4" + secret)
@@ -104,6 +108,20 @@ func sign(req *http.Request, body []byte, accessKey, secret, region string, now 
 	}
 	signature := hex.EncodeToString(hmacSHA256(key, "AWS4-HMAC-SHA256\n"+stamp+"\n"+scope+"\n"+sha256Hex([]byte(canonical))))
 	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential="+accessKey+"/"+scope+", SignedHeaders="+signed+", Signature="+signature)
+}
+
+// uriEncode escapes a path as Signature Version 4 wants it: every byte but A-Z a-z 0-9 - _ . ~ and /.
+func uriEncode(path string) string {
+	var b strings.Builder
+	for i := 0; i < len(path); i++ {
+		c := path[i]
+		if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || strings.IndexByte("-_.~/", c) >= 0 {
+			b.WriteByte(c)
+		} else {
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return b.String()
 }
 
 func sha256Hex(b []byte) string {

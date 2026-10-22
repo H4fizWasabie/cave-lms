@@ -1,8 +1,9 @@
-// Package storage keeps uploaded files in one directory on the VPS disk.
-// Keys are random names generated here, so callers never build a path from user input.
+// Package storage keeps uploaded files: on the VPS disk (Disk), or for Datasets in production in R2 (ADR 0008).
+// Keys are names the app generates, so callers never build a path from user input.
 package storage
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -15,12 +16,13 @@ import (
 
 // Store keeps whole objects by key. Datasets live in one (ADR 0008); Disk is the one for tests and development.
 type Store interface {
-	Put(key string, data []byte) error
-	Get(key string) ([]byte, error)
-	Delete(key string) error
+	Put(ctx context.Context, key string, data []byte) error
+	Get(ctx context.Context, key string) ([]byte, error)
+	Delete(ctx context.Context, key string) error
 }
 
-// ponytail: one local directory; swap for object storage only when the disk fills or load demands it.
+// Disk keeps files in one local directory: the Gallery's and certificates' files, and Datasets in tests and
+// development. ctx is unused: local file calls do not block on the network.
 type Disk struct {
 	dir string
 }
@@ -56,7 +58,7 @@ func (d *Disk) Save(r io.Reader) (string, int64, error) {
 }
 
 // Put writes data under key, replacing any file there. Readers never see a half-written file.
-func (d *Disk) Put(key string, data []byte) error {
+func (d *Disk) Put(_ context.Context, key string, data []byte) error {
 	f, err := os.CreateTemp(d.dir, ".tmp-*")
 	if err != nil {
 		return err
@@ -80,21 +82,16 @@ func (d *Disk) Open(key string) (*os.File, error) {
 }
 
 // Get returns the data stored under key.
-func (d *Disk) Get(key string) ([]byte, error) {
+func (d *Disk) Get(_ context.Context, key string) ([]byte, error) {
 	return os.ReadFile(d.path(key))
 }
 
 // Delete removes the data under key; a key with nothing stored is already deleted.
-func (d *Disk) Delete(key string) error {
+func (d *Disk) Delete(_ context.Context, key string) error {
 	if err := os.Remove(d.path(key)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	return nil
-}
-
-// Remove deletes the stored file for key.
-func (d *Disk) Remove(key string) error {
-	return os.Remove(d.path(key))
 }
 
 func (d *Disk) path(key string) string {

@@ -314,7 +314,7 @@ func (a *App) galleryThumb(w http.ResponseWriter, r *http.Request) {
 			a.serveStored(w, r, item.storageKey, item.MimeType)
 			return
 		}
-		if err := a.store.Put(thumbKey(item), thumb); err != nil {
+		if err := a.store.Put(r.Context(), thumbKey(item), thumb); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -382,7 +382,7 @@ func (a *App) galleryUpload(w http.ResponseWriter, r *http.Request) {
 	)
 	defer func() {
 		if stored != "" && !committed {
-			_ = a.store.Remove(stored)
+			_ = a.store.Delete(r.Context(), stored)
 		}
 	}()
 	fail := func(status int, msg string) {
@@ -575,7 +575,7 @@ func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, key := range []string{item.storageKey, thumbKey(item)} {
-		if err := a.store.Remove(key); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := a.store.Delete(r.Context(), key); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

@@ -137,8 +137,8 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// recordProPayment keeps a paid order and, when it is on the Pro form, gives its Learner a year of Pro, in one
-// transaction. It says what happened, for the System log.
+// recordProPayment keeps a paid order and, when it is on the Pro form, gives its Learner Pro and its Plan, in one
+// transaction, then writes the missing Pro Plan warning if there was none. It says what happened, for the System log.
 func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order string, priceSen int, onProForm bool) (string, error) {
 	subtotal, readable := parseRM(b.Data.Main.Subtotal.String())
 	cavelms, payer := b.cavelmsEmail(), b.Data.Main.PayerEmail.String()

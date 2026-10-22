@@ -18,7 +18,7 @@ type plan struct {
 	Name        string
 	Days        int
 	Deployments int
-	StorageMB   int // the Storage allowance
+	storageAllowance
 	PaymentLink string
 	Pro         bool // the Pro Plan, the one CaveText Pro comes with
 }
@@ -43,7 +43,7 @@ func (a *App) adminPlans(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) newPlanForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "plan_form", &planFormPage{Plan: plan{Days: 30, StorageMB: 1024}})
+	a.render(w, r, http.StatusOK, "plan_form", &planFormPage{Plan: plan{Days: 30, storageAllowance: storageAllowance{StorageMB: 1024}}})
 }
 
 func (a *App) editPlanForm(w http.ResponseWriter, r *http.Request) {
@@ -183,8 +183,11 @@ func planFromForm(lang string, r *http.Request) (p plan, msg string) {
 	return p, msg
 }
 
+// storageAllowance is a Plan's or a Plan period's Storage allowance, kept in MB.
+type storageAllowance struct{ StorageMB int }
+
 // Storage is the Storage allowance in bytes.
-func (p plan) Storage() int64 { return int64(p.StorageMB) << 20 }
+func (s storageAllowance) Storage() int64 { return int64(s.StorageMB) << 20 }
 
 // isWebLink reports whether s is an absolute http or https address, safe to put in a link.
 func isWebLink(s string) bool {

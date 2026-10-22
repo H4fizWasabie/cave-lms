@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -121,6 +122,25 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndReplacingOrDeletingFreesSpac
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
+
+func TestAnUploadOverTheStorageAllowanceIsRefusedEvenWhenTheStoreIsDown(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a read-only directory")
+	}
+	admin, ada, _ := storageSite(t, "1")
+	first := ada.createDashboard("finance", "One")
+	second := ada.createDashboard("finance", "Two")
+	res, body := ada.postFile(first+"/dataset", "one.xlsx", bigFinance(t, 1))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	// A read-only storage directory stands in for R2 refusing the write.
+	if err := os.Chmod(admin.storageDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(admin.storageDir, 0o700) })
+	res, body = ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
 }
 
 func TestTwoUploadsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {

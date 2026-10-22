@@ -51,6 +51,7 @@ type dashboard struct {
 	Dataset  *lab.Dataset
 	Key      string // where the Dataset is in the Dataset store; empty until the first upload
 	File     string // the uploaded Dataset's file name
+	Size     int64  // the uploaded Dataset's file size, which counts against the Storage allowance
 	Updated  string // formatted as periodTime
 }
 
@@ -112,14 +113,15 @@ func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 }
 
 // loadDashboard loads the Dashboard matching where (an SQL condition on dashboards); nil if there is none.
+// Its Dataset stays in the store until readDataset.
 func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*dashboard, error) {
 	var d dashboard
 	var key string
 	var choices []byte
 	var updated time.Time
-	err := a.db.QueryRowContext(ctx, `SELECT id, template, name, choices, COALESCE(dataset_key, ''), dataset_file, updated_at
+	err := a.db.QueryRowContext(ctx, `SELECT id, template, name, choices, COALESCE(dataset_key, ''), dataset_file, dataset_size, updated_at
 		FROM dashboards WHERE `+where, args...).
-		Scan(&d.ID, &key, &d.Name, &choices, &d.Key, &d.File, &updated)
+		Scan(&d.ID, &key, &d.Name, &choices, &d.Key, &d.File, &d.Size, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -133,21 +135,35 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	if err := json.Unmarshal(choices, &d.Choices); err != nil {
 		return nil, err
 	}
-	if d.Key != "" {
-		// ponytail: reads the whole Dataset on every Dashboard page; load it only where needed if the store gets slow.
-		data, err := a.datasets.Get(d.Key)
-		if err != nil {
-			return nil, fmt.Errorf("get Dataset %s: %w", d.Key, err)
-		}
-		if err := json.Unmarshal(data, &d.Dataset); err != nil {
-			return nil, err
-		}
-	}
 	return &d, nil
 }
 
-// withDashboard runs h with the logged-in Learner's Dashboard from the URL, or answers 404.
+// readDataset fetches the Dashboard's Dataset from the store, unless it has none or it is already read.
+func (a *App) readDataset(ctx context.Context, d *dashboard) error {
+	if d.Key == "" || d.Dataset != nil {
+		return nil
+	}
+	data, err := a.datasets.Get(ctx, d.Key)
+	if err != nil {
+		return fmt.Errorf("get Dataset %s: %w", d.Key, err)
+	}
+	return json.Unmarshal(data, &d.Dataset)
+}
+
+// withDashboard runs h with the logged-in Learner's Dashboard from the URL, its Dataset read, or answers 404.
+// ponytail: every Dashboard page reads the whole Dataset from the store; read it only on the tabs that use it if R2 gets slow.
 func (a *App) withDashboard(h func(http.ResponseWriter, *http.Request, *dashboard)) http.HandlerFunc {
+	return a.withDashboardRow(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
+		if err := a.readDataset(r.Context(), d); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		h(w, r, d)
+	})
+}
+
+// withDashboardRow is withDashboard leaving the Dataset in the store, for handlers that read it only when needed.
+func (a *App) withDashboardRow(h func(http.ResponseWriter, *http.Request, *dashboard)) http.HandlerFunc {
 	return a.requireLearner(func(w http.ResponseWriter, r *http.Request) {
 		d, err := a.ownDashboard(r)
 		if err != nil {
@@ -293,7 +309,7 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 }
 
 // deleteDashboard deletes a Dashboard and its Dataset, from the store too; the delete tab asks first. Its Deployment's link
-// then answers "not found", and the Deployment still counts against its period.
+// then answers "not found"; the Deployment is never awake again, so it frees a slot, and its name stays taken.
 func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -304,7 +320,7 @@ func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		a.serverError(w, r, err)
 		return
 	}
-	a.dropDataset(r, key)
+	a.dropDataset(r.Context(), r, key)
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
@@ -440,6 +456,16 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		refuse(tooBig)
 		return
 	}
+	storageFull := func(used int64) {
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name,
+			pageBase: pageBase{Error: text.T(lang, "lab.err.storage-full", sizeText(header.Size), sizeText(used), sizeText(acc.Period.Storage()))}})
+	}
+	// A cheap check first, so an upload that cannot fit is refused without touching the store; replaceDataset's
+	// locked check stays the authority.
+	if p := acc.CountedPeriod(); p != nil && p.Used-d.Size+header.Size > p.Storage() {
+		storageFull(p.Used)
+		return
+	}
 	ds, err := lab.Read(file, d.Template)
 	var problems lab.Errors
 	if errors.As(err, &problems) {
@@ -471,30 +497,28 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		a.serverError(w, r, err)
 		return
 	}
-	key, err := newToken()
+	key, err := newDatasetKey()
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	key = "dataset-" + key[:22] // a new key every upload, so a cached copy is never stale
-	if err := a.datasets.Put(key, dataset); err != nil {
+	if err := a.datasets.Put(r.Context(), key, dataset); err != nil {
 		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
 		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
 		return
 	}
 	old, used, err := a.replaceDataset(r.Context(), d.ID, acc.CountedPeriod(), key, name, header.Size, choicesJSON)
 	if errors.Is(err, errStorageFull) {
-		a.dropDataset(r, key)
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name,
-			pageBase: pageBase{Error: text.T(lang, "lab.err.storage-full", sizeText(header.Size), sizeText(used), sizeText(acc.Period.Storage()))}})
+		a.dropDataset(r.Context(), r, key)
+		storageFull(used)
 		return
 	}
 	if err != nil {
-		a.dropDataset(r, key)
+		a.dropDataset(r.Context(), r, key)
 		a.serverError(w, r, err)
 		return
 	}
-	a.dropDataset(r, old)
+	a.dropDataset(r.Context(), r, old)
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
@@ -532,12 +556,22 @@ func (a *App) replaceDataset(ctx context.Context, id int64, period *activePeriod
 	return old, 0, tx.Commit()
 }
 
-// dropDataset deletes the Dataset stored under key, if any. A failure leaves only an unused object, so it is logged.
-func (a *App) dropDataset(r *http.Request, key string) {
+// newDatasetKey is a new key in the Dataset store: a new one every upload, so a cached copy is never stale.
+func newDatasetKey() (string, error) {
+	token, err := newToken()
+	if err != nil {
+		return "", err
+	}
+	return "dataset-" + token[:22], nil
+}
+
+// dropDataset deletes the Dataset stored under key, if any, even after the request that asked is over. A failure
+// leaves only an unused object, so it is logged; r is nil outside a request.
+func (a *App) dropDataset(ctx context.Context, r *http.Request, key string) {
 	if key == "" {
 		return
 	}
-	if err := a.datasets.Delete(key); err != nil {
+	if err := a.datasets.Delete(context.WithoutCancel(ctx), key); err != nil {
 		a.logError(r, fmt.Errorf("delete Dataset %s: %w", key, err))
 	}
 }
@@ -573,7 +607,7 @@ func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	for _, key := range keys {
-		a.dropDataset(nil, key)
+		a.dropDataset(ctx, nil, key)
 	}
 	return len(keys), nil
 }
@@ -609,12 +643,11 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 		return err
 	}
 	for _, r := range todo {
-		key, err := newToken()
+		key, err := newDatasetKey()
 		if err != nil {
 			return err
 		}
-		key = "dataset-" + key[:22]
-		if err := store.Put(key, r.data); err != nil {
+		if err := store.Put(ctx, key, r.data); err != nil {
 			return err
 		}
 		if _, err := db.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_size = $3, dataset = NULL WHERE id = $1`,
@@ -682,7 +715,7 @@ func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.For
 // the data at data/<key> under it, so the page loads the others by relative path. Generated on each request.
 // A Deployment serves the same files under /<prefix>/<name>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
-	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	return a.withDashboardRow(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		a.serveDashboardFile(w, r, d, name, previewCSP, "private, max-age=31536000, immutable")
 	})
 }
@@ -710,11 +743,13 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 }
 
 // dataPath is where a Dashboard's page fetches its data, relative to the page: the Dataset's key, so a
-// re-upload changes the address and the data can be cached for good.
+// re-upload changes the address and no cache ever serves an old Dataset. The preview's data is cached for good
+// (only its Learner sees it); a Deployment's for 5 minutes, so sleep and Takedown take effect soon.
 func dataPath(d *dashboard) string { return "data/" + d.Key }
 
 // serveDashboardFile writes one of a Dashboard's files: index.html, charts.js, data.json (the demo's data,
-// at a fixed address) or data (data/<key>, cached for good; any other key is not found).
+// at a fixed address) or data (data/<key>, under cache; any other key is not found). The Dataset is read from the
+// store only for index.html, generated from its columns, and the data: never for charts.js.
 // csp is the index page's Content-Security-Policy; cache is the data's Cache-Control.
 func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp, cache string) {
 	if name == "charts.js" {
@@ -722,11 +757,15 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		_, _ = w.Write(lab.ChartScript)
 		return
 	}
-	if d.Dataset == nil {
+	if name == "data" && r.PathValue("key") != d.Key {
 		a.notFound(w, r)
 		return
 	}
-	if name == "data" && r.PathValue("key") != d.Key {
+	if err := a.readDataset(r.Context(), d); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if d.Dataset == nil {
 		a.notFound(w, r)
 		return
 	}

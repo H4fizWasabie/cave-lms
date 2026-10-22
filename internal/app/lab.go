@@ -34,17 +34,14 @@ const activePeriodSQL = `pp.starts_at <= now() AND pp.ends_at > now() AND pp.end
 
 // activePeriod is the Plan period a Learner is in now.
 type activePeriod struct {
-	ID          int64
-	PlanName    string
-	Ends        string // formatted as periodTime
-	Deployments int    // the period's allowance: how many Deployments may be awake at once
-	Awake       int    // the Learner's awake Deployments
-	StorageMB   int    // the period's Storage allowance
-	Used        int64  // bytes: the uploaded file sizes of the Learner's current Datasets
+	ID               int64
+	PlanName         string
+	Ends             string // formatted as periodTime
+	Deployments      int    // the period's allowance: how many Deployments may be awake at once
+	Awake            int    // the Learner's awake Deployments
+	storageAllowance        // the period's, copied from its Plan when it was given
+	Used             int64  // bytes: the uploaded file sizes of the Learner's current Datasets
 }
-
-// Storage is the period's Storage allowance in bytes.
-func (p *activePeriod) Storage() int64 { return int64(p.StorageMB) << 20 }
 
 // DeploymentsLeft is how many more Deployments may be awake: never below zero, even after renewing onto a smaller
 // allowance.
