@@ -346,7 +346,7 @@ func TestTheCaveTextPageShowsAVisitorWhatProGivesAndAsksThemToLogIn(t *testing.T
 	visitor := s.second()
 	res, body := visitor.get("/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "<h1>CaveText</h1>")
-	for _, want := range []string{"Unlimited Snippets", "RM25 a year", `href="/login?next=%2Fcavetext"`, `href="/register"`, `href="https://cavetext.wasabietech.com"`} {
+	for _, want := range []string{"Unlimited Snippets", "RM25 a year", `href="/login?next=%2Fcavetext"`, `href="/register"`, `href="https://cavetext.cavelms.com"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the Visitor's CaveText page lacks %s", want)
 		}
@@ -369,7 +369,7 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 	// No payment link: contact us, as on the Lab page.
 	res, body := ada.get("/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "3 of 5 Snippets")
-	for _, want := range []string{"Free", "RM25 a year", `href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">Contact us to buy CaveText Pro</a>`, `href="https://cavetext.wasabietech.com"`} {
+	for _, want := range []string{"Free", "RM25 a year", `href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">Contact us to buy CaveText Pro</a>`, `href="https://cavetext.cavelms.com"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the free Learner's CaveText page lacks %s", want)
 		}
@@ -422,7 +422,7 @@ func TestTheCaveTextPageAsksALearnerNewToCaveTextToSignIn(t *testing.T) {
 	cy.loginAsNewLearner("Cy Tan", "cy@example.com", "correct horse battery")
 	res, body := cy.get("/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "Sign in to CaveText")
-	for _, want := range []string{"RM25 a year", `href="https://cavetext.wasabietech.com"`, "10 Snippets free"} {
+	for _, want := range []string{"RM25 a year", `href="https://cavetext.cavelms.com"`, "10 Snippets free"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the new Learner's CaveText page lacks %s", want)
 		}

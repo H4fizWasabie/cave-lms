@@ -1,6 +1,6 @@
 # Deploying Cave LMS
 
-The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `lms.wasabietech.com` from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
+The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (and, until the switch in Changing the domain is finished, `lms.wasabietech.com`; `www.cavelms.com` redirects) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
 
 | What | Where on the VPS |
 |---|---|
@@ -17,7 +17,7 @@ Both the database and the uploads directory are backed up every night (see Backu
 
 Once per VPS. Run as root on the VPS.
 
-1. Point an A record for the domain at `169.58.63.110` and wait until `dig +short lms.wasabietech.com` returns it. Caddy can't get a certificate before that.
+1. Point A records for `cavelms.com` and `www.cavelms.com` at `169.58.63.110` (DNS is at NetKL) and wait until `dig +short cavelms.com` returns it. Caddy can't get a certificate before that.
 2. Create the system user, database and settings:
 
    ```sh
@@ -28,7 +28,7 @@ Once per VPS. Run as root on the VPS.
    install -m 0600 /dev/null /etc/cave-lms/env
    cat > /etc/cave-lms/env <<'EOF'
    DATABASE_URL=postgres:///cave?host=/var/run/postgresql
-   PUBLIC_BASE_URL=https://lms.wasabietech.com
+   PUBLIC_BASE_URL=https://cavelms.com
    EMAIL_FROM="Cave LMS <noreply@lms.wasabietech.com>"
    STORAGE_DIR=/var/lib/cave-lms/uploads
    LISTEN_ADDR=127.0.0.1:8088
@@ -39,7 +39,7 @@ Once per VPS. Run as root on the VPS.
 
    Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see Email below).
 
-   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://lms.wasabietech.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only orders on the form that Admin > CaveText settings > Payment link points to give Pro, so a Test Mode copy of the form with its own address can share the webhook safely. Without the key every webhook gets 404.
+   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only orders on the form that Admin > CaveText settings > Payment link points to give Pro, so a Test Mode copy of the form with its own address can share the webhook safely. Without the key every webhook gets 404.
 
 3. From your machine, run `deploy/deploy.sh` (next section).
 4. Create the Admin on the VPS. `systemd-run` runs it as `cave` with the service's own env file. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
@@ -78,6 +78,8 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
 3. Set `PUBLIC_BASE_URL` to the new domain in `/etc/cave-lms/env`.
 4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
 5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see Email below). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
+
+A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect. The move from `lms.wasabietech.com` to `cavelms.com` is at that middle step: still to move are the BCL webhook address (First install, step 2) and the CaveText extension, then the redirect, then `EMAIL_FROM` (step 5).
 
 **Standing rule: an old domain keeps redirecting forever.** Never remove an old domain's redirect block, and keep renewing the old domain. A printed or saved Certificate carries its verification link on the domain that was current when the PDF was downloaded. See `docs/adr/0002-old-domains-redirect-forever.md`.
 
