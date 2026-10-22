@@ -19,6 +19,7 @@ type plan struct {
 	Days        int
 	Deployments int
 	PaymentLink string
+	Pro         bool // the Pro Plan, the one CaveText Pro comes with
 }
 
 type plansPage struct {
@@ -99,6 +100,28 @@ func (a *App) updatePlan(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/plans", http.StatusSeeOther)
 }
 
+// markProPlan makes the Plan named by the {id} path value the Pro Plan, taking the mark from any other.
+func (a *App) markProPlan(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.planFor(w, r)
+	if !ok {
+		return
+	}
+	tx, err := a.db.BeginTx(r.Context(), nil)
+	if err == nil {
+		defer tx.Rollback()
+		if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET pro = false WHERE pro AND id <> $1`, p.ID); err == nil {
+			if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET pro = true WHERE id = $1`, p.ID); err == nil {
+				err = tx.Commit()
+			}
+		}
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/plans", http.StatusSeeOther)
+}
+
 // planFor loads the Plan named by the {id} path value. When there is none it writes
 // the Not found page and returns false.
 func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
@@ -120,7 +143,7 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 }
 
 func (a *App) listPlans(r *http.Request) ([]plan, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, days, deployments, payment_link FROM plans ORDER BY name, id`)
+	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, days, deployments, payment_link, pro FROM plans ORDER BY name, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +151,7 @@ func (a *App) listPlans(r *http.Request) ([]plan, error) {
 	var list []plan
 	for rows.Next() {
 		var p plan
-		if err := rows.Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.PaymentLink); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.PaymentLink, &p.Pro); err != nil {
 			return nil, err
 		}
 		list = append(list, p)

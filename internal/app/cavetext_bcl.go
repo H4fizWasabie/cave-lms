@@ -185,8 +185,8 @@ func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order str
 	if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
 		return "", err
 	}
-	if _, err := tx.ExecContext(ctx, giveProQuery, learnerID); err != nil {
-		return "", fmt.Errorf("give Pro: %w", err)
+	if err := a.givePro(ctx, tx, learnerID); err != nil {
+		return "", err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = true WHERE order_number = $1`, order, learnerID); err != nil {
 		return "", fmt.Errorf("mark payment granted: %w", err)

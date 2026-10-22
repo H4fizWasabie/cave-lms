@@ -257,6 +257,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/plans", a.admin(a.createPlan))
 	mux.HandleFunc("GET /admin/plans/{id}/edit", a.admin(a.editPlanForm))
 	mux.HandleFunc("POST /admin/plans/{id}", a.admin(a.updatePlan))
+	mux.HandleFunc("POST /admin/plans/{id}/pro", a.admin(a.markProPlan))
 	mux.HandleFunc("GET /admin/plans/periods", a.admin(a.adminPlanPeriods))
 	mux.HandleFunc("POST /admin/plans/periods", a.admin(a.assignPlan))
 	mux.HandleFunc("POST /admin/plans/periods/{id}/end", a.admin(a.endPlanPeriod))
