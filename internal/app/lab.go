@@ -36,7 +36,12 @@ type activePeriod struct {
 	Deployments     int    // the period's allowance: how many Deployments may be awake at once
 	Awake           int    // the Learner's awake Deployments
 	DeploymentsLeft int    // the allowance less Awake; below zero after renewing onto a smaller allowance
+	StorageMB       int    // the period's Storage allowance
+	Used            int64  // bytes: the uploaded file sizes of the Learner's current Datasets
 }
+
+// Storage is the period's Storage allowance in bytes.
+func (p *activePeriod) Storage() int64 { return int64(p.StorageMB) << 20 }
 
 // Full reports whether the Learner already has as many awake Deployments as the period allows.
 func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
@@ -47,11 +52,12 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 	var p activePeriod
 	var ends time.Time
 	err := a.db.QueryRowContext(ctx, `
-		SELECT pp.id, p.name, pp.ends_at, pp.deployments,
-			(SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+depAwake+`)
+		SELECT pp.id, p.name, pp.ends_at, pp.deployments, pp.storage_mb,
+			(SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+depAwake+`),
+			(SELECT COALESCE(sum(dataset_size), 0) FROM dashboards WHERE learner_id = pp.learner_id)
 		FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
 		WHERE pp.learner_id = $1 AND pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL
-		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.Awake)
+		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.StorageMB, &p.Awake, &p.Used)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 	case err != nil:

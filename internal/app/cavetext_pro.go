@@ -98,7 +98,7 @@ func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
 }
 
 // giveProQuery adds 12 months of Pro for the Learner $1, from now or from when their running Pro ends, and a period
-// of the Pro Plan with the same start and end. The Pro Plan's allowance is copied, so editing it never changes the
+// of the Pro Plan with the same start and end. The Pro Plan's allowances are copied, so editing it never changes the
 // period. Its rows affected is the Plan periods made: none when no Plan is marked as the Pro Plan.
 // ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
 const giveProQuery = `
@@ -108,8 +108,8 @@ const giveProQuery = `
 			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
 		)) AS at) s
 		RETURNING learner_id, starts_at, ends_at)
-	INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments)
-	SELECT pro.learner_id, p.id, pro.starts_at, pro.ends_at, p.deployments FROM pro, plans p WHERE p.pro`
+	INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments, storage_mb)
+	SELECT pro.learner_id, p.id, pro.starts_at, pro.ends_at, p.deployments, p.storage_mb FROM pro, plans p WHERE p.pro`
 
 // givePro gives the Learner a year of Pro and its Plan, as giveProQuery does. Without a Pro Plan it still gives Pro
 // and writes a line to the System log, so the Admin sees the missed setting.

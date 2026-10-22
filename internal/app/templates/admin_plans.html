@@ -18,7 +18,7 @@
               <tr>
                 <td>{{.Name}}{{if .Pro}} <span class="badge badge-open">{{t $.Lang "plans.pro"}}</span>{{end}}</td>
                 <td>{{tn $.Lang "plans.days" .Days}}</td>
-                <td>{{tn $.Lang "plans.deployments" .Deployments}}</td>
+                <td>{{tn $.Lang "plans.deployments" .Deployments}} · {{size .Storage}}</td>
                 <td>{{with .PaymentLink}}<a href="{{.}}">{{.}}</a>{{else}}{{t $.Lang "plans.no-link"}}{{end}}</td>
                 <td class="actions">{{if not .Pro}}<form method="post" action="/admin/plans/{{.ID}}/pro"><button class="btn btn-ghost btn-sm">{{t $.Lang "plans.make-pro"}}</button></form>{{end}}<a class="btn btn-quiet btn-sm" href="/admin/plans/{{.ID}}/edit">{{t $.Lang "admin.common.edit"}}</a></td>
               </tr>

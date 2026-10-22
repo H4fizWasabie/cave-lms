@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -22,9 +23,24 @@ import (
 
 // maxDatasetFile is the largest .xlsx the Lab reads; maxDatasetUpload caps the request around it.
 const (
-	maxDatasetFile   = 2 << 20
+	maxDatasetFile   = 10 << 20
 	maxDatasetUpload = maxDatasetFile + 64<<10
 )
+
+// errStorageFull is replaceDataset's answer when the upload would take the Learner over their Storage allowance.
+var errStorageFull = errors.New("over the Storage allowance")
+
+// sizeText writes a number of bytes as people read it: 12 KB, 980 MB, 1.5 GB.
+func sizeText(b int64) string {
+	one := func(x float64) string { return strconv.FormatFloat(math.Round(x*10)/10, 'f', -1, 64) }
+	switch {
+	case b >= 1<<30:
+		return one(float64(b)/(1<<30)) + " GB"
+	case b >= 1<<20:
+		return one(float64(b)/(1<<20)) + " MB"
+	}
+	return strconv.FormatInt((b+1023)>>10, 10) + " KB"
+}
 
 // dashboard is one of a Learner's Dashboards. Dataset is nil until the first upload.
 type dashboard struct {
@@ -464,7 +480,13 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
 		return
 	}
-	old, err := a.replaceDataset(r.Context(), d.ID, key, name, header.Size, choicesJSON)
+	old, used, err := a.replaceDataset(r.Context(), d.ID, acc.CountedPeriod(), key, name, header.Size, choicesJSON)
+	if errors.Is(err, errStorageFull) {
+		a.dropDataset(r, key)
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name,
+			pageBase: pageBase{Error: text.T(lang, "lab.err.storage-full", sizeText(header.Size), sizeText(used), sizeText(acc.Period.Storage()))}})
+		return
+	}
 	if err != nil {
 		a.dropDataset(r, key)
 		a.serverError(w, r, err)
@@ -476,20 +498,36 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 
 // replaceDataset points the Dashboard at the Dataset stored under key and returns the key it replaces, if any.
 // The row lock makes two uploads take turns, so each sees the key the other wrote and none is left behind.
-func (a *App) replaceDataset(ctx context.Context, id int64, key, file string, size int64, choices []byte) (old string, err error) {
+// With a period, the Learner's Datasets, this one replaced, must fit its Storage allowance, or it answers
+// errStorageFull and used, the bytes their Datasets take now. Locking the Learner makes two uploads to different
+// Dashboards take turns too, so both cannot slip under. Without a period (the Admin) there is no allowance.
+func (a *App) replaceDataset(ctx context.Context, id int64, period *activePeriod, key, file string, size int64, choices []byte) (old string, used int64, err error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	defer tx.Rollback()
+	if period != nil {
+		var others int64
+		if err := tx.QueryRowContext(ctx, `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, id).Scan(new(int)); err != nil {
+			return "", 0, err
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(sum(dataset_size), 0), COALESCE(sum(dataset_size) FILTER (WHERE id <> $1), 0)
+			FROM dashboards WHERE learner_id = (SELECT learner_id FROM dashboards WHERE id = $1)`, id).Scan(&used, &others); err != nil {
+			return "", 0, err
+		}
+		if others+size > period.Storage() {
+			return "", used, errStorageFull
+		}
+	}
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(dataset_key, '') FROM dashboards WHERE id = $1 FOR UPDATE`, id).Scan(&old); err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_file = $3, dataset_size = $4, choices = $5,
 		updated_at = now() WHERE id = $1`, id, key, file, size, choices); err != nil {
-		return "", err
+		return "", 0, err
 	}
-	return old, tx.Commit()
+	return old, 0, tx.Commit()
 }
 
 // dropDataset deletes the Dataset stored under key, if any. A failure leaves only an unused object, so it is logged.

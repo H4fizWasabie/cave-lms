@@ -248,10 +248,12 @@ func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	}
 	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This is not an .xlsx file.")
-	res, body = ada.postFile(path+"/dataset", "big.xlsx", bytes.Repeat([]byte("x"), 2<<20+1))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 2 MB.")
-	res, body = ada.postFile(path+"/dataset", "huge.xlsx", bytes.Repeat([]byte("x"), 3<<20))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 2 MB.")
+	res, body = ada.postFile(path+"/dataset", "under.xlsx", bytes.Repeat([]byte("x"), 10<<20))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This is not an .xlsx file.") // read, not refused for its size
+	res, body = ada.postFile(path+"/dataset", "big.xlsx", bytes.Repeat([]byte("x"), 10<<20+1))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 10 MB.")
+	res, body = ada.postFile(path+"/dataset", "huge.xlsx", bytes.Repeat([]byte("x"), 11<<20))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The Lab reads files up to 10 MB.")
 	res, body = ada.get(path + "/columns")
 	expectStatus(t, res, body, http.StatusOK, "Upload a Dataset first")
 }

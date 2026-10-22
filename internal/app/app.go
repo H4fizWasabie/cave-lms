@@ -147,7 +147,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = copyDatasetsToStore(ctx, db, datasets); err != nil {
 		return nil, fmt.Errorf("copy Datasets to the store: %w", err)
 	}
-	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
+	// Missing ones are applied too: a migration merged from a parallel branch can number below one already run.
+	if err = goose.UpContext(ctx, db, "migrations", goose.WithAllowMissing()); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
@@ -394,7 +395,7 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
