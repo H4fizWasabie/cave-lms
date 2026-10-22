@@ -1,0 +1,32 @@
+{{define "title"}}{{t .Lang "programmes.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "programmes" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "programmes.title"}}</h1>
+            <p>{{t .Lang "programmes.admin-intro"}}</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/programmes/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "programmes.new"}}</a></div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "adm.title"}}</th><th>{{t .Lang "programmes.form.starts-on"}}</th><th>{{t .Lang "programmes.form.link"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .Programmes}}
+              <tr>
+                <td>{{.Title}}</td>
+                <td>{{.Starts $.Lang}}</td>
+                <td>{{with .Link}}<a href="{{.}}">{{.}}</a>{{end}}</td>
+                <td class="actions"><a class="btn btn-quiet btn-sm" href="/admin/programmes/{{.ID}}/edit">{{t $.Lang "admin.common.edit"}}</a></td>
+              </tr>
+              {{else}}
+              <tr><td colspan="4">{{t .Lang "programmes.admin-none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

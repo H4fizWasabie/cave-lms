@@ -26,6 +26,7 @@ var catalog = map[string]entry{
 	"nav.classroom":       {en: "Classroom", ms: "Kelas"},
 	"nav.shop":            {en: "Shop", ms: "Kedai"},
 	"nav.program":         {en: "Program", ms: "Program"},
+	"nav.programmes":      {en: "Upcoming Programmes", ms: "Program akan datang"},
 	"nav.certification":   {en: "Certification", ms: "Pensijilan"},
 
 	// Layout: footer
@@ -389,6 +390,7 @@ var catalog = map[string]entry{
 	"admin.side.dashboard":     {en: "Dashboard", ms: "Dashboard"},
 	"admin.side.courses":       {en: "Courses", ms: "Kursus"},
 	"admin.side.gallery":       {en: "Gallery", ms: "Galeri"},
+	"admin.side.programmes":    {en: "Programmes", ms: "Program"},
 	"admin.side.certificates":  {en: "Certificates", ms: "Sijil"},
 	"admin.side.cert-details":  {en: "Certificate details", ms: "Butiran Sijil"},
 	"admin.side.plans":         {en: "Lab Plans", ms: "Pelan Lab"},
@@ -1233,6 +1235,30 @@ var catalog = map[string]entry{
 	"systemlog.newer":       {en: "Newer", ms: "Lebih baharu"},
 	"systemlog.older":       {en: "Older", ms: "Lebih lama"},
 	// ---- end Admin area part 2 (#92) ----
+
+	// ---- Programmes: the public Program page and the Admin's Programmes (#123) ----
+	// A Programme's title, blurb and link are Admin-typed and shown as written.
+	"programmes.title":             {en: "Programmes", ms: "Program"},
+	"programmes.intro":             {en: "Programmes The Cave Consult is running next.", ms: "Program yang akan dijalankan oleh The Cave Consult."},
+	"programmes.none":              {en: "No upcoming Programmes yet. Check back soon.", ms: "Tiada Program akan datang buat masa ini. Sila semak semula nanti."},
+	"programmes.starts":            {en: "Starts %s", ms: "Bermula %s"},
+	"programmes.more":              {en: "Find out more", ms: "Ketahui lebih lanjut"},
+	"programmes.admin-intro":       {en: "Announce upcoming programmes. The Program page shows those starting today or later.", ms: "Umumkan program akan datang. Halaman Program memaparkan program yang bermula hari ini atau kemudian."},
+	"programmes.admin-none":        {en: "No Programmes yet.", ms: "Belum ada Program."},
+	"programmes.new":               {en: "New Programme", ms: "Program baharu"},
+	"programmes.edit":              {en: "Edit Programme", ms: "Sunting Program"},
+	"programmes.back":              {en: "All Programmes", ms: "Semua Program"},
+	"programmes.form.starts-on":    {en: "Start date", ms: "Tarikh mula"},
+	"programmes.form.blurb":        {en: "Blurb", ms: "Ringkasan"},
+	"programmes.form.link":         {en: "Link", ms: "Pautan"},
+	"programmes.form.picture":      {en: "Picture", ms: "Gambar"},
+	"programmes.form.picture-hint": {en: "JPEG, PNG or WebP. A new picture replaces the current one.", ms: "JPEG, PNG atau WebP. Gambar baharu menggantikan gambar semasa."},
+	"programmes.err.title":         {en: "Enter a title.", ms: "Masukkan tajuk."},
+	"programmes.err.date":          {en: "Enter a start date.", ms: "Masukkan tarikh mula."},
+	"programmes.err.picture":       {en: "Upload a JPEG, PNG or WebP picture.", ms: "Muat naik gambar JPEG, PNG atau WebP."},
+	"programmes.not-found.title":   {en: "Programme not found", ms: "Program tidak dijumpai"},
+	"programmes.not-found":         {en: "This Programme does not exist or was deleted.", ms: "Program ini tidak wujud atau telah dipadam."},
+	// ---- end Programmes (#123) ----
 
 	// Home page: Coach Adam's write-up in Malay; the English is its translation, for him to proofread.
 	"home.title":         {en: "Welcome to CAVELMS", ms: "Selamat Datang ke CAVELMS"},

@@ -108,7 +108,9 @@
         <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.shop"}}</summary><div class="hdr-panel">
           <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.program"}}</summary></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.program"}}</summary><div class="hdr-panel">
+          <a href="/programmes">{{t .Lang "nav.programmes"}}</a>
+        </div></details>
         <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.certification"}}</summary><div class="hdr-panel">
           <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
           {{- if .Learner}}
@@ -128,7 +130,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "programmes", "certificates", "design", "plans", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -138,6 +140,7 @@
           <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>{{t .Lang "admin.side.dashboard"}}</span></a>
           <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span></a>
           <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "admin.side.gallery"}}</span></a>
+          <a href="/admin/programmes"{{if eq .Section "programmes"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{t .Lang "admin.side.programmes"}}</span></a>
           <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span></a>
           <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span></a>
           <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>
