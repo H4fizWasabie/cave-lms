@@ -16,7 +16,7 @@
               <tr><th>{{t .Lang "adm.title"}}</th><th>{{t .Lang "adm.courses.start-date"}}</th><th>{{t .Lang "adm.courses.state"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Courses}}
               <tr>
-                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a>{{if .IncludesLab}} <span class="badge badge-joined">{{t $.Lang "adm.courses.has-lab"}}</span>{{end}}</td>
+                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a></td>
                 <td>{{.StartDate}}</td>
                 <td>{{if .Open}}<span class="badge badge-open">{{t $.Lang "adm.courses.open"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "adm.courses.closed"}}</span>{{end}}</td>
                 <td class="actions">

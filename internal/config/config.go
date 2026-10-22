@@ -26,6 +26,12 @@ type Config struct {
 	// BCLWebhookKey, from BCL_WEBHOOK_KEY, is the secret part of the address BCL posts payment webhooks to.
 	// Empty: every webhook is refused.
 	BCLWebhookKey string
+	// R2AccountID, R2Bucket, R2AccessKeyID and R2SecretAccessKey pick the R2 bucket Datasets live in (ADR 0008).
+	// All or none: none set, Datasets stay on the disk under StorageDir.
+	R2AccountID       string
+	R2Bucket          string
+	R2AccessKeyID     string
+	R2SecretAccessKey string
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
 }
@@ -41,6 +47,18 @@ func Load() (Config, error) {
 		OwnerEmail:     strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
 		BCLWebhookKey:  strings.TrimSpace(os.Getenv("BCL_WEBHOOK_KEY")),
 		MaxUploadBytes: 2 << 30,
+	}
+	var r2Missing []string
+	for _, v := range []struct {
+		name  string
+		field *string
+	}{{"R2_ACCOUNT_ID", &cfg.R2AccountID}, {"R2_BUCKET", &cfg.R2Bucket}, {"R2_ACCESS_KEY_ID", &cfg.R2AccessKeyID}, {"R2_SECRET_ACCESS_KEY", &cfg.R2SecretAccessKey}} {
+		if *v.field = strings.TrimSpace(os.Getenv(v.name)); *v.field == "" {
+			r2Missing = append(r2Missing, v.name)
+		}
+	}
+	if len(r2Missing) > 0 && len(r2Missing) < 4 {
+		return Config{}, fmt.Errorf("R2 config is incomplete: set %s too, or none of the R2_ variables", strings.Join(r2Missing, " and "))
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")

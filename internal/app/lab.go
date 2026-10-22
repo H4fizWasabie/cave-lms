@@ -11,15 +11,14 @@ import (
 )
 
 // labAccess is what the Lab access rule finds for one Learner: access needs an active Plan
-// period AND an Enrollment in a Course that includes the Lab, or being the Admin.
+// period, or being the Admin.
 type labAccess struct {
-	Admin       bool          // the Admin always has the Lab, and deploys without a Plan
-	Period      *activePeriod // nil when the Learner has no active Plan period
-	InLabCourse bool          // enrolled in at least one Course that includes the Lab
+	Admin  bool          // the Admin always has the Lab, and deploys without a Plan
+	Period *activePeriod // nil when the Learner has no active Plan period
 }
 
 // Open reports whether the Learner may use the Lab: build, upload and deploy.
-func (l labAccess) Open() bool { return l.Admin || l.Period != nil && l.InLabCourse }
+func (l labAccess) Open() bool { return l.Admin || l.Period != nil }
 
 // CountedPeriod is the Plan period a Deploy counts against: nil for the Admin, whose Deploys are unlimited.
 func (l labAccess) CountedPeriod() *activePeriod {
@@ -29,14 +28,27 @@ func (l labAccess) CountedPeriod() *activePeriod {
 	return l.Period
 }
 
+// activePeriodSQL is an SQL condition, true for a period aliased pp that is running now: started, not ended and not
+// ended early. Plan periods and CaveText Pro periods share these columns.
+const activePeriodSQL = `pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL`
+
 // activePeriod is the Plan period a Learner is in now.
 type activePeriod struct {
-	ID              int64
-	PlanName        string
-	Ends            string // formatted as periodTime
-	Deployments     int    // the period's allowance
-	DeploymentsLeft int    // the allowance less Deployments counted against this period
+	ID               int64
+	PlanName         string
+	Ends             string // formatted as periodTime
+	Deployments      int    // the period's allowance: how many Deployments may be awake at once
+	Awake            int    // the Learner's awake Deployments
+	storageAllowance        // the period's, copied from its Plan when it was given
+	Used             int64  // bytes: the uploaded file sizes of the Learner's current Datasets
 }
+
+// DeploymentsLeft is how many more Deployments may be awake: never below zero, even after renewing onto a smaller
+// allowance.
+func (p *activePeriod) DeploymentsLeft() int { return max(p.Deployments-p.Awake, 0) }
+
+// Full reports whether the Learner already has as many awake Deployments as the period allows.
+func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
 
 // labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
 func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
@@ -44,10 +56,12 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 	var p activePeriod
 	var ends time.Time
 	err := a.db.QueryRowContext(ctx, `
-		SELECT pp.id, p.name, pp.ends_at, pp.deployments,
-			pp.deployments - (SELECT count(*) FROM deployments d WHERE d.period_id = pp.id) FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
-		WHERE pp.learner_id = $1 AND pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL
-		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.DeploymentsLeft)
+		SELECT pp.id, p.name, pp.ends_at, pp.deployments, pp.storage_mb,
+			(SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+deploymentAwakeSQL+`),
+			(SELECT COALESCE(sum(dataset_size), 0) FROM dashboards WHERE learner_id = pp.learner_id)
+		FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
+		WHERE pp.learner_id = $1 AND `+activePeriodSQL+`
+		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.StorageMB, &p.Awake, &p.Used)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 	case err != nil:
@@ -56,17 +70,14 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 		p.Ends = ends.UTC().Format(periodTime)
 		acc.Period = &p
 	}
-	err = a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM enrollments e JOIN courses c ON c.id = e.course_id
-		WHERE e.learner_id = $1 AND c.includes_lab)`, l.ID).Scan(&acc.InLabCourse)
-	return acc, err
+	return acc, nil
 }
 
 // labPage is /lab: the demo for Visitors and Learners without access, the Lab itself for those with it.
 type labPage struct {
 	pageBase
 	Access      labAccess
-	PaymentLink string   // where Upgrade goes; empty shows "Contact us to upgrade"
-	LabCourses  []course // open Courses that include the Lab, offered to a Learner with a Plan but no such Course
+	PaymentLink string // where Upgrade goes; empty shows "Contact us to upgrade"
 	Dashboards  []dashboardRow
 	Templates   []*lab.Template // previewed on their Samples in the demo
 }
@@ -88,15 +99,10 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		switch {
-		case p.Access.Open():
-		case p.Access.Period == nil:
+		if !p.Access.Open() {
 			// ponytail: Upgrade goes to the first Plan with a payment link; one button per Plan if the Admin sells several.
 			err = a.db.QueryRowContext(r.Context(),
 				`SELECT COALESCE((SELECT payment_link FROM plans WHERE payment_link <> '' ORDER BY id LIMIT 1), '')`).Scan(&p.PaymentLink)
-		case !p.Access.InLabCourse:
-			p.LabCourses, err = a.queryCourses(r, `SELECT `+courseColumns+` FROM courses
-				WHERE includes_lab AND is_open ORDER BY start_date NULLS LAST, id`)
 		}
 		if err != nil {
 			a.serverError(w, r, err)

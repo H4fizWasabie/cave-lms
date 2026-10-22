@@ -89,7 +89,20 @@ func (a *App) pruneSystemLog(ctx context.Context) error {
 	return err
 }
 
-// pruneDaily prunes the System log once a day until done is closed.
+// dailyPrune prunes the System log and lapsed Learners' Datasets, logging any failure.
+func (a *App) dailyPrune(ctx context.Context) {
+	if err := a.pruneSystemLog(ctx); err != nil {
+		a.logError(nil, fmt.Errorf("prune System log: %w", err))
+	}
+	n, err := a.pruneDatasets(ctx)
+	if err != nil {
+		a.logError(nil, fmt.Errorf("prune Datasets: %w", err))
+		return
+	}
+	a.logInfo("Daily prune deleted %d Datasets", n)
+}
+
+// pruneDaily runs dailyPrune once a day until done is closed.
 func (a *App) pruneDaily(done <-chan struct{}) {
 	tick := time.NewTicker(24 * time.Hour)
 	defer tick.Stop()
@@ -98,9 +111,7 @@ func (a *App) pruneDaily(done <-chan struct{}) {
 		case <-done:
 			return
 		case <-tick.C:
-			if err := a.pruneSystemLog(context.Background()); err != nil {
-				a.logError(nil, fmt.Errorf("prune System log: %w", err))
-			}
+			a.dailyPrune(context.Background())
 		}
 	}
 }

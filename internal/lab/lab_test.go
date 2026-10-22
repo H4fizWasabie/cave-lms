@@ -77,7 +77,7 @@ func TestGuessFallsBackToTypeForRequiredBlanksOnly(t *testing.T) {
 func TestGenerateWritesThePageAndTheDatasetAsDataJSON(t *testing.T) {
 	fin := finance(t)
 	d := readSample(t, fin)
-	index, data, err := lab.Generate(fin, "Kewangan Kedai", fin.Guess(d), d)
+	index, data, err := lab.Generate(fin, "Kewangan Kedai", fin.Guess(d), d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestSkippingAnOptionalBlankLeavesOutTheBlocksThatNeedIt(t *testing.T) {
 	d := readSample(t, fin)
 	c := fin.Guess(d)
 	delete(c, "type")
-	index, _, err := lab.Generate(fin, "Kewangan", c, d)
+	index, _, err := lab.Generate(fin, "Kewangan", c, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestGenerateRefusesChoicesThatDoNotFit(t *testing.T) {
 		"no such column":         {"date": "Tarikh", "amount": "Harga"},
 		"wrong type":             {"date": "Tarikh", "amount": "Kategori"},
 	} {
-		if _, _, err := lab.Generate(fin, "Kewangan", c, d); err == nil {
+		if _, _, err := lab.Generate(fin, "Kewangan", c, d, "data.json"); err == nil {
 			t.Errorf("%s: Generate accepted %v", name, c)
 		}
 	}
@@ -153,12 +153,12 @@ func TestGenerateRefusesARequiredColumnWithBlankCells(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Lain"}, d)
+	_, _, err = lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Lain"}, d, "data.json")
 	var got lab.Errors
 	if !errors.As(err, &got) || !reflect.DeepEqual(got.In("en"), []string{"Row 4, Lain: empty, but this column is required."}) {
 		t.Fatalf("err = %v, want the blank cell in Lain named by its Excel row", err)
 	}
-	if _, _, err := lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Jumlah"}, d); err != nil {
+	if _, _, err := lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Jumlah"}, d, "data.json"); err != nil {
 		t.Fatalf("a blank in a column no required blank uses refused: %v", err)
 	}
 }
@@ -171,7 +171,7 @@ func TestGeneratedPageEscapesColumnNamesAndCellText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	index, data, err := lab.Generate(fin, "<i>Mine</i>", lab.Choices{"date": "Tarikh", "amount": "Jumlah", "category": "</script><b>Kategori</b>"}, d)
+	index, data, err := lab.Generate(fin, "<i>Mine</i>", lab.Choices{"date": "Tarikh", "amount": "Jumlah", "category": "</script><b>Kategori</b>"}, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}

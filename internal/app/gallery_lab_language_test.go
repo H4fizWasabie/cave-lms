@@ -73,11 +73,11 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	_, body = visitor.getAsking("/lab", "en")
 	expectLanguage(t, body, "en", "Turn a spreadsheet into a live dashboard. No code.")
 
-	_, ada := labLearner(t)
+	admin, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
 	_, body = ada.get("/lab")
-	expectLanguage(t, body, "ms", "Baki Deployment tempoh ini")
-	expectAll(t, body, "3 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
+	expectLanguage(t, body, "ms", "Deployment aktif")
+	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
 	_, body = ada.get("/lab/new?t=finance")
 	expectLanguage(t, body, "ms", "Apa yang diperlukan oleh hamparan kerja anda")
 	expectAll(t, body, "Cipta Dashboard", `value="Dashboard Finance saya"`)
@@ -100,7 +100,7 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	_, body = ada.get(path + "/deploy")
 	expectLanguage(t, body, "ms", "Dalam talian")
 
-	ada.ageAllDeployments(8)
+	admin.ageAllPeriods(31)
 	_, body = ada.second().getAsking(link, "ms")
 	expectLanguage(t, body, "ms", "Dashboard ini sedang tidur")
 	_, body = ada.second().getAsking("/d/nope/", "ms")

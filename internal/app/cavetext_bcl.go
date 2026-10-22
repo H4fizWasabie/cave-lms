@@ -137,8 +137,8 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// recordProPayment keeps a paid order and, when it is on the Pro form, gives its Learner a year of Pro, in one
-// transaction. It says what happened, for the System log.
+// recordProPayment keeps a paid order and, when it is on the Pro form, gives its Learner Pro and its Plan, in one
+// transaction, then writes the missing Pro Plan warning if there was none. It says what happened, for the System log.
 func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order string, priceSen int, onProForm bool) (string, error) {
 	subtotal, readable := parseRM(b.Data.Main.Subtotal.String())
 	cavelms, payer := b.cavelmsEmail(), b.Data.Main.PayerEmail.String()
@@ -185,13 +185,20 @@ func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order str
 	if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
 		return "", err
 	}
-	if _, err := tx.ExecContext(ctx, giveProQuery, learnerID); err != nil {
-		return "", fmt.Errorf("give Pro: %w", err)
+	planned, err := givePro(ctx, tx, learnerID)
+	if err != nil {
+		return "", err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = true WHERE order_number = $1`, order, learnerID); err != nil {
 		return "", fmt.Errorf("mark payment granted: %w", err)
 	}
-	return fmt.Sprintf("gave Learner %d a year of Pro", learnerID), tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	if !planned {
+		a.warnNoProPlan(learnerID)
+	}
+	return fmt.Sprintf("gave Learner %d Pro", learnerID), nil
 }
 
 // unmatchedPayment is a Pro payment that gave no Pro, waiting on the Admin CaveText Learners page.

@@ -34,7 +34,7 @@ type dashboardConfig struct {
 
 func generate(t *testing.T, tpl *lab.Template, c lab.Choices, d *lab.Dataset) dashboardConfig {
 	t.Helper()
-	index, _, err := lab.Generate(tpl, "Mine", c, d)
+	index, _, err := lab.Generate(tpl, "Mine", c, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestEachTemplateShowsTheQuestionItsDashboardAnswers(t *testing.T) {
 	} {
 		tpl := template(t, key)
 		d := readSample(t, tpl)
-		index, _, err := lab.Generate(tpl, "Mine", tpl.Guess(d), d)
+		index, _, err := lab.Generate(tpl, "Mine", tpl.Guess(d), d, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -235,7 +235,7 @@ func TestEachTemplateShowsTheQuestionItsDashboardAnswers(t *testing.T) {
 	}
 	gen := template(t, "general")
 	d := readSample(t, gen)
-	index, _, err := lab.Generate(gen, "Mine", nil, d)
+	index, _, err := lab.Generate(gen, "Mine", nil, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}

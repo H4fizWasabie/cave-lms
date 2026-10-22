@@ -25,11 +25,11 @@ type chosenColumn struct {
 	Money bool   `json:"money,omitempty"`
 }
 
-// Generate writes a Dashboard: index.html, which loads charts.js and data.json beside it, and
+// Generate writes a Dashboard: index.html, which loads charts.js beside it and its data from dataURL, and
 // data.json, the Dataset as one object per row. Blocks that need a skipped blank are left out.
 // Choices that do not fit the Dataset give a Problem; blank cells in a
 // column chosen for a required blank give Errors, one per cell.
-func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []byte, err error) {
+func Generate(t *Template, name string, c Choices, d *Dataset, dataURL string) (index, data []byte, err error) {
 	if t.Build != nil {
 		t, c = t.Build(d)
 	}
@@ -92,7 +92,12 @@ func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []by
 	}
 	var page bytes.Buffer
 	// template.JS is safe here: encoding/json escapes <, >, & and U+2028/2029, so no text can end the script.
-	err = dashboardPage.Execute(&page, map[string]any{"Name": name, "Question": t.Question, "Config": template.JS(config)})
+	// The same holds for dataURL, written as a JSON string so its slashes stay readable.
+	dataJS, err := json.Marshal(dataURL)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = dashboardPage.Execute(&page, map[string]any{"Name": name, "Question": t.Question, "Config": template.JS(config), "Data": template.JS(dataJS)})
 	if err != nil {
 		return nil, nil, err
 	}

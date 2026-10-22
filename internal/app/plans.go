@@ -18,7 +18,9 @@ type plan struct {
 	Name        string
 	Days        int
 	Deployments int
+	storageAllowance
 	PaymentLink string
+	Pro         bool // the Pro Plan, the one CaveText Pro comes with
 }
 
 type plansPage struct {
@@ -41,7 +43,7 @@ func (a *App) adminPlans(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) newPlanForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "plan_form", &planFormPage{Plan: plan{Days: 30}})
+	a.render(w, r, http.StatusOK, "plan_form", &planFormPage{Plan: plan{Days: 30, storageAllowance: storageAllowance{StorageMB: 1024}}})
 }
 
 func (a *App) editPlanForm(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +66,8 @@ func (a *App) createPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`INSERT INTO plans (name, days, deployments, payment_link) VALUES ($1, $2, $3, $4)`,
-		p.Name, p.Days, p.Deployments, p.PaymentLink)
+		`INSERT INTO plans (name, days, deployments, storage_mb, payment_link) VALUES ($1, $2, $3, $4, $5)`,
+		p.Name, p.Days, p.Deployments, p.StorageMB, p.PaymentLink)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -90,8 +92,30 @@ func (a *App) updatePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`UPDATE plans SET name = $2, days = $3, deployments = $4, payment_link = $5 WHERE id = $1`,
-		p.ID, p.Name, p.Days, p.Deployments, p.PaymentLink)
+		`UPDATE plans SET name = $2, days = $3, deployments = $4, storage_mb = $5, payment_link = $6 WHERE id = $1`,
+		p.ID, p.Name, p.Days, p.Deployments, p.StorageMB, p.PaymentLink)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/plans", http.StatusSeeOther)
+}
+
+// markProPlan makes the Plan named by the {id} path value the Pro Plan, taking the mark from any other.
+func (a *App) markProPlan(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.planFor(w, r)
+	if !ok {
+		return
+	}
+	tx, err := a.db.BeginTx(r.Context(), nil)
+	if err == nil {
+		defer tx.Rollback()
+		if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET pro = false WHERE pro AND id <> $1`, p.ID); err == nil {
+			if _, err = tx.ExecContext(r.Context(), `UPDATE plans SET pro = true WHERE id = $1`, p.ID); err == nil {
+				err = tx.Commit()
+			}
+		}
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -105,8 +129,8 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 	var p plan
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err == nil {
-		err = a.db.QueryRowContext(r.Context(), `SELECT id, name, days, deployments, payment_link FROM plans WHERE id = $1`, id).
-			Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.PaymentLink)
+		err = a.db.QueryRowContext(r.Context(), `SELECT id, name, days, deployments, storage_mb, payment_link FROM plans WHERE id = $1`, id).
+			Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.StorageMB, &p.PaymentLink)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
 			return p, false
@@ -120,7 +144,7 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 }
 
 func (a *App) listPlans(r *http.Request) ([]plan, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, days, deployments, payment_link FROM plans ORDER BY name, id`)
+	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, days, deployments, storage_mb, payment_link, pro FROM plans ORDER BY name, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +152,7 @@ func (a *App) listPlans(r *http.Request) ([]plan, error) {
 	var list []plan
 	for rows.Next() {
 		var p plan
-		if err := rows.Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.PaymentLink); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Days, &p.Deployments, &p.StorageMB, &p.PaymentLink, &p.Pro); err != nil {
 			return nil, err
 		}
 		list = append(list, p)
@@ -142,7 +166,8 @@ func planFromForm(lang string, r *http.Request) (p plan, msg string) {
 	p.PaymentLink = strings.TrimSpace(r.PostFormValue("payment_link"))
 	days, daysErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("days")))
 	deployments, deploymentsErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("deployments")))
-	p.Days, p.Deployments = days, deployments
+	storage, storageErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("storage")))
+	p.Days, p.Deployments, p.StorageMB = days, deployments, storage
 	switch {
 	case p.Name == "":
 		msg = text.T(lang, "plans.err.name")
@@ -150,11 +175,19 @@ func planFromForm(lang string, r *http.Request) (p plan, msg string) {
 		msg = text.T(lang, "plans.err.days")
 	case deploymentsErr != nil || deployments < 0:
 		msg = text.T(lang, "plans.err.deployments")
+	case storageErr != nil || storage < 0:
+		msg = text.T(lang, "plans.err.storage")
 	case p.PaymentLink != "" && !isWebLink(p.PaymentLink):
 		msg = text.T(lang, "plans.err.link")
 	}
 	return p, msg
 }
+
+// storageAllowance is a Plan's or a Plan period's Storage allowance, kept in MB.
+type storageAllowance struct{ StorageMB int }
+
+// Storage is the Storage allowance in bytes.
+func (s storageAllowance) Storage() int64 { return int64(s.StorageMB) << 20 }
 
 // isWebLink reports whether s is an absolute http or https address, safe to put in a link.
 func isWebLink(s string) bool {
@@ -200,6 +233,12 @@ func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, status, "admin_plan_periods", p)
 }
 
+// nextPlanStart is s.at, when the next Plan period of the Learner $1 starts: now, or when their last Plan period
+// ends if that is later. assignPlan and giveProQuery both queue after it, so a Learner's periods never overlap.
+const nextPlanStart = `(SELECT GREATEST(now(), (
+	SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM plan_periods WHERE learner_id = $1
+)) AS at) s`
+
 // assignPlan gives a Learner a new period of a Plan. It starts now, or when the Learner's
 // last period ends if that is later, so stacked periods lose no days.
 func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
@@ -216,11 +255,9 @@ func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 	planID, _ := strconv.ParseInt(r.PostFormValue("plan_id"), 10, 64)
 	// ponytail: two Admin assignments racing for one Learner could overlap; fine while one Admin assigns by hand.
 	res, err := a.db.ExecContext(r.Context(), `
-		INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments)
-		SELECT $1, p.id, s.at, s.at + make_interval(days => p.days), p.deployments
-		FROM plans p, (SELECT GREATEST(now(), (
-			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM plan_periods WHERE learner_id = $1
-		)) AS at) s
+		INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments, storage_mb)
+		SELECT $1, p.id, s.at, s.at + make_interval(days => p.days), p.deployments, p.storage_mb
+		FROM plans p, `+nextPlanStart+`
 		WHERE p.id = $2`, p.HolderID, planID)
 	if err != nil {
 		a.serverError(w, r, err)

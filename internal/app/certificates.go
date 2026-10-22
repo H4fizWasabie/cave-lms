@@ -345,7 +345,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if !committed {
 			for _, key := range saved {
-				_ = a.store.Remove(key)
+				_ = a.store.Delete(r.Context(), key)
 			}
 		}
 	}()
@@ -390,7 +390,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	committed = true
 	for _, pair := range [][2]string{{logo, cur.LogoKey}, {signature, cur.SignatureKey}} {
 		if pair[0] != "" && pair[1] != "" {
-			_ = a.store.Remove(pair[1]) // the image it replaces
+			_ = a.store.Delete(r.Context(), pair[1]) // the image it replaces
 		}
 	}
 	http.Redirect(w, r, "/admin/certificate-settings", http.StatusSeeOther)

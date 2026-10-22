@@ -11,7 +11,6 @@
             <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Course.Title}}" maxlength="200" required></div>
             <div class="field"><label for="description">{{t .Lang "adm.description"}}</label><textarea id="description" name="description" rows="6" required>{{.Course.Description}}</textarea></div>
             <div class="field field-half"><label for="start_date">{{t .Lang "adm.courses.start-date"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}"></div>
-            <label class="check-card"><input type="checkbox" name="includes_lab" value="on"{{if .Course.IncludesLab}} checked{{end}}><span><strong>{{t .Lang "adm.courses.has-lab"}}</strong><small>{{t .Lang "adm.courses.has-lab-sub"}}</small></span></label>
             <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
           </form>
         </div>

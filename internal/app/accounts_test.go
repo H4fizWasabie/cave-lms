@@ -25,19 +25,21 @@ type site struct {
 	mail        *testutil.RecordingMailer
 	db          *sql.DB
 	storageDir  string
+	cfg         config.Config
 }
 
 // newSite serves the app over TLS (session cookies are Secure) to a client
 // that keeps cookies and does not follow redirects.
 func newSite(t *testing.T, opts ...func(*config.Config)) *site {
 	t.Helper()
-	application, mail, db, storageDir := newTestApplication(t, opts...)
+	var cfg config.Config
+	application, mail, db, storageDir := newTestApplication(t, append(opts, func(c *config.Config) { cfg = *c })...)
 	server := httptest.NewTLSServer(application)
 	t.Cleanup(server.Close)
 	client := server.Client()
 	client.Jar, _ = cookiejar.New(nil)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db, storageDir: storageDir}
+	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db, storageDir: storageDir, cfg: cfg}
 }
 
 // do sends req, from a browser asking for English unless req says otherwise, as the tests check English texts.

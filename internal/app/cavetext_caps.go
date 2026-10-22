@@ -36,6 +36,11 @@ type rowQueryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
+// execer is a *sql.DB or a *sql.Tx, for writes that may run inside a caller's transaction.
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 // learnerSnippetCap resolves a Learner's Snippet cap: an active CaveText Pro period gives unlimited Snippets; otherwise
 // a place within the early places gets the early cap, any later one the late cap. Every write and every page showing
 // the cap goes through here, so a changed setting or a lapsed Pro applies at once.
@@ -55,8 +60,7 @@ func learnerSnippetCap(ctx context.Context, q rowQueryer, learnerID int64) (snip
 // cavetext_accounts c and cavetext_settings s, scanned with snippetCap.dest. learnerSnippetCap and the Admin
 // CaveText Learners page both select it, so they can't disagree.
 const snippetCapColumns = `c.place <= s.early_places, CASE WHEN c.place <= s.early_places THEN s.early_cap ELSE s.late_cap END,
-	EXISTS (SELECT 1 FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
-		AND p.starts_at <= now() AND p.ends_at > now() AND p.ended_early_at IS NULL),
+	EXISTS (SELECT 1 FROM cavetext_pro_periods pp WHERE pp.learner_id = c.learner_id AND ` + activePeriodSQL + `),
 	(SELECT max(p.ends_at) FROM cavetext_pro_periods p WHERE p.learner_id = c.learner_id
 		AND p.ends_at > now() AND p.ended_early_at IS NULL)`
 

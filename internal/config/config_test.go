@@ -15,7 +15,12 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("RESEND_API_KEY", "")
 	t.Setenv("CAVETEXT_EXTENSION_IDS", "")
 	t.Setenv("BCL_WEBHOOK_KEY", "")
+	for _, name := range r2Env {
+		t.Setenv(name, "")
+	}
 }
+
+var r2Env = []string{"R2_ACCOUNT_ID", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"}
 
 func TestLoadReadsConfiguration(t *testing.T) {
 	setValidEnvironment(t)
@@ -113,5 +118,27 @@ func TestLoadReadsALongEnoughBCLWebhookKey(t *testing.T) {
 	t.Setenv("BCL_WEBHOOK_KEY", "short")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BCL_WEBHOOK_KEY") {
 		t.Fatalf("Load() error = %v, want BCL_WEBHOOK_KEY error", err)
+	}
+}
+
+func TestLoadReadsR2ConfigOnlyWhenAllOfItIsSet(t *testing.T) {
+	setValidEnvironment(t)
+	cfg, err := Load()
+	if err != nil || cfg.R2Bucket != "" {
+		t.Fatalf("without R2 config: cfg.R2Bucket = %q, err = %v; want empty, nil", cfg.R2Bucket, err)
+	}
+
+	t.Setenv("R2_ACCOUNT_ID", " acc ")
+	t.Setenv("R2_BUCKET", "datasets")
+	_, err = Load()
+	if err == nil || !strings.Contains(err.Error(), "R2_ACCESS_KEY_ID") || !strings.Contains(err.Error(), "R2_SECRET_ACCESS_KEY") || strings.Contains(err.Error(), "R2_BUCKET") {
+		t.Fatalf("with half the R2 config: err = %v, want one naming R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY only", err)
+	}
+
+	t.Setenv("R2_ACCESS_KEY_ID", "key")
+	t.Setenv("R2_SECRET_ACCESS_KEY", "secret")
+	cfg, err = Load()
+	if err != nil || cfg.R2AccountID != "acc" || cfg.R2Bucket != "datasets" || cfg.R2AccessKeyID != "key" || cfg.R2SecretAccessKey != "secret" {
+		t.Fatalf("with all R2 config: cfg = %#v, err = %v", cfg, err)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -16,14 +17,30 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
+	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // maxDatasetFile is the largest .xlsx the Lab reads; maxDatasetUpload caps the request around it.
 const (
-	maxDatasetFile   = 2 << 20
+	maxDatasetFile   = 10 << 20
 	maxDatasetUpload = maxDatasetFile + 64<<10
 )
+
+// errStorageFull is replaceDataset's answer when the upload would take the Learner over their Storage allowance.
+var errStorageFull = errors.New("over the Storage allowance")
+
+// sizeText writes a number of bytes as people read it: 12 KB, 980 MB, 1.5 GB.
+func sizeText(b int64) string {
+	one := func(x float64) string { return strconv.FormatFloat(math.Round(x*10)/10, 'f', -1, 64) }
+	switch {
+	case b >= 1<<30:
+		return one(float64(b)/(1<<30)) + " GB"
+	case b >= 1<<20:
+		return one(float64(b)/(1<<20)) + " MB"
+	}
+	return strconv.FormatInt((b+1023)>>10, 10) + " KB"
+}
 
 // dashboard is one of a Learner's Dashboards. Dataset is nil until the first upload.
 type dashboard struct {
@@ -32,7 +49,9 @@ type dashboard struct {
 	Name     string
 	Choices  lab.Choices
 	Dataset  *lab.Dataset
+	Key      string // where the Dataset is in the Dataset store; empty until the first upload
 	File     string // the uploaded Dataset's file name
+	Size     int64  // the uploaded Dataset's file size, which counts against the Storage allowance
 	Updated  string // formatted as periodTime
 }
 
@@ -48,7 +67,7 @@ type dashboardRow struct {
 
 // labDashboards lists a Learner's Dashboards, most recently changed first.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at, d.dataset IS NOT NULL, dep.taken_down_at
+	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at, d.dataset_key IS NOT NULL, dep.taken_down_at
 		FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id
 		WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
 	if err != nil {
@@ -94,14 +113,15 @@ func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 }
 
 // loadDashboard loads the Dashboard matching where (an SQL condition on dashboards); nil if there is none.
+// Its Dataset stays in the store until readDataset.
 func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*dashboard, error) {
 	var d dashboard
 	var key string
-	var choices, dataset []byte
+	var choices []byte
 	var updated time.Time
-	err := a.db.QueryRowContext(ctx, `SELECT id, template, name, choices, dataset, dataset_file, updated_at
+	err := a.db.QueryRowContext(ctx, `SELECT id, template, name, choices, COALESCE(dataset_key, ''), dataset_file, dataset_size, updated_at
 		FROM dashboards WHERE `+where, args...).
-		Scan(&d.ID, &key, &d.Name, &choices, &dataset, &d.File, &updated)
+		Scan(&d.ID, &key, &d.Name, &choices, &d.Key, &d.File, &d.Size, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -115,16 +135,35 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	if err := json.Unmarshal(choices, &d.Choices); err != nil {
 		return nil, err
 	}
-	if dataset != nil {
-		if err := json.Unmarshal(dataset, &d.Dataset); err != nil {
-			return nil, err
-		}
-	}
 	return &d, nil
 }
 
-// withDashboard runs h with the logged-in Learner's Dashboard from the URL, or answers 404.
+// readDataset fetches the Dashboard's Dataset from the store, unless it has none or it is already read.
+func (a *App) readDataset(ctx context.Context, d *dashboard) error {
+	if d.Key == "" || d.Dataset != nil {
+		return nil
+	}
+	data, err := a.datasets.Get(ctx, d.Key)
+	if err != nil {
+		return fmt.Errorf("get Dataset %s: %w", d.Key, err)
+	}
+	return json.Unmarshal(data, &d.Dataset)
+}
+
+// withDashboard runs h with the logged-in Learner's Dashboard from the URL, its Dataset read, or answers 404.
+// ponytail: every Dashboard page reads the whole Dataset from the store; read it only on the tabs that use it if R2 gets slow.
 func (a *App) withDashboard(h func(http.ResponseWriter, *http.Request, *dashboard)) http.HandlerFunc {
+	return a.withDashboardRow(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
+		if err := a.readDataset(r.Context(), d); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		h(w, r, d)
+	})
+}
+
+// withDashboardRow is withDashboard leaving the Dataset in the store, for handlers that read it only when needed.
+func (a *App) withDashboardRow(h func(http.ResponseWriter, *http.Request, *dashboard)) http.HandlerFunc {
 	return a.requireLearner(func(w http.ResponseWriter, r *http.Request) {
 		d, err := a.ownDashboard(r)
 		if err != nil {
@@ -269,16 +308,19 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
-// deleteDashboard deletes a Dashboard and its Dataset; the delete tab asks first. Its Deployment's link
-// then answers "not found", and the Deployment still counts against its period.
+// deleteDashboard deletes a Dashboard and its Dataset, from the store too; the delete tab asks first. Its Deployment's link
+// then answers "not found"; the Deployment is never awake again, so it frees a slot, and its name stays taken.
 func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
+	var key string
+	if err := a.db.QueryRowContext(r.Context(), `DELETE FROM dashboards WHERE id = $1 RETURNING COALESCE(dataset_key, '')`,
+		d.ID).Scan(&key); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
+	a.dropDataset(r.Context(), r, key)
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
@@ -303,6 +345,7 @@ type dashboardPage struct {
 	Tab       string
 	Errors    []string // what was wrong with an upload
 	Upload    string   // the refused file's name
+	Failed    bool     // the store refused the upload's Dataset
 	Again     bool     // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
 	Phone     bool // preview at phone width
@@ -315,7 +358,8 @@ type dashboardPage struct {
 	// Deploy tab
 	Deployment *deployment // nil until deployed
 	Confirm    bool        // the confirm step
-	WouldSleep string      // when a Deployment made now would sleep
+	DeployName string      // the name typed on the confirm step
+	Prefix     string      // a Deployment's link up to its name
 }
 
 // blankChoice is one blank on the Columns tab: the columns that may fill it and the current choice.
@@ -363,7 +407,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			a.serverError(w, r, err)
 			return
 		}
-		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, dataPath(d))
 		if err != nil {
 			a.serverError(w, r, err)
 			return
@@ -412,6 +456,16 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		refuse(tooBig)
 		return
 	}
+	storageFull := func(used int64) {
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name,
+			pageBase: pageBase{Error: text.T(lang, "lab.err.storage-full", sizeText(header.Size), sizeText(used), sizeText(acc.Period.Storage()))}})
+	}
+	// A cheap check first, so an upload that cannot fit is refused without touching the store; replaceDataset's
+	// locked check stays the authority.
+	if p := acc.CountedPeriod(); p != nil && p.Used-d.Size+header.Size > p.Storage() {
+		storageFull(p.Used)
+		return
+	}
 	ds, err := lab.Read(file, d.Template)
 	var problems lab.Errors
 	if errors.As(err, &problems) {
@@ -424,7 +478,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); errors.As(err, &problems) {
+	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds, ""); errors.As(err, &problems) {
 		refuse(problems.In(lang)...) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
@@ -443,12 +497,165 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		a.serverError(w, r, err)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET dataset = $2, dataset_file = $3, choices = $4,
-		updated_at = now() WHERE id = $1`, d.ID, dataset, name, choicesJSON); err != nil {
+	key, err := newDatasetKey()
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
+	if err := a.datasets.Put(r.Context(), key, dataset); err != nil {
+		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
+		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
+		return
+	}
+	old, used, err := a.replaceDataset(r.Context(), d.ID, acc.CountedPeriod(), key, name, header.Size, choicesJSON)
+	if errors.Is(err, errStorageFull) {
+		a.dropDataset(r.Context(), r, key)
+		storageFull(used)
+		return
+	}
+	if err != nil {
+		a.dropDataset(r.Context(), r, key)
+		a.serverError(w, r, err)
+		return
+	}
+	a.dropDataset(r.Context(), r, old)
 	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+// replaceDataset points the Dashboard at the Dataset stored under key and returns the key it replaces, if any.
+// The row lock makes two uploads take turns, so each sees the key the other wrote and none is left behind.
+// With a period, the Learner's Datasets, this one replaced, must fit its Storage allowance, or it answers
+// errStorageFull and used, the bytes their Datasets take now. Locking the Learner makes two uploads to different
+// Dashboards take turns too, so both cannot slip under. Without a period (the Admin) there is no allowance.
+func (a *App) replaceDataset(ctx context.Context, id int64, period *activePeriod, key, file string, size int64, choices []byte) (old string, used int64, err error) {
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", 0, err
+	}
+	defer tx.Rollback()
+	if period != nil {
+		var others int64
+		if err := tx.QueryRowContext(ctx, `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, id).Scan(new(int)); err != nil {
+			return "", 0, err
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(sum(dataset_size), 0), COALESCE(sum(dataset_size) FILTER (WHERE id <> $1), 0)
+			FROM dashboards WHERE learner_id = (SELECT learner_id FROM dashboards WHERE id = $1)`, id).Scan(&used, &others); err != nil {
+			return "", 0, err
+		}
+		if others+size > period.Storage() {
+			return "", used, errStorageFull
+		}
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(dataset_key, '') FROM dashboards WHERE id = $1 FOR UPDATE`, id).Scan(&old); err != nil {
+		return "", 0, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_file = $3, dataset_size = $4, choices = $5,
+		updated_at = now() WHERE id = $1`, id, key, file, size, choices); err != nil {
+		return "", 0, err
+	}
+	return old, 0, tx.Commit()
+}
+
+// newDatasetKey is a new key in the Dataset store: a new one every upload, so a cached copy is never stale.
+func newDatasetKey() (string, error) {
+	token, err := newToken()
+	if err != nil {
+		return "", err
+	}
+	return "dataset-" + token[:22], nil
+}
+
+// dropDataset deletes the Dataset stored under key, if any, even after the request that asked is over. A failure
+// leaves only an unused object, so it is logged; r is nil outside a request.
+func (a *App) dropDataset(ctx context.Context, r *http.Request, key string) {
+	if key == "" {
+		return
+	}
+	if err := a.datasets.Delete(context.WithoutCancel(ctx), key); err != nil {
+		a.logError(r, fmt.Errorf("delete Dataset %s: %w", key, err))
+	}
+}
+
+// datasetKeepDays is how long a Learner's Datasets outlive their last Plan period.
+const datasetKeepDays = 90
+
+// pruneDatasets deletes the Datasets of every Learner with no Plan period active, upcoming, or ended within
+// datasetKeepDays, from the store and the records, and returns how many it deleted. A Learner who never had a
+// Plan period counts as long lapsed. The Dashboards and their Deployments stay, the Deployments asleep.
+// The Admin's Datasets are never pruned.
+func (a *App) pruneDatasets(ctx context.Context) (int, error) {
+	rows, err := a.db.QueryContext(ctx, `WITH gone AS (
+		SELECT d.id, d.dataset_key FROM dashboards d JOIN learners l ON l.id = d.learner_id
+		WHERE d.dataset_key IS NOT NULL AND NOT l.is_admin AND NOT EXISTS (SELECT 1 FROM plan_periods pp
+			WHERE pp.learner_id = l.id AND LEAST(pp.ends_at, COALESCE(pp.ended_early_at, pp.ends_at)) > now() - make_interval(days => $1))
+		FOR UPDATE OF d)
+		UPDATE dashboards d SET dataset_key = NULL, dataset_file = '', dataset_size = 0 FROM gone WHERE d.id = gone.id
+		RETURNING gone.dataset_key`, datasetKeepDays)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return 0, err
+		}
+		keys = append(keys, key)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	for _, key := range keys {
+		a.dropDataset(ctx, nil, key)
+	}
+	return len(keys), nil
+}
+
+// copyDatasetsToStore is a one-off step at startup: it moves every Dataset still in the old dataset column into
+// the store. Once 00069 drops the column there is nothing left to copy. The JSON's size stands in for the
+// uploaded file's, which was never kept.
+func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) error {
+	var old bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = 'dashboards' AND column_name = 'dataset')`).Scan(&old); err != nil || !old {
+		return err
+	}
+	rows, err := db.QueryContext(ctx, `SELECT id, dataset FROM dashboards WHERE dataset IS NOT NULL AND dataset_key IS NULL`)
+	if err != nil {
+		return err
+	}
+	type row struct {
+		id   int64
+		data []byte
+	}
+	var todo []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.data); err != nil {
+			rows.Close()
+			return err
+		}
+		todo = append(todo, r)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, r := range todo {
+		key, err := newDatasetKey()
+		if err != nil {
+			return err
+		}
+		if err := store.Put(ctx, key, r.data); err != nil {
+			return err
+		}
+		if _, err := db.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_size = $3, dataset = NULL WHERE id = $1`,
+			r.id, key, len(r.data)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // saveColumns stores the Learner's column choice for each blank; an empty value skips an optional blank.
@@ -467,7 +674,7 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			c[b.Key] = v
 		}
 	}
-	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset); err != nil {
+	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset, ""); err != nil {
 		lang, langErr := a.language(r)
 		if langErr != nil {
 			a.serverError(w, r, langErr)
@@ -504,12 +711,12 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 
 func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.FormatInt(d.ID, 10) }
 
-// dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, data.json and
-// charts.js side by side, so the page loads the others by relative path. Generated on each request.
-// A Deployment serves the same files under /d/<slug>/ (deploymentFile).
+// dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, charts.js and
+// the data at data/<key> under it, so the page loads the others by relative path. Generated on each request.
+// A Deployment serves the same files under /<prefix>/<name>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
-	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		a.serveDashboardFile(w, r, d, name, previewCSP)
+	return a.withDashboardRow(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
+		a.serveDashboardFile(w, r, d, name, previewCSP, "private, max-age=31536000, immutable")
 	})
 }
 
@@ -531,28 +738,51 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		a.serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP)
+		a.serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP, "")
 	}
 }
 
-// serveDashboardFile writes one of a Dashboard's three files; csp is the index page's Content-Security-Policy.
-func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp string) {
+// dataPath is where a Dashboard's page fetches its data, relative to the page: the Dataset's key, so a
+// re-upload changes the address and no cache ever serves an old Dataset. The preview's data is cached for good
+// (only its Learner sees it); a Deployment's for 5 minutes, so sleep and Takedown take effect soon.
+func dataPath(d *dashboard) string { return "data/" + d.Key }
+
+// serveDashboardFile writes one of a Dashboard's files: index.html, charts.js, data.json (the demo's data,
+// at a fixed address) or data (data/<key>, under cache; any other key is not found). The Dataset is read from the
+// store only for index.html, generated from its columns, and the data: never for charts.js.
+// csp is the index page's Content-Security-Policy; cache is the data's Cache-Control.
+func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp, cache string) {
 	if name == "charts.js" {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(lab.ChartScript)
+		return
+	}
+	if name == "data" && r.PathValue("key") != d.Key {
+		a.notFound(w, r)
+		return
+	}
+	if err := a.readDataset(r.Context(), d); err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	if d.Dataset == nil {
 		a.notFound(w, r)
 		return
 	}
-	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+	dataURL := "data.json"
+	if d.Key != "" {
+		dataURL = dataPath(d)
+	}
+	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, dataURL)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	if name == "data.json" {
+	if name == "data" {
+		w.Header().Set("Cache-Control", cache)
+	}
+	if name == "data.json" || name == "data" {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(data)
 		return
@@ -570,7 +800,7 @@ func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashb
 		a.notFound(w, r)
 		return
 	}
-	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, "data.json")
 	if err != nil {
 		a.serverError(w, r, err)
 		return

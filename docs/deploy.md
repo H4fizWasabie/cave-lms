@@ -41,6 +41,8 @@ Once per VPS. Run as root on the VPS.
 
    For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only orders on the form that Admin > CaveText settings > Payment link points to give Pro, so a Test Mode copy of the form with its own address can share the webhook safely. Without the key every webhook gets 404.
 
+   For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
+
 3. From your machine, run `deploy/deploy.sh` (next section).
 4. Create the Admin on the VPS. `systemd-run` runs it as `cave` with the service's own env file. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
 
@@ -90,6 +92,25 @@ The app refuses an upload over 2 GB with its own message. Caddy's `request_body`
 ## System log
 
 Errors and start-ups go to journald and to the `system_log` table, which keeps 30 days. The Owner (`OWNER_EMAIL` in `/etc/cave-lms/env`, an Admin account with that email) reads them at `/admin/log`; every other visitor gets a 404 there. A line that could not reach the database, for example while Postgres is down, is only in journald: `journalctl -u cave-lms -n 100`.
+
+## Datasets in R2
+
+Lab Datasets live in a private Cloudflare R2 bucket (ADR 0008); Postgres keeps only which Dataset belongs to which Dashboard. Only the app holds the bucket's credentials.
+
+**Put the four `R2_` settings in `/etc/cave-lms/env` before the first start of this release.** That start copies every existing Dataset, once, out of the database into whichever store is configured. If R2 is not set yet they land on the disk, and switching to R2 later leaves those Dashboards and their Deployments failing, because the app then looks for their data in the bucket.
+
+1. Cloudflare dashboard > R2 > Create bucket. Name it `cave-lms-datasets`, Location: Automatic with the hint Asia-Pacific (APAC), default storage class Standard. Leave Public access off: no `r2.dev` address, no custom domain.
+2. R2 > Manage API tokens > Create API token: permission Object Read & Write, applied to `cave-lms-datasets` only, no expiry (or note when it expires). Copy the Access Key ID and Secret Access Key; the secret is shown once. Use a new token, not the backup one.
+3. Add to `/etc/cave-lms/env` with an editor, then `systemctl restart cave-lms` (or deploy):
+
+   ```sh
+   R2_ACCOUNT_ID=...            # Cloudflare account ID, on the R2 overview page
+   R2_BUCKET=cave-lms-datasets
+   R2_ACCESS_KEY_ID=...
+   R2_SECRET_ACCESS_KEY=...
+   ```
+
+All four or none: with some set and others missing the app stops at start naming the missing ones (`journalctl -u cave-lms -n 20`); with none set Datasets stay on the disk under `STORAGE_DIR`. Failed reads and writes go to the System log; a failed upload tells the Learner and keeps their previous Dataset. The nightly backup does not cover this bucket.
 
 ## Email
 

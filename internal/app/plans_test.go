@@ -12,7 +12,7 @@ import (
 
 // createPlan posts the Plan form as the logged-in Admin.
 func (s *site) createPlan(name, days, deployments, paymentLink string) (*http.Response, string) {
-	return s.post("/admin/plans", url.Values{"name": {name}, "days": {days}, "deployments": {deployments}, "payment_link": {paymentLink}})
+	return s.post("/admin/plans", url.Values{"name": {name}, "days": {days}, "deployments": {deployments}, "storage": {"1024"}, "payment_link": {paymentLink}})
 }
 
 func TestAdminCreatesAPlan(t *testing.T) {
@@ -50,7 +50,7 @@ func TestAdminEditsAPlan(t *testing.T) {
 	res, body := s.get("/admin/plans/" + id + "/edit")
 	expectStatus(t, res, body, http.StatusOK, `value="Lab Monthly"`)
 
-	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Quarterly"}, "days": {"90"}, "deployments": {"10"}, "payment_link": {"https://pay.example.com/q"}})
+	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Quarterly"}, "days": {"90"}, "deployments": {"10"}, "storage": {"1024"}, "payment_link": {"https://pay.example.com/q"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/admin/plans")
 	for _, want := range []string{"Lab Quarterly", "90 days", "10 Deployments", "https://pay.example.com/q"} {
@@ -80,7 +80,7 @@ func TestInvalidPlansAreRefusedWithAMessage(t *testing.T) {
 
 	s.createPlan("Lab Monthly", "30", "3", "")
 	id := s.onlyPlanID()
-	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Monthly"}, "days": {"0"}, "deployments": {"3"}})
+	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Monthly"}, "days": {"0"}, "deployments": {"3"}, "storage": {"1024"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "1 or more")
 	res, body = s.get("/admin/plans")
 	expectStatus(t, res, body, http.StatusOK, "30 days")
@@ -235,7 +235,7 @@ func TestPlanPeriodsStackSoNoDaysAreLost(t *testing.T) {
 func TestEditingAPlanLeavesAssignedPeriodsAlone(t *testing.T) {
 	s, id := adminWithPlanAndLearner(t)
 	s.assignPlan("ada@example.com", id)
-	s.post("/admin/plans/"+id, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"9"}})
+	s.post("/admin/plans/"+id, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"9"}, "storage": {"1024"}})
 	s.assignPlan("ada@example.com", id)
 
 	p := s.periodsOf("ada@example.com")
