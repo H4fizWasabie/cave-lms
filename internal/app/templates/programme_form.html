@@ -12,7 +12,7 @@
               <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Programme.Title}}" maxlength="200" required></div>
               <div class="field"><label for="starts_on">{{t .Lang "programmes.form.starts-on"}}</label><input id="starts_on" type="date" name="starts_on" value="{{.Programme.StartsValue}}" required></div>
             </div>
-            <div class="field"><label for="blurb">{{t .Lang "programmes.form.blurb"}}</label><textarea id="blurb" name="blurb" rows="4" maxlength="2000">{{.Programme.Blurb}}</textarea></div>
+            <div class="field"><label for="blurb">{{t .Lang "programmes.form.blurb"}}</label><textarea id="blurb" name="blurb" rows="4" maxlength="2000" required>{{.Programme.Blurb}}</textarea></div>
             <div class="field"><label for="link">{{t .Lang "programmes.form.link"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="link" type="url" name="link" value="{{.Programme.Link}}" placeholder="https://"></div>
             {{with .Programme.PictureKey}}<img class="programme-pic" src="/programmes/pictures/{{.}}" alt="">{{end}}
             <div class="field"><label for="picture">{{t .Lang "programmes.form.picture"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="picture" type="file" name="picture" accept="image/jpeg,image/png,image/webp"><small>{{t .Lang "programmes.form.picture-hint"}}</small></div>

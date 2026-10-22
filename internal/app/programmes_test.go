@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -95,7 +96,7 @@ func TestTheProgramPageShowsAProgrammesPictureAndLinkButTheGalleryDoesNot(t *tes
 func TestAProgrammePictureMustBeAPicture(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": "AI Bootcamp", "starts_on": "2099-03-01"}, pdfFile)
+	res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": "AI Bootcamp", "starts_on": "2099-03-01", "blurb": "Two days."}, pdfFile)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "JPEG, PNG or WebP")
 	if n := s.storedFiles(); n != 0 {
 		t.Fatalf("%d files stored, want 0", n)
@@ -105,13 +106,27 @@ func TestAProgrammePictureMustBeAPicture(t *testing.T) {
 func TestInvalidProgrammesAreRefusedWithAMessage(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	for _, tc := range []struct{ title, startsOn, link, want string }{
-		{"  ", "2099-03-01", "", "Enter a title."},
-		{"AI Bootcamp", "", "", "Enter a start date."},
-		{"AI Bootcamp", "2099-03-01", "javascript:alert(1)", "https://"},
+	for _, tc := range []struct{ title, startsOn, blurb, link, want string }{
+		{"  ", "2099-03-01", "Two days.", "", "Enter a title."},
+		{"AI Bootcamp", "", "Two days.", "", "Enter a start date."},
+		{"AI Bootcamp", "2099-03-01", "  ", "", "Enter a blurb."},
+		{"AI Bootcamp", "2099-03-01", "Two days.", "javascript:alert(1)", "Enter the link as a full web address starting with https://"},
 	} {
-		res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": tc.title, "starts_on": tc.startsOn, "link": tc.link}, nil)
+		res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": tc.title, "starts_on": tc.startsOn, "blurb": tc.blurb, "link": tc.link}, nil)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, tc.want)
+	}
+	_, body := s.get("/admin/programmes")
+	expectNone(t, body, "AI Bootcamp")
+}
+
+func TestAProgrammePictureOver20MBIsRefusedAndNothingIsStored(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	big := append(append([]byte{}, pngFile...), bytes.Repeat([]byte{0}, 20<<20)...)
+	res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": "AI Bootcamp", "starts_on": "2099-03-01", "blurb": "Two days."}, big)
+	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "Pictures are limited to 20 MB")
+	if n := s.storedFiles(); n != 0 {
+		t.Fatalf("%d files stored, want 0", n)
 	}
 }
 
@@ -145,12 +160,32 @@ func TestAdminDeletesAProgrammeAndItsPicture(t *testing.T) {
 	}
 }
 
+func TestDeletingAProgrammeSucceedsEvenWhenItsPictureCannotBeRemoved(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root deletes from a read-only directory")
+	}
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days.", "", pngFile)
+	id := s.onlyProgrammeID()
+
+	// A read-only storage directory stands in for R2 refusing the delete.
+	if err := os.Chmod(s.storageDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(s.storageDir, 0o700) })
+	res, body := s.post("/admin/programmes/"+id+"/delete", url.Values{})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/programmes")
+	expectNone(t, body, "AI Bootcamp")
+}
+
 func TestThePastProgrammesLeaveTheProgramPageButStayInTheAdminArea(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	s.addProgramme("Later one", "2099-06-01", "", "", nil)
-	s.addProgramme("Past one", "2020-01-01", "", "", nil)
-	s.addProgramme("Sooner one", "2099-01-01", "", "", nil)
+	s.addProgramme("Later one", "2099-06-01", "Later.", "", nil)
+	s.addProgramme("Past one", "2020-01-01", "Past.", "", nil)
+	s.addProgramme("Sooner one", "2099-01-01", "Sooner.", "", nil)
 
 	_, body := s.get("/programmes")
 	expectInOrder(t, content(body), "Sooner one", "Later one")

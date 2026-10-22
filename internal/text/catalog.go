@@ -1263,12 +1263,21 @@ var catalog = map[string]entry{
 	"programmes.form.blurb":        {en: "Blurb", ms: "Ringkasan"},
 	"programmes.form.link":         {en: "Link", ms: "Pautan"},
 	"programmes.form.picture":      {en: "Picture", ms: "Gambar"},
-	"programmes.form.picture-hint": {en: "JPEG, PNG or WebP. A new picture replaces the current one.", ms: "JPEG, PNG atau WebP. Gambar baharu menggantikan gambar semasa."},
+	"programmes.form.picture-hint": {en: "JPEG, PNG or WebP, up to 20 MB. A new picture replaces the current one.", ms: "JPEG, PNG atau WebP, sehingga 20 MB. Gambar baharu menggantikan gambar semasa."},
 	"programmes.err.title":         {en: "Enter a title.", ms: "Masukkan tajuk."},
 	"programmes.err.date":          {en: "Enter a start date.", ms: "Masukkan tarikh mula."},
 	"programmes.err.picture":       {en: "Upload a JPEG, PNG or WebP picture.", ms: "Muat naik gambar JPEG, PNG atau WebP."},
-	"programmes.not-found.title":   {en: "Programme not found", ms: "Program tidak dijumpai"},
-	"programmes.not-found":         {en: "This Programme does not exist or was deleted.", ms: "Program ini tidak wujud atau telah dipadam."},
+	"programmes.err.blurb":         {en: "Enter a blurb.", ms: "Masukkan ringkasan."},
+	"programmes.err.link": {
+		en: "Enter the link as a full web address starting with https://, or leave it empty.",
+		ms: "Masukkan pautan sebagai alamat web penuh yang bermula dengan https://, atau biarkan kosong.",
+	},
+	"programmes.err.too-large": {
+		en: "This picture is too large. Pictures are limited to 20 MB, and nothing was stored.",
+		ms: "Gambar ini terlalu besar. Gambar terhad kepada 20 MB, dan tiada apa-apa disimpan.",
+	},
+	"programmes.not-found.title": {en: "Programme not found", ms: "Program tidak dijumpai"},
+	"programmes.not-found":       {en: "This Programme does not exist or was deleted.", ms: "Program ini tidak wujud atau telah dipadam."},
 	// ---- end Programmes (#123) ----
 
 	// Home page: Coach Adam's write-up in Malay; the English is its translation, for him to proofread.

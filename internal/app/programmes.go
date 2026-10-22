@@ -48,6 +48,16 @@ type programmeFormPage struct {
 
 const programmeColumns = `id, title, starts_on, blurb, link, picture_key, picture_type`
 
+// maxProgrammeUpload caps the Programme form, picture included, well below the Gallery's limit.
+const maxProgrammeUpload = 20 << 20
+
+// scanProgramme reads one row selected with programmeColumns.
+func scanProgramme(row interface{ Scan(...any) error }) (programme, error) {
+	var p programme
+	err := row.Scan(&p.ID, &p.Title, &p.StartsOn, &p.Blurb, &p.Link, &p.PictureKey, &p.pictureType)
+	return p, err
+}
+
 func (a *App) listProgrammes(r *http.Request, query string) ([]programme, error) {
 	rows, err := a.db.QueryContext(r.Context(), query)
 	if err != nil {
@@ -56,8 +66,8 @@ func (a *App) listProgrammes(r *http.Request, query string) ([]programme, error)
 	defer rows.Close()
 	var list []programme
 	for rows.Next() {
-		var p programme
-		if err := rows.Scan(&p.ID, &p.Title, &p.StartsOn, &p.Blurb, &p.Link, &p.PictureKey, &p.pictureType); err != nil {
+		p, err := scanProgramme(rows)
+		if err != nil {
 			return nil, err
 		}
 		list = append(list, p)
@@ -135,11 +145,11 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 	fail := func(status int, key string) {
 		a.render(w, r, status, "programme_form", &programmeFormPage{pageBase{Error: text.T(lang, key)}, p})
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, a.maxUpload)
+	r.Body = http.MaxBytesReader(w, r.Body, maxProgrammeUpload)
 	if err := r.ParseMultipartForm(1 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			fail(http.StatusRequestEntityTooLarge, "adm.gallery.err.too-large")
+			fail(http.StatusRequestEntityTooLarge, "programmes.err.too-large")
 			return
 		}
 		fail(http.StatusBadRequest, "adm.gallery.unread")
@@ -160,8 +170,11 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 	case dateErr != nil:
 		fail(http.StatusUnprocessableEntity, "programmes.err.date")
 		return
+	case p.Blurb == "":
+		fail(http.StatusUnprocessableEntity, "programmes.err.blurb")
+		return
 	case p.Link != "" && !isWebLink(p.Link):
-		fail(http.StatusUnprocessableEntity, "plans.err.link")
+		fail(http.StatusUnprocessableEntity, "programmes.err.link")
 		return
 	}
 
@@ -212,7 +225,7 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 	http.Redirect(w, r, "/admin/programmes", http.StatusSeeOther)
 }
 
-// deleteProgramme removes the row, then its picture.
+// deleteProgramme removes the row, then its picture. A picture left behind is logged, not shown to the Admin.
 func (a *App) deleteProgramme(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.programmeFor(w, r)
 	if !ok {
@@ -224,8 +237,7 @@ func (a *App) deleteProgramme(w http.ResponseWriter, r *http.Request) {
 	}
 	if p.PictureKey != "" {
 		if err := a.store.Delete(r.Context(), p.PictureKey); err != nil {
-			a.serverError(w, r, err)
-			return
+			a.logError(r, err)
 		}
 	}
 	http.Redirect(w, r, "/admin/programmes", http.StatusSeeOther)
@@ -237,8 +249,7 @@ func (a *App) programmeFor(w http.ResponseWriter, r *http.Request) (programme, b
 	var p programme
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err == nil {
-		err = a.db.QueryRowContext(r.Context(), `SELECT `+programmeColumns+` FROM programmes WHERE id = $1`, id).
-			Scan(&p.ID, &p.Title, &p.StartsOn, &p.Blurb, &p.Link, &p.PictureKey, &p.pictureType)
+		p, err = scanProgramme(a.db.QueryRowContext(r.Context(), `SELECT `+programmeColumns+` FROM programmes WHERE id = $1`, id))
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
 			return p, false
