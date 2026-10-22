@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/app"
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 	"github.com/xuri/excelize/v2"
 )
@@ -615,5 +616,38 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	if err := ada.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
 		WHERE table_schema = current_schema() AND table_name = 'dashboards' AND column_name = 'dataset')`).Scan(&column); err != nil || column {
 		t.Fatalf("the old dataset column is still there (%v)", err)
+	}
+}
+
+func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a read-only directory")
+	}
+	s := newSite(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createPlan("Lab Monthly", "30", "3", "")
+	ada := s.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	s.assignPlan("ada@example.com", s.onlyPlanID())
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	before := ada.dataOf(path + "/view/")
+
+	// A read-only storage directory stands in for R2 refusing the write.
+	if err := os.Chmod(s.storageDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(s.storageDir, 0o700) })
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{day, "Kopi", "Dapur", "Keluar", 4321.5})
+	res, body := ada.postFile(path+"/dataset", "new.xlsx", file)
+	expectStatus(t, res, body, http.StatusServiceUnavailable, "The upload failed")
+	expectStatus(t, res, body, http.StatusServiceUnavailable, "your Dashboard still uses finance-sample.xlsx")
+
+	if after := ada.dataOf(path + "/view/"); after != before {
+		t.Fatalf("after a failed upload the Dashboard fetches %s, want the previous %s", after, before)
+	}
+	if _, log := s.get("/admin/log?level=error"); !strings.Contains(log, "put Dataset") {
+		t.Fatalf("the System log does not record the failed write:\n%s", log)
 	}
 }

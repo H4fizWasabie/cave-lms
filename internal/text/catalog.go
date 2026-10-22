@@ -510,6 +510,7 @@ var catalog = map[string]entry{
 		en: "The file is over 2 MB. The Lab reads files up to 2 MB. Delete some rows, or columns you do not need, and upload again.",
 		ms: "Fail ini melebihi 2 MB. Lab membaca fail sehingga 2 MB. Padam beberapa baris, atau lajur yang tidak diperlukan, dan muat naik semula.",
 	},
+	"lab.d.upload-failed": {en: "The upload failed. Try again in a few minutes.", ms: "Muat naik gagal. Cuba lagi dalam beberapa minit."},
 	"lab.err.choose-file": {en: "Choose an Excel file (.xlsx) to upload.", ms: "Pilih fail Excel (.xlsx) untuk dimuat naik."},
 	"lab.err.not-xlsx": {
 		en: "%s is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",

@@ -132,6 +132,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err != nil {
 		return nil, err
 	}
+	var datasets storage.Store = store
+	if cfg.R2Bucket != "" {
+		datasets = storage.NewR2(cfg.R2AccountID, cfg.R2Bucket, cfg.R2AccessKeyID, cfg.R2SecretAccessKey)
+	}
 	goose.SetBaseFS(appFiles)
 	if err = goose.SetDialect("postgres"); err != nil {
 		return nil, fmt.Errorf("set migration dialect: %w", err)
@@ -140,14 +144,14 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	if err = goose.UpToContext(ctx, db, "migrations", 68); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
-	if err = copyDatasetsToStore(ctx, db, store); err != nil {
+	if err = copyDatasetsToStore(ctx, db, datasets); err != nil {
 		return nil, fmt.Errorf("copy Datasets to the store: %w", err)
 	}
 	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: store, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
 	if err := a.pruneSystemLog(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("prune System log: %w", err))
 	}

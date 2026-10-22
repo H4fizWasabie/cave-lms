@@ -313,6 +313,7 @@ type dashboardPage struct {
 	Tab       string
 	Errors    []string // what was wrong with an upload
 	Upload    string   // the refused file's name
+	Failed    bool     // the store refused the upload's Dataset
 	Again     bool     // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
 	Phone     bool // preview at phone width
@@ -459,7 +460,8 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	key = "dataset-" + key[:22] // a new key every upload, so a cached copy is never stale
 	if err := a.datasets.Put(key, dataset); err != nil {
-		a.serverError(w, r, fmt.Errorf("put Dataset %s: %w", key, err))
+		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
+		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
 		return
 	}
 	old, err := a.replaceDataset(r.Context(), d.ID, key, name, header.Size, choicesJSON)
