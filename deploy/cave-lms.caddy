@@ -1,5 +1,5 @@
 # Installed to /etc/caddy/sites/cave-lms.caddy by deploy/deploy.sh. See docs/deploy.md before changing the domain.
-lms.wasabietech.com {
+cavelms.com {
 	bind 169.58.63.110
 	# The app caps one upload at 2 GB and explains the refusal; this is the outer limit with room for multipart framing.
 	request_body {
@@ -8,4 +8,10 @@ lms.wasabietech.com {
 	# Remove once real email delivery (#12) lands and the site is announced.
 	header X-Robots-Tag "noindex, nofollow"
 	reverse_proxy 127.0.0.1:8088
+}
+
+# Old and alternate addresses redirect forever, keeping the path (ADR 0002).
+www.cavelms.com, lms.wasabietech.com {
+	bind 169.58.63.110
+	redir https://cavelms.com{uri} 308
 }

@@ -1,6 +1,6 @@
 # Deploying Cave LMS
 
-The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `lms.wasabietech.com` from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
+The app runs on the shared VPS (`ssh vps`, Ubuntu 24.04) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (`www.cavelms.com` and the old `lms.wasabietech.com` redirect to it) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
 
 | What | Where on the VPS |
 |---|---|
@@ -17,7 +17,7 @@ Both the database and the uploads directory are backed up every night (see Backu
 
 Once per VPS. Run as root on the VPS.
 
-1. Point an A record for the domain at `169.58.63.110` and wait until `dig +short lms.wasabietech.com` returns it. Caddy can't get a certificate before that.
+1. Point A records for `cavelms.com` and `www.cavelms.com` at `169.58.63.110` (DNS is at NetKL) and wait until `dig +short cavelms.com` returns it. Caddy can't get a certificate before that.
 2. Create the system user, database and settings:
 
    ```sh
@@ -28,8 +28,8 @@ Once per VPS. Run as root on the VPS.
    install -m 0600 /dev/null /etc/cave-lms/env
    cat > /etc/cave-lms/env <<'EOF'
    DATABASE_URL=postgres:///cave?host=/var/run/postgresql
-   PUBLIC_BASE_URL=https://lms.wasabietech.com
-   EMAIL_FROM="Cave LMS <noreply@lms.wasabietech.com>"
+   PUBLIC_BASE_URL=https://cavelms.com
+   EMAIL_FROM="Cave LMS <noreply@cavelms.com>"
    STORAGE_DIR=/var/lib/cave-lms/uploads
    LISTEN_ADDR=127.0.0.1:8088
    OWNER_EMAIL=hafizwasabie@gmail.com
@@ -39,7 +39,7 @@ Once per VPS. Run as root on the VPS.
 
    Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see Email below).
 
-   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://lms.wasabietech.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only orders on the form that Admin > CaveText settings > Payment link points to give Pro, so a Test Mode copy of the form with its own address can share the webhook safely. Without the key every webhook gets 404.
+   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only orders on the form that Admin > CaveText settings > Payment link points to give Pro, so a Test Mode copy of the form with its own address can share the webhook safely. Without the key every webhook gets 404.
 
    For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
 
@@ -81,6 +81,8 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
 4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
 5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see Email below). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
 
+A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect.
+
 **Standing rule: an old domain keeps redirecting forever.** Never remove an old domain's redirect block, and keep renewing the old domain. A printed or saved Certificate carries its verification link on the domain that was current when the PDF was downloaded. See `docs/adr/0002-old-domains-redirect-forever.md`.
 
 ## Upload limit
@@ -112,7 +114,7 @@ All four or none: with some set and others missing the app stops at start naming
 
 ## Email
 
-Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `lms.wasabietech.com` is verified in Resend through DNS records at Hostinger (DKIM `resend._domainkey.lms`, plus `send.lms` and `rsend.lms`). Resend's dashboard lists the exact records.
+Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records at NetKL (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
 
 A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
 

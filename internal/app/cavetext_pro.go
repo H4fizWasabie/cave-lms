@@ -11,7 +11,7 @@ import (
 )
 
 // caveTextSite is where the extension's own page links; it leads on to the Chrome Web Store.
-const caveTextSite = "https://cavetext.wasabietech.com"
+const caveTextSite = "https://cavetext.cavelms.com"
 
 // proLength is how long CaveText Pro lasts when no Plan is marked as the Pro Plan; with one, Pro lasts its days.
 const proLength = "12 months"
