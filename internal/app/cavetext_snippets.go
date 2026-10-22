@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // caveTextSnippet is a Snippet as the CaveText API sends and takes it.
@@ -21,18 +23,13 @@ type caveTextSnippet struct {
 	WithMasterPrompt bool   `json:"withMasterPrompt"`
 }
 
-const (
-	caveTextProblem = "CAVELMS had a problem. Try again later."
-	snippetGone     = "That Snippet is gone; it may have been deleted in another browser."
-)
-
 func (a *App) caveTextSnippets(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	rows, err := a.db.QueryContext(r.Context(), `
 		SELECT id, folder, name, shortcut, body, with_master_prompt FROM cavetext_snippets
 		WHERE learner_id = $1 ORDER BY id`, l.ID)
 	if err != nil {
 		a.logError(r, fmt.Errorf("list Snippets: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 		return
 	}
 	defer rows.Close()
@@ -41,14 +38,14 @@ func (a *App) caveTextSnippets(w http.ResponseWriter, r *http.Request, l *caveTe
 		var s caveTextSnippet
 		if err := rows.Scan(&s.ID, &s.Folder, &s.Name, &s.Shortcut, &s.Body, &s.WithMasterPrompt); err != nil {
 			a.logError(r, fmt.Errorf("list Snippets: %w", err))
-			writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+			writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 			return
 		}
 		list = append(list, s)
 	}
 	if err := rows.Err(); err != nil {
 		a.logError(r, fmt.Errorf("list Snippets: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"snippets": list})
@@ -106,12 +103,12 @@ func otherSnippets(r *http.Request, tx *sql.Tx, l *caveTextLearner, except int64
 	return others, rows.Err()
 }
 
-// snippetProblem says why a Snippet can't be saved beside the others, or "".
-func snippetProblem(s caveTextSnippet, others []caveTextSnippet) string {
+// snippetProblem says, in lang, why a Snippet can't be saved beside the others, or "".
+func snippetProblem(lang string, s caveTextSnippet, others []caveTextSnippet) string {
 	if strings.TrimSpace(s.Name) == "" {
-		return "A name is needed."
+		return text.T(lang, "cavetext.api.name-needed")
 	}
-	return shortcutProblem(s.Shortcut, others)
+	return shortcutProblem(lang, s.Shortcut, others)
 }
 
 func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
@@ -121,7 +118,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 	}
 	fail := func(err error) {
 		a.logError(r, fmt.Errorf("create Snippet: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
 	tx, err := a.lockSnippets(r, l)
 	if err != nil {
@@ -139,7 +136,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(s, clashList(reserved, others, 0)); problem != "" {
+	if problem := snippetProblem(l.Lang, s, clashList(reserved, others, 0)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -149,7 +146,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		return
 	}
 	if c.Full(len(others)) {
-		writeJSONError(w, http.StatusForbidden, overCapMessage(len(others), c))
+		writeJSONError(w, http.StatusForbidden, overCapMessage(l.Lang, len(others), c))
 		return
 	}
 	if err := tx.QueryRowContext(r.Context(), `
@@ -170,7 +167,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id < 1 {
-		writeJSONError(w, http.StatusNotFound, snippetGone)
+		writeJSONError(w, http.StatusNotFound, text.T(l.Lang, "cavetext.api.snippet-gone"))
 		return
 	}
 	s, ok := readSnippet(w, r)
@@ -179,7 +176,7 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 	}
 	fail := func(err error) {
 		a.logError(r, fmt.Errorf("update Snippet: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
 	tx, err := a.lockSnippets(r, l)
 	if err != nil {
@@ -197,7 +194,7 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(s, clashList(reserved, others, 0)); problem != "" {
+	if problem := snippetProblem(l.Lang, s, clashList(reserved, others, 0)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -206,7 +203,7 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		WHERE id = $1 AND learner_id = $2 RETURNING id`,
 		id, l.ID, s.Folder, s.Name, s.Shortcut, s.Body, s.WithMasterPrompt).Scan(&s.ID)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeJSONError(w, http.StatusNotFound, snippetGone)
+		writeJSONError(w, http.StatusNotFound, text.T(l.Lang, "cavetext.api.snippet-gone"))
 		return
 	}
 	if err == nil {
@@ -230,7 +227,7 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	}
 	fail := func(err error) {
 		a.logError(r, fmt.Errorf("replace Snippets: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
 	tx, err := a.lockSnippets(r, l)
 	if err != nil {
@@ -253,7 +250,7 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	before := clashList(reserved, nil, len(list)) // grows by each kept Snippet once it passes
 	for i := range list {
 		list[i] = in.Snippets[i].snippet()
-		if problem := snippetProblem(list[i], before); problem != "" {
+		if problem := snippetProblem(l.Lang, list[i], before); problem != "" {
 			writeJSONError(w, http.StatusUnprocessableEntity, problem)
 			return
 		}
@@ -279,7 +276,7 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	}
 	answer := map[string]any{"snippets": list, "skipped": skipped}
 	if skipped > 0 {
-		answer["message"] = skippedMessage(len(list), skipped)
+		answer["message"] = skippedMessage(l.Lang, len(list), skipped)
 	}
 	writeJSON(w, http.StatusOK, answer)
 }
@@ -287,23 +284,23 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 // shortcutProblem says why a shortcut can't be saved beside the others, or "". These are the rules the extension's
 // dashboard uses: a shortcut has no whitespace and, ignoring case, is neither another's nor a prefix of one or the
 // other way round, since the shorter would always fire first.
-func shortcutProblem(shortcut string, others []caveTextSnippet) string {
+func shortcutProblem(lang, shortcut string, others []caveTextSnippet) string {
 	if shortcut == "" {
-		return "A shortcut is needed."
+		return text.T(lang, "cavetext.api.shortcut-needed")
 	}
 	if strings.IndexFunc(shortcut, unicode.IsSpace) >= 0 {
-		return "Shortcuts cannot contain spaces."
+		return text.T(lang, "cavetext.api.shortcut-spaces")
 	}
 	s := strings.ToLower(shortcut)
 	for _, o := range others {
 		t := strings.ToLower(o.Shortcut)
 		switch {
 		case t == s:
-			return fmt.Sprintf(`"%s" already uses %s.`, o.Name, o.Shortcut)
+			return text.T(lang, "cavetext.api.shortcut-taken", o.Name, o.Shortcut)
 		case strings.HasPrefix(t, s):
-			return fmt.Sprintf(`%s would always fire before %s ("%s") finished typing.`, shortcut, o.Shortcut, o.Name)
+			return text.T(lang, "cavetext.api.shortcut-shorter", shortcut, o.Shortcut, o.Name)
 		case strings.HasPrefix(s, t):
-			return fmt.Sprintf(`%s ("%s") would always fire before %s finished typing.`, o.Shortcut, o.Name, shortcut)
+			return text.T(lang, "cavetext.api.shortcut-longer", o.Shortcut, o.Name, shortcut)
 		}
 	}
 	return ""
@@ -312,23 +309,23 @@ func shortcutProblem(shortcut string, others []caveTextSnippet) string {
 func (a *App) deleteCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		writeJSONError(w, http.StatusNotFound, snippetGone)
+		writeJSONError(w, http.StatusNotFound, text.T(l.Lang, "cavetext.api.snippet-gone"))
 		return
 	}
 	res, err := a.db.ExecContext(r.Context(), `DELETE FROM cavetext_snippets WHERE id = $1 AND learner_id = $2`, id, l.ID)
 	if err != nil {
 		a.logError(r, fmt.Errorf("delete Snippet: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 		return
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
 		a.logError(r, fmt.Errorf("delete Snippet: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 		return
 	}
 	if n == 0 {
-		writeJSONError(w, http.StatusNotFound, snippetGone)
+		writeJSONError(w, http.StatusNotFound, text.T(l.Lang, "cavetext.api.snippet-gone"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

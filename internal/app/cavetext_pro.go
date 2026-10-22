@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // caveTextSite is where the extension's own page links; it leads on to the Chrome Web Store.
@@ -131,8 +133,8 @@ type caveTextPage struct {
 	Account     bool // the Learner has signed in to CaveText
 	Cap         snippetCap
 	Count       int
-	ProUntil    string
-	Price       string // in RM: RM25
+	ProUntil    string // the day Pro ends, in the page's language
+	Price      string // in RM: RM25
 	PaymentLink string // where Buy goes; empty asks the Learner to contact us
 	EarlyPlaces string
 	EarlyCap    int
@@ -172,7 +174,12 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if p.Cap.Pro {
-			p.ProUntil = p.Cap.ProUntil.Format(periodTime)
+			lang, err := a.language(r)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			p.ProUntil = text.Date(lang, p.Cap.ProUntil)
 		}
 	}
 	a.render(w, r, http.StatusOK, "cavetext", p)

@@ -105,7 +105,8 @@ func (p *masterPrompts) problem() string {
 		case utf8.RuneCountInString(x.Body) > maxMasterPromptBody:
 			return fmt.Sprintf("Shorten the %s master prompt to %s characters or fewer.", x.Label, thousands(maxMasterPromptBody))
 		}
-		if why := shortcutProblem(x.Shortcut, others); why != "" {
+		// The rest of this page's messages are English until the Admin area is translated.
+		if why := shortcutProblem("en",x.Shortcut, others); why != "" {
 			return fmt.Sprintf("%s master prompt: %s", x.Label, why)
 		}
 	}
@@ -128,7 +129,7 @@ func clashingLearners(ctx context.Context, db *sql.DB, p masterPrompts) (int, er
 		if err := rows.Scan(&id, &shortcut); err != nil {
 			return 0, err
 		}
-		if !learners[id] && shortcutProblem(shortcut, reserved) != "" {
+		if !learners[id] && shortcutProblem("en", shortcut, reserved) != "" {
 			learners[id] = true
 		}
 	}

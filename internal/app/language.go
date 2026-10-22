@@ -37,13 +37,23 @@ func (a *App) language(r *http.Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if l != nil && text.Supported(l.Lang) {
-		return l.Lang, nil
+	saved := ""
+	if l != nil {
+		saved = l.Lang
+	}
+	return requestLanguage(saved, r), nil
+}
+
+// requestLanguage is saved when it is a language Cave speaks, else the language cookie, else the browser's.
+// The CaveText API passes the token's Learner's saved language; its requests carry no cookie.
+func requestLanguage(saved string, r *http.Request) string {
+	if text.Supported(saved) {
+		return saved
 	}
 	if c, err := r.Cookie(languageCookie); err == nil && text.Supported(c.Value) {
-		return c.Value, nil
+		return c.Value
 	}
-	return text.FromAcceptLanguage(r.Header.Get("Accept-Language")), nil
+	return text.FromAcceptLanguage(r.Header.Get("Accept-Language"))
 }
 
 // switchLanguage is the header's BM | EN form: it remembers the language in a cookie, saves it on the

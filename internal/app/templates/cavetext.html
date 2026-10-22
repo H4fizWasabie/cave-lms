@@ -3,54 +3,54 @@
     <div class="wrap page-pad">
       <section class="lab-hero">
         <div>
-          <p class="lab-kicker">Part of CAVELMS</p>
+          <p class="lab-kicker">{{t .Lang "cavetext.kicker"}}</p>
           <h1>CaveText</h1>
-          <p class="lede">Prompt shortcuts for every AI chat. Type a shortcut like <code>/review</code> in ChatGPT, Claude or Gemini and CaveText turns it into your full saved prompt. Sign in to the Chrome extension with your CAVELMS account and your Snippets follow you to every browser.</p>
+          <p class="lede">{{t .Lang "cavetext.lede.before"}} <code>/review</code> {{t .Lang "cavetext.lede.after"}}</p>
           {{- if not .Learner}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>Log in to see your Snippets and get CaveText Pro. New here? Register free, then sign in to CaveText with the same account.</span></p>
+          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{t .Lang "cavetext.visitor"}}</span></p>
           <div class="cta-row">
-            <a class="btn btn-solid btn-lg" href="/login?next=%2Fcavetext">Log in</a>
-            <a class="btn btn-ghost btn-lg" href="/register">Register</a>
+            <a class="btn btn-solid btn-lg" href="/login?next=%2Fcavetext">{{t .Lang "header.log-in"}}</a>
+            <a class="btn btn-ghost btn-lg" href="/register">{{t .Lang "header.register"}}</a>
           </div>
           {{- else if not .Account}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>Sign in to CaveText with this CAVELMS account to get your place and start saving Snippets. The first {{.EarlyPlaces}} Learners to sign in get {{.EarlyCap}} Snippets free; everyone after gets {{.LateCap}} Snippets free.</span></p>
-          <div class="cta-row"><a class="btn btn-solid btn-lg" href="{{.Extension}}">Get the CaveText extension</a></div>
+          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{t .Lang "cavetext.new" .EarlyPlaces (tn .Lang "cavetext.snippet-count" .EarlyCap) (tn .Lang "cavetext.snippet-count" .LateCap)}}</span></p>
+          <div class="cta-row"><a class="btn btn-solid btn-lg" href="{{.Extension}}">{{t .Lang "cavetext.get-extension"}}</a></div>
           {{- end}}
         </div>
       </section>
       {{- if .Account}}
       <div class="lab-plan">
         {{- if .Cap.Pro}}
-        <div><span class="panel-k">Your CaveText</span><strong>CaveText Pro until {{.ProUntil}}</strong><span class="muted">Renewing now adds a year after this date</span></div>
-        <div><span class="panel-k">Snippets</span><strong>{{.Count}} Snippets, unlimited</strong></div>
+        <div><span class="panel-k">{{t .Lang "cavetext.yours"}}</span><strong>{{t .Lang "cavetext.pro-until" .ProUntil}}</strong><span class="muted">{{t .Lang "cavetext.renew-note"}}</span></div>
+        <div><span class="panel-k">{{t .Lang "cavetext.snippets"}}</span><strong>{{t .Lang "cavetext.unlimited" (tn .Lang "cavetext.snippet-count" .Count)}}</strong></div>
         {{- else}}
-        <div><span class="panel-k">Your CaveText</span><strong>Free</strong><span class="muted">{{if .Cap.Early}}An early place: {{.Cap.Cap}} Snippets free{{else}}{{.Cap.Cap}} Snippets free{{end}}</span></div>
-        <div><span class="panel-k">Snippets</span><strong>{{.Count}} of {{.Cap.Cap}} Snippets</strong></div>
+        <div><span class="panel-k">{{t .Lang "cavetext.yours"}}</span><strong>{{t .Lang "cavetext.free"}}</strong><span class="muted">{{if .Cap.Early}}{{t .Lang "cavetext.early-free" (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}{{else}}{{t .Lang "cavetext.cap-free" (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}{{end}}</span></div>
+        <div><span class="panel-k">{{t .Lang "cavetext.snippets"}}</span><strong>{{t .Lang "cavetext.of-cap" .Count (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}</strong></div>
         {{- end}}
       </div>
       {{- if .OverCap}}
-      <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><div><p>You have more Snippets than your free cap of {{.Cap.Cap}}. You keep, use and edit all {{.Count}}, but can't add one until you are under the cap, or get CaveText Pro.</p></div></div>
+      <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><div><p>{{t .Lang "cavetext.over-cap" .Cap.Cap .Count}}</p></div></div>
       {{- end}}
       {{- end}}
-      <h2 class="h-md">CaveText Pro: {{.Price}} a year</h2>
+      <h2 class="h-md">{{t .Lang "cavetext.pro-price" .Price}}</h2>
       <ol class="lab-steps">
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>Unlimited Snippets</strong><span>Save as many Snippets as you like. If Pro lapses you keep every one.</span></li>
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>User master prompt</strong><span>Your own context, placed above your Snippets so every chatbot knows who you are.</span></li>
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>Image and Dashboard master prompts</strong><span>Ready prompts for images and analytics dashboards, inserted with one click.</span></li>
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>12 months</strong><span>Pro lasts a year from the day it starts. Renew early and the new year starts when this one ends.</span></li>
+        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.unlimited"}}</strong><span>{{t .Lang "cavetext.pro.unlimited-body"}}</span></li>
+        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.user"}}</strong><span>{{t .Lang "cavetext.pro.user-body"}}</span></li>
+        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.ready"}}</strong><span>{{t .Lang "cavetext.pro.ready-body"}}</span></li>
+        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.year"}}</strong><span>{{t .Lang "cavetext.pro.year-body"}}</span></li>
       </ol>
       {{- if .Learner}}
       <div class="cta-row">
         {{- if .PaymentLink}}
-        <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">{{if .Cap.Pro}}Renew{{else}}Buy{{end}} CaveText Pro</a>
+        <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">{{if .Cap.Pro}}{{t .Lang "cavetext.renew"}}{{else}}{{t .Lang "cavetext.buy"}}{{end}}</a>
         {{- else}}
-        <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">Contact us to {{if .Cap.Pro}}renew{{else}}buy{{end}} CaveText Pro</a>
+        <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">{{if .Cap.Pro}}{{t .Lang "cavetext.contact-renew"}}{{else}}{{t .Lang "cavetext.contact-buy"}}{{end}}</a>
         {{- end}}
-        {{- if not .Account}}<p class="muted">Sign in to CaveText first, so we can find you.</p>{{end}}
+        {{- if not .Account}}<p class="muted">{{t .Lang "cavetext.sign-in-first"}}</p>{{end}}
       </div>
       {{- end}}
       {{- if or (not .Learner) .Account}}
-      <p><a href="{{.Extension}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>Get the CaveText extension for Chrome</a></p>
+      <p><a href="{{.Extension}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t .Lang "cavetext.get-extension-chrome"}}</a></p>
       {{- end}}
     </div>
 {{end}}
