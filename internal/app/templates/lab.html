@@ -19,7 +19,7 @@
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>
         <div>
           <p>{{t .Lang "lab.plan-ended"}} {{t .Lang "lab.safe"}}</p>
-          <div class="cta-row">{{template "labUpgrade" .}}</div>
+          {{- template "offers" .}}
         </div>
       </div>
       {{- template "labTemplates" .}}
@@ -37,7 +37,7 @@
           </div>
           {{- else}}
           <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "lab.why-plan"}}</span></p>
-          <div class="cta-row">{{template "labUpgrade" .}}</div>
+          {{- template "offers" .}}
           {{- end}}
         </div>
       </section>
@@ -76,13 +76,6 @@
       {{- end}}
     </div>
 {{end}}
-{{define "labUpgrade"}}
-            {{- if .PaymentLink}}
-            <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">{{t .Lang "lab.upgrade"}}</a>
-            {{- else}}
-            <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Plan">{{t .Lang "lab.contact-upgrade"}}</a>
-            {{- end}}
-{{- end}}
 {{define "labTemplates"}}
       <h2 class="h-md">{{t .Lang "lab.templates"}}</h2>
       <ul class="tp-grid">

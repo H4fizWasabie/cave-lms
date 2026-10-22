@@ -31,27 +31,6 @@ func TestVisitorSeesWhatTheLabIsWithRegister(t *testing.T) {
 	}
 }
 
-func TestLearnerWithoutAPlanIsOfferedUpgrade(t *testing.T) {
-	s := newSite(t)
-	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	ada := s.second()
-	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
-
-	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Contact us to upgrade")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
-	if strings.Contains(body, "Register to get started") {
-		t.Fatalf("a Learner is asked to register: %s", body)
-	}
-
-	s.createPlan("Lab Monthly", "30", "3", "https://pay.example.com/lab")
-	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, `href="https://pay.example.com/lab">Upgrade</a>`)
-	if strings.Contains(body, "Contact us to upgrade") {
-		t.Fatalf("Contact us shown although a payment link is set: %s", body)
-	}
-}
-
 // labSetup logs in the Admin, creates a 30-day Plan with 3 Deployments and a Course, and returns the Admin,
 // a logged-in Learner Ada, the Plan ID and the Course ID.
 func labSetup(t *testing.T) (admin, ada *site, planID, courseID string) {

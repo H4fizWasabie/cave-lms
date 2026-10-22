@@ -11,14 +11,12 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// caveTextSettingsView is the CaveText settings page any Admin edits: Pro's price, shown in RM, its payment link, and
-// the question shown beside the User master prompt box; and, in a form of their own, the Image and Dashboard master
-// prompts, with how many Learners have a Snippet clashing with their shortcuts.
+// caveTextSettingsView is the CaveText settings page any Admin edits: the question shown beside the User master
+// prompt box; and, in a form of their own, the Image and Dashboard master prompts, with how many Learners have a
+// Snippet clashing with their shortcuts.
 type caveTextSettingsView struct {
 	pageBase
-	Price       string
-	PaymentLink string
-	Question    string
+	Question string
 
 	Prompts                      masterPrompts
 	PromptsError, PromptsMessage string
@@ -31,18 +29,13 @@ const maxQuestion = 2000
 // MaxQuestion is maxQuestion for the page's maxlength.
 func (caveTextSettingsView) MaxQuestion() int { return maxQuestion }
 
-// maxProPriceSen bounds the price, so a typo can't ask a Learner for a fortune.
-const maxProPriceSen = 9999999
-
 // caveTextSettings reads the page as saved; a refused save then puts back what the Admin posted.
 func (a *App) caveTextSettings(r *http.Request) (*caveTextSettingsView, error) {
 	v := &caveTextSettingsView{Prompts: newMasterPrompts()}
-	var sen int
-	if err := a.db.QueryRowContext(r.Context(), `SELECT s.pro_price_sen, s.pro_payment_link, s.master_prompt_question, `+masterPromptColumns+`
-		FROM cavetext_settings s WHERE id = 1`).Scan(append([]any{&sen, &v.PaymentLink, &v.Question}, v.Prompts.dest()...)...); err != nil {
+	if err := a.db.QueryRowContext(r.Context(), `SELECT s.master_prompt_question, `+masterPromptColumns+`
+		FROM cavetext_settings s WHERE id = 1`).Scan(append([]any{&v.Question}, v.Prompts.dest()...)...); err != nil {
 		return nil, fmt.Errorf("read CaveText settings: %w", err)
 	}
-	v.Price = strings.TrimPrefix(rm(sen), "RM")
 	n, err := clashingLearners(r.Context(), a.db, v.Prompts)
 	if err != nil {
 		return nil, fmt.Errorf("count Snippets clashing with the master prompts: %w", err)
@@ -77,18 +70,8 @@ func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	v := &caveTextSettingsView{
-		Price:       strings.TrimSpace(r.PostFormValue("price")),
-		PaymentLink: strings.TrimSpace(r.PostFormValue("payment_link")),
-		Question:    strings.TrimSpace(r.PostFormValue("question"))}
-	sen, ok := parseRM(v.Price)
+	v := &caveTextSettingsView{Question: strings.TrimSpace(r.PostFormValue("question"))}
 	switch {
-	case !ok || sen > maxProPriceSen:
-		v.Error = text.T(lang, "ctadmin.settings.err.price")
-	case sen == 0:
-		v.Error = text.T(lang, "ctadmin.settings.err.zero")
-	case v.PaymentLink != "" && !isWebLink(v.PaymentLink):
-		v.Error = text.T(lang, "ctadmin.settings.err.link")
 	case v.Question == "":
 		v.Error = text.T(lang, "ctadmin.settings.err.question")
 	case utf8.RuneCountInString(v.Question) > maxQuestion:
@@ -100,12 +83,11 @@ func (a *App) saveCaveTextSettings(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		saved.Price, saved.PaymentLink, saved.Question, saved.Error = v.Price, v.PaymentLink, v.Question, v.Error
+		saved.Question, saved.Error = v.Question, v.Error
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_cavetext_settings", saved)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE cavetext_settings SET pro_price_sen = $1, pro_payment_link = $2, master_prompt_question = $3 WHERE id = 1`,
-		sen, v.PaymentLink, v.Question); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE cavetext_settings SET master_prompt_question = $1 WHERE id = 1`, v.Question); err != nil {
 		a.serverError(w, r, fmt.Errorf("save CaveText settings: %w", err))
 		return
 	}

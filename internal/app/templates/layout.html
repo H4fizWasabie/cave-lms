@@ -102,7 +102,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "prices", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -115,6 +115,7 @@
           <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span></a>
           <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span></a>
           <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>
+          <a href="/admin/prices"{{if eq .Section "prices"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.prices"}}</span></a>
           <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span></a>
           <a href="/admin/cavetext"{{if eq .Section "cavetext"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "admin.side.cavetext"}}</span></a>
           <a href="/admin/cavetext/settings"{{if eq .Section "cavetext-settings"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-set"}}</span></a>
@@ -126,6 +127,30 @@
         </div>
       </aside>
 {{end}}
+
+{{/* offers lists a Learner page's .Offers side by side: each product's price, its Normal price crossed out when set,
+and Buy to its payment link, or Contact us without one. Visitors see the prices without buttons. */}}
+{{define "offers"}}
+      <ul class="offers">
+        {{- range .Offers}}
+        <li class="offer">
+          <h3>{{t $.Lang (print "prices." .Product)}}</h3>
+          <p class="offer-price"><strong>{{t $.Lang "offers.price" .Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
+          <p class="muted">{{t $.Lang (print "offers." .Product)}}</p>
+          {{- if $.Learner}}
+          {{- if .PaymentLink}}
+          <a class="btn btn-gold" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          {{- else}}
+          <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang (print "offers.contact-" (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          {{- end}}
+          {{- end}}
+        </li>
+        {{- end}}
+      </ul>
+      {{- range .Offers}}{{if .PaymentLink}}
+      <p class="note">{{t $.Lang "offers.fee"}}</p>
+      {{- break}}{{end}}{{end}}
+{{- end}}
 
 {{/* gallery-tile is one Gallery item in a grid, given as (tile . $.Lang): the picture itself, or an icon for videos and ebooks.
    Its transition name matches the picture or video on the item's page, so the browser grows one into the other. */}}

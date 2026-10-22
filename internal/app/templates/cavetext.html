@@ -32,25 +32,17 @@
       <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><div><p>{{t .Lang "cavetext.over-cap" .Cap.Cap .Count}}</p></div></div>
       {{- end}}
       {{- end}}
-      <h2 class="h-md">{{t .Lang "cavetext.pro-price" .Price}}</h2>
-      {{- if .PaymentLink}}
-      <p class="note">{{t .Lang "cavetext.pro-fee"}}</p>
-      {{- end}}
+      <h2 class="h-md">{{t .Lang "cavetext.pro-what"}}</h2>
       <ol class="lab-steps">
         <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.unlimited"}}</strong><span>{{t .Lang "cavetext.pro.unlimited-body"}}</span></li>
         <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.user"}}</strong><span>{{t .Lang "cavetext.pro.user-body"}}</span></li>
         <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.ready"}}</strong><span>{{t .Lang "cavetext.pro.ready-body"}}</span></li>
         <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.year"}}</strong><span>{{t .Lang "cavetext.pro.year-body"}}</span></li>
       </ol>
-      {{- if .Learner}}
-      <div class="cta-row">
-        {{- if .PaymentLink}}
-        <a class="btn btn-gold btn-lg" href="{{.PaymentLink}}">{{if .Cap.Pro}}{{t .Lang "cavetext.renew"}}{{else}}{{t .Lang "cavetext.buy"}}{{end}}</a>
-        {{- else}}
-        <a class="btn btn-ghost btn-lg" href="mailto:adam.caveconsult@gmail.com?subject=CaveText%20Pro">{{if .Cap.Pro}}{{t .Lang "cavetext.contact-renew"}}{{else}}{{t .Lang "cavetext.contact-buy"}}{{end}}</a>
-        {{- end}}
-        {{- if not .Account}}<p class="muted">{{t .Lang "cavetext.sign-in-first"}}</p>{{end}}
-      </div>
+      <h2 class="h-md">{{t .Lang "offers.heading"}}</h2>
+      {{- template "offers" .}}
+      {{- if and .Learner (not .Account)}}
+      <p class="muted">{{t .Lang "cavetext.sign-in-first"}}</p>
       {{- end}}
       {{- if or (not .Learner) .Account}}
       <p><a href="{{.Extension}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t .Lang "cavetext.get-extension-chrome"}}</a></p>

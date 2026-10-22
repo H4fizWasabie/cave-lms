@@ -11,20 +11,25 @@ import (
 )
 
 // createPlan posts the Plan form as the logged-in Admin.
-func (s *site) createPlan(name, days, deployments, paymentLink string) (*http.Response, string) {
-	return s.post("/admin/plans", url.Values{"name": {name}, "days": {days}, "deployments": {deployments}, "storage": {"1024"}, "payment_link": {paymentLink}})
+func (s *site) createPlan(name, days, deployments string) (*http.Response, string) {
+	return s.post("/admin/plans", url.Values{"name": {name}, "days": {days}, "deployments": {deployments}, "storage": {"1024"}})
 }
 
 func TestAdminCreatesAPlan(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	res, body := s.createPlan("Lab Monthly", "30", "3", "https://pay.example.com/lab")
+	res, body := s.get("/admin/plans/new")
+	expectStatus(t, res, body, http.StatusOK, `name="storage"`)
+	if strings.Contains(body, "payment_link") {
+		t.Errorf("the Plan form still asks for a payment link: %s", body)
+	}
+	res, body = s.createPlan("Lab Monthly", "30", "3")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/admin/plans" {
 		t.Fatalf("create redirected to %q, want /admin/plans", loc)
 	}
 	res, body = s.get("/admin/plans")
-	for _, want := range []string{"Lab Monthly", "30 days", "3 Deployments", "https://pay.example.com/lab"} {
+	for _, want := range []string{"Lab Monthly", "30 days", "3 Deployments"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }
@@ -45,15 +50,15 @@ func (s *site) onlyPlanID() string {
 func TestAdminEditsAPlan(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	s.createPlan("Lab Monthly", "30", "3", "")
+	s.createPlan("Lab Monthly", "30", "3")
 	id := s.onlyPlanID()
 	res, body := s.get("/admin/plans/" + id + "/edit")
 	expectStatus(t, res, body, http.StatusOK, `value="Lab Monthly"`)
 
-	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Quarterly"}, "days": {"90"}, "deployments": {"10"}, "storage": {"1024"}, "payment_link": {"https://pay.example.com/q"}})
+	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Quarterly"}, "days": {"90"}, "deployments": {"10"}, "storage": {"1024"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/admin/plans")
-	for _, want := range []string{"Lab Quarterly", "90 days", "10 Deployments", "https://pay.example.com/q"} {
+	for _, want := range []string{"Lab Quarterly", "90 days", "10 Deployments"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 	if strings.Contains(body, "Lab Monthly") {
@@ -64,21 +69,20 @@ func TestAdminEditsAPlan(t *testing.T) {
 func TestInvalidPlansAreRefusedWithAMessage(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	for _, tc := range []struct{ name, days, deployments, link, want string }{
-		{"  ", "30", "3", "", "Enter a name."},
-		{"Lab", "0", "3", "", "1 or more"},
-		{"Lab", "-5", "3", "", "1 or more"},
-		{"Lab", "thirty", "3", "", "1 or more"},
-		{"Lab", "30", "-1", "", "0 or more"},
-		{"Lab", "30", "3", "javascript:alert(1)", "https://"},
+	for _, tc := range []struct{ name, days, deployments, want string }{
+		{"  ", "30", "3", "Enter a name."},
+		{"Lab", "0", "3", "1 or more"},
+		{"Lab", "-5", "3", "1 or more"},
+		{"Lab", "thirty", "3", "1 or more"},
+		{"Lab", "30", "-1", "0 or more"},
 	} {
-		res, body := s.createPlan(tc.name, tc.days, tc.deployments, tc.link)
+		res, body := s.createPlan(tc.name, tc.days, tc.deployments)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, tc.want)
 	}
 	res, body := s.get("/admin/plans")
 	expectStatus(t, res, body, http.StatusOK, "No Plans yet.")
 
-	s.createPlan("Lab Monthly", "30", "3", "")
+	s.createPlan("Lab Monthly", "30", "3")
 	id := s.onlyPlanID()
 	res, body = s.post("/admin/plans/"+id, url.Values{"name": {"Lab Monthly"}, "days": {"0"}, "deployments": {"3"}, "storage": {"1024"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "1 or more")
@@ -89,7 +93,7 @@ func TestInvalidPlansAreRefusedWithAMessage(t *testing.T) {
 func TestOnlyTheAdminReachesThePlanPages(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	s.createPlan("Lab Monthly", "30", "3", "")
+	s.createPlan("Lab Monthly", "30", "3")
 	id := s.onlyPlanID()
 	visitor := s.second()
 	ada := s.second()
@@ -162,7 +166,7 @@ func (s *site) ageAllPeriods(days int) {
 func adminWithPlanAndLearner(t *testing.T) (*site, string) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	s.createPlan("Lab Monthly", "30", "3", "")
+	s.createPlan("Lab Monthly", "30", "3")
 	s.second().loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	return s, s.onlyPlanID()
 }
@@ -209,7 +213,7 @@ func TestAPlanAssignedWithNoActivePeriodStartsNow(t *testing.T) {
 
 func TestPlanPeriodsStackSoNoDaysAreLost(t *testing.T) {
 	s, id := adminWithPlanAndLearner(t)
-	s.createPlan("Lab Week", "7", "1", "")
+	s.createPlan("Lab Week", "7", "1")
 	_, body := s.get("/admin/plans")
 	weekID := regexp.MustCompile(`Lab Week</td>[\s\S]*?/admin/plans/(\d+)/edit`).FindStringSubmatch(body)[1]
 
