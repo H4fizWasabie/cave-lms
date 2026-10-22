@@ -17,6 +17,9 @@ func MigrateDownTo(ctx context.Context, db *sql.DB, version int64) error {
 // PruneSystemLog runs the daily System log prune now, for tests.
 func (a *App) PruneSystemLog(ctx context.Context) error { return a.pruneSystemLog(ctx) }
 
+// RunDailyPrune runs the whole daily prune now, for tests.
+func (a *App) RunDailyPrune(ctx context.Context) { a.dailyPrune(ctx) }
+
 // TemplateTextKeys lists every catalog key a template names in {{t .Lang "key"}} or {{tn .Lang "key" n}}, for tests.
 func TemplateTextKeys() ([]string, error) {
 	pages, err := parsePages()
