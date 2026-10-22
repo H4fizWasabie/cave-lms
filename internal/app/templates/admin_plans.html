@@ -16,11 +16,11 @@
               <tr><th>{{t .Lang "account.name"}}</th><th>{{t .Lang "plans.length"}}</th><th>{{t .Lang "plans.allowance"}}</th><th>{{t .Lang "plans.payment-link"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Plans}}
               <tr>
-                <td>{{.Name}}</td>
+                <td>{{.Name}}{{if .Pro}} <span class="badge badge-open">{{t $.Lang "plans.pro"}}</span>{{end}}</td>
                 <td>{{tn $.Lang "plans.days" .Days}}</td>
                 <td>{{tn $.Lang "plans.deployments" .Deployments}}</td>
                 <td>{{with .PaymentLink}}<a href="{{.}}">{{.}}</a>{{else}}{{t $.Lang "plans.no-link"}}{{end}}</td>
-                <td class="actions"><a class="btn btn-quiet btn-sm" href="/admin/plans/{{.ID}}/edit">{{t $.Lang "admin.common.edit"}}</a></td>
+                <td class="actions">{{if not .Pro}}<form method="post" action="/admin/plans/{{.ID}}/pro"><button class="btn btn-ghost btn-sm">{{t $.Lang "plans.make-pro"}}</button></form>{{end}}<a class="btn btn-quiet btn-sm" href="/admin/plans/{{.ID}}/edit">{{t $.Lang "admin.common.edit"}}</a></td>
               </tr>
               {{else}}
               <tr><td colspan="5">{{t .Lang "plans.none"}}</td></tr>

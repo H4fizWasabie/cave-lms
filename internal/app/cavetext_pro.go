@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -88,29 +89,56 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_cavetext_learners", p)
 }
 
-// giveCaveTextPro gives a CaveText Learner 12 months of Pro. It starts now, or when their running Pro ends if that is
-// later, so renewing early loses no days.
+// giveCaveTextPro gives a CaveText Learner 12 months of Pro, and a period of the Pro Plan for the same dates. It starts
+// now, or when their running Pro ends if that is later, so renewing early loses no days.
 func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
-	a.changePro(w, r, giveProQuery)
+	a.changePro(w, r, func(id int64) error {
+		return a.givePro(r.Context(), a.db, id)
+	})
 }
 
-// giveProQuery adds 12 months of Pro for the Learner $1, from now or from when their running Pro ends.
+// giveProQuery adds 12 months of Pro for the Learner $1, from now or from when their running Pro ends, and a period
+// of the Pro Plan with the same start and end. The Pro Plan's allowance is copied, so editing it never changes the
+// period. Its rows affected is the Plan periods made: none when no Plan is marked as the Pro Plan.
 // ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
 const giveProQuery = `
-	INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
-	SELECT $1, s.at, s.at + '` + proLength + `'::interval FROM (SELECT GREATEST(now(), (
-		SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
-	)) AS at) s`
+	WITH pro AS (
+		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
+		SELECT $1, s.at, s.at + '` + proLength + `'::interval FROM (SELECT GREATEST(now(), (
+			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
+		)) AS at) s
+		RETURNING learner_id, starts_at, ends_at)
+	INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments)
+	SELECT pro.learner_id, p.id, pro.starts_at, pro.ends_at, p.deployments FROM pro, plans p WHERE p.pro`
 
-// endCaveTextPro ends a Learner's Pro at once: the running period and any given to follow it.
-func (a *App) endCaveTextPro(w http.ResponseWriter, r *http.Request) {
-	a.changePro(w, r, `
-		UPDATE cavetext_pro_periods SET ended_early_at = now()
-		WHERE learner_id = $1 AND ended_early_at IS NULL AND ends_at > now()`)
+// givePro gives the Learner a year of Pro and its Plan, as giveProQuery does. Without a Pro Plan it still gives Pro
+// and writes a line to the System log, so the Admin sees the missed setting.
+func (a *App) givePro(ctx context.Context, db interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, learnerID int64) error {
+	res, err := db.ExecContext(ctx, giveProQuery, learnerID)
+	if err != nil {
+		return fmt.Errorf("give Pro: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		a.writeLog("error", fmt.Sprintf("Learner %d got CaveText Pro without a Plan period: no Plan is marked as the Pro Plan", learnerID), "", "")
+	}
+	return nil
 }
 
-// changePro runs query for the CaveText Learner named by the {id} path value, then goes back to the Learners page.
-func (a *App) changePro(w http.ResponseWriter, r *http.Request, query string) {
+// endCaveTextPro ends a Learner's Pro at once: the running period and any given to follow it. Their Plan periods
+// are left as they are.
+func (a *App) endCaveTextPro(w http.ResponseWriter, r *http.Request) {
+	a.changePro(w, r, func(id int64) error {
+		_, err := a.db.ExecContext(r.Context(), `
+			UPDATE cavetext_pro_periods SET ended_early_at = now()
+			WHERE learner_id = $1 AND ended_early_at IS NULL AND ends_at > now()`, id)
+		return err
+	})
+}
+
+// changePro runs change for the CaveText Learner named by the {id} path value, then goes back to the Learners page.
+func (a *App) changePro(w http.ResponseWriter, r *http.Request, change func(learnerID int64) error) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	var found bool
 	if err == nil {
@@ -123,7 +151,7 @@ func (a *App) changePro(w http.ResponseWriter, r *http.Request, query string) {
 		a.adminNotFound(w, r, "ctadmin.learners.not-found.title", "ctadmin.learners.not-found")
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), query, id); err != nil {
+	if err := change(id); err != nil {
 		a.serverError(w, r, fmt.Errorf("change CaveText Pro: %w", err))
 		return
 	}
