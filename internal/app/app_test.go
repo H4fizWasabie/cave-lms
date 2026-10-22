@@ -37,6 +37,13 @@ func TestHomePage(t *testing.T) {
 	}
 }
 
+func TestDatabasePoolIsCapped(t *testing.T) {
+	application, _, _, _ := newTestApplication(t)
+	if got := application.DBStats().MaxOpenConnections; got != 25 {
+		t.Fatalf("MaxOpenConnections = %d, want 25", got)
+	}
+}
+
 func TestHeaderShowsTheCAVELMSLogo(t *testing.T) {
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
