@@ -6,8 +6,14 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+// IssuedIn is the issue date in lang, as the Admin's Certificate list shows it.
+func (c certificate) IssuedIn(lang string) string {
+	return text.Date(lang, c.IssuedAt.UTC())
+}
 
 // verifyCertificateForm is the public ID box. An ID typed into it goes to that Certificate's verification page.
 func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
@@ -66,17 +72,25 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if len(old) == 0 {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "No Certificate has this ID."})
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
+	if len(old) == 0 {
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "adm.certs.not-found.title"), Message: text.T(lang, "adm.certs.not-found")})
+		return
+	}
+	notReissued := func(status int, key string) {
+		a.render(w, r, status, "message", page{Title: text.T(lang, "adm.certs.not-reissued"), Message: text.T(lang, key)})
+	}
 	if !old[0].Revoked {
-		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Revoke the Certificate before issuing a corrected one."})
+		notReissued(http.StatusUnprocessableEntity, "adm.certs.err.revoke-first")
 		return
 	}
 	name := strings.TrimSpace(r.PostFormValue("learner_name"))
 	if name == "" || len(name) > 200 {
-		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: "Certificate not reissued", Message: "Enter a name for the Certificate (up to 200 characters)."})
+		notReissued(http.StatusUnprocessableEntity, "adm.certs.err.name")
 		return
 	}
 	id, err := newCertificateID()
@@ -101,7 +115,7 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		err = tx.Commit()
 	}
 	if isUniqueViolation(err) {
-		a.render(w, r, http.StatusConflict, "message", page{Title: "Certificate not reissued", Message: "This Learner already has a valid Certificate for this Course."})
+		notReissued(http.StatusConflict, "adm.certs.err.has-valid")
 		return
 	}
 	if err != nil {

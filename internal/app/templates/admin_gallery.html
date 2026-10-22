@@ -1,33 +1,33 @@
-{{define "title"}}Gallery · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "nav.gallery"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "gallery" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: Gallery</h1>
-            <p>Promotional items appear on the home page. Visibility decides who can open each item.</p>
+            <h1>{{t .Lang "adm.gallery.title"}}</h1>
+            <p>{{t .Lang "adm.gallery.lede"}}</p>
           </div>
-          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/gallery/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>Upload to the Gallery</a></div>
+          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/gallery/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "adm.gallery.upload"}}</a></div>
         </div>
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Title</th><th>Format</th><th>Category</th><th>Promotional</th><th>Visibility</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              <tr><th>{{t .Lang "adm.title"}}</th><th>{{t .Lang "adm.gallery.format"}}</th><th>{{t .Lang "adm.gallery.category"}}</th><th>{{t .Lang "adm.gallery.promotional"}}</th><th>{{t .Lang "adm.gallery.visibility"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Items}}
               <tr>
                 <td><a class="cell-course" href="/gallery/{{.ID}}">{{.Title}}</a></td>
-                <td>{{.Format}}</td>
+                <td>{{if eq .Format "video"}}{{t $.Lang "adm.gallery.video"}}{{else if eq .Format "ebook"}}{{t $.Lang "adm.gallery.ebook"}}{{else}}{{t $.Lang "adm.gallery.picture"}}{{end}}</td>
                 <td>{{.Category}}</td>
-                <td>{{if .Promotional}}Yes{{else}}No{{end}}</td>
-                <td>{{.Visibility}}</td>
+                <td>{{if .Promotional}}{{t $.Lang "adm.yes"}}{{else}}{{t $.Lang "adm.no"}}{{end}}</td>
+                <td>{{if eq .Visibility "everyone"}}{{t $.Lang "adm.gallery.everyone"}}{{else if eq .Visibility "learners"}}{{t $.Lang "adm.gallery.learners"}}{{else}}{{t $.Lang "adm.gallery.members"}}{{end}}</td>
                 <td class="actions">
-                  <a class="btn btn-quiet btn-sm" href="/admin/gallery/{{.ID}}/edit">Edit</a>
-                  <a class="btn btn-danger btn-sm" href="/admin/gallery/{{.ID}}/delete">Delete</a>
+                  <a class="btn btn-quiet btn-sm" href="/admin/gallery/{{.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
+                  <a class="btn btn-danger btn-sm" href="/admin/gallery/{{.ID}}/delete">{{t $.Lang "adm.delete"}}</a>
                 </td>
               </tr>
               {{else}}
-              <tr><td colspan="6">No items yet.</td></tr>
+              <tr><td colspan="6">{{t .Lang "adm.gallery.none"}}</td></tr>
               {{end}}
             </table>
           </div>

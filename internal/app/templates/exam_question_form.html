@@ -1,27 +1,27 @@
-{{define "title"}}{{if .Question.ID}}Edit question{{else}}New question{{end}} · Admin · CAVELMS{{end}}
+{{define "title"}}{{if .Question.ID}}{{t .Lang "adm.exam.edit-q"}}{{else}}{{t .Lang "adm.exam.new-q"}}{{end}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/exam">Back to the Exam</a></p>
-        <div class="adm-head"><h1>{{if .Question.ID}}Edit question{{else}}New question{{end}} for {{.Course.Title}}</h1></div>
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/exam">{{t .Lang "adm.exam.back-exam"}}</a></p>
+        <div class="adm-head"><h1>{{if .Question.ID}}{{t .Lang "adm.exam.edit-q-for" .Course.Title}}{{else}}{{t .Lang "adm.exam.new-q-for" .Course.Title}}{{end}}</h1></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="{{if .Question.ID}}/admin/courses/{{.Course.ID}}/exam/questions/{{.Question.ID}}{{else}}/admin/courses/{{.Course.ID}}/exam/questions{{end}}">
-            <div class="field"><label for="prompt">Question</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
+            <div class="field"><label for="prompt">{{t .Lang "adm.exam.question"}}</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
             <fieldset class="field">
-              <legend>Options (2 to 5). Mark the one correct answer.</legend>
+              <legend>{{t .Lang "adm.exam.options"}}</legend>
               <div class="nq-list">
                 {{range $i, $o := .Question.Options}}
                 <div class="nq-row">
-                  <label class="check"><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> Correct</label>
-                  <input type="text" name="option" value="{{$o.Text}}" maxlength="500" aria-label="Option {{$i}}">
+                  <label class="check"><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> {{t $.Lang "adm.exam.correct"}}</label>
+                  <input type="text" name="option" value="{{$o.Text}}" maxlength="500" aria-label="{{t $.Lang "adm.exam.option-n" $i}}">
                 </div>
                 {{end}}
               </div>
             </fieldset>
-            {{if not .Question.ID}}<label class="check"><input type="checkbox" name="draft" {{if .Question.Draft}}checked{{end}}> Save as Draft (never asked until published)</label>{{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/exam">Cancel</a><button class="btn btn-solid">Save question</button></div>
+            {{if not .Question.ID}}<label class="check"><input type="checkbox" name="draft" {{if .Question.Draft}}checked{{end}}> {{t .Lang "adm.exam.save-draft"}}</label>{{end}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/exam">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.exam.save-q"}}</button></div>
           </form>
         </div>
       </div>

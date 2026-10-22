@@ -1,39 +1,39 @@
-{{define "title"}}Courses · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "admin.side.courses"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: Courses</h1>
-            <p>Open a Course to let Learners join; close it to stop new joins.</p>
+            <h1>{{t .Lang "adm.courses.title"}}</h1>
+            <p>{{t .Lang "adm.courses.lede"}}</p>
           </div>
-          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/courses/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>New Course</a></div>
+          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/courses/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.courses.new"}}</a></div>
         </div>
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Title</th><th>Start date</th><th>State</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              <tr><th>{{t .Lang "adm.title"}}</th><th>{{t .Lang "adm.courses.start-date"}}</th><th>{{t .Lang "adm.courses.state"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Courses}}
               <tr>
-                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a>{{if .IncludesLab}} <span class="badge badge-joined">Includes the Lab</span>{{end}}</td>
+                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a>{{if .IncludesLab}} <span class="badge badge-joined">{{t $.Lang "adm.courses.has-lab"}}</span>{{end}}</td>
                 <td>{{.StartDate}}</td>
-                <td>{{if .Open}}<span class="badge badge-open">Open</span>{{else}}<span class="badge badge-closed">Closed</span>{{end}}</td>
+                <td>{{if .Open}}<span class="badge badge-open">{{t $.Lang "adm.courses.open"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "adm.courses.closed"}}</span>{{end}}</td>
                 <td class="actions">
-                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}">Learners</a>
-                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/edit">Edit</a>
-                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/lessons">Lessons</a>
-                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/exam">Exam</a>
+                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}">{{t $.Lang "adm.learners"}}</a>
+                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
+                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/lessons">{{t $.Lang "adm.lessons"}}</a>
+                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/exam">{{t $.Lang "adm.exam"}}</a>
                   {{if .Open}}
-                  <form method="post" action="/admin/courses/{{.ID}}/close"><button class="btn btn-ghost btn-sm">Close</button></form>
+                  <form method="post" action="/admin/courses/{{.ID}}/close"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.courses.do-close"}}</button></form>
                   {{else}}
-                  <form method="post" action="/admin/courses/{{.ID}}/open"><button class="btn btn-ghost btn-sm">Open</button></form>
+                  <form method="post" action="/admin/courses/{{.ID}}/open"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.courses.do-open"}}</button></form>
                   {{end}}
-                  <a class="btn btn-danger btn-sm" href="/admin/courses/{{.ID}}/delete">Delete</a>
+                  <a class="btn btn-danger btn-sm" href="/admin/courses/{{.ID}}/delete">{{t $.Lang "adm.delete"}}</a>
                 </td>
               </tr>
               {{else}}
-              <tr><td colspan="4">No Courses yet.</td></tr>
+              <tr><td colspan="4">{{t .Lang "adm.courses.none"}}</td></tr>
               {{end}}
             </table>
           </div>

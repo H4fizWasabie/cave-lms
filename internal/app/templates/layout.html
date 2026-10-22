@@ -133,17 +133,17 @@
 
 {{/* gallery-fields are the Gallery item fields shared by the upload and edit forms. */}}
 {{define "gallery-fields"}}
-            <div class="field"><label for="title">Title</label><input id="title" type="text" name="title" value="{{.Item.Title}}" maxlength="200" required></div>
-            <div class="field"><label for="description">Description <span class="opt">(optional)</span></label><textarea id="description" name="description" rows="4" maxlength="2000">{{.Item.Description}}</textarea></div>
+            <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Item.Title}}" maxlength="200" required></div>
+            <div class="field"><label for="description">{{t .Lang "adm.description"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><textarea id="description" name="description" rows="4" maxlength="2000">{{.Item.Description}}</textarea></div>
             <div class="field-grid field-grid-2">
-              <div class="field"><label for="category">Category <span class="opt">(optional)</span></label><input id="category" type="text" name="category" value="{{.Item.Category}}" maxlength="100"></div>
-              <div class="field"><label for="visibility">Visibility</label>
+              <div class="field"><label for="category">{{t .Lang "adm.gallery.category"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="category" type="text" name="category" value="{{.Item.Category}}" maxlength="100"></div>
+              <div class="field"><label for="visibility">{{t .Lang "adm.gallery.visibility"}}</label>
                 <select id="visibility" name="visibility">
-                  <option value="everyone"{{if eq .Item.Visibility "everyone"}} selected{{end}}>Everyone</option>
-                  <option value="learners"{{if eq .Item.Visibility "learners"}} selected{{end}}>Logged-in Learners</option>
-                  <option value="course_members"{{if eq .Item.Visibility "course_members"}} selected{{end}}>Course members only</option>
+                  <option value="everyone"{{if eq .Item.Visibility "everyone"}} selected{{end}}>{{t .Lang "adm.gallery.everyone"}}</option>
+                  <option value="learners"{{if eq .Item.Visibility "learners"}} selected{{end}}>{{t .Lang "adm.gallery.learners"}}</option>
+                  <option value="course_members"{{if eq .Item.Visibility "course_members"}} selected{{end}}>{{t .Lang "adm.gallery.members"}}</option>
                 </select>
               </div>
             </div>
-            <label class="check-card"><input type="checkbox" name="promotional" value="on"{{if .Item.Promotional}} checked{{end}}><span><strong>Promotional material</strong><small>Shown on the home page and open to everyone.</small></span></label>
+            <label class="check-card"><input type="checkbox" name="promotional" value="on"{{if .Item.Promotional}} checked{{end}}><span><strong>{{t .Lang "adm.gallery.promotional"}}</strong><small>{{t .Lang "adm.gallery.promotional-sub"}}</small></span></label>
 {{end}}

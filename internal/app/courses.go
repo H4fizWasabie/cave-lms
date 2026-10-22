@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // course is a Course as the pages show it. StartDate is YYYY-MM-DD, or empty when none.
@@ -95,12 +97,17 @@ func (a *App) editCourseForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
-	c, msg := courseFromForm(r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	c, msg := courseFromForm(r, lang)
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(),
+	_, err = a.db.ExecContext(r.Context(),
 		`INSERT INTO courses (title, description, start_date, includes_lab) VALUES ($1, $2, NULLIF($3, '')::date, $4)`,
 		c.Title, c.Description, c.StartDate, c.IncludesLab)
 	if err != nil {
@@ -115,13 +122,18 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	c, msg := courseFromForm(r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	c, msg := courseFromForm(r, lang)
 	c.ID = existing.ID
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(),
+	_, err = a.db.ExecContext(r.Context(),
 		`UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date, includes_lab = $5 WHERE id = $1`,
 		c.ID, c.Title, c.Description, c.StartDate, c.IncludesLab)
 	if err != nil {
@@ -162,8 +174,12 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	// Enrollments, Lessons, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
 	if isForeignKeyError(err) {
-		a.render(w, r, http.StatusConflict, "delete_course", page{Course: &c,
-			Error: "This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates. Close the Course instead."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusConflict, "delete_course", page{Course: &c, Error: text.T(lang, "adm.courses.err.in-use")})
 		return
 	}
 	if err != nil {
@@ -227,20 +243,20 @@ func (a *App) queryCourses(r *http.Request, query string, args ...any) ([]course
 	return list, rows.Err()
 }
 
-// courseFromForm reads the Course form. msg is the first problem found, empty when the form is valid.
-func courseFromForm(r *http.Request) (c course, msg string) {
+// courseFromForm reads the Course form. msg is the first problem found, in lang, empty when the form is valid.
+func courseFromForm(r *http.Request, lang string) (c course, msg string) {
 	c.Title = strings.TrimSpace(r.PostFormValue("title"))
 	c.Description = strings.TrimSpace(r.PostFormValue("description"))
 	c.StartDate = strings.TrimSpace(r.PostFormValue("start_date"))
 	c.IncludesLab = r.PostFormValue("includes_lab") == "on"
 	switch {
 	case c.Title == "":
-		msg = "Enter a title."
+		msg = text.T(lang, "adm.courses.err.title")
 	case c.Description == "":
-		msg = "Enter a description."
+		msg = text.T(lang, "adm.courses.err.description")
 	case c.StartDate != "":
 		if _, err := time.Parse(time.DateOnly, c.StartDate); err != nil {
-			msg = "Enter the start date as YYYY-MM-DD, or leave it empty."
+			msg = text.T(lang, "adm.courses.err.start-date")
 		}
 	}
 	return c, msg

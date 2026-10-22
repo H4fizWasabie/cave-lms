@@ -1,35 +1,35 @@
-{{define "title"}}Lesson · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "adm.lessons.lesson"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/lessons">Back to the Lessons</a></p>
-        <div class="adm-head"><h1>{{if .Lesson.ID}}Edit Lesson{{else}}New Lesson{{end}} for {{.Course.Title}}</h1></div>
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.lessons.back"}}</a></p>
+        <div class="adm-head"><h1>{{if .Lesson.ID}}{{t .Lang "adm.lessons.edit-for" .Course.Title}}{{else}}{{t .Lang "adm.lessons.new-for" .Course.Title}}{{end}}</h1></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}{{else}}/admin/courses/{{.Course.ID}}/lessons{{end}}">
             {{if not .Lesson.ID}}
-            <div class="field field-half"><label for="kind">Lesson content</label>
+            <div class="field field-half"><label for="kind">{{t .Lang "adm.lessons.content"}}</label>
               <select id="kind" name="kind">
-                <option value="item">One Gallery item</option>
-                <option value="text">Text (Markdown)</option>
+                <option value="item">{{t .Lang "adm.lessons.kind-item"}}</option>
+                <option value="text">{{t .Lang "adm.lessons.markdown"}}</option>
               </select>
             </div>
             {{end}}
-            <div class="field"><label for="title">Title</label><input id="title" type="text" name="title" value="{{.Lesson.Title}}" maxlength="200" required></div>
-            <div class="field"><label for="objective">Objective <span class="opt">(one sentence, optional)</span></label><input id="objective" type="text" name="objective" value="{{.Lesson.Objective}}" maxlength="200"></div>
-            <div class="field"><label for="gallery_item_id">Gallery item</label>
+            <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Lesson.Title}}" maxlength="200" required></div>
+            <div class="field"><label for="objective">{{t .Lang "adm.lessons.objective"}} <span class="opt">{{t .Lang "adm.lessons.objective-hint"}}</span></label><input id="objective" type="text" name="objective" value="{{.Lesson.Objective}}" maxlength="200"></div>
+            <div class="field"><label for="gallery_item_id">{{t .Lang "adm.lessons.item"}}</label>
               <select id="gallery_item_id" name="gallery_item_id">
-                <option value="">Choose an item</option>
-                {{range .Items}}<option value="{{.ID}}"{{if eq .ID $.Lesson.GalleryItemID}} selected{{end}}>{{.Title}} ({{.Format}})</option>{{end}}
+                <option value="">{{t .Lang "adm.lessons.choose-item"}}</option>
+                {{range .Items}}<option value="{{.ID}}"{{if eq .ID $.Lesson.GalleryItemID}} selected{{end}}>{{.Title}} ({{if eq .Format "video"}}{{t $.Lang "adm.gallery.video"}}{{else if eq .Format "ebook"}}{{t $.Lang "adm.gallery.ebook"}}{{else}}{{t $.Lang "adm.gallery.picture"}}{{end}})</option>{{end}}
               </select>
-              <small>A video or ebook that everyone may see becomes Course members only once a published Lesson uses it, unless it is promotional.</small>
+              <small>{{t .Lang "adm.lessons.item-hint"}}</small>
             </div>
-            <div class="field"><label for="body">Text (Markdown)</label><textarea id="body" name="body" rows="12" maxlength="20000">{{.Lesson.Body}}</textarea></div>
+            <div class="field"><label for="body">{{t .Lang "adm.lessons.markdown"}}</label><textarea id="body" name="body" rows="12" maxlength="20000">{{.Lesson.Body}}</textarea></div>
             {{if not .Lesson.ID}}
-            <label class="check"><input type="checkbox" name="draft" value="on"> Keep as Draft (Learners will not see it)</label>
+            <label class="check"><input type="checkbox" name="draft" value="on"> {{t .Lang "adm.lessons.keep-draft"}}</label>
             {{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">Cancel</a><button class="btn btn-solid">Save</button></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
           </form>
         </div>
       </div>

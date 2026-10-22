@@ -1,17 +1,17 @@
-{{define "title"}}Lessons · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "adm.lessons"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/courses">Back to Courses</a></p>
+        <p class="crumbs"><a href="/admin/courses">{{t .Lang "adm.courses.back"}}</a></p>
         <div class="adm-head">
           <div>
-            <h1>Admin: Lessons of {{.Course.Title}}</h1>
-            <p>Learners see published Lessons in this order. Drafts stay hidden.</p>
+            <h1>{{t .Lang "adm.lessons.title" .Course.Title}}</h1>
+            <p>{{t .Lang "adm.lessons.lede"}}</p>
           </div>
           <div class="adm-head-actions">
-            <form method="post" action="/admin/courses/{{.Course.ID}}/lessons/publish-all"><button class="btn btn-ghost">Publish all Draft Lessons</button></form>
-            <a class="btn btn-solid" href="/admin/courses/{{.Course.ID}}/lessons/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>New Lesson</a>
+            <form method="post" action="/admin/courses/{{.Course.ID}}/lessons/publish-all"><button class="btn btn-ghost">{{t .Lang "adm.lessons.publish-all"}}</button></form>
+            <a class="btn btn-solid" href="/admin/courses/{{.Course.ID}}/lessons/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.lessons.new"}}</a>
           </div>
         </div>
         <ol class="lb-list">
@@ -20,24 +20,24 @@
             <span class="lb-n">{{.Position}}</span>
             <span class="lb-ic"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if .GalleryItemID}}images{{else}}text-t{{end}}"/></svg></span>
             <div class="lb-t">
-              <strong>{{.Title}}{{if not .Published}} <span class="badge badge-draft">Draft</span>{{end}}</strong>
+              <strong>{{.Title}}{{if not .Published}} <span class="badge badge-draft">{{t $.Lang "adm.draft"}}</span>{{end}}</strong>
               {{with .Objective}}<small class="lb-obj">{{.}}</small>{{end}}
-              <small>{{if .GalleryItemID}}{{.ItemTitle}}{{else}}Text{{end}} · {{if .Published}}Published{{else}}Draft{{end}}</small>
+              <small>{{if .GalleryItemID}}{{.ItemTitle}}{{else}}{{t $.Lang "adm.lessons.text"}}{{end}} · {{if .Published}}{{t $.Lang "adm.published"}}{{else}}{{t $.Lang "adm.draft"}}{{end}}</small>
             </div>
             <div class="lb-act">
-              <form method="post" action="/admin/lessons/{{.ID}}/up"><button class="icon-btn" aria-label="Up" title="Move up"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
-              <form method="post" action="/admin/lessons/{{.ID}}/down"><button class="icon-btn" aria-label="Down" title="Move down"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
-              <a class="btn btn-quiet btn-sm" href="/admin/lessons/{{.ID}}/edit">Edit</a>
+              <form method="post" action="/admin/lessons/{{.ID}}/up"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
+              <form method="post" action="/admin/lessons/{{.ID}}/down"><button class="icon-btn" aria-label="{{t $.Lang "adm.down"}}" title="{{t $.Lang "adm.move-down"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
+              <a class="btn btn-quiet btn-sm" href="/admin/lessons/{{.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
               {{if .Published}}
-              <form method="post" action="/admin/lessons/{{.ID}}/unpublish"><button class="btn btn-quiet btn-sm">Back to Draft</button></form>
+              <form method="post" action="/admin/lessons/{{.ID}}/unpublish"><button class="btn btn-quiet btn-sm">{{t $.Lang "adm.lessons.unpublish"}}</button></form>
               {{else}}
-              <form method="post" action="/admin/lessons/{{.ID}}/publish"><button class="btn btn-ghost btn-sm">Publish</button></form>
+              <form method="post" action="/admin/lessons/{{.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>
               {{end}}
-              <form method="post" action="/admin/lessons/{{.ID}}/delete"><button class="btn btn-danger btn-sm">Remove</button></form>
+              <form method="post" action="/admin/lessons/{{.ID}}/delete"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.remove"}}</button></form>
             </div>
           </li>
           {{else}}
-          <li class="empty-state"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><h3>No Lessons yet.</h3><p>Add a Lesson from the Gallery or write one as text.</p></li>
+          <li class="empty-state"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><h3>{{t .Lang "adm.lessons.none"}}</h3><p>{{t .Lang "adm.lessons.none-sub"}}</p></li>
           {{end}}
         </ol>
       </div>
