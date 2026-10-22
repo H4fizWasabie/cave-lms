@@ -277,6 +277,8 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 
 .auth-alt { margin-top: 1.4rem; font-size: .94rem; color: var(--muted); }
 .auth-alt a { color: var(--brand-ink); font-weight: 600; }
+.auth-consent { font-size: .88rem; color: var(--muted); }
+.auth-consent a { color: var(--brand-ink); }
 .auth-icon { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; border-radius: 99px; background: var(--brand-gold-soft); color: var(--brand-gold-deep); margin-bottom: 1.2rem; }
 .auth-icon .i { width: 1.8rem; height: 1.8rem; }
 
@@ -317,7 +319,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .ebook-info h2 { font-size: 1.4rem; margin-bottom: .5rem; }
 .ebook-info p { color: #45484d; margin-bottom: 1.2rem; }
 .prose { max-width: 42rem; font-size: 1.05rem; line-height: 1.7; }
-.prose p, .prose ol { margin: 0 0 1.1rem; }
+.prose p, .prose ol, .prose ul { margin: 0 0 1.1rem; }
 .prose h2 { font-size: 1.4rem; margin: 2rem 0 .7rem; }
 .prose li { margin-bottom: .5rem; }
 .callout { display: flex; gap: .9rem; background: var(--brand-gold-soft); padding: 1rem 1.2rem; border-radius: var(--radius); margin: 1.5rem 0; font-size: .98rem; }

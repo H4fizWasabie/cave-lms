@@ -136,6 +136,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.Handle("GET /static/", staticHandler())
+	mux.HandleFunc("GET /privacy", a.privacy)
 	mux.HandleFunc("GET /register", a.registerForm)
 	mux.HandleFunc("POST /register", a.limited(a.register))
 	mux.HandleFunc("GET /verify", a.verify)
@@ -295,6 +296,11 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
+}
+
+// privacy is the PDPA notice; its facts are in docs/adr/0006.
+func (a *App) privacy(w http.ResponseWriter, r *http.Request) {
+	a.render(w, r, http.StatusOK, "privacy", page{})
 }
 
 // staticVersions maps each file under static/ to a short hash of its content, so a changed file gets a new URL.

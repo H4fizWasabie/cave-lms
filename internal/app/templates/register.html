@@ -10,6 +10,7 @@
           <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
           <div class="field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>At least 8 characters.</small></div>
           <button class="btn btn-solid btn-block">Register</button>
+          <p class="auth-consent">{{t .Lang "register.consent"}} <a href="/privacy">{{t .Lang "privacy.link"}}</a>.</p>
         </form>
         <p class="auth-alt">Already registered? <a href="/login">Log in</a>.</p>
       </div>

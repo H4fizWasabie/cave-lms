@@ -143,3 +143,36 @@ createdb cave && pg_restore --no-owner --dbname=cave /tmp/cave-restore/var/backu
 Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot restored the Admin account and all 10 Gallery items with their files, and the app served them.
 
 Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database.
+
+## Data requests
+
+The privacy notice (`/privacy`, see `docs/adr/0006-the-client-is-the-data-user-and-no-one-reads-snippets.md`) promises a copy, a correction or a deletion within 21 days of an email to the contact. Act only on a request sent from the account's own email address. On the VPS, `sudo -u cave psql cave`, then:
+
+```sql
+-- find the account
+SELECT id, name, email, verified_at, created_at FROM learners WHERE lower(email) = lower('ada@example.com');
+-- correct a name (it changes on every Certificate too)
+UPDATE learners SET name = 'Ada Lovelace' WHERE id = 42;
+-- delete the account: everything on it goes with it, Certificates included
+DELETE FROM learners WHERE id = 42;
+```
+
+For a copy, `SELECT *` from `learners` and from each table with a `learner_id` column for that id, leaving out `password_hash` and the token tables (`sessions`, `one_time_tokens`, `cavetext_tokens`), and send the result. Deleted data leaves the backups as they expire, within 6 months.
+
+## Personal data breach
+
+A breach is personal data seen, copied, changed or lost by someone who should not have it: a leaked key, a stolen backup, a bug that showed one Learner's data to another. The PDPA sets the deadlines below. Keep notes with times as you go.
+
+1. **Find and contain.** Work out what was reached and since when (`journalctl -u cave-lms`, `/admin/log`, the VPS's auth log). Stop it: fix or roll back the bug, or stop the site (`systemctl stop cave-lms`) while it still leaks.
+2. **Tell the client the same day.** The Cave Consult is the data user; Wasabie Tech, its processor, tells them what happened, whose data and what kind, and what has been done.
+3. **The client notifies the Personal Data Protection Commissioner within 72 hours** of the breach being found, when it is likely to cause significant harm (for example password hashes, many accounts, or Snippets and master prompts). Give them the facts for the form.
+4. **Tell the affected Learners without delay, within 7 days** of the notification to the Commissioner: what was reached, what was done, and what they should do (for example change a password they reuse elsewhere).
+5. **Rotate whatever key was exposed.** `RESEND_API_KEY`: see Email. R2: create a new token in Cloudflare with Object Read & Write on `cave-lms-backups` only, put it in `/etc/cave-lms/backup.env`, run a backup, then delete the old token. restic password: for each repository `restic key add` with the new password, update `/etc/cave-lms/restic-password` and the password manager, then `restic key list` and `restic key remove <old id>`.
+6. **Revoke every login**, so a stolen cookie or token stops working (Learners log in again, CaveText signs in again, unused verify and reset links die):
+
+   ```sh
+   sudo -u cave psql cave -c 'DELETE FROM sessions; DELETE FROM cavetext_tokens; DELETE FROM one_time_tokens;'
+   ```
+
+7. **Restore if data was changed or lost**: from the local repository after a mistake, from R2 when the VPS itself is not trusted (see Restoring). After a break-in, restore onto a fresh VPS and rotate every key above, since the old server held them all.
+8. **Record what happened**: when it started and was found, what was reached, who was told and when, and what now stops it happening again. Keep the record even when no one had to be notified.
