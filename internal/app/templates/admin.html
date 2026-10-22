@@ -1,28 +1,28 @@
-{{define "title"}}Admin area · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "adm.home.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "dashboard" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin area</h1>
-            <p>Build Courses, upload to the Gallery, look after Certificates and sell Lab access.</p>
+            <h1>{{t .Lang "adm.home.title"}}</h1>
+            <p>{{t .Lang "adm.home.lede"}}</p>
           </div>
           <div class="adm-head-actions">
-            <a class="btn btn-ghost" href="/admin/gallery/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>Upload to the Gallery</a>
-            <a class="btn btn-solid" href="/admin/courses/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>New Course</a>
+            <a class="btn btn-ghost" href="/admin/gallery/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "adm.gallery.upload"}}</a>
+            <a class="btn btn-solid" href="/admin/courses/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.courses.new"}}</a>
           </div>
         </div>
         <ul class="stats">
-          <li><a class="stat stat-link" href="/admin/courses"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>Courses</span><small>Lessons, Exams and enrolled Learners</small></a></li>
-          <li><a class="stat stat-link" href="/admin/gallery"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>Manage the Gallery</span><small>Videos, ebooks and pictures</small></a></li>
-          <li><a class="stat stat-link" href="/admin/certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>Certificates</span><small>Search, revoke and reissue</small></a></li>
-          <li><a class="stat stat-link" href="/admin/certificate-settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>Certificate details</span><small>Organisation, logo and signature</small></a></li>
-          <li><a class="stat stat-link" href="/admin/plans"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>Lab Plans</span><small>Sell Lab access and assign it to Learners</small></a></li>
-          <li><a class="stat stat-link" href="/admin/deployments"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>Deployments</span><small>Dashboards online, and Takedowns</small></a></li>
-          {{if .Learner.IsOwner}}<li><a class="stat stat-link" href="/admin/log"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>System log</span><small>Errors and start-ups, for the Owner only</small></a></li>{{end}}
+          <li><a class="stat stat-link" href="/admin/courses"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span><small>{{t .Lang "adm.home.courses"}}</small></a></li>
+          <li><a class="stat stat-link" href="/admin/gallery"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "adm.home.gallery"}}</span><small>{{t .Lang "adm.home.gallery-sub"}}</small></a></li>
+          <li><a class="stat stat-link" href="/admin/certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span><small>{{t .Lang "adm.home.certs-sub"}}</small></a></li>
+          <li><a class="stat stat-link" href="/admin/certificate-settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span><small>{{t .Lang "adm.home.details-sub"}}</small></a></li>
+          <li><a class="stat stat-link" href="/admin/plans"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span><small>{{t .Lang "adm.home.plans-sub"}}</small></a></li>
+          <li><a class="stat stat-link" href="/admin/deployments"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span><small>{{t .Lang "adm.home.deploys-sub"}}</small></a></li>
+          {{if .Learner.IsOwner}}<li><a class="stat stat-link" href="/admin/log"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.side.log"}}</span><small>{{t .Lang "adm.home.log-sub"}}</small></a></li>{{end}}
         </ul>
-        <p class="note"><a href="/gallery">Gallery</a> · <a href="/">Home</a></p>
+        <p class="note"><a href="/gallery">{{t .Lang "nav.gallery"}}</a> · <a href="/">{{t .Lang "adm.home.home"}}</a></p>
       </div>
     </div>
 {{end}}

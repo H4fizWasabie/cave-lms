@@ -1,17 +1,17 @@
-{{define "title"}}Delete Gallery item · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "adm.gallery.delete"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "gallery" $.Learner $.Lang)}}
       <div class="adm-main">
-        <div class="adm-head"><h1>Delete Gallery item</h1></div>
+        <div class="adm-head"><h1>{{t .Lang "adm.gallery.delete"}}</h1></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           {{with .Item}}{{if not $.Error}}
-          <p>Delete &ldquo;{{.Title}}&rdquo; and its file? This cannot be undone.</p>
+          <p>{{t $.Lang "adm.delete"}} &ldquo;{{.Title}}&rdquo; {{t $.Lang "adm.gallery.and-file"}} {{t $.Lang "adm.not-undone"}}</p>
           {{end}}{{end}}
           <div class="form-foot">
-            <a class="btn btn-quiet" href="/admin/gallery">Cancel</a>
-            {{with .Item}}{{if not $.Error}}<form method="post" action="/admin/gallery/{{.ID}}/delete"><button class="btn btn-danger-solid">Delete item</button></form>{{end}}{{end}}
+            <a class="btn btn-quiet" href="/admin/gallery">{{t .Lang "adm.cancel"}}</a>
+            {{with .Item}}{{if not $.Error}}<form method="post" action="/admin/gallery/{{.ID}}/delete"><button class="btn btn-danger-solid">{{t $.Lang "adm.gallery.delete-item"}}</button></form>{{end}}{{end}}
           </div>
         </div>
       </div>

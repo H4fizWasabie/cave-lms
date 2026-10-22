@@ -1,27 +1,27 @@
-{{define "title"}}Certificate details · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "admin.side.cert-details"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "design" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: Certificate details</h1>
-            <p>These appear on every Certificate PDF.</p>
+            <h1>{{t .Lang "adm.certs.details-title"}}</h1>
+            <p>{{t .Lang "adm.certs.details-lede"}}</p>
           </div>
         </div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="/admin/certificate-settings" enctype="multipart/form-data">
             <div class="field-grid field-grid-2">
-              <div class="field"><label for="organisation_name">Organisation name</label><input id="organisation_name" type="text" name="organisation_name" value="{{.Settings.OrganisationName}}"></div>
-              <div class="field"><label for="signatory_name">Signatory name</label><input id="signatory_name" type="text" name="signatory_name" value="{{.Settings.SignatoryName}}"></div>
+              <div class="field"><label for="organisation_name">{{t .Lang "adm.certs.organisation"}}</label><input id="organisation_name" type="text" name="organisation_name" value="{{.Settings.OrganisationName}}"></div>
+              <div class="field"><label for="signatory_name">{{t .Lang "adm.certs.signatory"}}</label><input id="signatory_name" type="text" name="signatory_name" value="{{.Settings.SignatoryName}}"></div>
             </div>
-            <p class="note">Images must be JPEG or PNG, up to 5 MB in all.</p>
+            <p class="note">{{t .Lang "adm.certs.images"}}</p>
             <div class="field-grid field-grid-2">
-              <div class="field"><label for="logo">Logo (JPEG or PNG)</label><input id="logo" type="file" name="logo" accept="image/jpeg,image/png"><small>{{if .Settings.LogoKey}}Logo set. Upload again to replace it.{{else}}No logo yet.{{end}}</small></div>
-              <div class="field"><label for="signature">Signature (JPEG or PNG)</label><input id="signature" type="file" name="signature" accept="image/jpeg,image/png"><small>{{if .Settings.SignatureKey}}Signature set. Upload again to replace it.{{else}}No signature yet.{{end}}</small></div>
+              <div class="field"><label for="logo">{{t .Lang "adm.certs.logo"}}</label><input id="logo" type="file" name="logo" accept="image/jpeg,image/png"><small>{{if .Settings.LogoKey}}{{t .Lang "adm.certs.logo-set"}}{{else}}{{t .Lang "adm.certs.no-logo"}}{{end}}</small></div>
+              <div class="field"><label for="signature">{{t .Lang "adm.certs.signature"}}</label><input id="signature" type="file" name="signature" accept="image/jpeg,image/png"><small>{{if .Settings.SignatureKey}}{{t .Lang "adm.certs.signature-set"}}{{else}}{{t .Lang "adm.certs.no-signature"}}{{end}}</small></div>
             </div>
-            <div class="form-actions"><button class="btn btn-solid">Save</button></div>
+            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
           </form>
         </div>
       </div>

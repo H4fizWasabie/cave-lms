@@ -1,12 +1,12 @@
-{{define "title"}}CaveText caps · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "admin.side.cavetext-caps"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "cavetext-caps" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: CaveText caps</h1>
-            <p>How many Snippets a Learner may keep free. The first Learners to sign in to CaveText, up to the early places, get the early cap; everyone after gets the late cap. A change applies to every Learner at once and never deletes a Snippet; a Learner over a lowered cap can still edit and delete, but not add. Only you, the Owner, see this page.</p>
+            <h1>{{t .Lang "ctadmin.caps.heading"}}</h1>
+            <p>{{t .Lang "ctadmin.caps.intro"}}</p>
           </div>
         </div>
         <div class="card">
@@ -14,11 +14,11 @@
           {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
           <form class="form" method="post" action="/admin/cavetext/caps">
             <div class="field-grid field-grid-2">
-              <div class="field"><label for="early_places">Early places</label><input id="early_places" type="number" min="0" max="1000000" step="1" name="early_places" value="{{.EarlyPlaces}}" required></div>
-              <div class="field"><label for="early_cap">Early cap (Snippets)</label><input id="early_cap" type="number" min="0" max="1000000" step="1" name="early_cap" value="{{.EarlyCap}}" required></div>
-              <div class="field"><label for="late_cap">Late cap (Snippets)</label><input id="late_cap" type="number" min="0" max="1000000" step="1" name="late_cap" value="{{.LateCap}}" required></div>
+              <div class="field"><label for="early_places">{{t .Lang "ctadmin.caps.early-places"}}</label><input id="early_places" type="number" min="0" max="1000000" step="1" name="early_places" value="{{.EarlyPlaces}}" required></div>
+              <div class="field"><label for="early_cap">{{t .Lang "ctadmin.caps.early-cap"}}</label><input id="early_cap" type="number" min="0" max="1000000" step="1" name="early_cap" value="{{.EarlyCap}}" required></div>
+              <div class="field"><label for="late_cap">{{t .Lang "ctadmin.caps.late-cap"}}</label><input id="late_cap" type="number" min="0" max="1000000" step="1" name="late_cap" value="{{.LateCap}}" required></div>
             </div>
-            <div class="form-actions"><button class="btn btn-solid">Save</button></div>
+            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>
         </div>
       </div>

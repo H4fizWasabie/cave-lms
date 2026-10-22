@@ -1,34 +1,34 @@
-{{define "title"}}CaveText Learners · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "admin.side.cavetext"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "cavetext" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: CaveText Learners</h1>
-            <p>Every Learner who has signed in to CaveText, by place. Give a Learner CaveText Pro after they pay: it lasts 12 months, starting when any Pro they have ends. A Learner shows here once they have signed in to CaveText.</p>
+            <h1>{{t .Lang "ctadmin.learners.heading"}}</h1>
+            <p>{{t .Lang "ctadmin.learners.intro"}}</p>
           </div>
-          <div class="adm-head-actions"><a class="btn btn-ghost" href="/admin/cavetext/settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg>CaveText settings</a></div>
+          <div class="adm-head-actions"><a class="btn btn-ghost" href="/admin/cavetext/settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg>{{t .Lang "admin.side.cavetext-set"}}</a></div>
         </div>
-        <p class="note"><strong>{{.EarlyTaken}}</strong> early places taken</p>
+        <p class="note"><strong>{{.EarlyTaken}}</strong> {{t .Lang "ctadmin.learners.early-taken"}}</p>
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Place</th><th>Learner</th><th>CaveText</th><th>Pro until</th><th>Snippets</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              <tr><th>{{t .Lang "ctadmin.learners.place"}}</th><th>{{t .Lang "deployments.learner"}}</th><th>CaveText</th><th>{{t .Lang "ctadmin.learners.pro-until"}}</th><th>{{t .Lang "cavetext.snippets"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Learners}}
               <tr>
-                <td>{{.Place}}{{if .Early}} (early){{end}}</td>
+                <td>{{.Place}}{{if .Early}} {{t $.Lang "ctadmin.learners.early"}}{{end}}</td>
                 <td>{{.Name}}<br><span class="muted">{{.Email}}</span></td>
-                <td>{{if .Pro}}Pro{{else}}Free{{end}}</td>
+                <td>{{if .Pro}}Pro{{else}}{{t $.Lang "cavetext.free"}}{{end}}</td>
                 <td>{{with .Until}}{{.}}{{else}}-{{end}}</td>
                 <td>{{.Snippets}}</td>
                 <td class="actions">
-                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro"><button class="btn btn-solid btn-sm">{{if .Pro}}Renew Pro{{else}}Give Pro{{end}}</button></form>
-                  {{if .Pro}}<form method="post" action="/admin/cavetext/learners/{{.ID}}/end-pro"><button class="btn btn-danger btn-sm">End Pro now</button></form>{{end}}
+                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro"><button class="btn btn-solid btn-sm">{{if .Pro}}{{t $.Lang "ctadmin.learners.renew"}}{{else}}{{t $.Lang "ctadmin.learners.give"}}{{end}}</button></form>
+                  {{if .Pro}}<form method="post" action="/admin/cavetext/learners/{{.ID}}/end-pro"><button class="btn btn-danger btn-sm">{{t $.Lang "ctadmin.learners.end"}}</button></form>{{end}}
                 </td>
               </tr>
               {{else}}
-              <tr><td colspan="6">No Learner has signed in to CaveText yet.</td></tr>
+              <tr><td colspan="6">{{t .Lang "ctadmin.learners.none"}}</td></tr>
               {{end}}
             </table>
           </div>

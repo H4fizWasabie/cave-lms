@@ -98,7 +98,12 @@ type caveTextCapsView struct {
 const maxCapSetting = 1000000
 
 func (a *App) caveTextCapsForm(w http.ResponseWriter, r *http.Request) {
-	v := &caveTextCapsView{pageBase: pageBase{Title: "CaveText caps"}}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	v := &caveTextCapsView{}
 	var places, early, late int
 	if err := a.db.QueryRowContext(r.Context(), `SELECT early_places, early_cap, late_cap FROM cavetext_settings WHERE id = 1`).
 		Scan(&places, &early, &late); err != nil {
@@ -107,14 +112,19 @@ func (a *App) caveTextCapsForm(w http.ResponseWriter, r *http.Request) {
 	}
 	v.EarlyPlaces, v.EarlyCap, v.LateCap = strconv.Itoa(places), strconv.Itoa(early), strconv.Itoa(late)
 	if r.URL.Query().Has("saved") {
-		v.Message = "Saved."
+		v.Message = text.T(lang, "admin.common.saved")
 	}
 	a.render(w, r, http.StatusOK, "admin_cavetext_caps", v)
 }
 
 // saveCaveTextCaps stores the early places, early cap and late cap; all three or none.
 func (a *App) saveCaveTextCaps(w http.ResponseWriter, r *http.Request) {
-	v := &caveTextCapsView{pageBase: pageBase{Title: "CaveText caps"},
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	v := &caveTextCapsView{
 		EarlyPlaces: strings.TrimSpace(r.PostFormValue("early_places")),
 		EarlyCap:    strings.TrimSpace(r.PostFormValue("early_cap")),
 		LateCap:     strings.TrimSpace(r.PostFormValue("late_cap"))}
@@ -122,7 +132,7 @@ func (a *App) saveCaveTextCaps(w http.ResponseWriter, r *http.Request) {
 	for i, s := range []string{v.EarlyPlaces, v.EarlyCap, v.LateCap} {
 		x, err := strconv.Atoi(s)
 		if err != nil || x < 0 || x > maxCapSetting {
-			v.Error = "Enter whole numbers from 0 to 1,000,000."
+			v.Error = text.T(lang, "ctadmin.caps.err")
 			a.render(w, r, http.StatusUnprocessableEntity, "admin_cavetext_caps", v)
 			return
 		}

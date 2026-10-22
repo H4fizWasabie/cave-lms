@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // caveTextMasterPrompt is the Image or the Dashboard master prompt: written for the client in CaveText snippet syntax,
@@ -86,9 +88,9 @@ const (
 func (caveTextSettingsView) MaxMasterPromptName() int { return maxMasterPromptName }
 func (caveTextSettingsView) MaxMasterPromptBody() int { return maxMasterPromptBody }
 
-// problem says why the two can't be saved, or "". A shortcut follows the Snippet rules and can't clash with the other
+// problem says in lang why the two can't be saved, or "". A shortcut follows the Snippet rules and can't clash with the other
 // master prompt's; a clash with Learners' Snippets doesn't stop the save.
-func (p *masterPrompts) problem() string {
+func (p *masterPrompts) problem(lang string) string {
 	for i := range p {
 		x := &p[i]
 		var others []caveTextSnippet
@@ -97,17 +99,16 @@ func (p *masterPrompts) problem() string {
 		}
 		switch {
 		case x.Name == "":
-			return fmt.Sprintf("Enter a name for the %s master prompt.", x.Label)
+			return text.T(lang, "ctadmin.prompts.err.name", x.Label)
 		case utf8.RuneCountInString(x.Name) > maxMasterPromptName:
-			return fmt.Sprintf("Shorten the %s master prompt's name to %d characters or fewer.", x.Label, maxMasterPromptName)
+			return text.T(lang, "ctadmin.prompts.err.name-long", x.Label, maxMasterPromptName)
 		case strings.TrimSpace(x.Body) == "":
-			return fmt.Sprintf("Enter the %s master prompt.", x.Label)
+			return text.T(lang, "ctadmin.prompts.err.body", x.Label)
 		case utf8.RuneCountInString(x.Body) > maxMasterPromptBody:
-			return fmt.Sprintf("Shorten the %s master prompt to %s characters or fewer.", x.Label, thousands(maxMasterPromptBody))
+			return text.T(lang, "ctadmin.prompts.err.body-long", x.Label, thousands(maxMasterPromptBody))
 		}
-		// The rest of this page's messages are English until the Admin area is translated.
-		if why := shortcutProblem("en",x.Shortcut, others); why != "" {
-			return fmt.Sprintf("%s master prompt: %s", x.Label, why)
+		if why := shortcutProblem(lang, x.Shortcut, others); why != "" {
+			return text.T(lang, "ctadmin.prompts.err.shortcut", x.Label, why)
 		}
 	}
 	return ""
@@ -144,7 +145,12 @@ func (a *App) saveCaveTextMasterPrompts(w http.ResponseWriter, r *http.Request) 
 		p[i].Shortcut = strings.TrimSpace(r.PostFormValue(k + "_shortcut"))
 		p[i].Body = strings.ReplaceAll(r.PostFormValue(k+"_body"), "\r\n", "\n")
 	}
-	if problem := p.problem(); problem != "" {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if problem := p.problem(lang); problem != "" {
 		v, err := a.caveTextSettings(r)
 		if err != nil {
 			a.serverError(w, r, err)

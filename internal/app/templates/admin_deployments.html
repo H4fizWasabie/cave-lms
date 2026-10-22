@@ -1,34 +1,34 @@
-{{define "title"}}Deployments · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "admin.side.deployments"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "deployments" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>
-            <h1>Admin: Deployments</h1>
-            <p>Every Dashboard a Learner put online, awake ones first. After a complaint, take one down with a reason: its link goes inactive at once, and the Learner keeps the Dashboard and sees the reason.</p>
+            <h1>{{t .Lang "deployments.heading"}}</h1>
+            <p>{{t .Lang "deployments.intro"}}</p>
           </div>
         </div>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Dashboard</th><th>Learner</th><th>Link</th><th>Status</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              <tr><th>Dashboard</th><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "deployments.link"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Deployments}}
               <tr{{if not .Awake}} class="is-revoked"{{end}}>
-                <td>{{if .Dashboard}}{{.Dashboard}}<br><small>{{.Template}} Template</small>{{else}}Deleted by the Learner{{end}}</td>
+                <td>{{if .Dashboard}}{{.Dashboard}}<br><small>{{t $.Lang "deployments.template" .Template}}</small>{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
                 <td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></td>
-                <td>{{if .Awake}}Online until {{.Until}}{{else if .TakenDown}}Taken down {{.Until}}<br><small>Reason: {{.Reason}}</small>{{else}}Asleep since {{.Until}}{{end}}</td>
+                <td>{{if .Awake}}{{t $.Lang "deployments.online-until" .Until}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .Until}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else}}{{t $.Lang "deployments.asleep-since" .Until}}{{end}}</td>
                 <td class="actions">{{if .Awake}}
                   <form class="takedown" method="post" action="/admin/deployments/{{.ID}}/takedown">
-                    <label class="sr" for="reason-{{.ID}}">Reason</label>
-                    <input id="reason-{{.ID}}" type="text" name="reason" maxlength="1000" placeholder="Reason, shown to the Learner" required>
-                    <button class="btn btn-danger btn-sm">Take down</button>
+                    <label class="sr" for="reason-{{.ID}}">{{t $.Lang "deployments.reason"}}</label>
+                    <input id="reason-{{.ID}}" type="text" name="reason" maxlength="1000" placeholder="{{t $.Lang "deployments.reason-placeholder"}}" required>
+                    <button class="btn btn-danger btn-sm">{{t $.Lang "deployments.take-down"}}</button>
                   </form>{{end}}</td>
               </tr>
               {{else}}
-              <tr><td colspan="5">No Deployments yet.</td></tr>
+              <tr><td colspan="5">{{t .Lang "deployments.none"}}</td></tr>
               {{end}}
             </table>
           </div>

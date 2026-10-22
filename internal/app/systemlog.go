@@ -1,12 +1,15 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // systemLogDays is how long a System log line is kept.
@@ -15,10 +18,38 @@ const systemLogDays = 30
 // systemLogPage is how many lines /admin/log shows at a time.
 const systemLogPage = 100
 
-// serverError records err in the System log against the request that failed, then answers 500.
+// serverError records err in the System log against the request that failed, then answers 500 with the
+// error page. It renders without render, which may be what failed: a Learner lookup that failed counts as
+// a Visitor, and a page that cannot be drawn falls back to plain text.
 func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	a.logError(r, err)
-	http.Error(w, "internal server error", http.StatusInternalServerError)
+	l, lookupErr := a.currentLearner(r)
+	saved := ""
+	if lookupErr != nil {
+		l = nil
+	} else if l != nil {
+		saved = l.Lang
+	}
+	lang := requestLanguage(saved, r)
+	p := &page{chrome: chrome{Lang: lang, Here: here(r)}, Learner: l, Title: text.T(lang, "error.title"), Message: text.T(lang, "error")}
+	var buf bytes.Buffer
+	if err := a.pages["message"].ExecuteTemplate(&buf, "layout", p); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusInternalServerError)
+	_, _ = buf.WriteTo(w)
+}
+
+// notFound answers 404 with the not-found page in the request's language.
+func (a *App) notFound(w http.ResponseWriter, r *http.Request) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "notfound.title"), Message: text.T(lang, "notfound")})
 }
 
 // logError records an error in the System log. r gives the method and path, never the query string,
@@ -89,7 +120,7 @@ func (a *App) requireOwner(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if learner == nil || !learner.IsOwner {
-			http.NotFound(w, r)
+			a.notFound(w, r)
 			return
 		}
 		h(w, r)
@@ -115,7 +146,7 @@ type systemLogView struct {
 
 // systemLog lists the System log newest first, systemLogPage lines a page; ?level=error shows errors only.
 func (a *App) systemLog(w http.ResponseWriter, r *http.Request) {
-	v := &systemLogView{pageBase: pageBase{Title: "System log"}, ErrorsOnly: r.URL.Query().Get("level") == "error", Page: 1}
+	v := &systemLogView{ErrorsOnly: r.URL.Query().Get("level") == "error", Page: 1}
 	// 30 days rarely fill more than a few pages; the cap keeps the OFFSET from overflowing.
 	if n, err := strconv.Atoi(r.URL.Query().Get("page")); err == nil && n > 1 && n <= 100000 {
 		v.Page = n

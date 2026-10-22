@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // enrolled reports whether the Learner is a member of the Course. It is the only thing that grants Course access.
@@ -22,13 +24,18 @@ type enrollee struct {
 	Done, Total int    // Lessons completed out of the Course's published Lessons
 	Best        int    // best Exam score, shown when HasBest
 	HasBest     bool   // false when the Learner has no finished attempt
-	Certificate string // "None", "Issued <date>" or "Revoked"
+	Certificate string // "None", "Issued <date>" or "Revoked", in the page's language
 }
 
 // adminCourse is the Admin's page for one Course: the Learners enrolled in it.
 func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
+		return
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	rows, err := a.db.QueryContext(r.Context(), `
@@ -63,7 +70,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		if e.Certificate, err = a.certificateStatus(r.Context(), e.ID, c.ID); err != nil {
+		if e.Certificate, err = a.certificateStatus(r.Context(), lang, e.ID, c.ID); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -79,7 +86,7 @@ func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
 	}
 	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
 	if err != nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(),
@@ -122,7 +129,12 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !enrolled && !c.Open {
-		a.render(w, r, http.StatusConflict, "course", page{Course: &c, Learner: learner, Error: "This Course is closed to new joins."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusConflict, "course", page{Course: &c, Learner: learner, Error: text.T(lang, "course.closed")})
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(),

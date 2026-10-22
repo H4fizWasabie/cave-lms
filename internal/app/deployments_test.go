@@ -210,7 +210,7 @@ func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
 	}
 
 	res, body = ada.get(path + "/delete")
-	expectStatus(t, res, body, http.StatusOK, "Delete &ldquo;Kedai 2026&rdquo;?")
+	expectStatus(t, res, body, http.StatusOK, "Delete “Kedai 2026”?")
 	res, body = ada.post(path+"/delete", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")

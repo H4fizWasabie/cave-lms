@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // plan is a Plan as the Admin pages show it. PaymentLink is empty when none is set.
@@ -51,12 +53,17 @@ func (a *App) editPlanForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) createPlan(w http.ResponseWriter, r *http.Request) {
-	p, msg := planFromForm(r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p, msg := planFromForm(lang, r)
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "plan_form", &planFormPage{pageBase{Error: msg}, p})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(),
+	_, err = a.db.ExecContext(r.Context(),
 		`INSERT INTO plans (name, days, deployments, payment_link) VALUES ($1, $2, $3, $4)`,
 		p.Name, p.Days, p.Deployments, p.PaymentLink)
 	if err != nil {
@@ -71,13 +78,18 @@ func (a *App) updatePlan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p, msg := planFromForm(r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p, msg := planFromForm(lang, r)
 	p.ID = existing.ID
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "plan_form", &planFormPage{pageBase{Error: msg}, p})
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(),
+	_, err = a.db.ExecContext(r.Context(),
 		`UPDATE plans SET name = $2, days = $3, deployments = $4, payment_link = $5 WHERE id = $1`,
 		p.ID, p.Name, p.Days, p.Deployments, p.PaymentLink)
 	if err != nil {
@@ -101,7 +113,7 @@ func (a *App) planFor(w http.ResponseWriter, r *http.Request) (plan, bool) {
 		}
 	}
 	if err != nil {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Plan not found", Message: "There is no Plan at this address."})
+		a.adminNotFound(w, r, "plans.not-found.title", "plans.not-found")
 		return p, false
 	}
 	return p, true
@@ -124,8 +136,8 @@ func (a *App) listPlans(r *http.Request) ([]plan, error) {
 	return list, rows.Err()
 }
 
-// planFromForm reads the Plan form. msg is the first problem found, empty when the form is valid.
-func planFromForm(r *http.Request) (p plan, msg string) {
+// planFromForm reads the Plan form. msg is the first problem found, in lang, empty when the form is valid.
+func planFromForm(lang string, r *http.Request) (p plan, msg string) {
 	p.Name = strings.TrimSpace(r.PostFormValue("name"))
 	p.PaymentLink = strings.TrimSpace(r.PostFormValue("payment_link"))
 	days, daysErr := strconv.Atoi(strings.TrimSpace(r.PostFormValue("days")))
@@ -133,13 +145,13 @@ func planFromForm(r *http.Request) (p plan, msg string) {
 	p.Days, p.Deployments = days, deployments
 	switch {
 	case p.Name == "":
-		msg = "Enter a name."
+		msg = text.T(lang, "plans.err.name")
 	case daysErr != nil || days < 1:
-		msg = "Enter the length as a whole number of days, 1 or more."
+		msg = text.T(lang, "plans.err.days")
 	case deploymentsErr != nil || deployments < 0:
-		msg = "Enter the Deployment allowance as a whole number, 0 or more."
+		msg = text.T(lang, "plans.err.deployments")
 	case p.PaymentLink != "" && !isWebLink(p.PaymentLink):
-		msg = "Enter the payment link as a full web address starting with https://, or leave it empty."
+		msg = text.T(lang, "plans.err.link")
 	}
 	return p, msg
 }
@@ -157,8 +169,8 @@ type planPeriod struct {
 	Starts      string
 	Ends        string
 	Deployments int
-	EndedEarly  string // when the Admin ended it early, empty otherwise
-	Status      string // Active, Upcoming, Ended or Ended early
+	Status      string // active, upcoming, ended or ended-early
+	Shown       string // Status as the page says it, with when it ended early
 }
 
 // planPeriodsPage shows one Learner's Plan periods. Email is the one searched for;
@@ -183,7 +195,7 @@ func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusOK
 	if p.Email != "" && p.HolderID == 0 {
 		status = http.StatusNotFound
-		p.Error = noLearnerWith(p.Email)
+		p.Error = text.T(p.Lang, "plans.err.no-learner", p.Email)
 	}
 	a.render(w, r, status, "admin_plan_periods", p)
 }
@@ -197,7 +209,7 @@ func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if p.HolderID == 0 {
-		p.Error = noLearnerWith(p.Email)
+		p.Error = text.T(p.Lang, "plans.err.no-learner", p.Email)
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_plan_periods", p)
 		return
 	}
@@ -215,7 +227,7 @@ func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		p.Error = "Choose a Plan."
+		p.Error = text.T(p.Lang, "plans.err.choose")
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_plan_periods", p)
 		return
 	}
@@ -229,7 +241,7 @@ func (a *App) endPlanPeriod(w http.ResponseWriter, r *http.Request) {
 	err := a.db.QueryRowContext(r.Context(),
 		`SELECT l.email FROM plan_periods pp JOIN learners l ON l.id = pp.learner_id WHERE pp.id = $1`, id).Scan(&email)
 	if errors.Is(err, sql.ErrNoRows) {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Plan period not found", Message: "There is no Plan period at this address."})
+		a.adminNotFound(w, r, "plans.period.not-found.title", "plans.period.not-found")
 		return
 	}
 	if err == nil {
@@ -243,17 +255,18 @@ func (a *App) endPlanPeriod(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/plans/periods?email="+url.QueryEscape(email), http.StatusSeeOther)
 }
 
-func noLearnerWith(email string) string {
-	return "No Learner has the email " + email + ". Check the spelling, or ask them to register first."
-}
-
 // planPeriodsPage loads the Learner with the given email, their periods in start order, and every Plan.
 func (a *App) planPeriodsPage(r *http.Request, email string) (*planPeriodsPage, error) {
+	lang, err := a.language(r)
+	if err != nil {
+		return nil, err
+	}
 	p := &planPeriodsPage{Email: strings.TrimSpace(email)}
+	p.Lang = lang // render sets it again; the messages and statuses need it first
 	if p.Email == "" {
 		return p, nil
 	}
-	err := a.db.QueryRowContext(r.Context(), `SELECT id, name FROM learners WHERE lower(email) = lower($1)`, p.Email).
+	err = a.db.QueryRowContext(r.Context(), `SELECT id, name FROM learners WHERE lower(email) = lower($1)`, p.Email).
 		Scan(&p.HolderID, &p.HolderName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, nil
@@ -266,10 +279,10 @@ func (a *App) planPeriodsPage(r *http.Request, email string) (*planPeriodsPage, 
 	}
 	rows, err := a.db.QueryContext(r.Context(), `
 		SELECT pp.id, pl.name, pp.starts_at, pp.ends_at, pp.deployments, pp.ended_early_at,
-			CASE WHEN pp.ended_early_at IS NOT NULL THEN 'Ended early'
-				WHEN pp.ends_at <= now() THEN 'Ended'
-				WHEN pp.starts_at > now() THEN 'Upcoming'
-				ELSE 'Active' END
+			CASE WHEN pp.ended_early_at IS NOT NULL THEN 'ended-early'
+				WHEN pp.ends_at <= now() THEN 'ended'
+				WHEN pp.starts_at > now() THEN 'upcoming'
+				ELSE 'active' END
 		FROM plan_periods pp JOIN plans pl ON pl.id = pp.plan_id
 		WHERE pp.learner_id = $1 ORDER BY pp.starts_at, pp.id`, p.HolderID)
 	if err != nil {
@@ -284,10 +297,21 @@ func (a *App) planPeriodsPage(r *http.Request, email string) (*planPeriodsPage, 
 			return nil, err
 		}
 		pp.Starts, pp.Ends = starts.UTC().Format(periodTime), ends.UTC().Format(periodTime)
+		pp.Shown = text.T(lang, "plans.period."+pp.Status)
 		if endedEarly.Valid {
-			pp.EndedEarly = endedEarly.Time.UTC().Format(periodTime)
+			pp.Shown = text.T(lang, "plans.period.ended-early-on", endedEarly.Time.UTC().Format(periodTime))
 		}
 		p.Periods = append(p.Periods, pp)
 	}
 	return p, rows.Err()
+}
+
+// adminNotFound writes the Not found page with the title and message under these keys, in the page's language.
+func (a *App) adminNotFound(w http.ResponseWriter, r *http.Request, titleKey, messageKey string) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, titleKey), Message: text.T(lang, messageKey)})
 }

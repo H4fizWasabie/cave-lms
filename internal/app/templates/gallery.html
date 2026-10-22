@@ -1,34 +1,34 @@
-{{define "title"}}Gallery · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "gallery.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
       <div class="page-head">
-        <h1>Gallery</h1>
-        <p>Videos, ebooks and pictures.</p>
+        <h1>{{t .Lang "gallery.title"}}</h1>
+        <p>{{t .Lang "gallery.sub"}}</p>
       </div>
       <form class="g-toolbar" method="get" action="/gallery">
-        <label class="select-label">Format
+        <label class="select-label">{{t .Lang "gallery.format"}}
           <select name="format">
-            <option value="">All</option>
-            <option value="video"{{if eq .Format "video"}} selected{{end}}>Video</option>
-            <option value="ebook"{{if eq .Format "ebook"}} selected{{end}}>Ebook</option>
-            <option value="picture"{{if eq .Format "picture"}} selected{{end}}>Picture</option>
+            <option value="">{{t .Lang "gallery.all"}}</option>
+            <option value="video"{{if eq .Format "video"}} selected{{end}}>{{t .Lang "gallery.format.video"}}</option>
+            <option value="ebook"{{if eq .Format "ebook"}} selected{{end}}>{{t .Lang "gallery.format.ebook"}}</option>
+            <option value="picture"{{if eq .Format "picture"}} selected{{end}}>{{t .Lang "gallery.format.picture"}}</option>
           </select>
         </label>
-        <label class="select-label">Category
+        <label class="select-label">{{t .Lang "gallery.category"}}
           <select name="category">
-            <option value="">All</option>
+            <option value="">{{t .Lang "gallery.all"}}</option>
             {{range .Categories}}
             <option value="{{.}}"{{if eq . $.Category}} selected{{end}}>{{.}}</option>
             {{end}}
           </select>
         </label>
-        <button class="btn btn-ghost btn-sm">Filter</button>
+        <button class="btn btn-ghost btn-sm">{{t .Lang "gallery.filter"}}</button>
       </form>
       <ul class="g-grid">
         {{range .Items}}
-        {{template "gallery-tile" .}}
+        {{template "gallery-tile" (tile . $.Lang)}}
         {{else}}
-        <li class="empty">{{if eq $.Format "ebook"}}eBooks are coming soon.{{else}}Nothing here yet.{{end}}</li>
+        <li class="empty">{{if eq $.Format "ebook"}}{{t $.Lang "gallery.ebooks-soon"}}{{else}}{{t $.Lang "gallery.empty"}}{{end}}</li>
         {{end}}
       </ul>
     </div>

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/go-pdf/fpdf"
 )
 
@@ -34,9 +35,9 @@ type certificate struct {
 const certificateColumns = `id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
 	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
 
-// IssuedOn is the issue date as the pages and the PDF show it.
-func (c certificate) IssuedOn() string {
-	return c.IssuedAt.UTC().Format("2 January 2006")
+// IssuedIn is the issue date written in lang, as the Learner's pages, the check page, the PDF and the Admin list show it.
+func (c certificate) IssuedIn(lang string) string {
+	return text.Date(lang, c.IssuedAt.UTC())
 }
 
 // certificateSettings are the details the Admin sets once. LogoKey and SignatureKey are empty when unset.
@@ -136,24 +137,24 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	return list, rows.Err()
 }
 
-// certificateStatus is the Certificate state the Admin sees for a Learner on a Course: "Issued" with the date of the
-// valid Certificate, "Revoked" when only revoked ones exist, or "None".
-func (a *App) certificateStatus(ctx context.Context, learnerID, courseID int64) (string, error) {
+// certificateStatus is the Certificate state the Admin sees, in lang, for a Learner on a Course: "Issued" with the
+// date of the valid Certificate, "Revoked" when only revoked ones exist, or "None".
+func (a *App) certificateStatus(ctx context.Context, lang string, learnerID, courseID int64) (string, error) {
 	var issued time.Time
 	var revoked sql.NullTime
 	err := a.db.QueryRowContext(ctx, `SELECT issued_at, revoked_at FROM certificates
 		WHERE learner_id = $1 AND course_id = $2 ORDER BY revoked_at IS NULL DESC, issued_at DESC LIMIT 1`,
 		learnerID, courseID).Scan(&issued, &revoked)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "None", nil
+		return text.T(lang, "adm.course.cert-none"), nil
 	}
 	if err != nil {
 		return "", err
 	}
 	if revoked.Valid {
-		return "Revoked", nil
+		return text.T(lang, "adm.course.cert-revoked"), nil
 	}
-	return "Issued " + certificate{IssuedAt: issued}.IssuedOn(), nil
+	return text.T(lang, "adm.course.cert-issued", text.Date(lang, issued.UTC())), nil
 }
 
 // myCertificates lists the logged-in Learner's Certificates, revoked ones included, each with a download link.
@@ -188,11 +189,16 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if len(list) == 0 || (list[0].LearnerID != viewer.ID && !viewer.IsAdmin) {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "There is no Certificate at this address."})
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
-	pdf, err := a.certificatePDF(r.Context(), list[0])
+	if len(list) == 0 || (list[0].LearnerID != viewer.ID && !viewer.IsAdmin) {
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.not-found-here")})
+		return
+	}
+	pdf, err := a.certificatePDF(r.Context(), lang, list[0])
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -202,8 +208,8 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// certificatePDF lays out the Certificate on one landscape A4 page.
-func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error) {
+// certificatePDF lays out the Certificate on one landscape A4 page, its fixed wording and date in lang.
+func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([]byte, error) {
 	s, err := a.certificateSettingsFor(ctx)
 	if err != nil {
 		return nil, err
@@ -230,18 +236,18 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 	}
 	if c.Revoked {
 		pdf.SetTextColor(200, 0, 0)
-		line(14, "B", 28, "REVOKED")
-		line(190, "B", 12, "This Certificate has been revoked and is no longer valid.")
+		line(14, "B", 28, text.T(lang, "certificate.pdf.revoked"))
+		line(190, "B", 12, text.T(lang, "certificate.pdf.revoked-note"))
 		pdf.SetTextColor(0, 0, 0)
 	}
-	line(48, "B", 32, "Certificate of Completion")
-	line(72, "", 14, "This certifies that")
+	line(48, "B", 32, text.T(lang, "certificate.pdf.title"))
+	line(72, "", 14, text.T(lang, "certificate.certifies"))
 	line(84, "B", 28, c.LearnerName)
-	line(106, "", 14, "has completed")
+	line(106, "", 14, text.T(lang, "certificate.completed"))
 	line(118, "B", 22, c.CourseTitle)
-	line(138, "", 12, "Issued "+c.IssuedOn())
-	line(146, "", 11, "Certificate ID: "+c.ID)
-	line(154, "", 11, "Verify at "+a.publicBaseURL+"/certificates/"+c.ID)
+	line(138, "", 12, text.T(lang, "certificate.issued", c.IssuedIn(lang)))
+	line(146, "", 11, text.T(lang, "certificate.pdf.id", c.ID))
+	line(154, "", 11, text.T(lang, "certificate.pdf.verify-at", a.publicBaseURL+"/certificates/"+c.ID))
 	if s.SignatureKey != "" {
 		if err := a.placeImage(pdf, s.SignatureKey, 40, 162, 0, 20); err != nil {
 			return nil, err
@@ -313,16 +319,21 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxCertificateImage)
 	if err := r.ParseMultipartForm(1 << 20); err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
 			a.render(w, r, http.StatusRequestEntityTooLarge, "admin_certificate_settings", page{Settings: &cur,
-				Error: "These files are too large. Images are limited to 5 MB, and nothing was saved."})
+				Error: text.T(lang, "adm.certs.err.too-large")})
 			return
 		}
 		a.render(w, r, http.StatusBadRequest, "admin_certificate_settings", page{Settings: &cur,
-			Error: "The form could not be read. Try again."})
+			Error: text.T(lang, "adm.certs.err.unread")})
 		return
 	}
 	next := certificateSettings{
@@ -341,7 +352,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	fail := func(msg string) {
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_certificate_settings", page{Settings: &cur, Error: msg})
 	}
-	logo, msg, err := a.saveCertificateImage(r, "logo")
+	logo, msg, err := a.saveCertificateImage(r, lang, "logo")
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -353,7 +364,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 		fail(msg)
 		return
 	}
-	signature, msg, err := a.saveCertificateImage(r, "signature")
+	signature, msg, err := a.saveCertificateImage(r, lang, "signature")
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -366,7 +377,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if next.OrganisationName == "" || next.SignatoryName == "" {
-		fail("Enter the organisation name and the signatory name.")
+		fail(text.T(lang, "adm.certs.err.names"))
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(), `UPDATE certificate_settings SET organisation_name = $1, signatory_name = $2,
@@ -385,8 +396,9 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/certificate-settings", http.StatusSeeOther)
 }
 
-// saveCertificateImage stores the uploaded image in field, if any. msg is set when the file is not a JPEG or PNG.
-func (a *App) saveCertificateImage(r *http.Request, field string) (key, msg string, err error) {
+// saveCertificateImage stores the uploaded image in field ("logo" or "signature"), if any. msg is set, in lang,
+// when the file is not a JPEG or PNG.
+func (a *App) saveCertificateImage(r *http.Request, lang, field string) (key, msg string, err error) {
 	f, _, err := r.FormFile(field)
 	if errors.Is(err, http.ErrMissingFile) {
 		return "", "", nil
@@ -401,7 +413,7 @@ func (a *App) saveCertificateImage(r *http.Request, field string) (key, msg stri
 		return "", "", err
 	}
 	if ct := http.DetectContentType(head[:n]); ct != "image/png" && ct != "image/jpeg" {
-		return "", "The " + field + " must be a JPEG or PNG image.", nil
+		return "", text.T(lang, "adm.certs.err.image-"+field), nil
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return "", "", err

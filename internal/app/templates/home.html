@@ -138,7 +138,7 @@
           <a class="link-more" href="/gallery">{{t .Lang "home.gallery.open"}}</a>
         </div>
         <ul class="g-grid g-grid-fit">
-          {{range .Items}}{{template "gallery-tile" .}}{{end}}
+          {{range .Items}}{{template "gallery-tile" (tile . $.Lang)}}{{end}}
         </ul>
       </div>
     </section>

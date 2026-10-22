@@ -1,9 +1,9 @@
-{{define "title"}}My Certificates · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "my-certificates.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
-        <h1>My Certificates</h1>
-        <p>Each certificate has an ID that anyone can check on this site.</p>
+        <h1>{{t .Lang "my-certificates.title"}}</h1>
+        <p>{{t .Lang "my-certificates.intro"}}</p>
       </div>
       <ul class="cert-list">
         {{range .Certificates}}
@@ -11,15 +11,15 @@
           <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
           <div class="cert-chip-main">
             <strong>{{.CourseTitle}}</strong>
-            <small>Issued {{.IssuedOn}}</small>
-            {{if .Revoked}}<p class="cert-revoked"><strong>Revoked</strong>: this Certificate is no longer valid.</p>{{end}}
+            <small>{{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</small>
+            {{if .Revoked}}<p class="cert-revoked"><strong>{{t $.Lang "certificate.revoked"}}</strong>: {{t $.Lang "my-certificates.revoked"}}</p>{{end}}
           </div>
-          <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>Download PDF</a>
+          <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
         </li>
         {{else}}
-        <li class="empty">You have no Certificates yet.</li>
+        <li class="empty">{{t .Lang "my-certificates.none"}}</li>
         {{end}}
       </ul>
-      <p class="mc-more"><a class="link-more" href="/my-courses">My Courses</a></p>
+      <p class="mc-more"><a class="link-more" href="/my-courses">{{t .Lang "my-courses.title"}}</a></p>
     </div>
 {{end}}

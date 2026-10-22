@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"html/template"
 )
 
@@ -28,7 +27,7 @@ type chosenColumn struct {
 
 // Generate writes a Dashboard: index.html, which loads charts.js and data.json beside it, and
 // data.json, the Dataset as one object per row. Blocks that need a skipped blank are left out.
-// Choices that do not fit the Dataset give an error worded for the Learner; blank cells in a
+// Choices that do not fit the Dataset give a Problem; blank cells in a
 // column chosen for a required blank give Errors, one per cell.
 func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []byte, err error) {
 	if t.Build != nil {
@@ -43,13 +42,13 @@ func Generate(t *Template, name string, c Choices, d *Dataset) (index, data []by
 		col, ok := c[b.Key]
 		switch {
 		case !ok && b.Required:
-			return nil, nil, fmt.Errorf("Choose a column for %s.", b.Label)
+			return nil, nil, Problem{"lab.err.choose-column", []any{b.Label}}
 		case !ok:
 			continue
 		case types[col] == "":
-			return nil, nil, fmt.Errorf("%s: the Dataset has no column called %s.", b.Label, col)
+			return nil, nil, Problem{"lab.err.no-such-column", []any{b.Label, col}}
 		case types[col] != b.Type:
-			return nil, nil, fmt.Errorf("%s needs a %s column, and %s holds %s.", b.Label, b.Type, col, types[col])
+			return nil, nil, Problem{"lab.err.wrong-type", []any{b.Label, typeWord(b.Type), col, typeWord(types[col])}}
 		}
 		columns[b.Key] = chosenColumn{Name: col, Type: b.Type, Money: b.Money}
 		required[col] = required[col] || b.Required

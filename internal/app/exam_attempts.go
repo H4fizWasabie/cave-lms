@@ -9,6 +9,8 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strconv"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // examGraceSeconds is how long after the time limit a submission is still accepted, for network delay.
@@ -88,29 +90,29 @@ func (s examStatus) maxAttempts() int {
 	return n
 }
 
-// AttemptsLeft is the number of attempts still allowed, or "Unlimited".
-func (s examStatus) AttemptsLeft() string {
+// AttemptsLeft is the number of attempts still allowed, or "Unlimited" in lang.
+func (s examStatus) AttemptsLeft(lang string) string {
 	if s.maxAttempts() == 0 {
-		return "Unlimited"
+		return text.T(lang, "exam.unlimited")
 	}
 	return strconv.Itoa(max(s.maxAttempts()-s.Used, 0))
 }
 
-// Blocker is the first reason the Learner may not start an attempt, empty when they may.
-func (s examStatus) Blocker() string {
+// Blocker is the first reason, in lang, the Learner may not start an attempt, empty when they may.
+func (s examStatus) Blocker(lang string) string {
 	switch {
 	case !s.Enrolled:
-		return "Join this Course to sit its Exam."
+		return text.T(lang, "exam.blocked.join")
 	case !s.Exam.Usable:
-		return "This Exam is not ready yet."
+		return text.T(lang, "exam.blocked.not-ready")
 	case s.Total == 0:
-		return "This Course has no Lessons yet, so its Exam is locked."
+		return text.T(lang, "exam.blocked.no-lessons")
 	case s.Done < s.Total:
-		return fmt.Sprintf("Complete every Lesson before you sit the Exam (%d of %d complete).", s.Done, s.Total)
+		return text.T(lang, "exam.blocked.lessons", s.Done, s.Total)
 	case s.Passed:
-		return "You have passed this Exam."
+		return text.T(lang, "exam.blocked.passed")
 	case s.maxAttempts() > 0 && s.Used >= s.maxAttempts():
-		return "You have no attempts left."
+		return text.T(lang, "exam.blocked.no-attempts")
 	}
 	return ""
 }
@@ -242,7 +244,12 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, attemptPath(c.ID, st.Open.ID), http.StatusSeeOther)
 		return
 	}
-	if msg := st.Blocker(); msg != "" {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if msg := st.Blocker(lang); msg != "" {
 		a.render(w, r, http.StatusConflict, "learner_exam", page{Course: &c, Learner: learner, Status: &st, Error: msg})
 		return
 	}
@@ -364,7 +371,12 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 // attemptFor loads the Learner's attempt named by {attemptID} on the Course. Other Learners' attempts are not found.
 func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID, courseID int64) (examAttempt, bool) {
 	notFound := func() (examAttempt, bool) {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Attempt not found", Message: "There is no Exam attempt at this address."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return examAttempt{}, false
+		}
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "exam.attempt-not-found.title"), Message: text.T(lang, "exam.attempt-not-found")})
 		return examAttempt{}, false
 	}
 	id, err := strconv.ParseInt(r.PathValue("attemptID"), 10, 64)

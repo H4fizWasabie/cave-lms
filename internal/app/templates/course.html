@@ -3,13 +3,13 @@
     <section class="c-hero">
       <div class="wrap c-hero-in c-hero-plain">
         <div>
-          <p class="crumbs"><a href="/courses">Courses</a></p>
+          <p class="crumbs"><a href="/courses">{{t .Lang "nav.courses"}}</a></p>
           <div class="c-title-row">
             <h1>{{.Course.Title}}</h1>
-            {{if .Course.Open}}<span class="badge badge-open">Open to new joins</span>{{else}}<span class="badge badge-closed">Closed to new joins</span>{{end}}
+            {{if .Course.Open}}<span class="badge badge-open">{{t .Lang "course.open"}}</span>{{else}}<span class="badge badge-closed">{{t .Lang "course.closed-badge"}}</span>{{end}}
           </div>
           <p class="lede">{{.Course.Description}}</p>
-          {{with .Course.StartDate}}<ul class="meta"><li>Start date: {{.}}</li></ul>{{end}}
+          {{with .Course.StartOn .Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}
         </div>
       </div>
     </section>
@@ -18,15 +18,15 @@
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{if .Lessons}}
         <div class="c-block">
-          <h2>Lessons</h2>
+          <h2>{{t .Lang "course.lessons"}}</h2>
           <ol class="lesson-list">
             {{range $l := .Lessons}}
             <li class="{{if $l.Completed}}is-done{{end}}">
               <div>
                 <span class="ls-n">{{if $l.Completed}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{end}}</span>
-                <span class="ls-t">{{if or $.Enrolled (and $.Learner $.Learner.IsAdmin)}}<a href="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}">{{$l.Title}}</a>{{else}}{{$l.Title}}{{end}}{{if not $l.Published}} <span class="badge badge-closed">(Draft, hidden from Learners)</span>{{end}}{{if $l.Completed}} <span class="sr">(complete)</span>{{end}}</span>
+                <span class="ls-t">{{if or $.Enrolled (and $.Learner $.Learner.IsAdmin)}}<a href="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}">{{$l.Title}}</a>{{else}}{{$l.Title}}{{end}}{{if not $l.Published}} <span class="badge badge-closed">{{t $.Lang "course.lesson-draft"}}</span>{{end}}{{if $l.Completed}} <span class="sr">{{t $.Lang "course.lesson-complete"}}</span>{{end}}</span>
                 {{if and $.Enrolled $l.Published}}
-                <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}/{{if $l.Completed}}incomplete{{else}}complete{{end}}"><button class="btn btn-quiet btn-sm btn-done{{if $l.Completed}} is-done{{end}}">{{if $l.Completed}}Mark incomplete{{else}}Mark complete{{end}}</button></form>
+                <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}/{{if $l.Completed}}incomplete{{else}}complete{{end}}"><button class="btn btn-quiet btn-sm btn-done{{if $l.Completed}} is-done{{end}}">{{if $l.Completed}}{{t $.Lang "course.mark-incomplete"}}{{else}}{{t $.Lang "course.mark-complete"}}{{end}}</button></form>
                 {{else}}<span></span>{{end}}
               </div>
             </li>
@@ -39,20 +39,20 @@
         <div class="panel">
           {{if .Learner}}
             {{if .Enrolled}}
-            <p class="panel-k">You have joined this Course</p>
-            <p class="panel-big">{{.Done}} of {{.Total}}</p>
-            <p class="panel-msg">Progress: {{.Done}} of {{.Total}} Lessons complete</p>
-            <a class="btn btn-solid btn-block" href="/courses/{{.Course.ID}}/exam">Exam</a>
-            <form method="post" action="/courses/{{.Course.ID}}/leave"><button class="btn btn-quiet btn-block">Leave this Course</button></form>
+            <p class="panel-k">{{t .Lang "course.joined"}}</p>
+            <p class="panel-big">{{t .Lang "course.done-of" .Done .Total}}</p>
+            <p class="panel-msg">{{t .Lang "course.progress" .Done .Total}}</p>
+            <a class="btn btn-solid btn-block" href="/courses/{{.Course.ID}}/exam">{{t .Lang "exam.name"}}</a>
+            <form method="post" action="/courses/{{.Course.ID}}/leave"><button class="btn btn-quiet btn-block">{{t .Lang "course.leave"}}</button></form>
             {{else if .Course.Open}}
-            <p class="panel-msg">Join in one click. No approval needed.</p>
-            <form method="post" action="/courses/{{.Course.ID}}/join"><button class="btn btn-solid btn-block">Join this Course</button></form>
+            <p class="panel-msg">{{t .Lang "course.join-intro"}}</p>
+            <form method="post" action="/courses/{{.Course.ID}}/join"><button class="btn btn-solid btn-block">{{t .Lang "course.join"}}</button></form>
             {{else}}
-            <p class="panel-msg">This Course is closed to new joins.</p>
+            <p class="panel-msg">{{t .Lang "course.closed"}}</p>
             {{end}}
           {{else}}
-          <p class="panel-msg"><a href="/login">Log in</a> or <a href="/register">register</a> to join this Course.</p>
-          <a class="btn btn-solid btn-block" href="/register">Register</a>
+          <p class="panel-msg"><a href="/login">{{t .Lang "header.log-in"}}</a> {{t .Lang "course.or"}} <a href="/register">{{t .Lang "course.register"}}</a> {{t .Lang "course.to-join"}}</p>
+          <a class="btn btn-solid btn-block" href="/register">{{t .Lang "header.register"}}</a>
           {{end}}
         </div>
       </aside>

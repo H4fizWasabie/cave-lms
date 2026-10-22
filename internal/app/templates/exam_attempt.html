@@ -1,30 +1,30 @@
-{{define "title"}}Exam attempt · {{.Course.Title}} · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "exam.attempt"}} · {{.Course.Title}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
       <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
       {{with .Attempt}}
       {{if .Finished}}
       <div class="x-card x-result {{if .Passed}}is-pass{{else}}is-fail{{end}}">
-        <h1>Exam for {{$.Course.Title}}</h1>
-        <h2 class="sr">Result</h2>
+        <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
+        <h2 class="sr">{{t $.Lang "exam.result"}}</h2>
         <p class="x-score">{{.Score}}%</p>
-        <p>Score: {{.Score}}%</p>
-        <p class="x-verdict {{if .Passed}}x-pass{{else}}x-fail{{end}}">{{if .Passed}}Passed{{else}}Failed{{end}} (pass mark {{.PassMark}}%)</p>
+        <p>{{t $.Lang "exam.score" .Score}}</p>
+        <p class="x-verdict {{if .Passed}}x-pass{{else}}x-fail{{end}}">{{if .Passed}}{{t $.Lang "exam.passed" .PassMark}}{{else}}{{t $.Lang "exam.failed" .PassMark}}{{end}}</p>
         <div class="x-wrong">
-          <h2>Wrong answers</h2>
+          <h2>{{t $.Lang "exam.wrong-answers"}}</h2>
           <ol>
-            {{range .Questions}}{{if not .Right}}<li>{{.Prompt}} <span>Your answer: {{with .Answer}}{{.}}{{else}}no answer{{end}}</span></li>{{end}}{{end}}
+            {{range .Questions}}{{if not .Right}}<li>{{.Prompt}} <span>{{t $.Lang "exam.your-answer"}} {{with .Answer}}{{.}}{{else}}{{t $.Lang "exam.no-answer"}}{{end}}</span></li>{{end}}{{end}}
           </ol>
         </div>
       </div>
       {{else if .TimedOut}}
       <div class="x-card">
-        <h1>Exam for {{$.Course.Title}}</h1>
-        <p class="x-help">Time ran out. This attempt was not marked.</p>
+        <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
+        <p class="x-help">{{t $.Lang "exam.timed-out"}}</p>
       </div>
       {{else}}
-      <div class="page-head"><h1>Exam for {{$.Course.Title}}</h1></div>
-      {{with .TimeLimit}}<div class="x-top"><span>Answer every question, then submit.</span><span class="x-timer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>Time limit: {{.}} minutes, counted from when you started.</span></div>{{end}}
+      <div class="page-head"><h1>{{t $.Lang "exam.for" $.Course.Title}}</h1></div>
+      {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}}</span></div>{{end}}
       <form class="x-form" method="post" action="/courses/{{$.Course.ID}}/exam/attempts/{{.ID}}/submit">
         {{range $n, $q := .Questions}}
         <fieldset class="x-q">
@@ -34,10 +34,10 @@
           {{end}}{{end}}
         </fieldset>
         {{end}}
-        <div class="x-submit"><p>You can't change your answers after submitting.</p><button class="btn btn-solid btn-lg">Submit answers</button></div>
+        <div class="x-submit"><p>{{t $.Lang "exam.final"}}</p><button class="btn btn-solid btn-lg">{{t $.Lang "exam.submit"}}</button></div>
       </form>
       {{end}}
       {{end}}
-      <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}/exam">Back to the Exam</a></p>
+      <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}/exam">{{t .Lang "exam.back"}}</a></p>
     </div>
 {{end}}

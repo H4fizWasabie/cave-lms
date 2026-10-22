@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // maxDatasetFile is the largest .xlsx the Lab reads; maxDatasetUpload caps the request around it.
@@ -131,7 +132,7 @@ func (a *App) withDashboard(h func(http.ResponseWriter, *http.Request, *dashboar
 			return
 		}
 		if d == nil {
-			http.NotFound(w, r)
+			a.notFound(w, r)
 			return
 		}
 		h(w, r, d)
@@ -156,8 +157,12 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 		return acc, false
 	}
 	if !acc.Open() {
-		a.render(w, r, http.StatusForbidden, "message", page{Title: "The Lab is locked",
-			Message: "Building, uploading and deploying need a Plan and a Course that includes the Lab. See the Lab page for how to unlock it."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return acc, false
+		}
+		a.render(w, r, http.StatusForbidden, "message", page{Title: text.T(lang, "lab.locked.title"), Message: text.T(lang, "lab.locked")})
 	}
 	return acc, acc.Open()
 }
@@ -188,7 +193,7 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	p := &newDashboardPage{pageBase: pageBase{Title: "New Dashboard"}, Templates: lab.Templates, Picked: r.URL.Query().Get("t")}
+	p := &newDashboardPage{Templates: lab.Templates, Picked: r.URL.Query().Get("t")}
 	if lab.TemplateByKey(p.Picked) == nil {
 		p.Picked = lab.Templates[0].Key
 	}
@@ -199,13 +204,17 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	p := &newDashboardPage{pageBase: pageBase{Title: "New Dashboard"}, Templates: lab.Templates,
-		Picked: r.FormValue("template"), Name: strings.TrimSpace(r.FormValue("name"))}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p := &newDashboardPage{Templates: lab.Templates, Picked: r.FormValue("template"), Name: strings.TrimSpace(r.FormValue("name"))}
 	switch {
 	case lab.TemplateByKey(p.Picked) == nil:
-		p.Error, p.Picked = "Choose a Template.", lab.Templates[0].Key
+		p.Error, p.Picked = text.T(lang, "lab.err.template"), lab.Templates[0].Key
 	default:
-		p.Error = dashboardNameError(p.Name)
+		p.Error = dashboardNameError(lang, p.Name)
 	}
 	if p.Error != "" {
 		a.renderNewDashboard(w, r, http.StatusUnprocessableEntity, p)
@@ -225,12 +234,12 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/lab/dashboards/"+id, http.StatusSeeOther)
 }
 
-func dashboardNameError(name string) string {
+func dashboardNameError(lang, name string) string {
 	switch {
 	case name == "":
-		return "Give the Dashboard a name."
+		return text.T(lang, "lab.err.name")
 	case len(name) > 80:
-		return "Keep the name to 80 characters or fewer."
+		return text.T(lang, "lab.err.name-long")
 	}
 	return ""
 }
@@ -241,8 +250,13 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	if !ok {
 		return
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	name := strings.TrimSpace(r.FormValue("name"))
-	if msg := dashboardNameError(name); msg != "" {
+	if msg := dashboardNameError(lang, name); msg != "" {
 		p := &dashboardPage{Dashboard: d, Tab: "rename", Access: acc}
 		p.Error = msg
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
@@ -273,7 +287,7 @@ func (a *App) labSample(w http.ResponseWriter, r *http.Request) {
 	key, ok := strings.CutSuffix(r.PathValue("file"), ".xlsx")
 	t := lab.TemplateByKey(key)
 	if !ok || t == nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -344,14 +358,18 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 	}
 	if p.Tab == "hood" && d.Dataset != nil {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		p.Hood = hoodParts(string(index))
-		p.Data = hoodPart{N: len(p.Hood) + 1, Code: dataExcerpt(string(data)), Title: "Your spreadsheet, as data",
-			Note: "Each row of your Excel file becomes one line between { }. Dates are written year-month-day and amounts become plain numbers, so every computer reads them the same way. The design is not in here: that is why one file can be swapped without touching the other."}
+		p.Hood = hoodParts(lang, string(index))
+		p.Data = hoodPart{N: len(p.Hood) + 1, Code: dataExcerpt(lang, string(data)), Title: text.T(lang, "lab.hood.data.title"), Note: text.T(lang, "lab.hood.data")}
 	}
 	a.render(w, r, status, "lab_dashboard", p)
 }
@@ -363,11 +381,16 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	if !ok {
 		return
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	name := ""
 	refuse := func(errs ...string) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Errors: errs, Upload: name})
 	}
-	tooBig := "The file is over 2 MB. The Lab reads files up to 2 MB. Delete some rows, or columns you do not need, and upload again."
+	tooBig := text.T(lang, "lab.err.too-big")
 	r.Body = http.MaxBytesReader(w, r.Body, maxDatasetUpload)
 	file, header, err := r.FormFile("file")
 	var over *http.MaxBytesError
@@ -376,14 +399,14 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		refuse(tooBig)
 		return
 	case err != nil:
-		refuse("Choose an Excel file (.xlsx) to upload.")
+		refuse(text.T(lang, "lab.err.choose-file"))
 		return
 	}
 	defer file.Close()
 	name = header.Filename
 	switch {
 	case !strings.EqualFold(filepath.Ext(name), ".xlsx"):
-		refuse(name + " is not an .xlsx file. " + lab.WhyXLSX)
+		refuse(text.T(lang, "lab.err.not-xlsx", name))
 		return
 	case header.Size > maxDatasetFile:
 		refuse(tooBig)
@@ -392,7 +415,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	ds, err := lab.Read(file, d.Template)
 	var problems lab.Errors
 	if errors.As(err, &problems) {
-		refuse(problems...)
+		refuse(problems.In(lang)...)
 		return
 	}
 	if err != nil {
@@ -402,7 +425,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
 	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); errors.As(err, &problems) {
-		refuse(problems...) // blank cells in a column the Learner chose for a required blank
+		refuse(problems.In(lang)...) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
 		choices, next = d.Template.Guess(ds), dashboardURL(d)+"/columns"
@@ -445,13 +468,23 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 	}
 	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset); err != nil {
+		lang, langErr := a.language(r)
+		if langErr != nil {
+			a.serverError(w, r, langErr)
+			return
+		}
 		d.Choices = c
 		p := &dashboardPage{Dashboard: d, Tab: "columns", Access: acc}
 		var blanks lab.Errors
-		if errors.As(err, &blanks) {
-			p.Errors = blanks
-		} else {
-			p.Error = err.Error()
+		var choice lab.Problem
+		switch {
+		case errors.As(err, &blanks):
+			p.Errors = blanks.In(lang)
+		case errors.As(err, &choice):
+			p.Error = choice.In(lang)
+		default:
+			a.serverError(w, r, err)
+			return
 		}
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return
@@ -490,7 +523,7 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		t := lab.TemplateByKey(r.PathValue("key"))
 		if t == nil {
-			http.NotFound(w, r)
+			a.notFound(w, r)
 			return
 		}
 		ds, err := lab.Read(bytes.NewReader(t.Sample), t)
@@ -510,7 +543,7 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		return
 	}
 	if d.Dataset == nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
@@ -534,7 +567,7 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 // Open to its Learner with or without Lab access.
 func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if d.Dataset == nil {
-		http.NotFound(w, r)
+		a.notFound(w, r)
 		return
 	}
 	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
@@ -589,16 +622,17 @@ type hoodPart struct {
 }
 
 // hoodNotes explain index.html part by part; each part starts at its marker in lab/dashboard.html.
-var hoodNotes = []struct{ marker, title, note string }{
-	{"", "The page's details", "Tells the browser the language, the title on the tab, and that the page should fit a phone screen."},
-	{"<body>", "The layout", "Empty boxes for the title, the filters, the cards and the charts. Each has an id so the code below knows where to draw."},
-	{`  <script src="charts.js">`, "The chart library", "Cave's own code that draws the charts and styles the page. It sits next to the page as charts.js, so nothing loads from another website."},
-	{"  <script>\n", "Your column choices", "The only part that is yours: which column fills each blank, and the parts of the Dashboard to draw. Parts that need a blank you skipped are simply not here. Change a choice in the Lab and only these lines change."},
-	{"    fetch(", "Load the data, then draw", "The page fetches data.json, a separate file, and draws the Dashboard from it. Upload a new Dataset and only data.json changes; the page stays the same. Opened straight from your computer, browsers block fetching, so the page reads the same rows from data.js, which comes in the zip."},
+// key names its note in the text catalog, and key.title its title.
+var hoodNotes = []struct{ marker, key string }{
+	{"", "lab.hood.head"},
+	{"<body>", "lab.hood.layout"},
+	{`  <script src="charts.js">`, "lab.hood.library"},
+	{"  <script>\n", "lab.hood.choices"},
+	{"    fetch(", "lab.hood.fetch"},
 }
 
 // hoodParts cuts the generated index.html at the markers; a missing marker merges its part into the one before.
-func hoodParts(index string) []hoodPart {
+func hoodParts(lang, index string) []hoodPart {
 	var parts []hoodPart
 	for i, n := range hoodNotes {
 		if i > 0 {
@@ -609,16 +643,16 @@ func hoodParts(index string) []hoodPart {
 			}
 			index, last.Code = last.Code[j:], last.Code[:j]
 		}
-		parts = append(parts, hoodPart{N: len(parts) + 1, Code: index, Title: n.title, Note: n.note})
+		parts = append(parts, hoodPart{N: len(parts) + 1, Code: index, Title: text.T(lang, n.key+".title"), Note: text.T(lang, n.key)})
 	}
 	return parts
 }
 
 // dataExcerpt is the start of data.json: its first three rows, then how many more there are.
-func dataExcerpt(data string) string {
+func dataExcerpt(lang, data string) string {
 	lines := strings.Split(strings.TrimSuffix(data, "\n"), "\n") // "[", one line per row, "]"
 	if len(lines) <= 7 {
 		return data
 	}
-	return strings.Join(lines[:4], "\n") + "\n  ... " + strconv.Itoa(len(lines)-5) + " more rows\n]\n"
+	return strings.Join(lines[:4], "\n") + "\n  ... " + text.T(lang, "lab.d.more-rows", len(lines)-5) + "\n]\n"
 }

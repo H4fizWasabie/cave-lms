@@ -1,54 +1,54 @@
-{{define "title"}}Plan periods · Admin · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "plans.periods"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "plans" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/plans">Back to Plans</a></p>
+        <p class="crumbs"><a href="/admin/plans">{{t .Lang "plans.back"}}</a></p>
         <div class="adm-head">
           <div>
-            <h1>{{if .HolderID}}Plan periods: {{.HolderName}}{{else}}Plan periods{{end}}</h1>
-            <p>Find a Learner by email to see their periods, assign a Plan or end a period early.</p>
+            <h1>{{if .HolderID}}{{t .Lang "plans.periods-of" .HolderName}}{{else}}{{t .Lang "plans.periods"}}{{end}}</h1>
+            <p>{{t .Lang "plans.periods.intro"}}</p>
           </div>
         </div>
         <form class="toolbar" method="get" action="/admin/plans/periods">
-          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">Learner's email</span><input type="email" name="email" value="{{.Email}}" placeholder="Learner's email" required></label>
-          <button class="btn btn-ghost">Find</button>
+          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "plans.learner-email"}}</span><input type="email" name="email" value="{{.Email}}" placeholder="{{t .Lang "plans.learner-email"}}" required></label>
+          <button class="btn btn-ghost">{{t .Lang "plans.find"}}</button>
         </form>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{if .HolderID}}
         <div class="card card-flush">
-          <div class="card-head card-head-pad"><h2>Periods</h2></div>
+          <div class="card-head card-head-pad"><h2>{{t .Lang "plans.periods.heading"}}</h2></div>
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Plan</th><th>Starts</th><th>Ends</th><th>Deployments</th><th>Status</th><th class="actions"><span class="sr">Actions</span></th></tr>
+              <tr><th>{{t .Lang "plans.plan"}}</th><th>{{t .Lang "plans.starts"}}</th><th>{{t .Lang "plans.ends"}}</th><th>{{t .Lang "admin.side.deployments"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Periods}}
               <tr>
                 <td>{{.PlanName}}</td>
                 <td>{{.Starts}}</td>
                 <td>{{.Ends}}</td>
                 <td>{{.Deployments}}</td>
-                <td>{{.Status}}{{with .EndedEarly}} on {{.}}{{end}}</td>
-                <td class="actions">{{if or (eq .Status "Active") (eq .Status "Upcoming")}}<form method="post" action="/admin/plans/periods/{{.ID}}/end"><button class="btn btn-danger btn-sm">End now</button></form>{{end}}</td>
+                <td>{{.Shown}}</td>
+                <td class="actions">{{if or (eq .Status "active") (eq .Status "upcoming")}}<form method="post" action="/admin/plans/periods/{{.ID}}/end"><button class="btn btn-danger btn-sm">{{t $.Lang "plans.end-now"}}</button></form>{{end}}</td>
               </tr>
               {{else}}
-              <tr><td colspan="6">No Plan periods yet.</td></tr>
+              <tr><td colspan="6">{{t .Lang "plans.periods.none"}}</td></tr>
               {{end}}
             </table>
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><h2>Assign a Plan</h2></div>
+          <div class="card-head"><h2>{{t .Lang "plans.assign-heading"}}</h2></div>
           {{if .Plans}}
           <form class="form" method="post" action="/admin/plans/periods">
             <input type="hidden" name="email" value="{{.Email}}">
-            <div class="field"><label for="plan_id">Plan</label>
-              <select id="plan_id" name="plan_id">{{range .Plans}}<option value="{{.ID}}">{{.Name}} ({{.Days}} days, {{.Deployments}} Deployments)</option>{{end}}</select>
+            <div class="field"><label for="plan_id">{{t .Lang "plans.plan"}}</label>
+              <select id="plan_id" name="plan_id">{{range .Plans}}<option value="{{.ID}}">{{.Name}} ({{tn $.Lang "plans.days" .Days}}, {{tn $.Lang "plans.deployments" .Deployments}})</option>{{end}}</select>
             </div>
-            <p class="note">The period starts now, or when the Learner's last period ends if that is later.</p>
-            <div class="form-foot"><button class="btn btn-solid">Assign</button></div>
+            <p class="note">{{t .Lang "plans.assign-note"}}</p>
+            <div class="form-foot"><button class="btn btn-solid">{{t .Lang "plans.assign"}}</button></div>
           </form>
           {{else}}
-          <p>No Plans yet. <a href="/admin/plans/new">Create a Plan</a> first.</p>
+          <p>{{t .Lang "plans.none"}} <a href="/admin/plans/new">{{t .Lang "plans.create"}}</a> {{t .Lang "plans.first"}}</p>
           {{end}}
         </div>
         {{end}}

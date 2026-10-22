@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // deployment is a Dashboard's Deployment as its Learner sees it on the Deploy tab.
@@ -166,18 +168,23 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 		var takenDown bool
 		err = a.db.QueryRowContext(r.Context(), `SELECT sleeps_at, taken_down_at IS NOT NULL FROM deployments
 			WHERE slug = $1 AND dashboard_id IS NOT NULL`, slug).Scan(&sleeps, &takenDown)
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			a.render(w, r, http.StatusNotFound, "message", page{Title: "Not found",
-				Message: "There is no Dashboard at this link. It may have been deleted, or the link was copied wrongly."})
-		case err != nil:
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
+			return
+		}
+		lang, langErr := a.language(r)
+		if langErr != nil {
+			a.serverError(w, r, langErr)
+			return
+		}
+		switch {
+		case err != nil:
+			a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "lab.dep.gone.title"), Message: text.T(lang, "lab.dep.gone")})
 		case takenDown:
-			a.render(w, r, http.StatusOK, "message", page{Title: "This Dashboard is asleep",
-				Message: "Cave took it offline early. If you think this is a mistake, contact The Cave Consult."})
+			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"), Message: text.T(lang, "lab.dep.sleeping-taken")})
 		default:
-			a.render(w, r, http.StatusOK, "message", page{Title: "This Dashboard is asleep",
-				Message: "It was online for 7 days, until " + sleeps.UTC().Format(periodTime) + ". Nothing has been deleted; ask the person who shared the link."})
+			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"),
+				Message: text.T(lang, "lab.dep.sleeping", sleeps.UTC().Format(periodTime))})
 		}
 	}
 }
@@ -202,7 +209,17 @@ func (a *App) adminDeployments(w http.ResponseWriter, r *http.Request) {
 }
 
 // ponytail: lists every Deployment on one page; add paging when the list gets long.
-func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msg string) {
+// renderAdminDeployments shows the list, with the error under msgKey ("" for none) in the page's language.
+func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msgKey string) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	msg := ""
+	if msgKey != "" {
+		msg = text.T(lang, msgKey)
+	}
 	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), COALESCE(d.template, ''), l.name, l.email,
 		`+deploymentColumns+`
 		FROM deployments dep
@@ -238,11 +255,11 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	if reason == "" {
-		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "Give a reason for the Takedown. The Learner sees it in their Lab.")
+		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "deployments.err.reason")
 		return
 	}
 	if len(reason) > 1000 {
-		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "Keep the reason under 1,000 characters.")
+		a.renderAdminDeployments(w, r, http.StatusUnprocessableEntity, "deployments.err.reason-long")
 		return
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)

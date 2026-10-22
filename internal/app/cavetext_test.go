@@ -148,6 +148,9 @@ func TestCaveTextConnectRefusesAnUnlistedExtension(t *testing.T) {
 			t.Fatalf("extension %q was redirected to %q", id, res.Header.Get("Location"))
 		}
 	}
+	s.switchLanguage("ms", "/")
+	res, body := s.get("/cavetext/connect?extension=nope")
+	expectStatus(t, res, body, http.StatusBadRequest, "Sambungan ini tidak boleh log masuk ke CAVELMS.")
 }
 
 func TestCaveTextPlacesAreAssignedOnceAndNeverReused(t *testing.T) {

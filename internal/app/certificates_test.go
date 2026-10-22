@@ -43,13 +43,14 @@ func certificateIDs(body string) []string {
 	return ids
 }
 
-// pdfBody downloads a Certificate PDF and checks it is a PDF, returning its bytes as text.
+// pdfBody downloads a Certificate PDF, from a browser asking for English, and checks it is a PDF, returning its bytes as text.
 func (s *site) pdfBody(path string) string {
 	s.t.Helper()
 	req, err := http.NewRequest(http.MethodGet, s.server.URL+path, nil)
 	if err != nil {
 		s.t.Fatal(err)
 	}
+	req.Header.Set("Accept-Language", "en") // a saved language still wins
 	res, err := s.client.Do(req)
 	if err != nil {
 		s.t.Fatal(err)

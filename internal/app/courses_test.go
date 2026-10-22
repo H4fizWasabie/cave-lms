@@ -47,7 +47,7 @@ func TestAdminCreatesACourseThatVisitorsCanSee(t *testing.T) {
 	res, body = s.get("/courses")
 	expectStatus(t, res, body, http.StatusOK, "Go Basics")
 	expectStatus(t, res, body, http.StatusOK, "Learn Go from scratch.")
-	expectStatus(t, res, body, http.StatusOK, "2027-01-15")
+	expectStatus(t, res, body, http.StatusOK, "Start date: 15 January 2027")
 	expectStatus(t, res, body, http.StatusOK, "Open to new joins")
 }
 
@@ -89,7 +89,7 @@ func TestAdminEditsACourse(t *testing.T) {
 	res, body = s.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Go Advanced</h1>")
 	expectStatus(t, res, body, http.StatusOK, "Concurrency and more.")
-	expectStatus(t, res, body, http.StatusOK, "Start date: 2027-03-01")
+	expectStatus(t, res, body, http.StatusOK, "Start date: 1 March 2027")
 	if strings.Contains(body, "Go Basics") {
 		t.Fatalf("edited Course still shows its old title: %s", body)
 	}
