@@ -146,7 +146,7 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 }
 
 // deploymentFile serves a Deployment's files at /d/<slug>/ to anyone while it is awake. The page is
-// sandboxed (ADR 0007), so its null origin needs CORS to load data.json. Asleep or taken down: an
+// sandboxed (ADR 0007), so its null origin needs CORS to load its data. Asleep or taken down: an
 // inactive page; deleted Dashboard or unknown slug: not found.
 func (a *App) deploymentFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -159,10 +159,10 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			return
 		}
 		if d != nil {
-			if name == "data.json" {
+			if name == "data" {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 			}
-			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts")
+			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts", "public, max-age=31536000, immutable")
 			return
 		}
 		var takenDown bool

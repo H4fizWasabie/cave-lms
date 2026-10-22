@@ -74,14 +74,17 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 
 	visitor := ada.second() // no session
 	res, page := visitor.get(link)
-	expectStatus(t, res, page, http.StatusOK, `fetch("data.json")`)
+	expectStatus(t, res, page, http.StatusOK, `fetch("data/dataset-`)
 	if csp := res.Header.Get("Content-Security-Policy"); csp != "sandbox allow-scripts" {
 		t.Fatalf("Dashboard page CSP = %q", csp)
 	}
-	res, data := visitor.get(link + "data.json")
+	res, data := visitor.get(link + visitor.dataOf(link))
 	expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
 	if acao := res.Header.Get("Access-Control-Allow-Origin"); acao != "*" {
-		t.Fatalf("data.json Access-Control-Allow-Origin = %q", acao)
+		t.Fatalf("the data's Access-Control-Allow-Origin = %q", acao)
+	}
+	if cc := res.Header.Get("Cache-Control"); cc != "public, max-age=31536000, immutable" {
+		t.Fatalf("the data's Cache-Control = %q, want public for a year", cc)
 	}
 	res, script := visitor.get(link + "charts.js")
 	expectStatus(t, res, script, http.StatusOK, "function drawDashboard")
@@ -97,14 +100,15 @@ func TestADeploymentIsAwakeWhileThePlanIsActiveSleepsWhenItEndsAndWakesOnRenewal
 	link := ada.deploy(path)
 	other := ada.readyDashboard("Stok")
 	visitor := ada.second()
+	data := visitor.dataOf(link)
 
 	ada.ageAllDeployments(20) // well past the old 7 days, inside the 30-day period
-	if res, page := visitor.get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data.json")`) {
+	if res, page := visitor.get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data/`) {
 		t.Fatalf("20 days in, with the Plan active, the Deployment is not awake: %d", res.StatusCode)
 	}
 
 	admin.ageAllPeriods(31) // the only period ends, none follows
-	for _, p := range []string{link, link + "data.json"} {
+	for _, p := range []string{link, link + data} {
 		res, body := visitor.get(p)
 		expectStatus(t, res, body, http.StatusOK, "This Dashboard is asleep")
 		if strings.Contains(body, "Tarikh") {
@@ -120,8 +124,8 @@ func TestADeploymentIsAwakeWhileThePlanIsActiveSleepsWhenItEndsAndWakesOnRenewal
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 
 	admin.assignPlan("ada@example.com", admin.onlyPlanID()) // the next period starts now
-	res, data := visitor.get(link + "data.json")
-	expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
+	res, body = visitor.get(link + data)
+	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
 	res, body = ada.get(path + "/deploy")
 	expectStatus(t, res, body, http.StatusOK, "Online")
 	expectStatus(t, res, body, http.StatusOK, `href="`+link+`"`)
@@ -141,7 +145,7 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{day, "Kopi", "Dapur", "Keluar", 4321.5})
 	res, body := ada.postFile(path+"/dataset", "new.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	_, data := ada.second().get(link + "data.json")
+	_, data := ada.second().get(link + ada.second().dataOf(link))
 	if !strings.Contains(data, "4321.5") || strings.Count(data, "Tarikh") != 1 {
 		t.Fatalf("the Deployment does not show the new Dataset: %s", data)
 	}
@@ -195,7 +199,7 @@ func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *t
 	admin.assignPlan("ada@example.com", plan) // renews with 1 awake at once
 
 	for _, link := range links {
-		res, data := ada.second().get(link + "data.json")
+		res, data := ada.second().get(link + ada.second().dataOf(link))
 		expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
 	}
 	res, body = ada.get("/lab")
@@ -267,7 +271,7 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 	admin.ageAllPeriods(31) // the Admin's own Plan ends; their Deployments never sleep
 	for _, link := range links {
 		res, body := admin.second().get(link)
-		expectStatus(t, res, body, http.StatusOK, `fetch("data.json")`)
+		expectStatus(t, res, body, http.StatusOK, `fetch("data/`)
 	}
 	res, body = admin.get("/admin/deployments")
 	for _, want := range []string{"admin@example.com", "Empat", `href="` + links[0] + `"`} {

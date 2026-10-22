@@ -3,17 +3,21 @@ package app_test
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
 	"html"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 	"github.com/xuri/excelize/v2"
 )
@@ -191,14 +195,14 @@ func TestPreviewLoadsItsDataAndChartLibraryFromCave(t *testing.T) {
 
 	res, page := ada.get(path + "/view/")
 	expectStatus(t, res, page, http.StatusOK, `<script src="charts.js"></script>`)
-	for _, want := range []string{`fetch("data.json")`, `"filters": [`, `"category",`, `"date"`} {
+	for _, want := range []string{`fetch("data/dataset-`, `"filters": [`, `"category",`, `"date"`} {
 		expectStatus(t, res, page, http.StatusOK, want)
 	}
 	if strings.Contains(page, "http://") || strings.Contains(page, "https://") {
 		t.Fatalf("the Dashboard page loads something from another site: %s", page)
 	}
 
-	res, data := ada.get(path + "/view/data.json")
+	res, data := ada.get(path + "/view/" + ada.dataOf(path+"/view/"))
 	expectStatus(t, res, data, http.StatusOK, "")
 	if ct := res.Header.Get("Content-Type"); ct != "application/json" {
 		t.Fatalf("data.json Content-Type = %q", ct)
@@ -226,7 +230,7 @@ func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 	res, body = ada.get(path + "/columns")
 	expectStatus(t, res, body, http.StatusOK, "&lt;b&gt;Kategori&lt;/b&gt;")
 	ada.post(path+"/columns", url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"<b>Kategori</b>"}})
-	for _, p := range []string{path + "/columns", path + "/preview", path + "/view/", path + "/view/data.json"} {
+	for _, p := range []string{path + "/columns", path + "/preview", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/")} {
 		_, body := ada.get(p)
 		if strings.Contains(body, "<script>alert") || strings.Contains(body, "<b>Kategori") {
 			t.Fatalf("%s has hostile text unescaped: %s", p, body)
@@ -255,10 +259,11 @@ func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
 	admin, ada := labLearner(t)
 	path := ada.createDashboard("finance", "Kewangan")
 	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	data := ada.dataOf(path + "/view/")
 
 	bob := admin.second()
 	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
-	for _, p := range []string{path, path + "/columns", path + "/preview", path + "/view/", path + "/view/data.json"} {
+	for _, p := range []string{path, path + "/columns", path + "/preview", path + "/view/", path + "/view/" + data} {
 		if res, _ := bob.get(p); res.StatusCode != http.StatusNotFound {
 			t.Errorf("Bob got %d for %s, want 404", res.StatusCode, p)
 		}
@@ -320,9 +325,12 @@ func TestDownloadZipHasThePageItsDataAndTheChartLibrary(t *testing.T) {
 		t.Fatalf("zip Content-Disposition = %q", cd)
 	}
 	files := unzip(t, body)
+	address := ada.dataOf(path + "/view/")
 	_, index := ada.get(path + "/view/")
-	_, data := ada.get(path + "/view/data.json")
+	_, data := ada.get(path + "/view/" + address)
 	_, charts := ada.get(path + "/view/charts.js")
+	// The zip's page reads data.json beside it; the preview's reads the stored Dataset's address.
+	index = strings.Replace(index, `fetch("`+address+`")`, `fetch("data.json")`, 1)
 	if files["index.html"] != index || files["data.json"] != data || files["charts.js"] != charts {
 		t.Fatalf("zip files differ from the preview's: %v", keys(files))
 	}
@@ -375,7 +383,7 @@ func TestUnderTheHoodShowsTheGeneratedPageAndDataExplained(t *testing.T) {
 	if _, index := ada.get(path + "/view/"); page != index {
 		t.Fatalf("the hood's index.html is not the preview's:\n%s\n---\n%s", page, index)
 	}
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/view/data.json"`)
+	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/view/`+ada.dataOf(path+"/view/")+`"`)
 	data := html.UnescapeString(parts[5][1])
 	if !strings.Contains(data, `{"Tarikh": "2026-`) || !strings.Contains(data, "62 more rows") {
 		t.Fatalf("data.json excerpt: %s", data)
@@ -405,7 +413,7 @@ func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
 			t.Fatalf("%s still offers a form: %s", p, body)
 		}
 	}
-	for _, p := range []string{path + "/preview", path + "/hood", path + "/view/", path + "/view/data.json", path + "/download"} {
+	for _, p := range []string{path + "/preview", path + "/hood", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/"), path + "/download"} {
 		if res, body := ada.get(p); res.StatusCode != http.StatusOK {
 			t.Errorf("%s = %d without access, want 200: %.300s", p, res.StatusCode, body)
 		}
@@ -453,7 +461,7 @@ func TestReuploadKeepsTheColumnChoicesWhileTheyStillFit(t *testing.T) {
 	if loc := res.Header.Get("Location"); loc != path+"/preview" {
 		t.Fatalf("a matching re-upload redirects to %q, want the preview", loc)
 	}
-	_, data := ada.get(path + "/view/data.json")
+	_, data := ada.get(path + "/view/" + ada.dataOf(path+"/view/"))
 	if !strings.Contains(data, `"Jumlah": 12.5`) || strings.Count(data, "Tarikh") != 2 {
 		t.Fatalf("data.json not updated: %s", data)
 	}
@@ -503,4 +511,109 @@ func TestBlankCellsAreCheckedInTheChosenRequiredColumn(t *testing.T) {
 	res, body = ada.postFile(path+"/dataset", "gap.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah", "Lain"}, []any{day, 1, 2}, []any{day, 3, nil}))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Row 3, Lain: empty, but this column is required.")
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "your Dashboard still uses full.xlsx")
+}
+
+var dataAddress = regexp.MustCompile(`fetch\("(data/[A-Za-z0-9_-]+)"\)`)
+
+// dataOf returns the data address the Dashboard page at page (ending in /) fetches, relative to it.
+func (s *site) dataOf(page string) string {
+	s.t.Helper()
+	_, body := s.get(page)
+	m := dataAddress.FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("%s fetches no data address: %s", page, body)
+	}
+	return m[1]
+}
+
+func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	first := ada.dataOf(path + "/view/")
+	res, data := ada.get(path + "/view/" + first)
+	expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
+	if cc := res.Header.Get("Cache-Control"); !strings.Contains(cc, "max-age=31536000") || !strings.Contains(cc, "immutable") || !strings.Contains(cc, "private") {
+		t.Fatalf("the preview's data Cache-Control = %q, want private, a year and immutable", cc)
+	}
+	if n := ada.storedFiles(); n != 1 {
+		t.Fatalf("%d stored files after one upload, want 1", n)
+	}
+
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{day, "Kopi", "Dapur", "Keluar", 4321.5})
+	res, body := ada.postFile(path+"/dataset", "new.xlsx", file)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	second := ada.dataOf(path + "/view/")
+	if second == first {
+		t.Fatalf("a re-upload kept the data address %s", first)
+	}
+	if res, _ := ada.get(path + "/view/" + first); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("the old data address answers %d, want 404", res.StatusCode)
+	}
+	res, data = ada.get(path + "/view/" + second)
+	expectStatus(t, res, data, http.StatusOK, "4321.5")
+	if n := ada.storedFiles(); n != 1 {
+		t.Fatalf("%d stored files after a re-upload, want 1", n)
+	}
+
+	res, body = ada.post(path+"/delete", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if n := ada.storedFiles(); n != 0 {
+		t.Fatalf("%d stored files after deleting the Dashboard, want 0", n)
+	}
+}
+
+// restart starts a new App on the same database and files, as a deploy does, and serves it in place of the old one.
+func (s *site) restart() {
+	s.t.Helper()
+	a, err := app.New(context.Background(), s.cfg, s.mail)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	s.t.Cleanup(func() { _ = a.Close() })
+	s.server.Config.Handler = a
+}
+
+func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	address := ada.dataOf(path + "/view/")
+	_, want := ada.get(path + "/view/" + address)
+
+	// Put the Dashboard back the way it was before the store: its Dataset in the dataset column, nothing stored.
+	stored := filepath.Join(ada.storageDir, strings.TrimPrefix(address, "data/"))
+	dataset, err := os.ReadFile(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{`ALTER TABLE dashboards ADD COLUMN dataset jsonb`, `UPDATE dashboards SET dataset = $1, dataset_key = NULL`,
+		`DELETE FROM goose_db_version WHERE version_id = 69`} {
+		var args []any
+		if strings.Contains(q, "$1") {
+			args = append(args, dataset)
+		}
+		if _, err := ada.db.Exec(q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Remove(stored); err != nil {
+		t.Fatal(err)
+	}
+
+	ada.restart()
+	res, got := ada.get(path + "/view/" + ada.dataOf(path+"/view/"))
+	expectStatus(t, res, got, http.StatusOK, "")
+	if got != want {
+		t.Fatalf("after the move the data is\n%.300s\nwant\n%.300s", got, want)
+	}
+	if n := ada.storedFiles(); n != 1 {
+		t.Fatalf("%d stored files after the move, want 1", n)
+	}
+	var column bool
+	if err := ada.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = 'dashboards' AND column_name = 'dataset')`).Scan(&column); err != nil || column {
+		t.Fatalf("the old dataset column is still there (%v)", err)
+	}
 }

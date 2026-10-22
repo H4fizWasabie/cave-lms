@@ -157,7 +157,7 @@
       <section class="hood">
         <h2 class="h-sm"><code>data.json</code>{{t .Lang "lab.d.hood-data"}}</h2>
         {{template "hoodRow" .Data}}
-        <p><a href="{{$url}}/view/data.json" target="_blank">{{t .Lang "lab.d.hood-open-data"}}</a></p>
+        <p><a href="{{$url}}/view/data/{{.Dashboard.Key}}" target="_blank">{{t .Lang "lab.d.hood-open-data"}}</a></p>
       </section>
       <p class="muted">{{t .Lang "lab.d.hood-zip"}}</p>
       {{- else if eq .Tab "deploy"}}

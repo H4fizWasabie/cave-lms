@@ -5,11 +5,20 @@ package storage
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
+
+// Store keeps whole objects by key. Datasets live in one (ADR 0008); Disk is the one for tests and development.
+type Store interface {
+	Put(key string, data []byte) error
+	Get(key string) ([]byte, error)
+	Delete(key string) error
+}
 
 // ponytail: one local directory; swap for object storage only when the disk fills or load demands it.
 type Disk struct {
@@ -68,6 +77,19 @@ func (d *Disk) Put(key string, data []byte) error {
 // Open returns the stored file for key. The caller closes it.
 func (d *Disk) Open(key string) (*os.File, error) {
 	return os.Open(d.path(key))
+}
+
+// Get returns the data stored under key.
+func (d *Disk) Get(key string) ([]byte, error) {
+	return os.ReadFile(d.path(key))
+}
+
+// Delete removes the data under key; a key with nothing stored is already deleted.
+func (d *Disk) Delete(key string) error {
+	if err := os.Remove(d.path(key)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // Remove deletes the stored file for key.

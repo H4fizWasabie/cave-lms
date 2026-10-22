@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
+	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
@@ -32,6 +33,7 @@ type dashboard struct {
 	Name     string
 	Choices  lab.Choices
 	Dataset  *lab.Dataset
+	Key      string // where the Dataset is in the Dataset store; empty until the first upload
 	File     string // the uploaded Dataset's file name
 	Updated  string // formatted as periodTime
 }
@@ -48,7 +50,7 @@ type dashboardRow struct {
 
 // labDashboards lists a Learner's Dashboards, most recently changed first.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at, d.dataset IS NOT NULL, dep.taken_down_at
+	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at, d.dataset_key IS NOT NULL, dep.taken_down_at
 		FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id
 		WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
 	if err != nil {
@@ -97,11 +99,11 @@ func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*dashboard, error) {
 	var d dashboard
 	var key string
-	var choices, dataset []byte
+	var choices []byte
 	var updated time.Time
-	err := a.db.QueryRowContext(ctx, `SELECT id, template, name, choices, dataset, dataset_file, updated_at
+	err := a.db.QueryRowContext(ctx, `SELECT id, template, name, choices, COALESCE(dataset_key, ''), dataset_file, updated_at
 		FROM dashboards WHERE `+where, args...).
-		Scan(&d.ID, &key, &d.Name, &choices, &dataset, &d.File, &updated)
+		Scan(&d.ID, &key, &d.Name, &choices, &d.Key, &d.File, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -115,8 +117,13 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	if err := json.Unmarshal(choices, &d.Choices); err != nil {
 		return nil, err
 	}
-	if dataset != nil {
-		if err := json.Unmarshal(dataset, &d.Dataset); err != nil {
+	if d.Key != "" {
+		// ponytail: reads the whole Dataset on every Dashboard page; load it only where needed if the store gets slow.
+		data, err := a.datasets.Get(d.Key)
+		if err != nil {
+			return nil, fmt.Errorf("get Dataset %s: %w", d.Key, err)
+		}
+		if err := json.Unmarshal(data, &d.Dataset); err != nil {
 			return nil, err
 		}
 	}
@@ -269,16 +276,19 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
-// deleteDashboard deletes a Dashboard and its Dataset; the delete tab asks first. Its Deployment's link
+// deleteDashboard deletes a Dashboard and its Dataset, from the store too; the delete tab asks first. Its Deployment's link
 // then answers "not found", and the Deployment still counts against its period.
 func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
+	var key string
+	if err := a.db.QueryRowContext(r.Context(), `DELETE FROM dashboards WHERE id = $1 RETURNING COALESCE(dataset_key, '')`,
+		d.ID).Scan(&key); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
+	a.dropDataset(r, key)
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
@@ -362,7 +372,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			a.serverError(w, r, err)
 			return
 		}
-		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+		index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, dataPath(d))
 		if err != nil {
 			a.serverError(w, r, err)
 			return
@@ -423,7 +433,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); errors.As(err, &problems) {
+	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds, ""); errors.As(err, &problems) {
 		refuse(problems.In(lang)...) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
@@ -442,12 +452,99 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		a.serverError(w, r, err)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET dataset = $2, dataset_file = $3, choices = $4,
-		updated_at = now() WHERE id = $1`, d.ID, dataset, name, choicesJSON); err != nil {
+	key, err := newToken()
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
+	key = "dataset-" + key[:22] // a new key every upload, so a cached copy is never stale
+	if err := a.datasets.Put(key, dataset); err != nil {
+		a.serverError(w, r, fmt.Errorf("put Dataset %s: %w", key, err))
+		return
+	}
+	old, err := a.replaceDataset(r.Context(), d.ID, key, name, header.Size, choicesJSON)
+	if err != nil {
+		a.dropDataset(r, key)
+		a.serverError(w, r, err)
+		return
+	}
+	a.dropDataset(r, old)
 	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+// replaceDataset points the Dashboard at the Dataset stored under key and returns the key it replaces, if any.
+// The row lock makes two uploads take turns, so each sees the key the other wrote and none is left behind.
+func (a *App) replaceDataset(ctx context.Context, id int64, key, file string, size int64, choices []byte) (old string, err error) {
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(dataset_key, '') FROM dashboards WHERE id = $1 FOR UPDATE`, id).Scan(&old); err != nil {
+		return "", err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_file = $3, dataset_size = $4, choices = $5,
+		updated_at = now() WHERE id = $1`, id, key, file, size, choices); err != nil {
+		return "", err
+	}
+	return old, tx.Commit()
+}
+
+// dropDataset deletes the Dataset stored under key, if any. A failure leaves only an unused object, so it is logged.
+func (a *App) dropDataset(r *http.Request, key string) {
+	if key == "" {
+		return
+	}
+	if err := a.datasets.Delete(key); err != nil {
+		a.logError(r, fmt.Errorf("delete Dataset %s: %w", key, err))
+	}
+}
+
+// copyDatasetsToStore is a one-off step at startup: it moves every Dataset still in the old dataset column into
+// the store. Once 00069 drops the column there is nothing left to copy. The JSON's size stands in for the
+// uploaded file's, which was never kept.
+func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) error {
+	var old bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = 'dashboards' AND column_name = 'dataset')`).Scan(&old); err != nil || !old {
+		return err
+	}
+	rows, err := db.QueryContext(ctx, `SELECT id, dataset FROM dashboards WHERE dataset IS NOT NULL AND dataset_key IS NULL`)
+	if err != nil {
+		return err
+	}
+	type row struct {
+		id   int64
+		data []byte
+	}
+	var todo []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.data); err != nil {
+			rows.Close()
+			return err
+		}
+		todo = append(todo, r)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, r := range todo {
+		key, err := newToken()
+		if err != nil {
+			return err
+		}
+		key = "dataset-" + key[:22]
+		if err := store.Put(key, r.data); err != nil {
+			return err
+		}
+		if _, err := db.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_size = $3, dataset = NULL WHERE id = $1`,
+			r.id, key, len(r.data)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // saveColumns stores the Learner's column choice for each blank; an empty value skips an optional blank.
@@ -466,7 +563,7 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			c[b.Key] = v
 		}
 	}
-	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset); err != nil {
+	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset, ""); err != nil {
 		lang, langErr := a.language(r)
 		if langErr != nil {
 			a.serverError(w, r, langErr)
@@ -503,12 +600,12 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 
 func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.FormatInt(d.ID, 10) }
 
-// dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, data.json and
-// charts.js side by side, so the page loads the others by relative path. Generated on each request.
+// dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, charts.js and
+// the data at data/<key> under it, so the page loads the others by relative path. Generated on each request.
 // A Deployment serves the same files under /d/<slug>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		a.serveDashboardFile(w, r, d, name, previewCSP)
+		a.serveDashboardFile(w, r, d, name, previewCSP, "private, max-age=31536000, immutable")
 	})
 }
 
@@ -530,12 +627,18 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		a.serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP)
+		a.serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP, "")
 	}
 }
 
-// serveDashboardFile writes one of a Dashboard's three files; csp is the index page's Content-Security-Policy.
-func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp string) {
+// dataPath is where a Dashboard's page fetches its data, relative to the page: the Dataset's key, so a
+// re-upload changes the address and the data can be cached for good.
+func dataPath(d *dashboard) string { return "data/" + d.Key }
+
+// serveDashboardFile writes one of a Dashboard's files: index.html, charts.js, data.json (the demo's data,
+// at a fixed address) or data (data/<key>, cached for good; any other key is not found).
+// csp is the index page's Content-Security-Policy; cache is the data's Cache-Control.
+func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp, cache string) {
 	if name == "charts.js" {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(lab.ChartScript)
@@ -545,13 +648,24 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		a.notFound(w, r)
 		return
 	}
-	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+	if name == "data" && r.PathValue("key") != d.Key {
+		a.notFound(w, r)
+		return
+	}
+	dataURL := "data.json"
+	if d.Key != "" {
+		dataURL = dataPath(d)
+	}
+	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, dataURL)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	if name == "data.json" {
+	if name == "data" {
+		w.Header().Set("Cache-Control", cache)
+	}
+	if name == "data.json" || name == "data" {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(data)
 		return
@@ -569,7 +683,7 @@ func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashb
 		a.notFound(w, r)
 		return
 	}
-	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset)
+	index, data, err := lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, "data.json")
 	if err != nil {
 		a.serverError(w, r, err)
 		return

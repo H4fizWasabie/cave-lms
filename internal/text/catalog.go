@@ -673,8 +673,8 @@ var catalog = map[string]entry{
 	},
 	"lab.hood.fetch.title": {en: "Load the data, then draw", ms: "Muatkan data, kemudian lukis"},
 	"lab.hood.fetch": {
-		en: "The page fetches data.json, a separate file, and draws the Dashboard from it. Upload a new Dataset and only data.json changes; the page stays the same. Opened straight from your computer, browsers block fetching, so the page reads the same rows from data.js, which comes in the zip.",
-		ms: "Halaman ini mengambil data.json, fail yang berasingan, dan melukis Dashboard daripadanya. Muat naik Set data baharu dan hanya data.json yang berubah; halaman kekal sama. Apabila dibuka terus dari komputer anda, pelayar menyekat pengambilan itu, jadi halaman membaca baris yang sama daripada data.js, yang disertakan dalam zip.",
+		en: "The page fetches data.json, a separate file, and draws the Dashboard from it. Upload a new Dataset and data.json gets a new address, so no browser shows an old copy; the rest of the page stays the same. Opened straight from your computer, browsers block fetching, so the page reads the same rows from data.js, which comes in the zip.",
+		ms: "Halaman ini mengambil data.json, fail yang berasingan, dan melukis Dashboard daripadanya. Muat naik Set data baharu dan data.json mendapat alamat baharu, jadi tiada pelayar menunjukkan salinan lama; bahagian lain halaman kekal sama. Apabila dibuka terus dari komputer anda, pelayar menyekat pengambilan itu, jadi halaman membaca baris yang sama daripada data.js, yang disertakan dalam zip.",
 	},
 
 	// The Deploy tab and a Deployment's link
