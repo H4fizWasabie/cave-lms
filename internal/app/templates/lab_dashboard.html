@@ -202,10 +202,15 @@
           <h2 class="h-md">{{t .Lang "lab.dep.confirm" .Dashboard.Name}}</h2>
           <p>{{t .Lang "lab.dep.confirm-body"}}</p>
           <p><strong>{{t .Lang "lab.dep.only-once"}}</strong>{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.uses-one" .DeploymentsLeft}}{{end}}</p>
-          <form class="form-foot" method="post" action="{{$url}}/deploy">
+          <form method="post" action="{{$url}}/deploy">
             <input type="hidden" name="confirm" value="yes">
-            <a class="btn btn-quiet" href="{{$url}}/deploy">{{t .Lang "lab.dep.not-yet"}}</a>
-            <button class="btn btn-solid">{{t .Lang "lab.dep.deploy-now"}}</button>
+            {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+            <div class="field"><label for="dep-name">{{t .Lang "lab.dep.name"}}</label><input id="dep-name" type="text" name="name" value="{{.DeployName}}" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" autocomplete="off" autocapitalize="none" spellcheck="false" required><small>{{t .Lang "lab.dep.name-hint" .Prefix}}</small></div>
+            <label class="check-card"><input type="checkbox" name="publish" value="yes" required><span><strong>{{t .Lang "lab.dep.publish"}}</strong><small>{{t .Lang "lab.dep.publish-sub"}}</small></span></label>
+            <div class="form-foot">
+              <a class="btn btn-quiet" href="{{$url}}/deploy">{{t .Lang "lab.dep.not-yet"}}</a>
+              <button class="btn btn-solid">{{t .Lang "lab.dep.deploy-now"}}</button>
+            </div>
           </form>
         </div>
         {{- else}}

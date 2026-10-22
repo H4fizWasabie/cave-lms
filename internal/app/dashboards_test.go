@@ -588,15 +588,11 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, q := range []string{`ALTER TABLE dashboards ADD COLUMN dataset jsonb`, `UPDATE dashboards SET dataset = $1, dataset_key = NULL`,
-		`DELETE FROM goose_db_version WHERE version_id = 69`} {
-		var args []any
-		if strings.Contains(q, "$1") {
-			args = append(args, dataset)
-		}
-		if _, err := ada.db.Exec(q, args...); err != nil {
-			t.Fatal(err)
-		}
+	if err := app.MigrateDownTo(context.Background(), ada.db, 68); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ada.db.Exec(`UPDATE dashboards SET dataset = $1, dataset_key = NULL`, dataset); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.Remove(stored); err != nil {
 		t.Fatal(err)

@@ -13,22 +13,23 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>Dashboard</th><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "deployments.link"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              <tr><th>Dashboard</th><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "deployments.name"}}</th><th>{{t .Lang "deployments.link"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Deployments}}
               <tr{{if not .Awake}} class="is-revoked"{{end}}>
                 <td>{{if .Dashboard}}{{.Dashboard}}<br><small>{{t $.Lang "deployments.template" .Template}}</small>{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
+                <td><code>{{.Name}}</code></td>
                 <td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></td>
                 <td>{{if .Awake}}{{t $.Lang "deployments.awake"}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .TakenDown}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else}}{{t $.Lang "deployments.asleep"}}{{end}}</td>
                 <td class="actions">{{if and .Dashboard (not .TakenDown)}}
                   <form class="takedown" method="post" action="/admin/deployments/{{.ID}}/takedown">
-                    <label class="sr" for="reason-{{.ID}}">{{t $.Lang "deployments.reason"}}</label>
+                    <label class="sr" for="reason-{{.ID}}">{{t $.Lang "deployments.reason-for" .Name}}</label>
                     <input id="reason-{{.ID}}" type="text" name="reason" maxlength="1000" placeholder="{{t $.Lang "deployments.reason-placeholder"}}" required>
                     <button class="btn btn-danger btn-sm">{{t $.Lang "deployments.take-down"}}</button>
                   </form>{{end}}</td>
               </tr>
               {{else}}
-              <tr><td colspan="5">{{t .Lang "deployments.none"}}</td></tr>
+              <tr><td colspan="6">{{t .Lang "deployments.none"}}</td></tr>
               {{end}}
             </table>
           </div>

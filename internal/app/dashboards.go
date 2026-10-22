@@ -325,6 +325,8 @@ type dashboardPage struct {
 	// Deploy tab
 	Deployment *deployment // nil until deployed
 	Confirm    bool        // the confirm step
+	DeployName string      // the name typed on the confirm step
+	Prefix     string      // a Deployment's link up to its name
 }
 
 // blankChoice is one blank on the Columns tab: the columns that may fill it and the current choice.
@@ -602,7 +604,7 @@ func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.For
 
 // dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, charts.js and
 // the data at data/<key> under it, so the page loads the others by relative path. Generated on each request.
-// A Deployment serves the same files under /d/<slug>/ (deploymentFile).
+// A Deployment serves the same files under /<prefix>/<name>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		a.serveDashboardFile(w, r, d, name, previewCSP, "private, max-age=31536000, immutable")

@@ -23,10 +23,16 @@ func (s *site) readyDashboard(name string) string {
 
 var deploymentLink = regexp.MustCompile(`https://cave\.example\.invalid(/d/[A-Za-z0-9_-]+/)`)
 
-// deploy confirms the Deployment of the Dashboard at path and returns its link's path, /d/<slug>/.
+// deploy confirms the Deployment of the Dashboard at path, named dash-<its id>, and returns its link's path, /d/<name>/.
 func (s *site) deploy(path string) string {
 	s.t.Helper()
-	res, body := s.post(path+"/deploy", url.Values{"confirm": {"yes"}})
+	return s.deployAs(path, "dash-"+path[strings.LastIndex(path, "/")+1:])
+}
+
+// deployAs deploys the Dashboard at path under name, ticking the right to publish, and returns its link's path.
+func (s *site) deployAs(path, name string) string {
+	s.t.Helper()
+	res, body := s.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {name}, "publish": {"yes"}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	_, body = s.get(path + "/deploy")
 	m := deploymentLink.FindStringSubmatch(body)
@@ -56,6 +62,10 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	res, body = ada.get(path + "/deploy?confirm")
 	expectStatus(t, res, body, http.StatusOK, `<input type="hidden" name="confirm" value="yes">`)
 	expectStatus(t, res, body, http.StatusOK, "You can deploy it only once")
+	for _, want := range []string{`name="name"`, `pattern="[a-z0-9]+(-[a-z0-9]+)*"`, `type="checkbox" name="publish" value="yes" required`,
+		"I have the right to publish this data", "Anyone with the link can see this Dashboard and its data", "https://cave.example.invalid/d/"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
 
 	// Without the confirmation nothing is deployed.
 	res, _ = ada.post(path+"/deploy", nil)
@@ -66,7 +76,10 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 		t.Fatalf("deployed without confirming: %s", body)
 	}
 
-	link := ada.deploy(path)
+	link := ada.deployAs(path, "kedai-ada-2026")
+	if link != "/d/kedai-ada-2026/" {
+		t.Fatalf("the link is %s, want the name Ada picked", link)
+	}
 	res, body = ada.get(path + "/deploy")
 	for _, want := range []string{"Online", "when your Plan ends, it sleeps", "readonly", `href="` + link + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
@@ -157,9 +170,7 @@ func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingFreesASlot(t *testing.T)
 	res, body := ada.get(first + "/deploy")
 	expectStatus(t, res, body, http.StatusOK, "It uses 1 of your 3 free Deployments.")
 	firstLink := ada.deploy(first)
-	if secondLink := ada.deploy(ada.readyDashboard("Two")); secondLink == firstLink || len(firstLink) < len("/d/")+20 {
-		t.Fatalf("links %s and %s: want two different long random slugs", firstLink, secondLink)
-	}
+	ada.deploy(ada.readyDashboard("Two"))
 	ada.deploy(ada.readyDashboard("Three"))
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "3 of 3")
@@ -277,4 +288,60 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 	for _, want := range []string{"admin@example.com", "Empat", `href="` + links[0] + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
+}
+
+func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
+	admin, ada := labLearner(t)
+	taken := ada.readyDashboard("Lama")
+	ada.deployAs(taken, "kedai-lama")
+	ada.post(taken+"/delete", nil) // the name stays taken after its Dashboard is deleted
+	path := ada.readyDashboard("Kewangan")
+	for _, c := range []struct{ name, want string }{
+		{"ab", "3 to 40 characters"},
+		{strings.Repeat("a", 41), "3 to 40 characters"},
+		{"Kedai", "lowercase letters, numbers and single dashes"},
+		{"kedai ada", "lowercase letters, numbers and single dashes"},
+		{"kedai--ada", "lowercase letters, numbers and single dashes"},
+		{"-kedai", "lowercase letters, numbers and single dashes"},
+		{"kedai-", "lowercase letters, numbers and single dashes"},
+		{"kedai_ada", "lowercase letters, numbers and single dashes"},
+		{"admin", "is reserved"},
+		{"login", "is reserved"},
+		{"courses", "is reserved"},
+		{"cavelms", "is reserved"},
+		{"kedai-lama", "is already taken"},
+	} {
+		res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {c.name}, "publish": {"yes"}})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, `name="name"`) // back on the confirm step
+	}
+	bob := admin.second()
+	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	admin.assignPlan("bob@example.com", admin.onlyPlanID())
+	res, body := bob.post(bob.readyDashboard("Bob")+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-lama"}, "publish": {"yes"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "is already taken")
+
+	res, body = ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-baru"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tick that you have the right to publish this data")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `value="kedai-baru"`)
+	if _, body = ada.get(path + "/deploy"); deploymentLink.MatchString(body) {
+		t.Fatalf("deployed after a refusal: %s", body)
+	}
+	if link := ada.deployAs(path, "kedai-baru"); link != "/d/kedai-baru/" {
+		t.Fatalf("link %s", link)
+	}
+}
+
+func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
+	_, ada := labLearner(t)
+	ada.deploy(ada.readyDashboard("Kewangan"))
+	old := "AbC_xyz-0123456789abcd" // a random slug from before names, kept as the name
+	if _, err := ada.db.ExecContext(context.Background(), `UPDATE deployments SET name = $1`, old); err != nil {
+		t.Fatal(err)
+	}
+	visitor := ada.second()
+	res, body := visitor.get("/d/" + old + "/")
+	expectStatus(t, res, body, http.StatusOK, `fetch("data/`)
+	res, body = visitor.get("/d/" + old + "/" + visitor.dataOf("/d/"+old+"/"))
+	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
 }
