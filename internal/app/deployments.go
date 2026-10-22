@@ -16,27 +16,35 @@ type deployment struct {
 	Path      string // /d/<slug>/
 	Link      string // the full link to share
 	Deployed  string // formatted as periodTime
-	Until     string // when it sleeps, slept or was taken down
 	Awake     bool
-	TakenDown bool
+	TakenDown string // when Cave took it down, formatted as periodTime; empty if it was not
 	Reason    string // why Cave took it down
 }
 
+// depAwake is true for an awake Deployment, aliased dep: its Dashboard is not deleted, it is not taken down,
+// and its Learner is the Admin or has an active Plan period.
+const depAwake = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at IS NULL AND EXISTS (SELECT 1 FROM learners owner
+	WHERE owner.id = dep.learner_id AND (owner.is_admin OR EXISTS (SELECT 1 FROM plan_periods pp WHERE pp.learner_id = owner.id
+		AND pp.starts_at <= now() AND pp.ends_at > now() AND pp.ended_early_at IS NULL))))`
+
 // deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
-const deploymentColumns = `dep.slug, dep.deployed_at, LEAST(dep.sleeps_at, COALESCE(dep.taken_down_at, dep.sleeps_at)) AS until,
-	dep.sleeps_at > now() AND dep.taken_down_at IS NULL AS awake, dep.taken_down_at IS NOT NULL, dep.takedown_reason`
+const deploymentColumns = `dep.slug, dep.deployed_at, ` + depAwake + ` AS awake, dep.taken_down_at, dep.takedown_reason`
 
 // scanDeployment scans a row whose columns are lead's targets followed by deploymentColumns.
 func (a *App) scanDeployment(row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
 	var dep deployment
 	var slug string
-	var deployed, until time.Time
-	if err := row.Scan(append(lead, &slug, &deployed, &until, &dep.Awake, &dep.TakenDown, &dep.Reason)...); err != nil {
+	var deployed time.Time
+	var takenDown sql.NullTime
+	if err := row.Scan(append(lead, &slug, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
 		return dep, err
 	}
 	dep.Path = "/d/" + slug + "/"
 	dep.Link = a.publicBaseURL + dep.Path
-	dep.Deployed, dep.Until = deployed.UTC().Format(periodTime), until.UTC().Format(periodTime)
+	dep.Deployed = deployed.UTC().Format(periodTime)
+	if takenDown.Valid {
+		dep.TakenDown = takenDown.Time.UTC().Format(periodTime)
+	}
 	return dep, nil
 }
 
@@ -64,7 +72,7 @@ func (a *App) deployTab(w http.ResponseWriter, r *http.Request, d *dashboard) {
 }
 
 func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int, d *dashboard, acc labAccess, confirm bool) {
-	p := &dashboardPage{Dashboard: d, Tab: "deploy", Access: acc, Confirm: confirm, WouldSleep: time.Now().Add(awakeFor).UTC().Format(periodTime)}
+	p := &dashboardPage{Dashboard: d, Tab: "deploy", Access: acc, Confirm: confirm}
 	var err error
 	if p.Deployment, err = a.deploymentOf(r, d.ID); err != nil {
 		a.serverError(w, r, err)
@@ -73,11 +81,8 @@ func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int
 	a.renderDashboard(w, r, status, p)
 }
 
-// awakeFor is how long a Deployment stays online.
-const awakeFor = 7 * 24 * time.Hour
-
-// deployDashboard puts a Dashboard online once, counting it against the active Plan period's allowance.
-// The Admin's Deployments count against no period.
+// deployDashboard puts a Dashboard online once, if the Learner has fewer awake Deployments than their active
+// Plan period allows. The Admin's Deployments count against nothing.
 func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -111,28 +116,24 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		a.serverError(w, r, err)
 		return
 	}
-	var period *int64 // nil for the Admin, whose Deployments count against no period
-	var left int
 	counted := acc.CountedPeriod()
 	if counted != nil && !deployed {
-		period = &counted.ID
 		// Locking the period row makes two Deploys at once take turns, so the allowance holds.
-		if err := tx.QueryRowContext(r.Context(), `SELECT pp.deployments - (SELECT count(*) FROM deployments WHERE period_id = pp.id)
-			FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE`, *period).Scan(&left); err != nil {
+		if err := tx.QueryRowContext(r.Context(), `SELECT (SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+depAwake+`)
+			FROM plan_periods pp WHERE pp.id = $1 FOR UPDATE`, counted.ID).Scan(&counted.Awake); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 	}
 	switch {
 	case deployed:
-	case period != nil && left <= 0:
+	case counted != nil && counted.Full():
 		_ = tx.Rollback()
-		counted.DeploymentsLeft = left
 		a.renderDeployTab(w, r, http.StatusUnprocessableEntity, d, acc, false)
 		return
 	default:
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, period_id, slug, sleeps_at)
-			SELECT $1, learner_id, $2, $3, now() + $4 * interval '1 second' FROM dashboards WHERE id = $1`, d.ID, period, slug, awakeFor.Seconds()); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, slug)
+			SELECT $1, learner_id, $2 FROM dashboards WHERE id = $1`, d.ID, slug); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -145,14 +146,14 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 }
 
 // deploymentFile serves a Deployment's files at /d/<slug>/ to anyone while it is awake. The page is
-// sandboxed (ADR 0004), so its null origin needs CORS to load data.json. Asleep or taken down: an
+// sandboxed (ADR 0007), so its null origin needs CORS to load data.json. Asleep or taken down: an
 // inactive page; deleted Dashboard or unknown slug: not found.
 func (a *App) deploymentFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := r.PathValue("slug")
 		w.Header().Set("Cache-Control", "no-store")
-		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments
-			WHERE slug = $1 AND sleeps_at > now() AND taken_down_at IS NULL)`, slug)
+		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments dep
+			WHERE dep.slug = $1 AND `+depAwake+`)`, slug)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
@@ -164,10 +165,9 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts")
 			return
 		}
-		var sleeps time.Time
 		var takenDown bool
-		err = a.db.QueryRowContext(r.Context(), `SELECT sleeps_at, taken_down_at IS NOT NULL FROM deployments
-			WHERE slug = $1 AND dashboard_id IS NOT NULL`, slug).Scan(&sleeps, &takenDown)
+		err = a.db.QueryRowContext(r.Context(), `SELECT taken_down_at IS NOT NULL FROM deployments
+			WHERE slug = $1 AND dashboard_id IS NOT NULL`, slug).Scan(&takenDown)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
 			return
@@ -183,8 +183,7 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 		case takenDown:
 			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"), Message: text.T(lang, "lab.dep.sleeping-taken")})
 		default:
-			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"),
-				Message: text.T(lang, "lab.dep.sleeping", sleeps.UTC().Format(periodTime))})
+			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"), Message: text.T(lang, "lab.dep.sleeping")})
 		}
 	}
 }
@@ -225,7 +224,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id
 		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
-		ORDER BY awake DESC, until DESC, dep.id DESC`)
+		ORDER BY awake DESC, dep.id DESC`)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -251,7 +250,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	a.render(w, r, status, "admin_deployments", p)
 }
 
-// takeDown puts an awake Deployment to sleep at once and records why; the Learner's Dashboard stays.
+// takeDown puts a Deployment to sleep for good and records why; the Learner's Dashboard stays.
 func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	if reason == "" {
@@ -264,7 +263,7 @@ func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE deployments SET taken_down_at = now(), takedown_reason = $2
-		WHERE id = $1 AND sleeps_at > now() AND taken_down_at IS NULL`, id, reason); err != nil {
+		WHERE id = $1 AND dashboard_id IS NOT NULL AND taken_down_at IS NULL`, id, reason); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

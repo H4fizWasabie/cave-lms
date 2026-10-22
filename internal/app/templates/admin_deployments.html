@@ -19,8 +19,8 @@
                 <td>{{if .Dashboard}}{{.Dashboard}}<br><small>{{t $.Lang "deployments.template" .Template}}</small>{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
                 <td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></td>
-                <td>{{if .Awake}}{{t $.Lang "deployments.online-until" .Until}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .Until}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else}}{{t $.Lang "deployments.asleep-since" .Until}}{{end}}</td>
-                <td class="actions">{{if .Awake}}
+                <td>{{if .Awake}}{{t $.Lang "deployments.awake"}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .TakenDown}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else}}{{t $.Lang "deployments.asleep"}}{{end}}</td>
+                <td class="actions">{{if and .Dashboard (not .TakenDown)}}
                   <form class="takedown" method="post" action="/admin/deployments/{{.ID}}/takedown">
                     <label class="sr" for="reason-{{.ID}}">{{t $.Lang "deployments.reason"}}</label>
                     <input id="reason-{{.ID}}" type="text" name="reason" maxlength="1000" placeholder="{{t $.Lang "deployments.reason-placeholder"}}" required>

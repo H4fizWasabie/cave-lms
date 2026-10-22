@@ -165,18 +165,17 @@
         {{- if .Deployment}}{{with .Deployment}}
         {{- if .Awake}}
         <h2 class="h-md"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>{{t $.Lang "lab.dep.online"}}</h2>
-        <p class="muted">{{t $.Lang "lab.dep.online-body" .Deployed .Until}}</p>
+        <p class="muted">{{if $.Access.Admin}}{{t $.Lang "lab.dep.online-body-admin" .Deployed}}{{else}}{{t $.Lang "lab.dep.online-body" .Deployed}}{{end}}</p>
         {{- else if .TakenDown}}
         <h2 class="h-md">{{t $.Lang "lab.dep.taken-down"}}</h2>
         <div class="ds-err" role="alert">
-          <p><strong>{{t $.Lang "lab.dep.taken-down-on" .Until}}</strong></p>
+          <p><strong>{{t $.Lang "lab.dep.taken-down-on" .TakenDown}}</strong></p>
           <p><strong>{{t $.Lang "lab.dep.reason"}}</strong> {{.Reason}}</p>
           <p>{{t $.Lang "lab.dep.taken-down-body"}}</p>
         </div>
         {{- else}}
         <h2 class="h-md">{{t $.Lang "lab.dep.asleep"}}</h2>
-        <p class="muted">{{t $.Lang "lab.dep.asleep-body" .Deployed .Until}}</p>
-        <p class="muted">{{t $.Lang "lab.dep.once-only-asleep"}}</p>
+        <p class="muted">{{t $.Lang "lab.dep.asleep-body" .Deployed}}</p>
         {{- end}}
         <div class="dep-link">
           <label class="sr" for="dep-url">{{t $.Lang "lab.dep.link"}}</label>
@@ -192,16 +191,16 @@
         {{- else if not .Access.Open}}
         <h2 class="h-md">{{t .Lang "lab.dep.needs-plan"}}</h2>
         <p class="muted">{{t .Lang "lab.dep.needs-plan-body"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p>
-        {{- else if and .Access.CountedPeriod (le .Access.CountedPeriod.DeploymentsLeft 0)}}{{with .Access.CountedPeriod}}
+        {{- else if and .Access.CountedPeriod .Access.CountedPeriod.Full}}{{with .Access.CountedPeriod}}
         <div class="ds-err" role="alert">
           <p><strong>{{t $.Lang "lab.dep.none-left"}}</strong></p>
-          <p>{{t $.Lang "lab.dep.none-left-body" .Deployments .Ends}}</p>
+          <p>{{t $.Lang "lab.dep.none-left-body" .Awake .Deployments}}</p>
         </div>
         {{- end}}
         {{- else if .Confirm}}
         <div class="card">
           <h2 class="h-md">{{t .Lang "lab.dep.confirm" .Dashboard.Name}}</h2>
-          <p>{{t .Lang "lab.dep.confirm-body" .WouldSleep}}</p>
+          <p>{{t .Lang "lab.dep.confirm-body"}}</p>
           <p><strong>{{t .Lang "lab.dep.only-once"}}</strong>{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.uses-one" .DeploymentsLeft}}{{end}}</p>
           <form class="form-foot" method="post" action="{{$url}}/deploy">
             <input type="hidden" name="confirm" value="yes">
@@ -213,7 +212,7 @@
         <h2 class="h-md">{{t .Lang "lab.dep.put-online"}}</h2>
         <ul class="dep-facts">
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-link"}}</strong> {{t .Lang "lab.dep.fact-link-body"}}</span></li>
-          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span><strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body" .WouldSleep}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span><strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body"}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-current"}}</strong> {{t .Lang "lab.dep.fact-current-body"}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-once"}}</strong> {{t .Lang "lab.dep.fact-once-body"}}{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.fact-uses" .DeploymentsLeft}}{{end}}</span></li>
         </ul>

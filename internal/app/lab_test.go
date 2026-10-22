@@ -69,7 +69,7 @@ func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
 	ends := admin.periodsOf("ada@example.com")[0].ends.Format("2006-01-02 15:04 UTC")
 
 	res, body := ada.get("/lab")
-	for _, want := range []string{"Lab Monthly", "Ends " + ends, "Deployments left this period", "3 of 3", "My Dashboards"} {
+	for _, want := range []string{"Lab Monthly", "Ends " + ends, "Deployments awake", "0 of 3", "My Dashboards"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 	if strings.Contains(body, "Upgrade") || strings.Contains(body, "Turn a spreadsheet") {
@@ -98,7 +98,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 
 	admin.assignPlan("ada@example.com", planID)
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Deployments left this period")
+	expectStatus(t, res, body, http.StatusOK, "Deployments awake")
 
 	_, page := admin.get("/admin/plans/periods?email=ada@example.com")
 	admin.post(endPeriodButton.FindStringSubmatch(page)[1], nil)
@@ -114,5 +114,5 @@ func TestLeavingACourseNeverWarnsAboutTheLab(t *testing.T) {
 	res, body := ada.post("/courses/"+courseID+"/leave", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Deployments left this period")
+	expectStatus(t, res, body, http.StatusOK, "Deployments awake")
 }
