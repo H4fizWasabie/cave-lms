@@ -1,20 +1,20 @@
 {{define "head"}}
   <link rel="canonical" href="{{.PublicBaseURL}}">{{end}}
 {{define "content"}}
-    <section class="home-hero" lang="ms">
+    <section class="home-hero">
       <div class="wrap home-hero-in">
         <div class="home-hero-copy">
           <p class="home-kicker">CAVELMS · Learn AI • Build Skills • Create Impact</p>
-          <h1>Selamat Datang ke CAVELMS</h1>
-          <p class="lede">Platform Pembelajaran Digital Generative AI untuk Dunia Kerja Masa Kini dan Masa Hadapan.</p>
+          <h1>{{t .Lang "home.title"}}</h1>
+          <p class="lede">{{t .Lang "home.lede"}}</p>
           <div class="cta-row">
-            <a class="btn btn-solid btn-lg" href="/courses">Join Online Classes</a>
-            <a class="btn btn-ghost btn-lg" href="/gallery?format=ebook">Explore eBooks</a>
-            <a class="btn btn-ghost btn-lg" href="/courses">Learn AI Dashboard Development</a>
+            <a class="btn btn-solid btn-lg" href="/courses">{{t .Lang "home.cta.classes"}}</a>
+            <a class="btn btn-ghost btn-lg" href="/gallery?format=ebook">{{t .Lang "home.cta.ebooks"}}</a>
+            <a class="btn btn-ghost btn-lg" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
           </div>
         </div>
         <figure class="coach">
-          <div class="coach-photo"><img src="{{static "coach-adam.webp"}}" alt="Coach Adam, CEO of The Cave Consult" width="282" height="564" fetchpriority="high"></div>
+          <div class="coach-photo"><img src="{{static "coach-adam.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="282" height="564" fetchpriority="high"></div>
           <figcaption>
             <strong>Coach Adam</strong>
             <span>Adam bin Yusuf, CEO, The Cave Consult</span>
@@ -28,92 +28,92 @@
       </div>
     </section>
 
-    <section class="section" lang="ms">
+    <section class="section">
       <div class="wrap home-intro">
         <div class="prose">
-          <p>CAVELMS ialah platform pembelajaran digital yang dibangunkan oleh The Cave Consult (TCC) untuk membantu pendidik, penjawat awam, profesional dan organisasi menguasai teknologi Generative Artificial Intelligence (Generative AI) secara praktikal, sistematik dan mudah difahami.</p>
-          <p>Kami percaya bahawa pembelajaran AI tidak sepatutnya terhenti pada pengetahuan tentang teknologi atau kebolehan menghasilkan kandungan menggunakan arahan prompt semata-mata.</p>
-          <p>Sebaliknya, kemahiran AI perlu diterjemahkan kepada keupayaan menyelesaikan masalah sebenar, meningkatkan produktiviti, menganalisis maklumat, membuat keputusan dan membangunkan penyelesaian digital yang boleh digunakan secara berterusan.</p>
-          <p>Melalui CAVELMS, pengguna boleh meneroka pelbagai bahan pembelajaran, eBook digital, kelas online, tutorial dan program pembangunan kompetensi AI yang direka untuk pembelajaran kendiri serta aplikasi dalam pekerjaan.</p>
+          <p>{{t .Lang "home.intro.1"}}</p>
+          <p>{{t .Lang "home.intro.2"}}</p>
+          <p>{{t .Lang "home.intro.3"}}</p>
+          <p>{{t .Lang "home.intro.4"}}</p>
         </div>
-        <blockquote class="home-pull">Belajar AI bukan sekadar tahu menggunakannya. Belajar AI bermaksud mampu menghasilkan sesuatu yang benar-benar berguna.</blockquote>
-      </div>
-    </section>
-
-    <section class="section section-alt" lang="ms">
-      <div class="wrap">
-        <div class="section-head">
-          <h2>Apa Yang Boleh Dipelajari di CAVELMS?</h2>
-        </div>
-        <ol class="learn-grid">
-          <li>
-            <span class="step-n">1</span>
-            <h3>Generative AI &amp; Workplace Productivity</h3>
-            <p>Pelajari cara menggunakan ChatGPT, Google Gemini dan pelbagai teknologi Generative AI untuk memudahkan tugasan harian, menghasilkan dokumen, menyediakan laporan, menganalisis maklumat dan meningkatkan kecekapan kerja.</p>
-            <p>Pembelajaran disusun berdasarkan situasi pekerjaan sebenar supaya pengguna dapat terus mengaplikasikan kemahiran yang dipelajari.</p>
-          </li>
-          <li>
-            <span class="step-n">2</span>
-            <h3>eBook Digital &amp; Practical Learning Resources</h3>
-            <p>Terokai koleksi eBook digital yang menggabungkan penerangan konsep, panduan langkah demi langkah, infografik, contoh aplikasi dan latihan praktikal.</p>
-            <p>Setiap bahan pembelajaran direka untuk membantu pengguna memahami sesuatu kemahiran mengikut kemampuan dan masa masing-masing.</p>
-          </li>
-          <li>
-            <span class="step-n">3</span>
-            <h3>Online Classes &amp; AI Masterclass</h3>
-            <p>Tingkatkan kompetensi melalui kelas online, tutorial berstruktur, sesi pembelajaran langsung dan program masterclass.</p>
-            <p>Program merangkumi asas Generative AI, Prompt Engineering, AI Productivity, Data Analytics, Dashboard Development dan aplikasi AI dalam pelbagai bidang pekerjaan.</p>
-          </li>
-          <li class="learn-wide">
-            <span class="step-n">4</span>
-            <h3>AI Dashboard Development &amp; Data Analytics</h3>
-            <p>Belajar membina dashboard menggunakan ChatGPT dan Gemini Canvas tanpa perlu mempunyai pengalaman pengaturcaraan yang mendalam.</p>
-            <p>Pengguna akan diperkenalkan kepada dua pendekatan utama pembangunan dashboard.</p>
-            <div class="learn-pair">
-              <div>
-                <h4>Static Dashboard — Data Visualization &amp; Reporting</h4>
-                <p>Static Dashboard sesuai untuk menghasilkan laporan, visualisasi dan analisis berdasarkan set data yang telah disediakan.</p>
-                <p>Peserta mempelajari cara menukar data Excel atau CSV kepada dashboard yang mengandungi KPI, graf, jadual dan ringkasan analitik.</p>
-                <p>Pendekatan ini sesuai untuk laporan berkala, pembentangan pengurusan dan analisis yang tidak memerlukan penyimpanan atau kemas kini data secara berterusan.</p>
-              </div>
-              <div>
-                <h4>Dynamic Dashboard — Live Data &amp; Sustainable Applications</h4>
-                <p>Dynamic Dashboard membawa pembelajaran ke tahap seterusnya.</p>
-                <p>Peserta mempelajari cara membangunkan dashboard yang boleh menerima data baharu, mengemas kini rekod, menyimpan maklumat dalam database dan memaparkan analitik terkini.</p>
-                <p>Pembelajaran turut memperkenalkan penggunaan GitHub untuk pengurusan kod, Vercel untuk penerbitan aplikasi web serta integrasi database seperti Supabase.</p>
-                <p>Matlamatnya adalah untuk membantu pengguna membangunkan dashboard yang bukan sahaja berfungsi ketika dihasilkan, tetapi juga boleh digunakan, diurus dan diselenggara selepas latihan.</p>
-              </div>
-            </div>
-          </li>
-          <li>
-            <span class="step-n">5</span>
-            <h3>AI Skills for Educators &amp; Professionals</h3>
-            <p>CAVELMS turut memberi tumpuan kepada aplikasi AI dalam pendidikan, pengurusan organisasi, pentadbiran, pembangunan sumber manusia dan kepimpinan.</p>
-            <p>Pembelajaran berasaskan keperluan sebenar membantu pengguna membina keyakinan menggunakan AI secara bertanggungjawab, berkesan dan relevan dengan peranan masing-masing.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <section class="section" lang="ms">
-      <div class="wrap">
-        <div class="section-head">
-          <h2>Daripada Pembelajaran kepada Aplikasi Sebenar</h2>
-          <p>Di CAVELMS, pembelajaran tidak berakhir apabila sesuatu tutorial selesai ditonton atau eBook selesai dibaca.</p>
-          <p>Kami menggalakkan pengguna untuk mencuba, membina, menguji dan menggunakan pengetahuan yang diperoleh bagi menghasilkan penyelesaian yang memberi nilai kepada pekerjaan dan organisasi.</p>
-        </div>
-        <p class="path">LEARN → APPLY → BUILD → SUSTAIN</p>
-        <p class="path-note">Inilah pendekatan pembelajaran CAVELMS.</p>
+        <blockquote class="home-pull">{{t .Lang "home.pull"}}</blockquote>
       </div>
     </section>
 
     <section class="section section-alt">
       <div class="wrap">
         <div class="section-head">
-          <h2>Past programmes</h2>
-          <p>Programmes The Cave Consult has run for organisations and the public.</p>
+          <h2>{{t .Lang "home.learn.title"}}</h2>
         </div>
-        <ul class="programmes">
+        <ol class="learn-grid">
+          <li>
+            <span class="step-n">1</span>
+            <h3>{{t .Lang "home.learn.1.title"}}</h3>
+            <p>{{t .Lang "home.learn.1.p1"}}</p>
+            <p>{{t .Lang "home.learn.1.p2"}}</p>
+          </li>
+          <li>
+            <span class="step-n">2</span>
+            <h3>{{t .Lang "home.learn.2.title"}}</h3>
+            <p>{{t .Lang "home.learn.2.p1"}}</p>
+            <p>{{t .Lang "home.learn.2.p2"}}</p>
+          </li>
+          <li>
+            <span class="step-n">3</span>
+            <h3>{{t .Lang "home.learn.3.title"}}</h3>
+            <p>{{t .Lang "home.learn.3.p1"}}</p>
+            <p>{{t .Lang "home.learn.3.p2"}}</p>
+          </li>
+          <li class="learn-wide">
+            <span class="step-n">4</span>
+            <h3>{{t .Lang "home.learn.4.title"}}</h3>
+            <p>{{t .Lang "home.learn.4.p1"}}</p>
+            <p>{{t .Lang "home.learn.4.p2"}}</p>
+            <div class="learn-pair">
+              <div>
+                <h4>{{t .Lang "home.static.title"}}</h4>
+                <p>{{t .Lang "home.static.p1"}}</p>
+                <p>{{t .Lang "home.static.p2"}}</p>
+                <p>{{t .Lang "home.static.p3"}}</p>
+              </div>
+              <div>
+                <h4>{{t .Lang "home.dynamic.title"}}</h4>
+                <p>{{t .Lang "home.dynamic.p1"}}</p>
+                <p>{{t .Lang "home.dynamic.p2"}}</p>
+                <p>{{t .Lang "home.dynamic.p3"}}</p>
+                <p>{{t .Lang "home.dynamic.p4"}}</p>
+              </div>
+            </div>
+          </li>
+          <li>
+            <span class="step-n">5</span>
+            <h3>{{t .Lang "home.learn.5.title"}}</h3>
+            <p>{{t .Lang "home.learn.5.p1"}}</p>
+            <p>{{t .Lang "home.learn.5.p2"}}</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>{{t .Lang "home.apply.title"}}</h2>
+          <p>{{t .Lang "home.apply.p1"}}</p>
+          <p>{{t .Lang "home.apply.p2"}}</p>
+        </div>
+        <p class="path">LEARN → APPLY → BUILD → SUSTAIN</p>
+        <p class="path-note">{{t .Lang "home.apply.note"}}</p>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>{{t .Lang "home.programmes.title"}}</h2>
+          <p>{{t .Lang "home.programmes.lede"}}</p>
+        </div>
+        <ul class="programmes" lang="en">
           <li>Accreditation Slot for HRD Corp Trainer</li>
           <li>Content Marketing With AI Secret Weapon</li>
           <li>Website in Minutes With AI + Ecommerce</li>
@@ -132,10 +132,10 @@
       <div class="wrap">
         <div class="section-head section-head-row">
           <div>
-            <h2>From the gallery</h2>
-            <p>Videos, ebooks and pictures, open to everyone.</p>
+            <h2>{{t .Lang "home.gallery.title"}}</h2>
+            <p>{{t .Lang "home.gallery.lede"}}</p>
           </div>
-          <a class="link-more" href="/gallery">Open the gallery</a>
+          <a class="link-more" href="/gallery">{{t .Lang "home.gallery.open"}}</a>
         </div>
         <ul class="g-grid g-grid-fit">
           {{range .Items}}{{template "gallery-tile" .}}{{end}}
@@ -144,16 +144,16 @@
     </section>
     {{end}}
 
-    <section class="verify-band" lang="ms">
+    <section class="verify-band">
       <div class="wrap verify-band-in">
         <div>
-          <h2>Mulakan Perjalanan Pembelajaran AI</h2>
-          <p>Sama ada baru mengenali Generative AI atau ingin meningkatkan kemahiran membangunkan aplikasi digital, CAVELMS menyediakan ruang pembelajaran yang fleksibel dan berorientasikan aplikasi praktikal.</p>
+          <h2>{{t .Lang "home.start.title"}}</h2>
+          <p>{{t .Lang "home.start.p"}}</p>
         </div>
         <div class="cta-row">
-          <a class="btn btn-gold" href="/gallery?format=ebook">Explore eBooks</a>
-          <a class="btn btn-gold" href="/courses">Join Online Classes</a>
-          <a class="btn btn-gold" href="/courses">Learn AI Dashboard Development</a>
+          <a class="btn btn-gold" href="/gallery?format=ebook">{{t .Lang "home.cta.ebooks"}}</a>
+          <a class="btn btn-gold" href="/courses">{{t .Lang "home.cta.classes"}}</a>
+          <a class="btn btn-gold" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
         </div>
       </div>
     </section>

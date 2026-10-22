@@ -126,7 +126,8 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 		"/\t/evil.example/", "/\n/evil.example/", "/\r/evil.example/", "/\r\n/evil.example/", "\t//evil.example/"} {
 		res, body := s.get("/login?next=" + url.QueryEscape(next))
 		expectStatus(t, res, body, http.StatusOK, "")
-		if strings.Contains(body, "evil.example") {
+		// The language switch comes back to this very page, query and all; only the login form must drop next.
+		if strings.Contains(languageSwitch.ReplaceAllString(body, ""), "evil.example") {
 			t.Fatalf("login page for next=%q carries it on", next)
 		}
 		res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {next}})

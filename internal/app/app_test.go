@@ -25,7 +25,7 @@ func TestHomePage(t *testing.T) {
 	if !strings.Contains(body, "https://cave.example.invalid") {
 		t.Fatalf("home page did not render configured content: %s", body)
 	}
-	for _, want := range []string{"Selamat Datang ke CAVELMS", "LEARN → APPLY → BUILD → SUSTAIN", "Coach Adam", "Powered by The Cave Consult (TCC)", "Past programmes", "Certified Professional in Generative AI (CPGAI)"} {
+	for _, want := range []string{"Selamat Datang ke CAVELMS", "LEARN → APPLY → BUILD → SUSTAIN", "Coach Adam", "Dikuasakan oleh The Cave Consult (TCC)", "Program terdahulu", "Certified Professional in Generative AI (CPGAI)"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("home page is missing %q", want)
 		}
@@ -40,7 +40,9 @@ func TestHomePage(t *testing.T) {
 func TestHeaderShowsTheCAVELMSLogo(t *testing.T) {
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
-	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept-Language", "en")
+	application.ServeHTTP(recorder, req)
 
 	m := regexp.MustCompile(`<a class="brand" href="/"><img src="(/static/[^"]+)" alt="CAVELMS, your digital learning hub"`).FindStringSubmatch(recorder.Body.String())
 	if m == nil {

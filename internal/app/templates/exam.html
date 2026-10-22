@@ -1,7 +1,7 @@
 {{define "title"}}Exam · {{.Course.Title}} · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "courses" $.Learner)}}
+      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}">Back to the Course</a></p>
         <div class="adm-head">
