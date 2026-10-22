@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -75,7 +76,12 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	password := r.PostFormValue("password")
-	form := page{Name: name, Email: email, Error: accountFieldError(name, email, password)}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	form := page{Name: name, Email: email, Error: accountFieldError(lang, name, email, password)}
 	if form.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "register", form)
 		return
@@ -98,7 +104,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		name, email, string(hash)).Scan(&id)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		form.Error = "This email is already registered. Log in instead."
+		form.Error = text.T(lang, "register.err.taken")
 		a.render(w, r, http.StatusConflict, "register", form)
 		return
 	}
@@ -107,7 +113,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Commit only once the email is sent, so a failed send leaves no half-made account.
-	if err := a.sendVerification(r.Context(), tx, id, name, email); err != nil {
+	if err := a.sendVerification(r.Context(), tx, lang, id, name, email); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -116,28 +122,35 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.render(w, r, http.StatusOK, "message", page{
-		Title:   "Check your email",
-		Message: "We sent a verification link to " + email + ". Open it within 24 hours to confirm your account.",
+		Title:   text.T(lang, "message.check-email"),
+		Message: text.T(lang, "register.sent", email),
 	})
 }
 
-// sendVerification replaces the Learner's verification link with a new one and emails it.
-func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, learnerID int64, name, email string) error {
+// sendVerification replaces the Learner's verification link with a new one and emails it in lang.
+func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, learnerID int64, name, email string) error {
 	token, err := issueOneTimeToken(ctx, tx, learnerID, purposeVerifyEmail, verifyLinkLifetime)
 	if err != nil {
 		return err
 	}
-	return a.mailVerification(ctx, name, email, token)
+	return a.mailVerification(ctx, lang, name, email, token)
 }
 
-// mailVerification emails the verification link for token.
-func (a *App) mailVerification(ctx context.Context, name, email, token string) error {
+// mailVerification emails the verification link for token in lang.
+func (a *App) mailVerification(ctx context.Context, lang, name, email, token string) error {
 	return a.mailer.Send(ctx, mailer.Message{
 		To:      email,
-		Subject: "Confirm your Cave LMS account",
-		Body: "Hi " + name + ",\n\nOpen this link within 24 hours to confirm your Cave LMS account:\n\n" +
-			a.publicBaseURL + "/verify?token=" + token + "\n\nIf you didn't register, you can ignore this email.\n",
+		Subject: text.T(lang, "email.verify.subject"),
+		Body:    text.T(lang, "email.verify.body", name, a.publicBaseURL+"/verify?token="+token),
 	})
+}
+
+// recipientLanguage is the language to email a Learner in: their saved one, else the request's.
+func (a *App) recipientLanguage(r *http.Request, saved string) (string, error) {
+	if text.Supported(saved) {
+		return saved, nil
+	}
+	return a.language(r)
 }
 
 // issueOneTimeToken replaces the Learner's links for purpose with a new one and returns the token to email.
@@ -170,19 +183,26 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		WHERE t.learner_id = l.id AND t.token_hash = $1 AND t.purpose = $2
 		RETURNING l.id, l.email, t.expires_at <= now()`,
 		hashToken(r.URL.Query().Get("token")), purposeVerifyEmail).Scan(&learnerID, &email, &expired)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		a.serverError(w, r, err)
+		return
+	}
+	lang, langErr := a.language(r)
+	if langErr != nil {
+		a.serverError(w, r, langErr)
+		return
+	}
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		a.render(w, r, http.StatusBadRequest, "message", page{
-			Title:       "Link not valid",
-			Message:     "This verification link is not valid or has already been used. Enter your email to get a new one.",
+			Title:       text.T(lang, "message.link-invalid"),
+			Message:     text.T(lang, "verify.invalid"),
 			OfferResend: true,
 		})
-	case err != nil:
-		a.serverError(w, r, err)
 	case expired:
 		a.render(w, r, http.StatusGone, "message", page{
-			Title:       "Link expired",
-			Message:     "This verification link has expired. Send yourself a new one.",
+			Title:       text.T(lang, "message.link-expired"),
+			Message:     text.T(lang, "verify.expired"),
 			OfferResend: true,
 			Email:       email,
 		})
@@ -191,7 +211,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		a.render(w, r, http.StatusOK, "message", page{Title: "Email verified", Message: "Your account is confirmed.", OfferLogin: true})
+		a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "verify.done.title"), Message: text.T(lang, "verify.done"), OfferLogin: true})
 	}
 }
 
@@ -204,11 +224,11 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 	var (
-		id       int64
-		name, to string
+		id              int64
+		name, to, saved string
 	)
 	err = tx.QueryRowContext(r.Context(),
-		`SELECT id, name, email FROM learners WHERE lower(email) = lower($1) AND verified_at IS NULL`, email).Scan(&id, &name, &to)
+		`SELECT id, name, email, coalesce(language, '') FROM learners WHERE lower(email) = lower($1) AND verified_at IS NULL`, email).Scan(&id, &name, &to, &saved)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -223,14 +243,24 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
+		lang, err := a.recipientLanguage(r, saved)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		// A failed send is only logged: an error page would reveal that the account exists.
-		if err := a.mailVerification(r.Context(), name, to, token); err != nil {
+		if err := a.mailVerification(r.Context(), lang, name, to, token); err != nil {
 			a.logError(r, fmt.Errorf("send verification email: %w", err))
 		}
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	a.render(w, r, http.StatusOK, "message", page{
-		Title:   "Check your email",
-		Message: "If " + email + " belongs to an account waiting for verification, we sent it a new link.",
+		Title:   text.T(lang, "message.check-email"),
+		Message: text.T(lang, "verify.resent", email),
 	})
 }
 
@@ -259,22 +289,28 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		id       int64
 		hash     string
 		verified bool
-		lang     string
+		saved    string
 	)
 	err := a.db.QueryRowContext(r.Context(),
-		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &lang)
+		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &saved)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
 	}
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil {
-		a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: "Email or password is incorrect.", Next: next})
-		return
-	}
-	if !verified {
+	failed := err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil
+	if failed || !verified {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if failed {
+			a.render(w, r, http.StatusUnauthorized, "login", page{Email: email, Error: text.T(lang, "login.err.wrong"), Next: next})
+			return
+		}
 		a.render(w, r, http.StatusForbidden, "message", page{
-			Title:       "Verify your email first",
-			Message:     "Open the link we emailed you to confirm your account, then log in. Lost it? Send a new one.",
+			Title:       text.T(lang, "login.unverified.title"),
+			Message:     text.T(lang, "login.unverified"),
 			OfferResend: true,
 			Email:       email,
 		})
@@ -294,8 +330,8 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setSessionCookie(w, token, int(sessionLifetime.Seconds()))
-	if lang != "" {
-		setLanguageCookie(w, lang) // so the site stays in it after logging out
+	if saved != "" {
+		setLanguageCookie(w, saved) // so the site stays in it after logging out
 	}
 	if next == "" {
 		next = "/"
@@ -326,24 +362,24 @@ func setSessionCookie(w http.ResponseWriter, token string, maxAge int) {
 	})
 }
 
-// accountFieldError returns a message for the first invalid name, email or password, or "".
-func accountFieldError(name, email, password string) string {
+// accountFieldError returns a message in lang for the first invalid name, email or password, or "".
+func accountFieldError(lang, name, email, password string) string {
 	switch {
 	case name == "" || len(name) > 200:
-		return "Enter your name (up to 200 characters)."
+		return text.T(lang, "account.err.name")
 	case !validEmail(email):
-		return "Enter a valid email address."
+		return text.T(lang, "account.err.email")
 	}
-	return passwordProblem(password)
+	return passwordProblem(lang, password)
 }
 
-// passwordProblem says why a password is unacceptable, or returns "" if it is fine.
-func passwordProblem(password string) string {
+// passwordProblem says in lang why a password is unacceptable, or returns "" if it is fine.
+func passwordProblem(lang, password string) string {
 	switch {
 	case len(password) < 8:
-		return "Use a password of at least 8 characters."
+		return text.T(lang, "account.err.password-short")
 	case len(password) > 72: // bcrypt's limit
-		return "Use a password of at most 72 characters."
+		return text.T(lang, "account.err.password-long")
 	}
 	return ""
 }

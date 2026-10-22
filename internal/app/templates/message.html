@@ -6,12 +6,12 @@
         <p class="auth-sub">{{.Message}}</p>
         {{if .OfferResend}}
         <form class="form" method="post" action="/verify/resend">
-          <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
-          <button class="btn btn-solid btn-block">Send a new link</button>
+          <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
+          <button class="btn btn-solid btn-block">{{t .Lang "message.send-new"}}</button>
         </form>
         {{end}}
-        {{if .OfferLogin}}<p><a class="btn btn-solid" href="/login">Log in</a></p>{{end}}
-        {{if .OfferReset}}<p><a class="btn btn-ghost" href="/forgot-password">Request a new reset link</a></p>{{end}}
+        {{if .OfferLogin}}<p><a class="btn btn-solid" href="/login">{{t .Lang "header.log-in"}}</a></p>{{end}}
+        {{if .OfferReset}}<p><a class="btn btn-ghost" href="/forgot-password">{{t .Lang "message.new-reset"}}</a></p>{{end}}
       </div>
     </div>
 {{end}}

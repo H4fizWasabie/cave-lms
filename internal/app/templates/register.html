@@ -1,18 +1,18 @@
-{{define "title"}}Register · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "header.register"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap auth-page">
       <div class="auth-box">
-        <h1>Register</h1>
-        <p class="auth-sub">Create a free account to join courses.</p>
+        <h1>{{t .Lang "header.register"}}</h1>
+        <p class="auth-sub">{{t .Lang "register.sub"}}</p>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <form class="form" method="post" action="/register">
-          <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required><small>As it should appear on your certificates.</small></div>
-          <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
-          <div class="field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>At least 8 characters.</small></div>
-          <button class="btn btn-solid btn-block">Register</button>
+          <div class="field"><label for="name">{{t .Lang "account.name"}}</label><input id="name" type="text" name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required><small>{{t .Lang "account.name-hint"}}</small></div>
+          <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
+          <div class="field"><label for="password">{{t .Lang "account.password"}}</label><input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required><small>{{t .Lang "account.password-hint"}}</small></div>
+          <button class="btn btn-solid btn-block">{{t .Lang "header.register"}}</button>
           <p class="auth-consent">{{t .Lang "register.consent"}} <a href="/privacy">{{t .Lang "privacy.link"}}</a>.</p>
         </form>
-        <p class="auth-alt">Already registered? <a href="/login">Log in</a>.</p>
+        <p class="auth-alt">{{t .Lang "register.already"}} <a href="/login">{{t .Lang "header.log-in"}}</a>.</p>
       </div>
     </div>
 {{end}}
