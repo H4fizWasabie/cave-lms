@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // snippetCap is how many Snippets a Learner may keep, and whether their place is early. With an active CaveText Pro
@@ -74,21 +76,17 @@ func countSnippets(ctx context.Context, q rowQueryer, learnerID int64) (int, err
 }
 
 // overCapMessage refuses a new Snippet to a Learner with have Snippets against a cap.
-func overCapMessage(have int, c snippetCap) string {
-	return fmt.Sprintf("You have %d of your %d free Snippets. Delete one to add another, or get CaveText Pro for unlimited Snippets.", have, c.Cap)
+func overCapMessage(lang string, have int, c snippetCap) string {
+	return text.T(lang, "cavetext.api.cap-reached", have, c.Cap)
 }
 
 // skippedMessage says an import stopped at the cap.
-func skippedMessage(kept, skipped int) string {
-	rest := fmt.Sprintf("the other %d were skipped", skipped)
+func skippedMessage(lang string, kept, skipped int) string {
+	rest := text.T(lang, "cavetext.api.skipped-many", skipped)
 	if skipped == 1 {
-		rest = "the other one was skipped"
+		rest = text.T(lang, "cavetext.api.skipped-one")
 	}
-	snippets := "Snippets"
-	if kept == 1 {
-		snippets = "Snippet"
-	}
-	return fmt.Sprintf("Imported %d %s, your free cap; %s. CaveText Pro gives unlimited Snippets.", kept, snippets, rest)
+	return text.T(lang, "cavetext.api.imported", text.N(lang, "cavetext.snippet-count", kept), rest)
 }
 
 type caveTextCapsView struct {

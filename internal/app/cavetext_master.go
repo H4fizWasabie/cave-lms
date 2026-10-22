@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // maxUserMasterPrompt is how many characters a User master prompt may have.
@@ -20,16 +22,16 @@ func (a *App) saveUserMasterPrompt(w http.ResponseWriter, r *http.Request, l *ca
 		return
 	}
 	if strings.TrimSpace(in.Text) == "" {
-		writeJSONError(w, http.StatusUnprocessableEntity, "Paste the User master prompt first.")
+		writeJSONError(w, http.StatusUnprocessableEntity, text.T(l.Lang, "cavetext.api.paste-first"))
 		return
 	}
 	if n := utf8.RuneCountInString(in.Text); n > maxUserMasterPrompt {
-		writeJSONError(w, http.StatusUnprocessableEntity, fmt.Sprintf("A User master prompt can have up to %s characters; this one has %s. Shorten it, then save.", thousands(maxUserMasterPrompt), thousands(n)))
+		writeJSONError(w, http.StatusUnprocessableEntity, text.T(l.Lang, "cavetext.api.prompt-long", thousands(maxUserMasterPrompt), thousands(n)))
 		return
 	}
 	fail := func(err error) {
 		a.logError(r, fmt.Errorf("save User master prompt: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
 	c, err := learnerSnippetCap(r.Context(), a.db, l.ID)
 	if err != nil {
@@ -37,7 +39,7 @@ func (a *App) saveUserMasterPrompt(w http.ResponseWriter, r *http.Request, l *ca
 		return
 	}
 	if !c.Pro {
-		writeJSONError(w, http.StatusForbidden, "The User master prompt comes with CaveText Pro.")
+		writeJSONError(w, http.StatusForbidden, text.T(l.Lang, "cavetext.api.prompt-pro"))
 		return
 	}
 	res, err := a.db.ExecContext(r.Context(), `
@@ -52,7 +54,7 @@ func (a *App) saveUserMasterPrompt(w http.ResponseWriter, r *http.Request, l *ca
 		return
 	}
 	if n == 0 {
-		writeJSONError(w, http.StatusConflict, "You already have a User master prompt. Delete it first to save a new one.")
+		writeJSONError(w, http.StatusConflict, text.T(l.Lang, "cavetext.api.prompt-exists"))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"userMasterPrompt": in.Text})
@@ -62,7 +64,7 @@ func (a *App) saveUserMasterPrompt(w http.ResponseWriter, r *http.Request, l *ca
 func (a *App) deleteUserMasterPrompt(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE cavetext_accounts SET user_master_prompt = NULL WHERE learner_id = $1`, l.ID); err != nil {
 		a.logError(r, fmt.Errorf("delete User master prompt: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

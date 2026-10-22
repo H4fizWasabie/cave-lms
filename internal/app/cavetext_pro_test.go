@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // caveTextAdminSite is a CaveText site logged in as an Admin who is not the Owner.
@@ -391,7 +392,7 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 
 	// Pro: unlimited, with the expiry.
 	s.givePro("ada@example.com")
-	until := ada.me(token).ProUntil.UTC().Format("2006-01-02 15:04 UTC")
+	until := text.Date("en", ada.me(token).ProUntil.UTC())
 	_, body = ada.get("/cavetext")
 	for _, want := range []string{"CaveText Pro until " + until, "3 Snippets, unlimited"} {
 		if !strings.Contains(body, want) {

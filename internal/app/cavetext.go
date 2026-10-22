@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // caveTextTokenLifetime is how long a CaveText token lasts; each use starts it again.
@@ -59,6 +61,7 @@ type caveTextLearner struct {
 	ID    int64
 	Name  string
 	Place int64
+	Lang  string // what the API's messages are in: the saved language, else the browser's
 	token []byte
 }
 
@@ -66,25 +69,27 @@ type caveTextLearner struct {
 func (a *App) caveTextAPI(h func(http.ResponseWriter, *http.Request, *caveTextLearner)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		l := caveTextLearner{token: hashToken(token), Lang: requestLanguage("", r)}
 		if !ok || token == "" {
-			writeJSONError(w, http.StatusUnauthorized, "Sign in to CaveText again.")
+			writeJSONError(w, http.StatusUnauthorized, text.T(l.Lang, "cavetext.api.sign-in-again"))
 			return
 		}
-		l := caveTextLearner{token: hashToken(token)}
+		var saved string
 		err := a.db.QueryRowContext(r.Context(), `
 			UPDATE cavetext_tokens t SET expires_at = now() + $2::interval
 			FROM learners l JOIN cavetext_accounts c ON c.learner_id = l.id
 			WHERE t.token_hash = $1 AND t.expires_at > now() AND l.id = t.learner_id
-			RETURNING l.id, l.name, c.place`, l.token, caveTextTokenLifetime).Scan(&l.ID, &l.Name, &l.Place)
+			RETURNING l.id, l.name, c.place, coalesce(l.language, '')`, l.token, caveTextTokenLifetime).Scan(&l.ID, &l.Name, &l.Place, &saved)
 		if errors.Is(err, sql.ErrNoRows) {
-			writeJSONError(w, http.StatusUnauthorized, "Sign in to CaveText again.")
+			writeJSONError(w, http.StatusUnauthorized, text.T(l.Lang, "cavetext.api.sign-in-again"))
 			return
 		}
 		if err != nil {
 			a.logError(r, fmt.Errorf("look up CaveText token: %w", err))
-			writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+			writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 			return
 		}
+		l.Lang = requestLanguage(saved, r)
 		h(w, r, &l)
 	}
 }
@@ -92,7 +97,7 @@ func (a *App) caveTextAPI(h func(http.ResponseWriter, *http.Request, *caveTextLe
 func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	fail := func(err error) {
 		a.logError(r, fmt.Errorf("show CaveText account: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
 	// The User master prompt is null when none is saved; a lapsed Learner keeps theirs, and CaveText inserts it only
 	// with Pro. Every Learner gets the question, so a free Learner sees it, with Copy, beside the locked box.
@@ -126,7 +131,7 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 func (a *App) caveTextSignOut(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM cavetext_tokens WHERE token_hash = $1`, l.token); err != nil {
 		a.logError(r, fmt.Errorf("revoke CaveText token: %w", err))
-		writeJSONError(w, http.StatusInternalServerError, caveTextProblem)
+		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
