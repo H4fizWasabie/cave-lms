@@ -13,7 +13,7 @@ import (
 // caveTextSite is where the extension's own page links; it leads on to the Chrome Web Store.
 const caveTextSite = "https://cavetext.wasabietech.com"
 
-// proLength is how long CaveText Pro lasts from the day it starts.
+// proLength is how long CaveText Pro lasts when no Plan is marked as the Pro Plan; with one, Pro lasts its days.
 const proLength = "12 months"
 
 // caveTextLearnerRow is one CaveText Learner on the Admin CaveText Learners page.
@@ -89,41 +89,50 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_cavetext_learners", p)
 }
 
-// giveCaveTextPro gives a CaveText Learner 12 months of Pro, and a period of the Pro Plan for the same dates. It starts
-// now, or when their running Pro ends if that is later, so renewing early loses no days.
+// giveCaveTextPro gives a CaveText Learner Pro and a period of the Pro Plan, as givePro does.
 func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
 	a.changePro(w, r, func(id int64) error {
-		return a.givePro(r.Context(), a.db, id)
+		planned, err := givePro(r.Context(), a.db, id)
+		if err == nil && !planned {
+			a.warnNoProPlan(id)
+		}
+		return err
 	})
 }
 
-// giveProQuery adds 12 months of Pro for the Learner $1, from now or from when their running Pro ends, and a period
-// of the Pro Plan with the same start and end. The Pro Plan's allowances are copied, so editing it never changes the
-// period. Its rows affected is the Plan periods made: none when no Plan is marked as the Pro Plan.
+// giveProQuery gives the Learner $1 Pro and a period of the Pro Plan, both lasting the Pro Plan's days. Pro starts
+// now or when their running Pro ends; the period starts now or when their last Plan period ends, any Plan's, so
+// periods never overlap and renewing early loses no days. The Pro Plan's allowances are copied, so editing it never
+// changes the period. Without a Pro Plan, Pro lasts proLength and no period is made: rows affected is 0.
 // ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
 const giveProQuery = `
-	WITH pro AS (
+	WITH pro_plan AS (SELECT id, days, deployments, storage_mb FROM plans WHERE pro),
+	pro AS (
 		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
-		SELECT $1, s.at, s.at + '` + proLength + `'::interval FROM (SELECT GREATEST(now(), (
+		SELECT $1, s.at, s.at + COALESCE((SELECT make_interval(days => days) FROM pro_plan), '` + proLength + `'::interval)
+		FROM (SELECT GREATEST(now(), (
 			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
 		)) AS at) s
-		RETURNING learner_id, starts_at, ends_at)
+		RETURNING learner_id)
 	INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments, storage_mb)
-	SELECT pro.learner_id, p.id, pro.starts_at, pro.ends_at, p.deployments, p.storage_mb FROM pro, plans p WHERE p.pro`
+	SELECT pro.learner_id, p.id, s.at, s.at + make_interval(days => p.days), p.deployments, p.storage_mb
+	FROM pro, pro_plan p, ` + nextPlanStart
 
-// givePro gives the Learner a year of Pro and its Plan, as giveProQuery does. Without a Pro Plan it still gives Pro
-// and writes a line to the System log, so the Admin sees the missed setting.
-func (a *App) givePro(ctx context.Context, db interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-}, learnerID int64) error {
+// givePro gives the Learner Pro and its Plan, as giveProQuery does. planned is false when no Plan is marked as the
+// Pro Plan, so only Pro was given: the caller writes warnNoProPlan once its transaction has committed.
+func givePro(ctx context.Context, db execer, learnerID int64) (planned bool, err error) {
 	res, err := db.ExecContext(ctx, giveProQuery, learnerID)
 	if err != nil {
-		return fmt.Errorf("give Pro: %w", err)
+		return false, fmt.Errorf("give Pro: %w", err)
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		a.writeLog("error", fmt.Sprintf("Learner %d got CaveText Pro without a Plan period: no Plan is marked as the Pro Plan", learnerID), "", "")
-	}
-	return nil
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+// warnNoProPlan writes to the System log that the Learner got Pro without a Plan period, so the Admin sees the
+// missed setting.
+func (a *App) warnNoProPlan(learnerID int64) {
+	a.writeLog("error", fmt.Sprintf("Learner %d got CaveText Pro without a Plan period: no Plan is marked as the Pro Plan", learnerID), "", "")
 }
 
 // endCaveTextPro ends a Learner's Pro at once: the running period and any given to follow it. Their Plan periods

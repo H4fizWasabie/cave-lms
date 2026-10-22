@@ -153,9 +153,7 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 // ensureCaveTextAccount gives the Learner a CaveText account, with the next place, unless they have one: at their
 // first sign-in, or when a Pro payment arrives first. The NOT EXISTS keeps a repeat from using up a place number;
 // only two first ones racing skip one.
-func ensureCaveTextAccount(ctx context.Context, db interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-}, learnerID int64) error {
+func ensureCaveTextAccount(ctx context.Context, db execer, learnerID int64) error {
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO cavetext_accounts (learner_id) SELECT $1
 		WHERE NOT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)

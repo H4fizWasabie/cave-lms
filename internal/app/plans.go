@@ -230,6 +230,12 @@ func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, status, "admin_plan_periods", p)
 }
 
+// nextPlanStart is s.at, when the next Plan period of the Learner $1 starts: now, or when their last Plan period
+// ends if that is later. assignPlan and giveProQuery both queue after it, so a Learner's periods never overlap.
+const nextPlanStart = `(SELECT GREATEST(now(), (
+	SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM plan_periods WHERE learner_id = $1
+)) AS at) s`
+
 // assignPlan gives a Learner a new period of a Plan. It starts now, or when the Learner's
 // last period ends if that is later, so stacked periods lose no days.
 func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
@@ -248,9 +254,7 @@ func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 	res, err := a.db.ExecContext(r.Context(), `
 		INSERT INTO plan_periods (learner_id, plan_id, starts_at, ends_at, deployments, storage_mb)
 		SELECT $1, p.id, s.at, s.at + make_interval(days => p.days), p.deployments, p.storage_mb
-		FROM plans p, (SELECT GREATEST(now(), (
-			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM plan_periods WHERE learner_id = $1
-		)) AS at) s
+		FROM plans p, `+nextPlanStart+`
 		WHERE p.id = $2`, p.HolderID, planID)
 	if err != nil {
 		a.serverError(w, r, err)

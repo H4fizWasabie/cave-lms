@@ -36,6 +36,11 @@ type rowQueryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
+// execer is a *sql.DB or a *sql.Tx, for writes that may run inside a caller's transaction.
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 // learnerSnippetCap resolves a Learner's Snippet cap: an active CaveText Pro period gives unlimited Snippets; otherwise
 // a place within the early places gets the early cap, any later one the late cap. Every write and every page showing
 // the cap goes through here, so a changed setting or a lapsed Pro applies at once.

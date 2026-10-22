@@ -185,13 +185,20 @@ func (a *App) recordProPayment(ctx context.Context, b *bclWebhookBody, order str
 	if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
 		return "", err
 	}
-	if err := a.givePro(ctx, tx, learnerID); err != nil {
+	planned, err := givePro(ctx, tx, learnerID)
+	if err != nil {
 		return "", err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE cavetext_payments SET learner_id = $2, granted = true WHERE order_number = $1`, order, learnerID); err != nil {
 		return "", fmt.Errorf("mark payment granted: %w", err)
 	}
-	return fmt.Sprintf("gave Learner %d a year of Pro", learnerID), tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	if !planned {
+		a.warnNoProPlan(learnerID)
+	}
+	return fmt.Sprintf("gave Learner %d Pro", learnerID), nil
 }
 
 // unmatchedPayment is a Pro payment that gave no Pro, waiting on the Admin CaveText Learners page.
