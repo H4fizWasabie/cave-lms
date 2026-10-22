@@ -128,18 +128,23 @@ func (a *App) examStatusFor(ctx context.Context, l *learner, c course) (examStat
 	if s.Done, s.Total, err = a.courseProgress(ctx, l.ID, c.ID); err != nil {
 		return s, err
 	}
-	if s.Passed, err = a.examPassed(ctx, l.ID, c.ID); err != nil {
-		return s, err
-	}
-	if err = a.db.QueryRowContext(ctx,
-		`SELECT count(*) FROM exam_attempts WHERE learner_id = $1 AND course_id = $2`, l.ID, c.ID).Scan(&s.Used); err != nil {
-		return s, fmt.Errorf("count attempts: %w", err)
-	}
-	if s.Open, err = a.openAttempt(ctx, l.ID, c.ID); err != nil {
+	if err = s.readAttempts(ctx, a.db, l.ID, c.ID); err != nil {
 		return s, err
 	}
 	s.Best, s.HasBest, err = a.bestExamScore(ctx, l.ID, c.ID)
 	return s, err
+}
+
+// readAttempts fills in what the Learner's attempts at a Course's Exam decide: how many, whether one passed and
+// the one still open, if any.
+func (s *examStatus) readAttempts(ctx context.Context, q rowQueryer, learnerID, courseID int64) error {
+	if err := q.QueryRowContext(ctx, `SELECT count(*), COALESCE(bool_or(passed), false) FROM exam_attempts
+		WHERE learner_id = $1 AND course_id = $2`, learnerID, courseID).Scan(&s.Used, &s.Passed); err != nil {
+		return fmt.Errorf("count attempts: %w", err)
+	}
+	var err error
+	s.Open, err = openAttempt(ctx, q, learnerID, courseID)
+	return err
 }
 
 // examPassed reports whether the Learner has passed the Course's Exam on any attempt.
@@ -160,8 +165,8 @@ func (a *App) bestExamScore(ctx context.Context, learnerID, courseID int64) (int
 }
 
 // openAttempt returns the Learner's latest unfinished attempt if it is still within its time limit, or nil.
-func (a *App) openAttempt(ctx context.Context, learnerID, courseID int64) (*examAttempt, error) {
-	att, err := scanAttempt(a.db.QueryRowContext(ctx, `SELECT `+attemptColumns+` FROM exam_attempts
+func openAttempt(ctx context.Context, q rowQueryer, learnerID, courseID int64) (*examAttempt, error) {
+	att, err := scanAttempt(q.QueryRowContext(ctx, `SELECT `+attemptColumns+` FROM exam_attempts
 		WHERE learner_id = $1 AND course_id = $2 AND finished_at IS NULL ORDER BY id DESC LIMIT 1`, learnerID, courseID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -205,21 +210,31 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	st, err := a.examStatusFor(r.Context(), learner, c)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	// Locking the Enrollment row serialises starts by one Learner on one Course, so two quick clicks can never
 	// both pass the open-attempt and attempt-limit checks. The lock is held until the new attempt is committed.
+	// The Enrollment and the attempts, which another tab can change while this one waits, are read again under the
+	// lock, on the transaction: a read on a second connection while this one holds the lock stalls once a burst of
+	// starts has taken the whole pool.
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM enrollments WHERE learner_id = $1 AND course_id = $2 FOR UPDATE`,
-		learner.ID, c.ID); err != nil {
+	var locked int
+	err = tx.QueryRowContext(r.Context(), `SELECT 1 FROM enrollments WHERE learner_id = $1 AND course_id = $2 FOR UPDATE`,
+		learner.ID, c.ID).Scan(&locked)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
 	}
-	st, err := a.examStatusFor(r.Context(), learner, c)
-	if err != nil {
+	st.Enrolled = err == nil
+	if err = st.readAttempts(r.Context(), tx, learner.ID, c.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -231,7 +246,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusConflict, "learner_exam", page{Course: &c, Learner: learner, Status: &st, Error: msg})
 		return
 	}
-	id, err := a.insertAttempt(r.Context(), tx, learner.ID, c.ID)
+	id, err := insertAttempt(r.Context(), tx, learner.ID, c.ID, st.Exam.Questions)
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -242,12 +257,8 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, attemptPath(c.ID, id), http.StatusSeeOther)
 }
 
-// insertAttempt stores a new attempt with the published questions in a shuffled order.
-func (a *App) insertAttempt(ctx context.Context, tx *sql.Tx, learnerID, courseID int64) (int64, error) {
-	list, err := a.loadQuestions(ctx, courseID)
-	if err != nil {
-		return 0, err
-	}
+// insertAttempt stores a new attempt with the published questions of list in a shuffled order.
+func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID, courseID int64, list []examQuestion) (int64, error) {
 	questions := []attemptQuestion{}
 	for _, q := range list {
 		if !q.Draft {
