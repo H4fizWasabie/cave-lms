@@ -44,6 +44,32 @@ func TestDatabasePoolIsCapped(t *testing.T) {
 	}
 }
 
+func TestEveryForeignKeyHasAnIndex(t *testing.T) {
+	_, _, db, _ := newTestApplication(t)
+	// conkey is 1-based and indkey 0-based, so both pick the first column. A partial index doesn't count: it can't
+	// serve a plain lookup by the key, such as a cascading delete.
+	rows, err := db.Query(`SELECT c.conrelid::regclass::text, a.attname FROM pg_constraint c
+		JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+		WHERE c.contype = 'f' AND c.connamespace = current_schema()::regnamespace
+		AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1]
+			AND i.indpred IS NULL)
+		ORDER BY 1, 2`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var table, column string
+		if err := rows.Scan(&table, &column); err != nil {
+			t.Fatal(err)
+		}
+		t.Errorf("foreign key %s.%s has no index", table, column)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestHeaderShowsTheCAVELMSLogo(t *testing.T) {
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
