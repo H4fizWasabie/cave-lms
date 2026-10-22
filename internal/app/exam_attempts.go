@@ -398,3 +398,58 @@ func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID, cour
 func attemptPath(courseID, attemptID int64) string {
 	return "/courses/" + strconv.FormatInt(courseID, 10) + "/exam/attempts/" + strconv.FormatInt(attemptID, 10)
 }
+
+// myExam is one row of My exams: an enrolled Course's Exam and how the Learner stands on it.
+type myExam struct {
+	CourseID    int64
+	CourseTitle string
+	PassMark    string
+	Attempted   bool // a finished attempt exists, so Best is meaningful
+	Best        int
+	Passed      bool
+}
+
+// myExamsPage lists the Exams of the Learner's Courses.
+type myExamsPage struct {
+	pageBase
+	Exams []myExam
+}
+
+// myExams lists the Exam of every Course the logged-in Learner has joined. A Course has an Exam once it has a
+// published question; Courses without one are left out.
+func (a *App) myExams(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	rows, err := a.db.QueryContext(r.Context(), `
+		SELECT c.id, c.title, x.pass_mark, max(t.score) IS NOT NULL, COALESCE(max(t.score), 0), COALESCE(bool_or(t.passed), false)
+		FROM enrollments e
+		JOIN courses c ON c.id = e.course_id
+		JOIN exams x ON x.course_id = c.id
+		LEFT JOIN exam_attempts t ON t.course_id = c.id AND t.learner_id = e.learner_id
+		WHERE e.learner_id = $1
+		  AND EXISTS (SELECT 1 FROM exam_questions q WHERE q.course_id = c.id AND NOT q.is_draft)
+		GROUP BY c.id, c.title, x.pass_mark
+		ORDER BY c.title, c.id`, learner.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	defer rows.Close()
+	p := myExamsPage{pageBase: pageBase{Learner: learner}}
+	for rows.Next() {
+		var e myExam
+		if err := rows.Scan(&e.CourseID, &e.CourseTitle, &e.PassMark, &e.Attempted, &e.Best, &e.Passed); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Exams = append(p.Exams, e)
+	}
+	if err := rows.Err(); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "my_exams", &p)
+}
