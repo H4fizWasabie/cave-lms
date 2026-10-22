@@ -95,6 +95,8 @@ Errors and start-ups go to journald and to the `system_log` table, which keeps 3
 
 Lab Datasets live in a private Cloudflare R2 bucket (ADR 0008); Postgres keeps only which Dataset belongs to which Dashboard. Only the app holds the bucket's credentials.
 
+**Put the four `R2_` settings in `/etc/cave-lms/env` before the first start of this release.** That start copies every existing Dataset, once, out of the database into whichever store is configured. If R2 is not set yet they land on the disk, and switching to R2 later leaves those Dashboards and their Deployments failing, because the app then looks for their data in the bucket.
+
 1. Cloudflare dashboard > R2 > Create bucket. Name it `cave-lms-datasets`, Location: Automatic with the hint Asia-Pacific (APAC), default storage class Standard. Leave Public access off: no `r2.dev` address, no custom domain.
 2. R2 > Manage API tokens > Create API token: permission Object Read & Write, applied to `cave-lms-datasets` only, no expiry (or note when it expires). Copy the Access Key ID and Secret Access Key; the secret is shown once. Use a new token, not the backup one.
 3. Add to `/etc/cave-lms/env` with an editor, then `systemctl restart cave-lms` (or deploy):
@@ -106,7 +108,7 @@ Lab Datasets live in a private Cloudflare R2 bucket (ADR 0008); Postgres keeps o
    R2_SECRET_ACCESS_KEY=...
    ```
 
-All four or none: with some set and others missing the app stops at start naming the missing ones (`journalctl -u cave-lms -n 20`); with none set Datasets stay on the disk under `STORAGE_DIR`. On the first start with R2 set, Datasets still in the old database column are copied into the bucket. Datasets already on the disk are not moved, so set R2 before Learners upload. Failed reads and writes go to the System log; a failed upload tells the Learner and keeps their previous Dataset. The nightly backup does not cover this bucket.
+All four or none: with some set and others missing the app stops at start naming the missing ones (`journalctl -u cave-lms -n 20`); with none set Datasets stay on the disk under `STORAGE_DIR`. Failed reads and writes go to the System log; a failed upload tells the Learner and keeps their previous Dataset. The nightly backup does not cover this bucket.
 
 ## Email
 
