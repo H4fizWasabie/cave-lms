@@ -1,7 +1,6 @@
 package text
 
-// catalog holds every text, by key. Malay domain words: Learner = Pelajar, Course = Kursus, Lesson = Pelajaran,
-// Exam = Peperiksaan, Certificate = Sijil, Gallery = Galeri, Admin = Pentadbir, Plan = Pelan. Product names stay English.
+// catalog holds every text, by key. Domain words follow the Malay in GLOSSARY.md; product names stay English.
 var catalog = map[string]entry{
 	// Layout: header
 	"header.logo-alt":     {en: "CAVELMS, your digital learning hub", ms: "CAVELMS, hab pembelajaran digital anda"},
@@ -32,7 +31,7 @@ var catalog = map[string]entry{
 	// Layout: Admin sidebar
 	"admin.brand":              {en: "CAVELMS admin", ms: "Pentadbir CAVELMS"},
 	"admin.nav":                {en: "Admin", ms: "Pentadbir"},
-	"admin.side.dashboard":     {en: "Dashboard", ms: "Laman utama"},
+	"admin.side.dashboard":     {en: "Dashboard", ms: "Dashboard"},
 	"admin.side.courses":       {en: "Courses", ms: "Kursus"},
 	"admin.side.gallery":       {en: "Gallery", ms: "Galeri"},
 	"admin.side.certificates":  {en: "Certificates", ms: "Sijil"},
@@ -65,7 +64,7 @@ var catalog = map[string]entry{
 		ms: "Kami percaya bahawa pembelajaran AI tidak sepatutnya terhenti pada pengetahuan tentang teknologi atau kebolehan menghasilkan kandungan menggunakan arahan prompt semata-mata.",
 	},
 	"home.intro.3": {
-		en: "Instead, AI skills must turn into the ability to solve real problems, raise productivity, analyse information, make decisions and build digital solutions that can be used for the long term.",
+		en: "Instead, AI skills must turn into the ability to solve real problems, raise productivity, analyse information, make decisions and build digital solutions that can be used on an ongoing basis.",
 		ms: "Sebaliknya, kemahiran AI perlu diterjemahkan kepada keupayaan menyelesaikan masalah sebenar, meningkatkan produktiviti, menganalisis maklumat, membuat keputusan dan membangunkan penyelesaian digital yang boleh digunakan secara berterusan.",
 	},
 	"home.intro.4": {

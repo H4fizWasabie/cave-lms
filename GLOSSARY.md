@@ -190,5 +190,5 @@ _Avoid_: Plan (that is for the Lab), subscription
 
 **Master prompt**:
 A ready prompt a CaveText Pro Learner inserts with one click or its shortcut. There are three. The User master prompt is the Learner's own context, written by an AI chatbot they asked what it knows about them and pasted into CaveText; it cannot be edited, only deleted and replaced, and it sits above a Snippet's task when inserted. The Image and Dashboard master prompts are written by the client, the same for every Pro Learner, and inserted as they are.
-_Malay_: master prompt (kept in English)
+_Malay_: Master prompt (kept in English)
 _Avoid_: Meta prompt, profile, system prompt, Prompt set

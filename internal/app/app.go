@@ -402,7 +402,7 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			a.serverError(w, r, err)
 			return
 		}
-		*c.chromeField() = chrome{Lang: lang, Here: r.URL.RequestURI()}
+		*c.chromeField() = chrome{Lang: lang, Here: here(r)}
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

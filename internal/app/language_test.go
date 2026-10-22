@@ -74,6 +74,11 @@ func TestTheSwitchRefusesAnOffSiteReturnPathAndAnUnknownLanguage(t *testing.T) {
 			t.Errorf("switch with next %q went to %q, want /", next, got)
 		}
 	}
+	// A page shown in answer to a post may live at a post-only address, so its switch goes home.
+	_, body := s.login("nobody@example.com", "wrong password")
+	if !strings.Contains(languageSwitch.FindString(body), `name="next" value=""`) {
+		t.Errorf("the switch on a failed login page comes back to the post's address:\n%s", languageSwitch.FindString(body))
+	}
 	res, body := s.switchLanguage("fr", "/")
 	expectStatus(t, res, body, http.StatusBadRequest, "")
 
