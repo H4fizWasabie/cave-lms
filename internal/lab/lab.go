@@ -4,13 +4,13 @@
 package lab
 
 import (
-	"fmt"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -47,20 +47,51 @@ func (d *Dataset) rowNumber(i int) int {
 }
 
 // emptyCell reports a blank cell in a column a required blank uses.
-func emptyCell(row int, col string) string {
-	return fmt.Sprintf("Row %d, %s: empty, but this column is required.", row, col)
+func emptyCell(row int, col string) Problem {
+	return Problem{"lab.err.empty-cell", []any{row, col}}
 }
 
-// Errors is everything wrong with an upload, each in words a Learner can act on.
-type Errors []string
+// Problem is one thing wrong with an upload or a column choice, as a text catalog key and the
+// values it fills in, so the page can word it in the Learner's language. A value that is itself
+// a Problem is worded too. As an error it reads in English, for logs.
+type Problem struct {
+	Key  string
+	Args []any
+}
 
-func (e Errors) Error() string { return strings.Join(e, "; ") }
+// In words p in lang.
+func (p Problem) In(lang string) string {
+	args := make([]any, len(p.Args))
+	for i, a := range p.Args {
+		if inner, ok := a.(Problem); ok {
+			a = inner.In(lang)
+		}
+		args[i] = a
+	}
+	return text.T(lang, p.Key, args...)
+}
+
+func (p Problem) Error() string { return p.In("en") }
+
+// typeWord is typ as a word, like "number".
+func typeWord(typ Type) Problem { return Problem{"lab.type." + string(typ), nil} }
+
+// Errors is everything wrong with an upload, each in words a Learner can act on.
+type Errors []Problem
+
+// In words every problem in lang.
+func (e Errors) In(lang string) []string {
+	out := make([]string, len(e))
+	for i, p := range e {
+		out[i] = p.In(lang)
+	}
+	return out
+}
+
+func (e Errors) Error() string { return strings.Join(e.In("en"), "; ") }
 
 // MaxRows is the most data rows the Lab reads from one file.
 const MaxRows = 5000
-
-// WhyXLSX tells a Learner why the Lab takes .xlsx files only.
-const WhyXLSX = "The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that."
 
 // Read reads the first sheet of an .xlsx file, row 1 being the column names, and checks it
 // against the Template. A column named like one of a blank's guesses is read as that blank's
@@ -71,16 +102,16 @@ const WhyXLSX = "The Lab reads Excel workbooks only. A CSV file stores everythin
 func Read(r io.Reader, t *Template) (*Dataset, error) {
 	f, err := excelize.OpenReader(r)
 	if err != nil {
-		return nil, Errors{"This is not an .xlsx file. " + WhyXLSX}
+		return nil, Errors{{"lab.err.not-workbook", nil}}
 	}
 	defer f.Close()
 	sheet := f.GetSheetList()[0]
 	cells, err := f.GetRows(sheet, excelize.Options{RawCellValue: true})
 	if err != nil {
-		return nil, Errors{"The first sheet could not be read: " + err.Error()}
+		return nil, Errors{{"lab.err.unreadable", []any{err.Error()}}}
 	}
 	if len(cells) < 2 {
-		return nil, Errors{"The first sheet needs column names in row 1 and at least one row of data below them."}
+		return nil, Errors{{"lab.err.no-data", nil}}
 	}
 
 	var errs Errors
@@ -90,9 +121,9 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		name = strings.TrimSpace(name)
 		switch {
 		case name == "":
-			errs = append(errs, fmt.Sprintf("Column %s has no name in row 1.", colLetter(i)))
+			errs = append(errs, Problem{"lab.err.unnamed-column", []any{colLetter(i)}})
 		case seen[strings.ToLower(name)]:
-			errs = append(errs, fmt.Sprintf("Two columns are called %s. Give each column its own name in row 1.", name))
+			errs = append(errs, Problem{"lab.err.same-name", []any{name}})
 		}
 		seen[strings.ToLower(name)] = true
 		d.Columns = append(d.Columns, Column{Name: name})
@@ -116,7 +147,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		raw, rowNo = append(raw, vals), append(rowNo, ri+2)
 	}
 	if len(raw) > MaxRows {
-		return nil, Errors{fmt.Sprintf("The file has %s rows. The Lab reads up to %s rows. Delete some rows and upload again.", thousands(len(raw)), thousands(MaxRows))}
+		return nil, Errors{{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows)}}}
 	}
 
 	for ci := range d.Columns {
@@ -128,8 +159,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	for _, b := range t.Blanks {
 		if b.Required && !hasType(d.Columns, b.Type) {
-			errs = append(errs, fmt.Sprintf("Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
-				b.SampleName(), t.Name, b.Label, typeWords[b.Type]))
+			errs = append(errs, Problem{"lab.err.missing-column", []any{b.SampleName(), t.Name, b.Label, Problem{"lab.types." + string(b.Type), nil}}})
 		}
 	}
 	required, guess := map[string]bool{}, t.Guess(d)
@@ -144,7 +174,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		for ci, c := range vals {
 			if ci >= len(d.Columns) {
 				if c.v != "" {
-					errs = append(errs, fmt.Sprintf("Row %d has %q in column %s, which has no name in row 1. Name the column or clear the cell.", rowNo[ri], c.v, colLetter(ci)))
+					errs = append(errs, Problem{"lab.err.stray-cell", []any{rowNo[ri], c.v, colLetter(ci)}})
 				}
 				continue
 			}
@@ -157,7 +187,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 			}
 			v, problem := parse(c, col.Type)
 			if problem != "" {
-				errs = append(errs, fmt.Sprintf("Row %d, %s: %s", rowNo[ri], col.Name, problem))
+				errs = append(errs, Problem{problem, []any{rowNo[ri], col.Name, c.v}})
 			}
 			row[ci] = v
 		}
@@ -176,9 +206,7 @@ type cell struct {
 	date bool
 }
 
-var typeWords = map[Type]string{Date: "dates", Number: "numbers", Text: "text"}
-
-// parse reads a filled cell as typ, or says why it cannot.
+// parse reads a filled cell as typ, or gives the catalog key that says why it cannot.
 func parse(c cell, typ Type) (any, string) {
 	switch typ {
 	case Date:
@@ -191,12 +219,12 @@ func parse(c cell, typ Type) (any, string) {
 				return day.Format("2006-01-02"), ""
 			}
 		}
-		return nil, fmt.Sprintf("not a date (%q). Type it as day/month/year, like 05/11/2026.", c.v)
+		return nil, "lab.err.not-date"
 	case Number:
 		if n, ok := number(c.v); ok {
 			return n, ""
 		}
-		return nil, fmt.Sprintf("not a number (%q). Type it as a plain number, like 200 or RM1,200.00.", c.v)
+		return nil, "lab.err.not-number"
 	}
 	return c.v, ""
 }

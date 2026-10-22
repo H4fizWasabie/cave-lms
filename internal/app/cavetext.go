@@ -22,7 +22,12 @@ const caveTextTokenLifetime = "1 year"
 func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("extension")
 	if id == "" || !slices.Contains(a.caveTextExtensionIDs, id) {
-		a.render(w, r, http.StatusBadRequest, "message", page{Title: "Unknown extension", Message: "This extension can't sign in to CAVELMS. Install CaveText from the Chrome Web Store."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusBadRequest, "message", page{Title: text.T(lang, "cavetext.unknown-extension.title"), Message: text.T(lang, "cavetext.unknown-extension")})
 		return
 	}
 	learner, err := a.currentLearner(r)

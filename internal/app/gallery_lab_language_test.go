@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 func TestTheGalleryPagesAreInMalayAndEnglish(t *testing.T) {
@@ -112,4 +115,28 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 	expectLanguage(t, body, "ms", "Hubungi kami untuk naik taraf")
 	res, body := s.get("/lab/new")
 	expectStatus(t, res, body, http.StatusForbidden, "Lab dikunci")
+}
+
+func TestTheLabsFileAndColumnErrorsAreInMalay(t *testing.T) {
+	_, ada := labLearner(t)
+	ada.switchLanguage("ms", "/")
+	path := ada.createDashboard("finance", "Kewangan")
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+
+	bad := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{day, "dua ratus"}, []any{"31/02/2026", 5}, []any{day, nil})
+	res, body := ada.postFile(path+"/dataset", "bad.xlsx", bad)
+	for _, want := range []string{"Baris 2, Jumlah: bukan nombor (&#34;dua ratus&#34;).", "Baris 3, Tarikh: bukan tarikh",
+		"Baris 4, Jumlah: kosong, tetapi lajur ini wajib diisi."} {
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Lajur Jumlah tiada. Templat Finance memerlukannya untuk Amount, iaitu lajur nombor.")
+	res, body = ada.postFile(path+"/dataset", "fake.xlsx", []byte("not a workbook"))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja.")
+
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	res, body = ada.post(path+"/columns", url.Values{})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Pilih lajur untuk Date.")
+	res, body = ada.post(path+"/columns", url.Values{"date": {"Jumlah"}, "amount": {"Jumlah"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Date memerlukan lajur tarikh, tetapi Jumlah mengandungi nombor.")
 }

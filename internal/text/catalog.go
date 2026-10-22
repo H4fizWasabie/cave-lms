@@ -529,6 +529,32 @@ var catalog = map[string]entry{
 		en: "%s is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
 		ms: "%s bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
 	},
+	"lab.err.not-workbook": {
+		en: "This is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
+		ms: "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
+	},
+	"lab.err.unreadable":     {en: "The first sheet could not be read: %s", ms: "Helaian pertama tidak dapat dibaca: %s"},
+	"lab.err.no-data":        {en: "The first sheet needs column names in row 1 and at least one row of data below them.", ms: "Helaian pertama memerlukan nama lajur di baris 1 dan sekurang-kurangnya satu baris data di bawahnya."},
+	"lab.err.unnamed-column": {en: "Column %s has no name in row 1.", ms: "Lajur %s tiada nama di baris 1."},
+	"lab.err.same-name":      {en: "Two columns are called %s. Give each column its own name in row 1.", ms: "Dua lajur bernama %s. Berikan setiap lajur namanya sendiri di baris 1."},
+	"lab.err.too-many-rows":  {en: "The file has %s rows. The Lab reads up to %s rows. Delete some rows and upload again.", ms: "Fail ini ada %s baris. Lab membaca sehingga %s baris. Padam beberapa baris dan muat naik semula."},
+	"lab.err.missing-column": {
+		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
+		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",
+	},
+	"lab.err.stray-cell": {
+		en: "Row %d has %q in column %s, which has no name in row 1. Name the column or clear the cell.",
+		ms: "Baris %d ada %q dalam lajur %s, yang tiada nama di baris 1. Namakan lajur itu atau kosongkan sel tersebut.",
+	},
+	"lab.err.not-date":       {en: "Row %d, %s: not a date (%q). Type it as day/month/year, like 05/11/2026.", ms: "Baris %d, %s: bukan tarikh (%q). Taip sebagai hari/bulan/tahun, seperti 05/11/2026."},
+	"lab.err.not-number":     {en: "Row %d, %s: not a number (%q). Type it as a plain number, like 200 or RM1,200.00.", ms: "Baris %d, %s: bukan nombor (%q). Taip sebagai nombor biasa, seperti 200 atau RM1,200.00."},
+	"lab.err.empty-cell":     {en: "Row %d, %s: empty, but this column is required.", ms: "Baris %d, %s: kosong, tetapi lajur ini wajib diisi."},
+	"lab.err.choose-column":  {en: "Choose a column for %s.", ms: "Pilih lajur untuk %s."},
+	"lab.err.no-such-column": {en: "%s: the Dataset has no column called %s.", ms: "%s: Set data tiada lajur bernama %s."},
+	"lab.err.wrong-type":     {en: "%s needs a %s column, and %s holds %s.", ms: "%s memerlukan lajur %s, tetapi %s mengandungi %s."},
+	"lab.types.date":         {en: "dates", ms: "tarikh"},
+	"lab.types.number":       {en: "numbers", ms: "nombor"},
+	"lab.types.text":         {en: "text", ms: "teks"},
 
 	// The Dashboard page
 	"lab.d.zip": {en: "Download zip", ms: "Muat turun zip"},
@@ -784,7 +810,12 @@ var catalog = map[string]entry{
 	"cavetext.sign-in-first":      {en: "Sign in to CaveText first, so we can find you.", ms: "Log masuk ke CaveText dahulu, supaya kami dapat mencari anda."},
 
 	// CaveText API messages, shown by the extension as they come
-	"cavetext.api.sign-in-again":    {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
+	"cavetext.api.sign-in-again":       {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
+	"cavetext.unknown-extension.title": {en: "Unknown extension", ms: "Sambungan tidak dikenali"},
+	"cavetext.unknown-extension": {
+		en: "This extension can't sign in to CAVELMS. Install CaveText from the Chrome Web Store.",
+		ms: "Sambungan ini tidak boleh log masuk ke CAVELMS. Pasang CaveText dari Chrome Web Store.",
+	},
 	"cavetext.api.problem":          {en: "CAVELMS had a problem. Try again later.", ms: "CAVELMS menghadapi masalah. Cuba lagi nanti."},
 	"cavetext.api.snippet-gone":     {en: "That Snippet is gone; it may have been deleted in another browser.", ms: "Snippet itu sudah tiada; mungkin ia telah dipadam dalam pelayar lain."},
 	"cavetext.api.name-needed":      {en: "A name is needed.", ms: "Nama diperlukan."},

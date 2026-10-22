@@ -415,7 +415,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	ds, err := lab.Read(file, d.Template)
 	var problems lab.Errors
 	if errors.As(err, &problems) {
-		refuse(problems...)
+		refuse(problems.In(lang)...)
 		return
 	}
 	if err != nil {
@@ -425,7 +425,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
 	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds); errors.As(err, &problems) {
-		refuse(problems...) // blank cells in a column the Learner chose for a required blank
+		refuse(problems.In(lang)...) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
 		choices, next = d.Template.Guess(ds), dashboardURL(d)+"/columns"
@@ -468,13 +468,23 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 	}
 	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset); err != nil {
+		lang, langErr := a.language(r)
+		if langErr != nil {
+			a.serverError(w, r, langErr)
+			return
+		}
 		d.Choices = c
 		p := &dashboardPage{Dashboard: d, Tab: "columns", Access: acc}
 		var blanks lab.Errors
-		if errors.As(err, &blanks) {
-			p.Errors = blanks
-		} else {
-			p.Error = err.Error()
+		var choice lab.Problem
+		switch {
+		case errors.As(err, &blanks):
+			p.Errors = blanks.In(lang)
+		case errors.As(err, &choice):
+			p.Error = choice.In(lang)
+		default:
+			a.serverError(w, r, err)
+			return
 		}
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
 		return

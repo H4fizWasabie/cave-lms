@@ -155,7 +155,7 @@ func TestGenerateRefusesARequiredColumnWithBlankCells(t *testing.T) {
 	}
 	_, _, err = lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Lain"}, d)
 	var got lab.Errors
-	if !errors.As(err, &got) || !reflect.DeepEqual(got, lab.Errors{"Row 4, Lain: empty, but this column is required."}) {
+	if !errors.As(err, &got) || !reflect.DeepEqual(got.In("en"), []string{"Row 4, Lain: empty, but this column is required."}) {
 		t.Fatalf("err = %v, want the blank cell in Lain named by its Excel row", err)
 	}
 	if _, _, err := lab.Generate(fin, "Kewangan", lab.Choices{"date": "Tarikh", "amount": "Jumlah"}, d); err != nil {
@@ -183,14 +183,14 @@ func TestGeneratedPageEscapesColumnNamesAndCellText(t *testing.T) {
 }
 
 // readErrors reads a file it expects Cave to refuse and returns the Learner-worded problems.
-func readErrors(t *testing.T, file []byte) lab.Errors {
+func readErrors(t *testing.T, file []byte) []string {
 	t.Helper()
 	_, err := lab.Read(bytes.NewReader(file), finance(t))
 	var errs lab.Errors
 	if !errors.As(err, &errs) {
 		t.Fatalf("Read gave %v, want lab.Errors", err)
 	}
-	return errs
+	return errs.In("en")
 }
 
 func TestReadsEveryDateForm(t *testing.T) {
@@ -243,7 +243,7 @@ func TestListsEveryUnreadableOrMissingCell(t *testing.T) {
 		[]any{nil, "Sewa", 5, "lebih"},  // row 6
 	)
 	got := readErrors(t, file)
-	want := lab.Errors{
+	want := []string{
 		`Row 3, Jumlah: not a number ("dua ratus"). Type it as a plain number, like 200 or RM1,200.00.`,
 		`Row 4, Tarikh: not a date ("31/02/2026"). Type it as day/month/year, like 05/11/2026.`,
 		`Row 5, Jumlah: empty, but this column is required.`,
@@ -258,7 +258,7 @@ func TestListsEveryUnreadableOrMissingCell(t *testing.T) {
 func TestAMissingRequiredColumnIsNamed(t *testing.T) {
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	got := readErrors(t, testutil.XLSX(t, []string{"Tarikh", "Kategori"}, []any{day, "Sewa"}))
-	want := lab.Errors{"Column Jumlah is missing. The Finance Template needs it for Amount, a column of numbers. Did you rename it? Rename it back in row 1 and upload again."}
+	want := []string{"Column Jumlah is missing. The Finance Template needs it for Amount, a column of numbers. Did you rename it? Rename it back in row 1 and upload again."}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("errors = %v, want %v", got, want)
 	}
@@ -271,7 +271,7 @@ func TestRefusesMoreThan5000Rows(t *testing.T) {
 		rows[i] = []any{day, 1}
 	}
 	got := readErrors(t, testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows...))
-	if want := (lab.Errors{"The file has 5,001 rows. The Lab reads up to 5,000 rows. Delete some rows and upload again."}); !reflect.DeepEqual(got, want) {
+	if want := ([]string{"The file has 5,001 rows. The Lab reads up to 5,000 rows. Delete some rows and upload again."}); !reflect.DeepEqual(got, want) {
 		t.Fatalf("errors = %v, want %v", got, want)
 	}
 	if _, err := lab.Read(bytes.NewReader(testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows[:5000]...)), finance(t)); err != nil {
