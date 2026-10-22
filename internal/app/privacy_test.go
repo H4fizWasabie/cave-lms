@@ -32,8 +32,8 @@ func TestEveryPagesFooterLinksToThePrivacyNotice(t *testing.T) {
 	s := newSite(t)
 	for _, path := range []string{"/", "/courses", "/login", "/gallery", "/privacy"} {
 		_, body := s.get(path)
-		footer := body[strings.Index(body, `<footer`):]
-		if !strings.Contains(footer, `<a href="/privacy">Privacy Notice</a>`) {
+		_, footer, ok := strings.Cut(body, `<footer`)
+		if !ok || !strings.Contains(footer, `<a href="/privacy">Privacy Notice</a>`) {
 			t.Errorf("the footer of %s does not link to the Privacy Notice", path)
 		}
 	}

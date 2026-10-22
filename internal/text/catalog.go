@@ -39,7 +39,7 @@ var catalog = map[string]entry{
 	},
 	"privacy.prevails": {
 		en: "This notice is in Malay and English. If the two differ, the English version prevails.",
-		ms: "Notis ini ada dalam bahasa Melayu dan bahasa Inggeris. Jika kedua-duanya berbeza, versi bahasa Inggeris diguna pakai.",
+		ms: "Notis ini ada dalam bahasa Melayu dan bahasa Inggeris. Jika kedua-duanya berbeza, versi bahasa Inggeris terpakai.",
 	},
 	"privacy.who.title": {en: "Who looks after your data", ms: "Siapa yang menjaga data anda"},
 	"privacy.who.p": {
@@ -53,7 +53,7 @@ var catalog = map[string]entry{
 	},
 	"privacy.collect.account": {
 		en: "Your account: your name, email address, password (kept only as a one-way hash, never as you typed it) and whether you have verified your email. We use them to log you in, to put your name on your Certificates, and to send you the verification and password reset emails.",
-		ms: "Akaun anda: nama, alamat e-mel, kata laluan (disimpan sebagai hash sehala sahaja, bukan seperti yang anda taip) dan sama ada anda telah mengesahkan e-mel anda. Kami menggunakannya untuk log masuk anda, meletakkan nama anda pada Sijil anda, dan menghantar e-mel pengesahan dan set semula kata laluan kepada anda.",
+		ms: "Akaun anda: nama, alamat e-mel, kata laluan (disimpan sebagai hash sehala sahaja, bukan seperti yang anda taip) dan sama ada anda telah mengesahkan e-mel anda. Kami menggunakannya untuk membolehkan anda log masuk, meletakkan nama anda pada Sijil anda, dan menghantar e-mel pengesahan dan set semula kata laluan kepada anda.",
 	},
 	"privacy.collect.sessions": {
 		en: "Your logins: a cookie in your browser and a matching record on the server keep you logged in until you log out or the login expires.",
@@ -69,7 +69,7 @@ var catalog = map[string]entry{
 	},
 	"privacy.collect.lab": {
 		en: "Your Lab work: your Dashboards, the Datasets you upload to them and your Deployments. A Deployment's link is public: anyone who has it can open the Dashboard. The Lab is for the Samples it provides, so do not upload anyone else's personal data to it.",
-		ms: "Kerja Lab anda: Dashboard anda, Set data yang anda muat naik kepadanya dan Deployment anda. Pautan sesuatu Deployment adalah awam: sesiapa yang memilikinya boleh membuka Dashboard itu. Lab adalah untuk Sampel yang disediakannya, jadi jangan muat naik data peribadi orang lain ke dalamnya.",
+		ms: "Kerja Lab anda: Dashboard anda, Set data yang anda muat naik kepadanya dan Deployment anda. Pautan sesuatu Deployment terbuka kepada umum: sesiapa yang memilikinya boleh membuka Dashboard itu. Lab adalah untuk Sampel yang disediakannya, jadi jangan muat naik data peribadi orang lain ke dalamnya.",
 	},
 	"privacy.collect.plans": {
 		en: "Your Plans: which Lab Plan you have and when each Plan period starts and ends, so that the Lab is open to you while it runs.",
@@ -77,11 +77,11 @@ var catalog = map[string]entry{
 	},
 	"privacy.collect.cavetext": {
 		en: "Your CaveText account: its place (where you came in the order of first CaveText sign-ins), your Snippets, your User master prompt, your CaveText Pro periods, and the sign-in tokens that keep the CaveText extension signed in, so that CaveText works the same in every browser you sign in to.",
-		ms: "Akaun CaveText anda: tempatnya (kedudukan anda dalam urutan log masuk pertama CaveText), Snippet anda, User master prompt anda, tempoh CaveText Pro anda, dan token log masuk yang mengekalkan sambungan CaveText dalam keadaan log masuk, supaya CaveText berfungsi sama dalam setiap pelayar yang anda log masuk.",
+		ms: "Akaun CaveText anda: tempatnya (kedudukan anda dalam urutan log masuk pertama CaveText), Snippet anda, User master prompt anda, tempoh CaveText Pro anda, dan token log masuk yang mengekalkan sambungan CaveText dalam keadaan log masuk, supaya CaveText berfungsi sama dalam setiap pelayar yang anda gunakan untuk log masuk.",
 	},
 	"privacy.collect.language": {
-		en: "Your language: the language you pick, saved on your account and in a cookie.",
-		ms: "Bahasa anda: bahasa yang anda pilih, disimpan pada akaun anda dan dalam kuki.",
+		en: "Your language: the language you pick, saved on your account and in a cookie, so that the site stays in it.",
+		ms: "Bahasa anda: bahasa yang anda pilih, disimpan pada akaun anda dan dalam kuki, supaya laman ini kekal dalam bahasa itu.",
 	},
 	"privacy.collect.log": {
 		en: "The System log: errors the site runs into, with the kind of request and the page address, kept 30 days so that faults can be found and fixed.",
@@ -89,8 +89,8 @@ var catalog = map[string]entry{
 	},
 	"privacy.see.title": {en: "Who can see it", ms: "Siapa yang boleh melihatnya"},
 	"privacy.see.admins": {
-		en: "Admins, the people who run the site, can see Learners' names, email addresses and Course progress, and whether they have a Plan or CaveText Pro, so that they can run Courses, issue Certificates and help Learners.",
-		ms: "Pentadbir, iaitu orang yang mengendalikan laman ini, boleh melihat nama, alamat e-mel dan kemajuan Kursus Pelajar, serta sama ada mereka mempunyai Pelan atau CaveText Pro, supaya mereka dapat mengendalikan Kursus, mengeluarkan Sijil dan membantu Pelajar.",
+		en: "Admins, the people who run the site, can see Learners' names, email addresses, Course progress, Certificates and Deployments, and whether they have a Plan or CaveText Pro, so that they can run Courses, issue Certificates and help Learners.",
+		ms: "Pentadbir, iaitu orang yang mengendalikan laman ini, boleh melihat nama, alamat e-mel, kemajuan Kursus, Sijil dan Deployment Pelajar, serta sama ada mereka mempunyai Pelan atau CaveText Pro, supaya mereka dapat mengendalikan Kursus, mengeluarkan Sijil dan membantu Pelajar.",
 	},
 	"privacy.see.private": {
 		en: "No one reads your Snippets or your User master prompt, unless you ask us for help with them, it is needed to keep the service secure, or the law requires it. Admin screens show only how many Snippets a Learner has, never what they say.",
@@ -127,7 +127,7 @@ var catalog = map[string]entry{
 	"privacy.adults.title": {en: "For adults only", ms: "Untuk orang dewasa sahaja"},
 	"privacy.adults.p": {
 		en: "CAVELMS is for people aged 18 or older. If you are under 18, please do not register.",
-		ms: "CAVELMS adalah untuk mereka yang berumur 18 tahun ke atas. Jika anda berumur bawah 18 tahun, sila jangan mendaftar.",
+		ms: "CAVELMS untuk mereka yang berumur 18 tahun ke atas. Jika anda berumur di bawah 18 tahun, sila jangan mendaftar.",
 	},
 	"privacy.rights.title": {en: "Your rights", ms: "Hak anda"},
 	"privacy.rights.p1": {
