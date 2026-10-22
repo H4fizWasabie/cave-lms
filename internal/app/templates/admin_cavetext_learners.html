@@ -33,6 +33,27 @@
             </table>
           </div>
         </div>
+        {{- if .Unmatched}}
+        <h2 class="h-md">{{t .Lang "ctadmin.payments.heading"}}</h2>
+        <p class="note">{{t .Lang "ctadmin.payments.intro"}}</p>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "ctadmin.payments.received"}}</th><th>{{t .Lang "ctadmin.payments.order"}}</th><th>{{t .Lang "ctadmin.payments.payer"}}</th><th>{{t .Lang "ctadmin.payments.cavelms-email"}}</th><th>{{t .Lang "ctadmin.payments.paid"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .Unmatched}}
+              <tr>
+                <td>{{.When}}</td>
+                <td>{{.Order}}</td>
+                <td>{{.PayerName}}<br><span class="muted">{{.PayerEmail}}</span></td>
+                <td>{{with .CAVELMSEmail}}{{.}}{{else}}-{{end}}</td>
+                <td>{{.Paid}}</td>
+                <td class="actions"><form method="post" action="/admin/cavetext/payments/{{.Order}}/done"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.payments.done"}}</button></form></td>
+              </tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+        {{- end}}
       </div>
     </div>
 {{end}}

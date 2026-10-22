@@ -36,7 +36,8 @@ func (r caveTextLearnerRow) Until() string {
 type caveTextLearnersPage struct {
 	pageBase
 	Learners   []caveTextLearnerRow
-	EarlyTaken string // "N of 1,000" in the page's language, from the early places setting
+	Unmatched  []unmatchedPayment // Pro payments that gave no Pro, until an Admin marks them done
+	EarlyTaken string             // "N of 1,000" in the page's language, from the early places setting
 }
 
 // adminCaveTextLearners lists every Learner who has signed in to CaveText, in place order.
@@ -80,19 +81,26 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	if p.Unmatched, err = a.unmatchedPayments(r.Context()); err != nil {
+		a.serverError(w, r, fmt.Errorf("list unmatched payments: %w", err))
+		return
+	}
 	a.render(w, r, http.StatusOK, "admin_cavetext_learners", p)
 }
 
 // giveCaveTextPro gives a CaveText Learner 12 months of Pro. It starts now, or when their running Pro ends if that is
 // later, so renewing early loses no days.
 func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
-	// ponytail: two Admins giving Pro to one Learner at once could overlap; fine while Pro is given by hand.
-	a.changePro(w, r, `
-		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
-		SELECT $1, s.at, s.at + '`+proLength+`'::interval FROM (SELECT GREATEST(now(), (
-			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
-		)) AS at) s`)
+	a.changePro(w, r, giveProQuery)
 }
+
+// giveProQuery adds 12 months of Pro for the Learner $1, from now or from when their running Pro ends.
+// ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
+const giveProQuery = `
+	INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
+	SELECT $1, s.at, s.at + '` + proLength + `'::interval FROM (SELECT GREATEST(now(), (
+		SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
+	)) AS at) s`
 
 // endCaveTextPro ends a Learner's Pro at once: the running period and any given to follow it.
 func (a *App) endCaveTextPro(w http.ResponseWriter, r *http.Request) {
