@@ -239,6 +239,86 @@ var catalog = map[string]entry{
 	"cavetext.api.prompt-exists": {en: "You already have a User master prompt. Delete it first to save a new one.", ms: "Anda sudah mempunyai User master prompt. Padamkannya dahulu untuk menyimpan yang baharu."},
 	// ---- end CaveText (#84) ----
 
+	// ---- Accounts: Register, Login, verification, password reset and their emails (#83) ----
+	"account.name":          {en: "Name", ms: "Nama"},
+	"account.name-hint":     {en: "As it should appear on your certificates.", ms: "Seperti yang patut tertera pada Sijil anda."},
+	"account.email":         {en: "Email", ms: "E-mel"},
+	"account.password":      {en: "Password", ms: "Kata laluan"},
+	"account.password-hint": {en: "At least 8 characters.", ms: "Sekurang-kurangnya 8 aksara."},
+	"account.forgot":        {en: "Forgot your password?", ms: "Lupa kata laluan anda?"},
+	"register.sub":          {en: "Create a free account to join courses.", ms: "Cipta akaun percuma untuk menyertai kursus."},
+	"register.already":      {en: "Already registered?", ms: "Sudah mendaftar?"},
+	"login.sub":             {en: "Welcome back to CAVELMS.", ms: "Selamat kembali ke CAVELMS."},
+	"login.new":             {en: "New here?", ms: "Baru di sini?"},
+	"forgot.sub": {
+		en: "Enter your email and we'll send you a link to choose a new password.",
+		ms: "Masukkan e-mel anda dan kami akan menghantar pautan untuk memilih kata laluan baharu.",
+	},
+	"forgot.send":          {en: "Send reset link", ms: "Hantar pautan set semula"},
+	"forgot.back":          {en: "Back to log in", ms: "Kembali ke log masuk"},
+	"reset.title":          {en: "Choose a new password", ms: "Pilih kata laluan baharu"},
+	"reset.new-password":   {en: "New password", ms: "Kata laluan baharu"},
+	"reset.set":            {en: "Set new password", ms: "Tetapkan kata laluan baharu"},
+	"message.send-new":     {en: "Send a new link", ms: "Hantar pautan baharu"},
+	"message.new-reset":    {en: "Request a new reset link", ms: "Minta pautan set semula baharu"},
+	"message.check-email":  {en: "Check your email", ms: "Semak e-mel anda"},
+	"message.link-invalid": {en: "Link not valid", ms: "Pautan tidak sah"},
+	"message.link-expired": {en: "Link expired", ms: "Pautan tamat tempoh"},
+
+	"account.err.name":           {en: "Enter your name (up to 200 characters).", ms: "Masukkan nama anda (sehingga 200 aksara)."},
+	"account.err.email":          {en: "Enter a valid email address.", ms: "Masukkan alamat e-mel yang sah."},
+	"account.err.password-short": {en: "Use a password of at least 8 characters.", ms: "Gunakan kata laluan sekurang-kurangnya 8 aksara."},
+	"account.err.password-long":  {en: "Use a password of at most 72 characters.", ms: "Gunakan kata laluan paling banyak 72 aksara."},
+	"register.err.taken":         {en: "This email is already registered. Log in instead.", ms: "E-mel ini sudah didaftarkan. Sila log masuk."},
+	"register.sent": {
+		en: "We sent a verification link to %s. Open it within 24 hours to confirm your account.",
+		ms: "Kami telah menghantar pautan pengesahan ke %s. Buka pautan itu dalam masa 24 jam untuk mengesahkan akaun anda.",
+	},
+	"verify.invalid": {
+		en: "This verification link is not valid or has already been used. Enter your email to get a new one.",
+		ms: "Pautan pengesahan ini tidak sah atau telah digunakan. Masukkan e-mel anda untuk mendapatkan pautan baharu.",
+	},
+	"verify.expired":    {en: "This verification link has expired. Send yourself a new one.", ms: "Pautan pengesahan ini telah tamat tempoh. Minta pautan baharu."},
+	"verify.done.title": {en: "Email verified", ms: "E-mel disahkan"},
+	"verify.done":       {en: "Your account is confirmed.", ms: "Akaun anda telah disahkan."},
+	"verify.resent": {
+		en: "If %s belongs to an account waiting for verification, we sent it a new link.",
+		ms: "Jika %s didaftarkan pada akaun yang menunggu pengesahan, kami telah menghantar pautan baharu kepadanya.",
+	},
+	"login.err.wrong":        {en: "Email or password is incorrect.", ms: "E-mel atau kata laluan salah."},
+	"login.unverified.title": {en: "Verify your email first", ms: "Sahkan e-mel anda dahulu"},
+	"login.unverified": {
+		en: "Open the link we emailed you to confirm your account, then log in. Lost it? Send a new one.",
+		ms: "Buka pautan yang kami e-melkan untuk mengesahkan akaun anda, kemudian log masuk. Hilang? Hantar pautan baharu.",
+	},
+	"forgot.sent": {
+		en: "If an account exists for %s, we sent a reset link. Open it within an hour to choose a new password.",
+		ms: "Jika %s mempunyai akaun, kami telah menghantar pautan set semula. Buka pautan itu dalam masa sejam untuk memilih kata laluan baharu.",
+	},
+	"reset.invalid":    {en: "This reset link is not valid or has already been used.", ms: "Pautan set semula ini tidak sah atau telah digunakan."},
+	"reset.expired":    {en: "This reset link has expired.", ms: "Pautan set semula ini telah tamat tempoh."},
+	"reset.done.title": {en: "Password changed", ms: "Kata laluan ditukar"},
+	"reset.done": {
+		en: "Your password has been changed and you have been logged out everywhere.",
+		ms: "Kata laluan anda telah ditukar dan anda telah dilog keluar di semua peranti.",
+	},
+
+	"limited.title": {en: "Too many attempts", ms: "Terlalu banyak cubaan"},
+	"limited":       {en: "Too many attempts from your address. Wait 15 minutes and try again.", ms: "Terlalu banyak cubaan dari alamat anda. Tunggu 15 minit dan cuba lagi."},
+
+	// Emails: the recipient's name, then the link
+	"email.verify.subject": {en: "Confirm your CAVELMS account", ms: "Sahkan akaun CAVELMS anda"},
+	"email.verify.body": {
+		en: "Hi %[1]s,\n\nOpen this link within 24 hours to confirm your CAVELMS account:\n\n%[2]s\n\nIf you didn't register, you can ignore this email.\n",
+		ms: "Hai %[1]s,\n\nBuka pautan ini dalam masa 24 jam untuk mengesahkan akaun CAVELMS anda:\n\n%[2]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
+	},
+	"email.reset.subject": {en: "Reset your CAVELMS password", ms: "Set semula kata laluan CAVELMS anda"},
+	"email.reset.body": {
+		en: "Hi %[1]s,\n\nOpen this link within an hour to choose a new password:\n\n%[2]s\n\nIf you didn't ask for this, you can ignore this email.\n",
+		ms: "Hai %[1]s,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[2]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
+	},
+	// ---- end Accounts (#83) ----
+
 	// Home page: Coach Adam's write-up in Malay; the English is its translation, for him to proofread.
 	"home.title":         {en: "Welcome to CAVELMS", ms: "Selamat Datang ke CAVELMS"},
 	"home.lede":          {en: "A Generative AI Digital Learning Platform for Today's and Tomorrow's World of Work.", ms: "Platform Pembelajaran Digital Generative AI untuk Dunia Kerja Masa Kini dan Masa Hadapan."},

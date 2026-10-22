@@ -16,7 +16,7 @@ import (
 func (a *App) CreateAdmin(ctx context.Context, name, email, password string) error {
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
-	if msg := accountFieldError(name, email, password); msg != "" {
+	if msg := accountFieldError("en", name, email, password); msg != "" { // the command line speaks English
 		return errors.New(msg)
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

@@ -87,17 +87,12 @@ func (s *site) login(email, password string) (*http.Response, string) {
 func (s *site) lastEmailLinkPath(to, route string) string {
 	s.t.Helper()
 	link := regexp.MustCompile(`https://cave\.example\.invalid(` + regexp.QuoteMeta(route) + `\?token=[A-Za-z0-9_-]+)`)
-	messages := s.mail.Messages()
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].To == to {
-			if m := link.FindStringSubmatch(messages[i].Body); m != nil {
-				return m[1]
-			}
-			s.t.Fatalf("email to %s has no %s link: %s", to, route, messages[i].Body)
-		}
+	message := s.lastEmailTo(to)
+	m := link.FindStringSubmatch(message.Body)
+	if m == nil {
+		s.t.Fatalf("email to %s has no %s link: %s", to, route, message.Body)
 	}
-	s.t.Fatalf("no email sent to %s", to)
-	return ""
+	return m[1]
 }
 
 // lastVerifyPath returns the path of the verification link in the latest email to `to`.

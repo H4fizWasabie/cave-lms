@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -25,11 +26,11 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 	var (
-		id       int64
-		name, to string
+		id              int64
+		name, to, saved string
 	)
 	err = tx.QueryRowContext(r.Context(),
-		`SELECT id, name, email FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &name, &to)
+		`SELECT id, name, email, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &name, &to, &saved)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -44,19 +45,28 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
+		lang, err := a.recipientLanguage(r, saved)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		// A failed send is only logged: an error page would reveal that the account exists.
 		if err := a.mailer.Send(r.Context(), mailer.Message{
 			To:      to,
-			Subject: "Reset your Cave LMS password",
-			Body: "Hi " + name + ",\n\nOpen this link within an hour to choose a new password:\n\n" +
-				a.publicBaseURL + "/reset-password?token=" + token + "\n\nIf you didn't ask for this, you can ignore this email.\n",
+			Subject: text.T(lang, "email.reset.subject"),
+			Body:    text.T(lang, "email.reset.body", name, a.publicBaseURL+"/reset-password?token="+token),
 		}); err != nil {
 			a.logError(r, fmt.Errorf("send password reset email: %w", err))
 		}
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	a.render(w, r, http.StatusOK, "message", page{
-		Title:   "Check your email",
-		Message: "If an account exists for " + email + ", we sent a reset link. Open it within an hour to choose a new password.",
+		Title:   text.T(lang, "message.check-email"),
+		Message: text.T(lang, "forgot.sent", email),
 	})
 }
 
@@ -67,7 +77,12 @@ func (a *App) resetPasswordForm(w http.ResponseWriter, r *http.Request) {
 func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 	token := r.PostFormValue("token")
 	password := r.PostFormValue("password")
-	if problem := passwordProblem(password); problem != "" {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if problem := passwordProblem(lang, password); problem != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "reset_password", page{Token: token, Error: problem})
 		return
 	}
@@ -94,8 +109,8 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		a.render(w, r, http.StatusBadRequest, "message", page{
-			Title:      "Link not valid",
-			Message:    "This reset link is not valid or has already been used.",
+			Title:      text.T(lang, "message.link-invalid"),
+			Message:    text.T(lang, "reset.invalid"),
 			OfferReset: true,
 		})
 		return
@@ -108,8 +123,8 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.render(w, r, http.StatusGone, "message", page{
-			Title:      "Link expired",
-			Message:    "This reset link has expired.",
+			Title:      text.T(lang, "message.link-expired"),
+			Message:    text.T(lang, "reset.expired"),
 			OfferReset: true,
 		})
 		return
@@ -128,8 +143,8 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.render(w, r, http.StatusOK, "message", page{
-		Title:      "Password changed",
-		Message:    "Your password has been changed and you have been logged out everywhere.",
+		Title:      text.T(lang, "reset.done.title"),
+		Message:    text.T(lang, "reset.done"),
 		OfferLogin: true,
 	})
 }

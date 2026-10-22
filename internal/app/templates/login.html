@@ -1,20 +1,20 @@
-{{define "title"}}Log in · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "header.log-in"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap auth-page">
       <div class="auth-box">
-        <h1>Log in</h1>
-        <p class="auth-sub">Welcome back to CAVELMS.</p>
+        <h1>{{t .Lang "header.log-in"}}</h1>
+        <p class="auth-sub">{{t .Lang "login.sub"}}</p>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <form class="form" method="post" action="/login">
           {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
-          <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
+          <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
           <div class="field">
-            <div class="field-row"><label for="password">Password</label><a class="small-link" href="/forgot-password">Forgot your password?</a></div>
+            <div class="field-row"><label for="password">{{t .Lang "account.password"}}</label><a class="small-link" href="/forgot-password">{{t .Lang "account.forgot"}}</a></div>
             <input id="password" type="password" name="password" autocomplete="current-password" required>
           </div>
-          <button class="btn btn-solid btn-block">Log in</button>
+          <button class="btn btn-solid btn-block">{{t .Lang "header.log-in"}}</button>
         </form>
-        <p class="auth-alt">New here? <a href="/register">Register</a>.</p>
+        <p class="auth-alt">{{t .Lang "login.new"}} <a href="/register">{{t .Lang "header.register"}}</a>.</p>
       </div>
     </div>
 {{end}}
