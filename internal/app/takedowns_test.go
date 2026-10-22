@@ -13,11 +13,11 @@ var takedownAction = regexp.MustCompile(`action="(/admin/deployments/\d+/takedow
 func TestAdminSeesEveryDeploymentAwakeOnesFirst(t *testing.T) {
 	admin, ada := labLearner(t)
 	asleep := ada.deploy(ada.readyDashboard("Kewangan Lama"))
-	ada.ageAllDeployments(8)
-	awake := ada.deploy(ada.readyDashboard("Kewangan Baru"))
+	admin.ageAllPeriods(31) // Ada's Plan ends
+	awake := admin.deploy(admin.readyDashboard("Kewangan Baru"))
 
 	res, body := admin.get("/admin/deployments")
-	for _, want := range []string{"Ada", "ada@example.com", "Finance", "Kewangan Baru", "Online until", "Asleep since",
+	for _, want := range []string{"Ada", "ada@example.com", "Finance", "Kewangan Baru", "Awake", "Asleep: the Learner has no active Plan",
 		`href="` + asleep + `"`, `href="` + awake + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
@@ -89,4 +89,12 @@ func TestTakedownNeedsAReasonAndSleepsTheDeploymentAtOnce(t *testing.T) {
 	if res, _ := ada.get(path + "/download"); res.StatusCode != http.StatusOK {
 		t.Fatalf("download after Takedown: %d", res.StatusCode)
 	}
+
+	// A renewal does not wake it.
+	admin.ageAllPeriods(31)
+	admin.assignPlan("ada@example.com", admin.onlyPlanID())
+	res, page := ada.second().get(link + "data.json")
+	expectStatus(t, res, page, http.StatusOK, "Cave took it offline early")
+	res, body = ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, "0 of 3")
 }

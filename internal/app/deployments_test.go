@@ -36,11 +36,11 @@ func (s *site) deploy(path string) string {
 	return m[1]
 }
 
-// ageAllDeployments moves every Deployment into the past, the way the expiry tests age rows.
+// ageAllDeployments moves every Deployment's deploy time into the past.
 func (s *site) ageAllDeployments(days int) {
 	s.t.Helper()
 	if _, err := s.db.ExecContext(context.Background(),
-		`UPDATE deployments SET deployed_at = deployed_at - make_interval(days => $1), sleeps_at = sleeps_at - make_interval(days => $1)`, days); err != nil {
+		`UPDATE deployments SET deployed_at = deployed_at - make_interval(days => $1)`, days); err != nil {
 		s.t.Fatal(err)
 	}
 }
@@ -50,7 +50,7 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	path := ada.readyDashboard("Kewangan")
 
 	res, body := ada.get(path + "/deploy")
-	for _, want := range []string{"Anyone with the link can see it", "Online for 7 days", "Once only", `href="` + path + `/deploy?confirm"`} {
+	for _, want := range []string{"Anyone with the link can see it", "Online while your Plan is active", "Once only", `href="` + path + `/deploy?confirm"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 	res, body = ada.get(path + "/deploy?confirm")
@@ -68,7 +68,7 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 
 	link := ada.deploy(path)
 	res, body = ada.get(path + "/deploy")
-	for _, want := range []string{"Online", "then it sleeps", "readonly", `href="` + link + `"`} {
+	for _, want := range []string{"Online", "when your Plan ends, it sleeps", "readonly", `href="` + link + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 
@@ -91,17 +91,19 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	}
 }
 
-func TestADeploymentSleepsAfter7DaysAndCannotBeDeployedAgain(t *testing.T) {
-	_, ada := labLearner(t)
+func TestADeploymentIsAwakeWhileThePlanIsActiveSleepsWhenItEndsAndWakesOnRenewal(t *testing.T) {
+	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
+	other := ada.readyDashboard("Stok")
 	visitor := ada.second()
 
-	ada.ageAllDeployments(6)
+	ada.ageAllDeployments(20) // well past the old 7 days, inside the 30-day period
 	if res, page := visitor.get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data.json")`) {
-		t.Fatalf("6 days in, the Deployment is not awake: %d", res.StatusCode)
+		t.Fatalf("20 days in, with the Plan active, the Deployment is not awake: %d", res.StatusCode)
 	}
-	ada.ageAllDeployments(2)
+
+	admin.ageAllPeriods(31) // the only period ends, none follows
 	for _, p := range []string{link, link + "data.json"} {
 		res, body := visitor.get(p)
 		expectStatus(t, res, body, http.StatusOK, "This Dashboard is asleep")
@@ -109,35 +111,26 @@ func TestADeploymentSleepsAfter7DaysAndCannotBeDeployedAgain(t *testing.T) {
 			t.Fatalf("an asleep link still shows the data: %s", body)
 		}
 	}
-
-	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, `<a href="`+path+`">Kewangan</a>`)
-	res, body = ada.get(path + "/deploy")
+	res, body := ada.get(path + "/deploy")
 	expectStatus(t, res, body, http.StatusOK, "Asleep")
-	expectStatus(t, res, body, http.StatusOK, "cannot be deployed again")
-	if strings.Contains(body, "/deploy?confirm") {
-		t.Fatalf("an asleep Dashboard offers Deploy again: %s", body)
-	}
-	ada.post(path+"/deploy", url.Values{"confirm": {"yes"}})
-	if res, body := visitor.get(link); !strings.Contains(body, "This Dashboard is asleep") {
-		t.Fatalf("deploying again woke the Deployment: %d %s", res.StatusCode, body)
-	}
-	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "2 of 3")
-}
-
-func TestADeploymentKeepsIts7DaysWhenThePlanEnds(t *testing.T) {
-	admin, ada := labLearner(t)
-	link := ada.deploy(ada.readyDashboard("Kewangan"))
-	other := ada.readyDashboard("Stok")
-	admin.ageAllPeriods(40)
-	if res, page := ada.second().get(link); res.StatusCode != http.StatusOK || !strings.Contains(page, `fetch("data.json")`) {
-		t.Fatalf("the Deployment stopped when the Plan ended: %d %s", res.StatusCode, page)
-	}
-	res, body := ada.get(other + "/deploy")
+	expectStatus(t, res, body, http.StatusOK, "wakes at the same link")
+	res, body = ada.get(other + "/deploy")
 	expectStatus(t, res, body, http.StatusOK, "Deploying needs a Plan")
 	res, body = ada.post(other+"/deploy", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
+
+	admin.assignPlan("ada@example.com", admin.onlyPlanID()) // the next period starts now
+	res, data := visitor.get(link + "data.json")
+	expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
+	res, body = ada.get(path + "/deploy")
+	expectStatus(t, res, body, http.StatusOK, "Online")
+	expectStatus(t, res, body, http.StatusOK, `href="`+link+`"`)
+
+	// It is still one Deployment per Dashboard: deploying again changes nothing.
+	ada.post(path+"/deploy", url.Values{"confirm": {"yes"}})
+	if _, again := ada.get(path + "/deploy"); !strings.Contains(again, `href="`+link+`"`) {
+		t.Fatalf("deploying again changed the link: %s", again)
+	}
 }
 
 func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
@@ -154,14 +147,26 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 	}
 }
 
-func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingDoesNotRefund(t *testing.T) {
-	_, ada := labLearner(t) // the Plan allows 3 Deployments
+func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingFreesASlot(t *testing.T) {
+	_, ada := labLearner(t) // the Plan allows 3 Deployments awake at once
 	first := ada.readyDashboard("One")
 	res, body := ada.get(first + "/deploy")
-	expectStatus(t, res, body, http.StatusOK, "It uses 1 of your 3 Deployments left this period.")
+	expectStatus(t, res, body, http.StatusOK, "It uses 1 of your 3 free Deployments.")
 	firstLink := ada.deploy(first)
 	if secondLink := ada.deploy(ada.readyDashboard("Two")); secondLink == firstLink || len(firstLink) < len("/d/")+20 {
 		t.Fatalf("links %s and %s: want two different long random slugs", firstLink, secondLink)
+	}
+	ada.deploy(ada.readyDashboard("Three"))
+	res, body = ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, "3 of 3")
+
+	fourth := ada.readyDashboard("Four")
+	res, body = ada.get(fourth + "/deploy")
+	expectStatus(t, res, body, http.StatusOK, "Awake now: 3 of the 3 your Plan allows.")
+	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Awake now: 3 of the 3 your Plan allows.")
+	if deploymentLink.MatchString(body) {
+		t.Fatalf("deployed beyond the allowance: %s", body)
 	}
 
 	res, body = ada.post(first+"/delete", nil)
@@ -172,17 +177,39 @@ func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingDoesNotRefund(t *testing
 	res, body = ada.second().get(firstLink)
 	expectStatus(t, res, body, http.StatusNotFound, "Not found")
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "1 of 3")
+	expectStatus(t, res, body, http.StatusOK, "2 of 3")
+	ada.deploy(fourth)
+}
 
-	ada.deploy(ada.readyDashboard("Three"))
-	fourth := ada.readyDashboard("Four")
-	res, body = ada.get(fourth + "/deploy")
-	expectStatus(t, res, body, http.StatusOK, "You have used all 3 Deployments")
-	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "You have used all 3 Deployments")
-	if deploymentLink.MatchString(body) {
-		t.Fatalf("deployed beyond the allowance: %s", body)
+func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *testing.T) {
+	admin, ada := labLearner(t) // 3 awake at once
+	var links, paths []string
+	for _, name := range []string{"One", "Two", "Three"} {
+		path := ada.readyDashboard(name)
+		paths, links = append(paths, path), append(links, ada.deploy(path))
 	}
+	plan := admin.onlyPlanID()
+	res, body := admin.post("/admin/plans/"+plan, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"1"}, "payment_link": {""}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	admin.ageAllPeriods(31)
+	admin.assignPlan("ada@example.com", plan) // renews with 1 awake at once
+
+	for _, link := range links {
+		res, data := ada.second().get(link + "data.json")
+		expectStatus(t, res, data, http.StatusOK, `"Tarikh"`)
+	}
+	res, body = ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, "3 of 1")
+	fourth := ada.readyDashboard("Four")
+	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Awake now: 3 of the 1 your Plan allows.")
+
+	ada.post(paths[0]+"/delete", nil)
+	ada.post(paths[1]+"/delete", nil)
+	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Awake now: 1 of the 1 your Plan allows.")
+	ada.post(paths[2]+"/delete", nil)
+	ada.deploy(fourth)
 }
 
 func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
@@ -229,7 +256,7 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 
 	res, body = admin.get(admin.readyDashboard("Kosong") + "/deploy")
 	expectStatus(t, res, body, http.StatusOK, "A Dashboard can be deployed one time.")
-	if strings.Contains(body, "Deployments left") {
+	if strings.Contains(body, "free Deployments") {
 		t.Fatalf("the Admin is shown a Plan allowance: %s", body)
 	}
 
@@ -237,9 +264,10 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 	for _, name := range []string{"Satu", "Dua", "Tiga", "Empat"} { // more than the Plan allows
 		links = append(links, admin.deploy(admin.readyDashboard(name)))
 	}
+	admin.ageAllPeriods(31) // the Admin's own Plan ends; their Deployments never sleep
 	for _, link := range links {
 		res, body := admin.second().get(link)
-		expectStatus(t, res, body, http.StatusOK, "")
+		expectStatus(t, res, body, http.StatusOK, `fetch("data.json")`)
 	}
 	res, body = admin.get("/admin/deployments")
 	for _, want := range []string{"admin@example.com", "Empat", `href="` + links[0] + `"`} {

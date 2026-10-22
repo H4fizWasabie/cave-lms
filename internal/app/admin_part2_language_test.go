@@ -56,13 +56,13 @@ func TestThePlanPagesAndTheirErrorsAreInMalayAndEnglish(t *testing.T) {
 func TestTheDeploymentsPageAndTakedownErrorsAreInMalayAndEnglish(t *testing.T) {
 	admin, ada := labLearner(t)
 	ada.deploy(ada.readyDashboard("Kewangan Lama"))
-	ada.ageAllDeployments(8)
-	ada.deploy(ada.readyDashboard("Kewangan Baru"))
+	admin.ageAllPeriods(31) // Ada's Deployment sleeps
+	admin.deploy(admin.readyDashboard("Kewangan Baru"))
 	admin.switchLanguage("ms", "/")
 
 	_, body := admin.get("/admin/deployments")
 	expectLanguage(t, body, "ms", "Pentadbir: Deployment")
-	expectAll(t, body, "Kewangan Baru", "Dalam talian hingga", "Tidur sejak", "Sebab, ditunjukkan kepada Pelajar", "Turunkan")
+	expectAll(t, body, "Kewangan Baru", "Aktif", "Tidur: Pelajar tiada Pelan aktif", "Sebab, ditunjukkan kepada Pelajar", "Turunkan")
 	action := takedownAction.FindStringSubmatch(body)[1]
 	res, body := admin.post(action, url.Values{"reason": {" "}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan sebab Penurunan ini.")
@@ -75,7 +75,7 @@ func TestTheDeploymentsPageAndTakedownErrorsAreInMalayAndEnglish(t *testing.T) {
 	admin.switchLanguage("en", "/")
 	_, body = admin.get("/admin/deployments")
 	expectLanguage(t, body, "en", "Admin: Deployments")
-	expectAll(t, body, "Taken down", "Reason: Aduan", "Asleep since")
+	expectAll(t, body, "Taken down", "Reason: Aduan", "Asleep: the Learner has no active Plan")
 }
 
 func TestTheCaveTextLearnersPageIsInMalayAndEnglish(t *testing.T) {

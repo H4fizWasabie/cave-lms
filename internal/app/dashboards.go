@@ -315,7 +315,6 @@ type dashboardPage struct {
 	// Deploy tab
 	Deployment *deployment // nil until deployed
 	Confirm    bool        // the confirm step
-	WouldSleep string      // when a Deployment made now would sleep
 }
 
 // blankChoice is one blank on the Columns tab: the columns that may fill it and the current choice.
