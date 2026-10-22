@@ -149,7 +149,7 @@ func TestEditingTheProPlanNeverChangesPeriodsAlreadyGiven(t *testing.T) {
 	before := s.periodsOf("ada@example.com")
 	_, body := s.get("/admin/plans")
 	id := planEditLink.FindStringSubmatch(body)[1]
-	res, body := s.post("/admin/plans/"+id, url.Values{"name": {"Pro Year"}, "days": {"30"}, "deployments": {"1"}})
+	res, body := s.post("/admin/plans/"+id, url.Values{"name": {"Pro Year"}, "days": {"30"}, "deployments": {"1"}, "storage": {"1024"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if after := s.periodsOf("ada@example.com"); len(after) != 1 || after[0] != before[0] {
 		t.Fatalf("periods after editing the Pro Plan = %+v, want %+v", after, before)

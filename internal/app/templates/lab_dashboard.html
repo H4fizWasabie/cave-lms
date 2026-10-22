@@ -57,6 +57,12 @@
             <p>{{if gt (len .) 1}}{{t $.Lang "lab.d.fix-these"}}{{else}}{{t $.Lang "lab.d.fix-this"}}{{end}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
+          {{- with .Error}}
+          <div class="ds-err" role="alert">
+            <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
+            <p>{{.}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+          </div>
+          {{- end}}
           <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.d.file-limits"}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>

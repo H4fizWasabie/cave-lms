@@ -193,7 +193,7 @@ func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *t
 		paths, links = append(paths, path), append(links, ada.deploy(path))
 	}
 	plan := admin.onlyPlanID()
-	res, body := admin.post("/admin/plans/"+plan, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"1"}, "payment_link": {""}})
+	res, body := admin.post("/admin/plans/"+plan, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"1"}, "storage": {"1024"}, "payment_link": {""}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	admin.ageAllPeriods(31)
 	admin.assignPlan("ada@example.com", plan) // renews with 1 awake at once
