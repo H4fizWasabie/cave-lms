@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -26,7 +27,12 @@ func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(list) == 0 {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "No Certificate has this ID."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.no-such-id")})
 		return
 	}
 	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificate: &list[0]})

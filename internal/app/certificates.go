@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/go-pdf/fpdf"
 )
 
@@ -34,9 +35,14 @@ type certificate struct {
 const certificateColumns = `id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
 	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
 
-// IssuedOn is the issue date as the pages and the PDF show it.
+// IssuedOn is the issue date as the Admin pages show it.
 func (c certificate) IssuedOn() string {
 	return c.IssuedAt.UTC().Format("2 January 2006")
+}
+
+// IssuedIn is the issue date written in lang, as the Learner's pages, the check page and the PDF show it.
+func (c certificate) IssuedIn(lang string) string {
+	return text.Date(lang, c.IssuedAt.UTC())
 }
 
 // certificateSettings are the details the Admin sets once. LogoKey and SignatureKey are empty when unset.
@@ -188,11 +194,16 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if len(list) == 0 || (list[0].LearnerID != viewer.ID && !viewer.IsAdmin) {
-		a.render(w, r, http.StatusNotFound, "message", page{Title: "Certificate not found", Message: "There is no Certificate at this address."})
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
-	pdf, err := a.certificatePDF(r.Context(), list[0])
+	if len(list) == 0 || (list[0].LearnerID != viewer.ID && !viewer.IsAdmin) {
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.not-found-here")})
+		return
+	}
+	pdf, err := a.certificatePDF(r.Context(), lang, list[0])
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -202,8 +213,8 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// certificatePDF lays out the Certificate on one landscape A4 page.
-func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error) {
+// certificatePDF lays out the Certificate on one landscape A4 page, its fixed wording and date in lang.
+func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([]byte, error) {
 	s, err := a.certificateSettingsFor(ctx)
 	if err != nil {
 		return nil, err
@@ -230,18 +241,18 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 	}
 	if c.Revoked {
 		pdf.SetTextColor(200, 0, 0)
-		line(14, "B", 28, "REVOKED")
-		line(190, "B", 12, "This Certificate has been revoked and is no longer valid.")
+		line(14, "B", 28, text.T(lang, "certificate.pdf.revoked"))
+		line(190, "B", 12, text.T(lang, "certificate.pdf.revoked-note"))
 		pdf.SetTextColor(0, 0, 0)
 	}
-	line(48, "B", 32, "Certificate of Completion")
-	line(72, "", 14, "This certifies that")
+	line(48, "B", 32, text.T(lang, "certificate.pdf.title"))
+	line(72, "", 14, text.T(lang, "certificate.certifies"))
 	line(84, "B", 28, c.LearnerName)
-	line(106, "", 14, "has completed")
+	line(106, "", 14, text.T(lang, "certificate.completed"))
 	line(118, "B", 22, c.CourseTitle)
-	line(138, "", 12, "Issued "+c.IssuedOn())
-	line(146, "", 11, "Certificate ID: "+c.ID)
-	line(154, "", 11, "Verify at "+a.publicBaseURL+"/certificates/"+c.ID)
+	line(138, "", 12, text.T(lang, "certificate.issued", c.IssuedIn(lang)))
+	line(146, "", 11, text.T(lang, "certificate.pdf.id", c.ID))
+	line(154, "", 11, text.T(lang, "certificate.pdf.verify-at", a.publicBaseURL+"/certificates/"+c.ID))
 	if s.SignatureKey != "" {
 		if err := a.placeImage(pdf, s.SignatureKey, 40, 162, 0, 20); err != nil {
 			return nil, err

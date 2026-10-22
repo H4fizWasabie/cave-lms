@@ -1,25 +1,25 @@
-{{define "title"}}Check a Certificate · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "check.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
-        <h1>Check a Certificate</h1>
-        <p>Every certificate has an ID. Enter it to see who it was issued to, for which course, and whether it is still valid.</p>
+        <h1>{{t .Lang "check.title"}}</h1>
+        <p>{{t .Lang "check.intro"}}</p>
       </div>
       <form class="verify-card" method="get" action="/certificates">
-        <label for="cert-id">Certificate ID</label>
+        <label for="cert-id">{{t .Lang "check.id"}}</label>
         <div class="verify-row">
           <input id="cert-id" type="text" name="id" required>
-          <button class="btn btn-solid">Check</button>
+          <button class="btn btn-solid">{{t .Lang "check.button"}}</button>
         </div>
       </form>
       {{with .Certificate}}
       <div class="result {{if .Revoked}}result-revoked{{else}}result-valid{{end}}">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if .Revoked}}x-circle{{else}}seal-check{{end}}"/></svg>
         <div>
-          <p class="result-k">Status: {{if .Revoked}}Revoked{{else}}Valid{{end}}</p>
-          <p>This certifies that <strong>{{.LearnerName}}</strong></p>
-          <p>has completed <strong>{{.CourseTitle}}</strong></p>
-          <p class="muted">Issued {{.IssuedOn}}</p>
+          <p class="result-k">{{if .Revoked}}{{t $.Lang "check.status" (t $.Lang "certificate.revoked")}}{{else}}{{t $.Lang "check.status" (t $.Lang "check.valid")}}{{end}}</p>
+          <p>{{t $.Lang "certificate.certifies"}} <strong>{{.LearnerName}}</strong></p>
+          <p>{{t $.Lang "certificate.completed"}} <strong>{{.CourseTitle}}</strong></p>
+          <p class="muted">{{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</p>
         </div>
       </div>
       {{end}}

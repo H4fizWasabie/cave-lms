@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // course is a Course as the pages show it. StartDate is YYYY-MM-DD, or empty when none.
@@ -18,6 +20,15 @@ type course struct {
 	StartDate   string
 	Open        bool
 	IncludesLab bool
+}
+
+// StartOn is the start date written in lang, or "" when the Course has none.
+func (c course) StartOn(lang string) string {
+	day, err := time.Parse(time.DateOnly, c.StartDate)
+	if err != nil {
+		return ""
+	}
+	return text.Date(lang, day)
 }
 
 const courseColumns = `id, title, description, COALESCE(start_date::text, ''), is_open, includes_lab`
@@ -202,7 +213,12 @@ func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
 }
 
 func (a *App) courseNotFound(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusNotFound, "message", page{Title: "Course not found", Message: "There is no Course at this address."})
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "course.not-found.title"), Message: text.T(lang, "course.not-found")})
 }
 
 func (a *App) listCourses(r *http.Request) ([]course, error) {

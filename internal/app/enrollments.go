@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // enrolled reports whether the Learner is a member of the Course. It is the only thing that grants Course access.
@@ -122,7 +124,12 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !enrolled && !c.Open {
-		a.render(w, r, http.StatusConflict, "course", page{Course: &c, Learner: learner, Error: "This Course is closed to new joins."})
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusConflict, "course", page{Course: &c, Learner: learner, Error: text.T(lang, "course.closed")})
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(),
