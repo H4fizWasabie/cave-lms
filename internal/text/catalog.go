@@ -102,12 +102,12 @@ var catalog = map[string]entry{
 	},
 	"privacy.where.title": {en: "Where it is stored", ms: "Di mana ia disimpan"},
 	"privacy.where.p1": {
-		en: "The site runs on a server in France, rented from Contabo. Every night the data is backed up, encrypted, to that server and to Cloudflare R2, which may keep it in the United States. Verification and password reset emails are sent through Resend, in the United States, which sees your name and email address as it delivers them.",
-		ms: "Laman ini berjalan pada pelayan di Perancis, yang disewa daripada Contabo. Setiap malam data disandarkan, dalam bentuk tersulit, ke pelayan itu dan ke Cloudflare R2, yang mungkin menyimpannya di Amerika Syarikat. E-mel pengesahan dan set semula kata laluan dihantar melalui Resend, di Amerika Syarikat, yang melihat nama dan alamat e-mel anda semasa menghantarnya.",
+		en: "Your data is kept on a private cloud server and backed up every night, encrypted. Verification and password reset emails are sent through an email service, which sees your name and email address as it delivers them.",
+		ms: "Data anda disimpan pada pelayan awan persendirian dan disandarkan setiap malam, dalam bentuk tersulit. E-mel pengesahan dan set semula kata laluan dihantar melalui perkhidmatan e-mel, yang melihat nama dan alamat e-mel anda semasa menghantarnya.",
 	},
 	"privacy.where.p2": {
-		en: "So your data leaves Malaysia. It goes to these providers only so that the site can run, can be restored after a fault, and can send you emails.",
-		ms: "Oleh itu data anda keluar dari Malaysia. Ia dihantar kepada penyedia ini hanya supaya laman ini dapat berjalan, dapat dipulihkan selepas kerosakan, dan dapat menghantar e-mel kepada anda.",
+		en: "Your data may leave Malaysia. It goes to our hosting, backup and email providers only so that the site can run, can be restored after a fault, and can send you emails.",
+		ms: "Data anda mungkin keluar dari Malaysia. Ia dihantar kepada penyedia pengehosan, sandaran dan e-mel kami hanya supaya laman ini dapat berjalan, dapat dipulihkan selepas kerosakan, dan dapat menghantar e-mel kepada anda.",
 	},
 	"privacy.keep.title": {en: "How long we keep it", ms: "Berapa lama kami menyimpannya"},
 	"privacy.keep.p": {

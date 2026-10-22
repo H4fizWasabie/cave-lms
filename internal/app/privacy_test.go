@@ -11,11 +11,14 @@ func TestThePrivacyNoticeIsInBothLanguagesAndTheEnglishPrevails(t *testing.T) {
 	for _, c := range []struct {
 		lang string
 		want []string
+		gone []string
 	}{
 		{"en", []string{"Privacy Notice", "PDPA", "English version prevails", "The Cave Consult", "Wasabie Tech",
-			"France", "Cloudflare", "Resend", "18 or older", "21 days", "6 months", "30 days", "adam.caveconsult@gmail.com"}},
+			"private cloud server", "encrypted", "may leave Malaysia", "18 or older", "21 days", "6 months", "30 days", "adam.caveconsult@gmail.com"},
+			[]string{"France", "United States", "Contabo", "Cloudflare", "Resend"}},
 		{"ms", []string{"Notis Privasi", "PDPA", "versi bahasa Inggeris", "The Cave Consult", "Wasabie Tech",
-			"Perancis", "Cloudflare", "Resend", "18 tahun", "21 hari", "6 bulan", "30 hari", "adam.caveconsult@gmail.com"}},
+			"pelayan awan persendirian", "tersulit", "mungkin keluar dari Malaysia", "18 tahun", "21 hari", "6 bulan", "30 hari", "adam.caveconsult@gmail.com"},
+			[]string{"Perancis", "Amerika Syarikat", "Contabo", "Cloudflare", "Resend"}},
 	} {
 		res, body := s.getAsking("/privacy", c.lang)
 		expectStatus(t, res, body, http.StatusOK, "")
@@ -23,6 +26,11 @@ func TestThePrivacyNoticeIsInBothLanguagesAndTheEnglishPrevails(t *testing.T) {
 		for _, want := range c.want {
 			if !strings.Contains(body, want) {
 				t.Errorf("the %s notice lacks %q", c.lang, want)
+			}
+		}
+		for _, gone := range c.gone {
+			if strings.Contains(body, gone) {
+				t.Errorf("the %s notice names %q", c.lang, gone)
 			}
 		}
 	}
