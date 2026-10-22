@@ -29,7 +29,7 @@ Once per VPS. Run as root on the VPS.
    cat > /etc/cave-lms/env <<'EOF'
    DATABASE_URL=postgres:///cave?host=/var/run/postgresql
    PUBLIC_BASE_URL=https://cavelms.com
-   EMAIL_FROM="Cave LMS <noreply@lms.wasabietech.com>"
+   EMAIL_FROM="Cave LMS <noreply@cavelms.com>"
    STORAGE_DIR=/var/lib/cave-lms/uploads
    LISTEN_ADDR=127.0.0.1:8088
    OWNER_EMAIL=hafizwasabie@gmail.com
@@ -79,7 +79,7 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
 4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
 5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see Email below). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
 
-A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect. The move from `lms.wasabietech.com` to `cavelms.com` is at that middle step: still to move are the BCL webhook address (First install, step 2) and the CaveText extension, then the redirect, then `EMAIL_FROM` (step 5).
+A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect. The move from `lms.wasabietech.com` to `cavelms.com` is at that middle step: the BCL webhook, the CaveText extension and `EMAIL_FROM` have moved; what remains is the redirect, once the extension is in use.
 
 **Standing rule: an old domain keeps redirecting forever.** Never remove an old domain's redirect block, and keep renewing the old domain. A printed or saved Certificate carries its verification link on the domain that was current when the PDF was downloaded. See `docs/adr/0002-old-domains-redirect-forever.md`.
 
@@ -93,7 +93,7 @@ Errors and start-ups go to journald and to the `system_log` table, which keeps 3
 
 ## Email
 
-Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `lms.wasabietech.com` is verified in Resend through DNS records at Hostinger (DKIM `resend._domainkey.lms`, plus `send.lms` and `rsend.lms`). Resend's dashboard lists the exact records.
+Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records at NetKL (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
 
 A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
 
