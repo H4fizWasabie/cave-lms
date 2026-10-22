@@ -1,0 +1,86 @@
+package app
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
+)
+
+const (
+	languageCookie   = "lang"
+	languageLifetime = 365 * 24 * time.Hour
+)
+
+// chrome is what render fills in for layout.html on every page: the page's language and its own address.
+type chrome struct {
+	Lang string
+	Here string // path and query of this page for the language switch to come back to, or "" for home
+}
+
+func (c *chrome) chromeField() *chrome { return c }
+
+// here is where the language switch on a page comes back to. A page shown in answer to a form post
+// sends it home instead, since its address may take only posts.
+func here(r *http.Request) string {
+	if r.Method != http.MethodGet {
+		return ""
+	}
+	return r.URL.RequestURI()
+}
+
+// language is the request's one language: the logged-in Learner's saved one, else the language cookie,
+// else the first of Malay or English the browser asks for, else Malay.
+func (a *App) language(r *http.Request) (string, error) {
+	l, err := a.currentLearner(r)
+	if err != nil {
+		return "", err
+	}
+	if l != nil && text.Supported(l.Lang) {
+		return l.Lang, nil
+	}
+	if c, err := r.Cookie(languageCookie); err == nil && text.Supported(c.Value) {
+		return c.Value, nil
+	}
+	return text.FromAcceptLanguage(r.Header.Get("Accept-Language")), nil
+}
+
+// switchLanguage is the header's BM | EN form: it remembers the language in a cookie, saves it on the
+// logged-in Learner's account, and goes back to the page the form was on.
+func (a *App) switchLanguage(w http.ResponseWriter, r *http.Request) {
+	lang := r.PostFormValue("lang")
+	if !text.Supported(lang) {
+		http.Error(w, "unknown language", http.StatusBadRequest)
+		return
+	}
+	l, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if l != nil {
+		if _, err := a.db.ExecContext(r.Context(), `UPDATE learners SET language = $1 WHERE id = $2`, lang, l.ID); err != nil {
+			a.serverError(w, r, fmt.Errorf("save language: %w", err))
+			return
+		}
+	}
+	setLanguageCookie(w, lang)
+	next := localPath(r.PostFormValue("next"))
+	if next == "" {
+		next = "/"
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+func setLanguageCookie(w http.ResponseWriter, lang string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     languageCookie,
+		Value:    lang,
+		Path:     "/",
+		MaxAge:   int(languageLifetime.Seconds()),
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}

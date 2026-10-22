@@ -40,8 +40,12 @@ func newSite(t *testing.T, opts ...func(*config.Config)) *site {
 	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db, storageDir: storageDir}
 }
 
+// do sends req, from a browser asking for English unless req says otherwise, as the tests check English texts.
 func (s *site) do(req *http.Request) (*http.Response, string) {
 	s.t.Helper()
+	if req.Header.Get("Accept-Language") == "" {
+		req.Header.Set("Accept-Language", "en")
+	}
 	res, err := s.client.Do(req)
 	if err != nil {
 		s.t.Fatal(err)

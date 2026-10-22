@@ -1,7 +1,7 @@
 {{define "title"}}{{if .Plan.ID}}Edit Plan{{else}}New Plan{{end}} · Admin · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "plans" $.Learner)}}
+      {{template "admin-side" (side "plans" $.Learner $.Lang)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/plans">Back to Plans</a></p>
         <div class="adm-head"><h1>{{if .Plan.ID}}Edit Plan{{else}}New Plan{{end}}</h1></div>

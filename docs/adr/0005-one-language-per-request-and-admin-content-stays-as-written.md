@@ -1,0 +1,5 @@
+# One language per request, and what Admins type is not translated
+
+Every page is in exactly one language, Malay or English, chosen in this order: the logged-in Learner's saved language, the language cookie, the first of Malay or English the browser's `Accept-Language` names, then Malay. The header's BM | EN switch is a plain form (Cave pages use no JavaScript) that sets the cookie and, for a logged-in Learner, saves the language on the account, so it follows them to another browser and logging in applies it. Malay is the fallback because the client's audience is Malaysian. The language is not in the URL: one address per page keeps links, the canonical home page and old bookmarks as they are, at the cost of search engines seeing only one language of each page.
+
+Only what Cave itself writes comes in both languages, from one text catalog. Content Admins type (Course titles, Lessons, Exam questions, Gallery titles, the client's master prompts) is shown as written, in whichever language its author used, so a Malay page may show an English Lesson. Translating it would need a second copy of every such field for Admins to write and keep in step.

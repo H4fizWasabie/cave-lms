@@ -32,7 +32,8 @@ type learner struct {
 	ID      int64
 	Name    string
 	IsAdmin bool
-	IsOwner bool // the Admin whose email is OWNER_EMAIL
+	IsOwner bool   // the Admin whose email is OWNER_EMAIL
+	Lang    string // the saved language, or "" before the Learner first switches
 }
 
 // learnerKey keys the per-request memo of the session lookup that ServeHTTP installs.
@@ -54,9 +55,9 @@ func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	}
 	var l learner
 	err = a.db.QueryRowContext(r.Context(), `
-		SELECT l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2)
+		SELECT l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2), coalesce(l.language, '')
 		FROM sessions s JOIN learners l ON l.id = s.learner_id
-		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value), a.ownerEmail).Scan(&l.ID, &l.Name, &l.IsAdmin, &l.IsOwner)
+		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value), a.ownerEmail).Scan(&l.ID, &l.Name, &l.IsAdmin, &l.IsOwner, &l.Lang)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -258,9 +259,10 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		id       int64
 		hash     string
 		verified bool
+		lang     string
 	)
 	err := a.db.QueryRowContext(r.Context(),
-		`SELECT id, password_hash, verified_at IS NOT NULL FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified)
+		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &lang)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -292,6 +294,9 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setSessionCookie(w, token, int(sessionLifetime.Seconds()))
+	if lang != "" {
+		setLanguageCookie(w, lang) // so the site stays in it after logging out
+	}
 	if next == "" {
 		next = "/"
 	}

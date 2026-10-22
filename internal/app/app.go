@@ -19,6 +19,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
@@ -45,6 +46,7 @@ type App struct {
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
 type page struct {
+	chrome
 	PublicBaseURL string
 	Learner       *learner
 	Title         string
@@ -85,6 +87,7 @@ func (p *page) learnerField() **learner { return &p.Learner }
 // pageBase holds what layout.html reads. A page struct embeds it
 // and is passed to render as a pointer, so render can fill in the Learner.
 type pageBase struct {
+	chrome
 	Learner *learner
 	Title   string
 	Message string
@@ -144,6 +147,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /reset-password", a.resetPasswordForm)
 	mux.HandleFunc("POST /reset-password", a.resetPassword)
 	mux.HandleFunc("POST /logout", a.logout)
+	mux.HandleFunc("POST /language", a.switchLanguage)
 	mux.HandleFunc("GET /courses", a.courses)
 	mux.HandleFunc("GET /courses/{id}", a.showCourse)
 	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
@@ -335,21 +339,22 @@ func staticHandler() http.Handler {
 	})
 }
 
-// adminSidebar is what the admin-side template reads: the current section, and whether to show the
-// System log, which only the Owner may know of.
+// adminSidebar is what the admin-side template reads: the current section, the page's language, and whether
+// to show the System log, which only the Owner may know of.
 type adminSidebar struct {
 	Section string
 	Owner   bool
+	Lang    string
 }
 
-// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner)}}.
-func adminSide(section string, l *learner) adminSidebar {
-	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner}
+// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner $.Lang)}}.
+func adminSide(section string, l *learner, lang string) adminSidebar {
+	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
 }
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "t": text.T, "tn": text.N}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
@@ -390,6 +395,14 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			return
 		}
 		*field = learner
+	}
+	if c, ok := data.(interface{ chromeField() *chrome }); ok {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		*c.chromeField() = chrome{Lang: lang, Here: here(r)}
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {
