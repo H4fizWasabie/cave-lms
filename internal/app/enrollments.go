@@ -115,8 +115,10 @@ func (a *App) giveCertificate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var name, ic string
-	err = a.db.QueryRowContext(r.Context(), `SELECT l.name, coalesce(l.ic, '') FROM enrollments e
-		JOIN learners l ON l.id = e.learner_id WHERE e.learner_id = $1 AND e.course_id = $2`, learnerID, c.ID).Scan(&name, &ic)
+	var valid sql.NullBool // whether the Learner's Certificate for the Course is valid; null when they have none
+	err = a.db.QueryRowContext(r.Context(), `SELECT l.name, coalesce(l.ic, ''), (SELECT bool_or(revoked_at IS NULL)
+		FROM certificates c WHERE c.learner_id = e.learner_id AND c.course_id = e.course_id) FROM enrollments e
+		JOIN learners l ON l.id = e.learner_id WHERE e.learner_id = $1 AND e.course_id = $2`, learnerID, c.ID).Scan(&name, &ic, &valid)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return
@@ -125,13 +127,23 @@ func (a *App) giveCertificate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if ic == "" {
+	notGiven := func(status int, key string) {
 		lang, err := a.language(r)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: text.T(lang, "adm.course.not-given"), Message: text.T(lang, "adm.course.give-no-ic", name)})
+		a.render(w, r, status, "message", page{Title: text.T(lang, "adm.course.not-given"), Message: text.T(lang, key, name)})
+	}
+	switch {
+	case valid.Valid && valid.Bool:
+		notGiven(http.StatusConflict, "adm.course.give-has-valid")
+		return
+	case valid.Valid: // only revoked ones: a corrected Certificate is the Admin's reissue
+		notGiven(http.StatusConflict, "adm.course.give-revoked")
+		return
+	case ic == "":
+		notGiven(http.StatusUnprocessableEntity, "adm.course.give-no-ic")
 		return
 	}
 	if err := a.issueCertificate(r.Context(), learnerID, c.ID, true); err != nil {

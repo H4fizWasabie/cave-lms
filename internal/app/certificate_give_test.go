@@ -37,9 +37,15 @@ func TestAdminGivesACertificateInALiveCourseThatLooksEarned(t *testing.T) {
 	_, body = admin.get("/admin/certificates")
 	expectAll(t, body, "Given by Admin")
 	res, body = admin.post(give[1], nil) // again: still one
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	expectStatus(t, res, body, http.StatusConflict, "Ada already has a valid Certificate for this Course.")
 	if _, body = ada.get("/my-certificates"); len(certificateIDs(body)) != 1 {
 		t.Fatalf("giving twice made another Certificate: %s", body)
+	}
+	admin.post("/admin/certificates/"+ids[0]+"/revoke", nil)
+	res, body = admin.post(give[1], nil)
+	expectStatus(t, res, body, http.StatusConflict, "Certificate for this Course is revoked. Issue a corrected one from Certificates.")
+	if _, body = ada.get("/my-certificates"); len(certificateIDs(body)) != 1 {
+		t.Fatalf("giving after a revoke made another Certificate: %s", body)
 	}
 
 	_, body = admin.get("/admin/courses/" + id)
