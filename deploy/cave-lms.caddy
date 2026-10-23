@@ -5,6 +5,13 @@ cavelms.com {
 	request_body {
 		max_size 2100MiB
 	}
+	# Browsers keep to https for a year, never sniff a type the app did not name, and send only the origin to other sites,
+	# so a link with a token in its query does not leak it. The app sets the Content-Security-Policy itself.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
 	# Remove once real email delivery (#12) lands and the site is announced.
 	header X-Robots-Tag "noindex, nofollow"
 	# Users are in Malaysia, ~200 ms from the VPS: smaller responses mean fewer round trips. Caddy only compresses text types.

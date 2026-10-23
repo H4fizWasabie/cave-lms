@@ -344,7 +344,12 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	return a, nil
 }
 
+// sitePolicy is the Content-Security-Policy of every response; a Dashboard's files replace it with their own.
+// Inline styles stay for the view-transition names; images may come from https for pictures in Lessons.
+const sitePolicy = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Security-Policy", sitePolicy)
 	lookup := sync.OnceValues(func() (*learner, error) { return a.lookUpLearner(r) })
 	a.handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), learnerKey{}, lookup)))
 }

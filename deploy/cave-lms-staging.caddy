@@ -4,6 +4,12 @@ staging.cavelms.com {
 	request_body {
 		max_size 2100MiB
 	}
+	# The same headers as production (cave-lms.caddy).
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
 	header X-Robots-Tag "noindex, nofollow"
 	encode zstd gzip
 	# BCL posts payment webhooks without a login; the key in the path guards them.
