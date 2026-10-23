@@ -13,20 +13,24 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// verifyCertificateForm is the public check page. An ID typed into it goes to that Certificate's verification page;
-// ?q= searches by a full IC or passport number, matched against the Certificate's copy, or a Certificate No.
+// verifyCertificateForm is the public check page. An ID typed into it goes to that Certificate's verification page.
 func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 	if id := strings.TrimSpace(r.URL.Query().Get("id")); id != "" {
 		http.Redirect(w, r, "/certificates/"+url.PathEscape(id), http.StatusSeeOther)
 		return
 	}
-	q := normaliseIC(r.URL.Query().Get("q"))
+	a.render(w, r, http.StatusOK, "certificate_verify", page{})
+}
+
+// searchCertificates is the check page's search, by a full IC or passport number, matched against the Certificate's
+// copy, or a Certificate No. It is posted, so the IC is in no URL, and the results render from the post.
+func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
+	q := normaliseIC(r.PostFormValue("q"))
 	if q == "" {
 		a.render(w, r, http.StatusOK, "certificate_verify", page{})
 		return
 	}
-	// The searched IC is in the query string, which the System log never records.
-	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, time.Now()) {
+	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, a.now()) {
 		a.tooManyAttempts(w, r)
 		return
 	}

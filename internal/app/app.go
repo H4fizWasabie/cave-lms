@@ -306,6 +306,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
 	mux.HandleFunc("GET /admin/certificate-settings/background", a.admin(a.certificateBackground))
 	mux.HandleFunc("GET /certificates", a.verifyCertificateForm)
+	mux.HandleFunc("POST /certificates", a.searchCertificates)
 	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
 	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
 	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))

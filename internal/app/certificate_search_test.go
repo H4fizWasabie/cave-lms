@@ -26,8 +26,27 @@ func passedLiveCourse(t *testing.T) (admin, ada *site, id, certID string) {
 	return admin, ada, id, ids[0]
 }
 
-func search(s *site, q string) (*http.Response, string) {
-	return s.get("/certificates?q=" + url.QueryEscape(q))
+// search posts q to the check page's search form, as a browser asking for lang does, so the IC is never in a URL.
+func searchAsking(s *site, q, lang string) (*http.Response, string) {
+	s.t.Helper()
+	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/certificates", strings.NewReader(url.Values{"q": {q}}.Encode()))
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept-Language", lang)
+	return s.do(req)
+}
+
+func search(s *site, q string) (*http.Response, string) { return searchAsking(s, q, "en") }
+
+func TestTheSearchFormPostsAndAnICInTheURLSearchesNothing(t *testing.T) {
+	_, ada, _, certID := passedLiveCourse(t)
+	res, body := ada.get("/certificates")
+	expectStatus(t, res, body, http.StatusOK, `<form class="verify-card" method="post" action="/certificates">`)
+	res, body = ada.get("/certificates?q=951206085555")
+	expectStatus(t, res, body, http.StatusOK, "Check a Certificate")
+	expectNone(t, body, certID, "951206-08-****")
 }
 
 func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
@@ -85,7 +104,7 @@ func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
 	}
 	res, body := search(s, "951206085555")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
-	res, body = s.getAsking("/certificates?q=PCC-2026-00001", "ms")
+	res, body = searchAsking(s, "PCC-2026-00001", "ms")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak cubaan")
 
 	res, body = s.get("/certificates") // the plain check page and ID box are not searches
@@ -94,9 +113,9 @@ func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
 
 func TestTheSearchIsInMalay(t *testing.T) {
 	_, ada, _, _ := passedLiveCourse(t)
-	res, body := ada.getAsking("/certificates?q=951206085555", "ms")
+	res, body := searchAsking(ada, "951206085555", "ms")
 	expectStatus(t, res, body, http.StatusOK, "No. KP atau pasport 951206-08-****")
 	expectAll(t, body, "Atau cari dengan No. KP atau pasport penuh", "Status: Sah")
-	_, body = ada.getAsking("/certificates?q=5555", "ms")
+	_, body = searchAsking(ada, "5555", "ms")
 	expectAll(t, body, "Tiada Sijil yang sepadan.")
 }
