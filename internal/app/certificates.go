@@ -45,6 +45,13 @@ func (c certificate) Number() string {
 	return fmt.Sprintf("PCC-%d-%05d", c.Year, c.Seq)
 }
 
+// MaskedIC is the Certificate's IC, formatted, with its last 4 characters hidden, as 951206-08-****.
+func (c certificate) MaskedIC() string {
+	ic := formatIC(c.LearnerIC)
+	n := max(len(ic)-4, 0)
+	return ic[:n] + strings.Repeat("*", len(ic)-n)
+}
+
 // Level is the PCC Level the Certificate was issued at, or "" for a self-paced Course.
 func (c certificate) Level() string { return course{Days: c.Days}.Level() }
 

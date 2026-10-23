@@ -1075,12 +1075,16 @@ var catalog = map[string]entry{
 	"certificate.pdf.id":           {en: "Certificate ID: %s", ms: "ID Sijil: %s"},
 	"certificate.pdf.verify-at":    {en: "Verify at %s", ms: "Semak di %s"},
 	// The Certificate check page (/certificates)
-	"check.title":  {en: "Check a Certificate", ms: "Semak Sijil"},
-	"check.intro":  {en: "Every certificate has an ID. Enter it to see who it was issued to, for which course, and whether it is still valid.", ms: "Setiap sijil mempunyai ID. Masukkan ID itu untuk melihat kepada siapa sijil itu dikeluarkan, untuk kursus apa, dan sama ada ia masih sah."},
-	"check.id":     {en: "Certificate ID", ms: "ID Sijil"},
-	"check.button": {en: "Check", ms: "Semak"},
-	"check.status": {en: "Status: %s", ms: "Status: %s"},
-	"check.valid":  {en: "Valid", ms: "Sah"},
+	"check.title":         {en: "Check a Certificate", ms: "Semak Sijil"},
+	"check.intro":         {en: "Every certificate has an ID. Enter it to see who it was issued to, for which course, and whether it is still valid.", ms: "Setiap sijil mempunyai ID. Masukkan ID itu untuk melihat kepada siapa sijil itu dikeluarkan, untuk kursus apa, dan sama ada ia masih sah."},
+	"check.id":            {en: "Certificate ID", ms: "ID Sijil"},
+	"check.button":        {en: "Check", ms: "Semak"},
+	"check.status":        {en: "Status: %s", ms: "Status: %s"},
+	"check.valid":         {en: "Valid", ms: "Sah"},
+	"check.search":        {en: "Or search by full IC or passport number, or Certificate No.", ms: "Atau cari dengan No. KP atau pasport penuh, atau No. Sijil"},
+	"check.search-button": {en: "Search", ms: "Cari"},
+	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-2026-00509.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-2026-00509."},
+	"check.ic":            {en: "IC or passport No. %s", ms: "No. KP atau pasport %s"},
 	// ---- end Courses (#89) ----
 
 	// ---- Accounts: Register, Login, verification, password reset and their emails (#83) ----

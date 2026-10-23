@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,14 +13,39 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// verifyCertificateForm is the public ID box. An ID typed into it goes to that Certificate's verification page.
+// verifyCertificateForm is the public check page. An ID typed into it goes to that Certificate's verification page;
+// ?q= searches by a full IC or passport number, matched against the Certificate's copy, or a Certificate No.
 func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 	if id := strings.TrimSpace(r.URL.Query().Get("id")); id != "" {
 		http.Redirect(w, r, "/certificates/"+url.PathEscape(id), http.StatusSeeOther)
 		return
 	}
-	a.render(w, r, http.StatusOK, "certificate_verify", page{})
+	q := normaliseIC(r.URL.Query().Get("q"))
+	if q == "" {
+		a.render(w, r, http.StatusOK, "certificate_verify", page{})
+		return
+	}
+	// The searched IC is in the query string, which the System log never records.
+	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, time.Now()) {
+		a.tooManyAttempts(w, r)
+		return
+	}
+	var year, number int
+	if m := certificateNumber.FindStringSubmatch(q); m != nil {
+		year, _ = strconv.Atoi(m[1])
+		number, _ = strconv.Atoi(m[2])
+	}
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
+		WHERE learner_ic = $1 OR (year = $2 AND number = $3) ORDER BY issued_at DESC, year DESC, number DESC`, q, year, number)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list, Query: q})
 }
+
+// certificateNumber is a Certificate No. after normaliseIC: PCC-2026-00509 becomes PCC202600509.
+var certificateNumber = regexp.MustCompile(`^PCC(\d{4})(\d{5,9})$`)
 
 // verifyCertificate is public. It shows the name, Course, PCC Level, issue date and status of a Certificate, and
 // nothing else.
@@ -37,7 +64,7 @@ func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.no-such-id")})
 		return
 	}
-	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificate: &list[0]})
+	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list[:1]})
 }
 
 // adminCertificates lists every Certificate, newest first. ?q= matches the Learner's name or the exact ID.

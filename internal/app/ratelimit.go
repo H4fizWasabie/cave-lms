@@ -15,6 +15,9 @@ const (
 	// rateLimitAttempts is each address's budget at most forms. Sign-up allows a whole class on one network.
 	rateLimitAttempts = 10
 	signUpAttempts    = 100
+	// certificateSearches is each address's budget at the public Certificate search, enough for an employer checking a
+	// class but too few to guess ICs.
+	certificateSearches = 30
 	// Only failed logins count: per account from one address, and per address across all accounts.
 	loginFailuresPerAccount = 10
 	loginFailuresPerAddress = 100
