@@ -269,6 +269,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
+	mux.HandleFunc("GET /courses/{id}/exam/answer-sheet", a.requireLearner(a.downloadAnswerSheet))
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))

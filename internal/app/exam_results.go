@@ -97,8 +97,8 @@ func (a *App) dueResults(ctx context.Context) ([]dueResult, error) {
 }
 
 // releaseResult marks the attempt, closes it if it was left open, and saves its mark and pass or fail, unless it is
-// already released. Then it issues any Certificate it earns and emails the Result in the Learner's saved language.
-// A failed email is only logged: the Result is on the site.
+// already released. Then it issues any Certificate it earns and emails the Result in the Learner's saved language,
+// with the Answer sheet when it is a pass. A failed email is only logged: the Result is on the site.
 func (a *App) releaseResult(ctx context.Context, d dueResult) error {
 	score := markQuestions(d.questions)
 	passed := score >= d.passMark
@@ -121,11 +121,20 @@ func (a *App) releaseResult(ctx context.Context, d dueResult) error {
 	if passed {
 		verdict = text.T(lang, "exam.passed", d.passMark)
 	}
-	if err := a.mailer.Send(ctx, mailer.Message{
+	msg := mailer.Message{
 		To:      d.email,
 		Subject: text.T(lang, "email.result.subject", d.course),
 		Body:    text.T(lang, "email.result.body", d.name, d.course, score, verdict, a.publicBaseURL+attemptPath(d.exam, d.attemptID)),
-	}); err != nil {
+	}
+	if passed {
+		if sheet, err := answerSheetPDF(lang, d.name, d.course, d.exam.Format, score, d.questions); err != nil {
+			a.logError(nil, fmt.Errorf("make Answer sheet for attempt %d: %w", d.attemptID, err))
+		} else {
+			msg.Body += "\n" + text.T(lang, "email.result.answer-sheet") + "\n"
+			msg.Attachments = []mailer.Attachment{{Filename: "answer-sheet.pdf", Content: sheet}}
+		}
+	}
+	if err := a.mailer.Send(ctx, msg); err != nil {
 		a.logError(nil, fmt.Errorf("send Result email for attempt %d: %w", d.attemptID, err))
 	}
 	return nil

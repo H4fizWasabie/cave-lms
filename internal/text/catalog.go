@@ -961,6 +961,16 @@ var catalog = map[string]entry{
 	"exam.back":                    {en: "Back to the Exam", ms: "Kembali ke Peperiksaan"},
 	"exam.attempt-not-found.title": {en: "Attempt not found", ms: "Percubaan tidak dijumpai"},
 	"exam.attempt-not-found":       {en: "There is no Exam attempt at this address.", ms: "Tiada percubaan Peperiksaan di alamat ini."},
+	"exam.answer-sheet.download":   {en: "Download your Answer sheet", ms: "Muat turun Skema Jawapan anda"},
+
+	// The Answer sheet PDF (#145)
+	"answer-sheet.title":          {en: "Answer sheet", ms: "Skema Jawapan"},
+	"answer-sheet.learner":        {en: "Learner: %s", ms: "Pelajar: %s"},
+	"answer-sheet.course":         {en: "Course: %s", ms: "Kursus: %s"},
+	"answer-sheet.exam":           {en: "Exam: %s", ms: "Peperiksaan: %s"},
+	"answer-sheet.your-answer":    {en: "Your answer: %s", ms: "Jawapan anda: %s"},
+	"answer-sheet.no-answer":      {en: "No answer", ms: "Tiada jawapan"},
+	"answer-sheet.correct-answer": {en: "Correct answer: %s", ms: "Jawapan betul: %s"},
 
 	"my-certificates.title":       {en: "My Certificates", ms: "Sijil Saya"},
 	"my-certificates.intro":       {en: "Each certificate has an ID that anyone can check on this site.", ms: "Setiap sijil mempunyai ID yang boleh disemak oleh sesiapa sahaja di laman ini."},
@@ -1073,6 +1083,7 @@ var catalog = map[string]entry{
 		en: "Hi %[1]s,\n\nYour Result for the Exam for %[2]s is ready.\n\nScore: %[3]d%%\n%[4]s\n\nSee it on CAVELMS:\n\n%[5]s\n",
 		ms: "Hai %[1]s,\n\nKeputusan Peperiksaan anda untuk %[2]s sudah sedia.\n\nMarkah: %[3]d%%\n%[4]s\n\nLihat di CAVELMS:\n\n%[5]s\n",
 	},
+	"email.result.answer-sheet": {en: "Your Answer sheet is attached.", ms: "Skema Jawapan anda dilampirkan."},
 	// ---- end Accounts (#83) ----
 
 	// ---- Admin area part 2: Plans, Deployments, CaveText, System log (#92) ----

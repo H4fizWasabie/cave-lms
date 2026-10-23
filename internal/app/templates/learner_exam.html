@@ -20,6 +20,7 @@
         <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}
+        {{if .Passed}}<a class="btn btn-solid btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>{{end}}
         {{end}}
       </div>
       <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></p>
