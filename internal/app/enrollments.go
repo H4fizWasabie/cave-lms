@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -94,6 +96,45 @@ func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := a.db.ExecContext(r.Context(),
 		`DELETE FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learnerID, c.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
+}
+
+// giveCertificate is the Admin giving a Learner in a Live Course a Certificate by hand, whatever their attempts. It
+// issues through the same path as an earned one, skipping the Exam check but not the IC check.
+func (a *App) giveCertificate(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
+	if err != nil || !c.Live() {
+		a.notFound(w, r)
+		return
+	}
+	var name, ic string
+	err = a.db.QueryRowContext(r.Context(), `SELECT l.name, coalesce(l.ic, '') FROM enrollments e
+		JOIN learners l ON l.id = e.learner_id WHERE e.learner_id = $1 AND e.course_id = $2`, learnerID, c.ID).Scan(&name, &ic)
+	if errors.Is(err, sql.ErrNoRows) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if ic == "" {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: text.T(lang, "adm.course.not-given"), Message: text.T(lang, "adm.course.give-no-ic", name)})
+		return
+	}
+	if err := a.issueCertificate(r.Context(), learnerID, c.ID, true); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
