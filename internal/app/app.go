@@ -247,6 +247,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/courses/{id}", a.admin(a.adminCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/remove", a.admin(a.removeLearner))
 	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/ic", a.admin(a.correctIC))
+	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/certificate", a.admin(a.giveCertificate))
 	mux.HandleFunc("GET /admin/courses/{id}/edit", a.admin(a.editCourseForm))
 	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))

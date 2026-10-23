@@ -23,7 +23,7 @@
                 <td>{{.LearnerName}}</td>
                 <td>{{.CourseTitle}}</td>
                 <td>{{.IssuedIn $.Lang}}</td>
-                <td>{{if .Revoked}}{{t $.Lang "adm.course.cert-revoked"}}{{else}}{{t $.Lang "adm.certs.valid"}}{{end}}</td>
+                <td>{{if .Revoked}}{{t $.Lang "adm.course.cert-revoked"}}{{else}}{{t $.Lang "adm.certs.valid"}}{{end}}{{if .GivenByAdmin}} · {{t $.Lang "adm.certs.given"}}{{end}}</td>
                 <td><a href="/certificates/{{.ID}}"><code>{{.ID}}</code></a></td>
                 <td class="actions">
                   {{if .Revoked}}
