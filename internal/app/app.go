@@ -50,6 +50,7 @@ type App struct {
 	ownerEmail           string        // the Owner's, from OWNER_EMAIL; empty means no Owner
 	caveTextExtensionIDs []string      // the extensions the CaveText connect page may send tokens to
 	bclWebhookKey        string        // the secret in BCL's webhook address; empty refuses every webhook
+	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
 	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
 	releasing            sync.Mutex    // held by a run of releaseResults, so two runs never release at once
 }
@@ -152,7 +153,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, done: make(chan struct{})}
+	if len(cfg.EmailAllowlist) > 0 {
+		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
+	}
 	a.dailyPrune(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
@@ -204,6 +208,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/charts.js", a.deploymentFile("charts.js"))
+	// A shared link missing its slash redirects for good; ServeMux's own redirect is a temporary 307 on current Go.
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
+	})
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
