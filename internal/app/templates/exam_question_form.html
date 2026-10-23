@@ -3,12 +3,15 @@
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/exam">{{t .Lang "adm.exam.back-exam"}}</a></p>
+        <p class="crumbs"><a href="{{.Exam.AdminPath ""}}">{{t .Lang "adm.exam.back-exam"}}</a></p>
         <div class="adm-head"><h1>{{if .Question.ID}}{{t .Lang "adm.exam.edit-q-for" .Course.Title}}{{else}}{{t .Lang "adm.exam.new-q-for" .Course.Title}}{{end}}</h1></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-          <form class="form" method="post" action="{{if .Question.ID}}/admin/courses/{{.Course.ID}}/exam/questions/{{.Question.ID}}{{else}}/admin/courses/{{.Course.ID}}/exam/questions{{end}}">
+          <form class="form" method="post" action="{{if .Question.ID}}{{.Exam.AdminPath (printf "/questions/%d" .Question.ID)}}{{else}}{{.Exam.AdminPath "/questions"}}{{end}}">
             <div class="field"><label for="prompt">{{t .Lang "adm.exam.question"}}</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
+            {{if .Exam.Written}}
+            <div class="field"><label for="model_answer">{{t .Lang "adm.exam.model-answer"}}</label><textarea id="model_answer" name="model_answer" rows="5" required>{{.Question.ModelAnswer}}</textarea></div>
+            {{else}}
             <fieldset class="field">
               <legend>{{t .Lang "adm.exam.options"}}</legend>
               <div class="nq-list">
@@ -20,8 +23,9 @@
                 {{end}}
               </div>
             </fieldset>
+            {{end}}
             {{if not .Question.ID}}<label class="check"><input type="checkbox" name="draft" {{if .Question.Draft}}checked{{end}}> {{t .Lang "adm.exam.save-draft"}}</label>{{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/exam">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.exam.save-q"}}</button></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="{{.Exam.AdminPath ""}}">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.exam.save-q"}}</button></div>
           </form>
         </div>
       </div>
