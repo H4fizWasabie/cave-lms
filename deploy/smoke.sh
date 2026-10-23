@@ -22,13 +22,17 @@ staging)
 	exit 2
 	;;
 esac
-touch "$work/curlrc"
+# Connect straight to the address Caddy binds: the VPS's own DNS (Tailscale's resolver) sometimes fails to look up
+# its own domain, and that is no fault of the site. Caddy, TLS and the app are still all tested.
+echo "resolve = \"${base#https://}:443:169.58.63.110\"" >>"$work/curlrc"
 
 failed=0
 # check METHOD PATH STATUS [TEXT]: the answer must have STATUS and, when given, contain TEXT in its headers or body
 # (ignoring case).
 check() {
 	local code
+	: >"$work/head"
+	: >"$work/body"
 	code=$(curl -s -m 20 -K "$work/curlrc" -X "$1" -D "$work/head" -o "$work/body" -w '%{http_code}' "$base$2")
 	if [ "$code" != "$3" ] || { [ -n "${4:-}" ] && ! cat "$work/head" "$work/body" | grep -qiF -- "$4"; }; then
 		echo "FAIL $1 $2: got $code, want $3${4:+ containing \"$4\"}" >&2
