@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"errors"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -92,4 +94,35 @@ func TestAFailedCertificateEmailIsLoggedAndKeepsTheCertificate(t *testing.T) {
 	s.login("admin@example.com", certPassword)
 	_, body = s.get("/admin/log")
 	expectAll(t, body, "send Certificate email", "mail server down")
+}
+
+func TestAReissuedCertificateIsEmailedAndALearnerWithNoICGetsNone(t *testing.T) {
+	s := newSite(t)
+	oldID := s.earnedCertificate()
+	s.loginAdmin()
+	s.post("/admin/certificates/"+oldID+"/revoke", nil)
+	res, body := s.post("/admin/certificates/"+oldID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	newID := strings.TrimPrefix(res.Header.Get("Location"), "/admin/certificates?q=")
+	var sent []string
+	for _, m := range s.emailsTo("ada@example.com") {
+		if len(m.Attachments) == 1 {
+			sent = append(sent, m.Body)
+		}
+	}
+	if len(sent) != 2 { // the earned one, then the reissued one
+		t.Fatalf("Ada was emailed %d Certificates, want 2", len(sent))
+	}
+	expectAll(t, sent[1], "/certificates/"+newID)
+
+	s.post("/admin/certificates/"+newID+"/revoke", nil)
+	if _, err := s.db.Exec(`UPDATE learners SET ic = NULL WHERE email = 'ada@example.com'`); err != nil { // from before ICs
+		t.Fatal(err)
+	}
+	res, body = s.post("/admin/certificates/"+newID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ada Lovelace has no IC or passport number. Set it before issuing a corrected Certificate.")
+	_, body = s.get("/admin/certificates")
+	if n := strings.Count(body, "<td>Valid</td>"); n != 0 {
+		t.Fatalf("a Certificate was reissued without an IC: %s", body)
+	}
 }

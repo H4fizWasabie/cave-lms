@@ -97,8 +97,8 @@ func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
 
 // reissueCertificate issues a corrected Certificate in place of a revoked one. The name the Admin gives becomes the
 // Learner's name, and the new Certificate, with a new ID, copies it, the Learner's current IC and the Course's current
-// title and days. The partial
-// unique index refuses it while a valid one exists, and then the name is not changed either.
+// title and days, and is emailed to them. A Learner with no IC gets none. The partial unique index refuses it while a
+// valid one exists, and then the name is not changed either.
 func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	old, err := a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
@@ -125,6 +125,13 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("learner_name"))
 	if name == "" || len(name) > 200 {
 		notReissued(http.StatusUnprocessableEntity, "adm.certs.err.name")
+		return
+	}
+	if ic, err := a.learnerIC(ctx, old[0].LearnerID); err != nil {
+		a.serverError(w, r, err)
+		return
+	} else if ic == "" {
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: text.T(lang, "adm.certs.not-reissued"), Message: text.T(lang, "adm.certs.err.no-ic", name)})
 		return
 	}
 	id, err := newCertificateID()
@@ -160,6 +167,7 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	a.emailCertificate(ctx, id)
 	http.Redirect(w, r, "/admin/certificates?q="+url.QueryEscape(id), http.StatusSeeOther)
 }
 

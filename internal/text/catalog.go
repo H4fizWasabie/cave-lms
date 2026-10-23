@@ -456,6 +456,7 @@ var catalog = map[string]entry{
 	"adm.certs.not-reissued":         {en: "Certificate not reissued", ms: "Sijil tidak dikeluarkan semula"},
 	"adm.certs.err.revoke-first":     {en: "Revoke the Certificate before issuing a corrected one.", ms: "Batalkan Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan."},
 	"adm.certs.err.name":             {en: "Enter a name for the Certificate (up to 200 characters).", ms: "Masukkan nama untuk Sijil (sehingga 200 aksara)."},
+	"adm.certs.err.no-ic":            {en: "%s has no IC or passport number. Set it before issuing a corrected Certificate.", ms: "%s tiada No. KP atau pasport. Tetapkannya sebelum mengeluarkan Sijil yang diperbetulkan."},
 	"adm.certs.err.has-valid":        {en: "This Learner already has a valid Certificate for this Course.", ms: "Pelajar ini sudah mempunyai Sijil yang sah untuk Kursus ini."},
 	"adm.certs.details-title":        {en: "Admin: Certificate details", ms: "Pentadbir: Butiran Sijil"},
 	"adm.certs.details-lede":         {en: "Every Certificate PDF is printed on this artwork.", ms: "Setiap PDF Sijil dicetak pada reka bentuk ini."},
