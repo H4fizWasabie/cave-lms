@@ -25,7 +25,7 @@
       {{else}}
       <div class="page-head"><h1>{{t $.Lang "exam.for" $.Course.Title}}</h1></div>
       {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}}</span></div>{{end}}
-      <form class="x-form" method="post" action="/courses/{{$.Course.ID}}/exam/attempts/{{.ID}}/submit">
+      <form class="x-form" method="post" action="{{$.Exam.Path (printf "/attempts/%d/submit" .ID)}}">
         {{range $n, $q := .Questions}}
         <fieldset class="x-q">
           <legend>{{$q.Prompt}}</legend>
@@ -38,6 +38,6 @@
       </form>
       {{end}}
       {{end}}
-      <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}/exam">{{t .Lang "exam.back"}}</a></p>
+      <p class="mc-more"><a class="link-more" href="{{.Exam.Path ""}}">{{t .Lang "exam.back"}}</a></p>
     </div>
 {{end}}

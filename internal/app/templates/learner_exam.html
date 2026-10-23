@@ -14,10 +14,10 @@
           <li><strong>{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong>{{if .HasBest}}{{t $.Lang "exam.best" .Best}}{{else}}{{t $.Lang "exam.no-score"}}{{end}}</li>
         </ul>
         {{if .Open}}
-        <a class="btn btn-solid btn-lg" href="/courses/{{$.Course.ID}}/exam/attempts/{{.Open.ID}}">{{t $.Lang "exam.continue"}}</a>
+        <a class="btn btn-solid btn-lg" href="{{.Exam.Path (printf "/attempts/%d" .Open.ID)}}">{{t $.Lang "exam.continue"}}</a>
         {{else}}
         {{with .Blocker $.Lang}}<p class="x-help">{{.}}</p>{{else}}
-        <form method="post" action="/courses/{{$.Course.ID}}/exam/attempts"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
+        <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}
         {{end}}

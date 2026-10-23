@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/app"
 )
 
 const examPassword = "correct horse battery"
@@ -358,4 +361,37 @@ func TestExamWithNoPublishedQuestionsRefusesAStart(t *testing.T) {
 
 	res, body := s.startExam(id)
 	expectStatus(t, res, body, http.StatusConflict, "This Exam is not ready yet.")
+}
+
+func TestTodaysExamsBecomeMultipleChoiceWithTheirSettingsQuestionsAndAttempts(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("70", "30", "3", "First question text", "Second question text")
+	res, _ := s.startExam(id)
+	attempt := res.Header.Get("Location")
+	s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "1"})
+	if err := app.MigrateDownTo(context.Background(), s.db, 75); err != nil {
+		t.Fatal(err)
+	}
+	s.restart()
+
+	res, body := s.get("/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Best score: 50%")
+	expectStatus(t, res, body, http.StatusOK, "Attempts left: 2")
+	res, body = s.get(attempt)
+	expectStatus(t, res, body, http.StatusOK, "Score: 50%")
+	var format string
+	if err := s.db.QueryRow(`SELECT format FROM exams WHERE course_id = $1`, id).Scan(&format); err != nil || format != "multiple-choice" {
+		t.Fatalf("the Exam's format is %q (%v), want multiple-choice", format, err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO exams (course_id, format) VALUES ($1, 'multiple-choice')`, id); err == nil {
+		t.Fatal("a Course took a second Multiple-choice Exam")
+	}
+
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	res, body = s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Pass mark: 70%")
+	expectStatus(t, res, body, http.StatusOK, "Time limit: 30 minutes")
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 3")
+	expectInOrder(t, body, "First question text", "Second question text")
 }

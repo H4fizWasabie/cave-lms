@@ -66,12 +66,13 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	if err != nil || total == 0 || done < total {
 		return err
 	}
-	e, err := a.loadExam(ctx, courseID)
+	// ponytail: only the Multiple-choice Exam counts; make every Exam count once a Course can have another format.
+	e, err := a.loadExam(ctx, courseID, multipleChoice)
 	if err != nil {
 		return err
 	}
 	if e.Usable {
-		passed, err := a.examPassed(ctx, learnerID, courseID)
+		passed, err := a.examPassed(ctx, learnerID, e.ID)
 		if err != nil || !passed {
 			return err
 		}

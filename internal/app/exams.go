@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -12,9 +13,15 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
+// multipleChoice is the format of an Exam whose questions each have options and one correct answer.
+const multipleChoice = "multiple-choice"
+
 // exam is the Exam page's data. The numeric settings stay strings so a rejected form shows what was typed.
+// A Course has at most one Exam per format; ID is 0 until the Exam is first saved.
 type exam struct {
+	ID          int64
 	CourseID    int64
+	Format      string
 	PassMark    string
 	TimeLimit   string
 	MaxAttempts string
@@ -35,14 +42,43 @@ type examOption struct {
 	Correct bool
 }
 
-func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
+// examFor loads the Exam a request names: the Course named by {id} and the format named by ?format=, Multiple-choice
+// when there is none. When there is no such Course or format it writes the Not found page and returns false.
+func (a *App) examFor(w http.ResponseWriter, r *http.Request) (course, exam, bool) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
-		return
+		return course{}, exam{}, false
 	}
-	e, err := a.loadExam(r.Context(), c.ID)
+	format := cmp.Or(r.URL.Query().Get("format"), multipleChoice)
+	if format != multipleChoice {
+		a.notFound(w, r)
+		return course{}, exam{}, false
+	}
+	e, err := a.loadExam(r.Context(), c.ID, format)
 	if err != nil {
 		a.serverError(w, r, err)
+		return course{}, exam{}, false
+	}
+	return c, e, true
+}
+
+// AdminPath is the address of the Exam's Admin page followed by rest, naming the format unless it is Multiple-choice.
+func (e exam) AdminPath(rest string) string {
+	return "/admin" + e.Path(rest)
+}
+
+// Path is the address of the Exam's Learner page followed by rest, naming the format unless it is Multiple-choice.
+func (e exam) Path(rest string) string {
+	p := "/courses/" + strconv.FormatInt(e.CourseID, 10) + "/exam" + rest
+	if e.Format != multipleChoice {
+		p += "?format=" + e.Format
+	}
+	return p
+}
+
+func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
+	c, e, ok := a.examFor(w, r)
+	if !ok {
 		return
 	}
 	a.render(w, r, http.StatusOK, "exam", page{Course: &c, Exam: &e})
@@ -50,16 +86,13 @@ func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
 
 // saveExam sets the pass mark, time limit and attempt limit. The first save creates the Exam.
 func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
-	c, ok := a.courseFor(w, r)
+	c, e, ok := a.examFor(w, r)
 	if !ok {
 		return
 	}
-	e := exam{
-		CourseID:    c.ID,
-		PassMark:    strings.TrimSpace(r.PostFormValue("pass_mark")),
-		TimeLimit:   strings.TrimSpace(r.PostFormValue("time_limit")),
-		MaxAttempts: strings.TrimSpace(r.PostFormValue("max_attempts")),
-	}
+	e.PassMark = strings.TrimSpace(r.PostFormValue("pass_mark"))
+	e.TimeLimit = strings.TrimSpace(r.PostFormValue("time_limit"))
+	e.MaxAttempts = strings.TrimSpace(r.PostFormValue("max_attempts"))
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -70,18 +103,18 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(), `
-		INSERT INTO exams (course_id, pass_mark, time_limit_minutes, max_attempts)
-		VALUES ($1, $2, NULLIF($3, '')::integer, NULLIF($4, '')::integer)
-		ON CONFLICT (course_id) DO UPDATE SET
+		INSERT INTO exams (course_id, format, pass_mark, time_limit_minutes, max_attempts)
+		VALUES ($1, $2, $3, NULLIF($4, '')::integer, NULLIF($5, '')::integer)
+		ON CONFLICT (course_id, format) DO UPDATE SET
 			pass_mark = EXCLUDED.pass_mark,
 			time_limit_minutes = EXCLUDED.time_limit_minutes,
 			max_attempts = EXCLUDED.max_attempts`,
-		c.ID, e.PassMark, e.TimeLimit, e.MaxAttempts)
+		c.ID, e.Format, e.PassMark, e.TimeLimit, e.MaxAttempts)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
+	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
 // settingsProblem returns the first problem with the settings form, in lang, empty when it is valid.
@@ -103,15 +136,15 @@ func (e exam) settingsProblem(lang string) string {
 }
 
 func (a *App) newExamQuestionForm(w http.ResponseWriter, r *http.Request) {
-	c, ok := a.courseFor(w, r)
+	c, e, ok := a.examFor(w, r)
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Question: &examQuestion{}})
+	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Exam: &e, Question: &examQuestion{}})
 }
 
 func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
-	c, ok := a.courseFor(w, r)
+	c, e, ok := a.examFor(w, r)
 	if !ok {
 		return
 	}
@@ -122,31 +155,34 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 	}
 	q, msg := questionFromForm(r, lang)
 	if msg != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Exam: &e, Question: &q, Error: msg})
 		return
 	}
-	if err := a.insertQuestion(r.Context(), c.ID, q); err != nil {
+	if err := a.insertQuestion(r.Context(), e, q); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
+	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
-// insertQuestion adds a question at the end of the Exam, creating the Exam with default settings if it has none.
-func (a *App) insertQuestion(ctx context.Context, courseID int64, q examQuestion) error {
+// insertQuestion adds a question at the end of the Exam, first saving the Exam with default settings if it is new.
+func (a *App) insertQuestion(ctx context.Context, e exam, q examQuestion) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO exams (course_id) VALUES ($1) ON CONFLICT (course_id) DO NOTHING`, courseID); err != nil {
+	// The no-op update makes RETURNING give the id of an Exam that is already saved.
+	var examID int64
+	if err := tx.QueryRowContext(ctx, `INSERT INTO exams (course_id, format) VALUES ($1, $2)
+		ON CONFLICT (course_id, format) DO UPDATE SET format = EXCLUDED.format RETURNING id`, e.CourseID, e.Format).Scan(&examID); err != nil {
 		return err
 	}
 	var id int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO exam_questions (course_id, position, prompt, is_draft)
-		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE course_id = $1), $2, $3)
-		RETURNING id`, courseID, q.Prompt, q.Draft).Scan(&id)
+		INSERT INTO exam_questions (exam_id, position, prompt, is_draft)
+		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE exam_id = $1), $2, $3)
+		RETURNING id`, examID, q.Prompt, q.Draft).Scan(&id)
 	if err != nil {
 		return err
 	}
@@ -182,17 +218,17 @@ func questionFromForm(r *http.Request, lang string) (q examQuestion, msg string)
 	return q, msg
 }
 
-// loadExam reads the Exam for a Course with its questions. A Course with no Exam yet gets the defaults.
-func (a *App) loadExam(ctx context.Context, courseID int64) (exam, error) {
-	e := exam{CourseID: courseID, PassMark: "50"}
+// loadExam reads a Course's Exam of the format with its questions. An Exam not saved yet gets the defaults.
+func (a *App) loadExam(ctx context.Context, courseID int64, format string) (exam, error) {
+	e := exam{CourseID: courseID, Format: format, PassMark: "50", MaxAttempts: "2"}
 	err := a.db.QueryRowContext(ctx, `
-		SELECT pass_mark, COALESCE(time_limit_minutes::text, ''), COALESCE(max_attempts::text, '')
-		FROM exams WHERE course_id = $1`, courseID).
-		Scan(&e.PassMark, &e.TimeLimit, &e.MaxAttempts)
+		SELECT id, pass_mark, COALESCE(time_limit_minutes::text, ''), COALESCE(max_attempts::text, '')
+		FROM exams WHERE course_id = $1 AND format = $2`, courseID, format).
+		Scan(&e.ID, &e.PassMark, &e.TimeLimit, &e.MaxAttempts)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return exam{}, fmt.Errorf("load exam: %w", err)
 	}
-	e.Questions, err = a.loadQuestions(ctx, courseID)
+	e.Questions, err = a.queryQuestions(ctx, `q.exam_id = $1`, e.ID)
 	if err != nil {
 		return exam{}, err
 	}
@@ -202,11 +238,6 @@ func (a *App) loadExam(ctx context.Context, courseID int64) (exam, error) {
 		}
 	}
 	return e, nil
-}
-
-// loadQuestions reads the Exam questions of a Course in order.
-func (a *App) loadQuestions(ctx context.Context, courseID int64) ([]examQuestion, error) {
-	return a.queryQuestions(ctx, `q.course_id = $1`, courseID)
 }
 
 // queryQuestions reads the Exam questions matching the SQL condition where, in order.
@@ -244,21 +275,17 @@ func (a *App) queryQuestions(ctx context.Context, where string, args ...any) ([]
 	return list, rows.Err()
 }
 
-func examPath(courseID int64) string {
-	return "/admin/courses/" + strconv.FormatInt(courseID, 10) + "/exam"
-}
-
 func (a *App) editExamQuestionForm(w http.ResponseWriter, r *http.Request) {
-	c, q, ok := a.examQuestionFor(w, r)
+	c, e, q, ok := a.examQuestionFor(w, r)
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Question: &q})
+	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Exam: &e, Question: &q})
 }
 
 // updateExamQuestion replaces the prompt and options. Draft state is changed only by publishing.
 func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
-	c, existing, ok := a.examQuestionFor(w, r)
+	c, e, existing, ok := a.examQuestionFor(w, r)
 	if !ok {
 		return
 	}
@@ -270,24 +297,24 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 	q, msg := questionFromForm(r, lang)
 	q.ID, q.Draft = existing.ID, existing.Draft
 	if msg != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Question: &q, Error: msg})
+		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Exam: &e, Question: &q, Error: msg})
 		return
 	}
-	if err := a.replaceQuestion(r.Context(), c.ID, q); err != nil {
+	if err := a.replaceQuestion(r.Context(), e.ID, q); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
+	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
 // replaceQuestion rewrites a question's prompt and options in one transaction.
-func (a *App) replaceQuestion(ctx context.Context, courseID int64, q examQuestion) error {
+func (a *App) replaceQuestion(ctx context.Context, examID int64, q examQuestion) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `UPDATE exam_questions SET prompt = $3 WHERE id = $1 AND course_id = $2`, q.ID, courseID, q.Prompt); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE exam_questions SET prompt = $3 WHERE id = $1 AND exam_id = $2`, q.ID, examID, q.Prompt); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exam_options WHERE question_id = $1`, q.ID); err != nil {
@@ -317,27 +344,27 @@ func insertOptions(ctx context.Context, tx *sql.Tx, questionID int64, options [5
 // moveExamQuestion returns the handler that swaps a question with its neighbour above or below it.
 func (a *App) moveExamQuestion(down bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		c, q, ok := a.examQuestionFor(w, r)
+		_, e, q, ok := a.examQuestionFor(w, r)
 		if !ok {
 			return
 		}
-		if err := a.swapQuestion(r.Context(), c.ID, q.ID, down); err != nil {
+		if err := a.swapQuestion(r.Context(), e.ID, q.ID, down); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
+		http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 	}
 }
 
 // swapQuestion exchanges the positions of a question and its neighbour. A question already at the end does nothing.
-func (a *App) swapQuestion(ctx context.Context, courseID, questionID int64, down bool) error {
+func (a *App) swapQuestion(ctx context.Context, examID, questionID int64, down bool) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	var pos int
-	if err := tx.QueryRowContext(ctx, `SELECT position FROM exam_questions WHERE id = $1 AND course_id = $2 FOR UPDATE`, questionID, courseID).Scan(&pos); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT position FROM exam_questions WHERE id = $1 AND exam_id = $2 FOR UPDATE`, questionID, examID).Scan(&pos); err != nil {
 		return err
 	}
 	op, order := "<", "DESC"
@@ -347,8 +374,8 @@ func (a *App) swapQuestion(ctx context.Context, courseID, questionID int64, down
 	var otherID int64
 	var otherPos int
 	err = tx.QueryRowContext(ctx,
-		`SELECT id, position FROM exam_questions WHERE course_id = $1 AND position `+op+` $2 ORDER BY position `+order+` LIMIT 1`,
-		courseID, pos).Scan(&otherID, &otherPos)
+		`SELECT id, position FROM exam_questions WHERE exam_id = $1 AND position `+op+` $2 ORDER BY position `+order+` LIMIT 1`,
+		examID, pos).Scan(&otherID, &otherPos)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -365,11 +392,11 @@ func (a *App) swapQuestion(ctx context.Context, courseID, questionID int64, down
 
 // deleteExamQuestion removes a question, Draft or published, with its options.
 func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
-	c, q, ok := a.examQuestionFor(w, r)
+	c, e, q, ok := a.examQuestionFor(w, r)
 	if !ok {
 		return
 	}
-	_, err := a.db.ExecContext(r.Context(), `DELETE FROM exam_questions WHERE id = $1 AND course_id = $2`, q.ID, c.ID)
+	_, err := a.db.ExecContext(r.Context(), `DELETE FROM exam_questions WHERE id = $1 AND exam_id = $2`, q.ID, e.ID)
 	if err == nil {
 		err = a.issueEarnedCertificates(r.Context(), c.ID) // the Exam may have no published questions left
 	}
@@ -377,49 +404,46 @@ func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
+	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
 // publishExamQuestion turns a Draft question into a published one. Learners see it from then on.
 func (a *App) publishExamQuestion(w http.ResponseWriter, r *http.Request) {
-	c, q, ok := a.examQuestionFor(w, r)
+	_, e, q, ok := a.examQuestionFor(w, r)
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE exam_questions SET is_draft = false WHERE id = $1 AND course_id = $2`, q.ID, c.ID); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE exam_questions SET is_draft = false WHERE id = $1 AND exam_id = $2`, q.ID, e.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, examPath(c.ID), http.StatusSeeOther)
+	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
-// examQuestionFor loads the question named by {qid} on the Course named by {id}. When there is none it writes
+// examQuestionFor loads the question named by {qid} on the Exam the request names. When there is none it writes
 // the Not found page and returns false.
-func (a *App) examQuestionFor(w http.ResponseWriter, r *http.Request) (course, examQuestion, bool) {
-	c, ok := a.courseFor(w, r)
+func (a *App) examQuestionFor(w http.ResponseWriter, r *http.Request) (course, exam, examQuestion, bool) {
+	c, e, ok := a.examFor(w, r)
 	if !ok {
-		return course{}, examQuestion{}, false
+		return course{}, exam{}, examQuestion{}, false
 	}
-	notFound := func() (course, examQuestion, bool) {
+	notFound := func() (course, exam, examQuestion, bool) {
 		lang, err := a.language(r)
 		if err != nil {
 			a.serverError(w, r, err)
-			return course{}, examQuestion{}, false
+			return course{}, exam{}, examQuestion{}, false
 		}
 		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "adm.exam.q-not-found.title"), Message: text.T(lang, "adm.exam.q-not-found")})
-		return course{}, examQuestion{}, false
+		return course{}, exam{}, examQuestion{}, false
 	}
 	qid, err := strconv.ParseInt(r.PathValue("qid"), 10, 64)
 	if err != nil {
 		return notFound()
 	}
-	list, err := a.queryQuestions(r.Context(), `q.course_id = $1 AND q.id = $2`, c.ID, qid)
-	if err != nil {
-		a.serverError(w, r, err)
-		return course{}, examQuestion{}, false
+	for _, q := range e.Questions {
+		if q.ID == qid {
+			return c, e, q, true
+		}
 	}
-	if len(list) == 0 {
-		return notFound()
-	}
-	return c, list[0], true
+	return notFound()
 }

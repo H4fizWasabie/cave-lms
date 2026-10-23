@@ -316,3 +316,36 @@ func TestAdminReachesTheExamFromTheCourseList(t *testing.T) {
 	res, body = s.get("/admin/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Exam for Go Basics")
 }
+
+func TestANewExamAllowsTwoAttemptsUntilTheAdminChangesIt(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	examPath := "/admin/courses/" + id + "/exam"
+
+	res, body := s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 2")
+	expectStatus(t, res, body, http.StatusOK, `name="max_attempts" type="number" min="1" value="2"`)
+	s.saveQuestion(examPath+"/questions", "What is Go?", [5]string{"A language", "A drink", "", "", ""}, "0", false)
+	res, body = s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 2")
+
+	s.saveExamSettings(id, "50", "", "5")
+	res, body = s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 5")
+}
+
+func TestAnExamOfAnUnknownFormatIsNotFound(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+
+	res, body := s.get("/admin/courses/" + id + "/exam?format=multiple-choice")
+	expectStatus(t, res, body, http.StatusOK, "Exam for Go Basics")
+	for _, path := range []string{"/admin/courses/" + id + "/exam?format=essay", "/courses/" + id + "/exam?format=essay"} {
+		res, body = s.get(path)
+		expectStatus(t, res, body, http.StatusNotFound, "")
+	}
+}

@@ -16,7 +16,7 @@
               <li>{{t $.Lang "exam.pass-mark" .PassMark}}</li>
             </ul>
           </div>
-          <a class="btn btn-solid btn-sm" href="/courses/{{.CourseID}}/exam">{{t $.Lang "my-courses.open"}}</a>
+          <a class="btn btn-solid btn-sm" href="{{.Path}}">{{t $.Lang "my-courses.open"}}</a>
         </li>
         {{else}}
         <li class="empty">{{t .Lang "my-exams.none"}} <a href="/courses">{{t .Lang "my-courses.browse"}}</a>.</li>
