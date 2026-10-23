@@ -576,6 +576,7 @@ func (s *site) restart() {
 	}
 	s.t.Cleanup(func() { _ = a.Close() })
 	s.server.Config.Handler = a
+	s.application = a
 }
 
 func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
