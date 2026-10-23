@@ -87,10 +87,10 @@ func (s *site) login(email, password string) (*http.Response, string) {
 	return s.post("/login", url.Values{"email": {email}, "password": {password}})
 }
 
-// lastEmailLinkPath returns the path and query of the link under route in the latest email to `to`.
+// lastEmailLinkPath returns the path and query of the link under route in the latest email to `to`, past any PUBLIC_BASE_URL path.
 func (s *site) lastEmailLinkPath(to, route string) string {
 	s.t.Helper()
-	link := regexp.MustCompile(`https://cave\.example\.invalid(` + regexp.QuoteMeta(route) + `\?token=[A-Za-z0-9_-]+)`)
+	link := regexp.MustCompile(`https://cave\.example\.invalid\S*?(` + regexp.QuoteMeta(route) + `\?token=[A-Za-z0-9_-]+)`)
 	message := s.lastEmailTo(to)
 	m := link.FindStringSubmatch(message.Body)
 	if m == nil {

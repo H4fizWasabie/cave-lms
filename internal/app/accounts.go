@@ -282,6 +282,15 @@ func localPath(next string) string {
 	return next
 }
 
+// dummyHash is compared against when a login's email has no account.
+var dummyHash = func() []byte {
+	h, err := bcrypt.GenerateFromPassword([]byte("no account has this password"), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+	return h
+}()
+
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	next := localPath(r.PostFormValue("next"))
@@ -310,7 +319,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	failed := err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil
+	if err != nil {
+		hash = string(dummyHash) // compare anyway, so a missing account takes as long as a wrong password
+	}
+	// The compare runs before err is checked on purpose, so a missing account costs the same time.
+	failed := bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil || err != nil
 	if !failed {
 		a.limiter.forget(account)
 		a.limiter.forget(address)
@@ -339,7 +352,6 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	// ponytail: expired session rows are never deleted; add a cleanup when the table grows.
 	if _, err := a.db.ExecContext(r.Context(),
 		`INSERT INTO sessions (token_hash, learner_id, expires_at) VALUES ($1, $2, now() + make_interval(secs => $3))`,
 		hashToken(token), id, sessionLifetime.Seconds()); err != nil {

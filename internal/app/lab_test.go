@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"net/http"
 	"strings"
 	"testing"
@@ -33,8 +34,8 @@ func TestVisitorSeesWhatTheLabIsWithRegister(t *testing.T) {
 
 // labSetup logs in the Admin, creates a 30-day Plan with 3 Deployments and a Course, and returns the Admin,
 // a logged-in Learner Ada, the Plan ID and the Course ID.
-func labSetup(t *testing.T) (admin, ada *site, planID, courseID string) {
-	admin, planID = adminWithPlanAndLearner(t)
+func labSetup(t *testing.T, opts ...func(*config.Config)) (admin, ada *site, planID, courseID string) {
+	admin, planID = adminWithPlanAndLearner(t, opts...)
 	admin.createCourse("Go Basics", "Learn Go from scratch.", "")
 	courseID = admin.courseIDByTitle("Go Basics")
 	ada = admin.second()

@@ -92,7 +92,7 @@
     var form = document.getElementById('filters');
     form.innerHTML = filters.map(function (k) {
       if (cols[k].type === 'date') {
-        var o = months.map(function (m) { return '<option value="' + m + '">' + monthName(m) + '</option>'; }).join('');
+        var o = months.map(function (m) { return '<option value="' + esc(m) + '">' + esc(monthName(m)) + '</option>'; }).join('');
         return '<label>From <select data-f="from">' + o + '</select></label><label>To <select data-f="to">' + o + '</select></label>';
       }
       var vals = [];
@@ -189,7 +189,7 @@
         var pts = keys.map(function (k, i) { return X(i) + ',' + Y(series[s][k] || 0); }).join(' ');
         if (!by) svg += '<polygon points="' + L + ',' + Y(0) + ' ' + pts + ' ' + X(keys.length - 1) + ',' + Y(0) + '" fill="' + c + '" opacity=".1"/>';
         svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="2.5" stroke-linejoin="round"/>';
-        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="3.5" fill="' + c + '"><title>' + esc(s) + ', ' + monthName(k) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
+        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="3.5" fill="' + c + '"><title>' + esc(s) + ', ' + esc(monthName(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
       });
       var legend = by ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + seriesColour(s, si) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
       var finding = keys.length > 1 && peak[2] > 0 ? 'Peak: ' + (by ? peak[0] + ', ' : '') + monthName(peak[1]) + ', ' + short(peak[2], m) : '';

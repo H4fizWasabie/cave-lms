@@ -90,10 +90,13 @@ func (a *App) pruneSystemLog(ctx context.Context) error {
 	return err
 }
 
-// dailyPrune prunes the System log and lapsed Learners' Datasets, logging any failure.
+// dailyPrune prunes the System log, expired sessions and lapsed Learners' Datasets, logging any failure.
 func (a *App) dailyPrune(ctx context.Context) {
 	if err := a.pruneSystemLog(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("prune System log: %w", err))
+	}
+	if _, err := a.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= now()`); err != nil {
+		a.logError(nil, fmt.Errorf("prune sessions: %w", err))
 	}
 	n, err := a.pruneDatasets(ctx)
 	if err != nil {
