@@ -123,10 +123,10 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 			msg = "prices.err.normal-low"
 		case pr.PaymentLink != "" && !isWebLink(pr.PaymentLink):
 			msg = "prices.err.link"
-		case pr.PaymentLink != "" && links[pr.PaymentLink]:
+		case pr.PaymentLink != "" && links[formKey(pr.PaymentLink)]:
 			msg = "prices.err.link-shared"
 		}
-		links[pr.PaymentLink] = true
+		links[formKey(pr.PaymentLink)] = true
 		if msg != "" && p.Error == "" {
 			p.Error = text.T(lang, "prices."+product) + ": " + text.T(lang, msg)
 		}
