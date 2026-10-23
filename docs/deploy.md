@@ -77,7 +77,7 @@ It refuses a checkout with uncommitted changes or a commit whose CI run (`.githu
 | Uploads | `/var/lib/cave-lms-staging/uploads` (Datasets too: no R2) |
 | Database | `cave_staging`, owned by the `cave_staging` role |
 
-Deploy the current checkout, from any branch:
+Deploy the current checkout, from any branch, once it is committed, pushed and CI has passed on it (open a pull request):
 
 ```sh
 CAVE_ENV=staging deploy/deploy.sh
