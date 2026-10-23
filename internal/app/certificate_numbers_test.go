@@ -66,9 +66,9 @@ func TestCertificatesAreNumberedInIssueOrderOnEveryPage(t *testing.T) {
 
 func TestCertificateNumberRestartsEachYear(t *testing.T) {
 	s := newSite(t)
-	s.at("2026-12-31 23:59:00")
+	s.at("2026-12-31 15:59:00") // 23:59 in Malaysia
 	courseID, _ := s.adaEarns()
-	s.at("2027-01-01 00:01:00")
+	s.at("2026-12-31 16:01:00") // 00:01 on 1 January 2027 in Malaysia
 	body := s.earns("Bob", "bob@example.com", courseID)
 	if want := "PCC-2027-00001"; !strings.Contains(body, want) {
 		t.Fatalf("the first Certificate of 2027 lacks %q: %s", want, body)
@@ -103,7 +103,7 @@ func TestCertificatesIssuedBeforeNumbersAreNumberedByIssueDate(t *testing.T) {
 	if err := app.MigrateDownTo(context.Background(), s.db, 84); err != nil {
 		t.Fatal(err)
 	}
-	for email, issued := range map[string]string{"ada@example.com": "2025-07-01", "bob@example.com": "2025-06-01", "cy@example.com": "2026-01-05"} {
+	for email, issued := range map[string]string{"ada@example.com": "2025-07-01", "bob@example.com": "2025-06-01", "cy@example.com": "2025-12-31 17:00:00+00"} { // Cy's is 1 January 2026 in Malaysia
 		if _, err := s.db.Exec(`UPDATE certificates SET issued_at = $2 WHERE learner_id = (SELECT id FROM learners WHERE email = $1)`, email, issued); err != nil {
 			t.Fatal(err)
 		}
@@ -120,4 +120,37 @@ func TestCertificatesIssuedBeforeNumbersAreNumberedByIssueDate(t *testing.T) {
 	if want := "PCC-2026-00002"; !strings.Contains(body, want) {
 		t.Fatalf("the next Certificate after the backfill lacks %q: %s", want, body)
 	}
+}
+
+// Half past midnight on 1 January 2027 in Malaysia is still 2026 in UTC: the Certificate No. and the issue date are
+// Malaysia's everywhere they show.
+func TestACertificateIsNumberedAndDatedInMalaysiaTime(t *testing.T) {
+	s := newSite(t)
+	s.at("2026-12-31 16:30:00")
+	courseID, certID := s.adaEarns()
+	const number, issued = "PCC-2027-00001", "1 January 2027"
+
+	res, body := s.get("/my-certificates")
+	expectStatus(t, res, body, http.StatusOK, number)
+	expectAll(t, body, "Issued "+issued)
+	expectAll(t, s.pdfBody("/certificates/"+certID+"/pdf"), number, "Issued on: "+issued)
+	var pdfs int
+	for _, m := range s.emailsTo("ada@example.com") {
+		for _, a := range m.Attachments { // the Certificate email, in Ada's language
+			pdfs++
+			expectAll(t, m.Body, number)
+			expectAll(t, string(a.Content), number)
+		}
+	}
+	if pdfs != 1 {
+		t.Fatalf("Ada was emailed %d Certificate PDFs, want 1", pdfs)
+	}
+	_, body = s.get("/certificates/" + certID)
+	expectAll(t, body, number, "Issued "+issued)
+
+	s.loginAdmin()
+	_, body = s.get("/admin/certificates")
+	expectAll(t, body, number, issued)
+	_, body = s.get("/admin/courses/" + courseID)
+	expectAll(t, body, "Issued "+issued)
 }

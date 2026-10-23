@@ -66,7 +66,7 @@ func (c certificate) Badge() string { return course{Days: c.Days}.Badge() }
 
 // IssuedIn is the issue date written in lang, as the Learner's pages, the check page, the PDF and the Admin list show it.
 func (c certificate) IssuedIn(lang string) string {
-	return text.Date(lang, c.IssuedAt.UTC())
+	return text.Date(lang, c.IssuedAt.In(malaysia))
 }
 
 // certificateSettings are what the Admin sets once: the storage key of the background artwork, empty when unset.
@@ -183,12 +183,12 @@ func (a *App) emailCertificate(ctx context.Context, id string) {
 	}
 }
 
-// numberCertificate takes the next Certificate No. for the current year (UTC, as the issue date is shown) inside tx,
+// numberCertificate takes the next Certificate No. for the current year (Malaysia time, as the issue date is shown) inside tx,
 // with the issue time it belongs to. The counter row stays locked until tx ends, so numbers run in issue order, and a
 // rolled-back issue leaves no gap.
 func (a *App) numberCertificate(ctx context.Context, tx *sql.Tx) (at time.Time, year, number int, err error) {
-	at = a.now().UTC()
-	year = at.Year()
+	at = a.now()
+	year = at.In(malaysia).Year()
 	err = tx.QueryRowContext(ctx, `INSERT INTO certificate_numbers (year, last) VALUES ($1, 1)
 		ON CONFLICT (year) DO UPDATE SET last = certificate_numbers.last + 1 RETURNING last`, year).Scan(&number)
 	return at, year, number, err
@@ -262,7 +262,7 @@ func (a *App) certificateStatus(ctx context.Context, lang string, learnerID, cou
 	if revoked.Valid {
 		return text.T(lang, "adm.course.cert-revoked"), nil
 	}
-	return text.T(lang, "adm.course.cert-issued", text.Date(lang, issued.UTC())), nil
+	return text.T(lang, "adm.course.cert-issued", text.Date(lang, issued.In(malaysia))), nil
 }
 
 // myCertificates lists the logged-in Learner's Certificates, revoked ones included, each with a download link, and

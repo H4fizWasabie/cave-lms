@@ -9,9 +9,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // pngOfSize is a placeholder for the client's artwork, w by h pixels, so a test can tell which image a PDF carries.
@@ -65,14 +62,15 @@ func TestLiveCourseCertificatePDFPrintsItsDetailsAndPCCBadge(t *testing.T) {
 	admin, ada, id, qids := liveCourse(t, "4")
 	res, _ := ada.startExam(id)
 	ada.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	admin.at("2026-07-14 16:30:00") // 15 July in Malaysia
 	ada.releaseResults()
 	_, body := ada.get("/my-certificates")
 	certID := certificateIDs(body)[0]
 	admin.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
 
 	pdf := ada.pdfBody("/certificates/" + certID + "/pdf")
-	expectAll(t, pdf, fmt.Sprintf("PCC-%d-00001", time.Now().UTC().Year()), "Ada", "951206-08-5555", "Go for Acme",
-		"Issued on: "+text.Date("en", time.Now().UTC()), "https://cave.example.invalid/certificates/"+certID,
+	expectAll(t, pdf, "PCC-2026-00001", "Ada", "951206-08-5555", "Go for Acme",
+		"Issued on: 15 July 2026", "https://cave.example.invalid/certificates/"+certID,
 		imageSize(3, 5), imageSize(904, 1280)) // the background and the Professional badge
 }
 
