@@ -1289,8 +1289,8 @@ var catalog = map[string]entry{
 	"programmes.err.picture":       {en: "Upload a JPEG, PNG or WebP picture.", ms: "Muat naik gambar JPEG, PNG atau WebP."},
 	"programmes.err.blurb":         {en: "Enter a blurb.", ms: "Masukkan ringkasan."},
 	"programmes.err.link": {
-		en: "Enter the link as a full web address starting with https://, or leave it empty.",
-		ms: "Masukkan pautan sebagai alamat web penuh yang bermula dengan https://, atau biarkan kosong.",
+		en: "Enter the link as a full web address starting with http:// or https://, or leave it empty.",
+		ms: "Masukkan pautan sebagai alamat web penuh yang bermula dengan http:// atau https://, atau biarkan kosong.",
 	},
 	"programmes.err.too-large": {
 		en: "This picture is too large. Pictures are limited to 20 MB, and nothing was stored.",
