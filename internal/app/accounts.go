@@ -285,6 +285,19 @@ func localPath(next string) string {
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	next := localPath(r.PostFormValue("next"))
+	// Every attempt is counted first; a right password takes its count back, so only failures stay and a class sharing
+	// one address all gets in while guessing is still stopped.
+	account, address := loginKeys(r, email)
+	now := time.Now()
+	if !a.limiter.allow(account, loginFailuresPerAccount, now) {
+		a.tooManyAttempts(w, r)
+		return
+	}
+	if !a.limiter.allow(address, loginFailuresPerAddress, now) {
+		a.limiter.forget(account)
+		a.tooManyAttempts(w, r)
+		return
+	}
 	var (
 		id       int64
 		hash     string
@@ -298,6 +311,10 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	failed := err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil
+	if !failed {
+		a.limiter.forget(account)
+		a.limiter.forget(address)
+	}
 	if failed || !verified {
 		lang, err := a.language(r)
 		if err != nil {
