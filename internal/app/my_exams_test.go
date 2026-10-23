@@ -27,7 +27,8 @@ func (s *site) joinAndFinish(courseID, title string) {
 	s.markLesson(courseID, s.lessonIDByTitle(title+" lesson"), true)
 }
 
-// sitExam is the logged-in Learner finishing one attempt, answering slot for every question.
+// sitExam is the logged-in Learner finishing one attempt, answering slot for every question, and its Result being
+// released.
 func (s *site) sitExam(courseID, slot string) {
 	s.t.Helper()
 	res, body := s.startExam(courseID)
@@ -39,6 +40,7 @@ func (s *site) sitExam(courseID, slot string) {
 		answers[qid] = slot
 	}
 	s.submitExam(path, answers)
+	s.releaseResults()
 }
 
 func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {

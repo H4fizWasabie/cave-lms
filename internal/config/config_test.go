@@ -15,6 +15,9 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("RESEND_API_KEY", "")
 	t.Setenv("CAVETEXT_EXTENSION_IDS", "")
 	t.Setenv("BCL_WEBHOOK_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
+	t.Setenv("OPENROUTER_MODEL", "")
+	t.Setenv("OPENROUTER_WEB_SEARCH", "")
 	t.Setenv("BCL_PAYMENTS", "")
 	t.Setenv("EMAIL_ALLOWLIST", "")
 	for _, name := range r2Env {
@@ -142,6 +145,27 @@ func TestLoadReadsR2ConfigOnlyWhenAllOfItIsSet(t *testing.T) {
 	cfg, err = Load()
 	if err != nil || cfg.R2AccountID != "acc" || cfg.R2Bucket != "datasets" || cfg.R2AccessKeyID != "key" || cfg.R2SecretAccessKey != "secret" {
 		t.Fatalf("with all R2 config: cfg = %#v, err = %v", cfg, err)
+	}
+}
+
+func TestLoadReadsOpenRouterConfigWithWebSearchOnByDefaultAndNoModel(t *testing.T) {
+	setValidEnvironment(t)
+	cfg, err := Load()
+	if err != nil || cfg.OpenRouterAPIKey != "" || cfg.OpenRouterModel != "" || !cfg.OpenRouterWebSearch {
+		t.Fatalf("without OpenRouter config: cfg = %#v, err = %v; want no key, no model, web search on", cfg, err)
+	}
+
+	t.Setenv("OPENROUTER_API_KEY", " sk-or-test ")
+	t.Setenv("OPENROUTER_MODEL", " openai/gpt-4o-mini ")
+	t.Setenv("OPENROUTER_WEB_SEARCH", "false")
+	cfg, err = Load()
+	if err != nil || cfg.OpenRouterAPIKey != "sk-or-test" || cfg.OpenRouterModel != "openai/gpt-4o-mini" || cfg.OpenRouterWebSearch {
+		t.Fatalf("with OpenRouter config: cfg = %#v, err = %v", cfg, err)
+	}
+
+	t.Setenv("OPENROUTER_WEB_SEARCH", "maybe")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "OPENROUTER_WEB_SEARCH") {
+		t.Fatalf("Load() error = %v, want OPENROUTER_WEB_SEARCH error", err)
 	}
 }
 

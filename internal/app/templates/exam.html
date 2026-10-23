@@ -7,7 +7,7 @@
         <div class="adm-head">
           <div>
             <h1>{{t .Lang "adm.exam.title" .Course.Title}}</h1>
-            <p>{{if .Exam.Usable}}{{t .Lang "adm.exam.usable"}}{{else}}{{t .Lang "adm.exam.unusable"}}{{end}}</p>
+            <p>{{t .Lang (print "bank.format." .Exam.Format)}} · {{if .Exam.Usable}}{{t .Lang "adm.exam.usable"}}{{else}}{{t .Lang "adm.exam.unusable"}}{{end}}</p>
           </div>
         </div>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
@@ -15,22 +15,36 @@
           <div class="card-head">
             <div>
               <h2>{{t .Lang "adm.exam.settings"}}</h2>
-              <p class="card-sub">{{t .Lang "adm.exam.pass-is" .Exam.PassMark}} · {{with .Exam.TimeLimit}}{{t $.Lang "adm.exam.time-is" .}}{{else}}{{t .Lang "adm.exam.no-time"}}{{end}} · {{with .Exam.MaxAttempts}}{{t $.Lang "adm.exam.attempts-is" .}}{{else}}{{t .Lang "adm.exam.unlimited"}}{{end}}</p>
+              <p class="card-sub">{{t .Lang "adm.exam.pass-is" .Exam.PassMark}} · {{with .Exam.TimeLimit}}{{t $.Lang "adm.exam.time-is" .}}{{else}}{{t .Lang "adm.exam.no-time"}}{{end}} · {{with .Exam.MaxAttempts}}{{t $.Lang "adm.exam.attempts-is" .}}{{else}}{{t .Lang "adm.exam.unlimited"}}{{end}} · {{t .Lang "adm.exam.draw-is" .Exam.DrawCount}}</p>
             </div>
           </div>
-          <form class="form" method="post" action="/admin/courses/{{.Course.ID}}/exam">
+          <form class="form" method="post" action="{{.Exam.AdminPath ""}}">
             <div class="field-grid">
               <div class="field"><label for="pass_mark">{{t .Lang "adm.exam.pass-mark"}}</label><div class="suffix"><input id="pass_mark" name="pass_mark" type="number" min="0" max="100" value="{{.Exam.PassMark}}" required><span>%</span></div></div>
               <div class="field"><label for="time_limit">{{t .Lang "adm.exam.time-limit"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><div class="suffix"><input id="time_limit" name="time_limit" type="number" min="1" value="{{.Exam.TimeLimit}}"><span>{{t .Lang "adm.exam.minutes"}}</span></div></div>
               <div class="field"><label for="max_attempts">{{t .Lang "adm.exam.max-attempts"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="max_attempts" name="max_attempts" type="number" min="1" value="{{.Exam.MaxAttempts}}"></div>
+              <div class="field"><label for="draw_count">{{t .Lang "adm.exam.draw-count"}}</label><input id="draw_count" name="draw_count" type="number" min="1" value="{{.Exam.DrawCount}}" required></div>
             </div>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.exam.save"}}</button></div>
           </form>
         </div>
         <div class="card">
+          <h2>{{t .Lang "bank.add"}}</h2>
+          <p class="card-sub">{{t .Lang "bank.add-intro"}}</p>
+          <form class="form" method="post" action="{{.Exam.AdminPath "/from-bank"}}">
+            <div class="field-grid">
+              <div class="field"><label for="topic">{{t .Lang "bank.topic"}}</label><input id="topic" type="text" name="topic" list="bank-topics" required><datalist id="bank-topics">{{range .Exam.Topics}}<option value="{{.}}">{{end}}</datalist></div>
+              <div class="field"><label for="language">{{t .Lang "bank.language"}}</label><select id="language" name="language"><option value="ms">{{t .Lang "bank.lang.ms"}}</option><option value="en">{{t .Lang "bank.lang.en"}}</option></select></div>
+              <div class="field"><label for="count">{{t .Lang "bank.count"}}</label><input id="count" type="number" name="count" min="1" value="10" required></div>
+            </div>
+            <p class="card-sub">{{t .Lang "gen.intro"}}</p>
+            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.add"}}</button><button class="btn btn-solid" formaction="{{.Exam.AdminPath "/generate"}}">{{t .Lang "gen.button"}}</button></div>
+          </form>
+        </div>
+        <div class="card">
           <div class="card-head">
             <h2>{{t .Lang "adm.exam.questions"}}</h2>
-            <a class="btn btn-ghost btn-sm" href="/admin/courses/{{.Course.ID}}/exam/questions/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.exam.add"}}</a>
+            <a class="btn btn-ghost btn-sm" href="{{.Exam.AdminPath "/questions/new"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.exam.add"}}</a>
           </div>
           <ol class="q-list">
             {{range $q := .Exam.Questions}}
@@ -39,16 +53,17 @@
                 <span class="q-n"></span>
                 <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
                 <div class="lb-act">
-                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
-                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/up"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
-                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/down"><button class="icon-btn" aria-label="{{t $.Lang "adm.down"}}" title="{{t $.Lang "adm.move-down"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
-                  {{if $q.Draft}}<form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
-                  <form method="post" action="/admin/courses/{{$.Course.ID}}/exam/questions/{{$q.ID}}/delete"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
+                  <a class="btn btn-quiet btn-sm" href="{{$.Exam.AdminPath (printf "/questions/%d/edit" $q.ID)}}">{{t $.Lang "adm.edit"}}</a>
+                  <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/up" $q.ID)}}"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
+                  <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/down" $q.ID)}}"><button class="icon-btn" aria-label="{{t $.Lang "adm.down"}}" title="{{t $.Lang "adm.move-down"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
+                  {{if $q.Draft}}<form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/publish" $q.ID)}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
+                  <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/delete" $q.ID)}}"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
                 </div>
               </div>
+              {{if $.Exam.Written}}<p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{$q.ModelAnswer}}</p>{{else}}
               <ul class="q-opts">
                 {{range $q.Options}}{{if .Text}}<li{{if .Correct}} class="is-correct"{{end}}><span class="dot"></span>{{.Text}}{{if .Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}</li>{{end}}{{end}}
-              </ul>
+              </ul>{{end}}
             </li>
             {{else}}
             <li class="empty">{{t .Lang "adm.exam.none"}}</li>

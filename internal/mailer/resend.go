@@ -23,12 +23,16 @@ type Resend struct {
 var resendClient = &http.Client{Timeout: 15 * time.Second}
 
 func (m Resend) Send(ctx context.Context, message Message) error {
-	body, err := json.Marshal(map[string]any{
+	email := map[string]any{
 		"from":    m.From,
 		"to":      []string{message.To},
 		"subject": message.Subject,
 		"text":    message.Body,
-	})
+	}
+	if len(message.Attachments) > 0 {
+		email["attachments"] = message.Attachments
+	}
+	body, err := json.Marshal(email)
 	if err != nil {
 		return err
 	}

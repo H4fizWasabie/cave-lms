@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -19,6 +20,12 @@ import (
 // newTestApplication returns the app, its recording Mailer, a handle on its isolated schema
 // and the temp directory that holds its uploaded files. opts may change the config first.
 func newTestApplication(t *testing.T, opts ...func(*config.Config)) (*app.App, *testutil.RecordingMailer, *sql.DB, string) {
+	t.Helper()
+	return newTestApplicationWith(t, &testutil.FakeWriter{}, opts...)
+}
+
+// newTestApplicationWith is newTestApplication with writer as the AI writer.
+func newTestApplicationWith(t *testing.T, writer aiwriter.Writer, opts ...func(*config.Config)) (*app.App, *testutil.RecordingMailer, *sql.DB, string) {
 	t.Helper()
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -82,7 +89,7 @@ func newTestApplication(t *testing.T, opts ...func(*config.Config)) (*app.App, *
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	application, err = app.New(context.Background(), cfg, recorder)
+	application, err = app.New(context.Background(), cfg, recorder, writer)
 	if err != nil {
 		t.Fatal(err)
 	}
