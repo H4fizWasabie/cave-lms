@@ -198,7 +198,7 @@ func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE learner_id = $1 ORDER BY issued_at, id`, learner.ID)
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE learner_id = $1 ORDER BY issued_at, year, number`, learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return

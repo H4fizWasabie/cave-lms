@@ -44,7 +44,7 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
 		WHERE $1 = '' OR id = $1 OR strpos(lower(learner_name), lower($1)) > 0
-		ORDER BY issued_at DESC, id`, q)
+		ORDER BY issued_at DESC, year DESC, number DESC`, q)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
