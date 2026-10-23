@@ -1,5 +1,7 @@
 package app
 
+// An internal test: the sweep needs explicit times, which aren't reachable over HTTP.
+
 import (
 	"testing"
 	"time"

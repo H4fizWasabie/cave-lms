@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -205,10 +206,12 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 
 // deploymentCSP sandboxes a Deployment's page (ADR 0007) and keeps it to Cave's own scripts and data, unframed.
 // The sandbox gives the page an opaque origin, where some browsers match nothing to 'self', so Cave's address
-// is named too; that match is by URL alone.
+// is named too, by its origin alone, as a source with a path would match only that exact path.
 func (a *App) deploymentCSP() string {
-	return "sandbox allow-scripts; default-src 'none'; script-src 'self' " + a.publicBaseURL + " 'unsafe-inline'; " +
-		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' " + a.publicBaseURL + "; frame-ancestors 'none'"
+	u, _ := url.Parse(a.publicBaseURL) // config.Load has checked it
+	origin := u.Scheme + "://" + u.Host
+	return "sandbox allow-scripts; default-src 'none'; script-src 'self' " + origin + " 'unsafe-inline'; " +
+		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' " + origin + "; frame-ancestors 'none'"
 }
 
 // deploymentFile serves a Deployment's files at /<prefix>/<name>/ to anyone while it is awake. The page is

@@ -49,7 +49,7 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	// ponytail: expired token rows are never deleted, as with sessions.
+	// ponytail: expired token rows are never deleted; add a prune if the table grows.
 	if _, err := a.db.ExecContext(r.Context(), `
 		INSERT INTO cavetext_tokens (token_hash, learner_id, expires_at) VALUES ($1, $2, now() + $3::interval)`,
 		hashToken(token), learner.ID, caveTextTokenLifetime); err != nil {

@@ -2,7 +2,7 @@ package app
 
 import "net/http"
 
-// routeMux is a ServeMux that records each pattern it registers, so a test can walk every route.
+// routeMux is a ServeMux that records each pattern it registers, so the admin-route test can walk every route.
 type routeMux struct {
 	*http.ServeMux
 	patterns *[]string

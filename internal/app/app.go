@@ -57,7 +57,7 @@ type App struct {
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
-	routes    []string // every registered pattern, for tests
+	routes    []string // every registered pattern, so the admin-route test can walk them
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.

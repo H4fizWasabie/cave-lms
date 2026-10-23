@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"time"
 
 	"context"
@@ -48,6 +49,21 @@ func (s *site) ageAllDeployments(days int) {
 	if _, err := s.db.ExecContext(context.Background(),
 		`UPDATE deployments SET deployed_at = deployed_at - make_interval(days => $1)`, days); err != nil {
 		s.t.Fatal(err)
+	}
+}
+
+// A PUBLIC_BASE_URL with a path names only Cave's origin in the CSP, since a source with a path matches that exact path.
+func TestADeploymentsCSPNamesOnlyCavesOrigin(t *testing.T) {
+	_, ada := labLearner(t, func(c *config.Config) { c.PublicBaseURL = "https://cave.example.invalid:8443/lms/" })
+	path := ada.readyDashboard("Kewangan")
+	res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-ada"}, "right": {"yes"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	res, _ = ada.second().get("/d/kedai-ada/")
+	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid:8443 'unsafe-inline'; " +
+		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' https://cave.example.invalid:8443; frame-ancestors 'none'"
+	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
+		t.Fatalf("Dashboard page CSP = %q", csp)
 	}
 }
 

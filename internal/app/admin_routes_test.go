@@ -16,6 +16,9 @@ var ownerRoutes = map[string]bool{
 
 var wildcard = regexp.MustCompile(`\{[^}]*\}`)
 
+// minAdminRoutes is about the count of /admin routes today, so a recording that silently drops routes fails the walk.
+const minAdminRoutes = 80
+
 // Every registered /admin route refuses a Visitor and a Learner, so a route added without its guard fails here.
 func TestEveryAdminRouteRefusesNonAdmins(t *testing.T) {
 	s := ownerSite(t)
@@ -56,7 +59,7 @@ func TestEveryAdminRouteRefusesNonAdmins(t *testing.T) {
 			t.Errorf("%s: Learner got %d, want 403", route, res.StatusCode)
 		}
 	}
-	if seen < 80 {
+	if seen < minAdminRoutes {
 		t.Fatalf("walked %d /admin routes, want every registered one", seen)
 	}
 }
