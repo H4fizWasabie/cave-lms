@@ -88,7 +88,10 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	visitor := ada.second() // no session
 	res, page := visitor.get(link)
 	expectStatus(t, res, page, http.StatusOK, `fetch("data/dataset-`)
-	if csp := res.Header.Get("Content-Security-Policy"); csp != "sandbox allow-scripts" {
+	// Sandboxed to an opaque origin, where some browsers match nothing to 'self', so Cave's address is named too.
+	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid 'unsafe-inline'; " +
+		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' https://cave.example.invalid; frame-ancestors 'none'"
+	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
 		t.Fatalf("Dashboard page CSP = %q", csp)
 	}
 	res, data := visitor.get(link + visitor.dataOf(link))

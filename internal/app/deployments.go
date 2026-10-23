@@ -203,6 +203,14 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	http.Redirect(w, r, dashboardURL(d)+"/deploy", http.StatusSeeOther)
 }
 
+// deploymentCSP sandboxes a Deployment's page (ADR 0007) and keeps it to Cave's own scripts and data, unframed.
+// The sandbox gives the page an opaque origin, where some browsers match nothing to 'self', so Cave's address
+// is named too; that match is by URL alone.
+func (a *App) deploymentCSP() string {
+	return "sandbox allow-scripts; default-src 'none'; script-src 'self' " + a.publicBaseURL + " 'unsafe-inline'; " +
+		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' " + a.publicBaseURL + "; frame-ancestors 'none'"
+}
+
 // deploymentFile serves a Deployment's files at /<prefix>/<name>/ to anyone while it is awake. The page is
 // sandboxed (ADR 0007), so its null origin needs CORS to load its data. Asleep or taken down: an
 // inactive page; deleted Dashboard or unknown name: not found.
@@ -221,7 +229,7 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 			}
 			// Five minutes, not for good: a Deployment that sleeps or is taken down must stop showing its data soon.
-			a.serveDashboardFile(w, r, d, name, "sandbox allow-scripts", "public, max-age=300")
+			a.serveDashboardFile(w, r, d, name, a.deploymentCSP(), "public, max-age=300")
 			return
 		}
 		var takenDown bool
