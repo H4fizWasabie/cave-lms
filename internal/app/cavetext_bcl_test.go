@@ -19,14 +19,14 @@ const (
 )
 
 // bclSite is a CaveText site that takes BCL webhooks at /cavetext/bcl/<bclKey>, logged in as the Owner, with the
-// CaveText Pro payment link set to proFormURL.
-func bclSite(t *testing.T) *site {
+// CaveText Pro payment link set to proFormURL. opts may change the config further.
+func bclSite(t *testing.T, opts ...func(*config.Config)) *site {
 	t.Helper()
-	s := newSite(t, func(c *config.Config) {
+	s := newSite(t, append([]func(*config.Config){func(c *config.Config) {
 		c.OwnerEmail = ownerEmail
 		c.CaveTextExtensionIDs = []string{extensionID}
 		c.BCLWebhookKey = bclKey
-	})
+	}}, opts...)...)
 	s.loginAsNewAdmin("Abah", ownerEmail, "correct horse battery")
 	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -111,6 +111,23 @@ func TestPayingOnTheProFormGivesTheLearnerAYearOfProAtOnce(t *testing.T) {
 	if !strings.Contains(body, "LINK-1") {
 		t.Errorf("the System log does not mention order LINK-1:\n%s", body)
 	}
+}
+
+// Staging counts BCL Test Mode orders and ignores live ones, so the TEST forms can be tried end to end (ADR 0010).
+func TestWithTestPaymentsATestModeOrderGivesProAndALiveOneDoesNot(t *testing.T) {
+	s := bclSite(t, func(c *config.Config) { c.BCLTestPayments = true })
+	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
+	test := paid("LINK-1", "ada@example.com")
+	test.kind = "test"
+	s.bclPay(test)
+	s.bclPay(paid("LINK-2", "bea@example.com"))
+	expectProForAYear(t, ada, adaToken)
+	if me := bea.me(beaToken); me.Pro {
+		t.Fatalf("me = %+v after a live order on a site that counts only Test Mode, want free", me)
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-2 is a live payment", "nothing given")
 }
 
 func TestTheSameOrderSentTwiceGivesOneYear(t *testing.T) {

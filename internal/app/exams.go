@@ -189,26 +189,31 @@ func (a *App) insertQuestion(ctx context.Context, e exam, q examQuestion, topic 
 	if err != nil {
 		return err
 	}
+	if err := insertBankedQuestion(ctx, tx, examID, e.Format, topic, "ms", q); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// insertBankedQuestion adds q to the Question bank under topic and lang, and a copy of it at the end of the Exam.
+func insertBankedQuestion(ctx context.Context, tx *sql.Tx, examID int64, format, topic, lang string, q examQuestion) error {
 	var bankID int64
 	if err := tx.QueryRowContext(ctx, `INSERT INTO bank_questions (format, topic, language, prompt, is_draft)
-		VALUES ($1, $2, 'ms', $3, $4) RETURNING id`, e.Format, topic, q.Prompt, q.Draft).Scan(&bankID); err != nil {
+		VALUES ($1, $2, $3, $4, $5) RETURNING id`, format, topic, lang, q.Prompt, q.Draft).Scan(&bankID); err != nil {
 		return err
 	}
 	if err := insertOptions(ctx, tx, "bank_options", bankID, q.Options); err != nil {
 		return err
 	}
 	var id int64
-	err = tx.QueryRowContext(ctx, `
+	err := tx.QueryRowContext(ctx, `
 		INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id)
 		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE exam_id = $1), $2, $3, $4)
 		RETURNING id`, examID, q.Prompt, q.Draft, bankID).Scan(&id)
 	if err != nil {
 		return err
 	}
-	if err := insertOptions(ctx, tx, "exam_options", id, q.Options); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return insertOptions(ctx, tx, "exam_options", id, q.Options)
 }
 
 // saveExamRow saves the Exam with default settings if it is new and returns its id.
