@@ -103,8 +103,8 @@ const MaxUnzipped = 50 << 20
 // against the Template. A column named like one of a blank's guesses is read as that blank's
 // type; any other column's type comes from its cells. Dates may be real Excel dates,
 // day/month/year text or Excel date serial numbers; numbers may carry RM and thousands commas.
-// A file Cave cannot use gives Errors, every problem listed in row order. Only fully blank rows
-// are skipped.
+// A file Cave cannot use gives Errors, every problem listed in row order; failing to read r at all gives
+// that plain error. Only fully blank rows are skipped.
 func Read(r io.Reader, t *Template) (*Dataset, error) {
 	file, err := io.ReadAll(r)
 	if err != nil {
