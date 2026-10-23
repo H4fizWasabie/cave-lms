@@ -142,3 +142,26 @@ func TestPagesLinkTheStylesheetByAFingerprintedURL(t *testing.T) {
 		t.Fatalf("Cache-Control = %q, want immutable for a fingerprinted URL", got)
 	}
 }
+
+// The policy keeps every page to Cave's own scripts, forms and framing, so an escaping slip can't run someone
+// else's script or send a form off-site, and no other site can frame a page to trick a click.
+func TestEveryPageCarriesTheContentSecurityPolicy(t *testing.T) {
+	application, _, _, _ := newTestApplication(t)
+	const want = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+	for _, path := range []string{"/", "/no-such-page"} {
+		recorder := httptest.NewRecorder()
+		application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if got := recorder.Header().Get("Content-Security-Policy"); got != want {
+			t.Errorf("GET %s Content-Security-Policy = %q, want %q", path, got, want)
+		}
+		if body := recorder.Body.String(); strings.Contains(body, "<script>") {
+			t.Errorf("GET %s has an inline script, which the policy blocks", path)
+		}
+	}
+	// A Dashboard page writes its own inline script, so it replaces the site's policy with its own.
+	recorder := httptest.NewRecorder()
+	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/lab/demo/finance/", nil))
+	if got := recorder.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'self' 'unsafe-inline'") {
+		t.Errorf("the demo Dashboard's Content-Security-Policy = %q, want its own, allowing its inline script", got)
+	}
+}
