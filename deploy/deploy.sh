@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Builds Cave LMS, ships it to the VPS with its systemd unit and Caddy site, and restarts it.
+# Builds Cave LMS, ships it to the VPS with its systemd unit and Caddy site, restarts it and smoke-tests it (ADR 0011).
 # Run from anywhere in the repo: deploy/deploy.sh for production, CAVE_ENV=staging deploy/deploy.sh for staging.
 # First install steps are in docs/deploy.md.
 set -euo pipefail
 
 host="${CAVE_HOST:-vps}"
-case "${CAVE_ENV:-production}" in
+env="${CAVE_ENV:-production}"
+case "$env" in
 production) name=cave-lms port=8088 ;;
 staging) name=cave-lms-staging port=8089 ;;
 *)
@@ -35,6 +36,24 @@ if [ "$(gh run list --workflow ci.yml --commit "$sha" --status success --limit 1
 	exit 1
 fi
 
+# The VPS keeps the commit that last passed the smoke test on staging, and the one production runs.
+records=/var/lib/cave-lms-deploys
+backup=no
+if [ "$env" = production ]; then
+	if [ "${CAVE_SKIP_STAGING:-}" = 1 ]; then
+		echo "WARNING: CAVE_SKIP_STAGING=1: shipping $sha to production without it passing staging" >&2
+	elif [ "$(ssh "$host" cat "$records/staging-passed" 2>/dev/null)" != "$sha" ]; then
+		echo "$sha has not passed the smoke test on staging. Ship it there first: CAVE_ENV=staging deploy/deploy.sh" >&2
+		exit 1
+	fi
+	# A rollback cannot undo a migration, so back up first when this commit adds one, or production's commit is unknown.
+	running="$(ssh "$host" cat "$records/production" 2>/dev/null || true)"
+	if [ -z "$running" ] || ! git cat-file -e "$running^{commit}" 2>/dev/null ||
+		[ -n "$(git diff --name-only --diff-filter=A "$running" HEAD -- internal/app/migrations)" ]; then
+		backup=yes
+	fi
+fi
+
 build="$(mktemp -d)"
 trap 'rm -rf "$build"' EXIT
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$build/cave-lms" ./cmd/cave-lms
@@ -42,6 +61,8 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$build/cave-lms" ./cmd/cave-l
 scp -q "$build/cave-lms" "$host:/usr/local/bin/$name.new"
 scp -q "deploy/$name.service" "$host:/etc/systemd/system/$name.service"
 scp -q "deploy/$name.caddy" "$host:/etc/caddy/sites/$name.caddy.new"
+# Each site has its own copy, so a staging branch cannot change production's smoke test.
+scp -q deploy/smoke.sh "$host:/usr/local/bin/$name-smoke"
 # Backups cover production only, and a staging branch must not change them.
 if [ "$name" = cave-lms ]; then
 	scp -q deploy/backup.sh "$host:/usr/local/bin/cave-lms-backup"
@@ -49,15 +70,15 @@ if [ "$name" = cave-lms ]; then
 	scp -q deploy/cave-lms-backup.service deploy/cave-lms-backup.timer deploy/cave-lms-backup-failed.service "$host:/etc/systemd/system/"
 fi
 
-ssh "$host" bash -s -- "$name" "$port" <<'REMOTE'
+ssh "$host" bash -s -- "$env" "$name" "$port" "$sha" "$backup" "$records" <<'REMOTE'
 set -euo pipefail
-name=$1 port=$2
-chmod 755 "/usr/local/bin/$name.new"
-mv "/usr/local/bin/$name.new" "/usr/local/bin/$name"
+env=$1 name=$2 port=$3 sha=$4 backup=$5 records=$6
+bin="/usr/local/bin/$name"
+chmod 755 "$bin.new" "$bin-smoke"
+install -d -m 755 "$records"
 systemctl daemon-reload
-systemctl enable --quiet "$name"
-systemctl restart "$name"
 
+# Everything that can fail goes before the binary swap, so a failure leaves the running site as it was.
 if [ "$name" = cave-lms ]; then
 	# Backups need restic and the R2 settings in /etc/cave-lms/backup.env (docs/deploy.md, Backups).
 	chmod 755 /usr/local/bin/cave-lms-backup /usr/local/bin/cave-lms-backup-failed
@@ -84,14 +105,44 @@ else
 	rm "$site.new"
 fi
 
-# Migrations run before the app listens, so give it a few seconds.
-for _ in $(seq 1 15); do
-	if curl -fs -o /dev/null "http://127.0.0.1:$port/"; then
-		echo "$name is up"
-		exit 0
+if [ "$backup" = yes ]; then
+	if [ -f /etc/cave-lms/backup.env ]; then
+		echo "the commit may add a migration: backing up first"
+		systemctl start cave-lms-backup
+	else
+		echo "the commit may add a migration, but backups are not set up: no backup taken" >&2
 	fi
-	sleep 1
-done
-echo "$name did not answer on 127.0.0.1:$port; see: journalctl -u $name -n 50" >&2
+fi
+
+# The previous binary stays as .prev, for the rollback below.
+[ -f "$bin" ] && cp "$bin" "$bin.prev"
+mv "$bin.new" "$bin"
+systemctl enable --quiet "$name"
+systemctl restart "$name"
+
+# Migrations run before the app listens, so give it a few seconds; then the smoke test must pass.
+up_and_smoke_tested() {
+	for _ in $(seq 1 15); do
+		if curl -fs -o /dev/null "http://127.0.0.1:$port/"; then
+			"$bin-smoke" "$env"
+			return
+		fi
+		sleep 1
+	done
+	echo "$name did not answer on 127.0.0.1:$port; see: journalctl -u $name -n 50" >&2
+	return 1
+}
+if up_and_smoke_tested; then
+	if [ "$env" = staging ]; then echo "$sha" >"$records/staging-passed"; else echo "$sha" >"$records/production"; fi
+	echo "$name is up and passed the smoke test"
+	exit 0
+fi
+# Staging stays broken to be looked at; production goes back to the previous binary.
+if [ "$env" = production ] && [ -f "$bin.prev" ]; then
+	echo "rolling production back to the previous binary" >&2
+	mv "$bin.prev" "$bin"
+	systemctl restart "$name"
+	up_and_smoke_tested || echo "the previous binary fails the smoke test too" >&2
+fi
 exit 1
 REMOTE
