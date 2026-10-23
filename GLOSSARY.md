@@ -60,7 +60,7 @@ _Avoid_: Certificate ID (that is the unguessable ID in its link), serial
 
 **IC**:
 A Learner's MyKad number or, without a MyKad, passport number, printed on their Certificates. A 12-digit MyKad is shown as `YYMMDD-PB-####`. The Learner sets it once; only the Admin can change it.
-_Malay_: IC (kept in English)
+_Malay_: No. KP
 _Avoid_: NRIC, ID number
 
 **Enrollment**:

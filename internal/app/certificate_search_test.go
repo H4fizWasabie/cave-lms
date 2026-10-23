@@ -115,7 +115,7 @@ func TestTheSearchIsInMalay(t *testing.T) {
 	_, ada, _, _ := passedLiveCourse(t)
 	res, body := searchAsking(ada, "951206085555", "ms")
 	expectStatus(t, res, body, http.StatusOK, "No. KP atau pasport 951206-08-****")
-	expectAll(t, body, "Atau cari dengan No. KP atau pasport penuh", "Status: Sah")
+	expectAll(t, body, "Atau cari dengan No. KP atau pasport penuh", "Status: Sah", `alt="Lencana PCC Foundation"`)
 	_, body = searchAsking(ada, "5555", "ms")
 	expectAll(t, body, "Tiada Sijil yang sepadan.")
 }

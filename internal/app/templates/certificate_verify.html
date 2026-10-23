@@ -27,7 +27,7 @@
           <p>{{t $.Lang "certificate.certifies"}} <strong>{{.LearnerName}}</strong></p>
           {{if and $.Query .LearnerIC}}<p class="muted">{{t $.Lang "check.ic" .MaskedIC}}</p>{{end}}
           <p>{{t $.Lang "certificate.completed"}} <strong>{{.CourseTitle}}</strong></p>
-          {{with .Level}}<p class="pcc-level"><img src="{{static $c.Badge}}" alt="PCC {{.}} badge" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
+          {{with .Level}}<p class="pcc-level"><img src="{{static $c.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
           <p class="muted">{{if $.Query}}<a href="/certificates/{{.ID}}">{{t $.Lang "certificate.number" .Number}}</a>{{else}}{{t $.Lang "certificate.number" .Number}}{{end}}</p>
           <p class="muted">{{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</p>
         </div>

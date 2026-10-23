@@ -940,6 +940,7 @@ var catalog = map[string]entry{
 	"course.closed":          {en: "This Course is closed to new joins.", ms: "Kursus ini ditutup untuk penyertaan baharu."},
 	"course.start-date":      {en: "Start date: %s", ms: "Tarikh mula: %s"},
 	"course.dates":           {en: "Dates: %s to %s", ms: "Tarikh: %s hingga %s"},
+	"course.pcc-badge":       {en: "PCC %s badge", ms: "Lencana PCC %s"},
 	"course.pcc-level":       {en: "PCC Level: %s", ms: "Tahap PCC: %s"},
 	"course.ended":           {en: "Closed: the Course has ended", ms: "Ditutup: Kursus telah tamat"},
 	"course.lessons":         {en: "Lessons", ms: "Pelajaran"},

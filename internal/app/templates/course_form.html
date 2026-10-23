@@ -5,7 +5,7 @@
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/courses">{{t .Lang "adm.courses.back"}}</a></p>
         <div class="adm-head"><h1>{{if .DuplicateOf}}{{t .Lang "adm.courses.duplicate"}}{{else if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}}</h1></div>
-        {{with .Course.Level}}<p class="pcc-level"><img src="{{static $.Course.Badge}}" alt="PCC {{.}} badge" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
+        {{with .Course.Level}}<p class="pcc-level"><img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="{{if .DuplicateOf}}/admin/courses/{{.DuplicateOf}}/duplicate{{else if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}">

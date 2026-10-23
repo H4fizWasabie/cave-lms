@@ -11,7 +11,7 @@
           <p class="lede">{{.Course.Description}}</p>
           {{if .Course.Live}}<ul class="meta"><li>{{t .Lang "course.dates" (.Course.StartOn .Lang) (.Course.EndOn .Lang)}}</li></ul>
           {{else}}{{with .Course.StartOn .Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}{{end}}
-          {{with .Course.Level}}<p class="pcc-level"><img src="{{static $.Course.Badge}}" alt="PCC {{.}} badge" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
+          {{with .Course.Level}}<p class="pcc-level"><img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
         </div>
       </div>
     </section>
