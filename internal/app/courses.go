@@ -24,6 +24,7 @@ type course struct {
 	Open        bool // the Admin's open or closed to new joins
 	Published   bool // false for a Draft, which only the Admin sees
 	Ended       bool // a Live Course past the end of its end date, Malaysia time
+	Upcoming    bool // before the start of its start date, Malaysia time
 }
 
 // Live reports whether the Course is a Live Course.
@@ -288,6 +289,9 @@ func (a *App) scanCourse(row interface{ Scan(...any) error }) (course, error) {
 	err := row.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.EndDate, &c.Days, &c.Open, &c.Published)
 	if end, perr := time.ParseInLocation(time.DateOnly, c.EndDate, malaysia); perr == nil {
 		c.Ended = !a.now().Before(end.AddDate(0, 0, 1))
+	}
+	if start, perr := time.ParseInLocation(time.DateOnly, c.StartDate, malaysia); perr == nil {
+		c.Upcoming = a.now().Before(start)
 	}
 	return c, err
 }
