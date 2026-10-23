@@ -17,15 +17,16 @@ var (
 // Request is everything the AI is told: nothing about a Course or a Learner.
 type Request struct {
 	Topic    string
-	Format   string // "multiple-choice"
+	Format   string // "multiple-choice" or "written"
 	Language string // "ms" or "en"
 	Count    int
 }
 
-// Question is one question the AI wrote.
+// Question is one question the AI wrote: a Multiple-choice one has Options, a Written one a ModelAnswer.
 type Question struct {
-	Prompt  string   `json:"prompt"`
-	Options []Option `json:"options"`
+	Prompt      string   `json:"prompt"`
+	Options     []Option `json:"options,omitempty"`
+	ModelAnswer string   `json:"model_answer,omitempty"`
 }
 
 type Option struct {
@@ -68,13 +69,19 @@ func Questions(ctx context.Context, w Writer, r Request) ([]Question, error) {
 	return nil, err
 }
 
-// wellShaped reports whether qs are r.Count Multiple-choice questions, each with a prompt and 2 to 5 options with
-// text, exactly one of them correct.
+// wellShaped reports whether qs are r.Count questions in r's format, each with a prompt and, when Written, a model
+// answer and no options, or else 2 to 5 options with text, exactly one of them correct.
 func wellShaped(r Request, qs []Question) bool {
 	if len(qs) != r.Count {
 		return false
 	}
 	for _, q := range qs {
+		if r.Format == "written" {
+			if strings.TrimSpace(q.Prompt) == "" || strings.TrimSpace(q.ModelAnswer) == "" || len(q.Options) > 0 {
+				return false
+			}
+			continue
+		}
 		correct := 0
 		for _, o := range q.Options {
 			if strings.TrimSpace(o.Text) == "" {

@@ -33,7 +33,8 @@ var openRouterClient = &http.Client{Timeout: 60 * time.Second}
 
 var languageNames = map[string]string{"ms": "Malay", "en": "English"}
 
-// questionsSchema is the reply's JSON schema. Counts are checked after, as strict schemas cannot hold them.
+// questionsSchema is the reply's JSON schema for Multiple-choice questions. Counts are checked after, as strict
+// schemas cannot hold them.
 var questionsSchema = json.RawMessage(`{
 	"type": "object",
 	"properties": {"questions": {"type": "array", "items": {
@@ -47,7 +48,20 @@ var questionsSchema = json.RawMessage(`{
 		"required": ["prompt", "options"], "additionalProperties": false}}},
 	"required": ["questions"], "additionalProperties": false}`)
 
+// writtenSchema is the reply's JSON schema for Written questions.
+var writtenSchema = json.RawMessage(`{
+	"type": "object",
+	"properties": {"questions": {"type": "array", "items": {
+		"type": "object",
+		"properties": {"prompt": {"type": "string"}, "model_answer": {"type": "string"}},
+		"required": ["prompt", "model_answer"], "additionalProperties": false}}},
+	"required": ["questions"], "additionalProperties": false}`)
+
 func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, error) {
+	schema := questionsSchema
+	if r.Format == "written" {
+		schema = writtenSchema
+	}
 	req := map[string]any{
 		"model":      o.Model,
 		"max_tokens": maxReplyTokens,
@@ -55,7 +69,7 @@ func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, 
 			{"role": "system", "content": writeQuestionsInstructions},
 			{"role": "user", "content": fmt.Sprintf("Topic: %s\nFormat: %s\nLanguage: %s\nCount: %d", r.Topic, r.Format, languageNames[r.Language], r.Count)},
 		},
-		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "questions", "strict": true, "schema": questionsSchema}},
+		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "questions", "strict": true, "schema": schema}},
 	}
 	if o.WebSearch {
 		req["plugins"] = []map[string]string{{"id": "web"}}
