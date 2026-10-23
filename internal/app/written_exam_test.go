@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 )
 
 // writtenExam is the address of a Course's Written Exam Admin page.
@@ -167,8 +169,9 @@ func writtenAttemptID(attempt string) string {
 	return attemptID(strings.TrimSuffix(attempt, "?format=written"))
 }
 
-func TestAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnswer(t *testing.T) {
+func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnswer(t *testing.T) {
 	s := newSite(t)
+	s.ai.FailMarks(aiwriter.ErrUnavailable)
 	id := s.writtenCourse("70", "Explain :=", "Explain go vet")
 	s.switchLanguage("en", "/") // saved on Ada's account
 	attempt, qids := s.sitWritten(id, "My own words")

@@ -16,8 +16,14 @@ const openRouterEndpoint = "https://openrouter.ai/api/v1/chat/completions"
 // maxReplyTokens caps one reply: about 50 Multiple-choice questions, the most one request asks for.
 const maxReplyTokens = 16000
 
+// maxMarkTokens caps one mark's reply: a number and a one-line reason, with room for a model that reasons first.
+const maxMarkTokens = 2000
+
 //go:embed write_questions.txt
 var writeQuestionsInstructions string
+
+//go:embed mark_answer.txt
+var markAnswerInstructions string
 
 // OpenRouter writes through OpenRouter's chat API (https://openrouter.ai/docs/api-reference/chat-completion), with
 // structured JSON output and no tools.
@@ -60,6 +66,39 @@ func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, 
 	if o.WebSearch {
 		req["plugins"] = []map[string]string{{"id": "web"}}
 	}
+	var out struct {
+		Questions []Question `json:"questions"`
+	}
+	if err := o.chat(ctx, req, &out); err != nil {
+		return nil, err
+	}
+	return out.Questions, nil
+}
+
+// markSchema is a mark's JSON schema. The range is checked after, as strict schemas cannot hold it.
+var markSchema = json.RawMessage(`{
+	"type": "object",
+	"properties": {"mark": {"type": "integer"}, "reason": {"type": "string"}},
+	"required": ["mark", "reason"], "additionalProperties": false}`)
+
+// MarkAnswer marks without web search: the model answer is what the answer is marked against.
+func (o OpenRouter) MarkAnswer(ctx context.Context, r MarkRequest) (Marking, error) {
+	req := map[string]any{
+		"model":      o.Model,
+		"max_tokens": maxMarkTokens,
+		"messages": []map[string]string{
+			{"role": "system", "content": markAnswerInstructions},
+			{"role": "user", "content": fmt.Sprintf("Question: %s\nModel answer: %s\nAnswer: %s", r.Question, r.ModelAnswer, r.Answer)},
+		},
+		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "mark", "strict": true, "schema": markSchema}},
+	}
+	var m Marking
+	err := o.chat(ctx, req, &m)
+	return m, err
+}
+
+// chat sends req and decodes the first reply's JSON content into v. Content that is not v's JSON is ErrBadShape.
+func (o OpenRouter) chat(ctx context.Context, req map[string]any, v any) error {
 	var reply struct {
 		Choices []struct {
 			Message struct {
@@ -68,15 +107,12 @@ func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, 
 		} `json:"choices"`
 	}
 	if err := o.post(ctx, req, &reply); err != nil {
-		return nil, err
+		return err
 	}
-	var out struct {
-		Questions []Question `json:"questions"`
+	if len(reply.Choices) == 0 || json.Unmarshal([]byte(reply.Choices[0].Message.Content), v) != nil {
+		return ErrBadShape
 	}
-	if len(reply.Choices) == 0 || json.Unmarshal([]byte(reply.Choices[0].Message.Content), &out) != nil {
-		return nil, ErrBadShape
-	}
-	return out.Questions, nil
+	return nil
 }
 
 // post sends body and decodes the reply into v. A refused key is ErrNotConfigured, no credits or a spent key

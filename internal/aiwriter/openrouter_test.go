@@ -95,3 +95,62 @@ func TestOpenRouterTellsAFailureFromAnUnreadableReply(t *testing.T) {
 		}
 	}
 }
+
+var markExplain = MarkRequest{Question: "Explain :=", ModelAnswer: "It declares and assigns.", Answer: "It makes a variable."}
+
+func TestOpenRouterMarksAnAnswerSendingOnlyTheQuestionModelAnswerAndAnswer(t *testing.T) {
+	var body struct {
+		MaxTokens int                 `json:"max_tokens"`
+		Messages  []map[string]string `json:"messages"`
+		Format    struct {
+			Type string `json:"type"`
+		} `json:"response_format"`
+		Plugins any `json:"plugins"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"mark\":7,\"reason\":\"Right idea, misses the assignment.\"}"}}]}`))
+	}))
+	defer server.Close()
+
+	got, err := OpenRouter{APIKey: "sk-or-test", Model: "m", WebSearch: true, Endpoint: server.URL}.MarkAnswer(context.Background(), markExplain)
+	if err != nil || got != (Marking{Mark: 7, Reason: "Right idea, misses the assignment."}) {
+		t.Fatalf("MarkAnswer() = %#v, %v", got, err)
+	}
+	if body.MaxTokens != maxMarkTokens || body.Format.Type != "json_schema" || body.Plugins != nil {
+		t.Fatalf("body = %#v, want a capped structured reply and no web search", body)
+	}
+	if len(body.Messages) != 2 || body.Messages[0]["content"] != markAnswerInstructions || !strings.Contains(markAnswerInstructions, "0 to 10") ||
+		body.Messages[1]["content"] != "Question: Explain :=\nModel answer: It declares and assigns.\nAnswer: It makes a variable." {
+		t.Fatalf("messages = %q", body.Messages)
+	}
+}
+
+func TestMarkAsksOnceMoreWhenTheMarkIsTheWrongShape(t *testing.T) {
+	for _, c := range []struct {
+		replies []string
+		want    Marking
+		err     error
+	}{
+		{[]string{`{"mark":11,"reason":"x"}`, `{"mark":10,"reason":"Full marks."}`}, Marking{Mark: 10, Reason: "Full marks."}, nil},
+		{[]string{`{"mark":7.5,"reason":"x"}`, `{"mark":-1,"reason":"x"}`}, Marking{}, ErrBadShape},
+		{[]string{`{"mark":5,"reason":" "}`, `{"mark":5}`}, Marking{}, ErrBadShape},
+	} {
+		calls := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			content, _ := json.Marshal(c.replies[calls])
+			calls++
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":` + string(content) + `}}]}`))
+		}))
+		got, err := Mark(context.Background(), OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: server.URL}, markExplain)
+		server.Close()
+		if got != c.want || !errors.Is(err, c.err) || calls != 2 {
+			t.Errorf("%v: Mark() = %#v, %v after %d calls, want %#v, %v after 2", c.replies, got, err, calls, c.want, c.err)
+		}
+	}
+	if _, err := New("", "", false).MarkAnswer(context.Background(), markExplain); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("unconfigured MarkAnswer() error = %v", err)
+	}
+}

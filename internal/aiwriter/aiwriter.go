@@ -1,4 +1,5 @@
-// Package aiwriter asks an AI to write Exam questions. Only the topic, format, language and count go out.
+// Package aiwriter asks an AI to write Exam questions and mark Written answers. Only the topic, format, language and
+// count go out for questions, and only the question, model answer and answer for a mark.
 package aiwriter
 
 import (
@@ -33,15 +34,51 @@ type Option struct {
 	Correct bool   `json:"correct"`
 }
 
+// MarkRequest is everything the AI is told to mark a Written answer: nothing about the Learner (ADR 0009).
+type MarkRequest struct {
+	Question, ModelAnswer, Answer string
+}
+
+// Marking is the AI's mark for a Written answer, 0 to MaxMark, with a one-line reason.
+type Marking struct {
+	Mark   int    `json:"mark"`
+	Reason string `json:"reason"`
+}
+
+// MaxMark is what a Written answer is marked out of.
+const MaxMark = 10
+
 type Writer interface {
 	// WriteQuestions writes r.Count questions. A reply that cannot be read is ErrBadShape.
 	WriteQuestions(context.Context, Request) ([]Question, error)
+	// MarkAnswer marks r's answer against its model answer. A reply that cannot be read is ErrBadShape.
+	MarkAnswer(context.Context, MarkRequest) (Marking, error)
 }
 
 type Unconfigured struct{}
 
 func (Unconfigured) WriteQuestions(context.Context, Request) ([]Question, error) {
 	return nil, ErrNotConfigured
+}
+
+func (Unconfigured) MarkAnswer(context.Context, MarkRequest) (Marking, error) {
+	return Marking{}, ErrNotConfigured
+}
+
+// Mark asks w to mark r, asking once more when the mark is not a whole number 0 to MaxMark with a reason. A second
+// wrong shape is ErrBadShape.
+func Mark(ctx context.Context, w Writer, r MarkRequest) (Marking, error) {
+	var err error
+	for range 2 {
+		var m Marking
+		if m, err = w.MarkAnswer(ctx, r); err == nil && (m.Mark < 0 || m.Mark > MaxMark || strings.TrimSpace(m.Reason) == "") {
+			err = ErrBadShape
+		}
+		if !errors.Is(err, ErrBadShape) {
+			return m, err
+		}
+	}
+	return Marking{}, err
 }
 
 // New is the OpenRouter writer, or Unconfigured when the key or model is unset.

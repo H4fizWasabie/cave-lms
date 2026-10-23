@@ -33,6 +33,7 @@ type attemptQuestion struct {
 	ModelAnswer string `json:",omitempty"`
 	Answer      string `json:",omitempty"`
 	Mark        *int   `json:",omitempty"`
+	Reason      string `json:",omitempty"` // the AI's one-line reason for Mark, empty once an Admin sets it
 }
 
 // Marked reports whether the Written question has a mark.

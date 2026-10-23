@@ -391,6 +391,8 @@ var catalog = map[string]entry{
 	"results.save-marks":      {en: "Save marks", ms: "Simpan markah"},
 	"results.err.mark":        {en: "Enter each mark as a whole number from 0 to %d.", ms: "Masukkan setiap markah sebagai nombor bulat dari 0 hingga %d."},
 	"results.marked-by.auto":  {en: "Automatic", ms: "Automatik"},
+	"results.marked-by.ai":    {en: "AI", ms: "AI"},
+	"results.reason":          {en: "Reason", ms: "Sebab"},
 	"results.passed":          {en: "Passed", ms: "Lulus"},
 	"results.failed":          {en: "Failed", ms: "Gagal"},
 	"results.waiting":         {en: "Waiting for release", ms: "Menunggu dikeluarkan"},
@@ -1016,6 +1018,7 @@ var catalog = map[string]entry{
 	"answer-sheet.no-answer":      {en: "No answer", ms: "Tiada jawapan"},
 	"answer-sheet.model-answer":   {en: "Model answer: %s", ms: "Jawapan contoh: %s"},
 	"answer-sheet.mark":           {en: "Mark: %d / %d", ms: "Markah: %d / %d"},
+	"answer-sheet.reason":         {en: "Reason: %s", ms: "Sebab: %s"},
 	"answer-sheet.correct-answer": {en: "Correct answer: %s", ms: "Jawapan betul: %s"},
 
 	"my-certificates.title":       {en: "My Certificates", ms: "Sijil Saya"},

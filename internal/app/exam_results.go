@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -71,9 +73,91 @@ type dueResult struct {
 	released, passed              bool
 }
 
-// releaseResults releases every Result submitted at least 10 minutes ago and fully marked, an attempt left open past
-// its time limit included. It reads only the database, so a restart loses nothing.
+// unmarkedSQL holds for a submitted attempt not yet released with a Written answer still waiting for its mark.
+var unmarkedSQL = `released_at IS NULL AND ` + submittedAtSQL + ` IS NOT NULL
+	AND EXISTS (SELECT 1 FROM jsonb_array_elements(questions) q WHERE q->>'Answer' <> '' AND q->'Mark' IS NULL)`
+
+// markRetrySQL is how long after the AI was asked to mark an attempt it is asked again.
+const markRetrySQL = "interval '5 minutes'"
+
+// logLateMarking writes a System log line, once, for each attempt still unmarked an hour after its release time.
+func (a *App) logLateMarking(ctx context.Context) error {
+	rows, err := a.db.QueryContext(ctx, `UPDATE exam_attempts SET marking_late_logged = true
+		WHERE NOT marking_late_logged AND `+unmarkedSQL+` AND `+submittedAtSQL+` <= now() - `+resultDelaySQL+` - interval '1 hour'
+		RETURNING id`)
+	if err != nil {
+		return err
+	}
+	var late []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		late = append(late, id)
+	}
+	rows.Close()
+	for _, id := range late {
+		a.logError(nil, fmt.Errorf("attempt %d still has unmarked Written answers an hour after its release time; mark them on /admin/results/%d", id, id))
+	}
+	return rows.Err()
+}
+
+// markWritten asks the AI writer to mark, one by one, each unmarked Written answer of every attempt it has not been
+// asked about in the last 5 minutes, and saves each mark as it comes. Only the question, model answer and answer go
+// out (ADR 0009). A mark that fails is left for a later run; when the AI service fails, the run stops, so a service
+// that is down costs one call a run.
+func (a *App) markWritten(ctx context.Context) {
+	if err := a.logLateMarking(ctx); err != nil {
+		a.logError(nil, fmt.Errorf("find Written attempts unmarked an hour after release: %w", err))
+	}
+	due, err := a.queryDue(ctx, unmarkedSQL+` AND (marking_tried_at IS NULL OR marking_tried_at <= now() - `+markRetrySQL+`)`)
+	if err != nil {
+		a.logError(nil, fmt.Errorf("find Written answers to mark: %w", err))
+		return
+	}
+	for _, d := range due {
+		if _, err := a.db.ExecContext(ctx, `UPDATE exam_attempts SET marking_tried_at = now() WHERE id = $1`, d.attemptID); err != nil {
+			a.logError(nil, fmt.Errorf("note marking attempt %d: %w", d.attemptID, err))
+			return
+		}
+		for i, q := range d.questions {
+			if q.Mark != nil || q.Answer == "" {
+				continue
+			}
+			m, err := aiwriter.Mark(ctx, a.writer, aiwriter.MarkRequest{Question: q.Prompt, ModelAnswer: q.ModelAnswer, Answer: q.Answer})
+			if errors.Is(err, aiwriter.ErrBadShape) {
+				continue
+			}
+			if err != nil {
+				return
+			}
+			if err := a.saveAIMark(ctx, d.attemptID, i, m); err != nil {
+				a.logError(nil, fmt.Errorf("save the AI's mark on attempt %d: %w", d.attemptID, err))
+			}
+		}
+	}
+}
+
+// saveAIMark sets the mark of the attempt's question at index i, unless it has one by now: an Admin's mark wins.
+func (a *App) saveAIMark(ctx context.Context, attemptID int64, i int, m aiwriter.Marking) error {
+	// Holding the release lock keeps this apart from an Admin saving marks read before it.
+	a.releasing.Lock()
+	defer a.releasing.Unlock()
+	_, err := a.db.ExecContext(ctx, `UPDATE exam_attempts
+		SET questions = jsonb_set(questions, ARRAY[$2::text], questions->$2::int || jsonb_build_object('Mark', $3::int, 'Reason', $4::text))
+		WHERE id = $1 AND released_at IS NULL AND questions->$2::int->'Mark' IS NULL`, attemptID, i, m.Mark, m.Reason)
+	return err
+}
+
+// releaseResults has the AI mark Written answers waiting for a mark, then releases every Result submitted at least
+// 10 minutes ago and fully marked, an attempt left open past its time limit included. It reads only the database, so
+// a restart loses nothing.
+// ponytail: marking runs before releasing in one goroutine, so a slow AI service delays releases; mark in its own
+// goroutine if that bites.
 func (a *App) releaseResults(ctx context.Context) {
+	a.markWritten(ctx)
 	a.releasing.Lock()
 	defer a.releasing.Unlock()
 	due, err := a.dueResults(ctx)

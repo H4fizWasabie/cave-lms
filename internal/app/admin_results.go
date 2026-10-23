@@ -48,11 +48,14 @@ func (r adminResult) Status() string {
 	return "results.in-progress"
 }
 
-// MarkedBy is the catalog key naming who marked the attempt: an Admin once they set a Written mark, otherwise
-// automatically.
+// MarkedBy is the catalog key naming who marked the attempt: an Admin once they set a Written mark, otherwise the AI
+// for a Written attempt and automatically for a Multiple-choice one.
 func (r adminResult) MarkedBy() string {
-	if r.AdminMarked {
+	switch {
+	case r.AdminMarked:
 		return "results.marked-by.admin"
+	case r.Format == written:
+		return "results.marked-by.ai"
 	}
 	return "results.marked-by.auto"
 }
@@ -152,7 +155,7 @@ func (a *App) saveMarks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if q.Mark == nil || *q.Mark != n {
-			q.Mark, changed = &n, true
+			q.Mark, q.Reason, changed = &n, "", true
 		}
 	}
 	if !changed {

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
@@ -21,7 +22,7 @@ const (
 )
 
 // writtenMarks is what each Written question is worth.
-const writtenMarks = 10
+const writtenMarks = aiwriter.MaxMark
 
 // defaultDrawCount is how many questions an attempt at a new Exam of the format draws.
 func defaultDrawCount(format string) string {

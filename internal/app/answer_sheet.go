@@ -13,7 +13,7 @@ import (
 )
 
 // answerSheetPDF lays out a passed attempt's Answer sheet on portrait A4: the Learner, Course, Exam and mark, then
-// every question with the Learner's answer and the correct option, or the model answer and the mark. Its headings
+// every question with the Learner's answer and the correct option, or the model answer, the mark and the AI's reason. Its headings
 // are in lang.
 func answerSheetPDF(lang, name, courseTitle, format string, score int, questions []attemptQuestion) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
@@ -41,6 +41,9 @@ func answerSheetPDF(lang, name, courseTitle, format string, score int, questions
 			line("", 11, text.T(lang, "answer-sheet.your-answer", cmp.Or(q.Answer, answer)))
 			line("", 11, text.T(lang, "answer-sheet.model-answer", q.ModelAnswer))
 			line("", 11, text.T(lang, "answer-sheet.mark", q.MarkValue(), writtenMarks))
+			if q.Reason != "" {
+				line("", 11, text.T(lang, "answer-sheet.reason", q.Reason))
+			}
 			continue
 		}
 		if q.Chosen >= 0 {

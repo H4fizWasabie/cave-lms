@@ -27,6 +27,7 @@
             {{with $q.Answer}}<p>{{t $.Lang "results.answer"}}: {{.}}</p>{{else}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
             <p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{$q.ModelAnswer}}</p>
             <p class="card-sub">{{if $q.Marked}}{{t $.Lang "results.mark-of" $q.MarkValue 10}}{{else}}{{t $.Lang "results.not-marked"}}{{end}}</p>
+            {{with $q.Reason}}<p class="card-sub">{{t $.Lang "results.reason"}}: {{.}}</p>{{end}}
             {{if $marking}}<div class="field"><label for="mark-{{$q.ID}}">{{t $.Lang "results.mark"}} (0-10)</label><input id="mark-{{$q.ID}}" name="mark-{{$q.ID}}" type="number" min="0" max="10" step="1"{{if $q.Marked}} value="{{$q.MarkValue}}"{{end}}></div>{{end}}
             {{else}}
             {{if lt $q.Chosen 0}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
