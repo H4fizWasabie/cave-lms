@@ -1,13 +1,18 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/app"
 )
 
 const examPassword = "correct horse battery"
@@ -135,7 +140,7 @@ func TestDraftQuestionsAreNeverAsked(t *testing.T) {
 	}
 }
 
-func TestAttemptAsksEveryPublishedQuestionInAShuffledOrder(t *testing.T) {
+func TestAttemptAsksEveryPublishedQuestionWhenThereAreFewerThanTheDrawCount(t *testing.T) {
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6")
 
@@ -153,7 +158,102 @@ func TestAttemptAsksEveryPublishedQuestionInAShuffledOrder(t *testing.T) {
 	}
 }
 
-func TestSubmittedAttemptShowsScoreAndWrongQuestionsButNeverTheCorrectAnswers(t *testing.T) {
+// drawExam is examCourse with ten published questions Q1 to Q10, one Draft and a draw count of 4. It returns the
+// Course ID and the published question IDs.
+func (s *site) drawExam() (string, []string) {
+	s.t.Helper()
+	id, qids := s.examCourse("100", "", "3", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10")
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	s.saveExamDraw(id, "100", "", "3", "4")
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Draft question", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", true)
+	s.logOut()
+	s.login("ada@example.com", examPassword)
+	return id, qids
+}
+
+func TestFirstAttemptAsksTheDrawCountFromPublishedQuestionsOnly(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.drawExam()
+
+	res, _ := s.startExam(id)
+	res, body := s.get(res.Header.Get("Location"))
+	shown := attemptQuestionIDs(body)
+	if len(shown) != 4 {
+		t.Fatalf("attempt asks %d questions %v, want the draw count of 4", len(shown), shown)
+	}
+	published := strings.Join(qids, ",") + ","
+	for _, q := range shown {
+		if !strings.Contains(","+published, ","+q+",") {
+			t.Fatalf("attempt asks question %s, which is not a published question %v", q, qids)
+		}
+	}
+	if strings.Contains(body, "Draft question") {
+		t.Fatalf("attempt asks a Draft question: %s", body)
+	}
+}
+
+func TestLaterAttemptsAskTheFirstAttemptsQuestionsInTheSameOrder(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.drawExam()
+	res, _ := s.startExam(id)
+	first := res.Header.Get("Location")
+	_, body := s.get(first)
+	want := attemptQuestionIDs(body)
+	s.submitExam(first, nil)
+	s.releaseResults()
+
+	for range 2 {
+		res, _ = s.startExam(id)
+		retry := res.Header.Get("Location")
+		_, body = s.get(retry)
+		if got := attemptQuestionIDs(body); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("later attempt asks %v, want the first attempt's %v", got, want)
+		}
+		s.submitExam(retry, nil)
+		s.releaseResults()
+	}
+}
+
+func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.drawExam()
+	res, _ := s.startExam(id)
+	first := res.Header.Get("Location")
+	_, body := s.get(first)
+	drawn := attemptQuestionIDs(body)
+	s.submitExam(first, nil)
+	s.releaseResults()
+	deletedPrompt := "<legend>Q" + strconv.Itoa(slices.Index(qids, drawn[1])+1) + "</legend>"
+
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	examPath := "/admin/courses/" + id + "/exam"
+	s.saveQuestion(examPath+"/questions/"+drawn[0], "Edited prompt", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	s.post(examPath+"/questions/"+drawn[1]+"/delete", nil)
+	s.logOut()
+	s.login("ada@example.com", examPassword)
+
+	res, _ = s.startExam(id)
+	retry := res.Header.Get("Location")
+	res, body = s.get(retry)
+	expectStatus(t, res, body, http.StatusOK, "<legend>Edited prompt</legend>")
+	expectStatus(t, res, body, http.StatusOK, deletedPrompt)
+	if got := attemptQuestionIDs(body); strings.Join(got, ",") != strings.Join(drawn, ",") {
+		t.Fatalf("retry asks %v, want the first attempt's %v", got, drawn)
+	}
+
+	answers := map[string]string{}
+	for _, q := range drawn {
+		answers[q] = "0"
+	}
+	s.submitExam(retry, answers)
+	s.releaseResults()
+	res, body = s.get(retry)
+	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
+}
+
+func TestAReleasedResultShowsOnlyTheMarkAndPassOrFail(t *testing.T) {
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Right one", "Wrong one")
 	res, _ := s.startExam(id)
@@ -161,43 +261,35 @@ func TestSubmittedAttemptShowsScoreAndWrongQuestionsButNeverTheCorrectAnswers(t 
 
 	res, body := s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "1"})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.releaseResults()
 	res, body = s.get(attempt)
 	expectStatus(t, res, body, http.StatusOK, "Score: 50%")
-	expectStatus(t, res, body, http.StatusOK, "Passed")
-	expectStatus(t, res, body, http.StatusOK, "Wrong one")
-	expectStatus(t, res, body, http.StatusOK, "Your answer: Wrong answer")
-
-	wrong := body[strings.Index(body, "Wrong answers"):]
-	wrong = wrong[:strings.Index(wrong, "</ol>")]
-	if strings.Contains(wrong, "Right one") {
-		t.Fatalf("right question listed as wrong: %s", wrong)
-	}
-	if strings.Contains(body, "Right answer") {
-		t.Fatalf("result shows the correct option text: %s", body)
-	}
+	expectAll(t, body, "Passed (pass mark 50%)")
+	expectNone(t, content(body), "Right one", "Wrong one", "Right answer", "Wrong answer", "Your answer")
 }
 
 func TestTimeLimitIsEnforcedOnTheServer(t *testing.T) {
 	s := newSite(t)
 	id, qids := s.examCourse("50", "1", "", "Q1")
 
-	// Two minutes in, past the one-minute limit and its grace period: the answers are not marked.
+	// Two minutes in, past the one-minute limit and its grace period: the answers do not count.
 	res, _ := s.startExam(id)
 	late := res.Header.Get("Location")
 	s.ageAttempt(late, 120)
 	res, body := s.submitExam(late, map[string]string{qids[0]: "0"})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get(late)
-	expectStatus(t, res, body, http.StatusOK, "Time ran out. This attempt was not marked.")
-	if strings.Contains(body, "Score:") {
-		t.Fatalf("late attempt was marked: %s", body)
-	}
+	expectStatus(t, res, body, http.StatusOK, "Time ran out before your answers were sent, so none of them count.")
+	s.releaseResults()
+	res, body = s.get(late)
+	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
 
 	// 70 seconds in is inside the grace period after the one-minute limit: the answers count.
 	res, _ = s.startExam(id)
 	inGrace := res.Header.Get("Location")
 	s.ageAttempt(inGrace, 70)
-	res, body = s.submitExam(inGrace, map[string]string{qids[0]: "0"})
+	s.submitExam(inGrace, map[string]string{qids[0]: "0"})
+	s.releaseResults()
 	res, body = s.get(inGrace)
 	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
 }
@@ -209,6 +301,7 @@ func TestFailedLearnerRetakesWhileAttemptsRemainAndAttemptsAreLimited(t *testing
 	res, _ := s.startExam(id)
 	first := res.Header.Get("Location")
 	s.submitExam(first, map[string]string{qids[0]: "1"})
+	s.releaseResults()
 
 	res, body := s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Attempts left: 1")
@@ -218,6 +311,7 @@ func TestFailedLearnerRetakesWhileAttemptsRemainAndAttemptsAreLimited(t *testing
 		t.Fatalf("retake did not start a new attempt: status %d, Location %q", res.StatusCode, second)
 	}
 	s.submitExam(second, map[string]string{qids[0]: "1"})
+	s.releaseResults()
 
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Attempts left: 0")
@@ -232,6 +326,7 @@ func TestUnlimitedAttemptsWhenNoMaximumIsSet(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		res, _ := s.startExam(id)
 		s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"})
+		s.releaseResults()
 	}
 	res, body := s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Attempts left: Unlimited")
@@ -243,6 +338,7 @@ func TestPassedLearnerCannotRetakeAndSeesTheirBestScore(t *testing.T) {
 	id, qids := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(id)
 	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	s.releaseResults()
 
 	res, body := s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "You have passed this Exam.")
@@ -258,6 +354,7 @@ func TestLaterExamEditsDoNotChangePastAttempts(t *testing.T) {
 	attempt := res.Header.Get("Location")
 	s.submitExam(attempt, map[string]string{qids[0]: "1"})
 
+	// The edits land before the Result is released, and still do not change how it is marked.
 	s.logOut()
 	s.login("admin@example.com", examPassword)
 	examPath := "/admin/courses/" + id + "/exam"
@@ -267,14 +364,11 @@ func TestLaterExamEditsDoNotChangePastAttempts(t *testing.T) {
 	s.post(examPath+"/questions/"+s.examQuestionIDs(id)[1]+"/publish", nil)
 	s.logOut()
 	s.login("ada@example.com", examPassword)
+	s.releaseResults()
 
 	res, body := s.get(attempt)
 	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
 	expectStatus(t, res, body, http.StatusOK, "Failed (pass mark 50%)")
-	expectStatus(t, res, body, http.StatusOK, "Original prompt")
-	if strings.Contains(body, "Edited prompt") || strings.Contains(body, "Added later") {
-		t.Fatalf("past attempt shows later Exam edits: %s", body)
-	}
 }
 
 func TestExamIsForEnrolledLearnersAndTheirOwnAttempts(t *testing.T) {
@@ -317,6 +411,7 @@ func TestStartingAgainResumesTheOpenAttempt(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Continue your attempt")
 
 	s.submitExam(first, map[string]string{qids[0]: "1"})
+	s.releaseResults()
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "You have no attempts left.")
 }
@@ -358,4 +453,38 @@ func TestExamWithNoPublishedQuestionsRefusesAStart(t *testing.T) {
 
 	res, body := s.startExam(id)
 	expectStatus(t, res, body, http.StatusConflict, "This Exam is not ready yet.")
+}
+
+func TestTodaysExamsBecomeMultipleChoiceWithTheirSettingsQuestionsAndAttempts(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("70", "30", "3", "First question text", "Second question text")
+	res, _ := s.startExam(id)
+	attempt := res.Header.Get("Location")
+	s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "1"})
+	s.releaseResults()
+	if err := app.MigrateDownTo(context.Background(), s.db, 75); err != nil {
+		t.Fatal(err)
+	}
+	s.restart()
+
+	res, body := s.get("/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Best score: 50%")
+	expectStatus(t, res, body, http.StatusOK, "Attempts left: 2")
+	res, body = s.get(attempt)
+	expectStatus(t, res, body, http.StatusOK, "Score: 50%")
+	var format string
+	if err := s.db.QueryRow(`SELECT format FROM exams WHERE course_id = $1`, id).Scan(&format); err != nil || format != "multiple-choice" {
+		t.Fatalf("the Exam's format is %q (%v), want multiple-choice", format, err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO exams (course_id, format) VALUES ($1, 'multiple-choice')`, id); err == nil {
+		t.Fatal("a Course took a second Multiple-choice Exam")
+	}
+
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	res, body = s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Pass mark: 70%")
+	expectStatus(t, res, body, http.StatusOK, "Time limit: 30 minutes")
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 3")
+	expectInOrder(t, body, "First question text", "Second question text")
 }

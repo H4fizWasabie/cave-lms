@@ -8,9 +8,16 @@ import (
 var ErrNotConfigured = errors.New("email sending is not configured")
 
 type Message struct {
-	To      string
-	Subject string
-	Body    string
+	To          string
+	Subject     string
+	Body        string
+	Attachments []Attachment
+}
+
+// Attachment is a file sent with a Message. Its JSON is Resend's: Content goes as base64.
+type Attachment struct {
+	Filename string `json:"filename"`
+	Content  []byte `json:"content"`
 }
 
 type Mailer interface {

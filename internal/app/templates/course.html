@@ -43,6 +43,7 @@
             <p class="panel-big">{{t .Lang "course.done-of" .Done .Total}}</p>
             <p class="panel-msg">{{t .Lang "course.progress" .Done .Total}}</p>
             <a class="btn btn-solid btn-block" href="/courses/{{.Course.ID}}/exam">{{t .Lang "exam.name"}}</a>
+            {{with .WrittenExam}}<a class="btn btn-solid btn-block" href="{{.Path ""}}">{{t $.Lang "adm.exam.written"}}</a>{{end}}
             <form method="post" action="/courses/{{.Course.ID}}/leave"><button class="btn btn-quiet btn-block">{{t .Lang "course.leave"}}</button></form>
             {{else if .Course.Open}}
             <p class="panel-msg">{{t .Lang "course.join-intro"}}</p>

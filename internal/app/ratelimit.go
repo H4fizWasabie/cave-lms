@@ -11,36 +11,52 @@ import (
 )
 
 const (
-	rateLimitWindow   = 15 * time.Minute
+	rateLimitWindow = 15 * time.Minute
+	// rateLimitAttempts is each address's budget at most forms. Sign-up allows a whole class on one network.
 	rateLimitAttempts = 10
+	signUpAttempts    = 100
+	// Only failed logins count: per account from one address, and per address across all accounts.
+	loginFailuresPerAccount = 10
+	loginFailuresPerAddress = 100
 )
 
-// rateLimiter counts attempts per client address, in memory.
+// rateLimiter counts attempts per key (a form and client address, for logins also the account), in memory.
 // ponytail: per process and reset on restart; move the counts to Postgres if there is ever more than one server.
-// ponytail: entries are never swept, so memory grows with distinct client addresses; prune when that matters.
+// ponytail: entries are never swept, so memory grows with distinct keys; prune when that matters.
 type rateLimiter struct {
 	mu       sync.Mutex
 	attempts map[string][]time.Time
 }
 
-// limited refuses the request with 429 once its client has made too many attempts at this form in the window.
+// limited refuses the request with 429 once its client has made limit attempts at this form in the window.
 // Each form has its own budget, so failed logins never block a password reset.
-func (a *App) limited(next http.HandlerFunc) http.HandlerFunc {
+func (a *App) limited(limit int, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), time.Now()) {
-			lang, err := a.language(r)
-			if err != nil {
-				a.serverError(w, r, err)
-				return
-			}
-			a.render(w, r, http.StatusTooManyRequests, "message", page{
-				Title:   text.T(lang, "limited.title"),
-				Message: text.T(lang, "limited"),
-			})
+		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), limit, time.Now()) {
+			a.tooManyAttempts(w, r)
 			return
 		}
 		next(w, r)
 	}
+}
+
+func (a *App) tooManyAttempts(w http.ResponseWriter, r *http.Request) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusTooManyRequests, "message", page{
+		Title:   text.T(lang, "limited.title"),
+		Message: text.T(lang, "limited"),
+	})
+}
+
+// loginKeys are the limiter keys for a login to email from r's client: that account from there, and there at all.
+// The email is cut to the longest valid address, so a huge one cannot bloat the limiter.
+func loginKeys(r *http.Request, email string) (account, address string) {
+	address = r.URL.Path + " " + clientAddress(r)
+	return address + " " + strings.ToLower(email[:min(len(email), 254)]), address
 }
 
 // clientAddress is the host part of r.RemoteAddr. When that is loopback, the request came through the local
@@ -62,24 +78,39 @@ func clientAddress(r *http.Request) string {
 	return host
 }
 
-// allow records an attempt by client at now and reports whether it is within the limit.
-func (l *rateLimiter) allow(client string, now time.Time) bool {
+// allow records an attempt at key at now and reports whether it was within limit. Recording before the work, not
+// after, means attempts sent at once cannot all slip under the limit together.
+func (l *rateLimiter) allow(key string, limit int, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.recent(key, now) >= limit {
+		return false
+	}
+	l.attempts[key] = append(l.attempts[key], now)
+	return true
+}
+
+// forget takes back key's newest attempt, for one that turned out not to count.
+func (l *rateLimiter) forget(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if n := len(l.attempts[key]); n > 0 {
+		l.attempts[key] = l.attempts[key][:n-1]
+	}
+}
+
+// recent drops key's attempts older than the window and returns how many are left. The caller holds mu.
+func (l *rateLimiter) recent(key string, now time.Time) int {
 	if l.attempts == nil {
 		l.attempts = map[string][]time.Time{}
 	}
 	cutoff := now.Add(-rateLimitWindow)
-	recent := l.attempts[client][:0]
-	for _, t := range l.attempts[client] {
+	kept := l.attempts[key][:0]
+	for _, t := range l.attempts[key] {
 		if t.After(cutoff) {
-			recent = append(recent, t)
+			kept = append(kept, t)
 		}
 	}
-	allowed := len(recent) < rateLimitAttempts
-	if allowed {
-		recent = append(recent, now)
-	}
-	l.attempts[client] = recent
-	return allowed
+	l.attempts[key] = kept
+	return len(kept)
 }
