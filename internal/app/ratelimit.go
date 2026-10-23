@@ -22,10 +22,10 @@ const (
 
 // rateLimiter counts attempts per key (a form and client address, for logins also the account), in memory.
 // ponytail: per process and reset on restart; move the counts to Postgres if there is ever more than one server.
-// ponytail: entries are never swept, so memory grows with distinct keys; prune when that matters.
 type rateLimiter struct {
 	mu       sync.Mutex
 	attempts map[string][]time.Time
+	swept    time.Time // when keys with no recent attempt were last dropped
 }
 
 // limited refuses the request with 429 once its client has made limit attempts at this form in the window.
@@ -83,11 +83,26 @@ func clientAddress(r *http.Request) string {
 func (l *rateLimiter) allow(key string, limit int, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.sweep(now)
 	if l.recent(key, now) >= limit {
 		return false
 	}
 	l.attempts[key] = append(l.attempts[key], now)
 	return true
+}
+
+// sweep drops, at most once a window, every key with no attempt left in it, so the map doesn't grow with each
+// address ever seen. The caller holds mu.
+func (l *rateLimiter) sweep(now time.Time) {
+	if now.Sub(l.swept) < rateLimitWindow {
+		return
+	}
+	l.swept = now
+	for key := range l.attempts {
+		if l.recent(key, now) == 0 {
+			delete(l.attempts, key)
+		}
+	}
 }
 
 // forget takes back key's newest attempt, for one that turned out not to count.
