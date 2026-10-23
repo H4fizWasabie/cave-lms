@@ -27,7 +27,8 @@ type bclWebhookBody struct {
 			Order      bclText `json:"order_number"`
 			Kind       bclText `json:"transaction_type"` // "test" for Test Mode
 			Subtotal   bclText `json:"subtotal_amount"`
-			Amount     bclText `json:"amount"` // what the payer was charged, fee included
+			Amount     bclText `json:"amount"`          // what the payer was charged, fee included
+			Discount   bclText `json:"discount_amount"` // a coupon's discount, off the subtotal; empty with none
 			Paid       bclText `json:"is_paid"`
 		} `json:"main_data"`
 		// Custom holds the form's own fields, keyed by a name BCL makes from each label. PHP sends [] when there are
@@ -73,6 +74,18 @@ func (t *bclText) UnmarshalJSON(b []byte) error {
 }
 
 func (t bclText) String() string { return string(t) }
+
+// paidSen is what the order paid before BCL's fee: the subtotal less any coupon's discount, which BCL sends apart.
+// readable is false when either amount is not a number of RM.
+func (b *bclWebhookBody) paidSen() (sen int, readable bool) {
+	sen, readable = parseRM(b.Data.Main.Subtotal.String())
+	if d := b.Data.Main.Discount.String(); readable && d != "" {
+		var discount int
+		discount, readable = parseRM(d)
+		sen -= discount
+	}
+	return sen, readable && sen >= 0
+}
 
 // paid reads is_paid, which BCL sends as 1; true is taken too.
 func (b *bclWebhookBody) paid() bool {
@@ -171,7 +184,7 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 // Learner and pays at least the product's price, gives that Learner the product, in one transaction. It says what
 // happened, for the System log.
 func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string, form price) (string, error) {
-	subtotal, readable := parseRM(b.Data.Main.Subtotal.String())
+	paid, readable := b.paidSen() // kept in subtotal_sen: what was paid, less any discount
 	cavelms, payer := b.cavelmsEmail(), b.Data.Main.PayerEmail.String()
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -179,7 +192,7 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	}
 	defer tx.Rollback()
 	res, err := tx.ExecContext(ctx, `INSERT INTO cavetext_payments (order_number, payer_name, payer_email, cavelms_email, subtotal_sen, product)
-		VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')) ON CONFLICT DO NOTHING`, order, b.Data.Main.PayerName.String(), payer, cavelms, subtotal, form.Product)
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')) ON CONFLICT DO NOTHING`, order, b.Data.Main.PayerName.String(), payer, cavelms, paid, form.Product)
 	if err != nil {
 		return "", fmt.Errorf("keep payment: %w", err)
 	}
@@ -211,14 +224,14 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	switch {
 	case learnerID == 0:
 		return "names no Learner; kept for an Admin", tx.Commit()
-	case !readable || subtotal < enough:
+	case !readable || paid < enough:
 		if err := markPayment(ctx, tx, order, learnerID, false); err != nil {
 			return "", err
 		}
 		if !readable {
-			return fmt.Sprintf("unreadable amount %q; kept for an Admin", b.Data.Main.Subtotal), tx.Commit()
+			return fmt.Sprintf("unreadable amount %q less discount %q; kept for an Admin", b.Data.Main.Subtotal, b.Data.Main.Discount), tx.Commit()
 		}
-		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(enough)), tx.Commit()
+		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(paid), rm(enough)), tx.Commit()
 	}
 	if form.Product != labPlanProduct {
 		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
