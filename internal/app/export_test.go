@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"text/template/parse"
+	"time"
 
 	"github.com/pressly/goose/v3"
 )
@@ -85,3 +86,6 @@ func (a *App) SetMaxDBConns(n int) { a.db.SetMaxOpenConns(n) }
 
 // RunReleaseResults runs the minutely Result release now, for tests.
 func (a *App) RunReleaseResults(ctx context.Context) { a.releaseResults(ctx) }
+
+// SetClock makes the app read the time from now, for tests.
+func (a *App) SetClock(now func() time.Time) { a.now = now }

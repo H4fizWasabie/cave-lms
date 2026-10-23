@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Config struct {
@@ -49,8 +48,6 @@ type Config struct {
 	OpenRouterWebSearch bool
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
-	// Now is the clock the dated rules read, such as when a Live Course closes. Set only by tests; nil is time.Now.
-	Now func() time.Time
 }
 
 func Load() (Config, error) {

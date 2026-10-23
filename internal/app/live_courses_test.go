@@ -7,14 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/H4fizWasabie/cave-lms/internal/config"
 )
-
-// clockAt makes the site's clock read *now, so a test can move time.
-func clockAt(now *time.Time) func(*config.Config) {
-	return func(c *config.Config) { c.Now = func() time.Time { return *now } }
-}
 
 // duplicateCourse posts the duplicate form for Course id as the logged-in Admin.
 func (s *site) duplicateCourse(id, title, start, end, days string) (*http.Response, string) {
@@ -231,7 +224,8 @@ func TestLiveCoursesAreListedInTheCoursesSectionWithTheirDates(t *testing.T) {
 
 func TestJoiningALiveCourseWorksUntilTheEndOfItsEndDateInMalaysiaThenItShowsClosed(t *testing.T) {
 	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC) // before the start date: joining is open from publishing
-	s := newSite(t, clockAt(&now))
+	s := newSite(t)
+	s.application.SetClock(func() time.Time { return now })
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
 	copyID := s.copiedCourseID(id, "Go for Acme", "2027-02-01", "2027-02-03", "2")
