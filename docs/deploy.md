@@ -55,13 +55,18 @@ Once per VPS. Run as root on the VPS.
 
 ## Deploying an update
 
-From a clean checkout of the commit to ship:
+From a clean checkout of the commit to ship, staging first, then production (ADR 0011):
 
 ```sh
+CAVE_ENV=staging deploy/deploy.sh
 deploy/deploy.sh            # CAVE_HOST=other-host deploy/deploy.sh to target another SSH host
 ```
 
-It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. Then it builds a Linux binary, copies the binary, unit and Caddy site to the VPS, restarts `cave-lms`, and waits for it to answer. Migrations run on start. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails. Logs: `journalctl -u cave-lms -n 100`.
+It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. A production deploy also refuses a commit that has not passed the smoke test on staging; for an emergency fix, `CAVE_SKIP_STAGING=1 deploy/deploy.sh` skips that check. When the commit adds a migration since the one production runs, it runs the nightly backup first and waits for it.
+
+Then it builds a Linux binary, copies the binary, unit and Caddy site to the VPS, restarts `cave-lms`, and waits for it to answer. Migrations run on start. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails. Logs: `journalctl -u cave-lms -n 100`.
+
+Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/plans` and `/certificates`, and checks that `/admin` redirects and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. Run it by hand with `ssh vps cave-lms-smoke production` (or `staging`). `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
 
 ## Staging
 
@@ -83,7 +88,7 @@ Deploy the current checkout, from any branch, once it is committed, pushed and C
 CAVE_ENV=staging deploy/deploy.sh
 ```
 
-It ships only the staging binary, unit and Caddy site, and leaves production and the backups alone. Logs: `journalctl -u cave-lms-staging -n 100`.
+It ships only the staging binary, unit and Caddy site, and leaves production and the backups alone. A failed smoke test leaves staging as it is, to be looked at. Logs: `journalctl -u cave-lms-staging -n 100`.
 
 ### What keeps staging off the real world
 
