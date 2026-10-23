@@ -1023,6 +1023,8 @@ var catalog = map[string]entry{
 	"exam.blocked.lessons":         {en: "Complete every Lesson before you sit the Exam (%d of %d complete).", ms: "Selesaikan setiap Pelajaran sebelum anda menduduki Peperiksaan (%d daripada %d selesai)."},
 	"exam.blocked.pending":         {en: "Submitted, your Result is ready at %s.", ms: "Telah dihantar, Keputusan anda sedia pada %s."},
 	"exam.blocked.passed":          {en: "You have passed this Exam.", ms: "Anda telah lulus Peperiksaan ini."},
+	"exam.blocked.not-open":        {en: "The Exam opens on %s.", ms: "Peperiksaan dibuka pada %s."},
+	"exam.blocked.closed":          {en: "The Exam closed on %s.", ms: "Peperiksaan ditutup pada %s."},
 	"exam.blocked.no-attempts":     {en: "You have no attempts left.", ms: "Percubaan anda sudah habis."},
 	"exam.result":                  {en: "Result", ms: "Keputusan"},
 	"exam.score":                   {en: "Score: %d%%", ms: "Markah: %d%%"},

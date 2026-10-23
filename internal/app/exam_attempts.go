@@ -93,6 +93,7 @@ func scanAttempt(row interface{ Scan(dest ...any) error }) (examAttempt, error) 
 // examStatus is what the Learner's Exam page needs to decide what they may do next.
 type examStatus struct {
 	Enrolled bool
+	Course   course
 	Exam     exam
 	Done     int
 	Total    int
@@ -136,9 +137,14 @@ func (s examStatus) Blocker(lang string) string {
 		return text.T(lang, "exam.blocked.pending", s.Pending.ReadyAt(lang))
 	case !s.Exam.Usable:
 		return text.T(lang, "exam.blocked.not-ready")
-	case s.Total == 0:
+	case s.Course.Live() && s.Course.Upcoming:
+		return text.T(lang, "exam.blocked.not-open", s.Course.StartOn(lang))
+	case s.Course.Live() && s.Course.Ended:
+		return text.T(lang, "exam.blocked.closed", s.Course.EndOn(lang))
+	// A Live Course's Exam is open between its dates without the Lessons first (ADR 0012).
+	case !s.Course.Live() && s.Total == 0:
 		return text.T(lang, "exam.blocked.no-lessons")
-	case s.Done < s.Total:
+	case !s.Course.Live() && s.Done < s.Total:
 		return text.T(lang, "exam.blocked.lessons", s.Done, s.Total)
 	case s.Passed:
 		return text.T(lang, "exam.blocked.passed")
@@ -149,8 +155,8 @@ func (s examStatus) Blocker(lang string) string {
 }
 
 // examStatusFor gathers the Learner's standing for an Exam.
-func (a *App) examStatusFor(ctx context.Context, l *learner, e exam) (examStatus, error) {
-	s := examStatus{Exam: e}
+func (a *App) examStatusFor(ctx context.Context, l *learner, c course, e exam) (examStatus, error) {
+	s := examStatus{Course: c, Exam: e}
 	var err error
 	if s.Enrolled, err = a.enrolled(ctx, l.ID, e.CourseID); err != nil {
 		return s, err
@@ -210,7 +216,7 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	st, err := a.examStatusFor(r.Context(), learner, e)
+	st, err := a.examStatusFor(r.Context(), learner, c, e)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -229,7 +235,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	st, err := a.examStatusFor(r.Context(), learner, e)
+	st, err := a.examStatusFor(r.Context(), learner, c, e)
 	if err != nil {
 		a.serverError(w, r, err)
 		return

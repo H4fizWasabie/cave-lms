@@ -266,3 +266,73 @@ func TestJoiningALiveCourseWorksUntilTheEndOfItsEndDateInMalaysiaThenItShowsClos
 	res, body = s.post("/courses/"+id+"/join", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
+
+func TestALiveCoursesExamOpensFromItsStartDateToTheEndOfItsEndDateWithoutTheLessonsFirst(t *testing.T) {
+	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC)
+	s := newSite(t)
+	s.application.SetClock(func() time.Time { return now })
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	id := s.courseWithContent()
+	copyID := s.copiedCourseID(id, "Go for Acme", "2027-02-01", "2027-02-03", "2")
+	s.post("/admin/courses/"+copyID+"/publish", nil)
+	qid := s.examQuestionIDs(copyID)[0]
+	s.logOut()
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	s.post("/courses/"+copyID+"/join", nil)
+
+	now = time.Date(2027, 1, 31, 15, 59, 0, 0, time.UTC) // 23:59 the day before the start date in Malaysia
+	res, body := s.get("/courses/" + copyID + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "The Exam opens on 1 February 2027.")
+	expectNone(t, body, "Start the Exam")
+	res, body = s.startExam(copyID)
+	expectStatus(t, res, body, http.StatusConflict, "The Exam opens on 1 February 2027.")
+
+	// From midnight on the start date the Exam opens, with no Lesson complete.
+	now = time.Date(2027, 1, 31, 16, 0, 0, 0, time.UTC)
+	res, body = s.startExam(copyID)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	attempt := res.Header.Get("Location")
+
+	// The attempt started inside the window is still submitted after it closes.
+	now = time.Date(2027, 2, 3, 16, 0, 0, 0, time.UTC) // midnight after the end date in Malaysia
+	res, body = s.submitExam(attempt, map[string]string{qid: "0"})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.releaseResults()
+	res, body = s.get(attempt)
+	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
+
+	// The Learner who keeps failing can't start again after the end date.
+	s.logOut()
+	s.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	now = time.Date(2027, 2, 2, 9, 0, 0, 0, time.UTC)
+	s.post("/courses/"+copyID+"/join", nil)
+	now = time.Date(2027, 2, 3, 16, 0, 0, 0, time.UTC)
+	res, body = s.startExam(copyID)
+	expectStatus(t, res, body, http.StatusConflict, "The Exam closed on 3 February 2027.")
+	res, body = s.get("/courses/" + copyID + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "The Exam closed on 3 February 2027.")
+	expectNone(t, body, "Start the Exam")
+
+	// The self-paced original still wants its Lessons first.
+	s.post("/courses/"+id+"/join", nil)
+	res, body = s.startExam(id)
+	expectStatus(t, res, body, http.StatusConflict, "Complete every Lesson before you sit the Exam (0 of 1 complete).")
+}
+
+func TestALiveCoursesExamWindowIsShownInMalay(t *testing.T) {
+	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC)
+	s := newSite(t)
+	s.application.SetClock(func() time.Time { return now })
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	copyID := s.copiedCourseID(s.courseWithContent(), "Go for Acme", "2027-02-01", "2027-02-03", "2")
+	s.post("/admin/courses/"+copyID+"/publish", nil)
+	s.logOut()
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	s.post("/courses/"+copyID+"/join", nil)
+
+	res, body := s.postAsking("/courses/"+copyID+"/exam/attempts", "ms", nil)
+	expectStatus(t, res, body, http.StatusConflict, "Peperiksaan dibuka pada 1 Februari 2027.")
+	now = time.Date(2027, 2, 4, 9, 0, 0, 0, time.UTC)
+	res, body = s.postAsking("/courses/"+copyID+"/exam/attempts", "ms", nil)
+	expectStatus(t, res, body, http.StatusConflict, "Peperiksaan ditutup pada 3 Februari 2027.")
+}
