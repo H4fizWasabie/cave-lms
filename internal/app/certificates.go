@@ -34,12 +34,14 @@ type certificate struct {
 	IssuedAt    time.Time
 	Revoked     bool
 	CurrentName string // the Learner's name now, which a corrected Certificate copies
+
+	GivenByAdmin bool // the Admin gave it by hand; only the Admin Certificates list shows this
 }
 
 // certificateColumns must be scanned by queryCertificates. The subquery needs the table unaliased as certificates.
 const certificateColumns = `id, year, number, learner_id, learner_name, COALESCE(learner_ic, ''), course_title,
 	COALESCE(days, 0), issued_at, revoked_at IS NOT NULL,
-	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
+	(SELECT name FROM learners WHERE learners.id = certificates.learner_id), given_by_admin`
 
 // Number is the Certificate No., as PCC-2026-00509. The ID, not this, goes in URLs and the QR, so it can't be walked.
 func (c certificate) Number() string {
@@ -99,14 +101,14 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 			return err
 		}
 	}
-	return a.issueCertificate(ctx, learnerID, courseID)
+	return a.issueCertificate(ctx, learnerID, courseID, false)
 }
 
 // issueCertificate issues the Learner a Certificate for the Course, copying their name and IC and the Course's title
 // and days, unless they have no IC or already have one for it, valid or revoked: a revoked Certificate is replaced
 // only by the Admin's reissue. Every Certificate is issued through here, once its rule is met, so calling it again
-// changes nothing.
-func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64) error {
+// changes nothing. givenByAdmin records that the Admin gave it, skipping the Exam check.
+func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, givenByAdmin bool) error {
 	id, err := newCertificateID()
 	if err != nil {
 		return err
@@ -121,11 +123,11 @@ func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64) e
 		return err
 	}
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number)
-		SELECT $1, l.id, c.id, l.name, l.ic, c.title, c.days, $4, $5, $6 FROM learners l, courses c
+		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin)
+		SELECT $1, l.id, c.id, l.name, l.ic, c.title, c.days, $4, $5, $6, $7 FROM learners l, courses c
 		WHERE l.id = $2 AND c.id = $3 AND l.ic IS NOT NULL
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
-		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number)
+		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number, givenByAdmin)
 	if err != nil {
 		return err
 	}
@@ -228,7 +230,7 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	var list []certificate
 	for rows.Next() {
 		var c certificate
-		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.LearnerIC, &c.CourseTitle, &c.Days, &c.IssuedAt, &c.Revoked, &c.CurrentName); err != nil {
+		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.LearnerIC, &c.CourseTitle, &c.Days, &c.IssuedAt, &c.Revoked, &c.CurrentName, &c.GivenByAdmin); err != nil {
 			return nil, err
 		}
 		list = append(list, c)

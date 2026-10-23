@@ -430,6 +430,10 @@ var catalog = map[string]entry{
 	"adm.course.cert-none":    {en: "None", ms: "Tiada"},
 	"adm.course.cert-issued":  {en: "Issued %s", ms: "Dikeluarkan %s"},
 	"adm.course.cert-revoked": {en: "Revoked", ms: "Dibatalkan"},
+	"adm.course.give":         {en: "Give Certificate", ms: "Beri Sijil"},
+	"adm.course.give-no-ic":   {en: "%s has no IC or passport number. Set it before giving a Certificate.", ms: "%s tiada No. KP atau pasport. Tetapkannya sebelum memberi Sijil."},
+	"adm.course.not-given":    {en: "Certificate not given", ms: "Sijil tidak diberi"},
+	"adm.certs.given":         {en: "Given by Admin", ms: "Diberi oleh Admin"},
 
 	// Certificates and their details
 	"adm.certs.title":               {en: "Admin: Certificates", ms: "Pentadbir: Sijil"},
