@@ -61,7 +61,7 @@ From a clean checkout of the commit to ship:
 deploy/deploy.sh            # CAVE_HOST=other-host deploy/deploy.sh to target another SSH host
 ```
 
-It builds a Linux binary, copies the binary, unit and Caddy site to the VPS, restarts `cave-lms`, and waits for it to answer. Migrations run on start. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails. Logs: `journalctl -u cave-lms -n 100`.
+It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. Then it builds a Linux binary, copies the binary, unit and Caddy site to the VPS, restarts `cave-lms`, and waits for it to answer. Migrations run on start. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails. Logs: `journalctl -u cave-lms -n 100`.
 
 ## Staging
 
