@@ -23,6 +23,8 @@ const maxCertificateImage = 5 << 20
 // certificate is one issued Certificate. LearnerName and CourseTitle are copies taken at issue time.
 type certificate struct {
 	ID          string
+	Year        int // Year and Seq make the Certificate No.
+	Seq         int
 	LearnerID   int64
 	LearnerName string
 	CourseTitle string
@@ -32,8 +34,13 @@ type certificate struct {
 }
 
 // certificateColumns must be scanned by queryCertificates. The subquery needs the table unaliased as certificates.
-const certificateColumns = `id, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
+const certificateColumns = `id, year, number, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
 	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
+
+// Number is the Certificate No., as PCC-2026-00509. The ID, not this, goes in URLs and the QR, so it can't be walked.
+func (c certificate) Number() string {
+	return fmt.Sprintf("PCC-%d-%05d", c.Year, c.Seq)
+}
 
 // IssuedIn is the issue date written in lang, as the Learner's pages, the check page, the PDF and the Admin list show it.
 func (c certificate) IssuedIn(lang string) string {
@@ -81,12 +88,38 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	if err != nil {
 		return err
 	}
-	_, err = a.db.ExecContext(ctx, `
-		INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title)
-		SELECT $1, l.id, c.id, l.name, c.title FROM learners l, courses c WHERE l.id = $2 AND c.id = $3
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	at, year, number, err := a.numberCertificate(ctx, tx)
+	if err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title, issued_at, year, number)
+		SELECT $1, l.id, c.id, l.name, c.title, $4, $5, $6 FROM learners l, courses c WHERE l.id = $2 AND c.id = $3
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
-		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID)
-	return err
+		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return err // nothing issued: the rollback gives the number back
+	}
+	return tx.Commit()
+}
+
+// numberCertificate takes the next Certificate No. for the current year (UTC, as the issue date is shown) inside tx,
+// with the issue time it belongs to. The counter row stays locked until tx ends, so numbers run in issue order, and a
+// rolled-back issue leaves no gap.
+func (a *App) numberCertificate(ctx context.Context, tx *sql.Tx) (at time.Time, year, number int, err error) {
+	at = a.now().UTC()
+	year = at.Year()
+	err = tx.QueryRowContext(ctx, `INSERT INTO certificate_numbers (year, last) VALUES ($1, 1)
+		ON CONFLICT (year) DO UPDATE SET last = certificate_numbers.last + 1 RETURNING last`, year).Scan(&number)
+	return at, year, number, err
 }
 
 // issueEarnedCertificates runs issueCertificateIfEarned for every Learner enrolled in the Course, for when the Admin
@@ -130,7 +163,7 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	var list []certificate
 	for rows.Next() {
 		var c certificate
-		if err := rows.Scan(&c.ID, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt, &c.Revoked, &c.CurrentName); err != nil {
+		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt, &c.Revoked, &c.CurrentName); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
