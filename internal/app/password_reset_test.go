@@ -101,10 +101,11 @@ func TestExpiredResetLinkIsRefused(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
-func TestResetSignsOutEverySessionOfTheLearner(t *testing.T) {
-	s := newSite(t)
+func TestResetSignsOutEverySessionOfTheLearnerAndCaveText(t *testing.T) {
+	s := newCaveTextSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.loginAsNewLearner("Ada", email, password)
+	caveTextToken := s.connect()
 	res, body := s.login(email, password)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	session := res.Cookies()[0]
@@ -120,6 +121,8 @@ func TestResetSignsOutEverySessionOfTheLearner(t *testing.T) {
 	if strings.Contains(body, "Logged in") {
 		t.Fatalf("old session still logs in after a password reset: %s", body)
 	}
+	res, body = s.caveText(http.MethodGet, "me", caveTextToken)
+	expectSignedOut(t, res, body)
 }
 
 func TestAFailedEmailSendStillGivesTheNormalAnswer(t *testing.T) {
