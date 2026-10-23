@@ -135,6 +135,8 @@ func (s examStatus) Blocker(lang string) string {
 		return text.T(lang, "exam.blocked.join")
 	case s.Pending != nil:
 		return text.T(lang, "exam.blocked.pending", s.Pending.ReadyAt(lang))
+	case s.Passed: // before the window, so a Learner who passed still sees it once the Live Course ends
+		return text.T(lang, "exam.blocked.passed")
 	case !s.Exam.Usable:
 		return text.T(lang, "exam.blocked.not-ready")
 	case s.Course.Live() && s.Course.Upcoming:
@@ -146,8 +148,6 @@ func (s examStatus) Blocker(lang string) string {
 		return text.T(lang, "exam.blocked.no-lessons")
 	case !s.Course.Live() && s.Done < s.Total:
 		return text.T(lang, "exam.blocked.lessons", s.Done, s.Total)
-	case s.Passed:
-		return text.T(lang, "exam.blocked.passed")
 	case s.usedAll():
 		return text.T(lang, "exam.blocked.no-attempts")
 	}

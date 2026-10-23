@@ -159,7 +159,7 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	certID := s.earnedCertificate()
 	s.loginAdmin()
 	s.switchLanguage("ms", "/")
-	today := text.Date("ms", time.Now().UTC())
+	today := text.Date("ms", time.Now().In(time.FixedZone("MYT", 8*3600)))
 
 	_, body := s.get("/admin/courses/" + s.onlyCourseID())
 	expectLanguage(t, body, "ms", "<td>1 daripada 1</td>")

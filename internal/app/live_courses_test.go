@@ -300,6 +300,9 @@ func TestALiveCoursesExamOpensFromItsStartDateToTheEndOfItsEndDateWithoutTheLess
 	s.releaseResults()
 	res, body = s.get(attempt)
 	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
+	res, body = s.get("/courses/" + copyID + "/exam") // passing outranks the closed window
+	expectStatus(t, res, body, http.StatusOK, "You have passed this Exam.")
+	expectNone(t, body, "The Exam closed on")
 
 	// The Learner who keeps failing can't start again after the end date.
 	s.logOut()
