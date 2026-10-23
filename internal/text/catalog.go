@@ -916,16 +916,16 @@ var catalog = map[string]entry{
 	"exam.blocked.not-ready":       {en: "This Exam is not ready yet.", ms: "Peperiksaan ini belum sedia."},
 	"exam.blocked.no-lessons":      {en: "This Course has no Lessons yet, so its Exam is locked.", ms: "Kursus ini belum mempunyai Pelajaran, jadi Peperiksaannya dikunci."},
 	"exam.blocked.lessons":         {en: "Complete every Lesson before you sit the Exam (%d of %d complete).", ms: "Selesaikan setiap Pelajaran sebelum anda menduduki Peperiksaan (%d daripada %d selesai)."},
+	"exam.blocked.pending":         {en: "Submitted, your Result is ready at %s.", ms: "Telah dihantar, keputusan anda sedia pada %s."},
 	"exam.blocked.passed":          {en: "You have passed this Exam.", ms: "Anda telah lulus Peperiksaan ini."},
 	"exam.blocked.no-attempts":     {en: "You have no attempts left.", ms: "Percubaan anda sudah habis."},
 	"exam.result":                  {en: "Result", ms: "Keputusan"},
 	"exam.score":                   {en: "Score: %d%%", ms: "Markah: %d%%"},
 	"exam.passed":                  {en: "Passed (pass mark %d%%)", ms: "Lulus (markah lulus %d%%)"},
 	"exam.failed":                  {en: "Failed (pass mark %d%%)", ms: "Gagal (markah lulus %d%%)"},
-	"exam.wrong-answers":           {en: "Wrong answers", ms: "Jawapan salah"},
-	"exam.your-answer":             {en: "Your answer:", ms: "Jawapan anda:"},
-	"exam.no-answer":               {en: "no answer", ms: "tiada jawapan"},
-	"exam.timed-out":               {en: "Time ran out. This attempt was not marked.", ms: "Masa telah tamat. Percubaan ini tidak ditanda."},
+	"exam.submitted":               {en: "Congratulations, your answers are in", ms: "Tahniah, jawapan anda telah dihantar"},
+	"exam.ready-at":                {en: "Your Result is ready at %s. It will be emailed to you too.", ms: "Keputusan anda sedia pada %s. Ia juga akan dihantar kepada anda melalui e-mel."},
+	"exam.timed-out":               {en: "Time ran out before your answers were sent, so none of them count.", ms: "Masa tamat sebelum jawapan anda dihantar, jadi tiada jawapan yang dikira."},
 	"exam.answer-all":              {en: "Answer every question, then submit.", ms: "Jawab setiap soalan, kemudian hantar."},
 	"exam.timer":                   {en: "Time limit: %d minutes, counted from when you started.", ms: "Had masa: %d minit, dikira dari saat anda bermula."},
 	"exam.final":                   {en: "You can't change your answers after submitting.", ms: "Anda tidak boleh mengubah jawapan selepas menghantar."},
@@ -1038,6 +1038,12 @@ var catalog = map[string]entry{
 	"email.reset.body": {
 		en: "Hi %[1]s,\n\nOpen this link within an hour to choose a new password:\n\n%[2]s\n\nIf you didn't ask for this, you can ignore this email.\n",
 		ms: "Hai %[1]s,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[2]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
+	},
+	// The Course title, then for the body the Learner's name, the Course title, the mark, pass or fail and the link
+	"email.result.subject": {en: "Your Exam Result for %s", ms: "Keputusan Peperiksaan anda untuk %s"},
+	"email.result.body": {
+		en: "Hi %[1]s,\n\nYour Result for the Exam for %[2]s is ready.\n\nScore: %[3]d%%\n%[4]s\n\nSee it on CAVELMS:\n\n%[5]s\n",
+		ms: "Hai %[1]s,\n\nKeputusan Peperiksaan anda untuk %[2]s sudah sedia.\n\nMarkah: %[3]d%%\n%[4]s\n\nLihat di CAVELMS:\n\n%[5]s\n",
 	},
 	// ---- end Accounts (#83) ----
 

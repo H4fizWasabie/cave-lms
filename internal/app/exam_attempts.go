@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -34,37 +35,35 @@ func (q attemptQuestion) Right() bool {
 	return q.Chosen >= 0 && q.Options[q.Chosen].Correct
 }
 
-// Answer is the text of the option the Learner picked, empty when unanswered.
-func (q attemptQuestion) Answer() string {
-	if q.Chosen < 0 {
-		return ""
-	}
-	return q.Options[q.Chosen].Text
-}
-
-// examAttempt is one sit of an Exam, from start to finish.
+// examAttempt is one sit of an Exam, from start to its released Result.
 type examAttempt struct {
-	ID        int64
-	ExamID    int64
-	TimeLimit int // minutes, 0 for none
-	PassMark  int
-	Questions []attemptQuestion
-	Finished  bool
-	TimedOut  bool // unfinished and past the time limit: it can no longer be marked
-	Score     int  // percent, set when Finished
-	Passed    bool
+	ID          int64
+	ExamID      int64
+	TimeLimit   int // minutes, 0 for none
+	SecondsLeft int // of the time limit, while open
+	PassMark    int
+	Questions   []attemptQuestion
+	Finished    bool      // submitted
+	TimedOut    bool      // unsubmitted and past the time limit: it counts as submitted at its limit, with no answers
+	ReleaseAt   time.Time // when the Result is released, once Finished or TimedOut
+	Released    bool
+	Score       int // percent, set when Released
+	Passed      bool
 }
 
 // attemptColumns must be scanned by scanAttempt.
 var attemptColumns = `id, exam_id, COALESCE(time_limit_minutes, 0), pass_mark, questions,
 	finished_at IS NOT NULL, COALESCE(score, 0), COALESCE(passed, false),
-	time_limit_minutes IS NOT NULL AND ` + examLateSQL
+	finished_at IS NULL AND time_limit_minutes IS NOT NULL AND ` + examLateSQL + `,
+	COALESCE(` + submittedAtSQL + `, now()) + ` + resultDelaySQL + `,
+	released_at IS NOT NULL,
+	GREATEST(EXTRACT(EPOCH FROM started_at + make_interval(mins => COALESCE(time_limit_minutes, 0)) - now()), 0)::int`
 
 func scanAttempt(row interface{ Scan(dest ...any) error }) (examAttempt, error) {
 	var att examAttempt
 	var questions []byte
 	err := row.Scan(&att.ID, &att.ExamID, &att.TimeLimit, &att.PassMark, &questions,
-		&att.Finished, &att.Score, &att.Passed, &att.TimedOut)
+		&att.Finished, &att.Score, &att.Passed, &att.TimedOut, &att.ReleaseAt, &att.Released, &att.SecondsLeft)
 	if err != nil {
 		return examAttempt{}, err
 	}
@@ -80,6 +79,7 @@ type examStatus struct {
 	Passed   bool
 	Used     int // attempts started, finished or not
 	Open     *examAttempt
+	Pending  *examAttempt // submitted, its Result not yet released
 	Best     int
 	HasBest  bool
 }
@@ -103,6 +103,8 @@ func (s examStatus) Blocker(lang string) string {
 	switch {
 	case !s.Enrolled:
 		return text.T(lang, "exam.blocked.join")
+	case s.Pending != nil:
+		return text.T(lang, "exam.blocked.pending", s.Pending.ReadyAt(lang))
 	case !s.Exam.Usable:
 		return text.T(lang, "exam.blocked.not-ready")
 	case s.Total == 0:
@@ -137,16 +139,26 @@ func (a *App) examStatusFor(ctx context.Context, l *learner, e exam) (examStatus
 	return s, err
 }
 
-// readAttempts fills in what the Learner's attempts at an Exam decide: how many, whether one passed and the one
-// still open, if any.
+// readAttempts fills in what the Learner's attempts at an Exam decide: how many, whether one passed, and the one
+// still open or waiting for its Result, if any.
 func (s *examStatus) readAttempts(ctx context.Context, q rowQueryer, learnerID, examID int64) error {
 	if err := q.QueryRowContext(ctx, `SELECT count(*), COALESCE(bool_or(passed), false) FROM exam_attempts
 		WHERE learner_id = $1 AND exam_id = $2`, learnerID, examID).Scan(&s.Used, &s.Passed); err != nil {
 		return fmt.Errorf("count attempts: %w", err)
 	}
-	var err error
-	s.Open, err = openAttempt(ctx, q, learnerID, examID)
-	return err
+	att, err := scanAttempt(q.QueryRowContext(ctx, `SELECT `+attemptColumns+` FROM exam_attempts
+		WHERE learner_id = $1 AND exam_id = $2 AND released_at IS NULL ORDER BY id DESC LIMIT 1`, learnerID, examID))
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return fmt.Errorf("load unreleased attempt: %w", err)
+	case att.Finished || att.TimedOut:
+		s.Pending = &att
+	default:
+		s.Open = &att
+	}
+	return nil
 }
 
 // examPassed reports whether the Learner has passed the Exam on any attempt.
@@ -164,22 +176,6 @@ func (a *App) bestExamScore(ctx context.Context, learnerID, courseID int64) (int
 	err := a.db.QueryRowContext(ctx, `SELECT max(t.score) FROM exam_attempts t JOIN exams x ON x.id = t.exam_id
 		WHERE t.learner_id = $1 AND x.course_id = $2`, learnerID, courseID).Scan(&best)
 	return int(best.Int64), best.Valid, err
-}
-
-// openAttempt returns the Learner's latest unfinished attempt if it is still within its time limit, or nil.
-func openAttempt(ctx context.Context, q rowQueryer, learnerID, examID int64) (*examAttempt, error) {
-	att, err := scanAttempt(q.QueryRowContext(ctx, `SELECT `+attemptColumns+` FROM exam_attempts
-		WHERE learner_id = $1 AND exam_id = $2 AND finished_at IS NULL ORDER BY id DESC LIMIT 1`, learnerID, examID))
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("load open attempt: %w", err)
-	}
-	if att.TimedOut {
-		return nil, nil
-	}
-	return &att, nil
 }
 
 // learnerExam is the Learner's page for an Exam.
@@ -285,7 +281,8 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 	return id, err
 }
 
-// showAttempt shows an attempt to its Learner: the questions while it is open, the result once it is marked.
+// showAttempt shows an attempt to its Learner: the questions while it is open, when its Result is ready once
+// submitted, and the Result once released.
 func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -303,8 +300,8 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "exam_attempt", page{Course: &c, Exam: &e, Learner: learner, Attempt: &att})
 }
 
-// submitAttempt marks an open attempt. A submission after the time limit and grace is not marked: the
-// attempt then shows as timed out.
+// submitAttempt saves an open attempt's answers and submits it; the release job marks it. A submission after the
+// time limit and grace saves nothing: the attempt counts as submitted at its limit with no answers.
 func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -332,7 +329,6 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, e.Path(""), http.StatusSeeOther)
 		return
 	}
-	correct := 0
 	for i := range att.Questions {
 		q := &att.Questions[i]
 		q.Chosen = -1
@@ -340,27 +336,17 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 			slot >= 0 && slot < len(q.Options) && q.Options[slot].Text != "" {
 			q.Chosen = slot
 		}
-		if q.Right() {
-			correct++
-		}
-	}
-	score := 0
-	if n := len(att.Questions); n > 0 {
-		score = correct * 100 / n
 	}
 	raw, err := json.Marshal(att.Questions)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	// The time check is in the same UPDATE, so a late submission marks nothing.
+	// The time check is in the same UPDATE, so a late submission saves nothing.
 	_, err = a.db.ExecContext(r.Context(), `
-		UPDATE exam_attempts SET questions = $2::jsonb, finished_at = now(), score = $3, passed = $4
+		UPDATE exam_attempts SET questions = $2::jsonb, finished_at = now()
 		WHERE id = $1 AND finished_at IS NULL AND (time_limit_minutes IS NULL OR NOT (`+examLateSQL+`))`,
-		att.ID, string(raw), score, score >= att.PassMark)
-	if err == nil {
-		err = a.issueCertificateIfEarned(r.Context(), learner.ID, c.ID)
-	}
+		att.ID, string(raw))
 	if err != nil {
 		a.serverError(w, r, err)
 		return

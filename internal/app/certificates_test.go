@@ -174,11 +174,15 @@ func TestUsableExamNeedsAPassAndAnUnusableOneDoesNot(t *testing.T) {
 
 	res, _ = s.startExam(id)
 	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"})
+	s.releaseResults()
 	res, body = s.get("/my-certificates")
 	expectStatus(t, res, body, http.StatusOK, "You have no Certificates yet.")
 
 	res, _ = s.startExam(id)
 	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	res, body = s.get("/my-certificates")
+	expectStatus(t, res, body, http.StatusOK, "You have no Certificates yet.") // the pass is not released yet
+	s.releaseResults()
 	res, body = s.get("/my-certificates")
 	expectStatus(t, res, body, http.StatusOK, "Go Basics")
 }

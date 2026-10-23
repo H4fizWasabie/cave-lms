@@ -179,6 +179,7 @@ func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
 	bea.markLesson(id, functions, true)
 	res, _ = bea.startExam(id)
 	bea.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	s.releaseResults()
 
 	// Cara joined and did nothing: 0 of 2, no score, no Certificate.
 	cara := s.second()
