@@ -131,7 +131,7 @@ _Malay_: Pelan Lab
 _Avoid_: Lab subscription, hosting plan
 
 **Pro Plan**:
-CaveText Pro and the Lab Plan together, bought in one Payment, at a price the Admin sets below the two bought apart. It gives nothing the two do not give separately.
+CaveText Pro and the Lab Plan together, bought in one Payment, at a price the Admin sets, no more than the two bought apart. It gives nothing the two do not give separately.
 _Malay_: Pelan Pro
 _Avoid_: Bundle, package, combo
 
@@ -141,7 +141,7 @@ _Malay_: Harga biasa
 _Avoid_: Original price, list price, RRP
 
 **Promo**:
-A lower price for one product between two dates, which a Learner gets by entering the Promo's code on that product's payment form. The code itself lives in BCL, which limits how many times it is used and how often by one person; CAVELMS only accepts a Payment of at least the Promo's price while the Promo runs. Several Promos may run at once; the lowest running price counts. Ending a Promo early keeps it listed. Admins never use a Promo: they give products by hand.
+A lower price for one product between two dates, which a Learner gets by entering the Promo's code on that product's payment form. The code itself lives in BCL, which limits how many times it is used in all (it cannot limit one person to one use) and which payment forms take it; CAVELMS only accepts a Payment of at least the Promo's price while the Promo runs. Several Promos may run at once; the lowest running price counts. Ending a Promo early keeps it listed. Admins never use a Promo: they give products by hand.
 _Malay_: Promosi
 _Avoid_: Coupon, voucher, discount
 
@@ -219,7 +219,7 @@ _Malay_: CaveText Pro (kept in English)
 _Avoid_: Subscription, storage service
 
 **Payment**:
-One paid order on the payment form of CaveText Pro, the Lab Plan or the Pro Plan. The form decides what it gives: a year of CaveText Pro, a period of the Lab Plan, or both, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each comes after any of the same kind still running, with no credit for time already paid. Each order counts once. One that names no Learner, pays less than that product's current price or was paid on a form that is no current payment link is unmatched: it waits for an Admin to give it by hand and mark it done. Test Mode payments never count.
+One paid order on the payment form of CaveText Pro, the Lab Plan or the Pro Plan. The form decides what it gives: a year of CaveText Pro, a period of the Lab Plan, or both, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each comes after any of the same kind still running, with no credit for time already paid. Each order counts once. One that names no Learner, pays less than that product's current price (or its lowest running Promo's price) or was paid on a form that is no current payment link is unmatched: it waits for an Admin to give it by hand and mark it done. Test Mode payments never count.
 _Malay_: Bayaran
 _Avoid_: Subscription, purchase, transaction, Pro payment
 
