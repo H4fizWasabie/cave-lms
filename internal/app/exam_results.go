@@ -23,8 +23,7 @@ var malaysia = time.FixedZone("MYT", 8*60*60)
 
 // ReadyAt is when the attempt's Result is released, in lang, as "2 January 2099, 11:14" Malaysia time.
 func (att examAttempt) ReadyAt(lang string) string {
-	at := att.ReleaseAt.In(malaysia)
-	return text.Date(lang, at) + ", " + at.Format("15:04")
+	return dateTimeIn(lang, att.ReleaseAt)
 }
 
 // markQuestions is the percentage of questions answered right.

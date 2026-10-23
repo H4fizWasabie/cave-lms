@@ -78,16 +78,25 @@ type examStatus struct {
 	Total    int
 	Passed   bool
 	Used     int // attempts started, finished or not
+	Extra    int // attempts the Admin gave on top of the Exam's limit
 	Open     *examAttempt
 	Pending  *examAttempt // submitted, its Result not yet released
 	Best     int
 	HasBest  bool
 }
 
-// maxAttempts is the attempt limit, 0 for unlimited.
+// maxAttempts is the Learner's attempt limit, the Exam's plus any the Admin gave, 0 for unlimited.
 func (s examStatus) maxAttempts() int {
 	n, _ := strconv.Atoi(s.Exam.MaxAttempts)
-	return n
+	if n == 0 {
+		return 0
+	}
+	return n + s.Extra
+}
+
+// usedAll reports whether the Learner has used every attempt they are allowed.
+func (s examStatus) usedAll() bool {
+	return s.maxAttempts() > 0 && s.Used >= s.maxAttempts()
 }
 
 // AttemptsLeft is the number of attempts still allowed, or "Unlimited" in lang.
@@ -113,7 +122,7 @@ func (s examStatus) Blocker(lang string) string {
 		return text.T(lang, "exam.blocked.lessons", s.Done, s.Total)
 	case s.Passed:
 		return text.T(lang, "exam.blocked.passed")
-	case s.maxAttempts() > 0 && s.Used >= s.maxAttempts():
+	case s.usedAll():
 		return text.T(lang, "exam.blocked.no-attempts")
 	}
 	return ""
@@ -139,11 +148,12 @@ func (a *App) examStatusFor(ctx context.Context, l *learner, e exam) (examStatus
 	return s, err
 }
 
-// readAttempts fills in what the Learner's attempts at an Exam decide: how many, whether one passed, and the one
-// still open or waiting for its Result, if any.
+// readAttempts fills in what the Learner's attempts at an Exam decide: how many, any extra ones the Admin gave,
+// whether one passed, and the one still open or waiting for its Result, if any.
 func (s *examStatus) readAttempts(ctx context.Context, q rowQueryer, learnerID, examID int64) error {
-	if err := q.QueryRowContext(ctx, `SELECT count(*), COALESCE(bool_or(passed), false) FROM exam_attempts
-		WHERE learner_id = $1 AND exam_id = $2`, learnerID, examID).Scan(&s.Used, &s.Passed); err != nil {
+	if err := q.QueryRowContext(ctx, `SELECT count(*), COALESCE(bool_or(passed), false),
+		COALESCE((SELECT extra FROM exam_extra_attempts WHERE learner_id = $1 AND exam_id = $2), 0)
+		FROM exam_attempts WHERE learner_id = $1 AND exam_id = $2`, learnerID, examID).Scan(&s.Used, &s.Passed, &s.Extra); err != nil {
 		return fmt.Errorf("count attempts: %w", err)
 	}
 	att, err := scanAttempt(q.QueryRowContext(ctx, `SELECT `+attemptColumns+` FROM exam_attempts

@@ -1,0 +1,44 @@
+{{define "title"}}{{t .Lang "results.heading"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "results" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "results.heading"}}</h1>
+            <p>{{t .Lang "results.intro"}}</p>
+          </div>
+        </div>
+        <form class="form" method="get" action="/admin/results">
+          <div class="field-grid">
+            <div class="field"><label for="course">{{t .Lang "adm.certs.course"}}</label><select id="course" name="course"><option value="">{{t .Lang "results.all-courses"}}</option>{{range .Courses}}<option value="{{.ID}}"{{if eq .ID $.CourseID}} selected{{end}}>{{.Title}}</option>{{end}}</select></div>
+            <div class="field"><label for="format">{{t .Lang "results.exam"}}</label><select id="format" name="format"><option value="">{{t .Lang "results.all-exams"}}</option>{{range .Formats}}<option value="{{.}}"{{if eq . $.Format}} selected{{end}}>{{t $.Lang (print "bank.format." .)}}</option>{{end}}</select></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.filter"}}</button></div>
+        </form>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "adm.certs.learner"}}</th><th>{{t .Lang "adm.certs.course"}}</th><th>{{t .Lang "results.exam"}}</th><th>{{t .Lang "results.attempt"}}</th><th>{{t .Lang "results.mark"}}</th><th>{{t .Lang "results.result"}}</th><th>{{t .Lang "results.submitted"}}</th><th>{{t .Lang "results.released"}}</th><th>{{t .Lang "results.marked-by"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
+              {{range .Results}}
+              <tr>
+                <td>{{.LearnerName}}<br><small>{{.Email}}</small></td>
+                <td>{{.CourseTitle}}</td>
+                <td>{{t $.Lang (print "bank.format." .Format)}}</td>
+                <td>{{.Number}}</td>
+                <td>{{if .Released}}{{.Score}}%{{end}}</td>
+                <td>{{t $.Lang .Status}}</td>
+                <td>{{.SubmittedIn $.Lang}}</td>
+                <td>{{.ReleasedIn $.Lang}}</td>
+                <td>{{if .Released}}{{t $.Lang .MarkedBy}}{{end}}</td>
+                <td class="actions"><a class="btn btn-quiet btn-sm" href="/admin/results/{{.ID}}">{{t $.Lang "results.open"}}</a></td>
+              </tr>
+              {{else}}
+              <tr><td colspan="10">{{t .Lang "results.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}
