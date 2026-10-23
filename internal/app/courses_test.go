@@ -159,6 +159,9 @@ func TestCourseAdminPagesRefuseVisitorsAndLearners(t *testing.T) {
 		{http.MethodPost, "/admin/courses/" + id + "/close"},
 		{http.MethodGet, "/admin/courses/" + id + "/delete"},
 		{http.MethodPost, "/admin/courses/" + id + "/delete"},
+		{http.MethodGet, "/admin/courses/" + id + "/duplicate"},
+		{http.MethodPost, "/admin/courses/" + id + "/duplicate"},
+		{http.MethodPost, "/admin/courses/" + id + "/publish"},
 	}
 	check := func(role string, wantStatus int, wantText string) {
 		t.Helper()

@@ -129,12 +129,16 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !c.Published {
+		a.courseNotFound(w, r)
+		return
+	}
 	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if !enrolled && !c.Open {
+	if !enrolled && !c.Joinable() {
 		lang, err := a.language(r)
 		if err != nil {
 			a.serverError(w, r, err)

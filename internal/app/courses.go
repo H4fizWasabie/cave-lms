@@ -12,13 +12,57 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// course is a Course as the pages show it. StartDate is YYYY-MM-DD, or empty when none.
+// course is a Course as the pages show it. StartDate and EndDate are YYYY-MM-DD, or empty when none. A Live Course
+// has an EndDate and Days (1 to 5); a self-paced one has neither (ADR 0012).
 type course struct {
 	ID          int64
 	Title       string
 	Description string
 	StartDate   string
-	Open        bool
+	EndDate     string
+	Days        int
+	Open        bool // the Admin's open or closed to new joins
+	Published   bool // false for a Draft, which only the Admin sees
+	Ended       bool // a Live Course past the end of its end date, Malaysia time
+}
+
+// Live reports whether the Course is a Live Course.
+func (c course) Live() bool { return c.Days > 0 }
+
+// Joinable reports whether a Learner may join the Course now.
+func (c course) Joinable() bool { return c.Open && !c.Ended }
+
+// Level is the Live Course's PCC Level, following from its days, or "" for a self-paced Course.
+func (c course) Level() string {
+	switch c.Days {
+	case 0:
+		return ""
+	case 1:
+		return "Basic"
+	case 2:
+		return "Foundation"
+	case 3:
+		return "Practitioner"
+	default:
+		return "Professional"
+	}
+}
+
+// Badge is the static file of the PCC Level's badge, or "" for a self-paced Course.
+func (c course) Badge() string {
+	if c.Days == 0 {
+		return ""
+	}
+	return "pcc-" + strings.ToLower(c.Level()) + ".jpg"
+}
+
+// EndOn is the end date written in lang, or "" when the Course has none.
+func (c course) EndOn(lang string) string {
+	day, err := time.Parse(time.DateOnly, c.EndDate)
+	if err != nil {
+		return ""
+	}
+	return text.Date(lang, day)
 }
 
 // StartOn is the start date written in lang, or "" when the Course has none.
@@ -30,11 +74,12 @@ func (c course) StartOn(lang string) string {
 	return text.Date(lang, day)
 }
 
-const courseColumns = `id, title, description, COALESCE(start_date::text, ''), is_open`
+const courseColumns = `id, title, description, COALESCE(start_date::text, ''), COALESCE(end_date::text, ''),
+	COALESCE(days, 0), is_open, published`
 
 // courses lists every Course for Visitors and Learners.
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
-	list, err := a.listCourses(r)
+	list, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE published ORDER BY start_date NULLS LAST, id`)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -50,6 +95,10 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if !c.Published && (learner == nil || !learner.IsAdmin) {
+		a.courseNotFound(w, r)
 		return
 	}
 	enrolled := false
@@ -121,7 +170,7 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, msg := courseFromForm(r, lang)
+	c, msg := courseFromForm(r, lang, false)
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
@@ -146,15 +195,15 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, msg := courseFromForm(r, lang)
+	c, msg := courseFromForm(r, lang, existing.Live())
 	c.ID = existing.ID
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
 	}
-	_, err = a.db.ExecContext(r.Context(),
-		`UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date WHERE id = $1`,
-		c.ID, c.Title, c.Description, c.StartDate)
+	_, err = a.db.ExecContext(r.Context(), `UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date,
+		end_date = NULLIF($5, '')::date, days = NULLIF($6, 0) WHERE id = $1`,
+		c.ID, c.Title, c.Description, c.StartDate, c.EndDate, c.Days)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -230,9 +279,16 @@ func (a *App) courseFor(w http.ResponseWriter, r *http.Request) (course, bool) {
 
 // courseByID loads one Course; sql.ErrNoRows when there is none.
 func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
+	return a.scanCourse(a.db.QueryRowContext(ctx, `SELECT `+courseColumns+` FROM courses WHERE id = $1`, id))
+}
+
+// scanCourse reads one row of courseColumns.
+func (a *App) scanCourse(row interface{ Scan(...any) error }) (course, error) {
 	var c course
-	err := a.db.QueryRowContext(ctx, `SELECT `+courseColumns+` FROM courses WHERE id = $1`, id).
-		Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open)
+	err := row.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.EndDate, &c.Days, &c.Open, &c.Published)
+	if end, perr := time.ParseInLocation(time.DateOnly, c.EndDate, malaysia); perr == nil {
+		c.Ended = !a.now().Before(end.AddDate(0, 0, 1))
+	}
 	return c, err
 }
 
@@ -258,8 +314,8 @@ func (a *App) queryCourses(r *http.Request, query string, args ...any) ([]course
 	defer rows.Close()
 	var list []course
 	for rows.Next() {
-		var c course
-		if err := rows.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.Open); err != nil {
+		c, err := a.scanCourse(rows)
+		if err != nil {
 			return nil, err
 		}
 		list = append(list, c)
@@ -267,20 +323,35 @@ func (a *App) queryCourses(r *http.Request, query string, args ...any) ([]course
 	return list, rows.Err()
 }
 
-// courseFromForm reads the Course form. msg is the first problem found, in lang, empty when the form is valid.
-func courseFromForm(r *http.Request, lang string) (c course, msg string) {
+// courseFromForm reads the Course form, with the end date and days when the Course is live. msg is the first problem
+// found, in lang, empty when the form is valid.
+func courseFromForm(r *http.Request, lang string, live bool) (c course, msg string) {
 	c.Title = strings.TrimSpace(r.PostFormValue("title"))
 	c.Description = strings.TrimSpace(r.PostFormValue("description"))
 	c.StartDate = strings.TrimSpace(r.PostFormValue("start_date"))
+	start, startErr := time.Parse(time.DateOnly, c.StartDate)
+	var end time.Time
+	endErr := errors.New("self-paced")
+	daysText := ""
+	if live {
+		c.EndDate = strings.TrimSpace(r.PostFormValue("end_date"))
+		end, endErr = time.Parse(time.DateOnly, c.EndDate)
+		daysText = strings.TrimSpace(r.PostFormValue("days"))
+		c.Days, _ = strconv.Atoi(daysText)
+	}
 	switch {
 	case c.Title == "":
 		msg = text.T(lang, "adm.courses.err.title")
 	case c.Description == "":
 		msg = text.T(lang, "adm.courses.err.description")
-	case c.StartDate != "":
-		if _, err := time.Parse(time.DateOnly, c.StartDate); err != nil {
-			msg = text.T(lang, "adm.courses.err.start-date")
-		}
+	case live && startErr != nil:
+		msg = text.T(lang, "adm.courses.err.live-start-date")
+	case live && (endErr != nil || end.Before(start)):
+		msg = text.T(lang, "adm.courses.err.end-date")
+	case live && (c.Days < 1 || c.Days > 5 || strconv.Itoa(c.Days) != daysText):
+		msg = text.T(lang, "adm.courses.err.days")
+	case c.StartDate != "" && startErr != nil:
+		msg = text.T(lang, "adm.courses.err.start-date")
 	}
 	return c, msg
 }

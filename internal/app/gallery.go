@@ -137,7 +137,7 @@ func (a *App) viewItem(w http.ResponseWriter, r *http.Request) (galleryItem, boo
 // refuseMembersItem answers a Learner who may not see a members-only item: it names the Courses that use the item so the Learner can join one.
 func (a *App) refuseMembersItem(w http.ResponseWriter, r *http.Request, item galleryItem) {
 	courses, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses
-		WHERE id IN (SELECT l.course_id FROM lessons l WHERE l.gallery_item_id = $1 AND l.published)
+		WHERE published AND id IN (SELECT l.course_id FROM lessons l WHERE l.gallery_item_id = $1 AND l.published)
 		ORDER BY start_date NULLS LAST, id`, item.ID)
 	if err != nil {
 		a.serverError(w, r, err)
