@@ -1,0 +1,16 @@
+# Installed to /etc/caddy/sites/cave-lms-staging.caddy by CAVE_ENV=staging deploy/deploy.sh. See docs/deploy.md, Staging.
+staging.cavelms.com {
+	bind 169.58.63.110
+	request_body {
+		max_size 2100MiB
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+	# BCL posts payment webhooks without a login; the key in the path guards them.
+	@login not path /cavetext/bcl/*
+	# The basic_auth login lives only on the VPS, since this repo is public.
+	basic_auth @login {
+		import /etc/caddy/cave-lms-staging-login
+	}
+	reverse_proxy 127.0.0.1:8089
+}

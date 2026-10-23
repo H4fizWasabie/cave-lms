@@ -18,6 +18,8 @@ To run it on the VPS, see `docs/deploy.md`.
 
 `CAVETEXT_EXTENSION_IDS` is optional: the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`. Unset, CaveText sign-in is refused. The unpacked development build's ID is `omcdclpagggfcjlhpkohpcgdmfbelohd`; add the Chrome Web Store ID once it is published.
 
+`OPENROUTER_API_KEY` and `OPENROUTER_MODEL` are optional. With both, the AI writes Exam questions through OpenRouter; `OPENROUTER_WEB_SEARCH` (`true` by default) turns its web search on or off. There is no built-in model. **Set a monthly credit limit on the OpenRouter key**: the app has no spending cap of its own. See `docs/deploy.md` (AI writer).
+
 `RESEND_API_KEY` is optional. With it, verification and reset emails are sent through Resend from `EMAIL_FROM`; without it, sending fails with an explicit error.
 
 ## Create the Admin
@@ -41,6 +43,6 @@ The password comes from `CAVE_ADMIN_PASSWORD` if set, otherwise from the first l
 
 `test.sh` starts a throwaway Postgres on a Unix socket in a temp directory, runs `go test` against it and deletes it afterwards. It needs the Postgres server binaries (`initdb`, `pg_ctl`) installed, but no running server, role or `sudo`.
 
-CI (`.github/workflows/ci.yml`) runs `go vet ./...` and `./test.sh` on every pull request and push to main; it does not deploy.
+CI (`.github/workflows/ci.yml`) runs `go vet ./...`, `govulncheck ./...` and `./test.sh` on every pull request and push to main; it does not deploy. govulncheck fails on any known vulnerability the code can reach, in a dependency or in the Go version `go.mod` names, so a new one turns CI red until that module or Go is upgraded.
 
 To use your own database instead, set `TEST_DATABASE_URL` to a dedicated test database and run `go test ./...`. The HTTP integration test creates a unique schema in it and drops it when the test finishes, so the user needs permission to create and drop schemas. Without `TEST_DATABASE_URL`, that test is skipped.

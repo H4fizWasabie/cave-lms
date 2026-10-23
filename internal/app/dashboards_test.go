@@ -570,7 +570,7 @@ func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testi
 // restart starts a new App on the same database and files, as a deploy does, and serves it in place of the old one.
 func (s *site) restart() {
 	s.t.Helper()
-	a, err := app.New(context.Background(), s.cfg, s.mail)
+	a, err := app.New(context.Background(), s.cfg, s.mail, s.ai)
 	if err != nil {
 		s.t.Fatal(err)
 	}

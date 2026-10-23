@@ -1,0 +1,97 @@
+package aiwriter
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+var excel = Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "ms", Count: 1}
+
+func TestAnUnsetOpenRouterKeyOrModelLeavesTheWriterNotConfigured(t *testing.T) {
+	for _, w := range []Writer{New("", "openai/gpt-4o-mini", true), New("sk-or-test", "", true)} {
+		if _, err := w.WriteQuestions(context.Background(), excel); !errors.Is(err, ErrNotConfigured) {
+			t.Fatalf("WriteQuestions() error = %v, want ErrNotConfigured", err)
+		}
+	}
+}
+
+func TestOpenRouterSendsTheInstructionsAndOnlyTheRequestAndReadsTheQuestions(t *testing.T) {
+	var got struct {
+		auth string
+		body struct {
+			Model     string              `json:"model"`
+			MaxTokens int                 `json:"max_tokens"`
+			Messages  []map[string]string `json:"messages"`
+			Format    struct {
+				Type string `json:"type"`
+			} `json:"response_format"`
+			Plugins []map[string]string `json:"plugins"`
+			Tools   any                 `json:"tools"`
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.auth = r.Header.Get("Authorization")
+		if err := json.NewDecoder(r.Body).Decode(&got.body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"questions\":[{\"prompt\":\"Apakah jadual pangsi?\",\"options\":[{\"text\":\"Ringkasan data\",\"correct\":true},{\"text\":\"Carta\",\"correct\":false}]}]}"}}]}`))
+	}))
+	defer server.Close()
+
+	w := OpenRouter{APIKey: "sk-or-test", Model: "openai/gpt-4o-mini", WebSearch: true, Endpoint: server.URL}
+	qs, err := w.WriteQuestions(context.Background(), excel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qs) != 1 || qs[0].Prompt != "Apakah jadual pangsi?" || len(qs[0].Options) != 2 || !qs[0].Options[0].Correct || qs[0].Options[1].Correct {
+		t.Fatalf("questions = %#v", qs)
+	}
+	b := got.body
+	if got.auth != "Bearer sk-or-test" || b.Model != "openai/gpt-4o-mini" || b.MaxTokens != maxReplyTokens || b.Format.Type != "json_schema" || b.Tools != nil {
+		t.Fatalf("auth = %q, body = %#v", got.auth, b)
+	}
+	if len(b.Plugins) != 1 || b.Plugins[0]["id"] != "web" {
+		t.Fatalf("plugins = %v, want web search", b.Plugins)
+	}
+	if len(b.Messages) != 2 || b.Messages[0]["content"] != writeQuestionsInstructions || !strings.Contains(writeQuestionsInstructions, "exactly one of them correct") ||
+		b.Messages[1]["content"] != "Topic: Excel pivot tables\nFormat: multiple-choice\nLanguage: Malay\nCount: 1" {
+		t.Fatalf("messages = %q", b.Messages)
+	}
+
+	w.WebSearch, got.body.Plugins = false, nil
+	if _, err := w.WriteQuestions(context.Background(), excel); err != nil || got.body.Plugins != nil {
+		t.Fatalf("with web search off: plugins = %v, err = %v", got.body.Plugins, err)
+	}
+}
+
+func TestOpenRouterTellsAFailureFromAnUnreadableReply(t *testing.T) {
+	for _, c := range []struct {
+		status int
+		reply  string
+		want   error
+	}{
+		{http.StatusOK, `{"choices":[{"message":{"content":"Here are your questions!"}}]}`, ErrBadShape},
+		{http.StatusOK, `{"choices":[]}`, ErrBadShape},
+		{http.StatusUnauthorized, `{"error":{"code":401,"message":"No auth credentials found"}}`, ErrNotConfigured},
+		{http.StatusPaymentRequired, `{"error":{"code":402,"message":"Insufficient credits"}}`, ErrOverLimit},
+		{http.StatusForbidden, `{"error":{"code":403,"message":"Key limit exceeded","metadata":{"limit_source":"openrouter_key_limit"}}}`, ErrOverLimit},
+		{http.StatusForbidden, `{"error":{"code":403,"message":"Flagged","metadata":{"reasons":["x"]}}}`, ErrUnavailable},
+		{http.StatusTooManyRequests, `{"error":{"code":429,"message":"Rate limited"}}`, ErrUnavailable},
+		{http.StatusBadGateway, `{"error":{"code":502,"message":"Model down"}}`, ErrUnavailable},
+	} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(c.status)
+			_, _ = w.Write([]byte(c.reply))
+		}))
+		_, err := OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: server.URL}.WriteQuestions(context.Background(), excel)
+		server.Close()
+		if !errors.Is(err, c.want) {
+			t.Errorf("%d %s: error = %v, want %v", c.status, c.reply, err, c.want)
+		}
+	}
+}
