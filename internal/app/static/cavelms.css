@@ -360,11 +360,6 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .x-score { font-family: var(--font-display); font-size: 4.5rem; font-weight: 700; line-height: 1; }
 .is-pass .x-score { color: var(--ok); }
 .is-fail .x-score { color: var(--bad); }
-.x-wrong { width: 100%; text-align: left; border-top: 1px solid var(--line); padding-top: 1.2rem; margin-top: .4rem; }
-.x-wrong h2 { font-size: 1.1rem; margin-bottom: .6rem; }
-.x-wrong ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
-.x-wrong li { background: var(--bg); padding: .6rem .8rem; border-radius: var(--radius); font-size: .94rem; }
-.x-wrong li span { display: block; font-size: .78rem; font-weight: 700; color: var(--muted); }
 
 /* Tall dialogs (phones): the body scrolls, the head and foot stay on screen */
 

@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
@@ -41,6 +42,7 @@ type App struct {
 	db                   *sql.DB
 	handler              http.Handler
 	mailer               mailer.Mailer
+	writer               aiwriter.Writer // writes Exam questions and marks Written answers
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
@@ -51,7 +53,11 @@ type App struct {
 	caveTextExtensionIDs []string      // the extensions the CaveText connect page may send tokens to
 	bclWebhookKey        string        // the secret in BCL's webhook address; empty refuses every webhook
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
-	done                 chan struct{} // closed by Close, to stop the daily System log prune
+	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
+	// releasing is held by a run of releaseResults, so two runs never release at once.
+	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
+	// ever runs more than one instance.
+	releasing sync.Mutex
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -76,6 +82,7 @@ type page struct {
 	Courses       []course
 	Course        *course
 	Exam          *exam
+	WrittenExam   *exam       // the Course's on its page, when the Learner has joined and it is usable
 	Status        *examStatus // the Learner's Exam
 	Attempt       *examAttempt
 	Question      *examQuestion
@@ -106,9 +113,9 @@ type pageBase struct {
 
 func (p *pageBase) learnerField() **learner { return &p.Learner }
 
-func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
-	if mailer == nil {
-		return nil, fmt.Errorf("mailer is required")
+func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer aiwriter.Writer) (_ *App, err error) {
+	if mailer == nil || writer == nil {
+		return nil, fmt.Errorf("mailer and AI writer are required")
 	}
 	pages, err := parsePages()
 	if err != nil {
@@ -152,25 +159,26 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, done: make(chan struct{})}
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
 	a.dailyPrune(ctx)
 	go a.pruneDaily(a.done)
+	go a.releaseEveryMinute(a.done)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("/", a.notFound) // any other address
 	mux.Handle("GET /static/", staticHandler())
 	mux.HandleFunc("GET /privacy", a.privacy)
 	mux.HandleFunc("GET /register", a.registerForm)
-	mux.HandleFunc("POST /register", a.limited(a.register))
+	mux.HandleFunc("POST /register", a.limited(signUpAttempts, a.register))
 	mux.HandleFunc("GET /verify", a.verify)
-	mux.HandleFunc("POST /verify/resend", a.limited(a.resendVerification))
+	mux.HandleFunc("POST /verify/resend", a.limited(rateLimitAttempts, a.resendVerification))
 	mux.HandleFunc("GET /login", a.loginForm)
-	mux.HandleFunc("POST /login", a.limited(a.login))
+	mux.HandleFunc("POST /login", a.login) // limits its own failures, see login
 	mux.HandleFunc("GET /forgot-password", a.forgotPasswordForm)
-	mux.HandleFunc("POST /forgot-password", a.limited(a.forgotPassword))
+	mux.HandleFunc("POST /forgot-password", a.limited(rateLimitAttempts, a.forgotPassword))
 	mux.HandleFunc("GET /reset-password", a.resetPasswordForm)
 	mux.HandleFunc("POST /reset-password", a.limited(a.resetPassword))
 	mux.HandleFunc("POST /logout", a.logout)
@@ -265,10 +273,22 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
+	mux.HandleFunc("GET /admin/question-bank", a.admin(a.adminQuestionBank))
+	mux.HandleFunc("GET /admin/question-bank/{qid}/edit", a.admin(a.editBankQuestionForm))
+	mux.HandleFunc("POST /admin/question-bank/{qid}", a.admin(a.updateBankQuestion))
+	mux.HandleFunc("POST /admin/question-bank/{qid}/delete", a.admin(a.deleteBankQuestion))
+	mux.HandleFunc("POST /admin/question-bank/{qid}/publish", a.admin(a.publishBankQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/from-bank", a.admin(a.addFromBank))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/generate", a.admin(a.generateQuestions))
+	mux.HandleFunc("GET /admin/results", a.admin(a.adminResults))
+	mux.HandleFunc("GET /admin/results/{attemptID}", a.admin(a.adminAttempt))
+	mux.HandleFunc("POST /admin/results/{attemptID}/another-attempt", a.admin(a.giveAnotherAttempt))
+	mux.HandleFunc("POST /admin/results/{attemptID}/marks", a.admin(a.saveMarks))
 	mux.HandleFunc("GET /courses/{id}/exam", a.requireLearner(a.learnerExam))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
+	mux.HandleFunc("GET /courses/{id}/exam/answer-sheet", a.requireLearner(a.downloadAnswerSheet))
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
@@ -419,7 +439,8 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
+		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}

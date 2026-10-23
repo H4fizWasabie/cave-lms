@@ -6,40 +6,85 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 )
 
-func TestLoginIsRateLimitedPerClient(t *testing.T) {
+// A class on one network shares one address; only failed logins count, so everyone gets in.
+func TestAClassLoggingInFromOneAddressAllGetsIn(t *testing.T) {
 	s := newSite(t)
-	const email, password = "ada@example.com", "correct horse battery"
-	// Ten login attempts per address; this setup uses one.
-	s.loginAsNewLearner("Ada", email, password)
+	for i := 0; i < 30; i++ {
+		s.second().loginAsNewLearner("Learner", fmt.Sprintf("learner%d@example.com", i), "correct horse battery")
+	}
+}
 
-	for i := 0; i < 8; i++ {
-		res, body := s.login(email, "wrong password")
+func TestTenWrongPasswordsBlockThatAccountFromThatAddressOnly(t *testing.T) {
+	s := newSite(t)
+	const password = "correct horse battery"
+	s.second().loginAsNewLearner("Ada", "ada@example.com", password)
+	s.second().loginAsNewLearner("Bea", "bea@example.com", password)
+	for i := 0; i < 10; i++ {
+		res, body := s.login("ADA@example.com", "wrong password")
 		expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect")
 	}
-	res, body := s.login(email, password)
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = s.login(email, "wrong password")
-	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
-	res, body = s.login(email, password)
+	res, body := s.login("ada@example.com", password)
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
 	if len(res.Cookies()) != 0 {
 		t.Fatalf("refused login set cookies: %v", res.Cookies())
 	}
+	res, body = s.login("bea@example.com", password)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
+// Guesses sent all at once still get only ten tries at the password.
+func TestWrongPasswordsSentAtOnceGetTenTriesInAll(t *testing.T) {
+	s := newSite(t)
+	s.second().loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	var wg sync.WaitGroup
+	codes := make(chan int, 30)
+	for i := 0; i < 30; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, _ := s.second().login("ada@example.com", "wrong password")
+			codes <- res.StatusCode
+		}()
+	}
+	wg.Wait()
+	close(codes)
+	tried := 0
+	for code := range codes {
+		if code == http.StatusUnauthorized {
+			tried++
+		}
+	}
+	if tried != 10 {
+		t.Fatalf("%d of 30 simultaneous wrong passwords were checked, want 10", tried)
+	}
+}
+
+// One password tried against many accounts from one address is still stopped.
+func TestAHundredFailedLoginsFromOneAddressBlockIt(t *testing.T) {
+	s := newSite(t)
+	for i := 0; i < 100; i++ {
+		res, body := s.login(fmt.Sprintf("guess%d@example.com", i), "password123")
+		expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect")
+	}
+	res, body := s.login("guess100@example.com", "password123")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+}
+
+// A whole class can sign up together from one network.
 func TestRegisterIsRateLimitedPerClient(t *testing.T) {
 	s := newSite(t)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		res, body := s.register("Visitor", fmt.Sprintf("v%d@example.com", i), "correct horse battery")
 		expectStatus(t, res, body, http.StatusOK, "Check your email")
 	}
-	res, body := s.register("Visitor", "v10@example.com", "correct horse battery")
+	res, body := s.register("Visitor", "v100@example.com", "correct horse battery")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
-	if n := len(s.mail.Messages()); n != 10 {
-		t.Fatalf("sent %d emails, want 10", n)
+	if n := len(s.mail.Messages()); n != 100 {
+		t.Fatalf("sent %d emails, want 100", n)
 	}
 }
 

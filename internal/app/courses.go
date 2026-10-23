@@ -80,7 +80,18 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			lessons[i].Completed = completed[lessons[i].ID]
 		}
 	}
-	a.render(w, r, http.StatusOK, "course", page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total})
+	p := page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total}
+	if enrolled {
+		e, err := a.loadExam(r.Context(), c.ID, written)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if e.Usable {
+			p.WrittenExam = &e
+		}
+	}
+	a.render(w, r, http.StatusOK, "course", p)
 }
 
 func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {

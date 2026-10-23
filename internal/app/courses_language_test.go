@@ -93,8 +93,14 @@ func TestTheExamPagesAreInMalayAndEnglishWithTheQuestionsAsWritten(t *testing.T)
 
 	s.submitExam(attempt, map[string]string{qids[0]: "1"})
 	_, body = s.get(attempt)
+	expectLanguage(t, body, "ms", "Tahniah, jawapan anda telah dihantar")
+	expectAll(t, body, "Keputusan anda sedia pada ", "Ia juga akan dihantar kepada anda melalui e-mel.")
+	_, body = s.get(exam)
+	expectAll(t, body, "Telah dihantar, Keputusan anda sedia pada ")
+	s.releaseResults()
+	_, body = s.get(attempt)
 	expectLanguage(t, body, "ms", "Gagal (markah lulus 50%)")
-	expectAll(t, body, "Markah: 0%", "Jawapan salah", "What does := do? <span>Jawapan anda: Wrong answer</span>")
+	expectAll(t, body, "Markah: 0%")
 	_, body = s.get(exam)
 	expectAll(t, body, "Percubaan berbaki: 1", "Markah terbaik: 0%")
 
@@ -106,6 +112,7 @@ func TestTheExamPagesAreInMalayAndEnglishWithTheQuestionsAsWritten(t *testing.T)
 	attempt = res.Header.Get("Location")
 	s.switchLanguage("ms", "/")
 	s.submitExam(attempt, map[string]string{qids[0]: "0"})
+	s.releaseResults()
 	_, body = s.get(attempt)
 	expectLanguage(t, body, "ms", "Lulus (markah lulus 50%)")
 	_, body = s.get(exam)
@@ -130,7 +137,7 @@ func TestAnExamWithNoLimitsAndATimedOutAttemptAreInMalay(t *testing.T) {
 	attempt := res.Header.Get("Location")
 	s2.ageAttempt(attempt, 600)
 	_, body = s2.get(attempt)
-	expectLanguage(t, body, "ms", "Masa telah tamat. Percubaan ini tidak ditanda.")
+	expectLanguage(t, body, "ms", "Masa tamat sebelum jawapan anda dihantar, jadi tiada jawapan yang dikira.")
 }
 
 func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
