@@ -10,12 +10,18 @@ import (
 
 var examQuestionAction = regexp.MustCompile(`/exam/questions/(\d+)/`)
 
-// saveExamSettings posts the Exam settings form for a Course.
+// saveExamSettings posts the Exam settings form for a Course, keeping the default draw count of 30.
 func (s *site) saveExamSettings(courseID, passMark, timeLimit, maxAttempts string) (*http.Response, string) {
+	return s.saveExamDraw(courseID, passMark, timeLimit, maxAttempts, "30")
+}
+
+// saveExamDraw posts the Exam settings form for a Course with a draw count.
+func (s *site) saveExamDraw(courseID, passMark, timeLimit, maxAttempts, drawCount string) (*http.Response, string) {
 	return s.post("/admin/courses/"+courseID+"/exam", url.Values{
 		"pass_mark":    {passMark},
 		"time_limit":   {timeLimit},
 		"max_attempts": {maxAttempts},
+		"draw_count":   {drawCount},
 	})
 }
 
@@ -53,6 +59,27 @@ func TestAdminSetsAndChangesTheExamSettings(t *testing.T) {
 	if strings.Contains(body, "Pass mark: 70%") {
 		t.Fatalf("changed Exam still shows the old pass mark: %s", body)
 	}
+}
+
+func TestAnExamAsks30QuestionsUnlessTheAdminChangesTheDrawCount(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+
+	res, body := s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 30")
+	res, body = s.saveExamDraw(id, "50", "", "", "12")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 12")
+
+	for _, bad := range []string{"0", "", "abc"} {
+		res, body = s.saveExamDraw(id, "50", "", "", bad)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter the questions per attempt as a whole number of at least 1.")
+	}
+	res, body = s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 12")
 }
 
 func TestExamSettingsRejectInvalidInput(t *testing.T) {

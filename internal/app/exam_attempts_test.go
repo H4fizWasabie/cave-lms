@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -138,7 +140,7 @@ func TestDraftQuestionsAreNeverAsked(t *testing.T) {
 	}
 }
 
-func TestAttemptAsksEveryPublishedQuestionInAShuffledOrder(t *testing.T) {
+func TestAttemptAsksEveryPublishedQuestionWhenThereAreFewerThanTheDrawCount(t *testing.T) {
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6")
 
@@ -154,6 +156,101 @@ func TestAttemptAsksEveryPublishedQuestionInAShuffledOrder(t *testing.T) {
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("attempt shows questions %v, want every published question %v", shown, qids)
 	}
+}
+
+// drawExam is examCourse with ten published questions Q1 to Q10, one Draft and a draw count of 4. It returns the
+// Course ID and the published question IDs.
+func (s *site) drawExam() (string, []string) {
+	s.t.Helper()
+	id, qids := s.examCourse("100", "", "3", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10")
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	s.saveExamDraw(id, "100", "", "3", "4")
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Draft question", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", true)
+	s.logOut()
+	s.login("ada@example.com", examPassword)
+	return id, qids
+}
+
+func TestFirstAttemptAsksTheDrawCountFromPublishedQuestionsOnly(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.drawExam()
+
+	res, _ := s.startExam(id)
+	res, body := s.get(res.Header.Get("Location"))
+	shown := attemptQuestionIDs(body)
+	if len(shown) != 4 {
+		t.Fatalf("attempt asks %d questions %v, want the draw count of 4", len(shown), shown)
+	}
+	published := strings.Join(qids, ",") + ","
+	for _, q := range shown {
+		if !strings.Contains(","+published, ","+q+",") {
+			t.Fatalf("attempt asks question %s, which is not a published question %v", q, qids)
+		}
+	}
+	if strings.Contains(body, "Draft question") {
+		t.Fatalf("attempt asks a Draft question: %s", body)
+	}
+}
+
+func TestLaterAttemptsAskTheFirstAttemptsQuestionsInTheSameOrder(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.drawExam()
+	res, _ := s.startExam(id)
+	first := res.Header.Get("Location")
+	_, body := s.get(first)
+	want := attemptQuestionIDs(body)
+	s.submitExam(first, nil)
+	s.releaseResults()
+
+	for range 2 {
+		res, _ = s.startExam(id)
+		retry := res.Header.Get("Location")
+		_, body = s.get(retry)
+		if got := attemptQuestionIDs(body); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("later attempt asks %v, want the first attempt's %v", got, want)
+		}
+		s.submitExam(retry, nil)
+		s.releaseResults()
+	}
+}
+
+func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.drawExam()
+	res, _ := s.startExam(id)
+	first := res.Header.Get("Location")
+	_, body := s.get(first)
+	drawn := attemptQuestionIDs(body)
+	s.submitExam(first, nil)
+	s.releaseResults()
+	deletedPrompt := "<legend>Q" + strconv.Itoa(slices.Index(qids, drawn[1])+1) + "</legend>"
+
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	examPath := "/admin/courses/" + id + "/exam"
+	s.saveQuestion(examPath+"/questions/"+drawn[0], "Edited prompt", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	s.post(examPath+"/questions/"+drawn[1]+"/delete", nil)
+	s.logOut()
+	s.login("ada@example.com", examPassword)
+
+	res, _ = s.startExam(id)
+	retry := res.Header.Get("Location")
+	res, body = s.get(retry)
+	expectStatus(t, res, body, http.StatusOK, "<legend>Edited prompt</legend>")
+	expectStatus(t, res, body, http.StatusOK, deletedPrompt)
+	if got := attemptQuestionIDs(body); strings.Join(got, ",") != strings.Join(drawn, ",") {
+		t.Fatalf("retry asks %v, want the first attempt's %v", got, drawn)
+	}
+
+	answers := map[string]string{}
+	for _, q := range drawn {
+		answers[q] = "0"
+	}
+	s.submitExam(retry, answers)
+	s.releaseResults()
+	res, body = s.get(retry)
+	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
 }
 
 func TestAReleasedResultShowsOnlyTheMarkAndPassOrFail(t *testing.T) {

@@ -15,7 +15,7 @@
           <div class="card-head">
             <div>
               <h2>{{t .Lang "adm.exam.settings"}}</h2>
-              <p class="card-sub">{{t .Lang "adm.exam.pass-is" .Exam.PassMark}} · {{with .Exam.TimeLimit}}{{t $.Lang "adm.exam.time-is" .}}{{else}}{{t .Lang "adm.exam.no-time"}}{{end}} · {{with .Exam.MaxAttempts}}{{t $.Lang "adm.exam.attempts-is" .}}{{else}}{{t .Lang "adm.exam.unlimited"}}{{end}}</p>
+              <p class="card-sub">{{t .Lang "adm.exam.pass-is" .Exam.PassMark}} · {{with .Exam.TimeLimit}}{{t $.Lang "adm.exam.time-is" .}}{{else}}{{t .Lang "adm.exam.no-time"}}{{end}} · {{with .Exam.MaxAttempts}}{{t $.Lang "adm.exam.attempts-is" .}}{{else}}{{t .Lang "adm.exam.unlimited"}}{{end}} · {{t .Lang "adm.exam.draw-is" .Exam.DrawCount}}</p>
             </div>
           </div>
           <form class="form" method="post" action="{{.Exam.AdminPath ""}}">
@@ -23,8 +23,21 @@
               <div class="field"><label for="pass_mark">{{t .Lang "adm.exam.pass-mark"}}</label><div class="suffix"><input id="pass_mark" name="pass_mark" type="number" min="0" max="100" value="{{.Exam.PassMark}}" required><span>%</span></div></div>
               <div class="field"><label for="time_limit">{{t .Lang "adm.exam.time-limit"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><div class="suffix"><input id="time_limit" name="time_limit" type="number" min="1" value="{{.Exam.TimeLimit}}"><span>{{t .Lang "adm.exam.minutes"}}</span></div></div>
               <div class="field"><label for="max_attempts">{{t .Lang "adm.exam.max-attempts"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="max_attempts" name="max_attempts" type="number" min="1" value="{{.Exam.MaxAttempts}}"></div>
+              <div class="field"><label for="draw_count">{{t .Lang "adm.exam.draw-count"}}</label><input id="draw_count" name="draw_count" type="number" min="1" value="{{.Exam.DrawCount}}" required></div>
             </div>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.exam.save"}}</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>{{t .Lang "bank.add"}}</h2>
+          <p class="card-sub">{{t .Lang "bank.add-intro"}}</p>
+          <form class="form" method="post" action="{{.Exam.AdminPath "/from-bank"}}">
+            <div class="field-grid">
+              <div class="field"><label for="topic">{{t .Lang "bank.topic"}}</label><input id="topic" type="text" name="topic" list="bank-topics" required><datalist id="bank-topics">{{range .Exam.Topics}}<option value="{{.}}">{{end}}</datalist></div>
+              <div class="field"><label for="language">{{t .Lang "bank.language"}}</label><select id="language" name="language"><option value="ms">{{t .Lang "bank.lang.ms"}}</option><option value="en">{{t .Lang "bank.lang.en"}}</option></select></div>
+              <div class="field"><label for="count">{{t .Lang "bank.count"}}</label><input id="count" type="number" name="count" min="1" value="10" required></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.add"}}</button></div>
           </form>
         </div>
         <div class="card">
