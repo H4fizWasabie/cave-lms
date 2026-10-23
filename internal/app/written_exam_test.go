@@ -79,8 +79,8 @@ func TestACourseHasAWrittenExamWithHandWrittenQuestionsThatGoToTheBank(t *testin
 }
 
 // writtenCourse makes a Course with one text Lesson and a Written Exam with the pass mark and one published question
-// per prompt, whose model answer is "Model answer to " and the prompt, then logs in as Ada, a Learner who has joined
-// and completed the Lesson. It returns the Course ID.
+// per prompt, whose model answer is "Model answer to " and the prompt, then logs in as Ada, a Learner who has set her
+// IC, joined and completed the Lesson. It returns the Course ID.
 func (s *site) writtenCourse(passMark string, prompts ...string) string {
 	s.t.Helper()
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
@@ -94,6 +94,7 @@ func (s *site) writtenCourse(passMark string, prompts ...string) string {
 	}
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", examPassword)
+	s.setICFor("ada@example.com")
 	s.post("/courses/"+id+"/join", nil)
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	return id
@@ -289,11 +290,6 @@ func TestAnAdminMarkThatTurnsAFailIntoAPassIssuesTheCertificateItEarns(t *testin
 	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})
 	attempt, qids := s.sitWritten(id, "My own words")
 	s.releaseResults()
-	// Until #152 only the Multiple-choice Exam counts, so the Certificate came with the Lesson. Removing it leaves the
-	// rule met and no Certificate, as a Written fail will once every Exam counts.
-	if _, err := s.db.Exec(`DELETE FROM certificates`); err != nil {
-		t.Fatal(err)
-	}
 	res, body := s.get("/my-certificates")
 	expectStatus(t, res, body, http.StatusOK, "You have no Certificates yet.")
 

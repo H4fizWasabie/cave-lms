@@ -370,7 +370,7 @@ func (a *App) deleteLesson(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM lessons WHERE id = $1`, l.ID)
 	if err == nil {
-		err = a.issueEarnedCertificates(r.Context(), l.CourseID)
+		err = a.issueEarnedCertificates(r.Context(), 0, l.CourseID)
 	}
 	if err != nil {
 		a.serverError(w, r, err)
@@ -391,7 +391,7 @@ func (a *App) setLessonPublished(published bool) http.HandlerFunc {
 			err = a.defaultMembersOnly(r.Context(), l.GalleryItemID)
 		}
 		if err == nil && !published {
-			err = a.issueEarnedCertificates(r.Context(), l.CourseID)
+			err = a.issueEarnedCertificates(r.Context(), 0, l.CourseID)
 		}
 		if err != nil {
 			a.serverError(w, r, err)

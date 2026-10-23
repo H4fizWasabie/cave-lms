@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -90,6 +91,9 @@ func (a *App) setMyIC(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusConflict, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, "ic.set-once")}, IC: formatIC(ic)})
 		return
 	}
+	if err := a.issueEarnedCertificates(r.Context(), learner.ID, 0); err != nil {
+		a.logError(r, fmt.Errorf("issue Certificates on setting learner %d's IC: %w", learner.ID, err))
+	}
 	http.Redirect(w, r, "/my-profile", http.StatusSeeOther)
 }
 
@@ -129,6 +133,9 @@ func (a *App) correctIC(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if err := a.issueEarnedCertificates(r.Context(), learnerID, 0); err != nil {
+		a.logError(r, fmt.Errorf("issue Certificates on correcting learner %d's IC: %w", learnerID, err))
 	}
 	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }

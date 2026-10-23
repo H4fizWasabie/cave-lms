@@ -191,15 +191,6 @@ func (s *examStatus) readAttempts(ctx context.Context, q rowQueryer, learnerID, 
 	return nil
 }
 
-// examPassed reports whether the Learner has passed the Exam on any attempt.
-func (a *App) examPassed(ctx context.Context, learnerID, examID int64) (bool, error) {
-	var passed bool
-	err := a.db.QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM exam_attempts WHERE learner_id = $1 AND exam_id = $2 AND passed)`,
-		learnerID, examID).Scan(&passed)
-	return passed, err
-}
-
 // bestExamScore returns the Learner's highest finished score on any of a Course's Exams, and false when there is none.
 func (a *App) bestExamScore(ctx context.Context, learnerID, courseID int64) (int, bool, error) {
 	var best sql.NullInt64

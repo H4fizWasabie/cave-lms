@@ -1056,6 +1056,7 @@ var catalog = map[string]entry{
 	"my-certificates.intro":       {en: "Each certificate has an ID that anyone can check on this site.", ms: "Setiap sijil mempunyai ID yang boleh disemak oleh sesiapa sahaja di laman ini."},
 	"my-certificates.revoked":     {en: "this Certificate is no longer valid.", ms: "Sijil ini tidak lagi sah."},
 	"my-certificates.download":    {en: "Download PDF", ms: "Muat turun PDF"},
+	"my-certificates.needs-ic":    {en: "A Certificate can be issued only once you set your IC or passport number on your profile.", ms: "Sijil hanya boleh dikeluarkan selepas anda menetapkan No. KP atau pasport anda pada profil anda."},
 	"my-certificates.none":        {en: "You have no Certificates yet.", ms: "Anda belum mempunyai Sijil."},
 	"certificate.issued":          {en: "Issued %s", ms: "Dikeluarkan %s"},
 	"certificate.number":          {en: "Certificate No. %s", ms: "No. Sijil %s"},

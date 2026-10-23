@@ -20,27 +20,36 @@ import (
 // maxCertificateImage caps the form that carries the logo and signature.
 const maxCertificateImage = 5 << 20
 
-// certificate is one issued Certificate. LearnerName and CourseTitle are copies taken at issue time.
+// certificate is one issued Certificate. LearnerName, LearnerIC, CourseTitle and Days are copies taken at issue time.
 type certificate struct {
 	ID          string
 	Year        int // Year and Seq make the Certificate No.
 	Seq         int
 	LearnerID   int64
 	LearnerName string
+	LearnerIC   string // stored form, "" on Certificates from before ICs
 	CourseTitle string
+	Days        int // the Live Course's days, which give the PCC Level; 0 for a self-paced Course
 	IssuedAt    time.Time
 	Revoked     bool
 	CurrentName string // the Learner's name now, which a corrected Certificate copies
 }
 
 // certificateColumns must be scanned by queryCertificates. The subquery needs the table unaliased as certificates.
-const certificateColumns = `id, year, number, learner_id, learner_name, course_title, issued_at, revoked_at IS NOT NULL,
+const certificateColumns = `id, year, number, learner_id, learner_name, COALESCE(learner_ic, ''), course_title,
+	COALESCE(days, 0), issued_at, revoked_at IS NOT NULL,
 	(SELECT name FROM learners WHERE learners.id = certificates.learner_id)`
 
 // Number is the Certificate No., as PCC-2026-00509. The ID, not this, goes in URLs and the QR, so it can't be walked.
 func (c certificate) Number() string {
 	return fmt.Sprintf("PCC-%d-%05d", c.Year, c.Seq)
 }
+
+// Level is the PCC Level the Certificate was issued at, or "" for a self-paced Course.
+func (c certificate) Level() string { return course{Days: c.Days}.Level() }
+
+// Badge is the static file of the Level's badge, or "" for a self-paced Course.
+func (c certificate) Badge() string { return course{Days: c.Days}.Badge() }
 
 // IssuedIn is the issue date written in lang, as the Learner's pages, the check page, the PDF and the Admin list show it.
 func (c certificate) IssuedIn(lang string) string {
@@ -64,26 +73,39 @@ func newCertificateID() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b[:]), nil
 }
 
-// issueCertificateIfEarned issues the Learner a Certificate for a Course once every published Lesson is complete
-// and, when the Course has a usable Exam, it is passed. The partial unique index keeps one valid Certificate per
-// Learner and Course, so calling it again changes nothing. A revoked Certificate is not issued again automatically:
-// only the Admin's corrected one replaces it.
+// issueCertificateIfEarned issues the Learner a Certificate for a Course once they have passed every Exam it has
+// (an Exam with no published questions can't be sat, so it doesn't count) and, for a self-paced Course, completed
+// every published Lesson. A Live Course needs at least one Exam passed; a self-paced one with no Exam needs only its
+// Lessons. It is called when a Result is released, never at submit, so a Certificate can't give a Result away.
 func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID int64) error {
-	done, total, err := a.courseProgress(ctx, learnerID, courseID)
-	if err != nil || total == 0 || done < total {
+	var live bool
+	var exams, passed int
+	err := a.db.QueryRowContext(ctx, `
+		SELECT c.days IS NOT NULL, count(e.id), count(e.id) FILTER (WHERE EXISTS (SELECT 1 FROM exam_attempts t
+			WHERE t.exam_id = e.id AND t.learner_id = $1 AND t.passed))
+		FROM courses c LEFT JOIN exams e ON e.course_id = c.id
+			AND EXISTS (SELECT 1 FROM exam_questions q WHERE q.exam_id = e.id AND NOT q.is_draft)
+		WHERE c.id = $2 GROUP BY c.id`, learnerID, courseID).Scan(&live, &exams, &passed)
+	if errors.Is(err, sql.ErrNoRows) { // the Course is gone
+		return nil
+	}
+	if err != nil || passed < exams || (live && exams == 0) {
 		return err
 	}
-	// ponytail: only the Multiple-choice Exam counts; the certificates issue, #152, makes every Exam count.
-	e, err := a.loadExam(ctx, courseID, multipleChoice)
-	if err != nil {
-		return err
-	}
-	if e.Usable {
-		passed, err := a.examPassed(ctx, learnerID, e.ID)
-		if err != nil || !passed {
+	if !live {
+		done, total, err := a.courseProgress(ctx, learnerID, courseID)
+		if err != nil || total == 0 || done < total {
 			return err
 		}
 	}
+	return a.issueCertificate(ctx, learnerID, courseID)
+}
+
+// issueCertificate issues the Learner a Certificate for the Course, copying their name and IC and the Course's title
+// and days, unless they have no IC or already have one for it, valid or revoked: a revoked Certificate is replaced
+// only by the Admin's reissue. Every Certificate is issued through here, once its rule is met, so calling it again
+// changes nothing.
+func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64) error {
 	id, err := newCertificateID()
 	if err != nil {
 		return err
@@ -98,8 +120,9 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 		return err
 	}
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title, issued_at, year, number)
-		SELECT $1, l.id, c.id, l.name, c.title, $4, $5, $6 FROM learners l, courses c WHERE l.id = $2 AND c.id = $3
+		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number)
+		SELECT $1, l.id, c.id, l.name, l.ic, c.title, c.days, $4, $5, $6 FROM learners l, courses c
+		WHERE l.id = $2 AND c.id = $3 AND l.ic IS NOT NULL
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
 		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number)
 	if err != nil {
@@ -122,22 +145,24 @@ func (a *App) numberCertificate(ctx context.Context, tx *sql.Tx) (at time.Time, 
 	return at, year, number, err
 }
 
-// issueEarnedCertificates runs issueCertificateIfEarned for every Learner enrolled in the Course, for when the Admin
-// removes a Lesson or Exam question and so may complete the Course for some of them.
-// ponytail: a few queries per Learner (N+1); fine for one Course's roster, batch it if Courses grow past a few hundred.
-func (a *App) issueEarnedCertificates(ctx context.Context, courseID int64) error {
-	rows, err := a.db.QueryContext(ctx, `SELECT learner_id FROM enrollments WHERE course_id = $1`, courseID)
+// issueEarnedCertificates runs issueCertificateIfEarned for every enrolment of the Learner in the Course, where 0
+// means any: for one Course's roster when the Admin removes a Lesson or Exam question and so may complete the Course
+// for some of them, or for one Learner's Courses when they set their IC.
+// ponytail: a few queries per enrolment (N+1); fine for one Course's roster, batch it if Courses grow past a few hundred.
+func (a *App) issueEarnedCertificates(ctx context.Context, learnerID, courseID int64) error {
+	rows, err := a.db.QueryContext(ctx, `SELECT learner_id, course_id FROM enrollments
+		WHERE ($1::bigint = 0 OR learner_id = $1) AND ($2::bigint = 0 OR course_id = $2)`, learnerID, courseID)
 	if err != nil {
 		return err
 	}
-	var ids []int64
+	var pairs [][2]int64
 	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var p [2]int64
+		if err := rows.Scan(&p[0], &p[1]); err != nil {
 			rows.Close()
 			return err
 		}
-		ids = append(ids, id)
+		pairs = append(pairs, p)
 	}
 	if err := rows.Close(); err != nil {
 		return err
@@ -145,8 +170,8 @@ func (a *App) issueEarnedCertificates(ctx context.Context, courseID int64) error
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	for _, id := range ids {
-		if err := a.issueCertificateIfEarned(ctx, id, courseID); err != nil {
+	for _, p := range pairs {
+		if err := a.issueCertificateIfEarned(ctx, p[0], p[1]); err != nil {
 			return err
 		}
 	}
@@ -163,7 +188,7 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	var list []certificate
 	for rows.Next() {
 		var c certificate
-		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.CourseTitle, &c.IssuedAt, &c.Revoked, &c.CurrentName); err != nil {
+		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.LearnerIC, &c.CourseTitle, &c.Days, &c.IssuedAt, &c.Revoked, &c.CurrentName); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
@@ -191,7 +216,8 @@ func (a *App) certificateStatus(ctx context.Context, lang string, learnerID, cou
 	return text.T(lang, "adm.course.cert-issued", text.Date(lang, issued.UTC())), nil
 }
 
-// myCertificates lists the logged-in Learner's Certificates, revoked ones included, each with a download link.
+// myCertificates lists the logged-in Learner's Certificates, revoked ones included, each with a download link, and
+// tells a Learner with no IC that none can be issued until they set it.
 func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -203,7 +229,12 @@ func (a *App) myCertificates(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "my_certificates", page{Learner: learner, Certificates: list})
+	ic, err := a.learnerIC(r.Context(), learner.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "my_certificates", page{Learner: learner, Certificates: list, NeedsIC: ic == ""})
 }
 
 // downloadCertificate serves a Certificate PDF to its Learner and to the Admin. Anyone else gets Not found.
@@ -277,6 +308,9 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 	line(48, "B", 32, text.T(lang, "certificate.pdf.title"))
 	line(72, "", 14, text.T(lang, "certificate.certifies"))
 	line(84, "B", 28, c.LearnerName)
+	if c.LearnerIC != "" {
+		line(99, "", 12, formatIC(c.LearnerIC))
+	}
 	line(106, "", 14, text.T(lang, "certificate.completed"))
 	line(118, "B", 22, c.CourseTitle)
 	line(138, "", 12, text.T(lang, "certificate.issued", c.IssuedIn(lang)))

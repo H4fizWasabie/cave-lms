@@ -149,7 +149,7 @@ _Malay_: Bank Soalan
 _Avoid_: Library, question set
 
 **Certificate**:
-A PDF of completion issued automatically when a Learner has finished a Course's Lessons and passed every one of its Exams. It has a unique ID anyone can check.
+A PDF of completion issued automatically once a Learner with an IC has passed every one of a Course's Exams and, on a self-paced Course, finished its Lessons. It is issued when the passing Result is released, never at submit, and copies the Learner's name and IC and the Course's PCC Level at issue. It has a unique ID anyone can check.
 _Malay_: Sijil
 _Avoid_: Diploma, award
 

@@ -5,6 +5,7 @@
         <h1>{{t .Lang "my-certificates.title"}}</h1>
         <p>{{t .Lang "my-certificates.intro"}}</p>
       </div>
+      {{if .NeedsIC}}<p class="callout">{{t .Lang "my-certificates.needs-ic"}} <a href="/my-profile">{{t .Lang "my-profile.title"}}</a></p>{{end}}
       <ul class="cert-list">
         {{range .Certificates}}
         <li class="cert-chip">

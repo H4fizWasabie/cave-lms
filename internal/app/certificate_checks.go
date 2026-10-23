@@ -20,7 +20,8 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "certificate_verify", page{})
 }
 
-// verifyCertificate is public. It shows the name, Course, issue date and status of a Certificate, and nothing else.
+// verifyCertificate is public. It shows the name, Course, PCC Level, issue date and status of a Certificate, and
+// nothing else.
 func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
@@ -64,7 +65,8 @@ func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
 }
 
 // reissueCertificate issues a corrected Certificate in place of a revoked one. The name the Admin gives becomes the
-// Learner's name, and the new Certificate, with a new ID, copies it and the Course's current title. The partial
+// Learner's name, and the new Certificate, with a new ID, copies it, the Learner's current IC and the Course's current
+// title and days. The partial
 // unique index refuses it while a valid one exists, and then the name is not changed either.
 func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -110,8 +112,8 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		var at time.Time
 		var year, number int
 		if at, year, number, err = a.numberCertificate(ctx, tx); err == nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title, issued_at, year, number)
-				SELECT $1, l.id, c.course_id, l.name, co.title, $3, $4, $5 FROM certificates c
+			_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number)
+				SELECT $1, l.id, c.course_id, l.name, l.ic, co.title, co.days, $3, $4, $5 FROM certificates c
 				JOIN learners l ON l.id = c.learner_id JOIN courses co ON co.id = c.course_id
 				WHERE c.id = $2`, id, old[0].ID, at, year, number)
 		}

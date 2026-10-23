@@ -174,6 +174,7 @@ func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
 	// Bea finishes every Lesson and passes: 2 of 2, best 100%, Certificate issued today.
 	bea := s.second()
 	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", pw)
+	bea.setICFor("bea@example.com")
 	bea.post("/courses/"+id+"/join", nil)
 	bea.markLesson(id, variables, true)
 	bea.markLesson(id, functions, true)
@@ -203,6 +204,7 @@ func TestAdminSeesCertificateRevokedAndDashWhenCourseHasNoExam(t *testing.T) {
 	s.addTextLesson(id, "Variables", "", "Body.", false)
 	ada := s.second()
 	ada.loginAsNewLearner("Ada Lovelace", "ada@example.com", pw)
+	ada.setICFor("ada@example.com")
 	ada.post("/courses/"+id+"/join", nil)
 	ada.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	today := time.Now().UTC().Format("2 January 2006")

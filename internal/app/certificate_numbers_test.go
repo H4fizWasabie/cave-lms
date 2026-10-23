@@ -36,6 +36,7 @@ func (s *site) earns(name, email, courseID string) string {
 	s.t.Helper()
 	s.logOut()
 	s.loginAsNewLearner(name, email, certPassword)
+	s.setICFor(email)
 	s.post("/courses/"+courseID+"/join", nil)
 	s.markLesson(courseID, s.lessonIDByTitle("Variables"), true)
 	_, body := s.get("/my-certificates")

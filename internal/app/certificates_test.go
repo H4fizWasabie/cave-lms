@@ -19,7 +19,15 @@ const certPassword = "correct horse battery"
 
 var certificateLink = regexp.MustCompile(`/certificates/([A-Za-z0-9_-]+)/pdf`)
 
-// learnerEnrolledIn makes a Course with the given published text Lessons, then logs in as Ada, who has joined it.
+// setICFor sets the logged-in Learner's IC to one made from their email, so each Learner's is their own.
+func (s *site) setICFor(email string) {
+	s.t.Helper()
+	ic := strings.ToUpper(regexp.MustCompile(`[^a-z0-9]`).ReplaceAllString(email, ""))
+	res, body := s.setIC(ic[:min(len(ic), 20)])
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+}
+
+// learnerEnrolledIn makes a Course with the given published text Lessons, then logs in as Ada, who has set her IC and joined it.
 func (s *site) learnerEnrolledIn(title string, lessons ...string) string {
 	s.t.Helper()
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
@@ -30,6 +38,7 @@ func (s *site) learnerEnrolledIn(title string, lessons ...string) string {
 	}
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
+	s.setICFor("ada@example.com")
 	s.post("/courses/"+id+"/join", nil)
 	return id
 }

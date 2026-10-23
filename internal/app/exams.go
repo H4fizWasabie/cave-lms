@@ -466,7 +466,7 @@ func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM exam_questions WHERE id = $1 AND exam_id = $2`, q.ID, e.ID)
 	if err == nil {
-		err = a.issueEarnedCertificates(r.Context(), c.ID) // the Exam may have no published questions left
+		err = a.issueEarnedCertificates(r.Context(), 0, c.ID) // the Exam may have no published questions left
 	}
 	if err != nil {
 		a.serverError(w, r, err)
