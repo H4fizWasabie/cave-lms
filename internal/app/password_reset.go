@@ -133,8 +133,12 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	// Ending every session means a reset also signs out whoever held the old password.
+	// Ending every session and CaveText token means a reset also signs out whoever held the old password.
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM sessions WHERE learner_id = $1`, learnerID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM cavetext_tokens WHERE learner_id = $1`, learnerID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
