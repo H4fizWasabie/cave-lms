@@ -130,7 +130,8 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if _, err := tx.ExecContext(r.Context(), `UPDATE learners SET password_hash = $1 WHERE id = $2`, string(hash), learnerID); err != nil {
+	// The reset link reached the inbox, which proves the email as well as a verification link would.
+	if _, err := tx.ExecContext(r.Context(), `UPDATE learners SET password_hash = $1, verified_at = coalesce(verified_at, now()) WHERE id = $2`, string(hash), learnerID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

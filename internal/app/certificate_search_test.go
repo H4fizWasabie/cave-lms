@@ -100,4 +100,3 @@ func TestTheSearchIsInMalay(t *testing.T) {
 	_, body = ada.getAsking("/certificates?q=5555", "ms")
 	expectAll(t, body, "Tiada Sijil yang sepadan.")
 }
-

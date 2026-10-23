@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"path"
 	"strings"
 	"sync"
@@ -59,6 +58,7 @@ type App struct {
 	// ever runs more than one instance.
 	releasing sync.Mutex
 	now       func() time.Time // the clock; tests set it
+	routes    []string         // every registered pattern, so the admin-route test can walk them
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -169,7 +169,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.dailyPrune(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
-	mux := http.NewServeMux()
+	mux := routeMux{http.NewServeMux(), &a.routes}
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("/", a.notFound) // any other address
 	mux.Handle("GET /static/", staticHandler())
@@ -522,29 +522,11 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 // rejectCrossOrigin is the CSRF protection for every form: browsers mark
 // cross-site requests with Sec-Fetch-Site or Origin, and those are refused.
 // The CaveText API is exempt: it is called from the extension and takes a bearer token, never a cookie.
-// ponytail: hand port of Go 1.25's http.CrossOriginProtection; switch to it once go.mod reaches 1.25.
 func rejectCrossOrigin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !strings.HasPrefix(r.URL.Path, "/cavetext/api/") && crossOrigin(r) {
-			http.Error(w, "cross-origin request refused", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func crossOrigin(r *http.Request) bool {
-	switch r.Header.Get("Sec-Fetch-Site") {
-	case "same-origin", "none":
-		return false
-	case "":
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			return false // not a browser form post
-		}
-		u, err := url.Parse(origin)
-		return err != nil || u.Host != r.Host
-	default:
-		return true
-	}
+	p := http.NewCrossOriginProtection()
+	p.AddInsecureBypassPattern("/cavetext/api/")
+	p.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "cross-origin request refused", http.StatusForbidden)
+	}))
+	return p.Handler(next)
 }

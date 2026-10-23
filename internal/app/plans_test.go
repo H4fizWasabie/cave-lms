@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -163,8 +164,8 @@ func (s *site) ageAllPeriods(days int) {
 }
 
 // adminWithPlanAndLearner logs in the Admin, creates a 30-day Plan with 3 Deployments and registers Ada.
-func adminWithPlanAndLearner(t *testing.T) (*site, string) {
-	s := newSite(t)
+func adminWithPlanAndLearner(t *testing.T, opts ...func(*config.Config)) (*site, string) {
+	s := newSite(t, opts...)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createPlan("Lab Monthly", "30", "3")
 	s.second().loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")

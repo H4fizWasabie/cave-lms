@@ -89,3 +89,6 @@ func (a *App) RunReleaseResults(ctx context.Context) { a.releaseResults(ctx) }
 
 // SetClock makes the app read the time from now, for tests.
 func (a *App) SetClock(now func() time.Time) { a.now = now }
+
+// Routes lists every registered pattern, such as "GET /admin/plans", for tests.
+func (a *App) Routes() []string { return a.routes }

@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"time"
 
 	"context"
@@ -51,6 +52,21 @@ func (s *site) ageAllDeployments(days int) {
 	}
 }
 
+// A PUBLIC_BASE_URL with a path names only Cave's origin in the CSP, since a source with a path matches that exact path.
+func TestADeploymentsCSPNamesOnlyCavesOrigin(t *testing.T) {
+	_, ada := labLearner(t, func(c *config.Config) { c.PublicBaseURL = "https://cave.example.invalid:8443/lms/" })
+	path := ada.readyDashboard("Kewangan")
+	res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-ada"}, "right": {"yes"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	res, _ = ada.second().get("/d/kedai-ada/")
+	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid:8443 'unsafe-inline'; " +
+		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' https://cave.example.invalid:8443; frame-ancestors 'none'"
+	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
+		t.Fatalf("Dashboard page CSP = %q", csp)
+	}
+}
+
 func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
@@ -88,7 +104,10 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	visitor := ada.second() // no session
 	res, page := visitor.get(link)
 	expectStatus(t, res, page, http.StatusOK, `fetch("data/dataset-`)
-	if csp := res.Header.Get("Content-Security-Policy"); csp != "sandbox allow-scripts" {
+	// Sandboxed to an opaque origin, where some browsers match nothing to 'self', so Cave's address is named too.
+	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid 'unsafe-inline'; " +
+		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' https://cave.example.invalid; frame-ancestors 'none'"
+	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
 		t.Fatalf("Dashboard page CSP = %q", csp)
 	}
 	res, data := visitor.get(link + visitor.dataOf(link))

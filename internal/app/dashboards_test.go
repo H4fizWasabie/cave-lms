@@ -24,8 +24,8 @@ import (
 )
 
 // labLearner returns the Admin and Ada, who has an active Plan and no Enrollment.
-func labLearner(t *testing.T) (admin, ada *site) {
-	admin, ada, planID, _ := labSetup(t)
+func labLearner(t *testing.T, opts ...func(*config.Config)) (admin, ada *site) {
+	admin, ada, planID, _ := labSetup(t, opts...)
 	admin.assignPlan("ada@example.com", planID)
 	return admin, ada
 }

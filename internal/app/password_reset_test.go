@@ -137,3 +137,18 @@ func TestAFailedEmailSendStillGivesTheNormalAnswer(t *testing.T) {
 	res, body = s.post("/verify/resend", url.Values{"email": {"grace@example.com"}})
 	expectStatus(t, res, body, http.StatusOK, "we sent it a new link")
 }
+
+// A reset link proves the Learner reads that email, so an unverified account is verified by the reset.
+func TestAResetVerifiesTheEmail(t *testing.T) {
+	s := newSite(t)
+	const email = "ada@example.com"
+	res, body := s.register("Ada", email, "correct horse battery")
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+
+	s.forgotPassword(email)
+	res, body = s.resetPassword(resetToken(t, s.lastEmailLinkPath(email, "/reset-password")), "new horse staple")
+	expectStatus(t, res, body, http.StatusOK, "Your password has been changed")
+
+	res, body = s.login(email, "new horse staple")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
