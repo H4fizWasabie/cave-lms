@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -106,10 +107,14 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	_, err = tx.ExecContext(ctx, `UPDATE learners SET name = $2 WHERE id = $1`, old[0].LearnerID, name)
 	if err == nil {
-		_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title)
-			SELECT $1, l.id, c.course_id, l.name, co.title FROM certificates c
-			JOIN learners l ON l.id = c.learner_id JOIN courses co ON co.id = c.course_id
-			WHERE c.id = $2`, id, old[0].ID)
+		var at time.Time
+		var year, number int
+		if at, year, number, err = a.numberCertificate(ctx, tx); err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title, issued_at, year, number)
+				SELECT $1, l.id, c.course_id, l.name, co.title, $3, $4, $5 FROM certificates c
+				JOIN learners l ON l.id = c.learner_id JOIN courses co ON co.id = c.course_id
+				WHERE c.id = $2`, id, old[0].ID, at, year, number)
+		}
 	}
 	if err == nil {
 		err = tx.Commit()
