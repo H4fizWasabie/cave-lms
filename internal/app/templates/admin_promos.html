@@ -1,0 +1,49 @@
+{{define "title"}}{{t .Lang "admin.side.promos"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "promos" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "promos.heading"}}</h1>
+            <p>{{t .Lang "promos.intro"}}</p>
+          </div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "promos.code"}}</th><th>{{t .Lang "promos.product"}}</th><th>{{t .Lang "promos.price"}}</th><th>{{t .Lang "promos.dates"}}</th><th>{{t .Lang "promos.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .Promos}}
+              <tr>
+                <td>{{.Code}}</td>
+                <td>{{t $.Lang (print "prices." .Product)}}</td>
+                <td>{{.Price}}</td>
+                <td>{{.Starts $.Lang}} – {{.Ends $.Lang}}</td>
+                <td>{{if .Ended}}{{t $.Lang "promos.ended"}}{{else if .Running}}{{t $.Lang "promos.running"}}{{else if .Upcoming}}{{t $.Lang "promos.upcoming"}}{{else}}{{t $.Lang "promos.over"}}{{end}}</td>
+                <td class="actions">{{if or .Running .Upcoming}}<form method="post" action="/admin/promos/{{.ID}}/end" aria-label="{{t $.Lang "promos.end-label" .Code}}"><button class="btn btn-quiet btn-sm">{{t $.Lang "promos.end"}}</button></form>{{end}}</td>
+              </tr>
+              {{else}}
+              <tr><td colspan="6">{{t .Lang "promos.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h2>{{t .Lang "promos.add"}}</h2>
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="/admin/promos">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="code">{{t .Lang "promos.code"}}</label><input id="code" type="text" name="code" value="{{.Form.Code}}" required autocapitalize="characters"></div>
+              <div class="field"><label for="product">{{t .Lang "promos.product"}}</label><select id="product" name="product">{{range .Products}}<option value="{{.}}"{{if eq . $.Form.Product}} selected{{end}}>{{t $.Lang (print "prices." .)}}</option>{{end}}</select></div>
+              <div class="field"><label for="price">{{t .Lang "promos.price-rm"}}</label><input id="price" type="text" inputmode="decimal" name="price" value="{{.Form.PriceIn}}" required></div>
+            </div>
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="starts_on">{{t .Lang "promos.starts"}}</label><input id="starts_on" type="date" name="starts_on" value="{{.Form.StartsIn}}" required></div>
+              <div class="field"><label for="ends_on">{{t .Lang "promos.ends"}}</label><input id="ends_on" type="date" name="ends_on" value="{{.Form.EndsIn}}" required></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "promos.add"}}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+{{end}}

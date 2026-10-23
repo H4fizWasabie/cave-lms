@@ -6,6 +6,10 @@
         <p>{{t .Lang "offers.intro"}}</p>
       </div>
       {{- template "offers" .}}
+      <figure class="comparison">
+        <img src="/static/cost-comparison.webp" width="1280" height="1169" loading="lazy" alt="{{t .Lang "plans.comparison-alt"}}">
+        <figcaption>{{t .Lang "plans.comparison-caption"}}</figcaption>
+      </figure>
       {{- if not .Learner}}
       <div class="cta-row">
         <a class="btn btn-solid btn-lg" href="/login?next=%2Fplans">{{t .Lang "header.log-in"}}</a>
