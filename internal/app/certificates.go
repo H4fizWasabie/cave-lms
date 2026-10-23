@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -48,6 +49,13 @@ const certificateColumns = `id, year, number, learner_id, learner_name, COALESCE
 // Number is the Certificate No., as PCC-2026-00509. The ID, not this, goes in URLs and the QR, so it can't be walked.
 func (c certificate) Number() string {
 	return fmt.Sprintf("PCC-%d-%05d", c.Year, c.Seq)
+}
+
+// MaskedIC is the Certificate's IC, formatted, with its last 4 characters hidden, as 951206-08-****.
+func (c certificate) MaskedIC() string {
+	ic := formatIC(c.LearnerIC)
+	n := max(len(ic)-4, 0)
+	return ic[:n] + strings.Repeat("*", len(ic)-n)
 }
 
 // Level is the PCC Level the Certificate was issued at, or "" for a self-paced Course.
