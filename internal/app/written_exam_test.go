@@ -177,12 +177,12 @@ func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnsw
 	id := s.writtenCourse("70", "Explain :=", "Explain go vet")
 	s.switchLanguage("en", "/") // saved on Ada's account
 	attempt, qids := s.sitWritten(id, "My own words")
-	before := len(s.emailsTo("ada@example.com"))
+	before := len(s.resultEmailsTo("ada@example.com"))
 	admin := s.adminSite()
 	detail := "/admin/results/" + writtenAttemptID(attempt)
 
 	s.releaseResults()
-	if n := len(s.emailsTo("ada@example.com")); n != before {
+	if n := len(s.resultEmailsTo("ada@example.com")); n != before {
 		t.Fatalf("%d emails before any answer was marked, want %d", n, before)
 	}
 	_, body := admin.get(detail)
@@ -198,7 +198,7 @@ func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnsw
 		t.Fatalf("saving marks went to %q, want %q", loc, detail)
 	}
 	s.releaseResults()
-	if n := len(s.emailsTo("ada@example.com")); n != before {
+	if n := len(s.resultEmailsTo("ada@example.com")); n != before {
 		t.Fatalf("%d emails with one answer still unmarked, want %d", n, before)
 	}
 	_, body = s.get(attempt)
@@ -207,7 +207,7 @@ func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnsw
 
 	admin.saveMarks(attempt, map[string]string{qids[1]: "5"})
 	s.runReleaseJob() // the 10 minutes have already passed
-	emails := s.emailsTo("ada@example.com")[before:]
+	emails := s.resultEmailsTo("ada@example.com")[before:]
 	if len(emails) != 1 {
 		t.Fatalf("%d Result emails, want 1", len(emails))
 	}
@@ -249,17 +249,17 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 	admin.saveMarks(attempt, map[string]string{qids[0]: "2", qids[1]: "4"})
 	s.releaseResults()
 	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 30%")
-	sent := len(s.emailsTo("ada@example.com"))
+	sent := len(s.resultEmailsTo("ada@example.com"))
 
 	admin.saveMarks(attempt, map[string]string{qids[0]: "3"}) // still a fail
 	_, body := s.get(attempt)
 	expectAll(t, body, "Score: 35%", "Failed (pass mark 50%)")
-	if n := len(s.emailsTo("ada@example.com")); n != sent {
+	if n := len(s.resultEmailsTo("ada@example.com")); n != sent {
 		t.Fatalf("%d emails after a change that kept the fail, want %d", n, sent)
 	}
 
 	admin.saveMarks(attempt, map[string]string{qids[0]: "10"}) // now a pass
-	emails := s.emailsTo("ada@example.com")[sent:]
+	emails := s.resultEmailsTo("ada@example.com")[sent:]
 	if len(emails) != 1 {
 		t.Fatalf("%d emails after the fail became a pass, want 1", len(emails))
 	}
@@ -272,7 +272,7 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 	expectStatus(t, res, body, http.StatusOK, "Mark: 10 / 10")
 
 	admin.saveMarks(attempt, map[string]string{qids[0]: "0"}) // back to a fail
-	emails = s.emailsTo("ada@example.com")[sent:]
+	emails = s.resultEmailsTo("ada@example.com")[sent:]
 	if len(emails) != 2 {
 		t.Fatalf("%d emails after the pass became a fail, want 2", len(emails))
 	}

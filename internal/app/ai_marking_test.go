@@ -127,10 +127,10 @@ func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
 		t.Fatalf("the AI writer was asked to mark %d answers, want only the one the Admin left", n)
 	}
 	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 30%")
-	sent := len(s.emailsTo("ada@example.com"))
+	sent := len(s.resultEmailsTo("ada@example.com"))
 
 	admin.saveMarks(attempt, map[string]string{qids[1]: "10"}) // overrides the AI's 2, now a pass
-	emails := s.emailsTo("ada@example.com")[sent:]
+	emails := s.resultEmailsTo("ada@example.com")[sent:]
 	if len(emails) != 1 || len(emails[0].Attachments) != 1 {
 		t.Fatalf("emails after the override made a pass = %#v, want one with the Answer sheet", emails)
 	}

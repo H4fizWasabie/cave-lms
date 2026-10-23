@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/go-pdf/fpdf"
 )
@@ -140,7 +141,46 @@ func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, g
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
 		return err // nothing issued: the rollback gives the number back
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	a.emailCertificate(ctx, id)
+	return nil
+}
+
+// emailCertificate emails a just-issued Certificate to its Learner in their saved language, with its PDF and a link
+// to its check page. A failed email is only logged: the Certificate is on the site.
+func (a *App) emailCertificate(ctx context.Context, id string) {
+	var email, lang string
+	list, err := a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, id)
+	if err == nil && len(list) == 1 {
+		err = a.db.QueryRowContext(ctx, `SELECT email, COALESCE(language, '') FROM learners WHERE id = $1`, list[0].LearnerID).Scan(&email, &lang)
+	}
+	if err == nil && len(list) != 1 {
+		err = errors.New("not found")
+	}
+	if err != nil {
+		a.logError(nil, fmt.Errorf("send Certificate email for %s: %w", id, err))
+		return
+	}
+	c := list[0]
+	if !text.Supported(lang) {
+		lang = text.Languages[0]
+	}
+	msg := mailer.Message{
+		To:      email,
+		Subject: text.T(lang, "email.certificate.subject", c.CourseTitle),
+		Body:    text.T(lang, "email.certificate.body", c.LearnerName, c.CourseTitle, c.Number(), a.publicBaseURL+"/certificates/"+c.ID),
+	}
+	if pdf, err := a.certificatePDF(ctx, lang, c); err != nil {
+		a.logError(nil, fmt.Errorf("make Certificate PDF for %s: %w", c.ID, err))
+	} else {
+		msg.Body += "\n" + text.T(lang, "email.certificate.attached") + "\n"
+		msg.Attachments = []mailer.Attachment{{Filename: "certificate-" + c.Number() + ".pdf", Content: pdf}}
+	}
+	if err := a.mailer.Send(ctx, msg); err != nil {
+		a.logError(nil, fmt.Errorf("send Certificate email for %s: %w", c.ID, err))
+	}
 }
 
 // numberCertificate takes the next Certificate No. for the current year (UTC, as the issue date is shown) inside tx,
