@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -26,12 +27,34 @@ type bclWebhookBody struct {
 			Order      bclText `json:"order_number"`
 			Kind       bclText `json:"transaction_type"` // "test" for Test Mode
 			Subtotal   bclText `json:"subtotal_amount"`
+			Amount     bclText `json:"amount"` // what the payer was charged, fee included
 			Paid       bclText `json:"is_paid"`
 		} `json:"main_data"`
 		// Custom holds the form's own fields, keyed by a name BCL makes from each label. PHP sends [] when there are
 		// none, so it stays raw until read.
 		Custom json.RawMessage `json:"custom_fields_data"`
 	} `json:"data"`
+}
+
+// couponFields lists main_data's coupon and discount fields as ", name=value", sorted, so a Test Mode payment shows
+// how BCL reports a coupon. Empty when there are none.
+func couponFields(raw []byte) string {
+	var body struct {
+		Data struct {
+			Main map[string]bclText `json:"main_data"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(raw, &body) != nil {
+		return ""
+	}
+	var fields []string
+	for k, v := range body.Data.Main {
+		if l := strings.ToLower(k); strings.Contains(l, "coupon") || strings.Contains(l, "discount") {
+			fields = append(fields, ", "+k+"="+v.String())
+		}
+	}
+	slices.Sort(fields)
+	return strings.Join(fields, "")
 }
 
 // bclText is a value BCL may send as a string, a number or a bool; it is kept as text, trimmed. null is empty.
@@ -128,7 +151,8 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	case !b.paid():
 		note("info", "order %s is not paid; ignored", order)
 	case b.Data.Main.Kind == "test":
-		note("info", "order %s is a Test Mode payment on %s; no Pro given", order, b.Data.FormURL)
+		note("info", "order %s is a Test Mode payment on %s, subtotal %s, amount %s%s; nothing given",
+			order, b.Data.FormURL, b.Data.Main.Subtotal, b.Data.Main.Amount, couponFields(raw))
 	case order == "":
 		note("info", "paid order with no order number on %s; ignored", b.Data.FormURL)
 	default:

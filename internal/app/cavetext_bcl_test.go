@@ -37,6 +37,7 @@ func bclSite(t *testing.T) *site {
 type bclPayment struct {
 	event, formURL, order, payerEmail, cavelmsEmail, subtotal, kind string
 	paid                                                            int
+	extra                                                           map[string]any // more main_data fields, such as a coupon's
 }
 
 // paid is a paid RM25 order on the Pro form naming email in both email fields.
@@ -46,17 +47,21 @@ func paid(order, email string) bclPayment {
 
 // bclPayload builds the webhook body in BCL's own shape, as captured from a Test Mode payment on 22 Oct 2026.
 func bclPayload(p bclPayment) string {
+	main := map[string]any{
+		"payer_name": "Payer", "payer_email": p.payerEmail, "payer_telephone_number": "+60123456789",
+		"order_number": p.order, "transaction_type": p.kind, "currency": "MYR",
+		"subtotal_amount": p.subtotal, "fee_amount": "1.00", "amount": "26.00", "payment_channel": "FPX",
+		"status": 3, "status_description": "Approved", "is_paid": p.paid, "source_type": "payment_form",
+	}
+	for k, v := range p.extra {
+		main[k] = v
+	}
 	b, _ := json.Marshal(map[string]any{
 		"event": p.event,
 		"data": map[string]any{
 			"formable_type": "payment_form", "formable_id": 19548, "form_title": "CaveText Pro (1 tahun / 1 year)",
 			"form_url": p.formURL, "record_type": "Transaction", "record_id": p.order,
-			"main_data": map[string]any{
-				"payer_name": "Payer", "payer_email": p.payerEmail, "payer_telephone_number": "+60123456789",
-				"order_number": p.order, "transaction_type": p.kind, "currency": "MYR",
-				"subtotal_amount": p.subtotal, "fee_amount": "1.00", "amount": "26.00", "payment_channel": "FPX",
-				"status": 3, "status_description": "Approved", "is_paid": p.paid, "source_type": "payment_form",
-			},
+			"main_data": main,
 			"tracking_params":    nil,
 			"custom_fields_data": map[string]any{"e_mel_akaun_cavelms_cavelms_account_email": p.cavelmsEmail},
 		},
@@ -282,4 +287,16 @@ func TestBCLAmountsSentAsNumbersStillCount(t *testing.T) {
 		t.Fatalf("status %d, want 200", code)
 	}
 	expectProForAYear(t, ada, token)
+}
+
+func TestATestModePaymentIsLoggedWithItsAmountsAndAnyCoupon(t *testing.T) {
+	s := bclSite(t)
+	test := paid("LINK-5", "ada@example.com")
+	test.formURL, test.kind, test.subtotal = testFormURL, "test", "249.00"
+	test.extra = map[string]any{"amount": "100.00", "discount_amount": "150.00", "coupon_code": "CAVETEST"}
+	s.bclPay(test)
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-5 is a Test Mode payment", "subtotal 249.00", "amount 100.00",
+		"coupon_code=CAVETEST", "discount_amount=150.00", "nothing given")
+	expectNone(t, body, "no Pro given")
 }
