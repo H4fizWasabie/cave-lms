@@ -345,7 +345,6 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	// ponytail: expired session rows are never deleted; add a cleanup when the table grows.
 	if _, err := a.db.ExecContext(r.Context(),
 		`INSERT INTO sessions (token_hash, learner_id, expires_at) VALUES ($1, $2, now() + make_interval(secs => $3))`,
 		hashToken(token), id, sessionLifetime.Seconds()); err != nil {
