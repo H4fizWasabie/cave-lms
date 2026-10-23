@@ -16,14 +16,16 @@
               <tr><th>{{t .Lang "adm.title"}}</th><th>{{t .Lang "adm.courses.start-date"}}</th><th>{{t .Lang "adm.courses.state"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Courses}}
               <tr>
-                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a></td>
-                <td>{{.StartDate}}</td>
-                <td>{{if .Open}}<span class="badge badge-open">{{t $.Lang "adm.courses.open"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "adm.courses.closed"}}</span>{{end}}</td>
+                <td><a class="cell-course" href="/courses/{{.ID}}">{{.Title}}</a>{{with .Level}} <span class="badge">{{t $.Lang "course.pcc-level" .}}</span>{{end}}</td>
+                <td>{{.StartDate}}{{if .Live}} – {{.EndDate}}{{end}}</td>
+                <td>{{if not .Published}}<span class="badge badge-closed">{{t $.Lang "adm.courses.draft"}}</span> {{end}}{{if .Ended}}<span class="badge badge-closed">{{t $.Lang "course.ended"}}</span>{{else if .Open}}<span class="badge badge-open">{{t $.Lang "adm.courses.open"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "adm.courses.closed"}}</span>{{end}}</td>
                 <td class="actions">
                   <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}">{{t $.Lang "adm.learners"}}</a>
                   <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
                   <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/lessons">{{t $.Lang "adm.lessons"}}</a>
                   <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/exam">{{t $.Lang "adm.exam"}}</a>
+                  <a class="btn btn-quiet btn-sm" href="/admin/courses/{{.ID}}/duplicate">{{t $.Lang "adm.courses.do-duplicate"}}</a>
+                  {{if not .Published}}<form method="post" action="/admin/courses/{{.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.courses.do-publish"}}</button></form>{{end}}
                   {{if .Open}}
                   <form method="post" action="/admin/courses/{{.ID}}/close"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.courses.do-close"}}</button></form>
                   {{else}}

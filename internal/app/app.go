@@ -98,6 +98,7 @@ type page struct {
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
 	Next          string // where the login page goes after logging in
+	DuplicateOf   int64  // the Course the Course form duplicates into a Live Course, 0 when none
 }
 
 func (p *page) learnerField() **learner { return &p.Learner }
@@ -249,6 +250,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/publish", a.admin(a.publishCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/duplicate", a.admin(a.duplicateCourseForm))
+	mux.HandleFunc("POST /admin/courses/{id}/duplicate", a.admin(a.duplicateCourse))
 	mux.HandleFunc("GET /courses/{id}/lessons/{lessonID}", a.requireLearner(a.showLesson))
 	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/complete", a.requireLearner(a.setLessonComplete(true)))
 	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/incomplete", a.requireLearner(a.setLessonComplete(false)))
