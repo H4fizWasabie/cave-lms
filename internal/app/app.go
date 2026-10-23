@@ -202,6 +202,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/charts.js", a.deploymentFile("charts.js"))
+	// A shared link missing its slash redirects for good; ServeMux's own redirect is a temporary 307 on current Go.
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
+	})
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
