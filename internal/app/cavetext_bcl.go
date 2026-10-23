@@ -175,19 +175,26 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 			break
 		}
 	}
-	switch {
-	case err != nil && !errors.Is(err, sql.ErrNoRows):
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("find Learner: %w", err)
+	}
+	enough := form.Sen // the price, or the lowest running Promo's when that is lower
+	if promoSen, err := lowestPromoSen(ctx, tx, form.Product); err != nil {
+		return "", fmt.Errorf("read Promos: %w", err)
+	} else if promoSen > 0 && promoSen < enough {
+		enough = promoSen
+	}
+	switch {
 	case learnerID == 0:
 		return "names no Learner; kept for an Admin", tx.Commit()
-	case !readable || subtotal < form.Sen:
+	case !readable || subtotal < enough:
 		if err := markPayment(ctx, tx, order, learnerID, false); err != nil {
 			return "", err
 		}
 		if !readable {
 			return fmt.Sprintf("unreadable amount %q; kept for an Admin", b.Data.Main.Subtotal), tx.Commit()
 		}
-		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(form.Sen)), tx.Commit()
+		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(subtotal), rm(enough)), tx.Commit()
 	}
 	if form.Product != labPlanProduct {
 		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {

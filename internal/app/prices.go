@@ -44,6 +44,7 @@ func (a *App) priceOf(ctx context.Context, product string) (price, error) {
 // which opens its payment link or, with none, asks the Learner to contact us.
 type offer struct {
 	Product, Price, Normal, PaymentLink string // Price and Normal in RM: RM25; Normal empty when none
+	Promo                               string // the lowest running Promo price in RM, below Price; empty when none
 	Renew                               bool   // Buy reads Renew: the Learner already has the product
 }
 
@@ -56,6 +57,13 @@ func (a *App) offersOf(ctx context.Context, products ...string) ([]offer, error)
 			return nil, err
 		}
 		o := offer{Product: product, Price: rm(p.Sen), PaymentLink: p.PaymentLink}
+		promoSen, err := lowestPromoSen(ctx, a.db, product)
+		if err != nil {
+			return nil, err
+		}
+		if promoSen > 0 && promoSen < p.Sen {
+			o.Promo = rm(promoSen)
+		}
 		if p.NormalSen > 0 {
 			o.Normal = rm(p.NormalSen)
 		}

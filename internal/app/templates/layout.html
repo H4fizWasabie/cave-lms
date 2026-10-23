@@ -159,6 +159,7 @@
           <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span></a>
           <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>
           <a href="/admin/prices"{{if eq .Section "prices"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.prices"}}</span></a>
+          <a href="/admin/promos"{{if eq .Section "promos"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.promos"}}</span></a>
           <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span></a>
           <a href="/admin/cavetext"{{if eq .Section "cavetext"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "admin.side.cavetext"}}</span></a>
           <a href="/admin/cavetext/settings"{{if eq .Section "cavetext-settings"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-set"}}</span></a>
@@ -179,6 +180,9 @@ and Buy to its payment link, or Contact us without one. Visitors see the prices 
         <li class="offer">
           <h3>{{t $.Lang (print "prices." .Product)}}</h3>
           <p class="offer-price"><strong>{{t $.Lang "offers.price" .Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
+          {{- with .Promo}}
+          <p class="offer-promo">{{t $.Lang "offers.promo" .}}</p>
+          {{- end}}
           <p class="muted">{{t $.Lang (print "offers." .Product)}}</p>
           {{- if $.Learner}}
           {{- if .PaymentLink}}
