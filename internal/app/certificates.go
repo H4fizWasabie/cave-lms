@@ -336,7 +336,7 @@ const (
 )
 
 // certificatePDF prints the Certificate's details over the Admin's background artwork on one portrait A4 page, its
-// fixed wording and date in lang. Without a background it prints the same details on a blank page.
+// fixed wording and date in lang. Without a background it prints the same details under a plain heading.
 func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([]byte, error) {
 	s, err := a.certificateSettingsFor(ctx)
 	if err != nil {
@@ -361,6 +361,9 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		pdf.Text(x-pdf.GetStringWidth(s)/2, y, s)
 	}
 
+	if s.BackgroundKey == "" { // the artwork carries the heading; without it the page would be headless
+		centred(pageW/2, 66, "Times", "B", 28, text.T(lang, "certificate.pdf.heading"))
+	}
 	pdf.SetTextColor(214, 132, 28) // the sample's gold
 	centred(certNumberX, certNumberY, "Helvetica", "", 8, c.Number())
 	pdf.SetTextColor(0, 0, 0)

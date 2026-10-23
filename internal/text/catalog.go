@@ -1066,7 +1066,8 @@ var catalog = map[string]entry{
 	"certificate.not-found.title": {en: "Certificate not found", ms: "Sijil tidak dijumpai"},
 	"certificate.not-found-here":  {en: "There is no Certificate at this address.", ms: "Tiada Sijil di alamat ini."},
 	"certificate.no-such-id":      {en: "No Certificate has this ID.", ms: "Tiada Sijil dengan ID ini."},
-	// The PDF: Helvetica with the cp1252 translator, so plain Latin letters only
+	// The PDF: Helvetica and Times with the cp1252 translator, so plain Latin letters only
+	"certificate.pdf.heading":      {en: "Certificate of Completion", ms: "Sijil Penyempurnaan"},
 	"certificate.pdf.revoked":      {en: "REVOKED", ms: "DIBATALKAN"},
 	"certificate.pdf.revoked-note": {en: "This Certificate has been revoked and is no longer valid.", ms: "Sijil ini telah dibatalkan dan tidak lagi sah."},
 	"certificate.pdf.issued-on":    {en: "Issued on: %s", ms: "Dikeluarkan pada: %s"},

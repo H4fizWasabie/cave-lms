@@ -88,3 +88,14 @@ func TestSelfPacedCertificateHasNoBadgeAndALongTitleWraps(t *testing.T) {
 		t.Fatalf("self-paced Certificate PDF without a background has %d images, want only the QR code", strings.Count(pdf, "/Subtype /Image"))
 	}
 }
+
+func TestACertificatePDFWithoutABackgroundPrintsAPlainHeading(t *testing.T) {
+	s := newSite(t)
+	_, certID := s.adaEarns()
+	path := "/certificates/" + certID + "/pdf"
+	expectAll(t, s.pdfBody(path), "Certificate of Completion")
+
+	s.loginAdmin()
+	s.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
+	expectNone(t, s.pdfBody(path), "Certificate of Completion") // the artwork carries its own
+}
