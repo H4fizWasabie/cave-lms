@@ -1306,7 +1306,14 @@ var catalog = map[string]entry{
 	"home.cta.classes":   {en: "Join Online Classes", ms: "Join Online Classes"},
 	"home.cta.ebooks":    {en: "Explore eBooks", ms: "Explore eBooks"},
 	"home.cta.dashboard": {en: "Learn AI Dashboard Development", ms: "Learn AI Dashboard Development"},
-	"home.coach-alt":     {en: "Coach Adam, CEO of The Cave Consult", ms: "Coach Adam, CEO The Cave Consult"},
+	// Company background: drawn from the client's company profile page until they send their own text.
+	"home.background.title": {en: "Company background", ms: "Latar belakang syarikat"},
+	"home.background.p": {
+		en: "The Cave Consult (TCC) trains people and organisations for a working world shaped by AI. It is led by Coach Adam Daniel, an HRD Corp and JPK accredited trainer with over 25 years in entrepreneurship and leadership, alongside COO Capt Dinor Sabudin, who served 22 years in the Malaysian Army. Through its training arm ISDeT, and with UTM CAIRO, TCC runs HRDC-claimable programmes across AI and robotics, leadership, NLP and communication, in line with Malaysia's AI-Driven Nation 2030 goal.",
+		ms: "The Cave Consult (TCC) melatih individu dan organisasi untuk dunia kerja yang dibentuk oleh AI. Ia diterajui oleh Coach Adam Daniel, jurulatih bertauliah HRD Corp dan JPK dengan lebih 25 tahun pengalaman dalam keusahawanan dan kepimpinan, bersama COO Kapten Dinor Sabudin yang berkhidmat 22 tahun dalam Tentera Darat Malaysia. Melalui sayap latihannya ISDeT, dan bersama UTM CAIRO, TCC menjalankan program boleh tuntut HRDC dalam AI dan robotik, kepimpinan, NLP dan komunikasi, selaras dengan matlamat Negara Dipacu AI 2030.",
+	},
+	"home.background.more": {en: "Read the full company profile", ms: "Baca profil penuh syarikat"},
+	"home.coach-alt":       {en: "Coach Adam, CEO of The Cave Consult", ms: "Coach Adam, CEO The Cave Consult"},
 	"home.intro.1": {
 		en: "CAVELMS is a digital learning platform built by The Cave Consult (TCC) to help educators, civil servants, professionals and organisations master Generative Artificial Intelligence (Generative AI) in a way that is practical, systematic and easy to understand.",
 		ms: "CAVELMS ialah platform pembelajaran digital yang dibangunkan oleh The Cave Consult (TCC) untuk membantu pendidik, penjawat awam, profesional dan organisasi menguasai teknologi Generative Artificial Intelligence (Generative AI) secara praktikal, sistematik dan mudah difahami.",
