@@ -39,7 +39,7 @@ Once per VPS. Run as root on the VPS.
 
    Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see Email below).
 
-   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only orders on the form that Admin > CaveText settings > Payment link points to give Pro, so a Test Mode copy of the form with its own address can share the webhook safely. Without the key every webhook gets 404.
+   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only live orders on the form that Admin > CaveText settings > Payment link points to give Pro; Test Mode orders are only logged. The Test Mode copies of the forms send to staging instead (see Staging). Without the key every webhook gets 404.
 
    For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
 
@@ -62,6 +62,74 @@ deploy/deploy.sh            # CAVE_HOST=other-host deploy/deploy.sh to target an
 ```
 
 It builds a Linux binary, copies the binary, unit and Caddy site to the VPS, restarts `cave-lms`, and waits for it to answer. Migrations run on start. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails. Logs: `journalctl -u cave-lms -n 100`.
+
+## Staging
+
+`staging.cavelms.com` is a second copy of the app on the same VPS, where the client tries new work before it goes live (`docs/adr/0010-staging-runs-beside-production.md`). It shares nothing with production but Postgres, Caddy and the Resend account, and it is not backed up.
+
+| What | Where on the VPS |
+|---|---|
+| Binary | `/usr/local/bin/cave-lms-staging` |
+| Service | `cave-lms-staging` (from `deploy/cave-lms-staging.service`), user `cave_staging`, `127.0.0.1:8089` |
+| Caddy site | `/etc/caddy/sites/cave-lms-staging.caddy` (from `deploy/cave-lms-staging.caddy`) |
+| Login | user `cave`; the hash in `/etc/caddy/cave-lms-staging-login`, the password in `/etc/cave-lms/staging-login-password` (root only), both kept off the public repo |
+| Settings | `/etc/cave-lms/staging.env`, root-owned, mode 0600 |
+| Uploads | `/var/lib/cave-lms-staging/uploads` (Datasets too: no R2) |
+| Database | `cave_staging`, owned by the `cave_staging` role |
+
+Deploy the current checkout, from any branch:
+
+```sh
+CAVE_ENV=staging deploy/deploy.sh
+```
+
+It ships only the staging binary, unit and Caddy site, and leaves production and the backups alone. Logs: `journalctl -u cave-lms-staging -n 100`.
+
+### What keeps staging off the real world
+
+- **Email** goes only to the addresses in `EMAIL_ALLOWLIST` (comma-separated; `@example.com` allows a whole domain). Any other message is not sent: it goes to the System log (and journald) in full, link included, so the Owner can read it at `staging.cavelms.com/admin/log`. Production leaves `EMAIL_ALLOWLIST` unset and emails everyone.
+- **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
+- **Data** starts empty. Set up Courses, Exams and prices by hand in staging's Admin.
+- **CaveText** can't sign in to staging: `CAVETEXT_EXTENSION_IDS` is unset and the extension would trip over the login. A Test Mode payment still gives Pro, and the System log says so.
+
+### First install of staging
+
+Run as root on the VPS unless a step says otherwise.
+
+1. At NetKL, add an A record `staging.cavelms.com` → `169.58.63.110`, then wait until `dig +short staging.cavelms.com` returns it.
+2. Create the system user, database and settings:
+
+   ```sh
+   useradd --system --home /var/lib/cave-lms-staging --shell /usr/sbin/nologin cave_staging
+   sudo -u postgres createuser cave_staging
+   sudo -u postgres createdb --owner cave_staging cave_staging
+   install -m 0600 /dev/null /etc/cave-lms/staging.env
+   cat > /etc/cave-lms/staging.env <<'EOF'
+   DATABASE_URL=postgres:///cave_staging?host=/var/run/postgresql
+   PUBLIC_BASE_URL=https://staging.cavelms.com
+   EMAIL_FROM="Cave LMS Staging <noreply@cavelms.com>"
+   EMAIL_ALLOWLIST=hafizwasabie@gmail.com
+   STORAGE_DIR=/var/lib/cave-lms-staging/uploads
+   LISTEN_ADDR=127.0.0.1:8089
+   OWNER_EMAIL=hafizwasabie@gmail.com
+   BCL_PAYMENTS=test
+   EOF
+   ```
+
+   Add the client's addresses to `EMAIL_ALLOWLIST`. Then, with an editor, add `RESEND_API_KEY` (a new Resend key with Sending access only, named for staging, so it can be revoked alone; it shares production's 100 emails a day) and `BCL_WEBHOOK_KEY` (a new one, `openssl rand -hex 24`, not production's).
+3. Create the login, user `cave`. The password is generated into a root-only file; read it there (`cat /etc/cave-lms/staging-login-password`) and give it to the client out of band:
+
+   ```sh
+   (umask 077; openssl rand -base64 18 > /etc/cave-lms/staging-login-password)
+   pw=$(cat /etc/cave-lms/staging-login-password)
+   echo "cave $(printf '%s\n%s\n' "$pw" "$pw" | caddy hash-password 2>/dev/null)" > /etc/caddy/cave-lms-staging-login
+   unset pw; chmod 644 /etc/caddy/cave-lms-staging-login
+   ```
+
+   To change it, rerun these lines, then `systemctl reload caddy`.
+4. From your machine, run `CAVE_ENV=staging deploy/deploy.sh`.
+5. Create the Admin as in First install, step 4, with `-p User=cave_staging -p EnvironmentFile=/etc/cave-lms/staging.env /usr/local/bin/cave-lms-staging`.
+6. In BCL, set each TEST form (19556, 19624, 19625) under Advanced > Webhook Settings to `https://staging.cavelms.com/cavetext/bcl/<staging key>` with the Payment Success event. In staging's Admin > Prices, set each payment link to the matching TEST form's address (`https://ideaniagaventures.bcl.my/form/cavetext-pro-test`, `lab-plan-test`, `pro-plan-test`) and each price to no more than that form charges, or a TEST payment is kept for an Admin instead of giving the product.
 
 ## Changing the domain
 
