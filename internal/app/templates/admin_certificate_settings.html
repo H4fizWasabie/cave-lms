@@ -12,15 +12,9 @@
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="/admin/certificate-settings" enctype="multipart/form-data">
-            <div class="field-grid field-grid-2">
-              <div class="field"><label for="organisation_name">{{t .Lang "adm.certs.organisation"}}</label><input id="organisation_name" type="text" name="organisation_name" value="{{.Settings.OrganisationName}}"></div>
-              <div class="field"><label for="signatory_name">{{t .Lang "adm.certs.signatory"}}</label><input id="signatory_name" type="text" name="signatory_name" value="{{.Settings.SignatoryName}}"></div>
-            </div>
             <p class="note">{{t .Lang "adm.certs.images"}}</p>
-            <div class="field-grid field-grid-2">
-              <div class="field"><label for="logo">{{t .Lang "adm.certs.logo"}}</label><input id="logo" type="file" name="logo" accept="image/jpeg,image/png"><small>{{if .Settings.LogoKey}}{{t .Lang "adm.certs.logo-set"}}{{else}}{{t .Lang "adm.certs.no-logo"}}{{end}}</small></div>
-              <div class="field"><label for="signature">{{t .Lang "adm.certs.signature"}}</label><input id="signature" type="file" name="signature" accept="image/jpeg,image/png"><small>{{if .Settings.SignatureKey}}{{t .Lang "adm.certs.signature-set"}}{{else}}{{t .Lang "adm.certs.no-signature"}}{{end}}</small></div>
-            </div>
+            <div class="field"><label for="background">{{t .Lang "adm.certs.background"}}</label><input id="background" type="file" name="background" accept="image/jpeg,image/png"><small>{{if .Settings.BackgroundKey}}{{t .Lang "adm.certs.background-set"}}{{else}}{{t .Lang "adm.certs.no-background"}}{{end}}</small></div>
+            {{with .Settings.BackgroundKey}}<img class="cert-background" src="/admin/certificate-settings/background?v={{.}}" alt="{{t $.Lang "adm.certs.background-alt"}}" width="210" height="297">{{end}}
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
           </form>
         </div>

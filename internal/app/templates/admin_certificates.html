@@ -16,13 +16,14 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "adm.certs.learner"}}</th><th>{{t .Lang "adm.certs.course"}}</th><th>{{t .Lang "adm.certs.issued"}}</th><th>{{t .Lang "adm.certs.status"}}</th><th>ID</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "adm.certs.number"}}</th><th>{{t .Lang "adm.certs.learner"}}</th><th>{{t .Lang "adm.certs.course"}}</th><th>{{t .Lang "adm.certs.issued"}}</th><th>{{t .Lang "adm.certs.status"}}</th><th>ID</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Certificates}}
               <tr{{if .Revoked}} class="is-revoked"{{end}}>
+                <td>{{.Number}}</td>
                 <td>{{.LearnerName}}</td>
                 <td>{{.CourseTitle}}</td>
                 <td>{{.IssuedIn $.Lang}}</td>
-                <td>{{if .Revoked}}{{t $.Lang "adm.course.cert-revoked"}}{{else}}{{t $.Lang "adm.certs.valid"}}{{end}}</td>
+                <td>{{if .Revoked}}{{t $.Lang "adm.course.cert-revoked"}}{{else}}{{t $.Lang "adm.certs.valid"}}{{end}}{{if .GivenByAdmin}} · {{t $.Lang "adm.certs.given"}}{{end}}</td>
                 <td><a href="/certificates/{{.ID}}"><code>{{.ID}}</code></a></td>
                 <td class="actions">
                   {{if .Revoked}}
@@ -36,7 +37,7 @@
                 </td>
               </tr>
               {{else}}
-              <tr><td colspan="6">{{if .Query}}{{t .Lang "adm.certs.no-match"}}{{else}}{{t .Lang "adm.certs.none"}}{{end}}</td></tr>
+              <tr><td colspan="7">{{if .Query}}{{t .Lang "adm.certs.no-match"}}{{else}}{{t .Lang "adm.certs.none"}}{{end}}</td></tr>
               {{end}}
             </table>
           </div>

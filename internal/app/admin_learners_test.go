@@ -174,6 +174,7 @@ func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
 	// Bea finishes every Lesson and passes: 2 of 2, best 100%, Certificate issued today.
 	bea := s.second()
 	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", pw)
+	bea.setICFor("bea@example.com")
 	bea.post("/courses/"+id+"/join", nil)
 	bea.markLesson(id, variables, true)
 	bea.markLesson(id, functions, true)
@@ -188,7 +189,7 @@ func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
 
 	res, body := s.get("/admin/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<th>Progress</th>")
-	today := time.Now().UTC().Format("2 January 2006")
+	today := time.Now().In(time.FixedZone("MYT", 8*3600)).Format("2 January 2006") // Certificate dates are Malaysia's
 	expectCells(t, adminCourseRow(t, body, "ada@example.com"), "<td>2 of 2</td>", "<td>0%</td>", "<td>None</td>")
 	expectCells(t, adminCourseRow(t, body, "bea@example.com"), "<td>2 of 2</td>", "<td>100%</td>", "<td>Issued "+today+"</td>")
 	expectCells(t, adminCourseRow(t, body, "cara@example.com"), "<td>0 of 2</td>", "<td>-</td>", "<td>None</td>")
@@ -203,9 +204,10 @@ func TestAdminSeesCertificateRevokedAndDashWhenCourseHasNoExam(t *testing.T) {
 	s.addTextLesson(id, "Variables", "", "Body.", false)
 	ada := s.second()
 	ada.loginAsNewLearner("Ada Lovelace", "ada@example.com", pw)
+	ada.setICFor("ada@example.com")
 	ada.post("/courses/"+id+"/join", nil)
 	ada.markLesson(id, s.lessonIDByTitle("Variables"), true)
-	today := time.Now().UTC().Format("2 January 2006")
+	today := time.Now().In(time.FixedZone("MYT", 8*3600)).Format("2 January 2006") // Certificate dates are Malaysia's
 
 	_, body := s.get("/admin/courses/" + id)
 	expectCells(t, adminCourseRow(t, body, "ada@example.com"), "<td>1 of 1</td>", "<td>-</td>", "<td>Issued "+today+"</td>")

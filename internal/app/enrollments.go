@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -22,6 +24,7 @@ type enrollee struct {
 	ID          int64
 	Name        string
 	Email       string
+	IC          string // formatted, or "" when unset
 	Done, Total int    // Lessons completed out of the Course's published Lessons
 	Best        int    // best Exam score, shown when HasBest
 	HasBest     bool   // false when the Learner has no finished attempt
@@ -40,7 +43,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := a.db.QueryContext(r.Context(), `
-		SELECT l.id, l.name, l.email FROM enrollments e JOIN learners l ON l.id = e.learner_id
+		SELECT l.id, l.name, l.email, coalesce(l.ic, '') FROM enrollments e JOIN learners l ON l.id = e.learner_id
 		WHERE e.course_id = $1 ORDER BY l.name, l.id`, c.ID)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -50,10 +53,11 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	var list []enrollee
 	for rows.Next() {
 		var e enrollee
-		if err := rows.Scan(&e.ID, &e.Name, &e.Email); err != nil {
+		if err := rows.Scan(&e.ID, &e.Name, &e.Email, &e.IC); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
+		e.IC = formatIC(e.IC)
 		list = append(list, e)
 	}
 	if err := rows.Err(); err != nil {
@@ -98,6 +102,57 @@ func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
+// giveCertificate is the Admin giving a Learner in a Live Course a Certificate by hand, whatever their attempts. It
+// issues through the same path as an earned one, skipping the Exam check but not the IC check.
+func (a *App) giveCertificate(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
+	if err != nil || !c.Live() {
+		a.notFound(w, r)
+		return
+	}
+	var name, ic string
+	var valid sql.NullBool // whether the Learner's Certificate for the Course is valid; null when they have none
+	err = a.db.QueryRowContext(r.Context(), `SELECT l.name, coalesce(l.ic, ''), (SELECT bool_or(revoked_at IS NULL)
+		FROM certificates c WHERE c.learner_id = e.learner_id AND c.course_id = e.course_id) FROM enrollments e
+		JOIN learners l ON l.id = e.learner_id WHERE e.learner_id = $1 AND e.course_id = $2`, learnerID, c.ID).Scan(&name, &ic, &valid)
+	if errors.Is(err, sql.ErrNoRows) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	notGiven := func(status int, key string) {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, status, "message", page{Title: text.T(lang, "adm.course.not-given"), Message: text.T(lang, key, name)})
+	}
+	switch {
+	case valid.Valid && valid.Bool:
+		notGiven(http.StatusConflict, "adm.course.give-has-valid")
+		return
+	case valid.Valid: // only revoked ones: a corrected Certificate is the Admin's reissue
+		notGiven(http.StatusConflict, "adm.course.give-revoked")
+		return
+	case ic == "":
+		notGiven(http.StatusUnprocessableEntity, "adm.course.give-no-ic")
+		return
+	}
+	if err := a.issueCertificate(r.Context(), learnerID, c.ID, true); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
+}
+
 // requireLearner guards a Learner page: Visitors are sent to the login page,
 // which returns them to the page they asked for when it was a GET.
 func (a *App) requireLearner(h http.HandlerFunc) http.HandlerFunc {
@@ -129,12 +184,16 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !c.Published {
+		a.courseNotFound(w, r)
+		return
+	}
 	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if !enrolled && !c.Open {
+	if !enrolled && !c.Joinable() {
 		lang, err := a.language(r)
 		if err != nil {
 			a.serverError(w, r, err)

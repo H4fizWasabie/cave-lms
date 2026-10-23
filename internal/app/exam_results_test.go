@@ -39,6 +39,18 @@ func (s *site) runReleaseJob() {
 	s.application.RunReleaseResults(context.Background())
 }
 
+// resultEmailsTo lists the English Exam Result emails sent to `to`, oldest first, leaving out the Certificate email
+// a pass may also send.
+func (s *site) resultEmailsTo(to string) []mailer.Message {
+	var got []mailer.Message
+	for _, m := range s.emailsTo(to) {
+		if strings.Contains(m.Subject, "Exam Result") {
+			got = append(got, m)
+		}
+	}
+	return got
+}
+
 // emailsTo lists every email sent to `to`, oldest first.
 func (s *site) emailsTo(to string) []mailer.Message {
 	var got []mailer.Message

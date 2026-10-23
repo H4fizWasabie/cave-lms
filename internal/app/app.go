@@ -57,7 +57,8 @@ type App struct {
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
-	routes    []string // every registered pattern, so the admin-route test can walk them
+	now       func() time.Time // the clock; tests set it
+	routes    []string         // every registered pattern, so the admin-route test can walk them
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -94,9 +95,11 @@ type page struct {
 	Enrollees     []enrollee
 	Certificates  []certificate
 	Certificate   *certificate // the one a verification page shows
+	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
 	Next          string // where the login page goes after logging in
+	DuplicateOf   int64  // the Course the Course form duplicates into a Live Course, 0 when none
 }
 
 func (p *page) learnerField() **learner { return &p.Learner }
@@ -159,7 +162,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, done: make(chan struct{}), now: time.Now}
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
@@ -243,10 +246,15 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))
 	mux.HandleFunc("GET /admin/courses/{id}", a.admin(a.adminCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/remove", a.admin(a.removeLearner))
+	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/ic", a.admin(a.correctIC))
+	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/certificate", a.admin(a.giveCertificate))
 	mux.HandleFunc("GET /admin/courses/{id}/edit", a.admin(a.editCourseForm))
 	mux.HandleFunc("POST /admin/courses/{id}", a.admin(a.updateCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/open", a.admin(a.setCourseOpen(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/close", a.admin(a.setCourseOpen(false)))
+	mux.HandleFunc("POST /admin/courses/{id}/publish", a.admin(a.publishCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/duplicate", a.admin(a.duplicateCourseForm))
+	mux.HandleFunc("POST /admin/courses/{id}/duplicate", a.admin(a.duplicateCourse))
 	mux.HandleFunc("GET /courses/{id}/lessons/{lessonID}", a.requireLearner(a.showLesson))
 	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/complete", a.requireLearner(a.setLessonComplete(true)))
 	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/incomplete", a.requireLearner(a.setLessonComplete(false)))
@@ -292,9 +300,13 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
+	mux.HandleFunc("GET /my-profile", a.requireLearner(a.myProfile))
+	mux.HandleFunc("POST /my-profile/ic", a.requireLearner(a.setMyIC))
 	mux.HandleFunc("GET /certificates/{id}/pdf", a.downloadCertificate)
 	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
+	mux.HandleFunc("GET /admin/certificate-settings/background", a.admin(a.certificateBackground))
 	mux.HandleFunc("GET /certificates", a.verifyCertificateForm)
+	mux.HandleFunc("POST /certificates", a.searchCertificates)
 	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
 	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
 	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))

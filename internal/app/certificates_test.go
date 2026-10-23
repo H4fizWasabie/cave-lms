@@ -19,7 +19,15 @@ const certPassword = "correct horse battery"
 
 var certificateLink = regexp.MustCompile(`/certificates/([A-Za-z0-9_-]+)/pdf`)
 
-// learnerEnrolledIn makes a Course with the given published text Lessons, then logs in as Ada, who has joined it.
+// setICFor sets the logged-in Learner's IC to one made from their email, so each Learner's is their own.
+func (s *site) setICFor(email string) {
+	s.t.Helper()
+	ic := strings.ToUpper(regexp.MustCompile(`[^a-z0-9]`).ReplaceAllString(email, ""))
+	res, body := s.setIC(ic[:min(len(ic), 20)])
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+}
+
+// learnerEnrolledIn makes a Course with the given published text Lessons, then logs in as Ada, who has set her IC and joined it.
 func (s *site) learnerEnrolledIn(title string, lessons ...string) string {
 	s.t.Helper()
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
@@ -30,6 +38,7 @@ func (s *site) learnerEnrolledIn(title string, lessons ...string) string {
 	}
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
+	s.setICFor("ada@example.com")
 	s.post("/courses/"+id+"/join", nil)
 	return id
 }
@@ -255,35 +264,14 @@ func pngBytes(t *testing.T) []byte {
 	return buf.Bytes()
 }
 
-func TestAdminSetsCertificateDetailsOnEveryPDF(t *testing.T) {
-	s := newSite(t)
-	id := s.learnerEnrolledIn("Go Basics", "Variables")
-	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
-	_, body := s.get("/my-certificates")
-	path := "/certificates/" + certificateIDs(body)[0] + "/pdf"
-
-	s.logOut()
-	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
-	res, body := s.postCertificateSettings(map[string]string{"organisation_name": "Cave Academy", "signatory_name": "Dr Jane Smith"},
-		map[string][]byte{"logo": pngBytes(t), "signature": pngBytes(t)})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-
-	pdf := s.pdfBody(path)
-	for _, want := range []string{"Cave Academy", "Dr Jane Smith"} {
-		if !strings.Contains(pdf, want) {
-			t.Fatalf("certificate PDF lacks %q", want)
-		}
-	}
-	res, body = s.get("/admin/certificate-settings")
-	expectStatus(t, res, body, http.StatusOK, "Logo set.")
-}
-
 func TestCertificateSettingsRefuseLearnersAndBadImages(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
 	res, body := s.get("/admin/certificate-settings")
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
-	res, body = s.postCertificateSettings(map[string]string{"organisation_name": "Hijack", "signatory_name": "Nobody"}, nil)
+	res, body = s.postCertificateSettings(nil, map[string][]byte{"background": pngBytes(t)})
+	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
+	res, body = s.get("/admin/certificate-settings/background")
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
 
 	s.logOut()
@@ -291,31 +279,29 @@ func TestCertificateSettingsRefuseLearnersAndBadImages(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
-	res, body = s.postCertificateSettings(map[string]string{"organisation_name": "Cave Academy", "signatory_name": "Dr Jane Smith"},
-		map[string][]byte{"logo": []byte("not an image at all")})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The logo must be a JPEG or PNG image.")
+	res, body = s.postCertificateSettings(nil, map[string][]byte{"background": []byte("not an image at all")})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The background image must be a JPEG or PNG image.")
 	entries, err := os.ReadDir(s.storageDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("refused logo left %d stored file(s)", len(entries))
+		t.Fatalf("refused background left %d stored file(s)", len(entries))
 	}
 }
 
 func TestCertificateSettingsRefuseATooLargeImageOrANonMultipartForm(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
-	big := append(pngBytes(t), make([]byte, 5<<20)...)
-	res, body := s.postCertificateSettings(map[string]string{"organisation_name": "Cave Academy", "signatory_name": "Dr Jane Smith"},
-		map[string][]byte{"logo": big})
-	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "Images are limited to 5 MB")
+	big := append(pngBytes(t), make([]byte, 20<<20)...)
+	res, body := s.postCertificateSettings(nil, map[string][]byte{"background": big})
+	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "Images are limited to 20 MB")
 	expectStatus(t, res, body, http.StatusRequestEntityTooLarge, "Certificate details")
 	if strings.Contains(body, "2 GB") {
 		t.Fatalf("certificate settings error speaks of Gallery uploads: %s", body)
 	}
 
-	res, body = s.post("/admin/certificate-settings", url.Values{"organisation_name": {"Cave Academy"}})
+	res, body = s.post("/admin/certificate-settings", url.Values{"background": {"x"}})
 	expectStatus(t, res, body, http.StatusBadRequest, "Certificate details")
 }
 

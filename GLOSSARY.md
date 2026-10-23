@@ -39,9 +39,29 @@ _Malay_: Pendaftaran
 _Avoid_: Sign-up, enrollment
 
 **Course**:
-A self-paced, fully online programme the Admin builds from ordered Lessons, with an optional Exam. Learners can join it.
+A programme the Admin builds from ordered Lessons, with an optional Exam. Learners can join it. Self-paced unless it is a Live Course.
 _Malay_: Kursus
 _Avoid_: Programme, class, module
+
+**Live Course**:
+A Course run for a company on agreed dates, made by the Admin duplicating a Course: it has its own copies of the Lessons and Exams, a start date, an end date and a number of days (1 to 5) that need not match the dates. Learners can join it until the end of its end date, Malaysia time; after that it is closed but still viewable.
+_Malay_: Kursus Langsung
+_Avoid_: Cohort, class, session, event
+
+**PCC Level**:
+The level of a Live Course, set by its days: 1 Basic, 2 Foundation, 3 Practitioner, 4 or 5 Professional. Each Level has the client's badge. Never picked by hand.
+_Malay_: Tahap PCC
+_Avoid_: Grade, tier, rank
+
+**Certificate No.**:
+A Certificate's running number, shown as `PCC-` + year + `-` + five digits, such as `PCC-2026-00509`. It runs in issue order, restarts at 00001 each year and is never reused.
+_Malay_: No. Sijil
+_Avoid_: Certificate ID (that is the unguessable ID in its link), serial
+
+**IC**:
+A Learner's MyKad number or, without a MyKad, passport number, printed on their Certificates. A 12-digit MyKad is shown as `YYMMDD-PB-####`. The Learner sets it once; only the Admin can change it.
+_Malay_: No. KP
+_Avoid_: NRIC, ID number
 
 **Enrollment**:
 A Learner's membership in a Course. Created when the Learner joins, with no Admin approval.
@@ -129,7 +149,7 @@ _Malay_: Bank Soalan
 _Avoid_: Library, question set
 
 **Certificate**:
-A PDF of completion issued automatically when a Learner has finished a Course's Lessons and passed every one of its Exams. It has a unique ID anyone can check.
+A PDF of completion issued automatically once a Learner with an IC has passed every one of a Course's Exams and, on a self-paced Course, finished its Lessons. It is issued when the passing Result is released, never at submit, and copies the Learner's name and IC and the Course's PCC Level at issue. It has a unique ID anyone can check.
 _Malay_: Sijil
 _Avoid_: Diploma, award
 

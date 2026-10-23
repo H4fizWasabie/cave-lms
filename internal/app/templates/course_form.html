@@ -1,16 +1,23 @@
-{{define "title"}}{{if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "title"}}{{if .DuplicateOf}}{{t .Lang "adm.courses.duplicate"}}{{else if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/courses">{{t .Lang "adm.courses.back"}}</a></p>
-        <div class="adm-head"><h1>{{if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}}</h1></div>
+        <div class="adm-head"><h1>{{if .DuplicateOf}}{{t .Lang "adm.courses.duplicate"}}{{else if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}}</h1></div>
+        {{with .Course.Level}}<p class="pcc-level"><img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-          <form class="form" method="post" action="{{if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}">
+          <form class="form" method="post" action="{{if .DuplicateOf}}/admin/courses/{{.DuplicateOf}}/duplicate{{else if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}">
             <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Course.Title}}" maxlength="200" required></div>
             <div class="field"><label for="description">{{t .Lang "adm.description"}}</label><textarea id="description" name="description" rows="6" required>{{.Course.Description}}</textarea></div>
+            {{if or .DuplicateOf .Course.Live}}
+            <div class="field field-half"><label for="start_date">{{t .Lang "adm.courses.start-date"}}</label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}" required></div>
+            <div class="field field-half"><label for="end_date">{{t .Lang "adm.courses.end-date"}}</label><input id="end_date" type="date" name="end_date" value="{{.Course.EndDate}}" required></div>
+            <div class="field field-half"><label for="days">{{t .Lang "adm.courses.days"}}</label><input id="days" type="number" name="days" min="1" max="5" value="{{with .Course.Days}}{{.}}{{end}}" required><p class="hint">{{t .Lang "adm.courses.days-hint"}}</p></div>
+            {{else}}
             <div class="field field-half"><label for="start_date">{{t .Lang "adm.courses.start-date"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}"></div>
+            {{end}}
             <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
           </form>
         </div>

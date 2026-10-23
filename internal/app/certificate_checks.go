@@ -4,13 +4,16 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// verifyCertificateForm is the public ID box. An ID typed into it goes to that Certificate's verification page.
+// verifyCertificateForm is the public check page. An ID typed into it goes to that Certificate's verification page.
 func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 	if id := strings.TrimSpace(r.URL.Query().Get("id")); id != "" {
 		http.Redirect(w, r, "/certificates/"+url.PathEscape(id), http.StatusSeeOther)
@@ -19,7 +22,37 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "certificate_verify", page{})
 }
 
-// verifyCertificate is public. It shows the name, Course, issue date and status of a Certificate, and nothing else.
+// searchCertificates is the check page's search, by a full IC or passport number, matched against the Certificate's
+// copy, or a Certificate No. It is posted, so the IC is in no URL, and the results render from the post.
+func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
+	q := normaliseIC(r.PostFormValue("q"))
+	if q == "" {
+		a.render(w, r, http.StatusOK, "certificate_verify", page{})
+		return
+	}
+	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, a.now()) {
+		a.tooManyAttempts(w, r)
+		return
+	}
+	var year, number int
+	if m := certificateNumber.FindStringSubmatch(q); m != nil {
+		year, _ = strconv.Atoi(m[1])
+		number, _ = strconv.Atoi(m[2])
+	}
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
+		WHERE learner_ic = $1 OR (year = $2 AND number = $3) ORDER BY issued_at DESC, year DESC, number DESC`, q, year, number)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list, Query: q})
+}
+
+// certificateNumber is a Certificate No. after normaliseIC: PCC-2026-00509 becomes PCC202600509.
+var certificateNumber = regexp.MustCompile(`^PCC(\d{4})(\d{5,9})$`)
+
+// verifyCertificate is public. It shows the name, Course, PCC Level, issue date and status of a Certificate, and
+// nothing else.
 func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
 	if err != nil {
@@ -35,7 +68,7 @@ func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.no-such-id")})
 		return
 	}
-	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificate: &list[0]})
+	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list[:1]})
 }
 
 // adminCertificates lists every Certificate, newest first. ?q= matches the Learner's name or the exact ID.
@@ -43,7 +76,7 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
 		WHERE $1 = '' OR id = $1 OR strpos(lower(learner_name), lower($1)) > 0
-		ORDER BY issued_at DESC, id`, q)
+		ORDER BY issued_at DESC, year DESC, number DESC`, q)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -63,8 +96,9 @@ func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
 }
 
 // reissueCertificate issues a corrected Certificate in place of a revoked one. The name the Admin gives becomes the
-// Learner's name, and the new Certificate, with a new ID, copies it and the Course's current title. The partial
-// unique index refuses it while a valid one exists, and then the name is not changed either.
+// Learner's name, and the new Certificate, with a new ID, copies it, the Learner's current IC and the Course's current
+// title and days, and is emailed to them. A Learner with no IC gets none. The partial unique index refuses it while a
+// valid one exists, and then the name is not changed either.
 func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	old, err := a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
@@ -93,6 +127,13 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		notReissued(http.StatusUnprocessableEntity, "adm.certs.err.name")
 		return
 	}
+	if ic, err := a.learnerIC(ctx, old[0].LearnerID); err != nil {
+		a.serverError(w, r, err)
+		return
+	} else if ic == "" {
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: text.T(lang, "adm.certs.not-reissued"), Message: text.T(lang, "adm.certs.err.no-ic", name)})
+		return
+	}
 	id, err := newCertificateID()
 	if err != nil {
 		a.serverError(w, r, err)
@@ -106,10 +147,14 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	_, err = tx.ExecContext(ctx, `UPDATE learners SET name = $2 WHERE id = $1`, old[0].LearnerID, name)
 	if err == nil {
-		_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, course_title)
-			SELECT $1, l.id, c.course_id, l.name, co.title FROM certificates c
-			JOIN learners l ON l.id = c.learner_id JOIN courses co ON co.id = c.course_id
-			WHERE c.id = $2`, id, old[0].ID)
+		var at time.Time
+		var year, number int
+		if at, year, number, err = a.numberCertificate(ctx, tx); err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number)
+				SELECT $1, l.id, c.course_id, l.name, l.ic, co.title, co.days, $3, $4, $5 FROM certificates c
+				JOIN learners l ON l.id = c.learner_id JOIN courses co ON co.id = c.course_id
+				WHERE c.id = $2`, id, old[0].ID, at, year, number)
+		}
 	}
 	if err == nil {
 		err = tx.Commit()
@@ -122,6 +167,7 @@ func (a *App) reissueCertificate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	a.emailCertificate(ctx, id)
 	http.Redirect(w, r, "/admin/certificates?q="+url.QueryEscape(id), http.StatusSeeOther)
 }
 

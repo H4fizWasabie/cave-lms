@@ -12,16 +12,28 @@
           <button class="btn btn-solid">{{t .Lang "check.button"}}</button>
         </div>
       </form>
-      {{with .Certificate}}
+      <form class="verify-card" method="post" action="/certificates">
+        <label for="cert-q">{{t .Lang "check.search"}}</label>
+        <div class="verify-row">
+          <input id="cert-q" type="text" name="q" required>
+          <button class="btn btn-solid">{{t .Lang "check.search-button"}}</button>
+        </div>
+      </form>
+      {{range $c := .Certificates}}
       <div class="result {{if .Revoked}}result-revoked{{else}}result-valid{{end}}">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if .Revoked}}x-circle{{else}}seal-check{{end}}"/></svg>
         <div>
           <p class="result-k">{{if .Revoked}}{{t $.Lang "check.status" (t $.Lang "certificate.revoked")}}{{else}}{{t $.Lang "check.status" (t $.Lang "check.valid")}}{{end}}</p>
           <p>{{t $.Lang "certificate.certifies"}} <strong>{{.LearnerName}}</strong></p>
+          {{if and $.Query .LearnerIC}}<p class="muted">{{t $.Lang "check.ic" .MaskedIC}}</p>{{end}}
           <p>{{t $.Lang "certificate.completed"}} <strong>{{.CourseTitle}}</strong></p>
+          {{with .Level}}<p class="pcc-level"><img src="{{static $c.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
+          <p class="muted">{{if $.Query}}<a href="/certificates/{{.ID}}">{{t $.Lang "certificate.number" .Number}}</a>{{else}}{{t $.Lang "certificate.number" .Number}}{{end}}</p>
           <p class="muted">{{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</p>
         </div>
       </div>
-      {{end}}
+      {{else}}{{if .Query}}
+      <p class="muted">{{t .Lang "check.no-match"}}</p>
+      {{end}}{{end}}
     </div>
 {{end}}

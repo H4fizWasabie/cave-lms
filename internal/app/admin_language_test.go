@@ -159,7 +159,7 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	certID := s.earnedCertificate()
 	s.loginAdmin()
 	s.switchLanguage("ms", "/")
-	today := text.Date("ms", time.Now().UTC())
+	today := text.Date("ms", time.Now().In(time.FixedZone("MYT", 8*3600)))
 
 	_, body := s.get("/admin/courses/" + s.onlyCourseID())
 	expectLanguage(t, body, "ms", "<td>1 daripada 1</td>")
@@ -168,7 +168,7 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	expectLanguage(t, body, "ms", "Cari mengikut nama atau ID")
 	expectAll(t, body, "<td>"+today+"</td>", "<td>Sah</td>")
 	_, body = s.get("/admin/certificate-settings")
-	expectLanguage(t, body, "ms", "Nama organisasi")
+	expectLanguage(t, body, "ms", "Imej latar (JPEG atau PNG)")
 
 	res, body := s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Batalkan Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan.")
@@ -178,10 +178,8 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Masukkan nama untuk Sijil")
 
-	res, body = s.postCertificateSettings(map[string]string{"organisation_name": "", "signatory_name": ""}, nil)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Masukkan nama organisasi dan nama penandatangan.")
-	res, body = s.postCertificateSettings(map[string]string{"organisation_name": "TCC", "signatory_name": "Adam"}, map[string][]byte{"logo": []byte("not an image")})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Logo mestilah imej JPEG atau PNG.")
+	res, body = s.postCertificateSettings(nil, map[string][]byte{"background": []byte("not an image")})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Imej latar mestilah imej JPEG atau PNG.")
 
 	s.switchLanguage("en", "/")
 	_, body = s.get("/admin/certificates")
