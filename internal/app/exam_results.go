@@ -230,8 +230,8 @@ func (a *App) releaseResult(ctx context.Context, d dueResult) error {
 	return nil
 }
 
-// emailResult emails the attempt's Result in the Learner's saved language, under the subject the key names, with
-// the Answer sheet when it is a pass. A failed email is only logged: the Result is on the site.
+// emailResult emails the attempt's Result in the Learner's saved language, under the subject the key names, naming
+// the Exam's format, with the Answer sheet when it is a pass. A failed email is only logged: the Result is on the site.
 func (a *App) emailResult(ctx context.Context, d dueResult, score int, passed bool, subject string) {
 	lang := d.language
 	if !text.Supported(lang) {
@@ -241,10 +241,11 @@ func (a *App) emailResult(ctx context.Context, d dueResult, score int, passed bo
 	if passed {
 		verdict = text.T(lang, "exam.passed", d.passMark)
 	}
+	format := text.T(lang, "bank.format."+d.exam.Format)
 	msg := mailer.Message{
 		To:      d.email,
-		Subject: text.T(lang, subject, d.course),
-		Body:    text.T(lang, "email.result.body", d.name, d.course, score, verdict, a.publicBaseURL+attemptPath(d.exam, d.attemptID)),
+		Subject: text.T(lang, subject, d.course, format),
+		Body:    text.T(lang, "email.result.body", d.name, d.course, score, verdict, a.publicBaseURL+attemptPath(d.exam, d.attemptID), format),
 	}
 	if passed {
 		if sheet, err := answerSheetPDF(lang, d.name, d.course, d.exam.Format, score, d.questions); err != nil {

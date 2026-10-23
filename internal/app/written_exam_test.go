@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
+	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 // writtenExam is the address of a Course's Written Exam Admin page.
@@ -209,7 +210,7 @@ func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnsw
 	if len(emails) != 1 {
 		t.Fatalf("%d Result emails, want 1", len(emails))
 	}
-	expectEmail(t, emails[0], "Your Exam Result for Go Basics", "Score: 75%")
+	expectEmail(t, emails[0], "Your Written Exam Result for Go Basics", "Score: 75%")
 	expectAll(t, emails[0].Body, "Passed (pass mark 70%)")
 	if len(emails[0].Attachments) != 1 {
 		t.Fatalf("the pass email carries %d attachments, want the Answer sheet", len(emails[0].Attachments))
@@ -246,7 +247,7 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 	admin := s.adminSite()
 	admin.saveMarks(attempt, map[string]string{qids[0]: "2", qids[1]: "4"})
 	s.releaseResults()
-	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Exam Result for Go Basics", "Score: 30%")
+	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 30%")
 	sent := len(s.emailsTo("ada@example.com"))
 
 	admin.saveMarks(attempt, map[string]string{qids[0]: "3"}) // still a fail
@@ -261,7 +262,7 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 	if len(emails) != 1 {
 		t.Fatalf("%d emails after the fail became a pass, want 1", len(emails))
 	}
-	expectEmail(t, emails[0], "Your corrected Exam Result for Go Basics", "Score: 70%")
+	expectEmail(t, emails[0], "Your corrected Written Exam Result for Go Basics", "Score: 70%")
 	expectAll(t, emails[0].Body, "Passed (pass mark 50%)")
 	if len(emails[0].Attachments) != 1 {
 		t.Fatalf("the corrected pass email carries %d attachments, want the Answer sheet", len(emails[0].Attachments))
@@ -274,10 +275,31 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 	if len(emails) != 2 {
 		t.Fatalf("%d emails after the pass became a fail, want 2", len(emails))
 	}
-	expectEmail(t, emails[1], "Your corrected Exam Result for Go Basics", "Score: 20%")
+	expectEmail(t, emails[1], "Your corrected Written Exam Result for Go Basics", "Score: 20%")
 	if len(emails[1].Attachments) != 0 {
 		t.Fatalf("the corrected fail email carries %d attachments, want none", len(emails[1].Attachments))
 	}
 	_, body = admin.get("/admin/results")
 	expectCells(t, resultRow(t, body, writtenAttemptID(attempt)), "20%", "Failed", "Admin")
+}
+
+func TestAnAdminMarkThatTurnsAFailIntoAPassIssuesTheCertificateItEarns(t *testing.T) {
+	s := newSite(t)
+	id := s.writtenCourse("50", "Explain :=")
+	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})
+	attempt, qids := s.sitWritten(id, "My own words")
+	s.releaseResults()
+	// Until #152 only the Multiple-choice Exam counts, so the Certificate came with the Lesson. Removing it leaves the
+	// rule met and no Certificate, as a Written fail will once every Exam counts.
+	if _, err := s.db.Exec(`DELETE FROM certificates`); err != nil {
+		t.Fatal(err)
+	}
+	res, body := s.get("/my-certificates")
+	expectStatus(t, res, body, http.StatusOK, "You have no Certificates yet.")
+
+	s.adminSite().saveMarks(attempt, map[string]string{qids[0]: "10"})
+	_, body = s.get("/my-certificates")
+	if ids := certificateIDs(body); len(ids) != 1 {
+		t.Fatalf("Ada has %d Certificates after the pass, want 1: %s", len(ids), body)
+	}
 }

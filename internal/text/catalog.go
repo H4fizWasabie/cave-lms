@@ -975,6 +975,7 @@ var catalog = map[string]entry{
 	"exam.attempt":                 {en: "Exam attempt", ms: "Percubaan Peperiksaan"},
 	"exam.written-for":             {en: "Written Exam for %s", ms: "Peperiksaan Subjektif untuk %s"},
 	"exam.for":                     {en: "Exam for %s", ms: "Peperiksaan untuk %s"},
+	"exam.multiple-choice-for":     {en: "Multiple-choice Exam for %s", ms: "Peperiksaan Objektif untuk %s"},
 	"exam.pass-mark":               {en: "Pass mark: %s%%", ms: "Markah lulus: %s%%"},
 	"exam.minutes-short":           {en: "%s min", ms: "%s min"},
 	"exam.none":                    {en: "None", ms: "Tiada"},
@@ -1126,12 +1127,13 @@ var catalog = map[string]entry{
 		en: "Hi %[1]s,\n\nOpen this link within an hour to choose a new password:\n\n%[2]s\n\nIf you didn't ask for this, you can ignore this email.\n",
 		ms: "Hai %[1]s,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[2]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
 	},
-	// The Course title, then for the body the Learner's name, the Course title, the mark, pass or fail and the link
-	"email.result.corrected-subject": {en: "Your corrected Exam Result for %s", ms: "Keputusan Peperiksaan anda yang diperbetulkan untuk %s"},
-	"email.result.subject":           {en: "Your Exam Result for %s", ms: "Keputusan Peperiksaan anda untuk %s"},
+	// The Course title and the Exam's format name, then for the body the Learner's name, the Course title, the mark,
+	// pass or fail, the link and the Exam's format name
+	"email.result.corrected-subject": {en: "Your corrected %[2]s Exam Result for %[1]s", ms: "Keputusan Peperiksaan %[2]s anda yang diperbetulkan untuk %[1]s"},
+	"email.result.subject":           {en: "Your %[2]s Exam Result for %[1]s", ms: "Keputusan Peperiksaan %[2]s anda untuk %[1]s"},
 	"email.result.body": {
-		en: "Hi %[1]s,\n\nYour Result for the Exam for %[2]s is ready.\n\nScore: %[3]d%%\n%[4]s\n\nSee it on CAVELMS:\n\n%[5]s\n",
-		ms: "Hai %[1]s,\n\nKeputusan Peperiksaan anda untuk %[2]s sudah sedia.\n\nMarkah: %[3]d%%\n%[4]s\n\nLihat di CAVELMS:\n\n%[5]s\n",
+		en: "Hi %[1]s,\n\nYour Result for the %[6]s Exam for %[2]s is ready.\n\nScore: %[3]d%%\n%[4]s\n\nSee it on CAVELMS:\n\n%[5]s\n",
+		ms: "Hai %[1]s,\n\nKeputusan Peperiksaan %[6]s anda untuk %[2]s sudah sedia.\n\nMarkah: %[3]d%%\n%[4]s\n\nLihat di CAVELMS:\n\n%[5]s\n",
 	},
 	"email.result.answer-sheet": {en: "Your Answer sheet is attached.", ms: "Skema Jawapan anda dilampirkan."},
 	// ---- end Accounts (#83) ----

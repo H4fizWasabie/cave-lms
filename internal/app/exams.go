@@ -475,13 +475,17 @@ func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
-// publishExamQuestion turns a Draft question into a published one. Learners see it from then on.
+// publishExamQuestion turns a Draft question into a published one. Learners see it from then on. The bank question
+// it was copied from is published too if it is still a Draft, so the Admin's review counts in the bank; their
+// contents stay apart.
 func (a *App) publishExamQuestion(w http.ResponseWriter, r *http.Request) {
 	_, e, q, ok := a.examQuestionFor(w, r)
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE exam_questions SET is_draft = false WHERE id = $1 AND exam_id = $2`, q.ID, e.ID); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `
+		WITH q AS (UPDATE exam_questions SET is_draft = false WHERE id = $1 AND exam_id = $2 RETURNING bank_question_id)
+		UPDATE bank_questions SET is_draft = false WHERE id = (SELECT bank_question_id FROM q) AND is_draft`, q.ID, e.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

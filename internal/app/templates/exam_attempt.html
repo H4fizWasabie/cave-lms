@@ -5,7 +5,7 @@
       {{with .Attempt}}
       {{if .Released}}
       <div class="x-card x-result {{if .Passed}}is-pass{{else}}is-fail{{end}}">
-        <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
+        <h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.multiple-choice-for" $.Course.Title}}{{end}}</h1>
         <h2 class="sr">{{t $.Lang "exam.result"}}</h2>
         <p class="x-score">{{.Score}}%</p>
         <p>{{t $.Lang "exam.score" .Score}}</p>
@@ -13,7 +13,7 @@
       </div>
       {{else if or .Finished .TimedOut}}
       <div class="x-card">
-        {{if .TimedOut}}<h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
+        {{if .TimedOut}}<h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.multiple-choice-for" $.Course.Title}}{{end}}</h1>
         <p class="x-help">{{t $.Lang "exam.timed-out"}}</p>{{else}}<h1>{{t $.Lang "exam.submitted"}}</h1>{{end}}
         <p class="x-help">{{t $.Lang "exam.ready-at" (.ReadyAt $.Lang)}}</p>
       </div>

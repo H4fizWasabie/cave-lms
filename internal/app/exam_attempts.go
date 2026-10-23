@@ -329,7 +329,8 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 	return id, err
 }
 
-// firstDraw returns the questions of the Learner's first attempt at the Exam, unanswered, or nil when there is none.
+// firstDraw returns the questions of the Learner's first attempt at the Exam, unanswered and unmarked, or nil when
+// there is none.
 func firstDraw(ctx context.Context, tx *sql.Tx, learnerID, examID int64) ([]attemptQuestion, error) {
 	var raw []byte
 	err := tx.QueryRowContext(ctx, `SELECT questions FROM exam_attempts WHERE learner_id = $1 AND exam_id = $2
@@ -345,7 +346,7 @@ func firstDraw(ctx context.Context, tx *sql.Tx, learnerID, examID int64) ([]atte
 		return nil, err
 	}
 	for i := range questions {
-		questions[i].Chosen, questions[i].Answer, questions[i].Mark = -1, "", nil
+		questions[i].Chosen, questions[i].Answer, questions[i].Mark, questions[i].Reason = -1, "", nil, ""
 	}
 	return questions, nil
 }

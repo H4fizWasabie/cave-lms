@@ -245,3 +245,28 @@ func TestAWrittenQuestionWithoutAModelAnswerIsRetriedOnceThenReportedAndNothingI
 	expectAll(t, body, "AI question 1", "AI model answer 1")
 	expectNone(t, body, "No model answer")
 }
+
+func TestPublishingAnAIDraftInAnExamPublishesItsBankQuestionSoGenerationReusesIt(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	excel := s.onlyCourseID()
+	s.generate(excel, "Excel", "ms", "1")
+	res, body := s.post("/admin/courses/"+excel+"/exam/questions/"+s.examQuestionIDs(excel)[0]+"/publish", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.createCourse("Spreadsheets", "Another Course.", "")
+	var sheets string
+	for _, c := range s.courseIDs() {
+		if c != excel {
+			sheets = c
+		}
+	}
+
+	res, body = s.generate(sheets, "excel", "ms", "1")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if n := len(s.ai.Requests()); n != 1 {
+		t.Fatalf("the AI writer was asked %d times, want once: the reviewed question is in the bank", n)
+	}
+	_, body = s.get("/admin/courses/" + sheets + "/exam")
+	expectAll(t, body, "AI question 1", "Ready for Learners.")
+}

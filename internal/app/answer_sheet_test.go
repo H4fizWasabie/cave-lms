@@ -16,7 +16,7 @@ func TestOnlyThePassResultEmailCarriesTheAnswerSheetWithHeadingsInTheSavedLangua
 	s.releaseResults()
 
 	fail := s.lastEmailTo("ada@example.com")
-	expectEmail(t, fail, "Your Exam Result for Go Basics", "Failed (pass mark 50%)")
+	expectEmail(t, fail, "Your Multiple-choice Exam Result for Go Basics", "Failed (pass mark 50%)")
 	if len(fail.Attachments) != 0 {
 		t.Fatalf("the fail email carries %d attachments, want none", len(fail.Attachments))
 	}
@@ -27,7 +27,7 @@ func TestOnlyThePassResultEmailCarriesTheAnswerSheetWithHeadingsInTheSavedLangua
 	s.releaseResults()
 
 	pass := s.lastEmailTo("ada@example.com")
-	expectEmail(t, pass, "Your Exam Result for Go Basics", "Passed (pass mark 50%)")
+	expectEmail(t, pass, "Your Multiple-choice Exam Result for Go Basics", "Passed (pass mark 50%)")
 	expectAll(t, pass.Body, "Your Answer sheet is attached.")
 	if len(pass.Attachments) != 1 {
 		t.Fatalf("the pass email carries %d attachments, want the Answer sheet", len(pass.Attachments))

@@ -29,7 +29,7 @@ func TestTheAIMarksEachWrittenAnswerSentWithOnlyItsQuestionAndModelAnswer(t *tes
 		}
 	}
 	email := s.lastEmailTo("ada@example.com")
-	expectEmail(t, email, "Your Exam Result for Go Basics", "Score: 75%")
+	expectEmail(t, email, "Your Written Exam Result for Go Basics", "Score: 75%")
 	expectAll(t, email.Body, "Passed (pass mark 70%)")
 	expectNone(t, email.Body, "Says it declares", "Misses what vet")
 	if len(email.Attachments) != 1 {
@@ -110,7 +110,7 @@ func TestAFailedMarkIsRetriedEveryFiveMinutesAndStillUnmarkedAnHourPastReleaseWr
 	s.ageMarkingTry(attempt, 5*60+1)
 	s.runReleaseJob()
 	asked(4)
-	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Exam Result for Go Basics", "Score: 70%")
+	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 70%")
 }
 
 func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
@@ -126,7 +126,7 @@ func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
 	if n := len(s.ai.MarkRequests()); n != 1 {
 		t.Fatalf("the AI writer was asked to mark %d answers, want only the one the Admin left", n)
 	}
-	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Exam Result for Go Basics", "Score: 30%")
+	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 30%")
 	sent := len(s.emailsTo("ada@example.com"))
 
 	admin.saveMarks(attempt, map[string]string{qids[1]: "10"}) // overrides the AI's 2, now a pass
@@ -134,10 +134,25 @@ func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
 	if len(emails) != 1 || len(emails[0].Attachments) != 1 {
 		t.Fatalf("emails after the override made a pass = %#v, want one with the Answer sheet", emails)
 	}
-	expectEmail(t, emails[0], "Your corrected Exam Result for Go Basics", "Score: 70%")
+	expectEmail(t, emails[0], "Your corrected Written Exam Result for Go Basics", "Score: 70%")
 	sheet := string(emails[0].Attachments[0].Content)
 	expectAll(t, sheet, "Mark: 4 / 10", "Mark: 10 / 10")
 	expectNone(t, sheet, "Too vague.", "Mark: 2 / 10")
 	_, body := admin.get("/admin/results")
 	expectCells(t, resultRow(t, body, writtenAttemptID(attempt)), "70%", "Passed", "Admin")
+}
+
+func TestALaterAttemptStartsWithNoneOfTheAIsReasonsFromTheFirst(t *testing.T) {
+	s := newSite(t)
+	id := s.writtenCourse("100", "Explain :=")
+	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})
+	s.sitWritten(id, "My own words")
+	s.releaseResults()
+
+	s.ai.FailMarks(aiwriter.ErrUnavailable)
+	second, _ := s.sitWritten(id, "Other words")
+	s.releaseResults()
+	res, body := s.adminSite().get("/admin/results/" + writtenAttemptID(second))
+	expectStatus(t, res, body, http.StatusOK, "Not marked yet")
+	expectNone(t, body, "Too vague.")
 }

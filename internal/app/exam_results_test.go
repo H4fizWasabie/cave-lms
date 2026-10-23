@@ -100,7 +100,7 @@ func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearners
 	if len(emails) != 1 {
 		t.Fatalf("%d Result emails, want 1: %#v", len(emails), emails)
 	}
-	expectEmail(t, emails[0], "Keputusan Peperiksaan anda untuk Go Basics", "Markah: 50%")
+	expectEmail(t, emails[0], "Keputusan Peperiksaan Objektif anda untuk Go Basics", "Markah: 50%")
 	expectAll(t, emails[0].Body, "Gagal (markah lulus 100%)", "https://cave.example.invalid"+attempt)
 
 	res, body = s.get(attempt)
@@ -164,7 +164,7 @@ func TestTheReleaseJobSubmitsAnAttemptLeftOpenPastItsTimeLimitWithNoAnswers(t *t
 	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
 	expectAll(t, body, "Failed (pass mark 50%)")
 	// Ada never picked a language, so the email is in Malay, the default.
-	expectEmail(t, s.lastEmailTo("ada@example.com"), "Keputusan Peperiksaan anda untuk Go Basics", "Markah: 0%")
+	expectEmail(t, s.lastEmailTo("ada@example.com"), "Keputusan Peperiksaan Objektif anda untuk Go Basics", "Markah: 0%")
 }
 
 var secondsLeft = regexp.MustCompile(`data-seconds-left="(\d+)"`)
@@ -194,3 +194,43 @@ func TestTheAttemptPageCountsDownAndSubmitsTheFormAtZero(t *testing.T) {
 }
 
 var timerScript = regexp.MustCompile(`<script src="(/static/exam-timer\.js[^"]*)" defer></script>`)
+
+func TestALearnerWhoSitsBothExamsGetsResultsThatNameEachExamInTheirLanguage(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "Which is right?")
+	admin := s.adminSite()
+	admin.saveWrittenQuestion("/admin/courses/"+id+"/exam/questions?format=written", "Explain :=", "It declares and assigns.")
+	s.switchLanguage("ms", "/") // saved on Ada's account
+	res, _ := s.startExam(id)
+	choice := res.Header.Get("Location")
+	s.submitExam(choice, map[string]string{qids[0]: "0"})
+	written, wqids := s.sitWritten(id, "My own words")
+	before := len(s.emailsTo("ada@example.com"))
+
+	s.releaseResults()
+	subjects := map[string]string{}
+	for _, m := range s.emailsTo("ada@example.com")[before:] {
+		subjects[m.Subject] = m.Body
+	}
+	for subject, body := range map[string]string{
+		"Keputusan Peperiksaan Objektif anda untuk Go Basics":  "Keputusan Peperiksaan Objektif anda untuk Go Basics sudah sedia.",
+		"Keputusan Peperiksaan Subjektif anda untuk Go Basics": "Keputusan Peperiksaan Subjektif anda untuk Go Basics sudah sedia.",
+	} {
+		if !strings.Contains(subjects[subject], body) || len(subjects) != 2 {
+			t.Fatalf("Result emails = %#v, want one titled %q saying %q", subjects, subject, body)
+		}
+	}
+	_, body := s.get(choice)
+	expectAll(t, body, "<h1>Peperiksaan Objektif untuk Go Basics</h1>")
+	_, body = s.get(written)
+	expectAll(t, body, "<h1>Peperiksaan Subjektif untuk Go Basics</h1>")
+
+	s.switchLanguage("en", "/")
+	_, body = s.get(choice)
+	expectAll(t, body, "<h1>Multiple-choice Exam for Go Basics</h1>")
+	_, body = s.get(written)
+	expectAll(t, body, "<h1>Written Exam for Go Basics</h1>")
+	admin.saveMarks(written, map[string]string{wqids[0]: "0"}) // the AI's pass becomes a fail
+	email := s.lastEmailTo("ada@example.com")
+	expectEmail(t, email, "Your corrected Written Exam Result for Go Basics", "Your Result for the Written Exam for Go Basics is ready.")
+}

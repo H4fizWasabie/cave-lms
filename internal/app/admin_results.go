@@ -117,7 +117,8 @@ func (a *App) showAdminAttempt(w http.ResponseWriter, r *http.Request, res admin
 
 // saveMarks sets the Admin's marks, 0 to writtenMarks, on a submitted Written attempt's answers; a blank field leaves
 // its mark as it is. The attempt records that an Admin marked it. Once released, its mark and pass or fail are
-// recalculated, and a corrected Result email goes out only when pass or fail flips.
+// recalculated, and a corrected Result email goes out only when pass or fail flips. A new pass issues any Certificate
+// it earns, as releasing does.
 func (a *App) saveMarks(w http.ResponseWriter, r *http.Request) {
 	res, ok := a.resultFor(w, r)
 	if !ok {
@@ -176,6 +177,11 @@ func (a *App) saveMarks(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if d.released && passed && !d.passed {
+		if err := a.issueCertificateIfEarned(r.Context(), d.learnerID, d.exam.CourseID); err != nil {
+			a.logError(r, fmt.Errorf("issue Certificate on correcting attempt %d: %w", d.attemptID, err))
+		}
 	}
 	if d.released && passed != d.passed {
 		a.emailResult(r.Context(), d, score, passed, "email.result.corrected-subject")
