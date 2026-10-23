@@ -144,7 +144,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "programmes", "certificates", "design", "plans", "prices", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "question-bank", "gallery", "programmes", "certificates", "design", "plans", "prices", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -153,6 +153,7 @@
         <nav class="adm-nav" aria-label="{{t .Lang "admin.nav"}}">
           <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>{{t .Lang "admin.side.dashboard"}}</span></a>
           <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span></a>
+          <a href="/admin/question-bank"{{if eq .Section "question-bank"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.side.question-bank"}}</span></a>
           <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "admin.side.gallery"}}</span></a>
           <a href="/admin/programmes"{{if eq .Section "programmes"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{t .Lang "admin.side.programmes"}}</span></a>
           <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span></a>

@@ -27,6 +27,7 @@ type exam struct {
 	MaxAttempts string
 	Usable      bool
 	Questions   []examQuestion
+	Topics      []string // the Question bank's topics, on the Admin page
 }
 
 // examQuestion is one Exam question. Options always has five slots; a blank slot is an unused option.
@@ -79,6 +80,11 @@ func (e exam) Path(rest string) string {
 func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
 	c, e, ok := a.examFor(w, r)
 	if !ok {
+		return
+	}
+	var err error
+	if e.Topics, err = a.bankTopics(r.Context()); err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	a.render(w, r, http.StatusOK, "exam", page{Course: &c, Exam: &e})
@@ -158,7 +164,7 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Exam: &e, Question: &q, Error: msg})
 		return
 	}
-	if err := a.insertQuestion(r.Context(), e, q); err != nil {
+	if err := a.insertQuestion(r.Context(), e, q, c.Title); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -166,30 +172,46 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 }
 
 // insertQuestion adds a question at the end of the Exam, first saving the Exam with default settings if it is new.
-func (a *App) insertQuestion(ctx context.Context, e exam, q examQuestion) error {
+// A copy goes into the Question bank under topic, in Malay.
+func (a *App) insertQuestion(ctx context.Context, e exam, q examQuestion, topic string) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	// The no-op update makes RETURNING give the id of an Exam that is already saved.
-	var examID int64
-	if err := tx.QueryRowContext(ctx, `INSERT INTO exams (course_id, format) VALUES ($1, $2)
-		ON CONFLICT (course_id, format) DO UPDATE SET format = EXCLUDED.format RETURNING id`, e.CourseID, e.Format).Scan(&examID); err != nil {
+	examID, err := saveExamRow(ctx, tx, e)
+	if err != nil {
+		return err
+	}
+	var bankID int64
+	if err := tx.QueryRowContext(ctx, `INSERT INTO bank_questions (format, topic, language, prompt, is_draft)
+		VALUES ($1, $2, 'ms', $3, $4) RETURNING id`, e.Format, topic, q.Prompt, q.Draft).Scan(&bankID); err != nil {
+		return err
+	}
+	if err := insertOptions(ctx, tx, "bank_options", bankID, q.Options); err != nil {
 		return err
 	}
 	var id int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO exam_questions (exam_id, position, prompt, is_draft)
-		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE exam_id = $1), $2, $3)
-		RETURNING id`, examID, q.Prompt, q.Draft).Scan(&id)
+		INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id)
+		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE exam_id = $1), $2, $3, $4)
+		RETURNING id`, examID, q.Prompt, q.Draft, bankID).Scan(&id)
 	if err != nil {
 		return err
 	}
-	if err := insertOptions(ctx, tx, id, q.Options); err != nil {
+	if err := insertOptions(ctx, tx, "exam_options", id, q.Options); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+// saveExamRow saves the Exam with default settings if it is new and returns its id.
+func saveExamRow(ctx context.Context, tx *sql.Tx, e exam) (int64, error) {
+	// The no-op update makes RETURNING give the id of an Exam that is already saved.
+	var id int64
+	err := tx.QueryRowContext(ctx, `INSERT INTO exams (course_id, format) VALUES ($1, $2)
+		ON CONFLICT (course_id, format) DO UPDATE SET format = EXCLUDED.format RETURNING id`, e.CourseID, e.Format).Scan(&id)
+	return id, err
 }
 
 // questionFromForm reads the question form. msg is the first problem found, in lang, empty when the form is valid.
@@ -320,20 +342,20 @@ func (a *App) replaceQuestion(ctx context.Context, examID int64, q examQuestion)
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exam_options WHERE question_id = $1`, q.ID); err != nil {
 		return err
 	}
-	if err := insertOptions(ctx, tx, q.ID, q.Options); err != nil {
+	if err := insertOptions(ctx, tx, "exam_options", q.ID, q.Options); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-// insertOptions writes the filled option slots of a question.
-func insertOptions(ctx context.Context, tx *sql.Tx, questionID int64, options [5]examOption) error {
+// insertOptions writes the filled option slots of a question into table, exam_options or bank_options.
+func insertOptions(ctx context.Context, tx *sql.Tx, table string, questionID int64, options [5]examOption) error {
 	for slot, o := range options {
 		if o.Text == "" {
 			continue
 		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO exam_options (question_id, position, text, is_correct) VALUES ($1, $2, $3, $4)`,
+			`INSERT INTO `+table+` (question_id, position, text, is_correct) VALUES ($1, $2, $3, $4)`,
 			questionID, slot, o.Text, o.Correct); err != nil {
 			return err
 		}

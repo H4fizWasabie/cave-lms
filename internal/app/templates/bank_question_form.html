@@ -1,0 +1,32 @@
+{{define "title"}}{{t .Lang "bank.edit-q"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "question-bank" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/question-bank">{{t .Lang "bank.back"}}</a></p>
+        <div class="adm-head"><h1>{{t .Lang "bank.edit-q"}}</h1><p>{{t .Lang (print "bank.format." .Question.Format)}}</p></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="/admin/question-bank/{{.Question.ID}}">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="topic">{{t .Lang "bank.topic"}}</label><input id="topic" type="text" name="topic" value="{{.Question.Topic}}" required></div>
+              <div class="field"><label for="language">{{t .Lang "bank.language"}}</label><select id="language" name="language">{{range .Languages}}<option value="{{.}}"{{if eq . $.Question.Language}} selected{{end}}>{{t $.Lang (print "bank.lang." .)}}</option>{{end}}</select></div>
+            </div>
+            <div class="field"><label for="prompt">{{t .Lang "adm.exam.question"}}</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
+            <fieldset class="field">
+              <legend>{{t .Lang "adm.exam.options"}}</legend>
+              <div class="nq-list">
+                {{range $i, $o := .Question.Options}}
+                <div class="nq-row">
+                  <label class="check"><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> {{t $.Lang "adm.exam.correct"}}</label>
+                  <input type="text" name="option" value="{{$o.Text}}" maxlength="500" aria-label="{{t $.Lang "adm.exam.option-n" $i}}">
+                </div>
+                {{end}}
+              </div>
+            </fieldset>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/question-bank">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.exam.save-q"}}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+{{end}}

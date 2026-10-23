@@ -1,0 +1,43 @@
+{{define "title"}}{{t .Lang "bank.heading"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "question-bank" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "bank.heading"}}</h1>
+            <p>{{t .Lang "bank.intro"}}</p>
+          </div>
+        </div>
+        <form class="form" method="get" action="/admin/question-bank">
+          <div class="field-grid">
+            <div class="field"><label for="topic">{{t .Lang "bank.topic"}}</label><select id="topic" name="topic"><option value="">{{t .Lang "bank.all-topics"}}</option>{{range .Topics}}<option{{if eq . $.Topic}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+            <div class="field"><label for="format">{{t .Lang "bank.format"}}</label><select id="format" name="format"><option value="">{{t .Lang "bank.all-formats"}}</option>{{range .Formats}}<option value="{{.}}"{{if eq . $.Format}} selected{{end}}>{{t $.Lang (print "bank.format." .)}}</option>{{end}}</select></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.filter"}}</button></div>
+        </form>
+        <div class="card">
+          <ol class="q-list">
+            {{range $q := .Questions}}
+            <li class="q-card">
+              <p class="card-sub">{{$q.Topic}} · {{t $.Lang (print "bank.format." $q.Format)}} · {{t $.Lang (print "bank.lang." $q.Language)}}</p>
+              <div class="q-head">
+                <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
+                <div class="lb-act">
+                  <a class="btn btn-quiet btn-sm" href="/admin/question-bank/{{$q.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
+                  {{if $q.Draft}}<form method="post" action="/admin/question-bank/{{$q.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
+                  <form method="post" action="/admin/question-bank/{{$q.ID}}/delete"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
+                </div>
+              </div>
+              <ul class="q-opts">
+                {{range $q.Options}}{{if .Text}}<li{{if .Correct}} class="is-correct"{{end}}><span class="dot"></span>{{.Text}}{{if .Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}</li>{{end}}{{end}}
+              </ul>
+            </li>
+            {{else}}
+            <li class="empty">{{t .Lang "bank.none"}}</li>
+            {{end}}
+          </ol>
+        </div>
+      </div>
+    </div>
+{{end}}
