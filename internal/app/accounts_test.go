@@ -23,6 +23,7 @@ type site struct {
 	server      *httptest.Server
 	client      *http.Client
 	mail        *testutil.RecordingMailer
+	ai          *testutil.FakeWriter
 	db          *sql.DB
 	storageDir  string
 	cfg         config.Config
@@ -33,13 +34,14 @@ type site struct {
 func newSite(t *testing.T, opts ...func(*config.Config)) *site {
 	t.Helper()
 	var cfg config.Config
-	application, mail, db, storageDir := newTestApplication(t, append(opts, func(c *config.Config) { cfg = *c })...)
+	ai := &testutil.FakeWriter{}
+	application, mail, db, storageDir := newTestApplicationWith(t, ai, append(opts, func(c *config.Config) { cfg = *c })...)
 	server := httptest.NewTLSServer(application)
 	t.Cleanup(server.Close)
 	client := server.Client()
 	client.Jar, _ = cookiejar.New(nil)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &site{t: t, application: application, server: server, client: client, mail: mail, db: db, storageDir: storageDir, cfg: cfg}
+	return &site{t: t, application: application, server: server, client: client, mail: mail, ai: ai, db: db, storageDir: storageDir, cfg: cfg}
 }
 
 // do sends req, from a browser asking for English unless req says otherwise, as the tests check English texts.

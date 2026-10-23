@@ -59,3 +59,26 @@ func TestResendReportsWhyResendRefusedTheMessage(t *testing.T) {
 		t.Fatalf("Send() error = %v, want the status and Resend's message", err)
 	}
 }
+
+func TestResendSendsAttachmentsBase64Encoded(t *testing.T) {
+	var body struct {
+		Attachments []map[string]string `json:"attachments"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	m := Resend{APIKey: "re_test_key", From: "noreply@courses.example.test", Endpoint: server.URL}
+	err := m.Send(context.Background(), Message{To: "learner@example.test", Subject: "Your Result", Body: "You passed.",
+		Attachments: []Attachment{{Filename: "answer-sheet.pdf", Content: []byte("%PDF-1.3")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Attachments) != 1 || body.Attachments[0]["filename"] != "answer-sheet.pdf" ||
+		body.Attachments[0]["content"] != "JVBERi0xLjM=" {
+		t.Fatalf("attachments = %v, want answer-sheet.pdf with its content in base64", body.Attachments)
+	}
+}

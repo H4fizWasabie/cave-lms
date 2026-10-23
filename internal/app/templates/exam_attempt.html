@@ -3,32 +3,32 @@
     <div class="wrap wrap-narrow page-pad">
       <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
       {{with .Attempt}}
-      {{if .Finished}}
+      {{if .Released}}
       <div class="x-card x-result {{if .Passed}}is-pass{{else}}is-fail{{end}}">
-        <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
+        <h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.multiple-choice-for" $.Course.Title}}{{end}}</h1>
         <h2 class="sr">{{t $.Lang "exam.result"}}</h2>
         <p class="x-score">{{.Score}}%</p>
         <p>{{t $.Lang "exam.score" .Score}}</p>
         <p class="x-verdict {{if .Passed}}x-pass{{else}}x-fail{{end}}">{{if .Passed}}{{t $.Lang "exam.passed" .PassMark}}{{else}}{{t $.Lang "exam.failed" .PassMark}}{{end}}</p>
-        <div class="x-wrong">
-          <h2>{{t $.Lang "exam.wrong-answers"}}</h2>
-          <ol>
-            {{range .Questions}}{{if not .Right}}<li>{{.Prompt}} <span>{{t $.Lang "exam.your-answer"}} {{with .Answer}}{{.}}{{else}}{{t $.Lang "exam.no-answer"}}{{end}}</span></li>{{end}}{{end}}
-          </ol>
-        </div>
       </div>
-      {{else if .TimedOut}}
+      {{else if or .Finished .TimedOut}}
       <div class="x-card">
-        <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
-        <p class="x-help">{{t $.Lang "exam.timed-out"}}</p>
+        {{if .TimedOut}}<h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.multiple-choice-for" $.Course.Title}}{{end}}</h1>
+        <p class="x-help">{{t $.Lang "exam.timed-out"}}</p>{{else}}<h1>{{t $.Lang "exam.submitted"}}</h1>{{end}}
+        <p class="x-help">{{t $.Lang "exam.ready-at" (.ReadyAt $.Lang)}}</p>
       </div>
       {{else}}
-      <div class="page-head"><h1>{{t $.Lang "exam.for" $.Course.Title}}</h1></div>
-      {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}}</span></div>{{end}}
-      <form class="x-form" method="post" action="/courses/{{$.Course.ID}}/exam/attempts/{{.ID}}/submit">
+      <div class="page-head"><h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.for" $.Course.Title}}{{end}}</h1></div>
+      {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer" data-seconds-left="{{$.Attempt.SecondsLeft}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}} <strong class="x-countdown"></strong></span></div>{{end}}
+      <form class="x-form" method="post" action="{{$.Exam.Path (printf "/attempts/%d/submit" .ID)}}">
         {{range $n, $q := .Questions}}
         <fieldset class="x-q">
+          {{if $.Exam.Written}}
+          <legend><label for="answer-{{$q.ID}}">{{$q.Prompt}}</label></legend>
+          <textarea id="answer-{{$q.ID}}" name="answer-{{$q.ID}}" rows="6" maxlength="{{maxWrittenAnswer}}"></textarea>
+          {{else}}
           <legend>{{$q.Prompt}}</legend>
+          {{end}}
           {{range $slot, $o := $q.Options}}{{if $o.Text}}
           <label class="x-opt"><input type="radio" name="answer-{{$q.ID}}" value="{{$slot}}"> {{$o.Text}}</label>
           {{end}}{{end}}
@@ -36,8 +36,11 @@
         {{end}}
         <div class="x-submit"><p>{{t $.Lang "exam.final"}}</p><button class="btn btn-solid btn-lg">{{t $.Lang "exam.submit"}}</button></div>
       </form>
+      {{if .TimeLimit}}
+      <script src="{{static "exam-timer.js"}}" defer></script>
       {{end}}
       {{end}}
-      <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}/exam">{{t .Lang "exam.back"}}</a></p>
+      {{end}}
+      <p class="mc-more"><a class="link-more" href="{{.Exam.Path ""}}">{{t .Lang "exam.back"}}</a></p>
     </div>
 {{end}}

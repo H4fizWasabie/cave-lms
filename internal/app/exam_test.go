@@ -10,12 +10,18 @@ import (
 
 var examQuestionAction = regexp.MustCompile(`/exam/questions/(\d+)/`)
 
-// saveExamSettings posts the Exam settings form for a Course.
+// saveExamSettings posts the Exam settings form for a Course, keeping the default draw count of 30.
 func (s *site) saveExamSettings(courseID, passMark, timeLimit, maxAttempts string) (*http.Response, string) {
+	return s.saveExamDraw(courseID, passMark, timeLimit, maxAttempts, "30")
+}
+
+// saveExamDraw posts the Exam settings form for a Course with a draw count.
+func (s *site) saveExamDraw(courseID, passMark, timeLimit, maxAttempts, drawCount string) (*http.Response, string) {
 	return s.post("/admin/courses/"+courseID+"/exam", url.Values{
 		"pass_mark":    {passMark},
 		"time_limit":   {timeLimit},
 		"max_attempts": {maxAttempts},
+		"draw_count":   {drawCount},
 	})
 }
 
@@ -53,6 +59,27 @@ func TestAdminSetsAndChangesTheExamSettings(t *testing.T) {
 	if strings.Contains(body, "Pass mark: 70%") {
 		t.Fatalf("changed Exam still shows the old pass mark: %s", body)
 	}
+}
+
+func TestAnExamAsks30QuestionsUnlessTheAdminChangesTheDrawCount(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+
+	res, body := s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 30")
+	res, body = s.saveExamDraw(id, "50", "", "", "12")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 12")
+
+	for _, bad := range []string{"0", "", "abc"} {
+		res, body = s.saveExamDraw(id, "50", "", "", bad)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter the questions per attempt as a whole number of at least 1.")
+	}
+	res, body = s.get("/admin/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 12")
 }
 
 func TestExamSettingsRejectInvalidInput(t *testing.T) {
@@ -315,4 +342,37 @@ func TestAdminReachesTheExamFromTheCourseList(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `href="/admin/courses/`+id+`/exam"`)
 	res, body = s.get("/admin/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Exam for Go Basics")
+}
+
+func TestANewExamAllowsTwoAttemptsUntilTheAdminChangesIt(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	examPath := "/admin/courses/" + id + "/exam"
+
+	res, body := s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 2")
+	expectStatus(t, res, body, http.StatusOK, `name="max_attempts" type="number" min="1" value="2"`)
+	s.saveQuestion(examPath+"/questions", "What is Go?", [5]string{"A language", "A drink", "", "", ""}, "0", false)
+	res, body = s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 2")
+
+	s.saveExamSettings(id, "50", "", "5")
+	res, body = s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 5")
+}
+
+func TestAnExamOfAnUnknownFormatIsNotFound(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+
+	res, body := s.get("/admin/courses/" + id + "/exam?format=multiple-choice")
+	expectStatus(t, res, body, http.StatusOK, "Exam for Go Basics")
+	for _, path := range []string{"/admin/courses/" + id + "/exam?format=essay", "/courses/" + id + "/exam?format=essay"} {
+		res, body = s.get(path)
+		expectStatus(t, res, body, http.StatusNotFound, "")
+	}
 }

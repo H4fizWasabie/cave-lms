@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -50,7 +51,13 @@ func serve() error {
 	} else {
 		log.Print("RESEND_API_KEY is not set: emails will not be sent")
 	}
-	application, err := app.New(context.Background(), cfg, m)
+	w := aiwriter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
+	if _, off := w.(aiwriter.Unconfigured); off {
+		log.Print("OPENROUTER_API_KEY or OPENROUTER_MODEL is not set: the AI will not write Exam questions or mark Written answers")
+	} else {
+		log.Printf("Writing Exam questions and marking Written answers with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
+	}
+	application, err := app.New(context.Background(), cfg, m, w)
 	if err != nil {
 		return err
 	}
@@ -85,7 +92,7 @@ func createAdmin(args []string, stdin io.Reader) error {
 		return err
 	}
 	ctx := context.Background()
-	application, err := app.New(ctx, cfg, mailer.Unconfigured{})
+	application, err := app.New(ctx, cfg, mailer.Unconfigured{}, aiwriter.Unconfigured{})
 	if err != nil {
 		return err
 	}
