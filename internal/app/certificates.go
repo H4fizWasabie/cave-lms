@@ -66,7 +66,7 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	if err != nil || total == 0 || done < total {
 		return err
 	}
-	// ponytail: only the Multiple-choice Exam counts; make every Exam count once a Course can have another format.
+	// ponytail: only the Multiple-choice Exam counts; the certificates issue, #152, makes every Exam count.
 	e, err := a.loadExam(ctx, courseID, multipleChoice)
 	if err != nil {
 		return err

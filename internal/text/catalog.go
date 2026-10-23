@@ -991,7 +991,7 @@ var catalog = map[string]entry{
 	"exam.blocked.not-ready":       {en: "This Exam is not ready yet.", ms: "Peperiksaan ini belum sedia."},
 	"exam.blocked.no-lessons":      {en: "This Course has no Lessons yet, so its Exam is locked.", ms: "Kursus ini belum mempunyai Pelajaran, jadi Peperiksaannya dikunci."},
 	"exam.blocked.lessons":         {en: "Complete every Lesson before you sit the Exam (%d of %d complete).", ms: "Selesaikan setiap Pelajaran sebelum anda menduduki Peperiksaan (%d daripada %d selesai)."},
-	"exam.blocked.pending":         {en: "Submitted, your Result is ready at %s.", ms: "Telah dihantar, keputusan anda sedia pada %s."},
+	"exam.blocked.pending":         {en: "Submitted, your Result is ready at %s.", ms: "Telah dihantar, Keputusan anda sedia pada %s."},
 	"exam.blocked.passed":          {en: "You have passed this Exam.", ms: "Anda telah lulus Peperiksaan ini."},
 	"exam.blocked.no-attempts":     {en: "You have no attempts left.", ms: "Percubaan anda sudah habis."},
 	"exam.result":                  {en: "Result", ms: "Keputusan"},

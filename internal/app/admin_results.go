@@ -28,6 +28,9 @@ type adminResult struct {
 	AdminMarked                 bool // an Admin set a Written mark
 }
 
+// Written reports whether the attempt is at a Written Exam.
+func (r adminResult) Written() bool { return r.Format == written }
+
 // Released reports whether the attempt's Result is out.
 func (r adminResult) Released() bool { return r.ReleasedAt.Valid }
 

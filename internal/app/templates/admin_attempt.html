@@ -17,18 +17,18 @@
         </div>
         {{end}}
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-        {{$marking := and (eq .Attempt.Format "written") .Attempt.Submitted.Valid}}
+        {{$marking := and .Attempt.Written .Attempt.Submitted.Valid}}
         {{if $marking}}<form method="post" action="/admin/results/{{.Attempt.ID}}/marks">{{end}}
         <div class="card">
           {{range $q := .Questions}}
           <section class="q-card">
             <p>{{$q.Prompt}}</p>
-            {{if eq $.Attempt.Format "written"}}
+            {{if $.Attempt.Written}}
             {{with $q.Answer}}<p>{{t $.Lang "results.answer"}}: {{.}}</p>{{else}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
             <p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{$q.ModelAnswer}}</p>
-            <p class="card-sub">{{if $q.Marked}}{{t $.Lang "results.mark-of" $q.MarkValue 10}}{{else}}{{t $.Lang "results.not-marked"}}{{end}}</p>
+            <p class="card-sub">{{if $q.Marked}}{{t $.Lang "results.mark-of" $q.MarkValue writtenMarks}}{{else}}{{t $.Lang "results.not-marked"}}{{end}}</p>
             {{with $q.Reason}}<p class="card-sub">{{t $.Lang "results.reason"}}: {{.}}</p>{{end}}
-            {{if $marking}}<div class="field"><label for="mark-{{$q.ID}}">{{t $.Lang "results.mark"}} (0-10)</label><input id="mark-{{$q.ID}}" name="mark-{{$q.ID}}" type="number" min="0" max="10" step="1"{{if $q.Marked}} value="{{$q.MarkValue}}"{{end}}></div>{{end}}
+            {{if $marking}}<div class="field"><label for="mark-{{$q.ID}}">{{t $.Lang "results.mark"}} (0-{{writtenMarks}})</label><input id="mark-{{$q.ID}}" name="mark-{{$q.ID}}" type="number" min="0" max="{{writtenMarks}}" step="1"{{if $q.Marked}} value="{{$q.MarkValue}}"{{end}}></div>{{end}}
             {{else}}
             {{if lt $q.Chosen 0}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
             <ul class="q-opts">

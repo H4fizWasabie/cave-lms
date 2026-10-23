@@ -30,6 +30,7 @@ type Question struct {
 	ModelAnswer string   `json:"model_answer,omitempty"`
 }
 
+// Option is one option of a Multiple-choice question.
 type Option struct {
 	Text    string `json:"text"`
 	Correct bool   `json:"correct"`
@@ -49,6 +50,8 @@ type Marking struct {
 // MaxMark is what a Written answer is marked out of.
 const MaxMark = 10
 
+// Writer is an AI that writes Exam questions and marks Written answers. Callers go through Questions and Mark,
+// which check the reply's shape.
 type Writer interface {
 	// WriteQuestions writes r.Count questions. A reply that cannot be read is ErrBadShape.
 	WriteQuestions(context.Context, Request) ([]Question, error)
@@ -56,6 +59,7 @@ type Writer interface {
 	MarkAnswer(context.Context, MarkRequest) (Marking, error)
 }
 
+// Unconfigured is the Writer when no AI is set up: every call is ErrNotConfigured.
 type Unconfigured struct{}
 
 func (Unconfigured) WriteQuestions(context.Context, Request) ([]Question, error) {
@@ -69,17 +73,9 @@ func (Unconfigured) MarkAnswer(context.Context, MarkRequest) (Marking, error) {
 // Mark asks w to mark r, asking once more when the mark is not a whole number 0 to MaxMark with a reason. A second
 // wrong shape is ErrBadShape.
 func Mark(ctx context.Context, w Writer, r MarkRequest) (Marking, error) {
-	var err error
-	for range 2 {
-		var m Marking
-		if m, err = w.MarkAnswer(ctx, r); err == nil && (m.Mark < 0 || m.Mark > MaxMark || strings.TrimSpace(m.Reason) == "") {
-			err = ErrBadShape
-		}
-		if !errors.Is(err, ErrBadShape) {
-			return m, err
-		}
-	}
-	return Marking{}, err
+	return askTwice(func() (Marking, error) { return w.MarkAnswer(ctx, r) }, func(m Marking) bool {
+		return m.Mark >= 0 && m.Mark <= MaxMark && strings.TrimSpace(m.Reason) != ""
+	})
 }
 
 // New is the OpenRouter writer, or Unconfigured when the key or model is unset.
@@ -93,17 +89,26 @@ func New(apiKey, model string, webSearch bool) Writer {
 // Questions asks w for r's questions, asking once more when the reply is the wrong shape. A second wrong shape
 // is ErrBadShape, so nothing invalid is ever returned.
 func Questions(ctx context.Context, w Writer, r Request) ([]Question, error) {
+	return askTwice(func() ([]Question, error) { return w.WriteQuestions(ctx, r) }, func(qs []Question) bool {
+		return wellShaped(r, qs)
+	})
+}
+
+// askTwice calls ask, and once more when its reply is ErrBadShape or fails ok. A second wrong shape is ErrBadShape,
+// with the zero reply.
+func askTwice[T any](ask func() (T, error), ok func(T) bool) (T, error) {
 	var err error
 	for range 2 {
-		var qs []Question
-		if qs, err = w.WriteQuestions(ctx, r); err == nil && !wellShaped(r, qs) {
+		var v T
+		if v, err = ask(); err == nil && !ok(v) {
 			err = ErrBadShape
 		}
 		if !errors.Is(err, ErrBadShape) {
-			return qs, err
+			return v, err
 		}
 	}
-	return nil, err
+	var zero T
+	return zero, err
 }
 
 // wellShaped reports whether qs are r.Count questions in r's format, each with a prompt and, when Written, a model

@@ -404,8 +404,8 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 		q.Chosen = -1
 		if e.Written() {
 			q.Answer = strings.TrimSpace(r.PostFormValue("answer-" + strconv.FormatInt(q.ID, 10)))
-			if a := []rune(q.Answer); len(a) > maxWrittenAnswer {
-				q.Answer = string(a[:maxWrittenAnswer])
+			if runes := []rune(q.Answer); len(runes) > maxWrittenAnswer {
+				q.Answer = string(runes[:maxWrittenAnswer])
 			}
 			continue
 		}

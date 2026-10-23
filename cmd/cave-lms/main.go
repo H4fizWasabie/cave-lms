@@ -53,9 +53,9 @@ func serve() error {
 	}
 	w := aiwriter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
 	if _, off := w.(aiwriter.Unconfigured); off {
-		log.Print("OPENROUTER_API_KEY or OPENROUTER_MODEL is not set: the AI will not write Exam questions")
+		log.Print("OPENROUTER_API_KEY or OPENROUTER_MODEL is not set: the AI will not write Exam questions or mark Written answers")
 	} else {
-		log.Printf("Writing Exam questions with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
+		log.Printf("Writing Exam questions and marking Written answers with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
 	}
 	application, err := app.New(context.Background(), cfg, m, w)
 	if err != nil {

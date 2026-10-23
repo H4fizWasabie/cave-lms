@@ -25,7 +25,7 @@
         <fieldset class="x-q">
           {{if $.Exam.Written}}
           <legend><label for="answer-{{$q.ID}}">{{$q.Prompt}}</label></legend>
-          <textarea id="answer-{{$q.ID}}" name="answer-{{$q.ID}}" rows="6" maxlength="5000"></textarea>
+          <textarea id="answer-{{$q.ID}}" name="answer-{{$q.ID}}" rows="6" maxlength="{{maxWrittenAnswer}}"></textarea>
           {{else}}
           <legend>{{$q.Prompt}}</legend>
           {{end}}

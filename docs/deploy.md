@@ -191,6 +191,8 @@ All four or none: with some set and others missing the app stops at start naming
 
 From an Exam's Admin page, Generate questions takes matching published Question bank questions first, then asks the AI to write the rest through [OpenRouter](https://openrouter.ai) (ADR 0009). Only the topic, format, language and count are sent. The AI's questions arrive as Drafts in the Question bank and the Exam. One generation asks for at most 50 questions, with a reply capped at 16000 tokens and a 60-second timeout; a reply in the wrong shape is asked for once more, then reported, and nothing is saved.
 
+The AI also marks each Written answer 0 to 10 with a one-line reason, before the Result is released. Only the question, its model answer and the Learner's answer are sent, nothing about the Learner (ADR 0009). A mark in the wrong shape is asked for once more; an answer still unmarked is asked about again every 5 minutes, and an hour past its release time the System log says so, for the Admin to mark it on Admin > Results.
+
 1. On OpenRouter, create an API key for Cave LMS and **set a monthly credit limit on it**, so a runaway month cannot overspend. Over the limit, the Exam page says so and nothing is saved.
 2. Add to `/etc/cave-lms/env` with an editor, then `systemctl restart cave-lms` (or deploy):
 
@@ -200,7 +202,7 @@ From an Exam's Admin page, Generate questions takes matching published Question 
    OPENROUTER_WEB_SEARCH=true    # optional: true (the default) or false
    ```
 
-There is no built-in model: with the key or model unset the app starts and the Exam page says the AI writer is not configured; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt`, built into the binary: edit it and deploy to change the wording.
+There is no built-in model: with the key or model unset the app starts, the Exam page says the AI writer is not configured, and Written attempts with non-blank answers wait for the Admin to mark them on Admin > Results; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt` for questions and `internal/aiwriter/mark_answer.txt` for marks, built into the binary: edit them and deploy to change the wording.
 
 ## Email
 

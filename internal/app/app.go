@@ -42,7 +42,7 @@ type App struct {
 	db                   *sql.DB
 	handler              http.Handler
 	mailer               mailer.Mailer
-	writer               aiwriter.Writer // writes Exam questions
+	writer               aiwriter.Writer // writes Exam questions and marks Written answers
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
@@ -54,7 +54,10 @@ type App struct {
 	bclWebhookKey        string        // the secret in BCL's webhook address; empty refuses every webhook
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
 	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
-	releasing            sync.Mutex    // held by a run of releaseResults, so two runs never release at once
+	// releasing is held by a run of releaseResults, so two runs never release at once.
+	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
+	// ever runs more than one instance.
+	releasing sync.Mutex
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -436,7 +439,8 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
+		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}

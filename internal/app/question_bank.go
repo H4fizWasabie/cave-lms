@@ -14,13 +14,16 @@ import (
 )
 
 // bankFormats are the formats the Question bank can be browsed by.
-var bankFormats = []string{multipleChoice, "written"}
+var bankFormats = []string{multipleChoice, written}
 
 // bankQuestion is one Question bank question. Exams hold copies of bank questions, never the bank question itself.
 type bankQuestion struct {
 	examQuestion
 	Format, Topic, Language string
 }
+
+// Written reports whether the bank question is a Written one.
+func (q bankQuestion) Written() bool { return q.Format == written }
 
 type bankPage struct {
 	pageBase
@@ -249,7 +252,7 @@ func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	var written []examQuestion
+	var aiWritten []examQuestion
 	if rest := count - banked; rest > 0 {
 		qs, err := aiwriter.Questions(r.Context(), a.writer, aiwriter.Request{Topic: topic, Format: e.Format, Language: qlang, Count: rest})
 		if msg = aiProblem(err); msg != "" {
@@ -262,10 +265,10 @@ func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 			for i, o := range q.Options {
 				eq.Options[i] = examOption{Text: strings.TrimSpace(o.Text), Correct: o.Correct}
 			}
-			written = append(written, eq)
+			aiWritten = append(aiWritten, eq)
 		}
 	}
-	if _, err := a.copyFromBank(r.Context(), e, topic, qlang, count, written); err != nil {
+	if _, err := a.copyFromBank(r.Context(), e, topic, qlang, count, aiWritten); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -321,9 +324,9 @@ func (a *App) examProblem(w http.ResponseWriter, r *http.Request, c course, e ex
 const bankMatch = `b.format = $2 AND lower(b.topic) = lower($3) AND b.language = $4 AND NOT b.is_draft
 	AND b.id NOT IN (SELECT bank_question_id FROM exam_questions WHERE exam_id = $1 AND bank_question_id IS NOT NULL)`
 
-// copyFromBank copies up to count bank questions as addFromBank does, then adds written as new bank questions under
+// copyFromBank copies up to count bank questions as addFromBank does, then adds aiWritten as new bank questions under
 // the topic and language with copies in the Exam, all in one transaction. It returns how many it copied from the bank.
-func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, count int, written []examQuestion) (int64, error) {
+func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, count int, aiWritten []examQuestion) (int64, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -351,7 +354,7 @@ func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, coun
 	if err != nil {
 		return 0, err
 	}
-	for _, q := range written {
+	for _, q := range aiWritten {
 		if err := insertBankedQuestion(ctx, tx, examID, e.Format, topic, lang, q); err != nil {
 			return 0, err
 		}
