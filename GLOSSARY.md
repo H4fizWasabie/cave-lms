@@ -136,9 +136,14 @@ _Malay_: Pelan Pro
 _Avoid_: Bundle, package, combo
 
 **Normal price**:
-The price a Learner would pay without a promotion, shown crossed out beside a lower current price. Only the current price decides whether a Payment is enough.
+The price a Learner would pay without a promotion, shown crossed out beside a lower current price. Only the current price, or a running Promo's price, decides whether a Payment is enough.
 _Malay_: Harga biasa
 _Avoid_: Original price, list price, RRP
+
+**Promo**:
+A lower price for one product between two dates, which a Learner gets by entering the Promo's code on that product's payment form. The code itself lives in BCL, which limits how many times it is used and how often by one person; CAVELMS only accepts a Payment of at least the Promo's price while the Promo runs. Several Promos may run at once; the lowest running price counts. Ending a Promo early keeps it listed. Admins never use a Promo: they give products by hand.
+_Malay_: Promosi
+_Avoid_: Coupon, voucher, discount
 
 **Plan period**:
 One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Datasets are kept for 90 days, then deleted unless a new period has started.
