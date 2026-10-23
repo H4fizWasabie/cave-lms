@@ -180,7 +180,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /forgot-password", a.forgotPasswordForm)
 	mux.HandleFunc("POST /forgot-password", a.limited(rateLimitAttempts, a.forgotPassword))
 	mux.HandleFunc("GET /reset-password", a.resetPasswordForm)
-	mux.HandleFunc("POST /reset-password", a.limited(a.resetPassword))
+	mux.HandleFunc("POST /reset-password", a.limited(rateLimitAttempts, a.resetPassword))
 	mux.HandleFunc("POST /logout", a.logout)
 	mux.HandleFunc("POST /language", a.switchLanguage)
 	mux.HandleFunc("GET /courses", a.courses)
