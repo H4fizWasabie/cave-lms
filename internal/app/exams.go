@@ -25,6 +25,7 @@ type exam struct {
 	PassMark    string
 	TimeLimit   string
 	MaxAttempts string
+	DrawCount   string // questions a first attempt draws from the published pool
 	Usable      bool
 	Questions   []examQuestion
 	Topics      []string // the Question bank's topics, on the Admin page
@@ -90,7 +91,7 @@ func (a *App) adminExam(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "exam", page{Course: &c, Exam: &e})
 }
 
-// saveExam sets the pass mark, time limit and attempt limit. The first save creates the Exam.
+// saveExam sets the pass mark, time limit, attempt limit and draw count. The first save creates the Exam.
 func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 	c, e, ok := a.examFor(w, r)
 	if !ok {
@@ -99,6 +100,7 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 	e.PassMark = strings.TrimSpace(r.PostFormValue("pass_mark"))
 	e.TimeLimit = strings.TrimSpace(r.PostFormValue("time_limit"))
 	e.MaxAttempts = strings.TrimSpace(r.PostFormValue("max_attempts"))
+	e.DrawCount = strings.TrimSpace(r.PostFormValue("draw_count"))
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -109,13 +111,14 @@ func (a *App) saveExam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(), `
-		INSERT INTO exams (course_id, format, pass_mark, time_limit_minutes, max_attempts)
-		VALUES ($1, $2, $3, NULLIF($4, '')::integer, NULLIF($5, '')::integer)
+		INSERT INTO exams (course_id, format, pass_mark, time_limit_minutes, max_attempts, draw_count)
+		VALUES ($1, $2, $3, NULLIF($4, '')::integer, NULLIF($5, '')::integer, $6)
 		ON CONFLICT (course_id, format) DO UPDATE SET
 			pass_mark = EXCLUDED.pass_mark,
 			time_limit_minutes = EXCLUDED.time_limit_minutes,
-			max_attempts = EXCLUDED.max_attempts`,
-		c.ID, e.Format, e.PassMark, e.TimeLimit, e.MaxAttempts)
+			max_attempts = EXCLUDED.max_attempts,
+			draw_count = EXCLUDED.draw_count`,
+		c.ID, e.Format, e.PassMark, e.TimeLimit, e.MaxAttempts, e.DrawCount)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -137,6 +140,9 @@ func (e exam) settingsProblem(lang string) string {
 		if n, err := strconv.Atoi(e.MaxAttempts); err != nil || n < 1 {
 			return text.T(lang, "adm.exam.err.attempts")
 		}
+	}
+	if n, err := strconv.Atoi(e.DrawCount); err != nil || n < 1 {
+		return text.T(lang, "adm.exam.err.draw-count")
 	}
 	return ""
 }
@@ -242,11 +248,11 @@ func questionFromForm(r *http.Request, lang string) (q examQuestion, msg string)
 
 // loadExam reads a Course's Exam of the format with its questions. An Exam not saved yet gets the defaults.
 func (a *App) loadExam(ctx context.Context, courseID int64, format string) (exam, error) {
-	e := exam{CourseID: courseID, Format: format, PassMark: "50", MaxAttempts: "2"}
+	e := exam{CourseID: courseID, Format: format, PassMark: "50", MaxAttempts: "2", DrawCount: "30"}
 	err := a.db.QueryRowContext(ctx, `
-		SELECT id, pass_mark, COALESCE(time_limit_minutes::text, ''), COALESCE(max_attempts::text, '')
+		SELECT id, pass_mark, COALESCE(time_limit_minutes::text, ''), COALESCE(max_attempts::text, ''), draw_count
 		FROM exams WHERE course_id = $1 AND format = $2`, courseID, format).
-		Scan(&e.ID, &e.PassMark, &e.TimeLimit, &e.MaxAttempts)
+		Scan(&e.ID, &e.PassMark, &e.TimeLimit, &e.MaxAttempts, &e.DrawCount)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return exam{}, fmt.Errorf("load exam: %w", err)
 	}

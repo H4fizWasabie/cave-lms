@@ -264,15 +264,33 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, attemptPath(e, id), http.StatusSeeOther)
 }
 
-// insertAttempt stores a new attempt at the Exam with its published questions in a shuffled order.
+// insertAttempt stores a new attempt at the Exam. The Learner's first attempt draws the draw count of the published
+// questions at random; every later one asks the first attempt's questions in the same order, as the pool has them
+// now, or from the first attempt's own copy when a question has left the pool.
 func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (int64, error) {
-	questions := []attemptQuestion{}
-	for _, q := range e.Questions {
-		if !q.Draft {
-			questions = append(questions, attemptQuestion{ID: q.ID, Prompt: q.Prompt, Options: q.Options, Chosen: -1})
+	questions, err := firstDraw(ctx, tx, learnerID, e.ID)
+	if err != nil {
+		return 0, err
+	}
+	for i, asked := range questions {
+		for _, q := range e.Questions {
+			if q.ID == asked.ID {
+				questions[i].Prompt, questions[i].Options = q.Prompt, q.Options
+			}
 		}
 	}
-	rand.Shuffle(len(questions), func(i, j int) { questions[i], questions[j] = questions[j], questions[i] })
+	if questions == nil {
+		questions = []attemptQuestion{}
+		for _, q := range e.Questions {
+			if !q.Draft {
+				questions = append(questions, attemptQuestion{ID: q.ID, Prompt: q.Prompt, Options: q.Options, Chosen: -1})
+			}
+		}
+		rand.Shuffle(len(questions), func(i, j int) { questions[i], questions[j] = questions[j], questions[i] })
+		if n, _ := strconv.Atoi(e.DrawCount); n < len(questions) {
+			questions = questions[:n]
+		}
+	}
 	raw, err := json.Marshal(questions)
 	if err != nil {
 		return 0, err
@@ -283,6 +301,27 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 		SELECT $1, id, time_limit_minutes, pass_mark, $3::jsonb FROM exams WHERE id = $2
 		RETURNING id`, learnerID, e.ID, string(raw)).Scan(&id)
 	return id, err
+}
+
+// firstDraw returns the questions of the Learner's first attempt at the Exam, unanswered, or nil when there is none.
+func firstDraw(ctx context.Context, tx *sql.Tx, learnerID, examID int64) ([]attemptQuestion, error) {
+	var raw []byte
+	err := tx.QueryRowContext(ctx, `SELECT questions FROM exam_attempts WHERE learner_id = $1 AND exam_id = $2
+		ORDER BY id LIMIT 1`, learnerID, examID).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load first draw: %w", err)
+	}
+	var questions []attemptQuestion
+	if err := json.Unmarshal(raw, &questions); err != nil {
+		return nil, err
+	}
+	for i := range questions {
+		questions[i].Chosen = -1
+	}
+	return questions, nil
 }
 
 // showAttempt shows an attempt to its Learner: the questions while it is open, the result once it is marked.
