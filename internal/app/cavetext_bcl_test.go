@@ -61,7 +61,7 @@ func bclPayload(p bclPayment) string {
 		"data": map[string]any{
 			"formable_type": "payment_form", "formable_id": 19548, "form_title": "CaveText Pro (1 tahun / 1 year)",
 			"form_url": p.formURL, "record_type": "Transaction", "record_id": p.order,
-			"main_data": main,
+			"main_data":          main,
 			"tracking_params":    nil,
 			"custom_fields_data": map[string]any{"e_mel_akaun_cavelms_cavelms_account_email": p.cavelmsEmail},
 		},

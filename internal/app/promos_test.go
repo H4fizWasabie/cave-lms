@@ -194,3 +194,51 @@ func TestThePlansPageShowsTheCostComparisonWithATextAlternative(t *testing.T) {
 	_, body = s.getAsking("/plans", "ms")
 	expectAll(t, content(body), `alt="Kos setahun: CAVELMS RM99`)
 }
+
+// couponProPlan is a paid Pro Plan order as BCL sends one with a coupon: the subtotal before it, the discount apart.
+func couponProPlan(order, email, subtotal, discount string) bclPayment {
+	p := paidProPlan(order, email)
+	p.subtotal = subtotal
+	p.extra = map[string]any{"discount_amount": discount, "coupon_code": "CAVE99"}
+	return p
+}
+
+func TestACouponPaymentCountsWhatWasPaidAfterTheDiscount(t *testing.T) {
+	s := promoSite(t) // Pro Plan RM249, CAVE99 at RM99 running
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	expectProPlan(t, s, ada, token, "ada@example.com", time.Time{}, nil)
+
+	// A deeper discount than any running Promo allows waits for an Admin, showing what was paid.
+	bob, bobToken := s.newCaveTextLearner("Bob", "bob@example.com")
+	s.bclPay(couponProPlan("LINK-2", "bob@example.com", "249.00", "200.00"))
+	if bob.me(bobToken).Pro {
+		t.Fatal("a RM49 Pro Plan Payment after a RM200 discount gave CaveText Pro")
+	}
+	_, body := s.get("/admin/cavetext")
+	if got := unmatchedProduct(t, body, "LINK-2"); got != "Pro Plan" {
+		t.Errorf("LINK-2 is shown as for %q, want Pro Plan", got)
+	}
+	expectAll(t, body, "RM49")
+}
+
+func TestACouponPaymentWithNoPromoRunningWaitsAsUnmatched(t *testing.T) {
+	s := promoSite(t)
+	s.endPromo("CAVE99")
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	if ada.me(token).Pro {
+		t.Fatal("a coupon payment of RM99 with no Promo running gave CaveText Pro")
+	}
+}
+
+func TestAnUnreadableDiscountWaitsForAnAdmin(t *testing.T) {
+	s := promoSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "lots"))
+	if ada.me(token).Pro {
+		t.Fatal("an unreadable discount gave CaveText Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "LINK-1", "unreadable")
+}
