@@ -22,6 +22,7 @@ type enrollee struct {
 	ID          int64
 	Name        string
 	Email       string
+	IC          string // formatted, or "" when unset
 	Done, Total int    // Lessons completed out of the Course's published Lessons
 	Best        int    // best Exam score, shown when HasBest
 	HasBest     bool   // false when the Learner has no finished attempt
@@ -40,7 +41,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := a.db.QueryContext(r.Context(), `
-		SELECT l.id, l.name, l.email FROM enrollments e JOIN learners l ON l.id = e.learner_id
+		SELECT l.id, l.name, l.email, coalesce(l.ic, '') FROM enrollments e JOIN learners l ON l.id = e.learner_id
 		WHERE e.course_id = $1 ORDER BY l.name, l.id`, c.ID)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -50,10 +51,11 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	var list []enrollee
 	for rows.Next() {
 		var e enrollee
-		if err := rows.Scan(&e.ID, &e.Name, &e.Email); err != nil {
+		if err := rows.Scan(&e.ID, &e.Name, &e.Email, &e.IC); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
+		e.IC = formatIC(e.IC)
 		list = append(list, e)
 	}
 	if err := rows.Err(); err != nil {

@@ -17,18 +17,19 @@
           <div class="card-head card-head-pad"><h2>{{t .Lang "adm.course.enrolled"}}</h2></div>
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "adm.course.name"}}</th><th>{{t .Lang "adm.course.email"}}</th><th>{{t .Lang "adm.course.progress"}}</th><th>{{t .Lang "adm.course.best"}}</th><th>{{t .Lang "adm.course.certificate"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "adm.course.name"}}</th><th>{{t .Lang "adm.course.email"}}</th><th>{{t .Lang "my-profile.ic"}}</th><th>{{t .Lang "adm.course.progress"}}</th><th>{{t .Lang "adm.course.best"}}</th><th>{{t .Lang "adm.course.certificate"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
               {{range .Enrollees}}
               <tr>
                 <td>{{.Name}}</td>
                 <td>{{.Email}}</td>
+                <td><form class="inline-form" method="post" action="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/ic"><input name="ic" value="{{.IC}}" maxlength="40" aria-label="{{t $.Lang "my-profile.ic"}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "my-profile.save"}}</button></form></td>
                 <td>{{t $.Lang "adm.course.done-of" .Done .Total}}</td>
                 <td>{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</td>
                 <td>{{.Certificate}}</td>
                 <td class="actions"><form method="post" action="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/remove"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.remove"}}</button></form></td>
               </tr>
               {{else}}
-              <tr><td colspan="6">{{t .Lang "adm.course.none-joined"}}</td></tr>
+              <tr><td colspan="7">{{t .Lang "adm.course.none-joined"}}</td></tr>
               {{end}}
             </table>
           </div>
