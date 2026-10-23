@@ -1166,6 +1166,13 @@ var catalog = map[string]entry{
 		ms: "Hai %[1]s,\n\nKeputusan Peperiksaan %[6]s anda untuk %[2]s sudah sedia.\n\nMarkah: %[3]d%%\n%[4]s\n\nLihat di CAVELMS:\n\n%[5]s\n",
 	},
 	"email.result.answer-sheet": {en: "Your Answer sheet is attached.", ms: "Skema Jawapan anda dilampirkan."},
+	// The Course title, then for the body the Learner's name, the Course title, the Certificate No. and the check-page link
+	"email.certificate.subject": {en: "Your Certificate for %s", ms: "Sijil anda untuk %s"},
+	"email.certificate.body": {
+		en: "Hi %[1]s,\n\nYour Certificate for %[2]s has been issued. Its Certificate No. is %[3]s.\n\nAnyone can check it here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nSijil anda untuk %[2]s telah dikeluarkan. No. Sijilnya ialah %[3]s.\n\nSesiapa sahaja boleh menyemaknya di sini:\n\n%[4]s\n",
+	},
+	"email.certificate.attached": {en: "Your Certificate PDF is attached.", ms: "PDF Sijil anda dilampirkan."},
 	// ---- end Accounts (#83) ----
 
 	// ---- Admin area part 2: Plans, Deployments, CaveText, System log (#92) ----
