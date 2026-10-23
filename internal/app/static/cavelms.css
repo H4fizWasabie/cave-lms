@@ -805,3 +805,4 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 /* A Live Course's PCC Level, with its badge. */
 .pcc-level { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; }
 .pcc-level img { height: 6rem; width: auto; }
+.cert-background { display: block; height: auto; margin-top: 12px; border: 1px solid var(--line); }

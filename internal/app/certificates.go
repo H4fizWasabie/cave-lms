@@ -8,17 +8,19 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image/png"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
 	"github.com/go-pdf/fpdf"
 )
 
-// maxCertificateImage caps the form that carries the logo and signature.
-const maxCertificateImage = 5 << 20
+// maxCertificateImage caps the form that carries the background image, which is a full-page print-quality artwork.
+const maxCertificateImage = 20 << 20
 
 // certificate is one issued Certificate. LearnerName, LearnerIC, CourseTitle and Days are copies taken at issue time.
 type certificate struct {
@@ -56,12 +58,9 @@ func (c certificate) IssuedIn(lang string) string {
 	return text.Date(lang, c.IssuedAt.UTC())
 }
 
-// certificateSettings are the details the Admin sets once. LogoKey and SignatureKey are empty when unset.
+// certificateSettings are what the Admin sets once: the storage key of the background artwork, empty when unset.
 type certificateSettings struct {
-	OrganisationName string
-	SignatoryName    string
-	LogoKey          string
-	SignatureKey     string
+	BackgroundKey string
 }
 
 // newCertificateID returns 16 random bytes as an unguessable URL-safe ID.
@@ -273,57 +272,96 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// certificatePDF lays out the Certificate on one landscape A4 page, its fixed wording and date in lang.
+// The Certificate's layout on A4 portrait, in mm, matching the client's sample PCC-2026-00509. Baselines are where
+// the sample's text sits on the artwork; the artwork itself prints every fixed word.
+const (
+	certNumberX, certNumberY = 183.0, 19.9 // centre and baseline of the Certificate No., under the artwork's label
+	certQRX, certQRY, certQR = 173.2, 21.1, 19.3
+	certNameY, certICY       = 97.7, 102.1 // centred on the page
+	certTitleX, certTitleW   = 30.0, 150.0 // the title box, under "has successfully completed..."
+	certTitleY, certTitleH   = 114.0, 48.0 // the title is centred in it, shrunk until it fits
+	certBadgeX, certBadgeY   = 99.6, 206.4 // the badge image's top left; it carries its own label
+	certBadgeW, certBadgeH   = 39.9, 56.6  // the badge files are 904 by 1280
+	certIssuedX, certIssuedY = 18.2, 281.7 // "Issued on" bottom left
+)
+
+// certificatePDF prints the Certificate's details over the Admin's background artwork on one portrait A4 page, its
+// fixed wording and date in lang. Without a background it prints the same details on a blank page.
 func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([]byte, error) {
 	s, err := a.certificateSettingsFor(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pdf := fpdf.New("L", "mm", "A4", "")
-	// Uncompressed, so the text stays greppable in tests. The page is small text, so the cost is negligible.
+	pdf := fpdf.New("P", "mm", "A4", "")
+	// Uncompressed, so the text stays greppable in tests. The images are compressed on their own anyway.
 	pdf.SetCompression(false)
+	pdf.SetAutoPageBreak(false, 0)
 	pdf.AddPage()
+	pageW, pageH := pdf.GetPageSize()
+	if s.BackgroundKey != "" {
+		if err := a.placeImage(pdf, s.BackgroundKey, 0, 0, pageW, pageH); err != nil {
+			return nil, err
+		}
+	}
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
-	pdf.SetLineWidth(1.2)
-	pdf.Rect(10, 10, 277, 190, "D")
-	line := func(y float64, style string, size float64, text string) {
-		pdf.SetFont("Helvetica", style, size)
-		pdf.SetXY(0, y)
-		pdf.CellFormat(297, size/2, tr(text), "", 0, "C", false, 0, "")
+	// centred writes s with its baseline at y, centred on x.
+	centred := func(x, y float64, family, style string, size float64, s string) {
+		pdf.SetFont(family, style, size)
+		s = tr(s)
+		pdf.Text(x-pdf.GetStringWidth(s)/2, y, s)
 	}
-	if s.LogoKey != "" {
-		if err := a.placeImage(pdf, s.LogoKey, 20, 16, 0, 26); err != nil {
-			return nil, err
-		}
+
+	pdf.SetTextColor(214, 132, 28) // the sample's gold
+	centred(certNumberX, certNumberY, "Helvetica", "", 8, c.Number())
+	pdf.SetTextColor(0, 0, 0)
+	checkURL := a.publicBaseURL + "/certificates/" + c.ID
+	if err := placeQR(pdf, checkURL, certQRX, certQRY, certQR); err != nil {
+		return nil, err
 	}
-	if s.OrganisationName != "" {
-		line(30, "B", 18, s.OrganisationName)
-	}
-	if c.Revoked {
-		pdf.SetTextColor(200, 0, 0)
-		line(14, "B", 28, text.T(lang, "certificate.pdf.revoked"))
-		line(190, "B", 12, text.T(lang, "certificate.pdf.revoked-note"))
-		pdf.SetTextColor(0, 0, 0)
-	}
-	line(48, "B", 32, text.T(lang, "certificate.pdf.title"))
-	line(72, "", 14, text.T(lang, "certificate.certifies"))
-	line(84, "B", 28, c.LearnerName)
+	pdf.LinkString(certQRX, certQRY, certQR, certQR, checkURL)
+
+	centred(pageW/2, certNameY, "Times", "B", 13, c.LearnerName)
 	if c.LearnerIC != "" {
-		line(99, "", 12, formatIC(c.LearnerIC))
+		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
 	}
-	line(106, "", 14, text.T(lang, "certificate.completed"))
-	line(118, "B", 22, c.CourseTitle)
-	line(138, "", 12, text.T(lang, "certificate.issued", c.IssuedIn(lang)))
-	line(146, "", 11, text.T(lang, "certificate.pdf.id", c.ID))
-	line(154, "", 11, text.T(lang, "certificate.pdf.verify-at", a.publicBaseURL+"/certificates/"+c.ID))
-	if s.SignatureKey != "" {
-		if err := a.placeImage(pdf, s.SignatureKey, 40, 162, 0, 20); err != nil {
-			return nil, err
+	// The largest size whose wrapped lines fit the box, down to 8 pt, below which a title overflows it.
+	var lines []string
+	size := 16.0
+	for ; ; size-- {
+		pdf.SetFont("Times", "B", size)
+		lines = pdf.SplitText(tr(c.CourseTitle), certTitleW)
+		if size <= 8 || float64(len(lines))*size*0.45 <= certTitleH {
+			break
 		}
 	}
-	pdf.SetFont("Helvetica", "", 12)
-	pdf.SetXY(25, 184)
-	pdf.CellFormat(90, 6, tr(s.SignatoryName), "T", 0, "C", false, 0, "")
+	lineH := size * 0.45 // 1.27 times the font size, in mm
+	top := certTitleY + (certTitleH-float64(len(lines))*lineH)/2
+	for i, l := range lines {
+		pdf.Text(certTitleX+(certTitleW-pdf.GetStringWidth(l))/2, top+float64(i)*lineH+size*0.3, l)
+	}
+
+	if badge := c.Badge(); badge != "" {
+		f, err := staticFiles.Open("static/" + badge)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		opt := fpdf.ImageOptions{ImageType: "jpg"}
+		pdf.RegisterImageOptionsReader(badge, opt, f)
+		pdf.SetAlpha(1, "Multiply") // the badge's white surround takes the artwork's colour
+		pdf.ImageOptions(badge, certBadgeX, certBadgeY, certBadgeW, certBadgeH, false, opt, 0, "")
+		pdf.SetAlpha(1, "Normal")
+	}
+	pdf.SetFont("Helvetica", "", 6.5)
+	pdf.Text(certIssuedX, certIssuedY, tr(text.T(lang, "certificate.pdf.issued-on", c.IssuedIn(lang))))
+
+	if c.Revoked {
+		pdf.SetFillColor(255, 255, 255)
+		pdf.Rect(20, 52, pageW-40, 27, "F") // over the heading, so the mark reads clearly on any artwork
+		pdf.SetTextColor(200, 0, 0)
+		centred(pageW/2, 66, "Helvetica", "B", 40, text.T(lang, "certificate.pdf.revoked"))
+		centred(pageW/2, 74, "Helvetica", "B", 12, text.T(lang, "certificate.pdf.revoked-note"))
+	}
 	if err := pdf.Error(); err != nil {
 		return nil, err
 	}
@@ -332,6 +370,27 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// placeQR draws a QR code of content as a size mm square at x, y.
+func placeQR(pdf *fpdf.Fpdf, content string, x, y, size float64) error {
+	code, err := qr.Encode(content, qr.M, qr.Auto)
+	if err != nil {
+		return err
+	}
+	n := code.Bounds().Dx()
+	code, err = barcode.Scale(code, n*8, n*8) // whole pixels per module, so the PDF viewer's smoothing keeps edges sharp
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, code); err != nil {
+		return err
+	}
+	opt := fpdf.ImageOptions{ImageType: "png"}
+	pdf.RegisterImageOptionsReader("qr", opt, &buf)
+	pdf.ImageOptions("qr", x, y, size, size, false, opt, 0, "")
+	return pdf.Error()
 }
 
 // placeImage draws a stored JPEG or PNG. Its type is sniffed again, since the file is only trusted as far as the upload check.
@@ -361,16 +420,14 @@ func (a *App) placeImage(pdf *fpdf.Fpdf, key string, x, y, w, h float64) error {
 
 func (a *App) certificateSettingsFor(ctx context.Context) (certificateSettings, error) {
 	var s certificateSettings
-	err := a.db.QueryRowContext(ctx, `SELECT organisation_name, signatory_name, COALESCE(logo_key, ''), COALESCE(signature_key, '')
-		FROM certificate_settings WHERE id = 1`).
-		Scan(&s.OrganisationName, &s.SignatoryName, &s.LogoKey, &s.SignatureKey)
+	err := a.db.QueryRowContext(ctx, `SELECT COALESCE(background_key, '') FROM certificate_settings WHERE id = 1`).Scan(&s.BackgroundKey)
 	if err != nil {
 		return s, fmt.Errorf("load certificate settings: %w", err)
 	}
 	return s, nil
 }
 
-// certificateSettingsForm is the Admin page for the Certificate details.
+// certificateSettingsForm is the Admin page for the Certificate background.
 func (a *App) certificateSettingsForm(w http.ResponseWriter, r *http.Request) {
 	s, err := a.certificateSettingsFor(r.Context())
 	if err != nil {
@@ -380,7 +437,29 @@ func (a *App) certificateSettingsForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_certificate_settings", page{Settings: &s})
 }
 
-// saveCertificateSettings stores the text fields and any new logo or signature. Nothing is kept unless the whole form is valid.
+// certificateBackground serves the background image to the Admin, so the settings page can show it.
+func (a *App) certificateBackground(w http.ResponseWriter, r *http.Request) {
+	s, err := a.certificateSettingsFor(r.Context())
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if s.BackgroundKey == "" {
+		a.notFound(w, r)
+		return
+	}
+	f, err := a.store.Open(s.BackgroundKey)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(f, head)
+	f.Close()
+	a.serveStored(w, r, s.BackgroundKey, http.DetectContentType(head[:n])) // the upload check allowed only JPEG and PNG
+}
+
+// saveCertificateSettings stores a new background image, if one was sent, and removes the one it replaces.
 func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	cur, err := a.certificateSettingsFor(r.Context())
 	if err != nil {
@@ -404,68 +483,31 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 			Error: text.T(lang, "adm.certs.err.unread")})
 		return
 	}
-	next := certificateSettings{
-		OrganisationName: strings.TrimSpace(r.PostFormValue("organisation_name")),
-		SignatoryName:    strings.TrimSpace(r.PostFormValue("signatory_name")),
+	background, msg, err := a.saveCertificateImage(r, lang, "background")
+	if err != nil {
+		a.serverError(w, r, err)
+		return
 	}
-	var saved []string // keys stored by this request, removed again unless the save commits
-	committed := false
-	defer func() {
-		if !committed {
-			for _, key := range saved {
-				_ = a.store.Delete(r.Context(), key)
-			}
-		}
-	}()
-	fail := func(msg string) {
+	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_certificate_settings", page{Settings: &cur, Error: msg})
+		return
 	}
-	logo, msg, err := a.saveCertificateImage(r, lang, "logo")
-	if err != nil {
+	if background == "" {
+		http.Redirect(w, r, "/admin/certificate-settings", http.StatusSeeOther)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE certificate_settings SET background_key = $1 WHERE id = 1`, background); err != nil {
+		_ = a.store.Delete(r.Context(), background)
 		a.serverError(w, r, err)
 		return
 	}
-	if logo != "" {
-		saved = append(saved, logo)
-	}
-	if msg != "" {
-		fail(msg)
-		return
-	}
-	signature, msg, err := a.saveCertificateImage(r, lang, "signature")
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if signature != "" {
-		saved = append(saved, signature)
-	}
-	if msg != "" {
-		fail(msg)
-		return
-	}
-	if next.OrganisationName == "" || next.SignatoryName == "" {
-		fail(text.T(lang, "adm.certs.err.names"))
-		return
-	}
-	_, err = a.db.ExecContext(r.Context(), `UPDATE certificate_settings SET organisation_name = $1, signatory_name = $2,
-		logo_key = COALESCE(NULLIF($3, ''), logo_key), signature_key = COALESCE(NULLIF($4, ''), signature_key) WHERE id = 1`,
-		next.OrganisationName, next.SignatoryName, logo, signature)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	committed = true
-	for _, pair := range [][2]string{{logo, cur.LogoKey}, {signature, cur.SignatureKey}} {
-		if pair[0] != "" && pair[1] != "" {
-			_ = a.store.Delete(r.Context(), pair[1]) // the image it replaces
-		}
+	if cur.BackgroundKey != "" {
+		_ = a.store.Delete(r.Context(), cur.BackgroundKey) // the image it replaces
 	}
 	http.Redirect(w, r, "/admin/certificate-settings", http.StatusSeeOther)
 }
 
-// saveCertificateImage stores the uploaded image in field ("logo" or "signature"), if any. msg is set, in lang,
-// when the file is not a JPEG or PNG.
+// saveCertificateImage stores the uploaded image in field, if any. msg is set, in lang, when the file is not a JPEG or PNG.
 func (a *App) saveCertificateImage(r *http.Request, lang, field string) (key, msg string, err error) {
 	f, _, err := r.FormFile(field)
 	if errors.Is(err, http.ErrMissingFile) {

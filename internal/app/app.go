@@ -303,6 +303,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /my-profile/ic", a.requireLearner(a.setMyIC))
 	mux.HandleFunc("GET /certificates/{id}/pdf", a.downloadCertificate)
 	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
+	mux.HandleFunc("GET /admin/certificate-settings/background", a.admin(a.certificateBackground))
 	mux.HandleFunc("GET /certificates", a.verifyCertificateForm)
 	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
 	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
