@@ -27,7 +27,7 @@ Route every task that changes this repo's code or docs through Matt Pocock's ski
   - `to-spec`, `to-tickets`, `triage`: draft each issue, show it, publish after Abah approves.
   - Between tickets, dispatch each one to a subagent (`implement-spec`) in place of `/clear`.
   - `retro` runs only when Abah types it.
-- **Shipping**: once a change passes `code-review`, commit it, open the PR and turn on auto-merge (`gh pr merge --auto --merge`) so it lands when CI is green, without waiting for Abah. Deploying stays Abah's call.
+- **Shipping**: once a change passes `code-review`, commit it, open the PR and turn on auto-merge (`gh pr merge --auto --merge`) so it lands when CI is green, without waiting for Abah. Test on staging whenever a change needs a real run (`CAVE_ENV=staging deploy/deploy.sh` from a clean, pushed commit; see `docs/deploy.md`, Staging). Deploying to production stays Abah's call.
 - **Shared checkout**: when another agent may be using this checkout, work in your own `git worktree` off `origin/main` and leave its uncommitted changes in place.
 - **Attribution**: Abah is the sole author of commits, PRs, issues and comments; add no agent credit lines. No emojis in commits, issues, PR comments or code.
 
