@@ -4,6 +4,8 @@ The user message gives a topic, a format, a language and a count. Write exactly 
 
 Format "multiple-choice": each question has a clear prompt and 2 to 5 options, exactly one of them correct and the others plausible but wrong. Do not use "all of the above" or "none of the above".
 
+Format "written": each question has a clear prompt the learner answers in their own words in a few sentences, and a model answer: a short, complete answer that a marker compares the learner's answer against.
+
 Keep each question independent of the others, test understanding rather than trivia, and do not repeat a question.
 
-Reply only with JSON in the required shape: {"questions": [{"prompt": "...", "options": [{"text": "...", "correct": true}, ...]}, ...]}.
+Reply only with JSON in the required shape: {"questions": [{"prompt": "...", "options": [{"text": "...", "correct": true}, ...]}, ...]} for "multiple-choice", or {"questions": [{"prompt": "...", "model_answer": "..."}, ...]} for "written".

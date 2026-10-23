@@ -183,3 +183,65 @@ func TestLearnersAreRefusedGeneration(t *testing.T) {
 		t.Fatalf("a Learner's generation asked the AI writer %d times, want none", n)
 	}
 }
+
+func TestGeneratingForAWrittenExamGivesDraftsWithAModelAnswerInTheBankAndThePool(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	excel := s.onlyCourseID()
+	s.saveWrittenQuestion("/admin/courses/"+excel+"/exam/questions?format=written", "Bank prompt", "Bank model answer")
+	s.createCourse("Spreadsheets", "Another Course.", "")
+	var sheets string
+	for _, c := range s.courseIDs() {
+		if c != excel {
+			sheets = c
+		}
+	}
+
+	res, body := s.post("/admin/courses/"+sheets+"/exam/generate?format=written", url.Values{"topic": {"excel"}, "language": {"ms"}, "count": {"3"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != writtenExam(sheets) {
+		t.Fatalf("generating went to %q, want %q", loc, writtenExam(sheets))
+	}
+	want := aiwriter.Request{Topic: "excel", Format: "written", Language: "ms", Count: 2}
+	if got := s.ai.Requests(); len(got) != 1 || got[0] != want {
+		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
+	}
+	_, body = s.get(writtenExam(sheets))
+	expectInOrder(t, body, "Bank prompt", "Bank model answer", "AI question 1", "Draft", "AI model answer 1", "AI question 2", "Draft", "AI model answer 2")
+	expectNone(t, body, "AI right")
+	_, body = s.get("/admin/courses/" + sheets + "/exam")
+	expectNone(t, body, "AI question")
+	_, body = s.get("/admin/question-bank?format=written")
+	expectInOrder(t, body, "excel · Written · Malay", "AI question 1", "Draft", "AI model answer 1", "excel · Written · Malay", "AI question 2", "Draft", "AI model answer 2")
+}
+
+func TestAWrittenQuestionWithoutAModelAnswerIsRetriedOnceThenReportedAndNothingIsSaved(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	id := s.onlyCourseID()
+	generate := func() (*http.Response, string) {
+		return s.post("/admin/courses/"+id+"/exam/generate?format=written", url.Values{"topic": {"Excel"}, "language": {"ms"}, "count": {"1"}})
+	}
+
+	s.ai.Reply(testutil.FakeReply{Questions: []aiwriter.Question{{Prompt: "No model answer", ModelAnswer: " "}}},
+		testutil.FakeReply{Questions: []aiwriter.Question{{Prompt: "Options instead", Options: []aiwriter.Option{{Text: "Right", Correct: true}, {Text: "Wrong"}}}}})
+	res, body := generate()
+	expectStatus(t, res, body, http.StatusServiceUnavailable, "wrong shape twice")
+	if n := len(s.ai.Requests()); n != 2 {
+		t.Fatalf("the AI writer was asked %d times, want twice", n)
+	}
+	_, body = s.get(writtenExam(id))
+	expectNone(t, body, "No model answer", "Options instead")
+	if n := len(s.bankQuestionIDs("/admin/question-bank?format=written")); n != 0 {
+		t.Fatalf("the bank has %d Written questions after a failed generation, want none", n)
+	}
+
+	s.ai.Reply(testutil.FakeReply{Questions: []aiwriter.Question{{Prompt: "No model answer"}}})
+	res, body = generate()
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get(writtenExam(id))
+	expectAll(t, body, "AI question 1", "AI model answer 1")
+	expectNone(t, body, "No model answer")
+}

@@ -258,7 +258,7 @@ func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, q := range qs {
-			eq := examQuestion{Prompt: strings.TrimSpace(q.Prompt), Draft: true}
+			eq := examQuestion{Prompt: strings.TrimSpace(q.Prompt), ModelAnswer: strings.TrimSpace(q.ModelAnswer), Draft: true}
 			for i, o := range q.Options {
 				eq.Options[i] = examOption{Text: strings.TrimSpace(o.Text), Correct: o.Correct}
 			}

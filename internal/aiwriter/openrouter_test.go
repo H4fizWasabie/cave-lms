@@ -154,3 +154,45 @@ func TestMarkAsksOnceMoreWhenTheMarkIsTheWrongShape(t *testing.T) {
 		t.Fatalf("unconfigured MarkAnswer() error = %v", err)
 	}
 }
+
+func TestOpenRouterAsksForAndReadsWrittenQuestionsWithAModelAnswer(t *testing.T) {
+	var sent struct {
+		Messages []map[string]string `json:"messages"`
+		Format   struct {
+			JSONSchema struct {
+				Schema struct {
+					Properties struct {
+						Questions struct {
+							Items struct {
+								Required []string `json:"required"`
+							} `json:"items"`
+						} `json:"questions"`
+					} `json:"properties"`
+				} `json:"schema"`
+			} `json:"json_schema"`
+		} `json:"response_format"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&sent); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"questions\":[{\"prompt\":\"Terangkan jadual pangsi.\",\"model_answer\":\"Ia meringkaskan data.\"}]}"}}]}`))
+	}))
+	defer server.Close()
+
+	written := Request{Topic: "Excel pivot tables", Format: "written", Language: "ms", Count: 1}
+	qs, err := OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: server.URL}.WriteQuestions(context.Background(), written)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qs) != 1 || qs[0].Prompt != "Terangkan jadual pangsi." || qs[0].ModelAnswer != "Ia meringkaskan data." || qs[0].Options != nil {
+		t.Fatalf("questions = %#v", qs)
+	}
+	if req := sent.Format.JSONSchema.Schema.Properties.Questions.Items.Required; strings.Join(req, ",") != "prompt,model_answer" {
+		t.Fatalf("the reply schema requires %v, want prompt and model_answer", req)
+	}
+	if len(sent.Messages) != 2 || !strings.Contains(sent.Messages[0]["content"], `Format "written"`) ||
+		sent.Messages[1]["content"] != "Topic: Excel pivot tables\nFormat: written\nLanguage: Malay\nCount: 1" {
+		t.Fatalf("messages = %q", sent.Messages)
+	}
+}

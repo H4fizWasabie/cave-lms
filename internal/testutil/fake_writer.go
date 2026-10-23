@@ -9,8 +9,9 @@ import (
 )
 
 // FakeWriter is an AI writer that records what it was asked. It gives the queued replies first, then for each
-// request writes the Count questions asked for: "AI question 1" onward, each with a right and a wrong option. It
-// marks each answer with the queued marks first, then FakeMarking, or fails every mark while FailMarks is set.
+// request writes the Count questions asked for: "AI question 1" onward, each with a right and a wrong option, or
+// for a Written request the model answer "AI model answer 1" onward. It marks each answer with the queued marks
+// first, then FakeMarking, or fails every mark while FailMarks is set.
 type FakeWriter struct {
 	mu           sync.Mutex
 	requests     []aiwriter.Request
@@ -88,8 +89,12 @@ func (f *FakeWriter) WriteQuestions(ctx context.Context, r aiwriter.Request) ([]
 	}
 	qs := make([]aiwriter.Question, r.Count)
 	for i := range qs {
-		qs[i] = aiwriter.Question{Prompt: fmt.Sprintf("AI question %d", i+1),
-			Options: []aiwriter.Option{{Text: "AI right", Correct: true}, {Text: "AI wrong"}}}
+		qs[i] = aiwriter.Question{Prompt: fmt.Sprintf("AI question %d", i+1)}
+		if r.Format == "written" {
+			qs[i].ModelAnswer = fmt.Sprintf("AI model answer %d", i+1)
+		} else {
+			qs[i].Options = []aiwriter.Option{{Text: "AI right", Correct: true}, {Text: "AI wrong"}}
+		}
 	}
 	return qs, nil
 }
