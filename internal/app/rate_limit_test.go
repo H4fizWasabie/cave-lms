@@ -155,13 +155,15 @@ func TestForwardedForFromANonLocalAddressIsIgnored(t *testing.T) {
 	}
 }
 
-func TestForgotPasswordAndResendAreRateLimited(t *testing.T) {
-	for _, path := range []string{"/forgot-password", "/verify/resend"} {
+// Each reset try hashes a password with bcrypt, so without a limit anyone could keep the server's CPUs busy.
+func TestForgotPasswordResendAndResetAreRateLimited(t *testing.T) {
+	for _, path := range []string{"/forgot-password", "/verify/resend", "/reset-password"} {
 		s := newSite(t)
+		form := url.Values{"email": {"ada@example.com"}, "token": {"not-a-token"}, "password": {"correct horse battery"}}
 		for i := 0; i < 10; i++ {
-			s.post(path, url.Values{"email": {"ada@example.com"}})
+			s.post(path, form)
 		}
-		res, body := s.post(path, url.Values{"email": {"ada@example.com"}})
+		res, body := s.post(path, form)
 		expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
 	}
 }
