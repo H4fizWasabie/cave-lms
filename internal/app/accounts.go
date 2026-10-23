@@ -282,6 +282,9 @@ func localPath(next string) string {
 	return next
 }
 
+// dummyHash is compared against when a login's email has no account.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("no account has this password"), bcrypt.DefaultCost)
+
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	next := localPath(r.PostFormValue("next"))
@@ -310,7 +313,10 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	failed := err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil
+	if err != nil {
+		hash = string(dummyHash) // compare anyway, so a missing account takes as long as a wrong password
+	}
+	failed := bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.PostFormValue("password"))) != nil || err != nil
 	if !failed {
 		a.limiter.forget(account)
 		a.limiter.forget(address)
