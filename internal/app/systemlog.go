@@ -31,7 +31,8 @@ func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
 		saved = l.Lang
 	}
 	lang := requestLanguage(saved, r)
-	p := &page{chrome: chrome{Lang: lang, Here: here(r)}, Learner: l, Title: text.T(lang, "error.title"), Message: text.T(lang, "error")}
+	c, _ := a.newChrome(r, lang) // no Courses menu if they fail too
+	p := &page{chrome: c, Learner: l, Title: text.T(lang, "error.title"), Message: text.T(lang, "error")}
 	var buf bytes.Buffer
 	if err := a.pages["message"].ExecuteTemplate(&buf, "layout", p); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)

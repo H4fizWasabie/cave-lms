@@ -155,3 +155,16 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/admin/prices?saved", http.StatusSeeOther)
 }
+
+// plans is the public Shop > Plans page: the three products the Admin sells, as offers.
+func (a *App) plans(w http.ResponseWriter, r *http.Request) {
+	offers, err := a.offersOf(r.Context(), products...)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "plans", &struct {
+		pageBase
+		Offers []offer
+	}{Offers: offers})
+}

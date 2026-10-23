@@ -22,7 +22,7 @@
         </form>
         <div class="hdr-wide hdr-account">
           {{- if .Learner}}
-          <details class="hdr-drop">
+          <details class="hdr-drop" name="hdr">
             <summary class="hdr-link"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{.Learner.Name}}</span></summary>
             <div class="hdr-panel">{{template "account-links" .}}</div>
           </details>
@@ -79,16 +79,58 @@
     </div>
     <div class="wrap footer-base">© 2026 The Cave Consult</div>
   </footer>
+  <script>
+    // Escape closes the open header menu, innermost first, and puts focus back on its button.
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      var open = (document.activeElement && document.activeElement.closest(".site-header details[open]")) ||
+        document.querySelector(".site-header details[open]");
+      if (!open) return;
+      open.open = false;
+      open.querySelector("summary").focus();
+    });
+  </script>
 </body>
 </html>
 {{end}}
-{{/* nav-links are the main site links, shown in the header on wide screens and in its Menu on narrow ones. */}}
+{{/* nav-links are the main site menus, shown in the header on wide screens and in its Menu on narrow ones.
+   They share the account menu's name, so the browser closes the others when one opens: no script needed. */}}
 {{define "nav-links"}}
-        <a href="/courses">{{t .Lang "nav.courses"}}</a>
-        <a href="/lab">{{t .Lang "nav.lab"}}</a>
-        <a href="/gallery">{{t .Lang "nav.gallery"}}</a>
-        <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
-        <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.home"}}</summary><div class="hdr-panel">
+          <a href="/#welcome">{{t .Lang "nav.welcome"}}</a>
+          <a href="/#background">{{t .Lang "home.background.title"}}</a>
+          <a href="/#coach">Coach Adam</a>
+          <a href="/#about">{{t .Lang "nav.about"}}</a>
+          <a href="/gallery">{{t .Lang "nav.gallery"}}</a>
+        </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.courses"}}</summary><div class="hdr-panel">
+          {{- range .Latest}}
+          <a href="/courses/{{.ID}}">{{.Title}}</a>
+          {{- end}}
+          <a href="/courses">{{t .Lang "footer.all-courses"}}</a>
+        </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.lab"}}</summary><div class="hdr-panel">
+          <p class="muted">{{t .Lang "lab.hero"}}</p>
+          <a href="/lab">{{t .Lang "nav.lab"}}</a>
+        </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.classroom"}}</summary><div class="hdr-panel">
+          <a href="/my-courses">{{t .Lang "nav.my-courses"}}</a>
+          <a href="/my-exams">{{t .Lang "nav.my-exams"}}</a>
+        </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.shop"}}</summary><div class="hdr-panel">
+          <a href="/plans">{{t .Lang "nav.plans"}}</a>
+          <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
+          <a href="/my-membership">{{t .Lang "nav.my-membership"}}</a>
+        </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.program"}}</summary><div class="hdr-panel">
+          <a href="/programmes">{{t .Lang "nav.programmes"}}</a>
+        </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.certification"}}</summary><div class="hdr-panel">
+          <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
+          {{- if .Learner}}
+          <a href="/my-certificates">{{t .Lang "footer.my-certificates"}}</a>
+          {{- end}}
+        </div></details>
 {{- end}}
 {{/* account-links are Log in and Register for a Visitor, or the logged-in Learner's links. */}}
 {{define "account-links"}}
@@ -102,7 +144,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "certificates", "design", "plans", "prices", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "gallery", "programmes", "certificates", "design", "plans", "prices", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -112,6 +154,7 @@
           <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>{{t .Lang "admin.side.dashboard"}}</span></a>
           <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span></a>
           <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "admin.side.gallery"}}</span></a>
+          <a href="/admin/programmes"{{if eq .Section "programmes"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{t .Lang "admin.side.programmes"}}</span></a>
           <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span></a>
           <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span></a>
           <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>

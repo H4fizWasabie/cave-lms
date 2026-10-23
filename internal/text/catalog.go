@@ -16,9 +16,20 @@ var catalog = map[string]entry{
 	"nav.courses":         {en: "Courses", ms: "Kursus"},
 	"nav.lab":             {en: "Lab", ms: "Lab"},
 	"nav.gallery":         {en: "Gallery", ms: "Galeri"},
+	"nav.plans":           {en: "Plans", ms: "Pelan"},
 	"nav.cavetext":        {en: "CaveText", ms: "CaveText"},
+	"nav.my-membership":   {en: "My membership", ms: "Keahlian saya"},
 	"nav.check-cert":      {en: "Check a certificate", ms: "Semak sijil"},
 	"nav.my-courses":      {en: "My courses", ms: "Kursus saya"},
+	"nav.my-exams":        {en: "My exams", ms: "Peperiksaan saya"},
+	"nav.home":            {en: "Home", ms: "Utama"},
+	"nav.welcome":         {en: "Welcome", ms: "Selamat datang"},
+	"nav.about":           {en: "About CAVELMS", ms: "Tentang CAVELMS"},
+	"nav.classroom":       {en: "Classroom", ms: "Kelas"},
+	"nav.shop":            {en: "Shop", ms: "Kedai"},
+	"nav.program":         {en: "Program", ms: "Program"},
+	"nav.programmes":      {en: "Upcoming Programmes", ms: "Program akan datang"},
+	"nav.certification":   {en: "Certification", ms: "Pensijilan"},
 
 	// Layout: footer
 	"footer.powered-by":      {en: "Powered by The Cave Consult (TCC)", ms: "Dikuasakan oleh The Cave Consult (TCC)"},
@@ -381,6 +392,7 @@ var catalog = map[string]entry{
 	"admin.side.dashboard":     {en: "Dashboard", ms: "Dashboard"},
 	"admin.side.courses":       {en: "Courses", ms: "Kursus"},
 	"admin.side.gallery":       {en: "Gallery", ms: "Galeri"},
+	"admin.side.programmes":    {en: "Programmes", ms: "Program"},
 	"admin.side.certificates":  {en: "Certificates", ms: "Sijil"},
 	"admin.side.cert-details":  {en: "Certificate details", ms: "Butiran Sijil"},
 	"admin.side.plans":         {en: "Lab Plans", ms: "Pelan Lab"},
@@ -434,7 +446,7 @@ var catalog = map[string]entry{
 		en: "Your Dashboards are safe: you can still open and download them. Building, uploading and deploying need a Plan.",
 		ms: "Dashboard anda selamat: anda masih boleh membuka dan memuat turunnya. Membina, memuat naik dan membuat Deployment memerlukan Pelan.",
 	},
-	"lab.hero": {en: "Turn a spreadsheet into a live dashboard. No code.", ms: "Tukar hamparan kerja menjadi dashboard langsung. Tanpa kod."},
+	"lab.hero": {en: "From static dashboard to hosted dashboard", ms: "Daripada dashboard statik kepada dashboard yang dihoskan"},
 	"lab.hero-lede": {
 		en: "Start from a Template, fill it with your own Excel data or our Sample, and share it with a link. Then look under the hood to see how a web page really works.",
 		ms: "Mulakan daripada Templat, isikan dengan data Excel anda sendiri atau Sampel kami, dan kongsikannya dengan pautan. Kemudian lihat di sebalik tabir untuk melihat bagaimana halaman web sebenarnya berfungsi.",
@@ -859,6 +871,22 @@ var catalog = map[string]entry{
 	"my-courses.none":        {en: "You have not joined any Courses yet.", ms: "Anda belum menyertai mana-mana Kursus."},
 	"my-courses.browse":      {en: "Browse the Courses", ms: "Lihat senarai Kursus"},
 	"my-courses.all":         {en: "All Courses", ms: "Semua Kursus"},
+	"my-exams.title":         {en: "My exams", ms: "Peperiksaan saya"},
+	"my-exams.intro":         {en: "The Exam of each Course you have joined.", ms: "Peperiksaan bagi setiap Kursus yang telah anda sertai."},
+	"my-exams.none":          {en: "None of your Courses has an Exam yet.", ms: "Belum ada Kursus anda yang mempunyai Peperiksaan."},
+	"my-exams.not-taken":     {en: "Not taken", ms: "Belum diambil"},
+	"my-exams.passed":        {en: "Passed", ms: "Lulus"},
+	"my-exams.failed":        {en: "Failed", ms: "Gagal"},
+
+	"my-membership.title":     {en: "My membership", ms: "Keahlian saya"},
+	"my-membership.intro":     {en: "Your Plan, CaveText Pro and Snippet cap.", ms: "Pelan, CaveText Pro dan had Snippet anda."},
+	"my-membership.plan":      {en: "Plan", ms: "Pelan"},
+	"my-membership.until":     {en: "Until %s", ms: "Hingga %s"},
+	"my-membership.no-plan":   {en: "No Plan", ms: "Tiada Pelan"},
+	"my-membership.get-plan":  {en: "See the Plans", ms: "Lihat Pelan"},
+	"my-membership.cap":       {en: "Snippet cap", ms: "Had Snippet"},
+	"my-membership.unlimited": {en: "Unlimited", ms: "Tanpa had"},
+	"my-membership.cap-later": {en: "Set when you first sign in to CaveText", ms: "Ditetapkan apabila anda log masuk ke CaveText buat kali pertama"},
 
 	"lesson.draft":             {en: "Draft: Learners cannot see this Lesson.", ms: "Draf: Pelajar tidak dapat melihat Pelajaran ini."},
 	"lesson.objective":         {en: "Objective:", ms: "Objektif:"},
@@ -1133,6 +1161,7 @@ var catalog = map[string]entry{
 	"ctadmin.learners.not-found.title": {en: "Learner not found", ms: "Pelajar tidak dijumpai"},
 	"ctadmin.learners.not-found":       {en: "No CaveText Learner has this address.", ms: "Tiada Pelajar CaveText di alamat ini."},
 
+	"offers.intro":         {en: "CaveText Pro, the Lab Plan, or both in the Pro Plan.", ms: "CaveText Pro, Pelan Lab, atau kedua-duanya dalam Pelan Pro."},
 	"offers.heading":       {en: "Choose what to buy", ms: "Pilih apa yang hendak dibeli"},
 	"offers.price":         {en: "%s a year", ms: "%s setahun"},
 	"offers.normal":        {en: "Normal price", ms: "Harga biasa"},
@@ -1238,13 +1267,53 @@ var catalog = map[string]entry{
 	"systemlog.older":       {en: "Older", ms: "Lebih lama"},
 	// ---- end Admin area part 2 (#92) ----
 
+	// ---- Programmes: the public Program page and the Admin's Programmes (#123) ----
+	// A Programme's title, blurb and link are Admin-typed and shown as written.
+	"programmes.title":             {en: "Programmes", ms: "Program"},
+	"programmes.intro":             {en: "Programmes The Cave Consult is running next.", ms: "Program yang akan dijalankan oleh The Cave Consult."},
+	"programmes.none":              {en: "No upcoming Programmes yet. Check back soon.", ms: "Tiada Program akan datang buat masa ini. Sila semak semula nanti."},
+	"programmes.starts":            {en: "Starts %s", ms: "Bermula %s"},
+	"programmes.more":              {en: "Find out more", ms: "Ketahui lebih lanjut"},
+	"programmes.admin-intro":       {en: "Announce upcoming programmes. The Program page shows those starting today or later.", ms: "Umumkan program akan datang. Halaman Program memaparkan program yang bermula hari ini atau kemudian."},
+	"programmes.admin-none":        {en: "No Programmes yet.", ms: "Belum ada Program."},
+	"programmes.new":               {en: "New Programme", ms: "Program baharu"},
+	"programmes.edit":              {en: "Edit Programme", ms: "Sunting Program"},
+	"programmes.back":              {en: "All Programmes", ms: "Semua Program"},
+	"programmes.form.starts-on":    {en: "Start date", ms: "Tarikh mula"},
+	"programmes.form.blurb":        {en: "Blurb", ms: "Ringkasan"},
+	"programmes.form.link":         {en: "Link", ms: "Pautan"},
+	"programmes.form.picture":      {en: "Picture", ms: "Gambar"},
+	"programmes.form.picture-hint": {en: "JPEG, PNG or WebP, up to 20 MB. A new picture replaces the current one.", ms: "JPEG, PNG atau WebP, sehingga 20 MB. Gambar baharu menggantikan gambar semasa."},
+	"programmes.err.title":         {en: "Enter a title.", ms: "Masukkan tajuk."},
+	"programmes.err.date":          {en: "Enter a start date.", ms: "Masukkan tarikh mula."},
+	"programmes.err.picture":       {en: "Upload a JPEG, PNG or WebP picture.", ms: "Muat naik gambar JPEG, PNG atau WebP."},
+	"programmes.err.blurb":         {en: "Enter a blurb.", ms: "Masukkan ringkasan."},
+	"programmes.err.link": {
+		en: "Enter the link as a full web address starting with https://, or leave it empty.",
+		ms: "Masukkan pautan sebagai alamat web penuh yang bermula dengan https://, atau biarkan kosong.",
+	},
+	"programmes.err.too-large": {
+		en: "This picture is too large. Pictures are limited to 20 MB, and nothing was stored.",
+		ms: "Gambar ini terlalu besar. Gambar terhad kepada 20 MB, dan tiada apa-apa disimpan.",
+	},
+	"programmes.not-found.title": {en: "Programme not found", ms: "Program tidak dijumpai"},
+	"programmes.not-found":       {en: "This Programme does not exist or was deleted.", ms: "Program ini tidak wujud atau telah dipadam."},
+	// ---- end Programmes (#123) ----
+
 	// Home page: Coach Adam's write-up in Malay; the English is its translation, for him to proofread.
 	"home.title":         {en: "Welcome to CAVELMS", ms: "Selamat Datang ke CAVELMS"},
 	"home.lede":          {en: "A Generative AI Digital Learning Platform for Today's and Tomorrow's World of Work.", ms: "Platform Pembelajaran Digital Generative AI untuk Dunia Kerja Masa Kini dan Masa Hadapan."},
 	"home.cta.classes":   {en: "Join Online Classes", ms: "Join Online Classes"},
 	"home.cta.ebooks":    {en: "Explore eBooks", ms: "Explore eBooks"},
 	"home.cta.dashboard": {en: "Learn AI Dashboard Development", ms: "Learn AI Dashboard Development"},
-	"home.coach-alt":     {en: "Coach Adam, CEO of The Cave Consult", ms: "Coach Adam, CEO The Cave Consult"},
+	// Company background: drawn from the client's company profile page until they send their own text.
+	"home.background.title": {en: "Company background", ms: "Latar belakang syarikat"},
+	"home.background.p": {
+		en: "The Cave Consult (TCC) trains people and organisations for a working world shaped by AI. It is led by Coach Adam Daniel, an HRD Corp and JPK accredited trainer with over 25 years in entrepreneurship and leadership, alongside COO Capt Dinor Sabudin, who served 22 years in the Malaysian Army. Through its training arm ISDeT, and with UTM CAIRO, TCC runs HRDC-claimable programmes across AI and robotics, leadership, NLP and communication, in line with Malaysia's AI-Driven Nation 2030 goal.",
+		ms: "The Cave Consult (TCC) melatih individu dan organisasi untuk dunia kerja yang dibentuk oleh AI. Ia diterajui oleh Coach Adam Daniel, jurulatih bertauliah HRD Corp dan JPK dengan lebih 25 tahun pengalaman dalam keusahawanan dan kepimpinan, bersama COO Kapten Dinor Sabudin yang berkhidmat 22 tahun dalam Tentera Darat Malaysia. Melalui sayap latihannya ISDeT, dan bersama UTM CAIRO, TCC menjalankan program boleh tuntut HRDC dalam AI dan robotik, kepimpinan, NLP dan komunikasi, selaras dengan matlamat Negara Dipacu AI 2030.",
+	},
+	"home.background.more": {en: "Read the full company profile", ms: "Baca profil penuh syarikat"},
+	"home.coach-alt":       {en: "Coach Adam, CEO of The Cave Consult", ms: "Coach Adam, CEO The Cave Consult"},
 	"home.intro.1": {
 		en: "CAVELMS is a digital learning platform built by The Cave Consult (TCC) to help educators, civil servants, professionals and organisations master Generative Artificial Intelligence (Generative AI) in a way that is practical, systematic and easy to understand.",
 		ms: "CAVELMS ialah platform pembelajaran digital yang dibangunkan oleh The Cave Consult (TCC) untuk membantu pendidik, penjawat awam, profesional dan organisasi menguasai teknologi Generative Artificial Intelligence (Generative AI) secara praktikal, sistematik dan mudah difahami.",

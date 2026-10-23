@@ -1,0 +1,23 @@
+{{define "title"}}{{t .Lang "my-membership.title"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "my-membership.title"}}</h1>
+        <p>{{t .Lang "my-membership.intro"}}</p>
+      </div>
+      <div class="lab-plan">
+        {{- if .PlanName}}
+        <div><span class="panel-k">{{t .Lang "my-membership.plan"}}</span><strong>{{.PlanName}}</strong><span class="muted">{{t .Lang "my-membership.until" .PlanUntil}}</span></div>
+        {{- else}}
+        <div><span class="panel-k">{{t .Lang "my-membership.plan"}}</span><strong>{{t .Lang "my-membership.no-plan"}}</strong><span class="muted"><a href="/plans">{{t .Lang "my-membership.get-plan"}}</a></span></div>
+        {{- end}}
+        {{- if .Cap.Pro}}
+        <div><span class="panel-k">CaveText Pro</span><strong>{{t .Lang "my-membership.until" .ProUntil}}</strong></div>
+        <div><span class="panel-k">{{t .Lang "my-membership.cap"}}</span><strong>{{t .Lang "my-membership.unlimited"}}</strong></div>
+        {{- else}}
+        <div><span class="panel-k">CaveText Pro</span><strong>{{t .Lang "cavetext.free"}}</strong></div>
+        <div><span class="panel-k">{{t .Lang "my-membership.cap"}}</span>{{if .CaveText}}<strong>{{tn .Lang "cavetext.snippet-count" .Cap.Cap}}</strong>{{else}}<span class="muted">{{t .Lang "my-membership.cap-later"}}</span>{{end}}</div>
+        {{- end}}
+      </div>
+    </div>
+{{end}}

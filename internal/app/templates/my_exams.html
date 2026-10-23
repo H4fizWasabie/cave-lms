@@ -1,0 +1,26 @@
+{{define "title"}}{{t .Lang "my-exams.title"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "my-exams.title"}}</h1>
+        <p>{{t .Lang "my-exams.intro"}}</p>
+      </div>
+      <ul class="mc-list">
+        {{range .Exams}}
+        <li class="mc-row mc-row-plain">
+          <div class="mc-main">
+            <h3><a href="/courses/{{.CourseID}}">{{.CourseTitle}}</a></h3>
+            <ul class="meta">
+              <li>{{if .Passed}}<span class="badge badge-open">{{t $.Lang "my-exams.passed"}}</span>{{else if .Attempted}}<span class="badge badge-revoked">{{t $.Lang "my-exams.failed"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "my-exams.not-taken"}}</span>{{end}}</li>
+              {{if .Attempted}}<li>{{t $.Lang "exam.best" .Best}}</li>{{end}}
+              <li>{{t $.Lang "exam.pass-mark" .PassMark}}</li>
+            </ul>
+          </div>
+          <a class="btn btn-solid btn-sm" href="/courses/{{.CourseID}}/exam">{{t $.Lang "my-courses.open"}}</a>
+        </li>
+        {{else}}
+        <li class="empty">{{t .Lang "my-exams.none"}} <a href="/courses">{{t .Lang "my-courses.browse"}}</a>.</li>
+        {{end}}
+      </ul>
+    </div>
+{{end}}

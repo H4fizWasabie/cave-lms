@@ -1,7 +1,7 @@
 {{define "head"}}
   <link rel="canonical" href="{{.PublicBaseURL}}">{{end}}
 {{define "content"}}
-    <section class="home-hero">
+    <section class="home-hero" id="welcome">
       <div class="wrap home-hero-in">
         <div class="home-hero-copy">
           <p class="home-kicker">CAVELMS · Learn AI • Build Skills • Create Impact</p>
@@ -13,7 +13,7 @@
             <a class="btn btn-ghost btn-lg" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
           </div>
         </div>
-        <figure class="coach">
+        <figure class="coach" id="coach">
           <div class="coach-photo"><img src="{{static "coach-adam.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="282" height="564" fetchpriority="high"></div>
           <figcaption>
             <strong>Coach Adam</strong>
@@ -28,8 +28,16 @@
       </div>
     </section>
 
+    <section class="section" id="background">
+      <div class="wrap prose">
+        <h2>{{t .Lang "home.background.title"}}</h2>
+        <p>{{t .Lang "home.background.p"}}</p>
+        <p><a href="https://www.thecaveconsult.com/company-profile/">{{t .Lang "home.background.more"}}</a></p>
+      </div>
+    </section>
+
     <section class="section">
-      <div class="wrap home-intro">
+      <div class="wrap home-intro" id="about">
         <div class="prose">
           <p>{{t .Lang "home.intro.1"}}</p>
           <p>{{t .Lang "home.intro.2"}}</p>

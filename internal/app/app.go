@@ -214,6 +214,14 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /gallery/{id}", a.galleryItemPage)
 	mux.HandleFunc("GET /gallery/{id}/file", a.galleryFile)
 	mux.HandleFunc("GET /gallery/{id}/thumb", a.galleryThumb)
+	mux.HandleFunc("GET /programmes", a.programmes)
+	mux.HandleFunc("GET /programmes/pictures/{key}", a.programmePicture)
+	mux.HandleFunc("GET /admin/programmes", a.admin(a.adminProgrammes))
+	mux.HandleFunc("GET /admin/programmes/new", a.admin(a.newProgrammeForm))
+	mux.HandleFunc("POST /admin/programmes", a.admin(a.createProgramme))
+	mux.HandleFunc("GET /admin/programmes/{id}/edit", a.admin(a.editProgrammeForm))
+	mux.HandleFunc("POST /admin/programmes/{id}", a.admin(a.updateProgramme))
+	mux.HandleFunc("POST /admin/programmes/{id}/delete", a.admin(a.deleteProgramme))
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
 	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))
@@ -254,6 +262,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
+	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
+	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
 	mux.HandleFunc("GET /certificates/{id}/pdf", a.downloadCertificate)
 	mux.HandleFunc("GET /admin/certificate-settings", a.admin(a.certificateSettingsForm))
 	mux.HandleFunc("GET /certificates", a.verifyCertificateForm)
@@ -287,6 +297,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/cavetext/settings", a.admin(a.saveCaveTextSettings))
 	mux.HandleFunc("POST /admin/cavetext/master-prompts", a.admin(a.saveCaveTextMasterPrompts))
 	mux.HandleFunc("GET /cavetext", a.caveTextHome)
+	mux.HandleFunc("GET /plans", a.plans)
 	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
 	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
 	mux.HandleFunc("POST /cavetext/bcl/{key}", a.bclWebhook)
@@ -445,7 +456,10 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			a.serverError(w, r, err)
 			return
 		}
-		*c.chromeField() = chrome{Lang: lang, Here: here(r)}
+		if *c.chromeField(), err = a.newChrome(r, lang); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

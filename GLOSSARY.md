@@ -108,6 +108,11 @@ A PDF of completion issued automatically when a Learner has finished a Course's 
 _Malay_: Sijil
 _Avoid_: Diploma, award
 
+**Programme**:
+An upcoming programme or learning module The Cave Consult announces, which the Admin writes up by hand. It is not a Course: Learners cannot join it on the site, only follow its link.
+_Malay_: Program
+_Avoid_: Course, event, module
+
 ### Lab
 
 **Lab**:
