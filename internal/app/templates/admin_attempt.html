@@ -1,0 +1,33 @@
+{{define "title"}}{{t .Lang "exam.attempt"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "results" $.Learner $.Lang)}}
+      <div class="adm-main">
+        {{with .Attempt}}
+        <div class="adm-head">
+          <div>
+            <h1>{{.LearnerName}} · {{t $.Lang "results.attempt-n" .Number}}</h1>
+            <p>{{.Email}} · {{.CourseTitle}} · {{t $.Lang (print "bank.format." .Format)}}</p>
+          </div>
+        </div>
+        <div class="card">
+          <p><strong>{{t $.Lang .Status}}</strong>{{if .Released}} · {{t $.Lang "results.mark"}}: {{.Score}}% · {{t $.Lang "results.marked-by"}}: {{t $.Lang .MarkedBy}}{{end}}</p>
+          <p class="card-sub">{{with .SubmittedIn $.Lang}}{{t $.Lang "results.submitted"}}: {{.}}{{end}}{{with .ReleasedIn $.Lang}} · {{t $.Lang "results.released"}}: {{.}}{{end}}</p>
+          {{if $.MayGiveAnother}}<form method="post" action="/admin/results/{{.ID}}/another-attempt"><p class="card-sub">{{t $.Lang "results.another-intro"}}</p><button class="btn btn-solid btn-sm">{{t $.Lang "results.another"}}</button></form>{{end}}
+        </div>
+        {{end}}
+        <div class="card">
+          {{range $q := .Questions}}
+          <section class="q-card">
+            <p>{{$q.Prompt}}</p>
+            {{if lt $q.Chosen 0}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
+            <ul class="q-opts">
+              {{range $slot, $o := $q.Options}}{{if $o.Text}}<li{{if $o.Correct}} class="is-correct"{{end}}><span class="dot"></span>{{$o.Text}}{{if $o.Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}{{if eq $slot $q.Chosen}} {{t $.Lang "results.chosen"}}{{end}}</li>{{end}}{{end}}
+            </ul>
+          </section>
+          {{end}}
+        </div>
+        <p class="note"><a href="/admin/results">{{t .Lang "results.back"}}</a></p>
+      </div>
+    </div>
+{{end}}
