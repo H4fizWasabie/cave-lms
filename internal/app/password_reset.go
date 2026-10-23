@@ -86,11 +86,6 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusUnprocessableEntity, "reset_password", page{Token: token, Error: problem})
 		return
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -127,6 +122,12 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 			Message:    text.T(lang, "reset.expired"),
 			OfferReset: true,
 		})
+		return
+	}
+	// Hashing only once the link is known good keeps made-up tokens from costing a bcrypt each.
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `UPDATE learners SET password_hash = $1 WHERE id = $2`, string(hash), learnerID); err != nil {
