@@ -184,5 +184,13 @@ func TestTheAttemptPageCountsDownAndSubmitsTheFormAtZero(t *testing.T) {
 	if left, _ := strconv.Atoi(m[1]); left < 35 || left > 40 {
 		t.Fatalf("countdown starts at %d seconds, want about 40 of the one-minute limit", left)
 	}
-	expectAll(t, body, "form.submit()")
+	// The site's CSP refuses inline scripts, so the timer comes from a static file.
+	src := timerScript.FindStringSubmatch(body)
+	if src == nil || strings.Contains(body, "form.submit()") {
+		t.Fatalf("the attempt page should load the timer from exam-timer.js, not inline: %s", body)
+	}
+	_, js := s.get(src[1])
+	expectAll(t, js, "data-seconds-left", "form.submit()")
 }
+
+var timerScript = regexp.MustCompile(`<script src="(/static/exam-timer\.js[^"]*)" defer></script>`)
