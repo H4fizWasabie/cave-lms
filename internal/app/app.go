@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"path"
 	"strings"
 	"sync"
@@ -512,29 +511,11 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 // rejectCrossOrigin is the CSRF protection for every form: browsers mark
 // cross-site requests with Sec-Fetch-Site or Origin, and those are refused.
 // The CaveText API is exempt: it is called from the extension and takes a bearer token, never a cookie.
-// ponytail: hand port of Go 1.25's http.CrossOriginProtection; switch to it once go.mod reaches 1.25.
 func rejectCrossOrigin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !strings.HasPrefix(r.URL.Path, "/cavetext/api/") && crossOrigin(r) {
-			http.Error(w, "cross-origin request refused", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func crossOrigin(r *http.Request) bool {
-	switch r.Header.Get("Sec-Fetch-Site") {
-	case "same-origin", "none":
-		return false
-	case "":
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			return false // not a browser form post
-		}
-		u, err := url.Parse(origin)
-		return err != nil || u.Host != r.Host
-	default:
-		return true
-	}
+	p := http.NewCrossOriginProtection()
+	p.AddInsecureBypassPattern("/cavetext/api/")
+	p.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "cross-origin request refused", http.StatusForbidden)
+	}))
+	return p.Handler(next)
 }
