@@ -16,17 +16,29 @@
           {{if $.MayGiveAnother}}<form method="post" action="/admin/results/{{.ID}}/another-attempt"><p class="card-sub">{{t $.Lang "results.another-intro"}}</p><button class="btn btn-solid btn-sm">{{t $.Lang "results.another"}}</button></form>{{end}}
         </div>
         {{end}}
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        {{$marking := and (eq .Attempt.Format "written") .Attempt.Submitted.Valid}}
+        {{if $marking}}<form method="post" action="/admin/results/{{.Attempt.ID}}/marks">{{end}}
         <div class="card">
           {{range $q := .Questions}}
           <section class="q-card">
             <p>{{$q.Prompt}}</p>
+            {{if eq $.Attempt.Format "written"}}
+            {{with $q.Answer}}<p>{{t $.Lang "results.answer"}}: {{.}}</p>{{else}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
+            <p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{$q.ModelAnswer}}</p>
+            <p class="card-sub">{{if $q.Marked}}{{t $.Lang "results.mark-of" $q.MarkValue 10}}{{else}}{{t $.Lang "results.not-marked"}}{{end}}</p>
+            {{if $marking}}<div class="field"><label for="mark-{{$q.ID}}">{{t $.Lang "results.mark"}} (0-10)</label><input id="mark-{{$q.ID}}" name="mark-{{$q.ID}}" type="number" min="0" max="10" step="1"{{if $q.Marked}} value="{{$q.MarkValue}}"{{end}}></div>{{end}}
+            {{else}}
             {{if lt $q.Chosen 0}}<p class="card-sub">{{t $.Lang "results.not-answered"}}</p>{{end}}
             <ul class="q-opts">
               {{range $slot, $o := $q.Options}}{{if $o.Text}}<li{{if $o.Correct}} class="is-correct"{{end}}><span class="dot"></span>{{$o.Text}}{{if $o.Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}{{if eq $slot $q.Chosen}} {{t $.Lang "results.chosen"}}{{end}}</li>{{end}}{{end}}
             </ul>
+            {{end}}
           </section>
           {{end}}
+          {{if $marking}}<div class="form-actions"><button class="btn btn-solid">{{t $.Lang "results.save-marks"}}</button></div>{{end}}
         </div>
+        {{if $marking}}</form>{{end}}
         <p class="note"><a href="/admin/results">{{t .Lang "results.back"}}</a></p>
       </div>
     </div>

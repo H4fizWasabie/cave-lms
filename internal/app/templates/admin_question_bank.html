@@ -29,6 +29,7 @@
                   <form method="post" action="/admin/question-bank/{{$q.ID}}/delete"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
                 </div>
               </div>
+              {{with $q.ModelAnswer}}<p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{.}}</p>{{end}}
               <ul class="q-opts">
                 {{range $q.Options}}{{if .Text}}<li{{if .Correct}} class="is-correct"{{end}}><span class="dot"></span>{{.Text}}{{if .Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}</li>{{end}}{{end}}
               </ul>

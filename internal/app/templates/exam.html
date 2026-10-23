@@ -7,7 +7,7 @@
         <div class="adm-head">
           <div>
             <h1>{{t .Lang "adm.exam.title" .Course.Title}}</h1>
-            <p>{{if .Exam.Usable}}{{t .Lang "adm.exam.usable"}}{{else}}{{t .Lang "adm.exam.unusable"}}{{end}}</p>
+            <p>{{t .Lang (print "bank.format." .Exam.Format)}} · {{if .Exam.Usable}}{{t .Lang "adm.exam.usable"}}{{else}}{{t .Lang "adm.exam.unusable"}}{{end}}</p>
           </div>
         </div>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
@@ -60,9 +60,10 @@
                   <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/delete" $q.ID)}}"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
                 </div>
               </div>
+              {{if $.Exam.Written}}<p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{$q.ModelAnswer}}</p>{{else}}
               <ul class="q-opts">
                 {{range $q.Options}}{{if .Text}}<li{{if .Correct}} class="is-correct"{{end}}><span class="dot"></span>{{.Text}}{{if .Correct}} {{t $.Lang "adm.exam.correct-mark"}}{{end}}</li>{{end}}{{end}}
-              </ul>
+              </ul>{{end}}
             </li>
             {{else}}
             <li class="empty">{{t .Lang "adm.exam.none"}}</li>

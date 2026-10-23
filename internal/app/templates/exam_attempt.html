@@ -18,12 +18,17 @@
         <p class="x-help">{{t $.Lang "exam.ready-at" (.ReadyAt $.Lang)}}</p>
       </div>
       {{else}}
-      <div class="page-head"><h1>{{t $.Lang "exam.for" $.Course.Title}}</h1></div>
+      <div class="page-head"><h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.for" $.Course.Title}}{{end}}</h1></div>
       {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer" data-seconds-left="{{$.Attempt.SecondsLeft}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}} <strong class="x-countdown"></strong></span></div>{{end}}
       <form class="x-form" method="post" action="{{$.Exam.Path (printf "/attempts/%d/submit" .ID)}}">
         {{range $n, $q := .Questions}}
         <fieldset class="x-q">
+          {{if $.Exam.Written}}
+          <legend><label for="answer-{{$q.ID}}">{{$q.Prompt}}</label></legend>
+          <textarea id="answer-{{$q.ID}}" name="answer-{{$q.ID}}" rows="6" maxlength="5000"></textarea>
+          {{else}}
           <legend>{{$q.Prompt}}</legend>
+          {{end}}
           {{range $slot, $o := $q.Options}}{{if $o.Text}}
           <label class="x-opt"><input type="radio" name="answer-{{$q.ID}}" value="{{$slot}}"> {{$o.Text}}</label>
           {{end}}{{end}}

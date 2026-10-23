@@ -13,8 +13,23 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// multipleChoice is the format of an Exam whose questions each have options and one correct answer.
-const multipleChoice = "multiple-choice"
+// multipleChoice is the format of an Exam whose questions each have options and one correct answer; written is the
+// format of one whose questions each have a model answer and are answered in the Learner's own words.
+const (
+	multipleChoice = "multiple-choice"
+	written        = "written"
+)
+
+// writtenMarks is what each Written question is worth.
+const writtenMarks = 10
+
+// defaultDrawCount is how many questions an attempt at a new Exam of the format draws.
+func defaultDrawCount(format string) string {
+	if format == written {
+		return "10"
+	}
+	return "30"
+}
 
 // exam is the Exam page's data. The numeric settings stay strings so a rejected form shows what was typed.
 // A Course has at most one Exam per format; ID is 0 until the Exam is first saved.
@@ -31,12 +46,14 @@ type exam struct {
 	Topics      []string // the Question bank's topics, on the Admin page
 }
 
-// examQuestion is one Exam question. Options always has five slots; a blank slot is an unused option.
+// examQuestion is one Exam question. Options always has five slots; a blank slot is an unused option. A Written
+// question has no options and a ModelAnswer instead.
 type examQuestion struct {
-	ID      int64
-	Prompt  string
-	Draft   bool
-	Options [5]examOption
+	ID          int64
+	Prompt      string
+	Draft       bool
+	Options     [5]examOption
+	ModelAnswer string
 }
 
 type examOption struct {
@@ -52,7 +69,7 @@ func (a *App) examFor(w http.ResponseWriter, r *http.Request) (course, exam, boo
 		return course{}, exam{}, false
 	}
 	format := cmp.Or(r.URL.Query().Get("format"), multipleChoice)
-	if format != multipleChoice {
+	if format != multipleChoice && format != written {
 		a.notFound(w, r)
 		return course{}, exam{}, false
 	}
@@ -63,6 +80,9 @@ func (a *App) examFor(w http.ResponseWriter, r *http.Request) (course, exam, boo
 	}
 	return c, e, true
 }
+
+// Written reports whether the Exam is a Written Exam.
+func (e exam) Written() bool { return e.Format == written }
 
 // AdminPath is the address of the Exam's Admin page followed by rest, naming the format unless it is Multiple-choice.
 func (e exam) AdminPath(rest string) string {
@@ -165,7 +185,7 @@ func (a *App) createExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	q, msg := questionFromForm(r, lang)
+	q, msg := questionFromForm(r, lang, e.Format)
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Exam: &e, Question: &q, Error: msg})
 		return
@@ -198,8 +218,8 @@ func (a *App) insertQuestion(ctx context.Context, e exam, q examQuestion, topic 
 // insertBankedQuestion adds q to the Question bank under topic and lang, and a copy of it at the end of the Exam.
 func insertBankedQuestion(ctx context.Context, tx *sql.Tx, examID int64, format, topic, lang string, q examQuestion) error {
 	var bankID int64
-	if err := tx.QueryRowContext(ctx, `INSERT INTO bank_questions (format, topic, language, prompt, is_draft)
-		VALUES ($1, $2, $3, $4, $5) RETURNING id`, format, topic, lang, q.Prompt, q.Draft).Scan(&bankID); err != nil {
+	if err := tx.QueryRowContext(ctx, `INSERT INTO bank_questions (format, topic, language, prompt, is_draft, model_answer)
+		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, format, topic, lang, q.Prompt, q.Draft, q.ModelAnswer).Scan(&bankID); err != nil {
 		return err
 	}
 	if err := insertOptions(ctx, tx, "bank_options", bankID, q.Options); err != nil {
@@ -207,9 +227,9 @@ func insertBankedQuestion(ctx context.Context, tx *sql.Tx, examID int64, format,
 	}
 	var id int64
 	err := tx.QueryRowContext(ctx, `
-		INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id)
-		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE exam_id = $1), $2, $3, $4)
-		RETURNING id`, examID, q.Prompt, q.Draft, bankID).Scan(&id)
+		INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id, model_answer)
+		VALUES ($1, (SELECT COALESCE(MAX(position), 0) + 1 FROM exam_questions WHERE exam_id = $1), $2, $3, $4, $5)
+		RETURNING id`, examID, q.Prompt, q.Draft, bankID, q.ModelAnswer).Scan(&id)
 	if err != nil {
 		return err
 	}
@@ -220,15 +240,27 @@ func insertBankedQuestion(ctx context.Context, tx *sql.Tx, examID int64, format,
 func saveExamRow(ctx context.Context, tx *sql.Tx, e exam) (int64, error) {
 	// The no-op update makes RETURNING give the id of an Exam that is already saved.
 	var id int64
-	err := tx.QueryRowContext(ctx, `INSERT INTO exams (course_id, format) VALUES ($1, $2)
-		ON CONFLICT (course_id, format) DO UPDATE SET format = EXCLUDED.format RETURNING id`, e.CourseID, e.Format).Scan(&id)
+	err := tx.QueryRowContext(ctx, `INSERT INTO exams (course_id, format, draw_count) VALUES ($1, $2, $3)
+		ON CONFLICT (course_id, format) DO UPDATE SET format = EXCLUDED.format RETURNING id`,
+		e.CourseID, e.Format, defaultDrawCount(e.Format)).Scan(&id)
 	return id, err
 }
 
-// questionFromForm reads the question form. msg is the first problem found, in lang, empty when the form is valid.
-func questionFromForm(r *http.Request, lang string) (q examQuestion, msg string) {
+// questionFromForm reads the question form of a question of the format. msg is the first problem found, in lang,
+// empty when the form is valid.
+func questionFromForm(r *http.Request, lang, format string) (q examQuestion, msg string) {
 	q.Prompt = strings.TrimSpace(r.PostFormValue("prompt"))
 	q.Draft = r.PostFormValue("draft") == "on"
+	if format == written {
+		q.ModelAnswer = strings.TrimSpace(r.PostFormValue("model_answer"))
+		switch {
+		case q.Prompt == "":
+			msg = text.T(lang, "adm.exam.err.prompt")
+		case q.ModelAnswer == "":
+			msg = text.T(lang, "adm.exam.err.model-answer")
+		}
+		return q, msg
+	}
 	raw := r.PostForm["option"]
 	filled := 0
 	for i := 0; i < len(raw) && i < len(q.Options); i++ {
@@ -253,7 +285,7 @@ func questionFromForm(r *http.Request, lang string) (q examQuestion, msg string)
 
 // loadExam reads a Course's Exam of the format with its questions. An Exam not saved yet gets the defaults.
 func (a *App) loadExam(ctx context.Context, courseID int64, format string) (exam, error) {
-	e := exam{CourseID: courseID, Format: format, PassMark: "50", MaxAttempts: "2", DrawCount: "30"}
+	e := exam{CourseID: courseID, Format: format, PassMark: "50", MaxAttempts: "2", DrawCount: defaultDrawCount(format)}
 	err := a.db.QueryRowContext(ctx, `
 		SELECT id, pass_mark, COALESCE(time_limit_minutes::text, ''), COALESCE(max_attempts::text, ''), draw_count
 		FROM exams WHERE course_id = $1 AND format = $2`, courseID, format).
@@ -276,7 +308,7 @@ func (a *App) loadExam(ctx context.Context, courseID int64, format string) (exam
 // queryQuestions reads the Exam questions matching the SQL condition where, in order.
 func (a *App) queryQuestions(ctx context.Context, where string, args ...any) ([]examQuestion, error) {
 	rows, err := a.db.QueryContext(ctx, `
-		SELECT q.id, q.prompt, q.is_draft, o.position, o.text, o.is_correct
+		SELECT q.id, q.prompt, q.is_draft, q.model_answer, o.position, o.text, o.is_correct
 		FROM exam_questions q
 		LEFT JOIN exam_options o ON o.question_id = q.id
 		WHERE `+where+`
@@ -288,18 +320,19 @@ func (a *App) queryQuestions(ctx context.Context, where string, args ...any) ([]
 	var list []examQuestion
 	for rows.Next() {
 		var (
-			id      int64
-			prompt  string
-			draft   bool
-			slot    sql.NullInt64
-			text    sql.NullString
-			correct sql.NullBool
+			id          int64
+			prompt      string
+			draft       bool
+			modelAnswer string
+			slot        sql.NullInt64
+			text        sql.NullString
+			correct     sql.NullBool
 		)
-		if err := rows.Scan(&id, &prompt, &draft, &slot, &text, &correct); err != nil {
+		if err := rows.Scan(&id, &prompt, &draft, &modelAnswer, &slot, &text, &correct); err != nil {
 			return nil, fmt.Errorf("load questions: %w", err)
 		}
 		if len(list) == 0 || list[len(list)-1].ID != id {
-			list = append(list, examQuestion{ID: id, Prompt: prompt, Draft: draft})
+			list = append(list, examQuestion{ID: id, Prompt: prompt, Draft: draft, ModelAnswer: modelAnswer})
 		}
 		if slot.Valid {
 			list[len(list)-1].Options[slot.Int64] = examOption{Text: text.String, Correct: correct.Bool}
@@ -327,7 +360,7 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	q, msg := questionFromForm(r, lang)
+	q, msg := questionFromForm(r, lang, e.Format)
 	q.ID, q.Draft = existing.ID, existing.Draft
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "exam_question_form", page{Course: &c, Exam: &e, Question: &q, Error: msg})
@@ -340,14 +373,15 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
-// replaceQuestion rewrites a question's prompt and options in one transaction.
+// replaceQuestion rewrites a question's prompt, model answer and options in one transaction.
 func (a *App) replaceQuestion(ctx context.Context, examID int64, q examQuestion) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `UPDATE exam_questions SET prompt = $3 WHERE id = $1 AND exam_id = $2`, q.ID, examID, q.Prompt); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE exam_questions SET prompt = $3, model_answer = $4 WHERE id = $1 AND exam_id = $2`,
+		q.ID, examID, q.Prompt, q.ModelAnswer); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exam_options WHERE question_id = $1`, q.ID); err != nil {

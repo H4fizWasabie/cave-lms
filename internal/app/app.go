@@ -79,6 +79,7 @@ type page struct {
 	Courses       []course
 	Course        *course
 	Exam          *exam
+	WrittenExam   *exam       // the Course's on its page, when the Learner has joined and it is usable
 	Status        *examStatus // the Learner's Exam
 	Attempt       *examAttempt
 	Question      *examQuestion
@@ -279,6 +280,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/results", a.admin(a.adminResults))
 	mux.HandleFunc("GET /admin/results/{attemptID}", a.admin(a.adminAttempt))
 	mux.HandleFunc("POST /admin/results/{attemptID}/another-attempt", a.admin(a.giveAnotherAttempt))
+	mux.HandleFunc("POST /admin/results/{attemptID}/marks", a.admin(a.saveMarks))
 	mux.HandleFunc("GET /courses/{id}/exam", a.requireLearner(a.learnerExam))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))

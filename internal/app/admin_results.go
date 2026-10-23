@@ -1,12 +1,15 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -22,6 +25,7 @@ type adminResult struct {
 	Submitted, ReleasedAt       sql.NullTime
 	Score                       int // percent, once released
 	Passed                      bool
+	AdminMarked                 bool // an Admin set a Written mark
 }
 
 // Released reports whether the attempt's Result is out.
@@ -44,8 +48,14 @@ func (r adminResult) Status() string {
 	return "results.in-progress"
 }
 
-// MarkedBy is the catalog key naming who marked the attempt. Multiple-choice is marked automatically.
-func (r adminResult) MarkedBy() string { return "results.marked-by.auto" }
+// MarkedBy is the catalog key naming who marked the attempt: an Admin once they set a Written mark, otherwise
+// automatically.
+func (r adminResult) MarkedBy() string {
+	if r.AdminMarked {
+		return "results.marked-by.admin"
+	}
+	return "results.marked-by.auto"
+}
 
 type resultsPage struct {
 	pageBase
@@ -75,13 +85,18 @@ func (a *App) adminResults(w http.ResponseWriter, r *http.Request) {
 }
 
 // adminAttempt shows one attempt: the Learner, its Result, and every question it asked with the Learner's answer and
-// the correct option.
+// the correct option or the model answer and mark.
 func (a *App) adminAttempt(w http.ResponseWriter, r *http.Request) {
 	res, ok := a.resultFor(w, r)
 	if !ok {
 		return
 	}
-	p := &resultsPage{Attempt: &res}
+	a.showAdminAttempt(w, r, res, http.StatusOK, "")
+}
+
+// showAdminAttempt writes the attempt's Admin page with the status and the error message msg, empty for none.
+func (a *App) showAdminAttempt(w http.ResponseWriter, r *http.Request, res adminResult, status int, msg string) {
+	p := &resultsPage{pageBase: pageBase{Error: msg}, Attempt: &res}
 	var raw []byte
 	err := a.db.QueryRowContext(r.Context(), `SELECT questions FROM exam_attempts WHERE id = $1`, res.ID).Scan(&raw)
 	if err == nil {
@@ -94,7 +109,75 @@ func (a *App) adminAttempt(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "admin_attempt", p)
+	a.render(w, r, status, "admin_attempt", p)
+}
+
+// saveMarks sets the Admin's marks, 0 to writtenMarks, on a submitted Written attempt's answers; a blank field leaves
+// its mark as it is. The attempt records that an Admin marked it. Once released, its mark and pass or fail are
+// recalculated, and a corrected Result email goes out only when pass or fail flips.
+func (a *App) saveMarks(w http.ResponseWriter, r *http.Request) {
+	res, ok := a.resultFor(w, r)
+	if !ok {
+		return
+	}
+	back := "/admin/results/" + strconv.FormatInt(res.ID, 10)
+	if res.Format != written || !res.Submitted.Valid {
+		http.Redirect(w, r, back, http.StatusSeeOther)
+		return
+	}
+	// Holding the release lock means the release job never releases on marks read before these are saved.
+	a.releasing.Lock()
+	defer a.releasing.Unlock()
+	due, err := a.queryDue(r.Context(), `id = $1`, res.ID)
+	if err != nil || len(due) == 0 {
+		a.serverError(w, r, cmp.Or(err, errors.New("attempt gone")))
+		return
+	}
+	d := due[0]
+	changed := false
+	for i := range d.questions {
+		q := &d.questions[i]
+		v := strings.TrimSpace(r.PostFormValue("mark-" + strconv.FormatInt(q.ID, 10)))
+		if v == "" {
+			continue
+		}
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 || n > writtenMarks {
+			lang, err := a.language(r)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			a.showAdminAttempt(w, r, res, http.StatusUnprocessableEntity, text.T(lang, "results.err.mark", writtenMarks))
+			return
+		}
+		if q.Mark == nil || *q.Mark != n {
+			q.Mark, changed = &n, true
+		}
+	}
+	if !changed {
+		http.Redirect(w, r, back, http.StatusSeeOther)
+		return
+	}
+	raw, err := json.Marshal(d.questions)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	score, _ := markAttempt(written, d.questions)
+	passed := score >= d.passMark
+	// Before release only the answers change; the release job saves the mark.
+	_, err = a.db.ExecContext(r.Context(), `UPDATE exam_attempts SET questions = $2::jsonb, admin_marked = true,
+		score = CASE WHEN released_at IS NULL THEN NULL ELSE $3::integer END,
+		passed = CASE WHEN released_at IS NULL THEN NULL ELSE $4::boolean END WHERE id = $1`, d.attemptID, string(raw), score, passed)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if d.released && passed != d.passed {
+		a.emailResult(r.Context(), d, score, passed, "email.result.corrected-subject")
+	}
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 // mayGiveAnother reports whether the attempt's Learner has used every attempt at its Exam, each Result released and
@@ -185,7 +268,7 @@ func (a *App) examCourses(r *http.Request) ([]course, error) {
 func (a *App) queryResults(r *http.Request, where string, args ...any) ([]adminResult, error) {
 	rows, err := a.db.QueryContext(r.Context(), `
 		SELECT t.learner_id, t.exam_id, x.course_id, t.id, l.name, l.email, c.title, x.format, t.number, t.submitted, t.released_at,
-			COALESCE(t.score, 0), COALESCE(t.passed, false)
+			COALESCE(t.score, 0), COALESCE(t.passed, false), t.admin_marked
 		FROM (SELECT *, row_number() OVER (PARTITION BY learner_id, exam_id ORDER BY id) AS number,
 			`+submittedAtSQL+` AS submitted FROM exam_attempts) t
 		JOIN exams x ON x.id = t.exam_id
@@ -201,7 +284,7 @@ func (a *App) queryResults(r *http.Request, where string, args ...any) ([]adminR
 	for rows.Next() {
 		var res adminResult
 		if err := rows.Scan(&res.LearnerID, &res.ExamID, &res.CourseID, &res.ID, &res.LearnerName, &res.Email, &res.CourseTitle, &res.Format, &res.Number,
-			&res.Submitted, &res.ReleasedAt, &res.Score, &res.Passed); err != nil {
+			&res.Submitted, &res.ReleasedAt, &res.Score, &res.Passed, &res.AdminMarked); err != nil {
 			return nil, fmt.Errorf("load Results: %w", err)
 		}
 		list = append(list, res)

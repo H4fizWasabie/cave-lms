@@ -67,7 +67,7 @@ func (a *App) bankTopics(ctx context.Context) ([]string, error) {
 // queryBankQuestions reads the bank questions matching the SQL condition where, by topic then age.
 func (a *App) queryBankQuestions(ctx context.Context, where string, args ...any) ([]bankQuestion, error) {
 	rows, err := a.db.QueryContext(ctx, `
-		SELECT q.id, q.format, q.topic, q.language, q.prompt, q.is_draft, o.position, o.text, o.is_correct
+		SELECT q.id, q.format, q.topic, q.language, q.prompt, q.is_draft, q.model_answer, o.position, o.text, o.is_correct
 		FROM bank_questions q
 		LEFT JOIN bank_options o ON o.question_id = q.id
 		WHERE `+where+`
@@ -84,7 +84,7 @@ func (a *App) queryBankQuestions(ctx context.Context, where string, args ...any)
 			text    sql.NullString
 			correct sql.NullBool
 		)
-		if err := rows.Scan(&q.ID, &q.Format, &q.Topic, &q.Language, &q.Prompt, &q.Draft, &slot, &text, &correct); err != nil {
+		if err := rows.Scan(&q.ID, &q.Format, &q.Topic, &q.Language, &q.Prompt, &q.Draft, &q.ModelAnswer, &slot, &text, &correct); err != nil {
 			return nil, fmt.Errorf("load bank questions: %w", err)
 		}
 		if len(list) == 0 || list[len(list)-1].ID != q.ID {
@@ -123,7 +123,8 @@ func (a *App) editBankQuestionForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "bank_question_form", &bankPage{Question: &q, Languages: text.Languages})
 }
 
-// updateBankQuestion replaces a bank question's topic, language, prompt and options. Exam copies are left alone.
+// updateBankQuestion replaces a bank question's topic, language, prompt and options or model answer. Exam copies are
+// left alone.
 func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 	existing, ok := a.bankQuestionFor(w, r)
 	if !ok {
@@ -134,7 +135,7 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	eq, msg := questionFromForm(r, lang)
+	eq, msg := questionFromForm(r, lang, existing.Format)
 	eq.ID, eq.Draft = existing.ID, existing.Draft
 	q := bankQuestion{examQuestion: eq, Format: existing.Format,
 		Topic: strings.TrimSpace(r.PostFormValue("topic")), Language: r.PostFormValue("language")}
@@ -152,7 +153,8 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err == nil {
 		defer tx.Rollback()
-		_, err = tx.ExecContext(r.Context(), `UPDATE bank_questions SET topic = $2, language = $3, prompt = $4 WHERE id = $1`, q.ID, q.Topic, q.Language, q.Prompt)
+		_, err = tx.ExecContext(r.Context(), `UPDATE bank_questions SET topic = $2, language = $3, prompt = $4, model_answer = $5 WHERE id = $1`,
+			q.ID, q.Topic, q.Language, q.Prompt, q.ModelAnswer)
 	}
 	if err == nil {
 		_, err = tx.ExecContext(r.Context(), `DELETE FROM bank_options WHERE question_id = $1`, q.ID)
@@ -334,12 +336,13 @@ func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, coun
 	var added int64
 	err = tx.QueryRowContext(ctx, `
 		WITH picked AS (
-			SELECT id, prompt, row_number() OVER () AS n FROM (
-				SELECT b.id, b.prompt FROM bank_questions b WHERE `+bankMatch+`
+			SELECT id, prompt, model_answer, row_number() OVER () AS n FROM (
+				SELECT b.id, b.prompt, b.model_answer FROM bank_questions b WHERE `+bankMatch+`
 				ORDER BY random() LIMIT $5) r),
 		copied AS (
-			INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id)
-			SELECT $1, (SELECT COALESCE(MAX(position), 0) FROM exam_questions WHERE exam_id = $1) + n, prompt, false, id FROM picked
+			INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id, model_answer)
+			SELECT $1, (SELECT COALESCE(MAX(position), 0) FROM exam_questions WHERE exam_id = $1) + n, prompt, false, id, model_answer
+			FROM picked
 			RETURNING id, bank_question_id),
 		options AS (
 			INSERT INTO exam_options (question_id, position, text, is_correct)

@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -22,13 +23,31 @@ const examGraceSeconds = 30
 var examLateSQL = fmt.Sprintf("now() > started_at + make_interval(mins => time_limit_minutes, secs => %d)", examGraceSeconds)
 
 // attemptQuestion is one question as an attempt showed it. The attempt keeps its own copy, so later Exam
-// edits never change it. Chosen is the option slot the Learner picked, or -1 when unanswered.
+// edits never change it. Chosen is the option slot the Learner picked, or -1 when unanswered. A Written question
+// has a ModelAnswer, the Learner's Answer in their own words, and its Mark out of writtenMarks once marked.
 type attemptQuestion struct {
-	ID      int64
-	Prompt  string
-	Options [5]examOption
-	Chosen  int
+	ID          int64
+	Prompt      string
+	Options     [5]examOption
+	Chosen      int
+	ModelAnswer string `json:",omitempty"`
+	Answer      string `json:",omitempty"`
+	Mark        *int   `json:",omitempty"`
 }
+
+// Marked reports whether the Written question has a mark.
+func (q attemptQuestion) Marked() bool { return q.Mark != nil }
+
+// MarkValue is the Written question's mark, 0 while unmarked.
+func (q attemptQuestion) MarkValue() int {
+	if q.Mark == nil {
+		return 0
+	}
+	return *q.Mark
+}
+
+// maxWrittenAnswer is the most characters a Written answer keeps.
+const maxWrittenAnswer = 5000
 
 // Right reports whether the Learner's answer is the correct option.
 func (q attemptQuestion) Right() bool {
@@ -281,7 +300,7 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 	for i, asked := range questions {
 		for _, q := range e.Questions {
 			if q.ID == asked.ID {
-				questions[i].Prompt, questions[i].Options = q.Prompt, q.Options
+				questions[i].Prompt, questions[i].Options, questions[i].ModelAnswer = q.Prompt, q.Options, q.ModelAnswer
 			}
 		}
 	}
@@ -289,7 +308,7 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 		questions = []attemptQuestion{}
 		for _, q := range e.Questions {
 			if !q.Draft {
-				questions = append(questions, attemptQuestion{ID: q.ID, Prompt: q.Prompt, Options: q.Options, Chosen: -1})
+				questions = append(questions, attemptQuestion{ID: q.ID, Prompt: q.Prompt, Options: q.Options, Chosen: -1, ModelAnswer: q.ModelAnswer})
 			}
 		}
 		rand.Shuffle(len(questions), func(i, j int) { questions[i], questions[j] = questions[j], questions[i] })
@@ -325,7 +344,7 @@ func firstDraw(ctx context.Context, tx *sql.Tx, learnerID, examID int64) ([]atte
 		return nil, err
 	}
 	for i := range questions {
-		questions[i].Chosen = -1
+		questions[i].Chosen, questions[i].Answer, questions[i].Mark = -1, "", nil
 	}
 	return questions, nil
 }
@@ -381,6 +400,13 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	for i := range att.Questions {
 		q := &att.Questions[i]
 		q.Chosen = -1
+		if e.Written() {
+			q.Answer = strings.TrimSpace(r.PostFormValue("answer-" + strconv.FormatInt(q.ID, 10)))
+			if a := []rune(q.Answer); len(a) > maxWrittenAnswer {
+				q.Answer = string(a[:maxWrittenAnswer])
+			}
+			continue
+		}
 		if slot, err := strconv.Atoi(r.PostFormValue("answer-" + strconv.FormatInt(q.ID, 10))); err == nil &&
 			slot >= 0 && slot < len(q.Options) && q.Options[slot].Text != "" {
 			q.Chosen = slot
@@ -438,6 +464,7 @@ func attemptPath(e exam, attemptID int64) string {
 type myExam struct {
 	CourseID    int64
 	Path        string // the Exam's page
+	Format      string
 	CourseTitle string
 	PassMark    string
 	Attempted   bool // a finished attempt exists, so Best is meaningful
@@ -482,7 +509,7 @@ func (a *App) myExams(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		e.CourseID, e.Path = x.CourseID, x.Path("")
+		e.CourseID, e.Path, e.Format = x.CourseID, x.Path(""), x.Format
 		p.Exams = append(p.Exams, e)
 	}
 	if err := rows.Err(); err != nil {

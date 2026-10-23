@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"cmp"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -12,7 +13,8 @@ import (
 )
 
 // answerSheetPDF lays out a passed attempt's Answer sheet on portrait A4: the Learner, Course, Exam and mark, then
-// every question with the Learner's answer and the correct option. Its headings are in lang.
+// every question with the Learner's answer and the correct option, or the model answer and the mark. Its headings
+// are in lang.
 func answerSheetPDF(lang, name, courseTitle, format string, score int, questions []attemptQuestion) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	// Uncompressed, so the text stays greppable in tests, as on Certificates.
@@ -35,6 +37,12 @@ func answerSheetPDF(lang, name, courseTitle, format string, score int, questions
 		pdf.Ln(6)
 		line("B", 12, strconv.Itoa(i+1)+". "+q.Prompt)
 		answer := text.T(lang, "answer-sheet.no-answer")
+		if format == written {
+			line("", 11, text.T(lang, "answer-sheet.your-answer", cmp.Or(q.Answer, answer)))
+			line("", 11, text.T(lang, "answer-sheet.model-answer", q.ModelAnswer))
+			line("", 11, text.T(lang, "answer-sheet.mark", q.MarkValue(), writtenMarks))
+			continue
+		}
 		if q.Chosen >= 0 {
 			answer = q.Options[q.Chosen].Text
 		}

@@ -175,6 +175,7 @@ func TestResultsPagesAndGiveAnotherAttemptRefuseVisitorsAndLearners(t *testing.T
 		{http.MethodGet, "/admin/results"},
 		{http.MethodGet, detail},
 		{http.MethodPost, detail + "/another-attempt"},
+		{http.MethodPost, detail + "/marks"},
 	}
 	check := func(who *site, role string, want int, wantText string) {
 		t.Helper()

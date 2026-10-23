@@ -4,7 +4,7 @@
       <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
       <div class="x-card">
         <svg class="i x-icon" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>
-        <h1>{{t .Lang "exam.for" .Course.Title}}</h1>
+        <h1>{{if .Status.Exam.Written}}{{t .Lang "exam.written-for" .Course.Title}}{{else}}{{t .Lang "exam.for" .Course.Title}}{{end}}</h1>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{with .Status}}
         <ul class="x-facts">
