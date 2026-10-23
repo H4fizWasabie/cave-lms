@@ -1,6 +1,7 @@
 package lab_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -276,6 +277,45 @@ func TestRefusesMoreThan5000Rows(t *testing.T) {
 	}
 	if _, err := lab.Read(bytes.NewReader(testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows[:5000]...)), finance(t)); err != nil {
 		t.Fatalf("5,000 rows refused: %v", err)
+	}
+}
+
+// zipBomb is a small valid workbook carrying 60 MB of zeros, which zip down to almost nothing.
+func zipBomb(t *testing.T) []byte {
+	t.Helper()
+	small := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC), 1})
+	in, err := zip.NewReader(bytes.NewReader(small), int64(len(small)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	out := zip.NewWriter(&buf)
+	for _, f := range in.File {
+		if err := out.Copy(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pad, err := out.Create("xl/media/pad.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pad.Write(make([]byte, 60<<20)); err != nil {
+		t.Fatal(err)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func TestAWorkbookThatUnzipsPast50MBIsRefusedUnread(t *testing.T) {
+	file := zipBomb(t)
+	if len(file) > 1<<20 {
+		t.Fatalf("the zip bomb is %d bytes; it should fit well under the 10 MB upload limit", len(file))
+	}
+	got := readErrors(t, file)
+	if want := ([]string{"This workbook is over 50 MB once unpacked. The Lab reads workbooks up to 50 MB unpacked. Delete sheets, pictures or rows you do not need, and upload again."}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("errors = %v, want %v", got, want)
 	}
 }
 

@@ -525,6 +525,10 @@ var catalog = map[string]entry{
 		en: "The file is over 10 MB. The Lab reads files up to 10 MB. Delete some rows, or columns you do not need, and upload again.",
 		ms: "Fail ini melebihi 10 MB. Lab membaca fail sehingga 10 MB. Padam beberapa baris, atau lajur yang tidak diperlukan, dan muat naik semula.",
 	},
+	"lab.err.too-big-unzipped": {
+		en: "This workbook is over 50 MB once unpacked. The Lab reads workbooks up to 50 MB unpacked. Delete sheets, pictures or rows you do not need, and upload again.",
+		ms: "Buku kerja ini melebihi 50 MB selepas dibuka. Lab membaca buku kerja sehingga 50 MB selepas dibuka. Padam helaian, gambar atau baris yang tidak diperlukan, dan muat naik semula.",
+	},
 	"lab.err.storage-full": {
 		en: "This %s file would take you over your Storage allowance: your Datasets use %s of your %s. Delete a Dashboard you no longer need, or upload a smaller file.",
 		ms: "Fail %s ini akan melebihi had storan anda: Set data anda menggunakan %s daripada %s. Padam Dashboard yang tidak diperlukan lagi, atau muat naik fail yang lebih kecil.",

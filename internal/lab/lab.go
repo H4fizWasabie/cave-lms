@@ -4,6 +4,8 @@
 package lab
 
 import (
+	"archive/zip"
+	"bytes"
 	"io"
 	"regexp"
 	"strconv"
@@ -93,6 +95,10 @@ func (e Errors) Error() string { return strings.Join(e.In("en"), "; ") }
 // MaxRows is the most data rows the Lab reads from one file.
 const MaxRows = 5000
 
+// MaxUnzipped is the most an .xlsx may unpack to. A 5,000-row workbook unpacks to a few MB; without a cap, a
+// 10 MB upload of zeros or repeated cells can unpack to gigabytes and take the server down.
+const MaxUnzipped = 50 << 20
+
 // Read reads the first sheet of an .xlsx file, row 1 being the column names, and checks it
 // against the Template. A column named like one of a blank's guesses is read as that blank's
 // type; any other column's type comes from its cells. Dates may be real Excel dates,
@@ -100,7 +106,23 @@ const MaxRows = 5000
 // A file Cave cannot use gives Errors, every problem listed in row order. Only fully blank rows
 // are skipped.
 func Read(r io.Reader, t *Template) (*Dataset, error) {
-	f, err := excelize.OpenReader(r)
+	file, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	z, err := zip.NewReader(bytes.NewReader(file), int64(len(file)))
+	if err != nil {
+		return nil, Errors{{"lab.err.not-workbook", nil}}
+	}
+	var unzipped uint64
+	for _, entry := range z.File {
+		unzipped += entry.UncompressedSize64
+	}
+	if unzipped > MaxUnzipped {
+		return nil, Errors{{"lab.err.too-big-unzipped", nil}}
+	}
+	// The limit holds while excelize unpacks too: archive/zip refuses an entry longer than its header claims.
+	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped})
 	if err != nil {
 		return nil, Errors{{"lab.err.not-workbook", nil}}
 	}
