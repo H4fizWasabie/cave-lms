@@ -18,6 +18,8 @@ To run it on the VPS, see `docs/deploy.md`.
 
 `CAVETEXT_EXTENSION_IDS` is optional: the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`. Unset, CaveText sign-in is refused. The unpacked development build's ID is `omcdclpagggfcjlhpkohpcgdmfbelohd`; add the Chrome Web Store ID once it is published.
 
+`OPENROUTER_API_KEY` and `OPENROUTER_MODEL` are optional. With both, the AI writes Exam questions through OpenRouter; `OPENROUTER_WEB_SEARCH` (`true` by default) turns its web search on or off. There is no built-in model. **Set a monthly credit limit on the OpenRouter key**: the app has no spending cap of its own. See `docs/deploy.md` (AI writer).
+
 `RESEND_API_KEY` is optional. With it, verification and reset emails are sent through Resend from `EMAIL_FROM`; without it, sending fails with an explicit error.
 
 ## Create the Admin

@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
@@ -41,6 +42,7 @@ type App struct {
 	db                   *sql.DB
 	handler              http.Handler
 	mailer               mailer.Mailer
+	writer               aiwriter.Writer // writes Exam questions
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
@@ -105,9 +107,9 @@ type pageBase struct {
 
 func (p *pageBase) learnerField() **learner { return &p.Learner }
 
-func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, err error) {
-	if mailer == nil {
-		return nil, fmt.Errorf("mailer is required")
+func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer aiwriter.Writer) (_ *App, err error) {
+	if mailer == nil || writer == nil {
+		return nil, fmt.Errorf("mailer and AI writer are required")
 	}
 	pages, err := parsePages()
 	if err != nil {
@@ -151,7 +153,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, done: make(chan struct{})}
 	a.dailyPrune(ctx)
 	go a.pruneDaily(a.done)
 	mux := http.NewServeMux()
@@ -263,6 +265,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer) (_ *App, 
 	mux.HandleFunc("POST /admin/question-bank/{qid}/delete", a.admin(a.deleteBankQuestion))
 	mux.HandleFunc("POST /admin/question-bank/{qid}/publish", a.admin(a.publishBankQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/from-bank", a.admin(a.addFromBank))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/generate", a.admin(a.generateQuestions))
 	mux.HandleFunc("GET /courses/{id}/exam", a.requireLearner(a.learnerExam))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))

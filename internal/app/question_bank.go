@@ -3,11 +3,13 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
@@ -201,25 +203,11 @@ func (a *App) addFromBank(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	lang, err := a.language(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	topic, qlang := strings.TrimSpace(r.PostFormValue("topic")), r.PostFormValue("language")
-	count, err := strconv.Atoi(r.PostFormValue("count"))
-	msg := ""
-	switch {
-	case topic == "":
-		msg = "bank.err.topic"
-	case !text.Supported(qlang):
-		msg = "bank.err.language"
-	case err != nil || count < 1:
-		msg = "bank.err.count"
-	}
+	topic, qlang, count, msg := bankForm(r)
 	var added int64
 	if msg == "" {
-		if added, err = a.copyFromBank(r.Context(), e, topic, qlang, count); err != nil {
+		var err error
+		if added, err = a.copyFromBank(r.Context(), e, topic, qlang, count, nil); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -228,18 +216,112 @@ func (a *App) addFromBank(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if msg != "" {
-		if e.Topics, err = a.bankTopics(r.Context()); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		a.render(w, r, http.StatusUnprocessableEntity, "exam", page{Course: &c, Exam: &e, Error: text.T(lang, msg)})
+		a.examProblem(w, r, c, e, http.StatusUnprocessableEntity, msg)
 		return
 	}
 	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
 }
 
-// copyFromBank does addFromBank's copying in one transaction and returns how many questions it added.
-func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, count int) (int64, error) {
+// maxGenerated is the most questions one generation asks for, so the AI's reply fits its length cap.
+const maxGenerated = 50
+
+// generateQuestions fills the Exam with count questions on the topic in the language: matching published bank
+// questions first, as addFromBank takes them, then the AI writes the rest, which are saved as Drafts in the bank and
+// the Exam. When the AI fails nothing is saved.
+func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
+	c, e, ok := a.examFor(w, r)
+	if !ok {
+		return
+	}
+	topic, qlang, count, msg := bankForm(r)
+	if msg == "" && count > maxGenerated {
+		msg = "gen.err.count"
+	}
+	if msg != "" {
+		a.examProblem(w, r, c, e, http.StatusUnprocessableEntity, msg)
+		return
+	}
+	var banked int
+	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM bank_questions b WHERE `+bankMatch, e.ID, e.Format, topic, qlang).Scan(&banked)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	var written []examQuestion
+	if rest := count - banked; rest > 0 {
+		qs, err := aiwriter.Questions(r.Context(), a.writer, aiwriter.Request{Topic: topic, Format: e.Format, Language: qlang, Count: rest})
+		if msg = aiProblem(err); msg != "" {
+			a.logError(r, err)
+			a.examProblem(w, r, c, e, http.StatusServiceUnavailable, msg)
+			return
+		}
+		for _, q := range qs {
+			eq := examQuestion{Prompt: strings.TrimSpace(q.Prompt), Draft: true}
+			for i, o := range q.Options {
+				eq.Options[i] = examOption{Text: strings.TrimSpace(o.Text), Correct: o.Correct}
+			}
+			written = append(written, eq)
+		}
+	}
+	if _, err := a.copyFromBank(r.Context(), e, topic, qlang, count, written); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
+}
+
+// aiProblem is the message key for the AI writer's err, empty for none.
+func aiProblem(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, aiwriter.ErrNotConfigured):
+		return "gen.err.not-configured"
+	case errors.Is(err, aiwriter.ErrOverLimit):
+		return "gen.err.over-limit"
+	case errors.Is(err, aiwriter.ErrBadShape):
+		return "gen.err.bad-shape"
+	}
+	return "gen.err.unavailable"
+}
+
+// bankForm reads the topic, language and count the Exam page's bank and generate forms post. msg is the key of the
+// first problem, empty when the form is valid.
+func bankForm(r *http.Request) (topic, lang string, count int, msg string) {
+	topic, lang = strings.TrimSpace(r.PostFormValue("topic")), r.PostFormValue("language")
+	count, err := strconv.Atoi(r.PostFormValue("count"))
+	switch {
+	case topic == "":
+		msg = "bank.err.topic"
+	case !text.Supported(lang):
+		msg = "bank.err.language"
+	case err != nil || count < 1:
+		msg = "bank.err.count"
+	}
+	return topic, lang, count, msg
+}
+
+// examProblem shows the Exam's Admin page with the message msg names.
+func (a *App) examProblem(w http.ResponseWriter, r *http.Request, c course, e exam, status int, msg string) {
+	lang, err := a.language(r)
+	if err == nil {
+		e.Topics, err = a.bankTopics(r.Context())
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, status, "exam", page{Course: &c, Exam: &e, Error: text.T(lang, msg)})
+}
+
+// bankMatch picks, as b, the published bank questions of format $2, topic $3 (ignoring case) and language $4 that
+// Exam $1 has not copied yet.
+const bankMatch = `b.format = $2 AND lower(b.topic) = lower($3) AND b.language = $4 AND NOT b.is_draft
+	AND b.id NOT IN (SELECT bank_question_id FROM exam_questions WHERE exam_id = $1 AND bank_question_id IS NOT NULL)`
+
+// copyFromBank copies up to count bank questions as addFromBank does, then adds written as new bank questions under
+// the topic and language with copies in the Exam, all in one transaction. It returns how many it copied from the bank.
+func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, count int, written []examQuestion) (int64, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -253,9 +335,7 @@ func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, coun
 	err = tx.QueryRowContext(ctx, `
 		WITH picked AS (
 			SELECT id, prompt, row_number() OVER () AS n FROM (
-				SELECT b.id, b.prompt FROM bank_questions b
-				WHERE b.format = $2 AND lower(b.topic) = lower($3) AND b.language = $4 AND NOT b.is_draft
-					AND b.id NOT IN (SELECT bank_question_id FROM exam_questions WHERE exam_id = $1 AND bank_question_id IS NOT NULL)
+				SELECT b.id, b.prompt FROM bank_questions b WHERE `+bankMatch+`
 				ORDER BY random() LIMIT $5) r),
 		copied AS (
 			INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id)
@@ -267,6 +347,11 @@ func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, coun
 		SELECT count(*) FROM copied`, examID, e.Format, topic, lang, count).Scan(&added)
 	if err != nil {
 		return 0, err
+	}
+	for _, q := range written {
+		if err := insertBankedQuestion(ctx, tx, examID, e.Format, topic, lang, q); err != nil {
+			return 0, err
+		}
 	}
 	return added, tx.Commit()
 }

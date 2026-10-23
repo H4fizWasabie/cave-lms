@@ -43,6 +43,8 @@ Once per VPS. Run as root on the VPS.
 
    For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
 
+   For AI-written Exam questions, add the `OPENROUTER_` settings the same way (see AI writer below). Without them the Exam page says the AI writer is not configured.
+
 3. From your machine, run `deploy/deploy.sh` (next section).
 4. Create the Admin on the VPS. `systemd-run` runs it as `cave` with the service's own env file. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
 
@@ -111,6 +113,21 @@ Lab Datasets live in a private Cloudflare R2 bucket (ADR 0008); Postgres keeps o
    ```
 
 All four or none: with some set and others missing the app stops at start naming the missing ones (`journalctl -u cave-lms -n 20`); with none set Datasets stay on the disk under `STORAGE_DIR`. Failed reads and writes go to the System log; a failed upload tells the Learner and keeps their previous Dataset. The nightly backup does not cover this bucket.
+
+## AI writer
+
+From an Exam's Admin page, Generate questions takes matching published Question bank questions first, then asks the AI to write the rest through [OpenRouter](https://openrouter.ai) (ADR 0009). Only the topic, format, language and count are sent. The AI's questions arrive as Drafts in the Question bank and the Exam. One generation asks for at most 50 questions, with a reply capped at 16000 tokens and a 60-second timeout; a reply in the wrong shape is asked for once more, then reported, and nothing is saved.
+
+1. On OpenRouter, create an API key for Cave LMS and **set a monthly credit limit on it**, so a runaway month cannot overspend. Over the limit, the Exam page says so and nothing is saved.
+2. Add to `/etc/cave-lms/env` with an editor, then `systemctl restart cave-lms` (or deploy):
+
+   ```sh
+   OPENROUTER_API_KEY=sk-or-...
+   OPENROUTER_MODEL=...          # an OpenRouter model slug with structured outputs, e.g. openai/gpt-4o-mini
+   OPENROUTER_WEB_SEARCH=true    # optional: true (the default) or false
+   ```
+
+There is no built-in model: with the key or model unset the app starts and the Exam page says the AI writer is not configured; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt`, built into the binary: edit it and deploy to change the wording.
 
 ## Email
 

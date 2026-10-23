@@ -37,7 +37,8 @@
               <div class="field"><label for="language">{{t .Lang "bank.language"}}</label><select id="language" name="language"><option value="ms">{{t .Lang "bank.lang.ms"}}</option><option value="en">{{t .Lang "bank.lang.en"}}</option></select></div>
               <div class="field"><label for="count">{{t .Lang "bank.count"}}</label><input id="count" type="number" name="count" min="1" value="10" required></div>
             </div>
-            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.add"}}</button></div>
+            <p class="card-sub">{{t .Lang "gen.intro"}}</p>
+            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.add"}}</button><button class="btn btn-solid" formaction="{{.Exam.AdminPath "/generate"}}">{{t .Lang "gen.button"}}</button></div>
           </form>
         </div>
         <div class="card">
