@@ -99,12 +99,37 @@ _Malay_: Draf
 _Avoid_: Unpublished, pending, suggestion
 
 **Exam**:
-An auto-graded multiple-choice test belonging to a Course, with a pass mark.
+A timed test belonging to a Course, in one format, with a pass mark and an attempt limit. A Course has at most one Exam per format.
 _Malay_: Peperiksaan
 _Avoid_: Quiz, test, assessment
 
+**Multiple-choice Exam**:
+An Exam whose questions each have 2 to 5 options and one correct answer, marked automatically.
+_Malay_: Peperiksaan Objektif
+_Avoid_: Objective exam, MCQ, quiz
+
+**Written Exam**:
+An Exam whose questions the Learner answers in their own words, marked by the AI against a model answer, which the Admin can override.
+_Malay_: Peperiksaan Subjektif
+_Avoid_: Subjective exam, essay test
+
+**Result**:
+A Learner's mark and pass or fail on one Exam attempt, released 10 minutes after they submit, on the site and by email. It never shows answers; those come only once the Learner passes.
+_Malay_: Keputusan
+_Avoid_: Grade, score report
+
+**Answer sheet**:
+A PDF of a passed Exam attempt: every question with the Learner's answer and the correct or model answer. Emailed with the pass Result and downloadable after.
+_Malay_: Skema Jawapan
+_Avoid_: Answer key, marking scheme, transcript
+
+**Question bank**:
+Every Exam question ever written or generated, site-wide, each tagged with its topic and format. An Exam copies its questions from it.
+_Malay_: Bank Soalan
+_Avoid_: Library, question set
+
 **Certificate**:
-A PDF of completion issued automatically when a Learner has finished a Course's Lessons and passed its Exam. It has a unique ID anyone can check.
+A PDF of completion issued automatically when a Learner has finished a Course's Lessons and passed every one of its Exams. It has a unique ID anyone can check.
 _Malay_: Sijil
 _Avoid_: Diploma, award
 

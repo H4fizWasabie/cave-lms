@@ -1,0 +1,3 @@
+# Written Exam answers are marked by the AI through OpenRouter
+
+A Written Exam's answers are sent to OpenRouter for the AI to mark against each question's model answer, the Result is released 10 minutes after submitting, and the Admin can override any mark. This is the one place Learner-written content leaves the site for an AI service, which spec #23 had ruled out: the client wants Written Exams marked without an Admin reading every answer. Only the answer text and the question go out, never the Learner's name, email or other Results, and the privacy notice needs a line saying so that the client approves (ADR 0006) before Written Exams go live.
