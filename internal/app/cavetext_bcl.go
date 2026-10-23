@@ -123,7 +123,8 @@ func sameForm(formURL, link string) bool { return link != "" && formKey(formURL)
 // their CaveText account if they have not signed in yet. Each order counts once. A paid, live order that names no
 // Learner, pays less than the price or comes from another form is kept for an Admin. Test Mode payments, unpaid
 // orders and other events are answered 200 and only noted in the System log, so BCL does not retry them. A database
-// failure is answered 500, so BCL tries again. A wrong or unset key gets the not-found page. Nothing logged names the
+// failure is answered 500, so BCL tries again. With BCL_PAYMENTS=test (staging, ADR 0010) the two swap places:
+// Test Mode orders count and live ones are only noted. A wrong or unset key gets the not-found page. Nothing logged names the
 // key: every line gives the path as /cavetext/bcl/….
 func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	if a.bclWebhookKey == "" || subtle.ConstantTimeCompare([]byte(r.PathValue("key")), []byte(a.bclWebhookKey)) != 1 {
@@ -158,12 +159,16 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	test := b.Data.Main.Kind == "test"
 	switch {
 	case b.Event != "payment-success":
 		note("info", "order %s, event %q ignored", order, b.Event)
 	case !b.paid():
 		note("info", "order %s is not paid; ignored", order)
-	case b.Data.Main.Kind == "test":
+	case !test && a.bclTestPayments:
+		note("info", "order %s is a live payment on %s and this site counts only Test Mode (BCL_PAYMENTS=test); nothing given",
+			order, b.Data.FormURL)
+	case test && !a.bclTestPayments:
 		note("info", "order %s is a Test Mode payment on %s, subtotal %s, amount %s%s; nothing given",
 			order, b.Data.FormURL, b.Data.Main.Subtotal, b.Data.Main.Amount, couponFields(raw))
 	case order == "":

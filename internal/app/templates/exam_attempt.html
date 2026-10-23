@@ -3,28 +3,23 @@
     <div class="wrap wrap-narrow page-pad">
       <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
       {{with .Attempt}}
-      {{if .Finished}}
+      {{if .Released}}
       <div class="x-card x-result {{if .Passed}}is-pass{{else}}is-fail{{end}}">
         <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
         <h2 class="sr">{{t $.Lang "exam.result"}}</h2>
         <p class="x-score">{{.Score}}%</p>
         <p>{{t $.Lang "exam.score" .Score}}</p>
         <p class="x-verdict {{if .Passed}}x-pass{{else}}x-fail{{end}}">{{if .Passed}}{{t $.Lang "exam.passed" .PassMark}}{{else}}{{t $.Lang "exam.failed" .PassMark}}{{end}}</p>
-        <div class="x-wrong">
-          <h2>{{t $.Lang "exam.wrong-answers"}}</h2>
-          <ol>
-            {{range .Questions}}{{if not .Right}}<li>{{.Prompt}} <span>{{t $.Lang "exam.your-answer"}} {{with .Answer}}{{.}}{{else}}{{t $.Lang "exam.no-answer"}}{{end}}</span></li>{{end}}{{end}}
-          </ol>
-        </div>
       </div>
-      {{else if .TimedOut}}
+      {{else if or .Finished .TimedOut}}
       <div class="x-card">
-        <h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
-        <p class="x-help">{{t $.Lang "exam.timed-out"}}</p>
+        {{if .TimedOut}}<h1>{{t $.Lang "exam.for" $.Course.Title}}</h1>
+        <p class="x-help">{{t $.Lang "exam.timed-out"}}</p>{{else}}<h1>{{t $.Lang "exam.submitted"}}</h1>{{end}}
+        <p class="x-help">{{t $.Lang "exam.ready-at" (.ReadyAt $.Lang)}}</p>
       </div>
       {{else}}
       <div class="page-head"><h1>{{t $.Lang "exam.for" $.Course.Title}}</h1></div>
-      {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}}</span></div>{{end}}
+      {{with .TimeLimit}}<div class="x-top"><span>{{t $.Lang "exam.answer-all"}}</span><span class="x-timer" data-seconds-left="{{$.Attempt.SecondsLeft}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg>{{t $.Lang "exam.timer" .}} <strong class="x-countdown"></strong></span></div>{{end}}
       <form class="x-form" method="post" action="{{$.Exam.Path (printf "/attempts/%d/submit" .ID)}}">
         {{range $n, $q := .Questions}}
         <fieldset class="x-q">
@@ -36,6 +31,24 @@
         {{end}}
         <div class="x-submit"><p>{{t $.Lang "exam.final"}}</p><button class="btn btn-solid btn-lg">{{t $.Lang "exam.submit"}}</button></div>
       </form>
+      {{if .TimeLimit}}
+      <script>
+        // Counts down the time left and, at zero, submits the answers given so far. The server checks the time too.
+        (function () {
+          var timer = document.querySelector("[data-seconds-left]"), out = timer.querySelector(".x-countdown");
+          var form = document.querySelector(".x-form"), end = Date.now() + timer.dataset.secondsLeft * 1000;
+          (function tick() {
+            var left = Math.max(0, Math.round((end - Date.now()) / 1000));
+            out.textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+            if (left === 0) {
+              form.submit();
+            } else {
+              setTimeout(tick, 1000);
+            }
+          })();
+        })();
+      </script>
+      {{end}}
       {{end}}
       {{end}}
       <p class="mc-more"><a class="link-more" href="{{.Exam.Path ""}}">{{t .Lang "exam.back"}}</a></p>

@@ -27,6 +27,12 @@ type Config struct {
 	// BCLWebhookKey, from BCL_WEBHOOK_KEY, is the secret part of the address BCL posts payment webhooks to.
 	// Empty: every webhook is refused.
 	BCLWebhookKey string
+	// BCLTestPayments, from BCL_PAYMENTS=test (staging only, ADR 0010), counts BCL Test Mode orders as paid and
+	// ignores live ones. BCL_PAYMENTS unset or live: the reverse.
+	BCLTestPayments bool
+	// EmailAllowlist, from EMAIL_ALLOWLIST (comma-separated addresses, or "@domain" for a whole domain), is set on
+	// staging only: email goes to these alone, and every other message is kept in the System log. Empty: email goes to all.
+	EmailAllowlist []string
 	// R2AccountID, R2Bucket, R2AccessKeyID and R2SecretAccessKey pick the R2 bucket Datasets live in (ADR 0008).
 	// All or none: none set, Datasets stay on the disk under StorageDir.
 	R2AccountID       string
@@ -103,6 +109,18 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("CAVETEXT_EXTENSION_IDS: %q is not a Chrome extension ID", id)
 		}
 		cfg.CaveTextExtensionIDs = append(cfg.CaveTextExtensionIDs, id)
+	}
+	for _, e := range strings.Split(os.Getenv("EMAIL_ALLOWLIST"), ",") {
+		if e = strings.TrimSpace(e); e != "" {
+			cfg.EmailAllowlist = append(cfg.EmailAllowlist, e)
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("BCL_PAYMENTS"))) {
+	case "", "live":
+	case "test":
+		cfg.BCLTestPayments = true
+	default:
+		return Config{}, fmt.Errorf("BCL_PAYMENTS must be live or test")
 	}
 	// The key is the webhook's only proof of origin, so a short one is refused.
 	if k := cfg.BCLWebhookKey; k != "" && len(k) < 32 {

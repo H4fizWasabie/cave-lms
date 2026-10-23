@@ -1,0 +1,23 @@
+# Installed to /etc/systemd/system/cave-lms-staging.service by CAVE_ENV=staging deploy/deploy.sh. See docs/deploy.md, Staging.
+[Unit]
+Description=Cave LMS staging
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+User=cave_staging
+Group=cave_staging
+# Staging's own settings (docs/deploy.md, Staging). Mode 0600, owned by root.
+EnvironmentFile=/etc/cave-lms/staging.env
+ExecStart=/usr/local/bin/cave-lms-staging
+Restart=on-failure
+RestartSec=5
+# Creates /var/lib/cave-lms-staging owned by cave_staging; uploads live under it.
+StateDirectory=cave-lms-staging
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

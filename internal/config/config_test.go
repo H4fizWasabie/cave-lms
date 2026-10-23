@@ -18,6 +18,8 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "")
 	t.Setenv("OPENROUTER_MODEL", "")
 	t.Setenv("OPENROUTER_WEB_SEARCH", "")
+	t.Setenv("BCL_PAYMENTS", "")
+	t.Setenv("EMAIL_ALLOWLIST", "")
 	for _, name := range r2Env {
 		t.Setenv(name, "")
 	}
@@ -164,5 +166,33 @@ func TestLoadReadsOpenRouterConfigWithWebSearchOnByDefaultAndNoModel(t *testing.
 	t.Setenv("OPENROUTER_WEB_SEARCH", "maybe")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "OPENROUTER_WEB_SEARCH") {
 		t.Fatalf("Load() error = %v, want OPENROUTER_WEB_SEARCH error", err)
+	}
+}
+
+func TestLoadReadsWhichBCLPaymentsCountAndRefusesAnythingElse(t *testing.T) {
+	for value, want := range map[string]bool{"": false, "live": false, "test": true, " Test ": true} {
+		setValidEnvironment(t)
+		t.Setenv("BCL_PAYMENTS", value)
+		cfg, err := Load()
+		if err != nil || cfg.BCLTestPayments != want {
+			t.Errorf("BCL_PAYMENTS=%q: BCLTestPayments = %v, err %v; want %v", value, cfg.BCLTestPayments, err, want)
+		}
+	}
+	setValidEnvironment(t)
+	t.Setenv("BCL_PAYMENTS", "tset")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BCL_PAYMENTS") {
+		t.Fatalf("Load() error = %v, want a BCL_PAYMENTS error", err)
+	}
+}
+
+func TestLoadReadsTheEmailAllowList(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("EMAIL_ALLOWLIST", " abah@example.com, ,@client.example ")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(cfg.EmailAllowlist, "|"); got != "abah@example.com|@client.example" {
+		t.Fatalf("EmailAllowlist = %q", got)
 	}
 }
