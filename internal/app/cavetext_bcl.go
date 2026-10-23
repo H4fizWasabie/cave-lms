@@ -76,11 +76,11 @@ func (b *bclWebhookBody) cavelmsEmail() string {
 	return ""
 }
 
+// formKey is a form address with case and a trailing slash ignored, as BCL may send either.
+func formKey(s string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), "/")) }
+
 // sameForm says whether a webhook's form address is a payment link, ignoring case and a trailing slash.
-func sameForm(formURL, link string) bool {
-	norm := func(s string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), "/")) }
-	return link != "" && norm(formURL) == norm(link)
-}
+func sameForm(formURL, link string) bool { return link != "" && formKey(formURL) == formKey(link) }
 
 // bclWebhook takes BCL's webhooks. A paid, live order on the form a product's payment link points to gives that
 // product (see recordPayment) to the Learner named in the form's CAVELMS email field, or failing that the payer's email, creating

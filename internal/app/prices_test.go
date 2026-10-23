@@ -68,6 +68,8 @@ func TestThePricesPageRefusesANormalPriceNotAboveThePriceAndOtherMistakes(t *tes
 		{map[string]string{"lab-plan_link": "ftp://bcl.my/pay"}, "http:// or https://"},
 		{map[string]string{"lab-plan_link": "https://bcl.my/pay/same", "pro-plan_link": "https://bcl.my/pay/same"},
 			"Pro Plan: Enter a payment link no other product uses"}, // the webhook would give the first product it matches
+		{map[string]string{"lab-plan_link": "https://bcl.my/pay/same", "pro-plan_link": "https://BCL.my/pay/same/"},
+			"Pro Plan: Enter a payment link no other product uses"}, // the webhook ignores case and a trailing slash too
 	} {
 		res, body := s.savePrices(c.changes)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)

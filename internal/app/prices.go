@@ -123,10 +123,10 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 			msg = "prices.err.normal-low"
 		case pr.PaymentLink != "" && !isWebLink(pr.PaymentLink):
 			msg = "prices.err.link"
-		case pr.PaymentLink != "" && links[pr.PaymentLink]:
+		case pr.PaymentLink != "" && links[formKey(pr.PaymentLink)]:
 			msg = "prices.err.link-shared"
 		}
-		links[pr.PaymentLink] = true
+		links[formKey(pr.PaymentLink)] = true
 		if msg != "" && p.Error == "" {
 			p.Error = text.T(lang, "prices."+product) + ": " + text.T(lang, msg)
 		}
@@ -163,8 +163,24 @@ func (a *App) plans(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if learner != nil { // CaveText Pro running: its Buy reads Renew, as on /cavetext
+		var pro bool
+		if err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM cavetext_pro_periods pp
+			WHERE pp.learner_id = $1 AND `+activePeriodSQL+`)`, learner.ID).Scan(&pro); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		for i := range offers {
+			offers[i].Renew = pro && offers[i].Product == caveTextProProduct
+		}
+	}
 	a.render(w, r, http.StatusOK, "plans", &struct {
 		pageBase
 		Offers []offer
-	}{Offers: offers})
+	}{pageBase: pageBase{Learner: learner}, Offers: offers})
 }

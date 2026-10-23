@@ -110,7 +110,7 @@ func TestInvalidProgrammesAreRefusedWithAMessage(t *testing.T) {
 		{"  ", "2099-03-01", "Two days.", "", "Enter a title."},
 		{"AI Bootcamp", "", "Two days.", "", "Enter a start date."},
 		{"AI Bootcamp", "2099-03-01", "  ", "", "Enter a blurb."},
-		{"AI Bootcamp", "2099-03-01", "Two days.", "javascript:alert(1)", "Enter the link as a full web address starting with https://"},
+		{"AI Bootcamp", "2099-03-01", "Two days.", "javascript:alert(1)", "Enter the link as a full web address starting with http:// or https://"},
 	} {
 		res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": tc.title, "starts_on": tc.startsOn, "blurb": tc.blurb, "link": tc.link}, nil)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, tc.want)

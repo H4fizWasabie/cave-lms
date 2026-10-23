@@ -43,3 +43,13 @@ func TestThePlansPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedByHa
 	_, body = ada.getAsking("/plans", "ms")
 	expectInOrder(t, content(body), "<h1>Pelan</h1>", "RM25 setahun", "Beli CaveText Pro")
 }
+
+func TestThePlansPageOffersToRenewCaveTextProWhileItRuns(t *testing.T) {
+	s := caveTextAdminSite(t)
+	s.savePrices(map[string]string{"cavetext-pro_link": "https://pay.example.com/cavetext", "lab-plan_link": "https://pay.example.com/lab",
+		"pro-plan_link": "https://pay.example.com/pro"})
+	ada, _ := s.newCaveTextLearner("Ada", "ada@example.com")
+	s.givePro("ada@example.com")
+	_, body := ada.getAsking("/plans", "en")
+	expectAll(t, content(body), `href="https://pay.example.com/cavetext">Renew CaveText Pro</a>`, ">Buy Lab Plan</a>", ">Buy Pro Plan</a>")
+}
