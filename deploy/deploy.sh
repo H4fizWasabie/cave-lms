@@ -13,6 +13,17 @@ if ! git merge-base --is-ancestor origin/main HEAD; then
 	exit 1
 fi
 
+# The build uses the working tree, so ship only a clean commit that CI passed.
+if ! git diff --quiet HEAD || [ -n "$(git ls-files --others --exclude-standard -- '*.go' go.mod go.sum deploy)" ]; then
+	echo "This checkout has uncommitted changes; CI never tested them. Commit, push and wait for CI first." >&2
+	exit 1
+fi
+sha="$(git rev-parse HEAD)"
+if [ "$(gh run list --workflow ci.yml --commit "$sha" --status success --limit 1 --json databaseId --jq length)" != 1 ]; then
+	echo "CI has not passed on $sha; see: gh run list --commit $sha" >&2
+	exit 1
+fi
+
 build="$(mktemp -d)"
 trap 'rm -rf "$build"' EXIT
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$build/cave-lms" ./cmd/cave-lms
