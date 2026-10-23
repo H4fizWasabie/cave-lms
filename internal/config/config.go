@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -38,6 +39,12 @@ type Config struct {
 	R2Bucket          string
 	R2AccessKeyID     string
 	R2SecretAccessKey string
+	// OpenRouterAPIKey and OpenRouterModel let the AI write Exam questions through OpenRouter (ADR 0009). There is no
+	// built-in model: either unset, the Admin is told the AI is not configured.
+	OpenRouterAPIKey string
+	OpenRouterModel  string
+	// OpenRouterWebSearch, from OPENROUTER_WEB_SEARCH (true or false, true when unset), turns on OpenRouter's web search.
+	OpenRouterWebSearch bool
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
 }
@@ -53,6 +60,17 @@ func Load() (Config, error) {
 		OwnerEmail:     strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
 		BCLWebhookKey:  strings.TrimSpace(os.Getenv("BCL_WEBHOOK_KEY")),
 		MaxUploadBytes: 2 << 30,
+
+		OpenRouterAPIKey:    strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
+		OpenRouterModel:     strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")),
+		OpenRouterWebSearch: true,
+	}
+	if v := strings.TrimSpace(os.Getenv("OPENROUTER_WEB_SEARCH")); v != "" {
+		on, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("OPENROUTER_WEB_SEARCH must be true or false")
+		}
+		cfg.OpenRouterWebSearch = on
 	}
 	var r2Missing []string
 	for _, v := range []struct {

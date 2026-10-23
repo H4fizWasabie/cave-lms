@@ -361,6 +361,13 @@ var catalog = map[string]entry{
 	"bank.add-intro":              {en: "Copies published questions of this topic and language, at random, skipping ones this Exam already has.", ms: "Menyalin soalan diterbitkan bagi topik dan bahasa ini, secara rawak, kecuali yang sudah ada dalam Peperiksaan ini."},
 	"bank.count":                  {en: "How many", ms: "Bilangan"},
 	"bank.lang.en":                {en: "English", ms: "Bahasa Inggeris"},
+	"gen.button":                  {en: "Generate questions", ms: "Jana soalan"},
+	"gen.intro":                   {en: "Generating takes matching bank questions first, then the AI writes the rest as Drafts in the Question bank and this Exam, for you to check and publish.", ms: "Penjanaan mengambil soalan bank yang sepadan dahulu, kemudian AI menulis selebihnya sebagai Draf dalam Bank Soalan dan Peperiksaan ini, untuk anda semak dan terbitkan."},
+	"gen.err.count":               {en: "Generate at most 50 questions at a time.", ms: "Jana paling banyak 50 soalan pada satu masa."},
+	"gen.err.not-configured":      {en: "The AI writer is not configured yet, so no questions were added. Ask the developer to set the OpenRouter key and model.", ms: "Penulis AI belum ditetapkan, jadi tiada soalan ditambah. Minta pembangun menetapkan kunci dan model OpenRouter."},
+	"gen.err.unavailable":         {en: "The AI service is unavailable right now, so no questions were added. Try again in a few minutes.", ms: "Perkhidmatan AI tidak tersedia sekarang, jadi tiada soalan ditambah. Cuba lagi dalam beberapa minit."},
+	"gen.err.over-limit":          {en: "The AI key is over its spending limit, so no questions were added. Raise the limit on OpenRouter or wait until it resets.", ms: "Kunci AI telah melebihi had perbelanjaannya, jadi tiada soalan ditambah. Naikkan had di OpenRouter atau tunggu sehingga ia ditetapkan semula."},
+	"gen.err.bad-shape":           {en: "The AI's questions came back in the wrong shape twice, so none were saved. Try again.", ms: "Soalan daripada AI kembali dalam bentuk yang salah dua kali, jadi tiada yang disimpan. Cuba lagi."},
 
 	// A Course's enrolled Learners
 	"adm.course.enrolled":     {en: "Enrolled Learners", ms: "Pelajar yang menyertai"},
