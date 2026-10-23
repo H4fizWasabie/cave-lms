@@ -58,6 +58,7 @@ type App struct {
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
+	routes    []string // every registered pattern, for tests
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -166,7 +167,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.dailyPrune(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
-	mux := http.NewServeMux()
+	mux := routeMux{http.NewServeMux(), &a.routes}
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("/", a.notFound) // any other address
 	mux.Handle("GET /static/", staticHandler())
