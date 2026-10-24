@@ -74,17 +74,15 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	}
 
 	d := &Dataset{}
-	if cols, errs := columnsOf(cells[h]); errs != nil {
-		return nil, errs[0]
-	} else {
-		d.Columns = cols
+	if d.Columns, err = columnsOf(cells[h]); err != nil {
+		return nil, err
 	}
 	raw, rowNo := rawRows(f, sheet, cells, h, len(d.Columns))
 	if len(raw) == 0 {
 		return nil, Problem{"lab.err.no-data", nil}
 	}
 	if len(raw) > MaxRows {
-		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows)}}
+		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows), thousands(rowNo[MaxRows])}}
 	}
 	for ci := range d.Columns {
 		d.Columns[ci].Type = columnType(raw, ci)

@@ -49,8 +49,8 @@ func (t *Template) Check(c Choices, d *Dataset) error {
 
 // Generate writes a Dashboard: index.html, which loads charts.js beside it and its data from dataURL, and
 // data.json, the Dataset as one object per row. Blocks that need a skipped blank are left out.
-// Choices that do not fit the Dataset give a Problem; blank cells in a
-// column chosen for a required blank give Errors, one per cell.
+// Choices that do not fit the Dataset give a Problem, as does a blank cell in a column chosen for a
+// required blank: the first such cell, by its Excel row.
 func Generate(t *Template, name string, c Choices, d *Dataset, dataURL string) (index, data []byte, err error) {
 	if t.Build != nil {
 		t, c = t.Build(d)
@@ -67,16 +67,12 @@ func Generate(t *Template, name string, c Choices, d *Dataset, dataURL string) (
 		columns[b.Key] = chosenColumn{Name: col, Type: b.Type, Money: b.Money}
 		required[col] = required[col] || b.Required
 	}
-	var blanks Errors
 	for ri, row := range d.Rows {
 		for ci, v := range row {
 			if v == nil && required[d.Columns[ci].Name] {
-				blanks = append(blanks, emptyCell(d.rowNumber(ri), d.Columns[ci].Name))
+				return nil, nil, emptyCell(d.rowNumber(ri), d.Columns[ci].Name)
 			}
 		}
-	}
-	if blanks != nil {
-		return nil, nil, blanks
 	}
 
 	blocks := t.included(c)

@@ -372,10 +372,10 @@ type dashboardPage struct {
 	pageBase
 	Dashboard *dashboard
 	Tab       string
-	Errors    []string // what was wrong with an upload
-	Upload    string   // the refused file's name
-	Failed    bool     // the store refused the upload's Dataset
-	Again     bool     // a re-upload did not fit the column choices, so Cave guessed them again
+	Problem   string // why an upload could not be read, or why a column has blank cells
+	Upload    string // the refused file's name
+	Failed    bool   // the store refused the upload's Dataset
+	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
 	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
 	Phone     bool            // preview at phone width
@@ -483,8 +483,8 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		return
 	}
 	name := ""
-	refuse := func(errs ...string) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Errors: errs, Upload: name})
+	refuse := func(problem string) {
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem, Upload: name})
 	}
 	tooBig := text.T(lang, "lab.err.too-big")
 	r.Body = http.MaxBytesReader(w, r.Body, maxDatasetUpload)
@@ -523,9 +523,9 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		return
 	}
 	ds, err := lab.Read(file, d.Template)
-	var problems lab.Errors
-	if errors.As(err, &problems) {
-		refuse(problems.In(lang)...)
+	var problem lab.Problem
+	if errors.As(err, &problem) {
+		refuse(problem.In(lang))
 		return
 	}
 	if err != nil {
@@ -534,8 +534,8 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds, ""); errors.As(err, &problems) {
-		refuse(problems.In(lang)...) // blank cells in a column the Learner chose for a required blank
+	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds, ""); errors.As(err, &problem) && problem.Key == "lab.err.empty-cell" {
+		refuse(problem.In(lang)) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
 		choices, next = d.Template.Guess(ds), dashboardURL(d)+"/columns"
@@ -756,11 +756,10 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 		d.Choices = c
 		p := &dashboardPage{Dashboard: d, Tab: "columns", Access: acc}
-		var blanks lab.Errors
 		var choice lab.Problem
 		switch {
-		case errors.As(err, &blanks):
-			p.Errors = blanks.In(lang)
+		case errors.As(err, &choice) && choice.Key == "lab.err.empty-cell":
+			p.Problem = choice.In(lang)
 		case errors.As(err, &choice):
 			p.Error = choice.In(lang)
 		default:

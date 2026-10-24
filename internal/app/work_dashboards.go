@@ -96,7 +96,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	res, err := lab.Clean(file, d.Template, lab.Settings{})
 	var problem lab.Problem
 	if errors.As(err, &problem) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Errors: []string{problem.In(lang)}, Upload: name})
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem.In(lang), Upload: name})
 		return
 	}
 	if err != nil {

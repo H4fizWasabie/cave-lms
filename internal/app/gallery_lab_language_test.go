@@ -126,8 +126,7 @@ func TestTheLabsFileAndColumnErrorsAreInMalay(t *testing.T) {
 
 	bad := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{day, "dua ratus"}, []any{"31/02/2026", 5}, []any{day, nil})
 	res, body := ada.postFile(path+"/dataset", "bad.xlsx", bad)
-	for _, want := range []string{"Baris 2, Jumlah: bukan nombor (&#34;dua ratus&#34;).", "Baris 3, Tarikh: bukan tarikh",
-		"Baris 4, Jumlah: kosong, tetapi lajur ini wajib diisi."} {
+	for _, want := range []string{"Baris 2, Jumlah: bukan nombor (&#34;dua ratus&#34;).", "Betulkan perkara ini dalam Excel, simpan, dan muat naik semula."} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
 	}
 	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))

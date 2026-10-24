@@ -53,11 +53,11 @@
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
           <p class="muted">{{t .Lang "lab.d.upload-yours-body" .Dashboard.Template.Name}}</p>
           {{- end}}
-          {{- with .Errors}}
+          {{- with .Problem}}
           <div class="ds-err" role="alert">
             <p><strong>{{if $.Upload}}{{t $.Lang "lab.d.not-read" $.Upload}}{{else}}{{t $.Lang "lab.d.not-read-file"}}{{end}}</strong></p>
-            <ul>{{range .}}<li>{{.}}</li>{{end}}</ul>
-            <p>{{if gt (len .) 1}}{{t $.Lang "lab.d.fix-these"}}{{else}}{{t $.Lang "lab.d.fix-this"}}{{end}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+            <p>{{.}}</p>
+            <p>{{t $.Lang "lab.d.fix-this"}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           {{- if .Failed}}
@@ -178,8 +178,8 @@
         </div>
         {{if .Again}}<p class="up-err" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t .Lang "lab.d.again"}}</p>{{end}}
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-        {{- with .Errors}}
-        <div class="ds-err" role="alert"><ul>{{range .}}<li>{{.}}</li>{{end}}</ul><p>{{t $.Lang "lab.d.pick-another"}}</p></div>
+        {{- with .Problem}}
+        <div class="ds-err" role="alert"><p>{{.}}</p><p>{{t $.Lang "lab.d.pick-another"}}</p></div>
         {{- end}}
         {{- range .Blanks}}
         <div class="field map-row">
