@@ -19,6 +19,8 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("OPENROUTER_MODEL", "")
 	t.Setenv("OPENROUTER_WEB_SEARCH", "")
 	t.Setenv("BCL_PAYMENTS", "")
+	t.Setenv("BCL_API_TOKEN", "")
+	t.Setenv("BCL_API_URL", "")
 	t.Setenv("EMAIL_ALLOWLIST", "")
 	for _, name := range r2Env {
 		t.Setenv(name, "")
@@ -123,6 +125,20 @@ func TestLoadReadsALongEnoughBCLWebhookKey(t *testing.T) {
 	t.Setenv("BCL_WEBHOOK_KEY", "short")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BCL_WEBHOOK_KEY") {
 		t.Fatalf("Load() error = %v, want BCL_WEBHOOK_KEY error", err)
+	}
+}
+
+func TestLoadReadsTheBCLAPITokenAndDefaultsItsURLToBCL(t *testing.T) {
+	setValidEnvironment(t)
+	cfg, err := Load()
+	if err != nil || cfg.BCLAPIToken != "" || cfg.BCLAPIURL != "https://bcl.my/api" {
+		t.Fatalf("unset: BCLAPIToken = %q, BCLAPIURL = %q, err = %v; want empty, https://bcl.my/api", cfg.BCLAPIToken, cfg.BCLAPIURL, err)
+	}
+	t.Setenv("BCL_API_TOKEN", " tok ")
+	t.Setenv("BCL_API_URL", "http://127.0.0.1:9/api/")
+	cfg, err = Load()
+	if err != nil || cfg.BCLAPIToken != "tok" || cfg.BCLAPIURL != "http://127.0.0.1:9/api" {
+		t.Fatalf("set: BCLAPIToken = %q, BCLAPIURL = %q, err = %v", cfg.BCLAPIToken, cfg.BCLAPIURL, err)
 	}
 }
 

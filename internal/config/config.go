@@ -30,6 +30,12 @@ type Config struct {
 	// BCLTestPayments, from BCL_PAYMENTS=test (staging only, ADR 0010), counts BCL Test Mode orders as paid and
 	// ignores live ones. BCL_PAYMENTS unset or live: the reverse.
 	BCLTestPayments bool
+	// BCLAPIToken, from BCL_API_TOKEN, is a BCL API Read token. Set, each paid order is looked up at BCLAPIURL and
+	// gives nothing unless BCL reports it paid, for the same amount and payer email. Empty: orders are not confirmed,
+	// so anyone who learns the webhook address can forge one.
+	BCLAPIToken string
+	// BCLAPIURL, from BCL_API_URL, is BCL's API; https://bcl.my/api when unset. Tests point it elsewhere.
+	BCLAPIURL string
 	// EmailAllowlist, from EMAIL_ALLOWLIST (comma-separated addresses, or "@domain" for a whole domain), is set on
 	// staging only: email goes to these alone, and every other message is kept in the System log. Empty: email goes to all.
 	EmailAllowlist []string
@@ -60,6 +66,8 @@ func Load() (Config, error) {
 		StorageDir:     strings.TrimSpace(os.Getenv("STORAGE_DIR")),
 		OwnerEmail:     strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
 		BCLWebhookKey:  strings.TrimSpace(os.Getenv("BCL_WEBHOOK_KEY")),
+		BCLAPIToken:    strings.TrimSpace(os.Getenv("BCL_API_TOKEN")),
+		BCLAPIURL:      strings.TrimRight(strings.TrimSpace(os.Getenv("BCL_API_URL")), "/"),
 		MaxUploadBytes: 2 << 30,
 
 		OpenRouterAPIKey:    strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
@@ -126,6 +134,9 @@ func Load() (Config, error) {
 	// The key is the webhook's only proof of origin, so a short one is refused.
 	if k := cfg.BCLWebhookKey; k != "" && len(k) < 32 {
 		return Config{}, fmt.Errorf("BCL_WEBHOOK_KEY must be at least 32 characters")
+	}
+	if cfg.BCLAPIURL == "" {
+		cfg.BCLAPIURL = "https://bcl.my/api"
 	}
 	if cfg.ListenAddr == "" {
 		cfg.ListenAddr = ":8080"

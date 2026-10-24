@@ -3,9 +3,11 @@ package app_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -316,4 +318,168 @@ func TestATestModePaymentIsLoggedWithItsAmountsAndAnyCoupon(t *testing.T) {
 	expectAll(t, body, "order LINK-5 is a Test Mode payment", "subtotal 249.00", "amount 100.00",
 		"coupon_code=CAVETEST", "discount_amount=150.00", "nothing given")
 	expectNone(t, body, "no Pro given")
+}
+
+const bclToken = "bcl-api-read-token"
+
+// bclOrder is an order as BCL's transaction API reports it.
+type bclOrder struct{ amount, email, status string }
+
+// confirmed is how BCL reports paid(order, email): RM26 charged, successful.
+func confirmed(email string) bclOrder { return bclOrder{amount: "26.00", email: email, status: "3"} }
+
+// fakeBCL is BCL's transaction API: it reports each of orders, says 404 for any other, and answers 503 while down.
+type fakeBCL struct {
+	url    string
+	orders map[string]bclOrder
+	mu     sync.Mutex
+	down   bool
+	asked  []*http.Request
+}
+
+func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
+	t.Helper()
+	f := &fakeBCL{orders: orders}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.asked = append(f.asked, r)
+		number := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+		o, known := f.orders[number]
+		switch {
+		case f.down:
+			http.Error(w, "down", http.StatusServiceUnavailable)
+		case !known:
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"message":"Transaction not found"}`))
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"success": true, "data": map[string]any{
+				"transaction": map[string]any{"order_number": number, "amount": o.amount, "payer_name": "Payer",
+					"payer_email": o.email, "payer_telephone_number": "+60123456789", "status": o.status,
+					"created_at": "23 Oct 2026, 12:31 PM", "updated_at": "23 Oct 2026, 12:32 PM"},
+				"payment_status": "Successful"}})
+		}
+	}))
+	t.Cleanup(server.Close)
+	f.url = server.URL
+	return f
+}
+
+// lastAsked is the last request BCL's API received.
+func (f *fakeBCL) lastAsked(t *testing.T) *http.Request {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.asked) == 0 {
+		t.Fatal("BCL's API was never asked")
+	}
+	return f.asked[len(f.asked)-1]
+}
+
+// confirmingSite is bclSite with a BCL API token, so each order is looked up in bcl before it gives anything.
+func confirmingSite(t *testing.T, bcl *fakeBCL, opts ...func(*config.Config)) *site {
+	t.Helper()
+	return bclSite(t, append([]func(*config.Config){func(c *config.Config) {
+		c.BCLAPIToken = bclToken
+		c.BCLAPIURL = bcl.url
+	}}, opts...)...)
+}
+
+func TestAnOrderBCLDoesNotKnowIsLoggedAndGivesNothing(t *testing.T) {
+	s := confirmingSite(t, newFakeBCL(t, nil))
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(paid("FORGED-1", "ada@example.com"))
+	s.bclPay(paid("FORGED-2", "nobody@example.com"))
+	if ada.me(token).Pro {
+		t.Fatalf("an order BCL does not know gave Pro")
+	}
+	_, body := s.get("/admin/cavetext")
+	expectNone(t, body, "FORGED-1", "FORGED-2")
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "order FORGED-1 is not one BCL knows", "order FORGED-2 is not one BCL knows")
+	expectNone(t, body, bclToken, bclKey)
+}
+
+func TestAnOrderBCLConfirmsGivesProAndIsLookedUpWithTheToken(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed(" Ada@Example.com ")})
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(paid("LINK-1", "ada@example.com"))
+	expectProForAYear(t, ada, token)
+	asked := bcl.lastAsked(t)
+	if asked.URL.Path != "/transactions/LINK-1" {
+		t.Errorf("asked BCL for %s, want /transactions/LINK-1, which finds live orders", asked.URL.Path)
+	}
+	if got := asked.Header.Get("Authorization"); got != "Bearer "+bclToken {
+		t.Errorf("Authorization = %q, want the token as a Bearer", got)
+	}
+	if got := asked.Header.Get("Accept"); got != "application/json" {
+		t.Errorf("Accept = %q, want application/json", got)
+	}
+	if ua := asked.Header.Get("User-Agent"); ua == "" || strings.HasPrefix(ua, "Go-http-client") {
+		t.Errorf("User-Agent = %q, which BCL blocks", ua)
+	}
+}
+
+// Staging counts Test Mode orders, which BCL's /transactions/ does not find, so it asks /transaction/ (ADR 0010).
+func TestWithTestPaymentsATestModeOrderIsLookedUpWhereBCLFindsTestOrders(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	test := paid("LINK-1", "ada@example.com")
+	test.kind = "test"
+	s.bclPay(test)
+	expectProForAYear(t, ada, token)
+	if got := bcl.lastAsked(t).URL.Path; got != "/transaction/LINK-1" {
+		t.Errorf("asked BCL for %s, want /transaction/LINK-1", got)
+	}
+}
+
+func TestAnOrderBCLReportsDifferentlyIsLoggedAndGivesNothing(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{
+		"LINK-1": {amount: "1.00", email: "ada@example.com", status: "3"},   // cheaper than the webhook says
+		"LINK-2": {amount: "26.00", email: "eve@example.com", status: "3"},  // someone else's order
+		"LINK-3": {amount: "26.00", email: "ada@example.com", status: "2"},  // failed
+		"LINK-4": {amount: "26.00", email: "ada@example.com", status: "3"},  // real, but the body claims a dearer order
+		"LINK-5": {amount: "twenty", email: "ada@example.com", status: "3"}, // unreadable
+	})
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	dearer := paid("LINK-4", "ada@example.com")
+	dearer.subtotal = "249.00" // what a Pro Plan costs, though BCL charged RM26
+	for _, p := range []bclPayment{paid("LINK-1", "ada@example.com"), paid("LINK-2", "ada@example.com"),
+		paid("LINK-3", "ada@example.com"), dearer, paid("LINK-5", "ada@example.com")} {
+		s.bclPay(p)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("an order BCL reports differently gave Pro")
+	}
+	_, body := s.get("/admin/cavetext")
+	expectNone(t, body, "LINK-1", "LINK-2", "LINK-3", "LINK-4", "LINK-5")
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "order LINK-1 is for 1.00 at BCL, not 26.00", "order LINK-2 was paid by eve@example.com at BCL, not ada@example.com",
+		"order LINK-3 has status 2 at BCL", "order LINK-4 charged 26.00 at BCL, under the RM249", "order LINK-5 is for twenty at BCL, not 26.00")
+	expectNone(t, body, bclToken)
+}
+
+func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	bcl.down = true
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook while BCL is down: status %d, want 500", code)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("an order BCL could not confirm gave Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: confirm with BCL")
+	expectNone(t, body, bclToken)
+
+	bcl.mu.Lock()
+	bcl.down = false
+	bcl.mu.Unlock()
+	s.bclPay(paid("LINK-1", "ada@example.com")) // BCL's retry
+	expectProForAYear(t, ada, token)
 }
