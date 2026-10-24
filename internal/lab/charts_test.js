@@ -98,6 +98,13 @@ eq(C.paused({ kind: 'line', value: { agg: 'count' }, x: 'Tarikh', split: 'Cawang
 eq(C.paused({ kind: 'table', cols: ['Tarikh', 'Nota'], sort: 'Tarikh' }, cols), true, 'paused by table column');
 eq(C.paused({ kind: 'card', value: { agg: 'count' }, filter: { col: 'Doktor', vals: ['A'] } }, cols), true, 'paused by filter');
 eq(C.paused({ kind: 'card', value: { agg: 'count' }, low: ['Kos', 'Paras'] }, cols), true, 'paused by low');
+// A column of the same name and another type is as good as missing.
+eq(C.paused({ kind: 'card', value: { agg: 'sum', col: 'Staf' } }, cols), true, 'paused by a retyped value column');
+eq(C.paused({ kind: 'bar', value: { agg: 'count' }, group: 'Jumlah' }, cols), true, 'paused by a retyped group');
+eq(C.paused({ kind: 'line', value: { agg: 'count' }, x: 'Staf' }, cols), true, 'paused by a retyped date');
+eq(C.paused({ kind: 'card', value: { agg: 'count' }, where: ['Kos', 'Masuk'] }, cols), true, 'paused by a retyped lock column');
+eq(C.paused({ kind: 'card', value: { agg: 'distinct', col: 'Jumlah' } }, cols), false, 'distinct counts any type');
+eq(C.paused({ kind: 'table', cols: ['Jumlah', 'Staf'], sort: 'Kos' }, cols), false, 'a table shows any type');
 
 // A Practice block reads as the same Work block.
 eq(C.fromPractice({ kind: 'card', label: 'Stock value', agg: 'sum', of: 'q', times: 'p' }).value,

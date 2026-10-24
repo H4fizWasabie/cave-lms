@@ -294,7 +294,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		}
 		b.Filter = &lab.Filter{Col: col, Vals: vals}
 	}
-	b.Fill(ds)
+	b.Fill(ds, old.Missing(ds)...)
 	switch typed := strings.TrimSpace(f.Get("label")); {
 	case typed == "":
 		b.Label, b.LabelSet = b.AutoLabel(lang), false

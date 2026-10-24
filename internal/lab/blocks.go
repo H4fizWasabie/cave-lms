@@ -270,11 +270,11 @@ func (d *Dataset) first(t Type, skip ...string) string {
 }
 
 // Fill gives each option the block's kind needs and the editor left empty, or set to a column of the wrong
-// type, its default for d; options the kind does not use are cleared. A column the Dataset lacks is left as it
-// is, so the block can say what it needs.
-func (b *WorkBlock) Fill(d *Dataset) {
+// type, its default for d; options the kind does not use are cleared. A column the Dataset lacks, or one in
+// paused, is left as it is, so the block can say what it needs.
+func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	fit := func(col string, t Type) string {
-		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t) {
+		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t && !slices.Contains(paused, col)) {
 			return d.first(t)
 		}
 		return col
@@ -306,7 +306,7 @@ func (b *WorkBlock) Fill(d *Dataset) {
 		v.Col, v.A, v.Op, v.B, v.Then = fit(v.Col, ""), "", "", "", ""
 	case "calc":
 		v.Col, v.A = "", fit(v.A, Number)
-		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number) {
+		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number && !slices.Contains(paused, v.B)) {
 			if v.B = d.first(Number, v.A); v.B == "" {
 				v.B = v.A
 			}
@@ -343,7 +343,7 @@ func (b *WorkBlock) Fill(d *Dataset) {
 	case "bar", "donut":
 		b.Group = fit(b.Group, Text)
 	}
-	if have := d.typeOf(b.Split); have != "" && have != Text {
+	if have := d.typeOf(b.Split); have != "" && have != Text && !slices.Contains(paused, b.Split) {
 		b.Split = ""
 	}
 }
@@ -356,7 +356,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	col := func(name string, t Type) error {
 		have := d.typeOf(name)
 		switch {
-		case have == "" && slices.Contains(paused, name):
+		case slices.Contains(paused, name):
 			return nil
 		case name == "" && d.first(t) == "":
 			return Problem{"lab.err.block-none", []any{typeWord(t)}}
@@ -573,12 +573,13 @@ func (b *WorkBlock) uses() []Use {
 	return out
 }
 
-// Missing are the columns the block names that d lacks. While any is missing the block is paused: left off
-// the Dashboard and its Deployment, and back by itself once a Dataset has the column again.
+// Missing are the columns the block names that d lacks, or has of another type than the block needs. While any
+// is missing the block is paused: left off the Dashboard and its Deployment, and back by itself once a Dataset
+// has the column again.
 func (b *WorkBlock) Missing(d *Dataset) []string {
 	var out []string
 	for _, u := range b.uses() {
-		if d.typeOf(u.Name) == "" && !slices.Contains(out, u.Name) {
+		if !u.Fits(d) && !slices.Contains(out, u.Name) {
 			out = append(out, u.Name)
 		}
 	}

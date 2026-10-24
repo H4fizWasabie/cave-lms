@@ -176,6 +176,26 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 	}
 }
 
+func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+		[]any{day, "Gula", "Dapur", "Keluar", "lapan puluh"}, []any{day, "Jualan", "Kedai", "Masuk", "tujuh ratus"}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"use:Jumlah": {""}})
+	res, body = ada.get(path + "/blocks")
+	expectStatus(t, res, body, http.StatusOK, `class="eb-item is-paused`)
+	expectStatus(t, res, body, http.StatusOK, "Needs <code>Jumlah</code>")
+
+	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path + "/blocks")
+	if res.StatusCode != http.StatusOK || strings.Contains(body, "is-paused") {
+		t.Fatalf("blocks still paused after restoring a Dataset with a Number Jumlah:\n%s", body)
+	}
+}
+
 func TestResetAfterARenameFillsTheBlanksFromTheRenamedColumn(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
