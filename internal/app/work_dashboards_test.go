@@ -159,6 +159,45 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 	}
 }
 
+func TestAReUploadDuringAConfirmNeverLeavesNoCurrentDataset(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", dashReport(t, "Gula"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	// Holding the Learner's lock stops the confirm inside its transaction, after it read the pending Dataset.
+	ctx := context.Background()
+	tx, err := ada.db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `SELECT 1 FROM learners FOR UPDATE`); err != nil {
+		t.Fatal(err)
+	}
+	confirmed := make(chan *http.Response)
+	go func() {
+		res, _ := ada.post(path+"/dataset/confirm", nil)
+		confirmed <- res
+	}()
+	for waiting := 0; waiting == 0; {
+		if err := ada.db.QueryRowContext(ctx, `SELECT count(*) FROM pg_stat_activity
+			WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res, body = ada.postFile(path+"/dataset", "november.xlsx", dashReport(t, "Garam"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	tx.Rollback()
+
+	if res := <-confirmed; res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != path {
+		t.Fatalf("the confirm of a replaced upload = %d to %q, want back to the new preview", res.StatusCode, res.Header.Get("Location"))
+	}
+	if page := ada.rowsOf(path + "/view/"); !strings.Contains(page, "Beras") {
+		t.Fatalf("the current Dataset = %s", page)
+	}
+}
+
 // months is a workbook of one Finance-like sheet per name, with a notes sheet of other columns when notes.
 func months(t *testing.T, notes bool, names ...string) []byte {
 	t.Helper()

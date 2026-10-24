@@ -385,7 +385,10 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 		cfg = t.Open(c, p.Dataset)
 	} else {
-		r.ParseForm()
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
 		cfg = picked(cfg, p.Dataset, r.Form)
 	}
 	choices, err := json.Marshal(c)
@@ -404,10 +407,19 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	var room storageRoom
-	overAllowance := errors.New("over the Storage allowance")
+	overAllowance, replaced := errors.New("over the Storage allowance"), errors.New("pending Dataset replaced")
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		// Locking the Learner makes two confirms or uploads take turns, as in replaceDataset.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
+			return err
+		}
+		// Locking the pending Dataset holds off a re-upload replacing it; one that already did leaves this one gone.
+		var one int
+		err := tx.QueryRowContext(r.Context(), `SELECT 1 FROM datasets WHERE id = $1 AND state = 'pending' FOR UPDATE`, p.ID).Scan(&one)
+		if errors.Is(err, sql.ErrNoRows) {
+			return replaced
+		}
+		if err != nil {
 			return err
 		}
 		if room, err = roomFor(r.Context(), tx, d, p.Size, acc); err != nil || !room.Fits {
@@ -432,6 +444,10 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Pending: p, Upload: p.File}
 		page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(room.Used), sizeText(acc.Period.Storage()))
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
+		return
+	}
+	if errors.Is(err, replaced) { // the new upload's preview
+		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 		return
 	}
 	if err != nil {
