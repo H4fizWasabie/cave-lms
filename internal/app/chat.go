@@ -77,9 +77,12 @@ func (m chatMessage) ReplyLink() string {
 	return fmt.Sprintf("%s?before=%d#m%d", m.Path(), m.ReplyID+1, m.ReplyID)
 }
 
+// communityChat is the Course ID that stands for the Community Chat, whose Messages have no Course.
+const communityChat int64 = 0
+
 // chatPath is the address of Course courseID's Chat, or of the Community Chat when courseID is 0.
 func chatPath(courseID int64) string {
-	if courseID == 0 {
+	if courseID == communityChat {
 		return "/community"
 	}
 	return fmt.Sprintf("/courses/%d/chat", courseID)
@@ -88,7 +91,7 @@ func chatPath(courseID int64) string {
 // inChat is the SQL condition that Message m is in Course $3's Chat, or in the Community Chat when courseID, which
 // is $3, is 0.
 func inChat(courseID int64) string {
-	if courseID == 0 {
+	if courseID == communityChat {
 		return `m.course_id IS NULL AND $3::bigint = 0`
 	}
 	return `m.course_id = $3`
@@ -138,7 +141,7 @@ func (a *App) chatFor(w http.ResponseWriter, r *http.Request) (course, chatViewe
 		a.serverError(w, r, err)
 		return c, chatViewer{}, false
 	}
-	if c.ID != 0 && !c.Published && !l.IsAdmin {
+	if c.ID != communityChat && !c.Published && !l.IsAdmin {
 		a.courseNotFound(w, r)
 		return c, chatViewer{}, false
 	}
@@ -149,7 +152,7 @@ func (a *App) chatFor(w http.ResponseWriter, r *http.Request) (course, chatViewe
 	}
 	if !allowed {
 		p := page{Learner: l, Course: &c, Message: text.T(lang, "chat.join-to-open")}
-		if c.ID == 0 {
+		if c.ID == communityChat {
 			p.Course, p.Message = nil, text.T(lang, "community.join-to-open")
 		}
 		a.render(w, r, http.StatusForbidden, "members_only", p)
@@ -164,7 +167,7 @@ func (a *App) mayChat(ctx context.Context, l *learner, courseID int64) (bool, er
 	if l.IsAdmin {
 		return true, nil
 	}
-	if courseID == 0 {
+	if courseID == communityChat {
 		return a.communityMember(ctx, l.ID)
 	}
 	return a.enrolled(ctx, l.ID, courseID)

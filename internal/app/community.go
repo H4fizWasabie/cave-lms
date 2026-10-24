@@ -13,7 +13,7 @@ func (a *App) community(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if l != nil {
-		member, err := a.mayChat(r.Context(), l, 0)
+		member, err := a.mayChat(r.Context(), l, communityChat)
 		if err != nil {
 			a.serverError(w, r, err)
 			return

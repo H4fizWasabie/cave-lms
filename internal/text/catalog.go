@@ -1069,7 +1069,7 @@ var catalog = map[string]entry{
 	"admin.side.reports":       {en: "Reports", ms: "Laporan"},
 	"reports.heading":          {en: "Reports", ms: "Laporan"},
 	"reports.intro":            {en: "Chat Messages Learners have reported, newest first. Hide the Message, which closes every Report on it, or dismiss the Report.", ms: "Mesej Sembang yang dilaporkan oleh Pelajar, yang terbaru dahulu. Sembunyikan Mesej itu, yang menutup setiap Laporan mengenainya, atau tolak Laporan itu."},
-	"reports.course":           {en: "Chat", ms: "Sembang"},
+	"reports.chat":             {en: "Chat", ms: "Sembang"},
 	"community.chat":           {en: "Community Chat", ms: "Sembang Komuniti"},
 	"community.intro":          {en: "One open Chat for everyone on CAVELMS, whichever Courses they are on. Join to read and post; leave any time.", ms: "Satu Sembang terbuka untuk semua di CAVELMS, apa jua Kursus mereka. Sertai untuk membaca dan menghantar mesej; keluar bila-bila masa."},
 	"community.privacy":        {en: "Everyone who has joined, and the Admin, sees your Messages with your name but never your email address or IC.", ms: "Semua yang telah menyertainya, dan Pentadbir, melihat Mesej anda bersama nama anda tetapi tidak sekali-kali alamat e-mel atau IC anda."},

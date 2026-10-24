@@ -12,7 +12,7 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "chat.message"}}</th><th>{{t .Lang "reports.course"}}</th><th>{{t .Lang "reports.reporter"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "chat.message"}}</th><th>{{t .Lang "reports.chat"}}</th><th>{{t .Lang "reports.reporter"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Reports}}
               <tr>
                 <td><a href="{{.Path}}?before={{.Page}}#m{{.MessageID}}">{{if .Text}}<span class="msg-text">{{.Text}}</span>{{else}}{{t $.Lang "chat.deleted"}}{{end}}</a><small>{{t $.Lang "reports.by" .Writer}}</small></td>
