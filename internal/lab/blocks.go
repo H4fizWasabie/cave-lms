@@ -629,6 +629,16 @@ func (c *Config) Uses() []Use {
 	return out
 }
 
+// Rename is c with column m[from] in place of column from, as Config.Rename, so Reset to Template fills the
+// blanks from the columns the blocks were moved to.
+func (c Choices) Rename(m map[string]string) Choices {
+	out := Choices{}
+	for k, v := range c {
+		out[k] = cmp.Or(m[v], v)
+	}
+	return out
+}
+
 // Rename puts column m[from] in place of column from, for every from in m, in every block, the filter bar and
 // the money columns. The pairs swap at once, so a rename never feeds another.
 func (c *Config) Rename(m map[string]string) {

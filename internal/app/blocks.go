@@ -325,6 +325,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	}
 	cfg := *d.Config // edited apart, so a refused edit leaves d.Config as saved
 	cfg.Blocks = slices.Clone(cfg.Blocks)
+	choices := d.Choices // follow Use instead, so Reset to Template fills the blanks from the new column
 	i, err := strconv.Atoi(r.FormValue("block"))
 	if err != nil || i < 0 || i >= len(cfg.Blocks) {
 		i = -1
@@ -365,6 +366,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 			break
 		}
 		cfg.Rename(map[string]string{from: to})
+		choices = choices.Rename(map[string]string{from: to})
 		at = i
 	case "reset": // the Template's blocks and filter bar from the current columns; General rebuilds from the Dataset
 		cfg, err = *d.Template.Open(d.Choices, d.Dataset), nil
@@ -393,7 +395,12 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		a.serverError(w, r, err)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, updated_at = now() WHERE id = $1`, d.ID, config); err != nil {
+	chosen, err := json.Marshal(choices)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, choices = $3, updated_at = now() WHERE id = $1`, d.ID, config, chosen); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

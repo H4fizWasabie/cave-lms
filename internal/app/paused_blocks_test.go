@@ -175,3 +175,30 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 		t.Fatalf("blocks still paused once Jumlah is back:\n%s", body)
 	}
 }
+
+func TestResetAfterARenameFillsTheBlanksFromTheRenamedColumn(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	opened, _ := ada.pageBlocks(path + "/view/")
+
+	// An upload pick: Jumlah is now Amount.
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amount"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"use:Jumlah": {"Amount"}})
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	if labels(blocks) != labels(opened) || using(blocks, "Amount") != using(opened, "Jumlah") {
+		t.Fatalf("Reset after the pick: %s, Amount in %d blocks", labels(blocks), using(blocks, "Amount"))
+	}
+
+	// Use instead: Amount is now Wang, a name Cave does not guess.
+	res, body = ada.postFile(path+"/dataset", "disember.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Wang"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"use:Amount": {""}})
+	ada.editBlocks(path, url.Values{"do": {"use"}, "block": {"5"}, "from": {"Amount"}, "to": {"Wang"}})
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if labels(blocks) != labels(opened) || using(blocks, "Wang") != using(opened, "Jumlah") {
+		t.Fatalf("Reset after Use instead: %s, Wang in %d blocks", labels(blocks), using(blocks, "Wang"))
+	}
+}
