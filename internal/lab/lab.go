@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -158,6 +159,9 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	for _, b := range t.Blanks {
 		if b.Required && !hasType(d.Columns, b.Type) {
+			if p, ok := t.headerBelow(cells); ok {
+				return nil, p
+			}
 			return nil, Problem{"lab.err.missing-column", []any{b.SampleName(), t.Name, b.Label, Problem{"lab.types." + string(b.Type), nil}}}
 		}
 	}
@@ -173,6 +177,9 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		for ci, c := range vals {
 			if ci >= len(d.Columns) {
 				if c.v != "" {
+					if p, ok := t.headerBelow(cells); ok {
+						return nil, p
+					}
 					return nil, Problem{"lab.err.stray-cell", []any{rowNo[ri], c.v, colLetter(ci)}}
 				}
 				continue
@@ -194,6 +201,24 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	d.RowNumbers = rowNo
 	return d, nil
+}
+
+// headerBelow is the Problem for a header under title rows, which Practice does not skip: a row below row 1
+// that names two of the Template's blanks or more, so a data row holding one name, like Total, is not taken.
+// ponytail: only the first 20 rows are looked at; a header further down gets the plain Problem.
+func (t *Template) headerBelow(cells [][]string) (Problem, bool) {
+	for r := 1; r < min(len(cells), 20); r++ {
+		named := 0
+		for _, b := range t.Blanks {
+			if slices.ContainsFunc(cells[r], func(v string) bool { return b.Named(strings.TrimSpace(v)) }) {
+				named++
+			}
+		}
+		if named >= 2 {
+			return Problem{"lab.err.header-below", []any{r + 1}}, true
+		}
+	}
+	return Problem{}, false
 }
 
 // openWorkbook opens an .xlsx file within the size limits; a file that is not one gives a Problem.

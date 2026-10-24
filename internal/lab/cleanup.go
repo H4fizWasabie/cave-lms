@@ -71,9 +71,9 @@ type CleanUp struct {
 
 // Clean is Clean-up, a Work Dashboard's way of reading an upload. Its rules run as steps, in order: read every
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
-// sheet (s.Sheet, else the first flat list, else the first readable sheet), combine the sheets with the same
-// columns into one Dataset, type each column from its cells (- as 0, more date forms), and guess the Template's
-// blanks by name. Every step that changes something lists it in Changes. A file it cannot read gives one Problem.
+// sheet (s.Sheet, else the first flat list with no number for a column name, else the first flat list, else the
+// first readable sheet), combine the sheets with the same columns into one Dataset, type each column from its
+// cells (- as 0, more date forms), and guess the Template's blanks by name. Every step that changes something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	f, err := openWorkbook(r)
 	if err != nil {
@@ -107,7 +107,15 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 
 	pick := slices.Index(names, s.Sheet)
 	if pick < 0 || tables[pick] == nil {
-		if pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && tb.flat }); pick < 0 {
+		// A header with a number for a column name is a summary's label and value pair, not a list's header.
+		// ponytail: a list with years for column names ranks down too; the Learner can pick the sheet instead.
+		pick = slices.IndexFunc(tables, func(tb *table) bool {
+			return tb != nil && tb.flat && !slices.ContainsFunc(tb.cols, func(c Column) bool { _, ok := number(c.Name); return ok })
+		})
+		if pick < 0 {
+			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && tb.flat })
+		}
+		if pick < 0 {
 			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil })
 		}
 	}
@@ -373,10 +381,25 @@ func sheetDate(name string) (string, bool) {
 // counted are the changes whose one number counts cells or columns, so the sheets' counts add up.
 var counted = []string{"lab.clean.merged-down", "lab.clean.empty-columns"}
 
-// addChanges lists one used sheet's changes: a counted change adds to the same change of a sheet before it,
-// and any other is listed once however many sheets made it.
+// bottom are the changes that drop a sheet's totals or notes at the bottom. Several sheets' are listed as one
+// lab.clean.bottom-sheets with their count, as every month's export drops its own total row, on rows that differ.
+var bottom = []string{"lab.clean.bottom-row", "lab.clean.bottom-rows", "lab.clean.bottom-sheets"}
+
+// addChanges lists one used sheet's changes: a counted change adds to the same change of a sheet before it, a
+// bottom change joins the sheets' before it into one with their count, and any other is listed once however
+// many sheets made it.
 func (res *CleanUp) addChanges(changes []Change) {
 	for _, c := range changes {
+		if slices.Contains(bottom, c.Key) {
+			if i := slices.IndexFunc(res.Changes, func(o Change) bool { return slices.Contains(bottom, o.Key) }); i >= 0 {
+				sheets := 2
+				if res.Changes[i].Key == "lab.clean.bottom-sheets" {
+					sheets = res.Changes[i].Args[0] + 1
+				}
+				res.Changes[i] = Change{"lab.clean.bottom-sheets", []int{sheets}}
+				continue
+			}
+		}
 		i := slices.IndexFunc(res.Changes, func(o Change) bool {
 			return o.Key == c.Key && (slices.Contains(counted, c.Key) || slices.Equal(o.Args, c.Args))
 		})

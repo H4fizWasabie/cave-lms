@@ -284,6 +284,36 @@ func TestAMissingRequiredColumnIsNamed(t *testing.T) {
 	}
 }
 
+func TestAHeaderBelowRow1IsNamedByItsRow(t *testing.T) {
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.Workbook(t, testutil.Sheet{Name: "Sheet1", Rows: [][]any{
+		{}, {"Akaun Mac 2026"}, {}, {"Date", "Description", "Amount"}, {day, "Sewa", 5},
+	}})
+	_, err := lab.Read(bytes.NewReader(file), finance(t))
+	var p lab.Problem
+	if !errors.As(err, &p) {
+		t.Fatalf("Read gave %v, want one lab.Problem", err)
+	}
+	if got, want := p.In("en"), "Your column names seem to be on row 4, not row 1. Delete the rows above it, or use a Work Dashboard, and upload again."; got != want {
+		t.Fatalf("message = %q, want %q", got, want)
+	}
+	if got, want := p.In("ms"), "Nama lajur anda nampaknya di baris 4, bukan baris 1. Padam baris di atasnya, atau guna Dashboard Kerja, dan muat naik semula."; got != want {
+		t.Fatalf("message = %q, want %q", got, want)
+	}
+
+	// A title in A1 reads as a text column, so HR's text blanks are not missing; the header's cells are stray.
+	file = testutil.Workbook(t, testutil.Sheet{Name: "Sheet1", Rows: [][]any{{"Senarai Staf"}, {}, {"Nama", "Jabatan"}, {"Ali", "Dapur"}}})
+	if _, err := lab.Read(bytes.NewReader(file), lab.TemplateByKey("hr")); err == nil || !strings.HasPrefix(err.Error(), "Your column names seem to be on row 3,") {
+		t.Fatalf("HR: Read gave %v, want the header named on row 3", err)
+	}
+
+	// One name in a data row, like a Total row, is not a header.
+	got := readProblem(t, testutil.XLSX(t, []string{"Tarikh", "Kategori"}, []any{day, "Sewa"}, []any{nil, "Total"}))
+	if !strings.HasPrefix(got, "Column Jumlah is missing.") {
+		t.Fatalf("message = %q, want the missing column", got)
+	}
+}
+
 func TestRefusesMoreThan5000Rows(t *testing.T) {
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	rows := make([][]any, 5001)

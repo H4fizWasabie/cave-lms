@@ -372,6 +372,57 @@ func TestCleanUpSaysWhyAFileCannotBeReadAndWhere(t *testing.T) {
 
 func row(cells ...any) []any { return cells }
 
+// monthSales is a POS export sheet: two title rows, a blank row, the header on row 4, n data rows and a Total row.
+func monthSales(name string, n int) testutil.Sheet {
+	s := sheet(name, row("Kedai Ali"), row("Sales report"), row(),
+		row("Created Date & Time", "Item", "Category", "Staff", "Payment", "Qty", "Amount"))
+	for i := range n {
+		s.Rows = append(s.Rows, row(fmt.Sprintf("0%d/06/2026 10:00", i%9+1), "Kopi", "Minuman", "Ali", "Tunai", 1, 5))
+	}
+	s.Rows = append(s.Rows, row("Total", nil, nil, nil, nil, n, 5*n))
+	return s
+}
+
+func TestCleanUpPassesOverAHeaderlessSummarySheetForTheList(t *testing.T) {
+	summary := sheet("Summary", row("Sales summary"), row(), row("June", 12000), row("July", 13000))
+	file := testutil.Workbook(t, summary, monthSales("June (Sales)", 40), monthSales("July (Sales)", 40), monthSales("August (Sales)", 40))
+	res := cleanWith(t, file, lab.Settings{})
+	if want := []string{"June (Sales)", "July (Sales)", "August (Sales)"}; !reflect.DeepEqual(res.Used, want) {
+		t.Fatalf("used = %v, want %v", res.Used, want)
+	}
+	if res.HeaderRow != 4 || len(res.Dataset.Rows) != 120 {
+		t.Fatalf("header row %d, %d rows; want 4 and 120", res.HeaderRow, len(res.Dataset.Rows))
+	}
+	if res := cleanWith(t, file, lab.Settings{Sheet: "Summary"}); !reflect.DeepEqual(res.Used, []string{"Summary"}) {
+		t.Fatalf("used = %v, want the remembered sheet", res.Used)
+	}
+}
+
+func TestCleanUpSaysATotalRowWasDroppedFromEachCombinedSheet(t *testing.T) {
+	july := monthSales("July", 37)
+	july.Rows = append(july.Rows, row("Checked by Ali")) // two rows at its bottom, on other rows than June's
+	file := testutil.Workbook(t, monthSales("June", 40), july, monthSales("August", 40))
+	res := cleanWith(t, file, lab.Settings{})
+	want := "Dropped the rows at the bottom of each of 3 sheets: totals or notes, not data."
+	if got := changesIn(res, "en"); !slices.Contains(got, want) || slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Dropped row") }) {
+		t.Fatalf("changes = %q, want one line: %q", got, want)
+	}
+	if got := changesIn(res, "ms"); !slices.Contains(got, "Baris di bawah sekali setiap satu daripada 3 helaian dibuang: jumlah atau nota, bukan data.") {
+		t.Fatalf("changes = %q", got)
+	}
+}
+
+func TestInventoryGuessesAStockAlertColumnForTheReorderLevel(t *testing.T) {
+	file := testutil.XLSX(t, []string{"Item", "Stock", "Stock Alert Count"}, []any{"Gula", 10, 3})
+	if got := clean(t, file, template(t, "inventory")).Guess; got["reorder"] != "Stock Alert Count" || got["quantity"] != "Stock" {
+		t.Fatalf("guess = %v, want Stock Alert Count for the reorder level", got)
+	}
+	file = testutil.XLSX(t, []string{"Item", "Stock Alert Count"}, []any{"Gula", 3})
+	if got := clean(t, file, template(t, "inventory")).Guess; got["quantity"] != "" {
+		t.Fatalf("guess = %v, want no stock on hand from an alert level", got)
+	}
+}
+
 func sheet(name string, rows ...[]any) testutil.Sheet { return testutil.Sheet{Name: name, Rows: rows} }
 
 // sales is a sales sheet with n rows under the columns Perkara and Jumlah.
