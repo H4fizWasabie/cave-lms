@@ -99,7 +99,7 @@ func (a *App) dailyPrune(ctx context.Context) {
 		a.logError(nil, fmt.Errorf("prune sessions: %w", err))
 	}
 	if n := a.dropDeletedFiles(ctx, nil); n > 0 {
-		a.logInfo("Daily prune deleted %d Submission files", n)
+		a.logInfo("Daily prune deleted %d stored files", n)
 	}
 	n, err := a.pruneDatasets(ctx)
 	if err != nil {

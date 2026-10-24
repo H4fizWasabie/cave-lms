@@ -15,7 +15,9 @@
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
         {{- if .Dashboard.Dataset}}
-        {{- if .ReadOnly}}
+        {{- if .Dashboard.Work}}
+        <a class="lab-tab" href="{{$url}}/blocks"{{if eq .Tab "blocks"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.blocks"}}</a>
+        {{- else if .ReadOnly}}
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.needs-access"}}">{{t .Lang "lab.d.tab.columns"}}</span>
         {{- else}}
         <a class="lab-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.columns"}}</a>
@@ -24,7 +26,7 @@
         <a class="lab-tab" href="{{$url}}/hood"{{if eq .Tab "hood"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.hood"}}</a>
         <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
-        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.columns"}}</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{if .Dashboard.Work}}{{t .Lang "lab.d.tab.blocks"}}{{else}}{{t .Lang "lab.d.tab.columns"}}{{end}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.preview"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.hood"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.deploy"}}</span>
@@ -45,16 +47,16 @@
           {{- with .Dashboard.Dataset}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
-          <p class="muted">{{t $.Lang "lab.d.upload-new-body"}}</p>
+          <p class="muted">{{if $.Dashboard.Work}}{{t $.Lang "lab.w.upload-body"}}{{else}}{{t $.Lang "lab.d.upload-new-body"}}{{end}}</p>
           {{- else}}
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
           <p class="muted">{{t .Lang "lab.d.upload-yours-body" .Dashboard.Template.Name}}</p>
           {{- end}}
-          {{- with .Errors}}
+          {{- with .Problem}}
           <div class="ds-err" role="alert">
             <p><strong>{{if $.Upload}}{{t $.Lang "lab.d.not-read" $.Upload}}{{else}}{{t $.Lang "lab.d.not-read-file"}}{{end}}</strong></p>
-            <ul>{{range .}}<li>{{.}}</li>{{end}}</ul>
-            <p>{{if gt (len .) 1}}{{t $.Lang "lab.d.fix-these"}}{{else}}{{t $.Lang "lab.d.fix-this"}}{{end}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+            <p>{{.}}</p>
+            <p>{{t $.Lang "lab.d.fix-this"}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           {{- if .Failed}}
@@ -63,16 +65,146 @@
             <p>{{with .Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
-          {{- with .Error}}
+          {{- with .Pending}}
+          <section class="card ds-preview">
+            <div>
+              <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
+              <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
+              <p class="muted">{{t $.Lang "lab.w.used" .UsedList}}</p>
+            </div>
+            {{- with $.AskHeader}}
+            <div class="ds-err" role="alert">
+              <p><strong>{{t $.Lang "lab.w.header-ask" .}}</strong></p>
+              <p>{{t $.Lang "lab.w.header-ask-body"}} <a href="#header">{{t $.Lang "lab.w.header-row"}}</a></p>
+            </div>
+            {{- end}}
+            {{- if .Changes}}
+            <div>
+              <h3 class="h-sm">{{t $.Lang "lab.w.changes"}}</h3>
+              <ul>{{range .Changes}}<li>{{.In $.Lang}}</li>{{end}}</ul>
+            </div>
+            {{- else}}
+            <p>{{t $.Lang "lab.w.no-changes"}}</p>
+            {{- end}}
+            <div class="table-wrap"><table class="table">
+              <thead><tr>{{range .Dataset.Columns}}<th scope="col">{{.Name}}<br><small class="muted">{{t $.Lang (print "lab.type." .Type)}}</small></th>{{end}}</tr></thead>
+              <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
+            </table></div>
+            {{- with $.Drops}}
+            <div>
+              <h3 class="h-sm">{{t $.Lang "lab.w.drops"}}</h3>
+              <ul>{{range .}}<li>{{.File}} · {{t $.Lang "lab.w.confirmed" .Confirmed}} · {{.SizeText}}</li>{{end}}</ul>
+            </div>
+            {{- end}}
+            <form class="form" method="post" action="{{$url}}/dataset/confirm">
+              {{- if $.Blanks}}
+              <p class="muted">{{t $.Lang "lab.w.which-column" $.Dashboard.Template.Name}}</p>
+              {{- end}}
+              {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+              {{- if $.Uses}}
+              <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
+              <ul class="ds-uses">
+                {{- range $k, $u := $.Uses}}
+                {{- if .Fits}}
+                <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><code>{{.Name}}</code></li>
+                {{- else}}
+                <li class="field map-row">
+                  <label for="use-{{$k}}">{{t $.Lang "lab.w.blocks-use"}} <code>{{.Name}}</code>{{t $.Lang "lab.w.pick-or-leave"}}</label>
+                  <select id="use-{{$k}}" name="use:{{.Name}}">
+                    <option value="" selected>{{t $.Lang "lab.w.leave-out"}}</option>
+                    {{- range .Options}}
+                    <option value="{{.}}">{{.}}</option>
+                    {{- end}}
+                  </select>
+                </li>
+                {{- end}}
+                {{- end}}
+              </ul>
+              {{- end}}
+              {{- range $.Blanks}}
+              <div class="field map-row">
+                <label for="m-{{.Key}}">{{.Label}}</label>
+                <select id="m-{{.Key}}" name="{{.Key}}">
+                  {{- if not .Chosen}}
+                  <option value="" selected>{{if .Required}}{{t $.Lang "lab.w.choose"}}{{else}}{{t $.Lang "lab.d.skip"}}{{end}}</option>
+                  {{- else if not .Required}}
+                  <option value="">{{t $.Lang "lab.d.skip"}}</option>
+                  {{- end}}
+                  {{- $chosen := .Chosen}}
+                  {{- range .Options}}
+                  <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
+                  {{- end}}
+                </select>
+                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{.Help}}</small>
+              </div>
+              {{- end}}
+              <div class="form-foot">
+                {{- if $.Blanks}}
+                <button class="btn btn-quiet" name="template" value="general">{{t $.Lang "lab.w.use-general"}}</button>
+                {{- end}}
+                <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
+              </div>
+            </form>
+          </section>
+          <h2 class="h-md">{{t $.Lang "lab.w.another"}}</h2>
+          {{- else}}
+          {{- with $.Error}}
           <div class="ds-err" role="alert">
             <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
             <p>{{.}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
+          {{- end}}
           <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
-            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.d.file-limits"}}</small></div>
+            {{- with .Pending}}{{if gt (len .Sheets) 1}}
+            {{- $p := .}}{{$picked := .Picked}}
+            <fieldset class="field">
+              <legend>{{t $.Lang "lab.w.sheets"}}</legend>
+              <input type="hidden" name="shown" value="{{$picked}}">
+              {{- if .Tickable}}<input type="hidden" name="tickable" value="1">{{end}}
+              <ul>
+                {{- range .Sheets}}
+                <li>
+                  <label><input type="radio" name="sheet" value="{{.Name}}"{{if eq .Name $picked}} checked{{end}}{{if not .Readable}} disabled{{end}}> {{.Name}}</label>
+                  {{- if .CanCombine}}
+                  <label><input type="checkbox" name="combine" value="{{.Name}}"{{if $p.In .Name}} checked{{end}}> {{t $.Lang "lab.w.combine"}}</label>
+                  {{- end}}
+                  <small class="muted">{{tn $.Lang "lab.d.rows" .Rows}}{{with .ReasonKey}} · {{t $.Lang .}}{{end}}</small>
+                </li>
+                {{- end}}
+              </ul>
+              <small>{{t $.Lang "lab.w.sheets-help"}}</small>
+            </fieldset>
+            {{- end}}{{end}}
+            {{- with .Pending}}{{with .Grid}}
+            <fieldset class="field">
+              <legend>{{t $.Lang "lab.w.grid"}}</legend>
+              <label for="grid-month">{{t $.Lang "lab.w.grid-month"}}</label>
+              <input id="grid-month" type="number" name="month" value="{{.Month}}" min="1" max="12" required>
+              <label for="grid-year">{{t $.Lang "lab.w.grid-year"}}</label>
+              <input id="grid-year" type="number" name="year" value="{{.Year}}" min="1900" max="2100" required>
+              <small>{{t $.Lang "lab.w.grid-help"}}</small>
+            </fieldset>
+            {{- end}}{{end}}
+            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
+            {{- if .Dashboard.Work}}
+            <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
+            {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
+            <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
+            {{- end}}
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>
+          {{- with .Earlier}}
+          <h2 class="h-md">{{t $.Lang "lab.w.earlier"}}</h2>
+          <p class="muted">{{t $.Lang "lab.w.earlier-body"}}</p>
+          <ul class="ds-earlier">
+            {{- range .}}
+            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.w.confirmed" .Confirmed}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}}</span></div>
+              <form method="post" action="{{$url}}/datasets/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form>
+              <form method="post" action="{{$url}}/datasets/{{.ID}}/delete"><button class="btn btn-quiet">{{t $.Lang "lab.w.delete"}}</button></form></li>
+            {{- end}}
+          </ul>
+          {{- end}}
           {{- end}}
         </section>
         <aside class="panel">
@@ -103,6 +235,120 @@
       {{- else if not .Dashboard.Dataset}}
       <p class="empty">{{t .Lang "lab.d.upload-first-p"}} <a href="{{$url}}">{{t .Lang "lab.d.go-dataset"}}</a>.</p>
 
+      {{- else if and .ReadOnly (eq .Tab "blocks")}}
+      <p class="empty">{{t .Lang "lab.b.needs-access"}} <a href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a>.</p>
+      {{- else if eq .Tab "blocks"}}{{with .Blocks}}
+      <div class="eb-head">
+        <h2 class="h-md">{{t $.Lang "lab.b.title"}}</h2>
+        {{- if .Saved}}{{if not $.Error}}
+        <p class="eb-saved" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg>{{t $.Lang "lab.b.saved"}}</p>
+        {{- end}}{{end}}
+      </div>
+      <div class="eb-two">
+        <section>
+          <p class="muted">{{t $.Lang "lab.b.intro"}}</p>
+          {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+          <ul class="eb-list" aria-label="{{t $.Lang "lab.b.list"}}">
+            {{- range .Rows}}
+            <li class="eb-item{{if .Needs}} is-paused{{end}}{{if .Open}} is-open{{end}}" id="b-{{.I}}">
+              <div class="eb-row">
+                <span class="eb-kind">{{t $.Lang (print "lab.b.kind." .Kind)}}</span>
+                <a class="eb-name" href="{{$url}}/blocks{{if not .Open}}?open={{.I}}#b-{{.I}}{{end}}" aria-expanded="{{if .Open}}true{{else}}false{{end}}" title="{{t $.Lang "lab.b.open" .Label}}">
+                  <strong>{{if .Locked}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>{{end}}{{.Label}}</strong><small>{{.Summary}}</small>
+                </a>
+                <form method="post" action="{{$url}}/blocks" class="eb-tools">
+                  <input type="hidden" name="block" value="{{.I}}">
+                  <button class="eb-ic" name="do" value="up"{{if .First}} disabled{{end}} title="{{t $.Lang "lab.b.up" .Label}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg><span class="sr">{{t $.Lang "lab.b.up" .Label}}</span></button>
+                  <button class="eb-ic" name="do" value="down"{{if .Last}} disabled{{end}} title="{{t $.Lang "lab.b.down" .Label}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg><span class="sr">{{t $.Lang "lab.b.down" .Label}}</span></button>
+                  <button class="eb-ic" name="do" value="remove" title="{{t $.Lang "lab.b.remove" .Label}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">{{t $.Lang "lab.b.remove" .Label}}</span></button>
+                </form>
+              </div>
+              {{- $i := .I}}{{range $n, $need := .Needs}}
+              <form class="eb-warn" method="post" action="{{$url}}/blocks">
+                <input type="hidden" name="do" value="use">
+                <input type="hidden" name="block" value="{{$i}}">
+                <input type="hidden" name="from" value="{{.Name}}">
+                <span><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.needs"}} <code>{{.Name}}</code></span>
+                {{- if .Options}}
+                <label class="sr" for="use-{{$i}}-{{$n}}">{{t $.Lang "lab.b.use-instead-of" .Name}}</label>
+                <select id="use-{{$i}}-{{$n}}" name="to">{{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+                <button class="btn btn-quiet btn-sm">{{t $.Lang "lab.b.use-instead"}}</button>
+                {{- end}}
+              </form>
+              {{- end}}
+              {{- range .Gone}}
+              <p class="eb-warn"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.gone" .}}</p>
+              {{- end}}
+              {{- if .Open}}
+              <form class="eb-form" method="post" action="{{$url}}/blocks" data-autosave>
+                <input type="hidden" name="do" value="save">
+                <input type="hidden" name="block" value="{{.I}}">
+                {{- if .Locked}}
+                <p class="eb-lock"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>{{t $.Lang "lab.b.locked"}}</p>
+                {{- end}}
+                <fieldset class="field"{{if .Locked}} disabled{{end}}><legend>{{t $.Lang "lab.b.kind"}}</legend><div class="eb-seg">
+                  {{- $kind := .Kind}}{{range $.Blocks.Kinds}}<label><input type="radio" name="kind" value="{{.Value}}"{{if eq .Value $kind}} checked{{end}}>{{.Text}}</label>{{end}}
+                </div></fieldset>
+                <div class="field"><label for="b-label">{{t $.Lang "lab.b.label"}}</label><input id="b-label" type="text" name="label" value="{{.Label}}" maxlength="80"><small>{{t $.Lang "lab.b.label-help"}}</small></div>
+                {{- range .Fields}}
+                <div class="field"><label for="b-{{.Name}}">{{.Label}}</label><select id="b-{{.Name}}" name="{{.Name}}"{{if .Off}} disabled{{end}}>{{range .Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
+                {{- end}}
+                {{- if eq .Kind "donut"}}<small class="muted">{{t $.Lang "lab.b.donut-other"}}</small>{{end}}
+                {{- with .ColTicks}}
+                <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="cols" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
+                {{- end}}
+                {{- range .Radios}}
+                <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-seg">{{$name := .Name}}{{range .Options}}<label><input type="radio" name="{{$name}}" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
+                {{- end}}
+                {{- if not .Locked}}
+                <div class="field"><label for="b-fcol">{{.FilterCol.Label}}</label><select id="b-fcol" name="fcol">{{range .FilterCol.Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
+                {{- with .FilterVals}}
+                <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="fval" value="{{.Value}}"{{if .On}} checked{{end}}>{{if .Gone}}<s>{{.Text}}</s>{{else}}{{.Text}}{{end}}</label>{{end}}</div></fieldset>
+                {{- end}}
+                {{- with .More}}<small class="muted">{{t $.Lang "lab.b.filter-more" .}}</small>{{end}}
+                {{- end}}
+                <div class="form-foot">
+                  <button class="btn btn-quiet btn-sm" data-apply>{{t $.Lang "lab.b.apply"}}</button>
+                  <button class="btn btn-solid btn-sm" name="close" value="1">{{t $.Lang "lab.b.done"}}</button>
+                </div>
+              </form>
+              {{- end}}
+            </li>
+            {{- end}}
+          </ul>
+          <form class="eb-add" method="post" action="{{$url}}/blocks">
+            <input type="hidden" name="do" value="add">
+            <span class="muted">{{t $.Lang "lab.b.add"}}:</span>
+            {{- range .Kinds}}
+            <button class="btn btn-ghost btn-sm" name="kind" value="{{.Value}}"{{if or $.Blocks.Full (and $.Blocks.CardsFull (eq .Value "card"))}} disabled{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{.Text}}</button>
+            {{- end}}
+            <span class="eb-limit">{{.Count}}</span>
+          </form>
+          <form class="eb-sect" method="post" action="{{$url}}/blocks" data-autosave>
+            <input type="hidden" name="do" value="filter-bar">
+            <fieldset class="field"><legend>{{t $.Lang "lab.b.filter-bar"}}</legend>
+              <small class="muted">{{t $.Lang "lab.b.filter-bar-help"}}</small>
+              <div class="eb-ticks">{{range .FilterBar}}<label><input type="checkbox" name="bar" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div>
+            </fieldset>
+            <div><button class="btn btn-quiet btn-sm" data-apply>{{t $.Lang "lab.b.save-filter-bar"}}</button></div>
+          </form>
+          <details class="eb-reset">
+            <summary class="btn btn-ghost btn-sm">{{t $.Lang "lab.b.reset"}}</summary>
+            <form method="post" action="{{$url}}/blocks">
+              <input type="hidden" name="do" value="reset">
+              <p><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.reset-q"}}</p>
+              <button class="btn btn-solid btn-sm">{{t $.Lang "lab.b.reset-go"}}</button>
+            </form>
+          </details>
+        </section>
+        <aside class="eb-pv">
+          <p class="eb-pvk">{{t $.Lang "lab.b.preview"}}</p>
+          <div class="pv-stage"><iframe class="pv-frame" src="{{$url}}/view/" title="{{t $.Lang "lab.d.preview-title"}}"></iframe></div>
+        </aside>
+      </div>
+      <script src="{{static "blocks.js"}}" defer></script>
+      {{- end}}
+
       {{- else if and .ReadOnly (eq .Tab "columns")}}
       <p class="empty">{{t .Lang "lab.d.columns-need-access"}} <a href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a>.</p>
       {{- else if and (eq .Tab "columns") (not .Dashboard.Template.Blanks)}}
@@ -124,8 +370,8 @@
         </div>
         {{if .Again}}<p class="up-err" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t .Lang "lab.d.again"}}</p>{{end}}
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-        {{- with .Errors}}
-        <div class="ds-err" role="alert"><ul>{{range .}}<li>{{.}}</li>{{end}}</ul><p>{{t $.Lang "lab.d.pick-another"}}</p></div>
+        {{- with .Problem}}
+        <div class="ds-err" role="alert"><p>{{.}}</p><p>{{t $.Lang "lab.d.pick-another"}}</p></div>
         {{- end}}
         {{- range .Blanks}}
         <div class="field map-row">

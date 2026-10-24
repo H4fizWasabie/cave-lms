@@ -40,7 +40,7 @@ type activePeriod struct {
 	Deployments      int    // the period's allowance: how many Deployments may be awake at once
 	Awake            int    // the Learner's awake Deployments
 	storageAllowance        // the period's, copied from its Plan when it was given
-	Used             int64  // bytes: the uploaded file sizes of the Learner's current Datasets
+	Used             int64  // bytes the Learner's Datasets take: see storageUsedSQL
 }
 
 // DeploymentsLeft is how many more Deployments may be awake: never below zero, even after renewing onto a smaller
@@ -50,6 +50,15 @@ func (p *activePeriod) DeploymentsLeft() int { return max(p.Deployments-p.Awake,
 // Full reports whether the Learner already has as many awake Deployments as the period allows.
 func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
 
+// storageUsedSQL is an SQL expression for the bytes a Learner's Datasets take against the Storage allowance, learner
+// being an SQL expression for their id: a Practice Dashboard's uploaded file size, and a Work Dashboard's confirmed
+// Datasets by saved size. Pending ones do not count.
+func storageUsedSQL(learner string) string {
+	return `((SELECT COALESCE(sum(dataset_size), 0) FROM dashboards WHERE learner_id = ` + learner + `) +
+		(SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds JOIN dashboards owner ON owner.id = ds.dashboard_id
+			WHERE owner.learner_id = ` + learner + ` AND ds.state <> 'pending'))`
+}
+
 // labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
 func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 	acc := labAccess{Admin: l.IsAdmin}
@@ -58,7 +67,7 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 	err := a.db.QueryRowContext(ctx, `
 		SELECT pp.id, p.name, pp.ends_at, pp.deployments, pp.storage_mb,
 			(SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+deploymentAwakeSQL+`),
-			(SELECT COALESCE(sum(dataset_size), 0) FROM dashboards WHERE learner_id = pp.learner_id)
+			`+storageUsedSQL("pp.learner_id")+`
 		FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
 		WHERE pp.learner_id = $1 AND `+activePeriodSQL+`
 		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.StorageMB, &p.Awake, &p.Used)
