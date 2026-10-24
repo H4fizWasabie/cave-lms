@@ -715,11 +715,19 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .lab-plan strong { font-family: var(--font-display); font-size: 1.3rem; }
 .lab-plan .muted { font-size: .88rem; }
 .offers { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1.2rem; }
-.offer { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--brand-gold); border-radius: var(--radius); padding: 1.1rem 1.4rem; display: grid; gap: .5rem; align-content: start; justify-items: start; }
-.offer .btn { white-space: normal; text-align: center; max-width: 100%; }
-.offer-price strong { font-family: var(--font-display); font-size: 1.5rem; }
+.offer { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--brand-gold); border-radius: var(--radius); padding: 1.4rem; display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; }
+.offer > * { margin: 0; }
+.offer-logo { margin-bottom: .3rem; }
+.offer h3 { font-size: 1.35rem; }
+.offer-tagline { color: var(--muted); }
+.offer-price { margin-top: .4rem; }
+.offer-price strong { font-family: var(--font-display); font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 .offer-price s { color: var(--muted); margin-left: .4rem; }
-.offer-promo { margin: 0; font-weight: 600; }
+.offer-promo { font-weight: 600; }
+.offer-benefits { list-style: none; padding: .9rem 0 0; margin: .4rem 0 .8rem; border-top: 1px solid var(--line); align-self: stretch; display: grid; gap: .5rem; font-size: .94rem; }
+.offer-benefits li { display: flex; gap: .5rem; align-items: flex-start; }
+.offer-benefits .i { flex: none; margin-top: .2rem; color: var(--brand-gold-deep); }
+.offer .btn { margin-top: auto; align-self: stretch; white-space: normal; text-align: center; }
 @media (max-width: 999px) { .lab-steps { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px) { .lab-hero { padding: 1.6rem 1.2rem; } .lab-steps { grid-template-columns: 1fr; } }
 /* Lab: New Dashboard and the Dashboard page */

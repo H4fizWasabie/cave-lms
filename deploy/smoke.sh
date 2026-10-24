@@ -45,9 +45,10 @@ check() {
 check GET / 200 '<a class="brand" href="/">'
 stylesheet=$(grep -oE '/static/[^"]+\.css\?v=[0-9a-f]+' "$work/body" | head -n 1)
 check GET "${stylesheet:-/static/missing.css}" 200
-for page in /login /courses /gallery /programmes /plans /certificates; do
+for page in /login /courses /gallery /programmes /pricing /certificates; do
 	check GET "$page" 200
 done
+check GET /plans 301 'location: /pricing'
 check GET /admin 303 'location: /login'
 check POST /cavetext/bcl/smoke-test-wrong-key 404
 

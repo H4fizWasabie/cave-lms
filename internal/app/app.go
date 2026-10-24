@@ -342,7 +342,14 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/cavetext/settings", a.admin(a.saveCaveTextSettings))
 	mux.HandleFunc("POST /admin/cavetext/master-prompts", a.admin(a.saveCaveTextMasterPrompts))
 	mux.HandleFunc("GET /cavetext", a.caveTextHome)
-	mux.HandleFunc("GET /plans", a.plans)
+	mux.HandleFunc("GET /pricing", a.pricing)
+	mux.HandleFunc("GET /plans", func(w http.ResponseWriter, r *http.Request) { // the Pricing page's old address
+		to := "/pricing"
+		if r.URL.RawQuery != "" {
+			to += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, to, http.StatusMovedPermanently)
+	})
 	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
 	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
 	mux.HandleFunc("POST /cavetext/bcl/{key}", a.bclWebhook)
