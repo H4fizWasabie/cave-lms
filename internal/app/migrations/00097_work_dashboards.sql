@@ -7,7 +7,8 @@ ALTER TABLE dashboards ADD COLUMN kind text NOT NULL DEFAULT 'practice' CHECK (k
 -- A Work Dashboard's Datasets, one row each, pending until the Learner confirms Clean-up's preview (spec #237).
 -- Practice Dashboards keep theirs on dashboards. The data lives in the store (ADR 0008) under storage_key;
 -- saved_size is the bytes written there, which count against the Storage allowance unless pending.
--- changes is Clean-up's change list (lab.Change) and guess its guess for each Template blank, shown in the preview.
+-- cleanup is what Clean-up found besides the data: its changes, guesses, sheets, header row and the upload settings
+-- it read with, which the Dashboard remembers on confirm (app.cleaned).
 CREATE TABLE datasets (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     dashboard_id bigint NOT NULL REFERENCES dashboards ON DELETE CASCADE,
@@ -16,8 +17,7 @@ CREATE TABLE datasets (
     saved_size bigint NOT NULL CHECK (saved_size > 0),
     row_count integer NOT NULL,
     state text NOT NULL CHECK (state IN ('pending', 'current', 'earlier')),
-    changes jsonb NOT NULL DEFAULT '[]',
-    guess jsonb NOT NULL DEFAULT '{}',
+    cleanup jsonb NOT NULL DEFAULT '{}',
     uploaded_at timestamptz NOT NULL DEFAULT now(),
     confirmed_at timestamptz
 );

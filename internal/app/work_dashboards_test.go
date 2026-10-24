@@ -40,6 +40,15 @@ func shopReport(t *testing.T, item string, amount float64) []byte {
 	)
 }
 
+// dashReport is shopReport with item's amount a dash, read as 0: a kind of change shopReport never needs, so
+// its upload shows the preview.
+func dashReport(t *testing.T, item string) []byte {
+	t.Helper()
+	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	return testutil.XLSX(t, []string{"Kedai Runcit Ali"}, []any{}, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+		[]any{day, item, "Dapur", "Keluar", "-"}, []any{day, "Jualan", "Kedai", "Masuk", 900.0})
+}
+
 // confirmWork confirms the pending Dataset of the Work Dashboard at path with Cave's guesses.
 func (s *site) confirmWork(path string, choices url.Values) {
 	s.t.Helper()
@@ -132,7 +141,7 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 	link := ada.deploy(path)
 	viewer := ada.second()
 
-	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopReport(t, "Gula", 80))
+	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", dashReport(t, "Gula"))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	for _, page := range []string{ada.rowsOf(path + "/view/"), viewer.rowsOf(link)} {
 		if !strings.Contains(page, "Beras") || strings.Contains(page, "Gula") {
@@ -192,14 +201,50 @@ func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
 		t.Fatal("a sheet of other columns can be ticked")
 	}
 
-	// Read again with Feb unticked: Jan alone, remembered for the next upload.
+	// Read again with Feb unticked: Jan alone, remembered once confirmed.
 	upload(months(t, true, "Jan", "Feb"), "Jan", url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}})
-	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan")
+	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}})
+	ada.uploadLive(path, months(t, false, "Jan", "Feb", "Mac"), "Beras Jan", "Beras Feb")
 	// Combining again: next time a new sheet with the same columns joins by itself.
 	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan, Feb", url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}, "combine": {"Feb"}})
-	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan, Feb, Mac")
+	ada.confirmWork(path, nil)
+	ada.uploadLive(path, months(t, false, "Jan", "Feb", "Mac"), "Beras Mac", "")
 	// The remembered sheet is gone: the first readable one is picked.
-	upload(months(t, false, "Apr", "Mei"), "Apr, Mei")
+	ada.uploadLive(path, months(t, false, "Apr", "Mei"), "Beras Mei", "")
+}
+
+// uploadLive uploads a routine file to the Work Dashboard at path, which goes live with no preview, and checks
+// its data has want and, unless empty, lacks not.
+func (s *site) uploadLive(path string, file []byte, want, not string) {
+	s.t.Helper()
+	res, body := s.postFile(path+"/dataset", "buku.xlsx", file)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview" {
+		s.t.Fatalf("a routine upload redirects to %q", loc)
+	}
+	if page := s.rowsOf(path + "/view/"); !strings.Contains(page, want) || (not != "" && strings.Contains(page, not)) {
+		s.t.Fatalf("data = %s, want %s and not %q", page, want, not)
+	}
+}
+
+func TestAFailedOrAbandonedUploadLeavesTheRememberedSettings(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	janAlone := url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}}
+	both := func() {
+		t.Helper()
+		res, body := ada.postFile(path+"/dataset", "buku.xlsx", months(t, false, "Jan", "Feb"))
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+		res, body = ada.get(path)
+		expectStatus(t, res, body, http.StatusOK, "Sheets in this Dataset: Jan, Feb.")
+	}
+
+	res, body := ada.postFile(path+"/dataset", "buku.xlsx", []byte("Tarikh,Jumlah\n"), janAlone)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	both()
+	res, body = ada.postFile(path+"/dataset", "buku.xlsx", months(t, false, "Jan", "Feb"), janAlone)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	both() // the Jan-alone preview is abandoned
 }
 
 func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {

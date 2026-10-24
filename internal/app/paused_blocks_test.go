@@ -175,3 +175,15 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 		t.Fatalf("blocks still paused once Jumlah is back:\n%s", body)
 	}
 }
+
+func TestAnUploadWithTheSameKindsOfChangesSkipsThePreview(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady() // its title rows were skipped
+	ada.uploadLive(path, shopReport(t, "Gula", 80), "Gula", "Beras")
+
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", dashReport(t, "Garam"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path {
+		t.Fatalf("an upload with a new kind of change redirects to %q, not the preview", loc)
+	}
+}

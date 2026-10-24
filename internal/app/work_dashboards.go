@@ -21,19 +21,26 @@ import (
 // previewRows is how many cleaned rows a Work Dashboard's upload preview shows.
 const previewRows = 20
 
+// cleaned is what Clean-up found on an upload besides its data, kept with the Dataset as datasets.cleanup: the
+// preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
+type cleaned struct {
+	Changes   []lab.Change `json:"changes"`
+	Guess     lab.Choices  `json:"guess"`
+	Sheets    []lab.Sheet  `json:"sheets"`    // every sheet of the upload
+	Used      []string     `json:"used"`      // the sheets that went into the Dataset
+	HeaderRow int          `json:"headerRow"` // the Excel row the column names came from
+	Settings  lab.Settings `json:"settings"`  // the remembered part of the settings Clean-up read with
+}
+
 // pendingDataset is a Work Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
 // Until then the Dashboard and its Deployment keep the current Dataset.
 type pendingDataset struct {
+	cleaned
 	ID      int64
 	File    string
 	Size    int64 // saved size, which counts against the Storage allowance once confirmed
 	Dataset *lab.Dataset
-	Changes []lab.Change
-	Guess   lab.Choices
 	Chosen  lab.Choices // the Learner's choices on a refused confirm; else Guess
-	Sheets  []lab.Sheet // every sheet of the upload
-	Used    []string    // the sheets that went into the Dataset
-	Header  int         // the Excel row the column names came from
 }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
@@ -90,9 +97,9 @@ func (p *pendingDataset) Rows() [][]string {
 // keepEarlier is how many earlier Datasets a Work Dashboard keeps beside its current one.
 const keepEarlier = 3
 
-// earlierDataset is a Work Dashboard's Dataset that is not pending: an earlier one the Learner may restore or
-// delete, or the current one.
-type earlierDataset struct {
+// keptDataset is a Work Dashboard's Dataset that is not pending: an earlier one the Learner may restore or delete,
+// or the current one.
+type keptDataset struct {
 	ID        int64
 	File      string
 	Size      int64 // saved size
@@ -100,25 +107,25 @@ type earlierDataset struct {
 	Confirmed string // formatted as periodTime
 }
 
-func (e earlierDataset) SizeText() string { return sizeText(e.Size) }
+func (e keptDataset) SizeText() string { return sizeText(e.Size) }
 
-// queryer is a *sql.DB or a *sql.Tx.
+// queryer is a *sql.DB or a *sql.Tx, for reads that may run inside a caller's transaction.
 type queryer interface {
+	rowQueryer
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 // keptDatasets lists the Work Dashboard's earlier Datasets, oldest confirmed first, then its current one, if any.
-func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]earlierDataset, error) {
+func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]keptDataset, error) {
 	rows, err := q.QueryContext(ctx, `SELECT id, file_name, saved_size, row_count, confirmed_at FROM datasets
 		WHERE dashboard_id = $1 AND state <> 'pending' ORDER BY state = 'current', confirmed_at, id`, dashboardID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []earlierDataset
+	var out []keptDataset
 	for rows.Next() {
-		var e earlierDataset
+		var e keptDataset
 		var confirmed time.Time
 		if err := rows.Scan(&e.ID, &e.File, &e.Size, &e.Rows, &confirmed); err != nil {
 			return nil, err
@@ -130,7 +137,7 @@ func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]earlierD
 }
 
 // earlierOf lists the Work Dashboard's earlier Datasets, newest first, as the Dataset tab shows them.
-func (a *App) earlierOf(ctx context.Context, d *dashboard) ([]earlierDataset, error) {
+func (a *App) earlierOf(ctx context.Context, d *dashboard) ([]keptDataset, error) {
 	kept, err := keptDatasets(ctx, a.db, d.ID)
 	if err != nil || d.Key == "" { // no current Dataset, so no earlier ones
 		return nil, err
@@ -140,31 +147,66 @@ func (a *App) earlierOf(ctx context.Context, d *dashboard) ([]earlierDataset, er
 	return kept, nil
 }
 
-// toDrop is what confirming a pending Dataset of size bytes deletes, the current Dataset turning earlier: the
+// storageRoom is what confirming a pending Dataset does to the Learner's Storage allowance.
+type storageRoom struct {
+	Drop    []keptDataset // deleted on confirm: the earlier ones past keepEarlier, then oldest first for room
+	ForRoom bool          // some of Drop go only to make room under the allowance
+	Used    int64         // the bytes the Learner's Datasets take now
+	Fits    bool          // false when the Dataset does not fit even with every earlier one gone
+}
+
+// roomFor is what confirming a pending Dataset of size bytes deletes, the current Dataset turning earlier: the
 // earlier ones past keepEarlier, then, oldest first, as many more as the Storage allowance needs. The Admin has no
-// allowance. fits is false when the Dataset does not fit even with every earlier one gone; used is the bytes the
-// Learner's Datasets take now.
-func toDrop(ctx context.Context, q queryer, d *dashboard, size int64, acc labAccess) (drop []earlierDataset, used int64, fits bool, err error) {
+// allowance.
+func roomFor(ctx context.Context, q queryer, d *dashboard, size int64, acc labAccess) (storageRoom, error) {
 	kept, err := keptDatasets(ctx, q, d.ID)
 	if err != nil {
-		return nil, 0, false, err
+		return storageRoom{}, err
 	}
-	n := max(len(kept)-keepEarlier, 0)
+	past := max(len(kept)-keepEarlier, 0)
 	period := acc.CountedPeriod()
 	if period == nil {
-		return kept[:n], 0, true, nil
+		return storageRoom{Drop: kept[:past], Fits: true}, nil
 	}
-	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&used); err != nil {
-		return nil, 0, false, err
+	var room storageRoom
+	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&room.Used); err != nil {
+		return storageRoom{}, err
 	}
-	after := used + size
-	for _, e := range kept[:n] {
+	after := room.Used + size
+	for _, e := range kept[:past] {
 		after -= e.Size
 	}
+	n := past
 	for ; after > period.Storage() && n < len(kept); n++ {
 		after -= kept[n].Size
 	}
-	return kept[:n], used, after <= period.Storage(), nil
+	room.Drop, room.ForRoom, room.Fits = kept[:n], n > past, after <= period.Storage()
+	return room, nil
+}
+
+// routine reports whether Clean-up's changes are all of kinds it also made on the Dashboard's current Dataset, as
+// when the same monthly workbook is skipped past its title rows and combined again.
+func (a *App) routine(ctx context.Context, d *dashboard, changes []lab.Change) (bool, error) {
+	var c []byte
+	err := a.db.QueryRowContext(ctx, `SELECT cleanup FROM datasets WHERE dashboard_id = $1 AND state = 'current'`, d.ID).Scan(&c)
+	if errors.Is(err, sql.ErrNoRows) {
+		return len(changes) == 0, nil
+	}
+	var last cleaned
+	if err == nil {
+		err = json.Unmarshal(c, &last)
+	}
+	if err != nil {
+		return false, err
+	}
+	// A kind is the change's key, one row or many alike: lab.clean.title-row is lab.clean.title-rows.
+	kind := func(c lab.Change) string { return strings.TrimSuffix(c.Key, "s") }
+	for _, c := range changes {
+		if !slices.ContainsFunc(last.Changes, func(l lab.Change) bool { return kind(l) == kind(c) }) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // inTx runs f in a transaction, committed when f returns nil.
@@ -184,17 +226,16 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, error) {
 	var p pendingDataset
 	var key string
-	var changes, guess, sheets, used []byte
-	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, changes, guess, sheets, used, header_row FROM datasets
-		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &changes, &guess, &sheets, &used, &p.Header)
+	var c []byte
+	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup FROM datasets
+		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &c)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if err := errors.Join(json.Unmarshal(changes, &p.Changes), json.Unmarshal(guess, &p.Guess),
-		json.Unmarshal(sheets, &p.Sheets), json.Unmarshal(used, &p.Used)); err != nil {
+	if err := json.Unmarshal(c, &p.cleaned); err != nil {
 		return nil, err
 	}
 	data, err := a.datasets.Get(ctx, key)
@@ -208,8 +249,9 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 // uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
-// the Dashboard then remembers. When Clean-up changed nothing and every column the blocks use is still there,
-// there is nothing to check: the upload is confirmed at once.
+// the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made on the
+// current Dataset, every column the blocks use is still there and no earlier Dataset goes for room, there is
+// nothing new to check: the upload is confirmed at once.
 func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
 	lang, err := a.language(r)
 	if err != nil {
@@ -220,9 +262,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	// A header row that is not a number lets Cave find it, as when left empty. It counts for this upload only.
 	header, _ := strconv.Atoi(r.FormValue("header"))
 	settings.HeaderRow = max(header, 0)
-	twoRow := r.FormValue("two-row") == "on"
-	remember := twoRow != settings.TwoRowHeader
-	settings.TwoRowHeader = twoRow
+	settings.TwoRowHeader = r.FormValue("two-row") == "on"
 	if sheet := r.FormValue("sheet"); sheet != "" {
 		settings.Sheet, settings.Alone, settings.Ticked = sheet, false, nil
 		// Ticks were made against the sheet the preview showed picked; for another sheet, every match joins.
@@ -230,23 +270,12 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			settings.Ticked = append([]string{}, r.Form["combine"]...)
 			settings.Alone = len(settings.Ticked) == 0
 		}
-		remember = true
-	}
-	if remember {
-		saved, err := json.Marshal(settings)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		// ponytail: remembered on upload, not confirm; an abandoned preview still sets the next upload's choices.
-		if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET upload_settings = $2 WHERE id = $1`, d.ID, saved); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
 	}
 	// The grid month and year hold for this upload only, so the next month's workbook is dated afresh.
 	settings.Month, _ = strconv.Atoi(r.FormValue("month"))
-	settings.Year, _ = strconv.Atoi(r.FormValue("year"))
+	if settings.Year, _ = strconv.Atoi(r.FormValue("year")); settings.Year < 1900 || settings.Year > 2100 {
+		settings.Year = 0 // this year
+	}
 	res, err := lab.Clean(file, d.Template, settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {
@@ -262,22 +291,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	changes, err := json.Marshal(res.Changes)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	guess, err := json.Marshal(res.Guess)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	sheets, err := json.Marshal(res.Sheets)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	used, err := json.Marshal(res.Used)
+	found := cleaned{Changes: res.Changes, Guess: res.Guess, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings}
+	c, err := json.Marshal(found)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -296,8 +311,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, changes, guess, sheets, used, header_row)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10)`, d.ID, key, name, len(data), len(res.Dataset.Rows), changes, guess, sheets, used, res.HeaderRow)
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c)
 		return err
 	})
 	if err != nil {
@@ -306,13 +321,17 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
-	if d.Config != nil && len(res.Changes) == 0 && fits(d.Config, res.Dataset) { // nothing to check: it goes live
-		quiet, err := a.dropsOnlyPastKeep(r.Context(), d, int64(len(data)), acc)
+	if d.Config != nil && fits(d.Config, res.Dataset) { // nothing new to check: it goes live
+		usual, err := a.routine(r.Context(), d, res.Changes)
+		var room storageRoom
+		if err == nil && usual {
+			room, err = roomFor(r.Context(), a.db, d, int64(len(data)), acc)
+		}
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		if quiet {
+		if usual && room.Fits && !room.ForRoom {
 			a.confirmWork(w, r, d)
 			return
 		}
@@ -320,18 +339,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
 
-// dropsOnlyPastKeep is whether confirming a Dataset of size fits the Storage allowance deleting no earlier Dataset
-// but those past keepEarlier, so the preview has nothing to warn about.
-func (a *App) dropsOnlyPastKeep(ctx context.Context, d *dashboard, size int64, acc labAccess) (bool, error) {
-	kept, err := keptDatasets(ctx, a.db, d.ID)
-	if err != nil {
-		return false, err
-	}
-	drop, _, ok, err := toDrop(ctx, a.db, d, size, acc)
-	return ok && len(drop) <= max(len(kept)-keepEarlier, 0), err
-}
-
-// confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and toDrop's earlier
+// confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and roomFor's earlier
 // Datasets are deleted. On the first confirm the Learner's column choice for each blank opens the Template onto
 // the Dashboard as its blocks; the Learner may switch to General instead. Later confirms keep the blocks,
 // swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
@@ -390,18 +398,22 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.serverError(w, r, err)
 		return
 	}
-	var used int64
-	full := errors.New("full")
+	settings, err := json.Marshal(p.Settings)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	var room storageRoom
+	overAllowance := errors.New("over the Storage allowance")
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		// Locking the Learner makes two confirms or uploads take turns, as in replaceDataset.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
 			return err
 		}
-		drop, u, fits, err := toDrop(r.Context(), tx, d, p.Size, acc)
-		if used = u; err != nil || !fits {
-			return cmp.Or(err, full)
+		if room, err = roomFor(r.Context(), tx, d, p.Size, acc); err != nil || !room.Fits {
+			return cmp.Or(err, overAllowance)
 		}
-		for _, e := range drop {
+		for _, e := range room.Drop {
 			if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1`, e.ID); err != nil {
 				return err
 			}
@@ -412,13 +424,13 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'current', confirmed_at = now() WHERE id = $1`, p.ID); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET template = $2, choices = $3, config = $4, updated_at = now() WHERE id = $1`,
-			d.ID, t.Key, choices, config)
+		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET template = $2, choices = $3, config = $4, upload_settings = $5, updated_at = now()
+			WHERE id = $1`, d.ID, t.Key, choices, config, settings)
 		return err
 	})
-	if errors.Is(err, full) {
+	if errors.Is(err, overAllowance) {
 		page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Pending: p, Upload: p.File}
-		page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(used), sizeText(acc.Period.Storage()))
+		page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(room.Used), sizeText(acc.Period.Storage()))
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		return
 	}
