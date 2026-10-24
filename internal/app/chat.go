@@ -264,7 +264,9 @@ func (a *App) postMessage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	refuse := func(status int, key string) {
-		a.renderChat(w, r, status, c, v, chatPage{pageBase: pageBase{Error: text.T(v.lang, key)}, Body: body, ReplyTo: replyTo})
+		if !refuseInPlace(w, r, status, text.T(v.lang, key)) {
+			a.renderChat(w, r, status, c, v, chatPage{pageBase: pageBase{Error: text.T(v.lang, key)}, Body: body, ReplyTo: replyTo})
+		}
 	}
 	switch {
 	case r.PostFormValue("reply_to") != "" && replyTo == nil:
@@ -291,7 +293,9 @@ func (a *App) postMessage(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/courses/%d/chat#m%d", c.ID, id), http.StatusSeeOther)
+	m := chatMessage{ID: id, CourseID: c.ID}
+	a.changed(r.Context(), m, false)
+	a.answer(w, r, v, m)
 }
 
 // chatMessageFor loads the Message named by {mid} in Course c as v sees it. When there is none it writes the Not
@@ -325,6 +329,9 @@ func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !m.Mine {
+		if refuseInPlace(w, r, http.StatusForbidden, text.T(v.lang, "chat.not-yours")) {
+			return
+		}
 		a.render(w, r, http.StatusForbidden, "message", page{Title: text.T(v.lang, "chat.not-yours.title"), Message: text.T(v.lang, "chat.not-yours")})
 		return
 	}
@@ -332,7 +339,8 @@ func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.backToMessage(w, r, m)
+	a.changed(r.Context(), m, true)
+	a.answer(w, r, v, m)
 }
 
 // react is a Learner or the Admin putting a Reaction on a Message, changing theirs to it, or taking it off when it
@@ -346,13 +354,18 @@ func (a *App) react(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	refuse := func(status int, title, key string) {
+		if !refuseInPlace(w, r, status, text.T(v.lang, key)) {
+			a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
+		}
+	}
 	emoji := r.PostFormValue("emoji")
 	switch {
 	case !slices.Contains(reactions, emoji) || !m.Visible():
-		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: text.T(v.lang, "chat.no-reaction.title"), Message: text.T(v.lang, "chat.no-reaction")})
+		refuse(http.StatusUnprocessableEntity, "chat.no-reaction.title", "chat.no-reaction")
 		return
 	case !v.IsAdmin && !a.limiter.allow(fmt.Sprintf("chat reaction %d", v.ID), reactionsPerMinute, time.Minute, a.now()):
-		a.render(w, r, http.StatusTooManyRequests, "message", page{Title: text.T(v.lang, "limited.title"), Message: text.T(v.lang, "chat.err.too-fast")})
+		refuse(http.StatusTooManyRequests, "limited.title", "chat.err.too-fast")
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(), `WITH off AS (
@@ -363,7 +376,8 @@ func (a *App) react(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.backToMessage(w, r, m)
+	a.changed(r.Context(), m, false)
+	a.answer(w, r, v, m)
 }
 
 // reportMessage is a Learner Reporting a Message to the Admin, with an optional reason. The Message stays visible.
@@ -377,7 +391,9 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	refuse := func(status int, title, key string) {
-		a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
+		if !refuseInPlace(w, r, status, text.T(v.lang, key)) {
+			a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
+		}
 	}
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	switch {
@@ -405,7 +421,7 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 		refuse(http.StatusConflict, "chat.not-reported", "chat.err.reported")
 		return
 	}
-	a.backToMessage(w, r, m)
+	a.answer(w, r, v, m)
 }
 
 // setHidden returns the handler with which the Admin hides or unhides a Message. Hiding closes every open Report on
@@ -433,11 +449,22 @@ func (a *App) setHidden(hidden bool) http.HandlerFunc {
 				return
 			}
 		}
+		a.changed(r.Context(), m, true)
 		if r.PostFormValue("back") == "reports" {
 			http.Redirect(w, r, "/admin/reports", http.StatusSeeOther)
 			return
 		}
-		a.backToMessage(w, r, m)
+		l, err := a.currentLearner(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.answer(w, r, chatViewer{l, lang}, m)
 	}
 }
 

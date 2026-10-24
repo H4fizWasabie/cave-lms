@@ -1005,6 +1005,7 @@ var catalog = map[string]entry{
 	"chat.err.too-fast":        {en: "You're sending too fast. Wait a minute and try again.", ms: "Anda menghantar terlalu cepat. Tunggu seminit dan cuba lagi."},
 	"chat.not-yours.title":     {en: "Not your Message", ms: "Bukan Mesej anda"},
 	"chat.not-yours":           {en: "You can delete only your own Messages.", ms: "Anda hanya boleh memadam Mesej anda sendiri."},
+	"chat.err.failed":          {en: "Not sent. Check your connection, or reload the page and try again.", ms: "Tidak dihantar. Semak sambungan anda, atau muat semula halaman dan cuba lagi."},
 	"chat.reply":               {en: "Reply", ms: "Balas"},
 	"chat.replying-to":         {en: "Replying to", ms: "Membalas"},
 	"chat.cancel-reply":        {en: "Cancel", ms: "Batal"},

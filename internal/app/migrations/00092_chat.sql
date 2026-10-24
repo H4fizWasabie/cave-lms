@@ -17,6 +17,7 @@ CREATE TABLE chat_messages (
 );
 CREATE INDEX chat_messages_course ON chat_messages (course_id, id);
 CREATE INDEX chat_messages_learner ON chat_messages (learner_id);
+CREATE INDEX chat_messages_reply_to ON chat_messages (reply_to);
 
 -- One of six fixed emoji, at most one per person per Message.
 CREATE TABLE chat_reactions (

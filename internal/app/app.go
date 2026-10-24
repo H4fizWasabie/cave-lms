@@ -48,6 +48,7 @@ type App struct {
 	datasets             storage.Store // where Dataset data lives (ADR 0008)
 	maxUpload            int64
 	limiter              rateLimiter
+	chatHub              chatHub       // tells open Chat streams of new and changed Messages
 	ownerEmail           string        // the Owner's, from OWNER_EMAIL; empty means no Owner
 	caveTextExtensionIDs []string      // the extensions the CaveText connect page may send tokens to
 	bclWebhookKey        string        // the secret in BCL's webhook address; empty refuses every webhook
@@ -197,6 +198,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses/{id}/chat", a.requireLearner(a.chat))
 	mux.HandleFunc("POST /courses/{id}/chat", a.requireLearner(a.postMessage))
 	mux.HandleFunc("POST /courses/{id}/chat/{mid}/delete", a.requireLearner(a.deleteMessage))
+	mux.HandleFunc("GET /courses/{id}/chat/events", a.requireLearner(a.chatEvents))
 	mux.HandleFunc("POST /courses/{id}/chat/{mid}/react", a.requireLearner(a.react))
 	mux.HandleFunc("POST /courses/{id}/chat/{mid}/report", a.requireLearner(a.reportMessage))
 	mux.HandleFunc("POST /admin/chat/{mid}/hide", a.admin(a.setHidden(true)))

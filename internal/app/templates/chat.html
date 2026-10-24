@@ -5,12 +5,12 @@
       <h1>{{.Course.Title}}</h1>
       {{template "course-tabs" (courseTab .Course.ID "chat" .Lang)}}
       {{if .Earlier}}<p class="chat-more"><a href="/courses/{{.Course.ID}}/chat?before={{.Earlier}}">{{t .Lang "chat.earlier"}}</a></p>{{end}}
-      <ol class="chat" id="chat">
+      <ol class="chat" id="chat" data-stream="/courses/{{.Course.ID}}/chat/events"{{if .Paged}} data-paged{{end}}>
         {{- range .Messages}}{{template "chat-message" .}}{{else}}
         <li class="chat-empty">{{t .Lang "chat.empty"}}</li>{{end}}
       </ol>
       {{if .Paged}}<p class="chat-more"><a href="/courses/{{.Course.ID}}/chat">{{t .Lang "chat.latest"}}</a></p>{{end}}
-      <form class="chat-compose" id="compose" method="post" action="/courses/{{.Course.ID}}/chat">
+      <form class="chat-compose" id="compose" method="post" action="/courses/{{.Course.ID}}/chat" data-failed="{{t .Lang "chat.err.failed"}}">
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <p class="chat-replying" id="replying"{{if not .ReplyTo}} hidden{{end}}>
           <span>{{t .Lang "chat.replying-to"}} <strong>{{with .ReplyTo}}{{.Writer}}{{end}}</strong> <span>{{with .ReplyTo}}{{.FirstLine}}{{end}}</span></span>
@@ -22,6 +22,7 @@
         <button class="btn btn-solid">{{t .Lang "chat.send"}}</button>
       </form>
     </div>
+    <script src="{{static "chat.js"}}" defer></script>
 {{end}}
 
 {{/* chat-message is one Message as its viewer sees it; the Chat page and its live updates both render it. */}}
