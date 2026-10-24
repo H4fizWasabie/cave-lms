@@ -251,7 +251,7 @@ _Malay_: Sampel
 _Avoid_: Example file, demo data
 
 **Dataset**:
-The table Cave keeps from a Learner's Excel upload, their own data or an edited Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It belongs to exactly one Dashboard and is replaced when the Learner confirms a new upload. Never a Gallery item.
+The table Cave keeps from a Learner's Excel upload, their own data or an edited Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It belongs to exactly one Dashboard. Confirming a new upload makes it the Dashboard's current Dataset; the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
 
