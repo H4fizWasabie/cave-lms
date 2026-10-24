@@ -328,6 +328,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses/{id}/exam/answer-sheet", a.requireLearner(a.downloadAnswerSheet))
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
+	mux.HandleFunc("GET /my-folder", a.requireLearner(a.myFolder))
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
 	mux.HandleFunc("GET /my-profile", a.requireLearner(a.myProfile))
 	mux.HandleFunc("POST /my-profile/ic", a.requireLearner(a.setMyIC))

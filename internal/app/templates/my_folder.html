@@ -1,0 +1,27 @@
+{{define "title"}}{{t .Lang "my-folder.title"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "my-folder.title"}}</h1>
+        <p>{{t .Lang "my-folder.intro"}}</p>
+      </div>
+      {{range .Courses}}
+      <section class="card folder-course">
+        <h2><a href="/courses/{{.ID}}">{{.Title}}</a>{{if not .Enrolled}} <span class="badge badge-closed">{{t $.Lang "my-folder.read-only"}}</span>{{end}}</h2>
+        {{if not .Enrolled}}<p class="muted">{{t $.Lang "my-folder.left"}}</p>{{end}}
+        {{$c := .}}
+        {{range .Assignments}}
+        <div class="folder-assignment">
+          <h3>{{if and $c.Enrolled .Published}}<a href="/courses/{{$c.ID}}/assignments/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</h3>
+          {{if .Files}}
+          <ul class="file-list">{{range .Files}}<li><a href="/submission-files/{{.ID}}">{{.Name}}</a> <small>{{size .Size}}</small></li>{{end}}</ul>
+          {{end}}
+          {{with .Comment}}<div class="callout"><p><strong>{{t $.Lang "submission.comment"}}</strong><br><span class="pre-line">{{.}}</span></p></div>{{end}}
+        </div>
+        {{end}}
+      </section>
+      {{else}}
+      <p class="empty">{{t .Lang "my-folder.none"}}</p>
+      {{end}}
+    </div>
+{{end}}
