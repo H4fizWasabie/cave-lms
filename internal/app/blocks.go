@@ -228,7 +228,11 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			}
 		}
 		for _, s := range all {
-			vals.Options = append(vals.Options, option{Value: s, Text: s, On: slices.Contains(f.Vals, s), Gone: slices.Contains(row.Gone, s)})
+			o := option{Value: s, Text: s, On: slices.Contains(f.Vals, s), Gone: slices.Contains(row.Gone, s)}
+			if s == "(blank)" {
+				o.Text = text.T(lang, "lab.b.blank")
+			}
+			vals.Options = append(vals.Options, o)
 		}
 		row.FilterVals = &vals
 	}

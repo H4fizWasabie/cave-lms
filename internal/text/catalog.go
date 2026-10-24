@@ -822,6 +822,7 @@ var catalog = map[string]entry{
 	"lab.b.group":          {en: "Group by", ms: "Kumpulkan ikut"},
 	"lab.b.split":          {en: "Split by", ms: "Pecahkan ikut"},
 	"lab.b.none":           {en: "None", ms: "Tiada"},
+	"lab.b.blank":          {en: "(blank)", ms: "(kosong)"},
 	"lab.b.needs":          {en: "Paused. Needs", ms: "Dijeda. Perlukan"},
 	"lab.b.use-instead":    {en: "Use instead", ms: "Guna sebagai ganti"},
 	"lab.b.use-instead-of": {en: "Column to use instead of %s", ms: "Lajur untuk digunakan sebagai ganti %s"},

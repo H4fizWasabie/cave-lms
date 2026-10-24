@@ -257,6 +257,20 @@ func TestTheFilterBarIsTheTickedColumns(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `name="bar" value="Perkara" checked`)
 }
 
+func TestABlankFilterValueReadsInTheLearnersLanguage(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+		[]any{day, nil, "Dapur", "Keluar", 80.0}, []any{day, "Jualan", "Kedai", "Masuk", 700.0}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
+	ada.editBlocks(path, barForm(url.Values{"fcol": {"Perkara"}}))
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=5")
+	expectStatus(t, res, body, http.StatusOK, `name="fval" value="(blank)">(kosong)</label>`)
+}
+
 func TestTheTemplatePickerShowsEachDashboardQuestion(t *testing.T) {
 	_, ada := labLearner(t)
 	for _, page := range []string{"/lab/new", "/lab/new?kind=work"} {
