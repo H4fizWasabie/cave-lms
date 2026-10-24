@@ -26,11 +26,11 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 	var (
-		id              int64
-		name, to, saved string
+		id        int64
+		to, saved string
 	)
 	err = tx.QueryRowContext(r.Context(),
-		`SELECT id, name, email, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &name, &to, &saved)
+		`SELECT id, email, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &to, &saved)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -54,7 +54,7 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		if err := a.mailer.Send(r.Context(), mailer.Message{
 			To:      to,
 			Subject: text.T(lang, "email.reset.subject"),
-			Body:    text.T(lang, "email.reset.body", name, a.publicBaseURL+"/reset-password?token="+token),
+			Body:    text.T(lang, "email.reset.body", a.publicBaseURL+"/reset-password?token="+token),
 		}); err != nil {
 			a.logError(r, fmt.Errorf("send password reset email: %w", err))
 		}

@@ -113,7 +113,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Commit only once the email is sent, so a failed send leaves no half-made account.
-	if err := a.sendVerification(r.Context(), tx, lang, id, name, email); err != nil {
+	if err := a.sendVerification(r.Context(), tx, lang, id, email); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -127,21 +127,31 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// sendVerification replaces the Learner's verification link with a new one and emails it in lang.
-func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, learnerID int64, name, email string) error {
+// sendVerification replaces the Learner's verification link with a new one and emails it in lang, if email may have one.
+func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, learnerID int64, email string) error {
+	if !a.verificationAllowed(email) {
+		return nil
+	}
 	token, err := issueOneTimeToken(ctx, tx, learnerID, purposeVerifyEmail, verifyLinkLifetime)
 	if err != nil {
 		return err
 	}
-	return a.mailVerification(ctx, lang, name, email, token)
+	return a.mailVerification(ctx, lang, email, token)
+}
+
+// verificationAllowed counts a verification email to email and reports whether it is within verificationsPerAddress in
+// verificationWindow. Past that, callers neither send nor replace the link, and answer as if they had, so the requester
+// learns nothing and the link already sent keeps working.
+func (a *App) verificationAllowed(email string) bool {
+	return a.limiter.allow("verification email "+strings.ToLower(email), verificationsPerAddress, verificationWindow, a.now())
 }
 
 // mailVerification emails the verification link for token in lang.
-func (a *App) mailVerification(ctx context.Context, lang, name, email, token string) error {
+func (a *App) mailVerification(ctx context.Context, lang, email, token string) error {
 	return a.mailer.Send(ctx, mailer.Message{
 		To:      email,
 		Subject: text.T(lang, "email.verify.subject"),
-		Body:    text.T(lang, "email.verify.body", name, a.publicBaseURL+"/verify?token="+token),
+		Body:    text.T(lang, "email.verify.body", a.publicBaseURL+"/verify?token="+token),
 	})
 }
 
@@ -224,16 +234,16 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 	var (
-		id              int64
-		name, to, saved string
+		id        int64
+		to, saved string
 	)
 	err = tx.QueryRowContext(r.Context(),
-		`SELECT id, name, email, coalesce(language, '') FROM learners WHERE lower(email) = lower($1) AND verified_at IS NULL`, email).Scan(&id, &name, &to, &saved)
+		`SELECT id, email, coalesce(language, '') FROM learners WHERE lower(email) = lower($1) AND verified_at IS NULL`, email).Scan(&id, &to, &saved)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
 	}
-	if err == nil {
+	if err == nil && a.verificationAllowed(to) {
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeVerifyEmail, verifyLinkLifetime)
 		if err != nil {
 			a.serverError(w, r, err)
@@ -249,7 +259,7 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// A failed send is only logged: an error page would reveal that the account exists.
-		if err := a.mailVerification(r.Context(), lang, name, to, token); err != nil {
+		if err := a.mailVerification(r.Context(), lang, to, token); err != nil {
 			a.logError(r, fmt.Errorf("send verification email: %w", err))
 		}
 	}

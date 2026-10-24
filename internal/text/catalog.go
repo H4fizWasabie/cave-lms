@@ -1565,16 +1565,16 @@ var catalog = map[string]entry{
 	"limited.title": {en: "Too many attempts", ms: "Terlalu banyak cubaan"},
 	"limited":       {en: "Too many attempts from your address. Wait 15 minutes and try again.", ms: "Terlalu banyak cubaan dari alamat anda. Tunggu 15 minit dan cuba lagi."},
 
-	// Emails: the recipient's name, then the link
+	// Emails: the link. These can reach an address nobody has confirmed yet, so they carry no text a visitor typed.
 	"email.verify.subject": {en: "Confirm your CAVELMS account", ms: "Sahkan akaun CAVELMS anda"},
 	"email.verify.body": {
-		en: "Hi %[1]s,\n\nOpen this link within 24 hours to confirm your CAVELMS account:\n\n%[2]s\n\nIf you didn't register, you can ignore this email.\n",
-		ms: "Hai %[1]s,\n\nBuka pautan ini dalam masa 24 jam untuk mengesahkan akaun CAVELMS anda:\n\n%[2]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
+		en: "Hi,\n\nOpen this link within 24 hours to confirm your CAVELMS account:\n\n%[1]s\n\nIf you didn't register, you can ignore this email.\n",
+		ms: "Hai,\n\nBuka pautan ini dalam masa 24 jam untuk mengesahkan akaun CAVELMS anda:\n\n%[1]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
 	},
 	"email.reset.subject": {en: "Reset your CAVELMS password", ms: "Set semula kata laluan CAVELMS anda"},
 	"email.reset.body": {
-		en: "Hi %[1]s,\n\nOpen this link within an hour to choose a new password:\n\n%[2]s\n\nIf you didn't ask for this, you can ignore this email.\n",
-		ms: "Hai %[1]s,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[2]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
+		en: "Hi,\n\nOpen this link within an hour to choose a new password:\n\n%[1]s\n\nIf you didn't ask for this, you can ignore this email.\n",
+		ms: "Hai,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[1]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
 	},
 	// The Course title and the Exam's format name, then for the body the Learner's name, the Course title, the mark,
 	// pass or fail, the link and the Exam's format name
