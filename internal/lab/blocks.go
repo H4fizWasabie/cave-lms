@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -86,6 +87,8 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			switch {
 			case b.Times != "":
 				w.Value = &Value{Agg: "calc", A: c[b.Of], Op: "x", B: c[b.Times], Then: "sum"}
+			case b.Agg == "distinct":
+				w.Value = &Value{Agg: "distinct", Col: c[b.Of]}
 			case b.Of != "":
 				w.Value = &Value{Agg: "sum", Col: c[b.Of]}
 			default:
@@ -93,7 +96,7 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			}
 		}
 		if b.Kind == "line" {
-			w.By = "month"
+			w.By = cmp.Or(b.By, "month")
 		}
 		if b.Kind == "bar" {
 			w.Top = 8

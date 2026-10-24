@@ -8,7 +8,8 @@ import (
 
 // Template is a Dashboard design: blanks the Learner fills with columns, and blocks drawn from them.
 // A block is left out when a blank it needs is skipped; the first card left is drawn largest. To add
-// a Template, define it below with its Sample embedded from samples/ and list it in Templates.
+// a Template, define it below with its Sample embedded from samples/ and list it in workTemplates, and in
+// Templates too if Practice Dashboards offer it.
 type Template struct {
 	Key      string // in URLs and stored on each Dashboard; never changes
 	Name     string
@@ -37,9 +38,10 @@ type Blank struct {
 type Block struct {
 	Kind   string   `json:"kind"` // card, line, bar, donut, table
 	Label  string   `json:"label"`
-	Agg    string   `json:"agg,omitempty"`    // card: count or sum
+	Agg    string   `json:"agg,omitempty"`    // card: count or sum; distinct counts Of's values (Work Templates only)
 	Of     string   `json:"of,omitempty"`     // the Number blank summed; counts rows when empty
 	X      string   `json:"x,omitempty"`      // line: the Date blank, by month
+	By     string   `json:"by,omitempty"`     // line: day, else month (Work Templates only)
 	Group  string   `json:"group,omitempty"`  // bar and donut: the Text blank grouped by
 	Series string   `json:"series,omitempty"` // line: one line per value of this blank, when chosen
 	Where  []string `json:"where,omitempty"`  // [blank, value]: only rows where the blank holds value, when chosen
@@ -185,12 +187,80 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 	return t, c
 }
 
-// Templates are every Template, in the order the Lab offers them.
+//go:embed samples/sales.xlsx
+var salesSample []byte
+
+var Sales = &Template{
+	Key:      "sales",
+	Name:     "Sales",
+	Blurb:    "Takings: revenue by month, top items, staff and payment methods.",
+	Question: "What sells, and when?",
+	Blanks: []Blank{
+		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each sale", Guess: []string{"tarikh", "date", "tarikh jualan", "sale date"}},
+		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "What the sale took, in RM", Guess: []string{"jumlah", "amaun", "amount", "total", "jualan", "sales", "hasil", "revenue", "harga", "price"}},
+		{Key: "item", Label: "Item", Type: Text, Help: "What was sold", Guess: []string{"produk", "product", "item", "barang", "nama item", "nama barang", "perkhidmatan", "service"}},
+		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"}},
+		{Key: "staff", Label: "Staff", Type: Text, Help: "Who made the sale", Guess: []string{"staf", "staff", "pekerja", "juruwang", "cashier", "doktor", "doctor"}},
+		{Key: "payment", Label: "Payment method", Type: Text, Help: "Tunai, Kad, DuitNow QR and so on", Guess: []string{"kaedah bayaran", "bayaran", "payment method", "payment mode", "payment"}},
+		{Key: "quantity", Label: "Quantity", Type: Number, Help: "How many were sold", Guess: []string{"kuantiti", "quantity", "qty", "unit"}},
+	},
+	Blocks: []Block{
+		{Kind: "card", Label: "Revenue", Agg: "sum", Of: "amount"},
+		{Kind: "card", Label: "Sales", Agg: "count"},
+		{Kind: "card", Label: "Units", Agg: "sum", Of: "quantity"},
+		{Kind: "line", Label: "Revenue by month", X: "date", Of: "amount", Series: "category", Wide: true},
+		{Kind: "bar", Label: "Revenue by item", Group: "item", Of: "amount"},
+		{Kind: "bar", Label: "Revenue by staff", Group: "staff", Of: "amount"},
+		{Kind: "donut", Label: "Revenue by payment method", Group: "payment", Of: "amount"},
+		{Kind: "table", Label: "Latest sales", Cols: []string{"date", "item", "category", "staff", "payment", "quantity", "amount"}, Sort: "date", Limit: 10},
+	},
+	Filters: []string{"category", "staff", "payment", "date"},
+	Sample:  salesSample,
+}
+
+//go:embed samples/roster.xlsx
+var rosterSample []byte
+
+var Roster = &Template{
+	Key:      "roster",
+	Name:     "Roster",
+	Blurb:    "Shifts: who works, which shift codes, and how many each day.",
+	Question: "Who works when?",
+	Blanks: []Blank{
+		{Key: "staff", Label: "Staff", Type: Text, Required: true, Help: "Who works the shift", Guess: []string{"staf", "staff", "nama", "name", "pekerja", "nama staf"}},
+		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of the shift", Guess: []string{"tarikh", "date", "hari", "day"}},
+		{Key: "code", Label: "Code", Type: Text, Required: true, Help: "The shift code, such as P, M or C", Guess: []string{"kod", "code", "syif", "shift", "kod syif", "shift code"}},
+		{Key: "department", Label: "Department", Type: Text, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department", "unit"}},
+	},
+	Blocks: []Block{
+		{Kind: "card", Label: "Staff", Agg: "distinct", Of: "staff"},
+		{Kind: "card", Label: "Shifts", Agg: "count"},
+		{Kind: "bar", Label: "Shifts by staff", Group: "staff"},
+		{Kind: "bar", Label: "Shifts by code", Group: "code"},
+		{Kind: "line", Label: "Shifts per day", X: "date", By: "day", Wide: true},
+		{Kind: "table", Label: "Roster", Cols: []string{"date", "staff", "department", "code"}, Sort: "date"},
+	},
+	Filters: []string{"department", "code", "staff", "date"},
+	Sample:  rosterSample,
+}
+
+// Templates are the Templates a Practice Dashboard offers, in the order the Lab offers them.
 var Templates = []*Template{Finance, Inventory, HR, General}
 
-// TemplateByKey finds a Template by its Key, or nil.
+// workTemplates are the Templates a Work Dashboard offers: Practice's four with Sales and Roster.
+var workTemplates = []*Template{Finance, Inventory, HR, Sales, Roster, General}
+
+// TemplatesFor is the Templates a Work (work true) or Practice Dashboard offers.
+func TemplatesFor(work bool) []*Template {
+	if work {
+		return workTemplates
+	}
+	return Templates
+}
+
+// TemplateByKey finds a Template by its Key, Work-only ones included, or nil.
 func TemplateByKey(key string) *Template {
-	for _, t := range Templates {
+	for _, t := range workTemplates {
 		if t.Key == key {
 			return t
 		}
