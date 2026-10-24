@@ -1,5 +1,5 @@
 /* Cave's chart library. It draws a Dashboard from the column choices and blocks Cave wrote into
-   index.html and the rows in data.json: summary cards, a line chart by month, bar and donut charts,
+   index.html and the rows in data.json: summary cards, a line chart by month or day, bar and donut charts,
    a table, and a filter bar. It needs no other library and loads nothing from other websites.
    Every column name and cell is escaped before it reaches the page, so a cell shows as text. */
 (function () {
@@ -37,6 +37,7 @@
     '.dbar-k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
     '.dbar-t{height:.8rem;background:#eef0f3;border-radius:99px;overflow:hidden}',
     '.dbar-t span{display:block;height:100%;background:#2f5d8a;border-radius:99px}',
+    '.dbar-t.split{display:flex}.dbar-t.split span{border-radius:0}',
     '.dbar-v{text-align:right;font-variant-numeric:tabular-nums;color:#3c4552}',
     '.ddonut{display:flex;gap:1.2rem;align-items:center}.ddonut svg{width:9.5rem;flex-shrink:0}',
     '.ddonut .dtot{font-size:17px;font-weight:700;fill:#1c2430}',
@@ -47,6 +48,7 @@
     '.dtable td{padding:.5rem .6rem;border-bottom:1px solid #f0f1f4;white-space:nowrap}',
     '.dtable .num{text-align:right;font-variant-numeric:tabular-nums}',
     '.dnone{color:#6b7482;font-size:.88rem;padding:1rem 0;text-align:center}',
+    '.dcard strong.dnone{font-size:.88rem;font-weight:400;padding:0;text-align:left}',
     '@media (max-width:640px){main{padding:1.1rem .9rem .6rem}.dh h1{font-size:1.3rem}.df{width:100%}.df label{flex:1 1 8rem}' +
       '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard:first-child,.dcard:last-child:nth-child(even){grid-column:span 2}.dcard strong{font-size:1.15rem}.dcard:first-child strong{font-size:1.6rem}' +
       '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}'
@@ -75,14 +77,96 @@
   function nice(v) { if (!v) return 1; var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
   function seriesColour(s, i) { return IN_OUT[String(s).toLowerCase()] || PALETTE[i % PALETTE.length]; }
 
-  // fromWork reads a Work Dashboard's block, which names columns in the shape Cave stores (value, split, filter),
-  // as the drawing code below reads a Template's. Its columns are keyed by name, so a column is its own key.
-  // ponytail: only count, sum and A x B summed draw for now; the other values come with the Blocks tab.
-  function fromWork(b) {
-    var v = b.value || {}, f = b.filter;
-    return { kind: b.kind, label: b.label, wide: b.wide, agg: v.agg === 'count' ? 'count' : 'sum', of: v.col || v.a,
-      times: v.op === 'x' ? v.b : null, x: b.x, series: b.split, group: b.group, cols: b.cols, sort: b.sort,
-      limit: b.limit, where: f ? [f.col].concat(f.vals) : b.where, minus: b.minus, low: b.low };
+  function dayName(iso) { return +iso.slice(8) + ' ' + MONTHS[+iso.slice(5, 7) - 1]; }
+
+  // The computing functions: pure, so charts_test.js checks them in node. A block is in the shape a Work
+  // Dashboard stores (value, split, filter, top); a Practice block is read into it first. rows are objects
+  // keyed as cols is: by column name in a Work Dashboard, by blank key in a Practice one.
+
+  // fromPractice reads a Template's block, naming blanks, as the same block naming columns would be.
+  function fromPractice(b) {
+    return { kind: b.kind, label: b.label, wide: b.wide, x: b.x, by: b.kind === 'line' ? 'month' : undefined, split: b.series,
+      group: b.group, top: b.kind === 'bar' ? 8 : undefined, other: b.kind === 'donut' ? 5 : undefined, cols: b.cols, sort: b.sort, limit: b.limit, where: b.where, minus: b.minus, low: b.low,
+      value: b.kind === 'table' ? undefined : b.agg === 'count' || !b.of ? { agg: 'count' } : b.times ? { agg: 'calc', a: b.of, op: 'x', b: b.times, then: 'sum' } : { agg: 'sum', col: b.of } };
+  }
+  function num(x) { var n = +x; return x == null || x === '' || isNaN(n) ? null : n; }
+  function blank(x) { return x == null || x === '' ? '(blank)' : x; }
+  // valueOf is one number from rows: empty cells count as rows and are skipped in sums, averages and distinct counts.
+  function valueOf(v, rows) {
+    if (!v || v.agg === 'count') return rows.length;
+    if (v.agg === 'distinct') { var seen = {}; rows.forEach(function (r) { if (r[v.col] != null && r[v.col] !== '') seen[r[v.col]] = 1; }); return Object.keys(seen).length; }
+    var tot = 0, n = 0;
+    rows.forEach(function (r) {
+      var x;
+      if (v.agg === 'calc') {
+        var a = num(r[v.a]), b = num(r[v.b]);
+        if (a == null || b == null || (v.op === '/' && !b)) return;
+        x = v.op === '+' ? a + b : v.op === '-' ? a - b : v.op === '/' ? a / b : a * b;
+      } else if ((x = num(r[v.col])) == null) return;
+      tot += x; n++;
+    });
+    return v.agg === 'avg' || (v.agg === 'calc' && v.then === 'avg') ? (n ? tot / n : 0) : tot;
+  }
+  // where keeps the rows whose column holds one of the values: f is a block's filter, or a Template's [column, value].
+  // A filter with its column picked and no value ticked yet keeps every row.
+  function where(rows, f, cols) {
+    if (f && !f.col) f = { col: f[0], vals: f.slice(1) };
+    return f && f.vals.length && cols[f.col] ? rows.filter(function (r) { return f.vals.indexOf(String(blank(r[f.col]))) >= 0; }) : rows;
+  }
+  // scope is the rows a block draws: those its filter keeps, and with low, those at or below the level.
+  function scope(b, rows, cols) {
+    rows = where(where(rows, b.filter, cols), b.where, cols);
+    var l = b.low;
+    return l && cols[l[0]] && cols[l[1]] ? rows.filter(function (r) { return r[l[0]] != null && r[l[1]] != null && +r[l[0]] <= +r[l[1]]; }) : rows;
+  }
+  // noMatch is whether the block's filter keeps no row of the whole Dataset: it then says "No rows match".
+  function noMatch(b, all, cols) { return !!b.filter && !scope(b, all, cols).length; }
+  function cardValue(b, rows, cols) {
+    return valueOf(b.value, scope(b, rows, cols)) - (b.minus ? valueOf(b.value, where(rows, b.minus, cols)) : 0);
+  }
+  // groups is [[key, value, rows]] by the column k, largest first; empty cells group as (blank).
+  function groups(v, rows, k) {
+    var g = {};
+    rows.forEach(function (r) { var x = blank(r[k]); (g[x] = g[x] || []).push(r); });
+    return Object.keys(g).map(function (x) { return [x, valueOf(v, g[x]), g[x]]; }).sort(function (a, c) { return c[1] - a[1]; });
+  }
+  // bars is a bar's groups, its top N or all, each with its split as [[value, number]] in name order.
+  function bars(b, rows, cols) {
+    var g = groups(b.value, scope(b, rows, cols), b.group);
+    if (b.top) g = g.slice(0, b.top);
+    return g.map(function (x) {
+      return [x[0], x[1]].concat(b.split ? [groups(b.value, x[2], b.split).map(function (s) { return [s[0], s[1]]; }).sort(function (a, c) { return a[0] < c[0] ? -1 : 1; })] : []);
+    });
+  }
+  // slices is a donut's groups, past the top 6 folded into one Other (a Practice donut's, past the top 5, as it always was).
+  function slices(b, rows, cols) {
+    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; }), n = b.other || 6;
+    if (g.length > n + 1) { var rest = g.slice(n).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, n).concat([['Other', rest]]); }
+    return g;
+  }
+  // timeline is a line's values by month or day, one series per split value; empty dates are left off the axis.
+  function timeline(b, rows, cols) {
+    var keys = [], buckets = {}, series = {};
+    scope(b, rows, cols).forEach(function (r) {
+      if (!r[b.x]) return;
+      var k = b.by === 'day' ? String(r[b.x]) : String(r[b.x]).slice(0, 7), s = b.split && cols[b.split] ? blank(r[b.split]) : b.label;
+      if (keys.indexOf(k) < 0) keys.push(k);
+      buckets[s] = buckets[s] || {};
+      (buckets[s][k] = buckets[s][k] || []).push(r);
+    });
+    Object.keys(buckets).forEach(function (s) { series[s] = {}; Object.keys(buckets[s]).forEach(function (k) { series[s][k] = valueOf(b.value, buckets[s][k]); }); });
+    return { keys: keys.sort(), series: series };
+  }
+  // tableRows is a table's rows, newest or largest first by its sort column with empty cells last, cut to its limit.
+  function tableRows(b, rows, cols) {
+    var rs = scope(b, rows, cols).slice(), k = b.sort;
+    if (k && cols[k]) rs.sort(function (a, c) { var x = a[k], y = c[k]; return x == null ? (y == null ? 0 : 1) : y == null ? -1 : x < y ? 1 : x > y ? -1 : 0; });
+    return b.limit ? rs.slice(0, b.limit) : rs;
+  }
+  // paused is whether the block names a column the Dataset lacks; it is then left off the Dashboard.
+  function paused(b, cols) {
+    var v = b.value || {}, f = b.filter, need = [v.col, v.a, v.b, b.x, b.split, b.group, b.sort, f && f.col, b.where && b.where[0], b.minus && b.minus[0]];
+    return need.concat(b.cols || [], b.low || []).some(function (k) { return k && !cols[k]; });
   }
 
   function drawDashboard(dash, data) {
@@ -91,8 +175,13 @@
     document.head.appendChild(style);
 
     var cols = dash.columns, blocks = dash.blocks || [], filters = dash.filters || [], state = {};
-    if (dash.work) blocks = blocks.map(fromWork);
-    // Each row by blank key: r.amount is the cell in the column chosen for Amount.
+    // A Work Dashboard's blocks and filter bar name columns, so one whose column the Dataset lacks is left off.
+    if (dash.work) {
+      // Copied, as the layout below sets wide on them.
+      blocks = blocks.filter(function (b) { return !paused(b, cols); }).map(function (b) { return Object.assign({}, b); });
+      filters = filters.filter(function (k) { return cols[k]; });
+    } else blocks = blocks.map(fromPractice);
+    // Each row by blank key: r.amount is the cell in the column chosen for Amount. A Work column is its own key.
     var all = data.map(function (o) { var r = {}; Object.keys(cols).forEach(function (k) { r[k] = o[cols[k].name]; }); return r; });
     var dateKey = filters.filter(function (k) { return cols[k].type === 'date'; })[0];
     var months = [];
@@ -122,8 +211,10 @@
     var cardsEl = document.getElementById('cards'), chartsEl = document.getElementById('charts');
     // One row of up to four cards, the first twice as wide, so the row ends flush with the charts below.
     // ponytail: a fifth card and on (General, one per Number column) wraps to a second row; cap or regrid if that shows up.
-    var cardCount = Math.min(4, blocks.filter(function (b) { return b.kind === 'card'; }).length);
-    if (cardCount > 1) cardsEl.style.setProperty('--cols', 'minmax(0,2fr) repeat(' + (cardCount - 1) + ',minmax(0,1fr))');
+    // A Work Dashboard's five to eight cards sit in two even rows instead.
+    var allCards = blocks.filter(function (b) { return b.kind === 'card'; }).length, cardCount = Math.min(4, allCards);
+    if (dash.work && allCards > 4) cardsEl.style.setProperty('--cols', 'repeat(' + Math.ceil(allCards / 2) + ',minmax(0,1fr))');
+    else if (cardCount > 1) cardsEl.style.setProperty('--cols', 'minmax(0,2fr) repeat(' + (cardCount - 1) + ',minmax(0,1fr))');
     // Panels sit two to a row; tables, and a half-width panel with no half-width neighbour, span the row, so no gap is left.
     var panels = blocks.filter(function (b) { return b.kind !== 'card'; });
     for (var i = 0; i < panels.length; i++) {
@@ -143,20 +234,11 @@
         return true;
       });
     }
-    // w is [key, value, ...]: the rows whose key holds one of the values.
-    function where(rows, w) { return w && cols[w[0]] ? rows.filter(function (r) { return w.indexOf(r[w[0]], 1) > 0; }) : rows; }
-    // The rows a block draws: those matching its where, and with low, those at or below the level.
-    function scope(rows, b) {
-      rows = where(rows, b.where);
-      var l = b.low;
-      return l && cols[l[0]] && cols[l[1]] ? rows.filter(function (r) { return r[l[0]] != null && r[l[1]] != null && +r[l[0]] <= +r[l[1]]; }) : rows;
-    }
-    function sum(rows, k, times) { return rows.reduce(function (a, r) { return a + (+r[k] || 0) * (times ? +r[times] || 0 : 1); }, 0); }
-    function money(k) { return !!(k && cols[k] && cols[k].money); }
-    function grouped(rows, b) {
-      var g = {};
-      scope(rows, b).forEach(function (r) { var k = r[b.group] == null ? '(blank)' : r[b.group]; g[k] = (g[k] || 0) + (b.of ? +r[b.of] || 0 : 1); });
-      return Object.keys(g).map(function (k) { return [k, g[k]]; }).sort(function (a, c) { return c[1] - a[1]; });
+    // money is whether a value shows as RM: a sum or average of an RM column, or a calculation on one, bar division.
+    function money(v) {
+      var m = function (k) { return !!(k && cols[k] && cols[k].money); };
+      v = v || {};
+      return v.agg === 'sum' || v.agg === 'avg' ? m(v.col) : v.agg === 'calc' && v.op !== '/' ? m(v.a) || m(v.b) : false;
     }
     // finding is the one thing the chart shows, written under its name: its peak, top group or largest share.
     function panel(b, inner, finding) {
@@ -166,21 +248,15 @@
     function empty(b) { return panel(b, '<p class="dnone">No rows match the filters</p>'); }
 
     function card(b, rows) {
-      var v = b.agg === 'count' ? scope(rows, b).length : sum(scope(rows, b), b.of, b.times) - (b.minus ? sum(where(rows, b.minus), b.of) : 0);
+      if (noMatch(b, all, cols)) return '<div class="dcard"><span>' + esc(b.label) + '</span><strong class="dnone">No rows match</strong></div>';
+      var v = cardValue(b, rows, cols);
       var cls = b.minus ? (v < 0 ? ' is-neg' : ' is-pos') : b.low && v > 0 ? ' is-neg' : '';
-      return '<div class="dcard' + cls + '"><span>' + esc(b.label) + '</span><strong>' + fmt(v, money(b.of) || money(b.times)) + '</strong></div>';
+      return '<div class="dcard' + cls + '"><span>' + esc(b.label) + '</span><strong>' + fmt(v, money(b.value)) + '</strong></div>';
     }
 
     function line(b, rows) {
-      var keys = [], series = {}, by = b.series && cols[b.series] ? b.series : null, m = money(b.of);
-      rows.forEach(function (r) {
-        if (!r[b.x]) return;
-        var k = String(r[b.x]).slice(0, 7), s = by ? r[by] : b.label;
-        if (keys.indexOf(k) < 0) keys.push(k);
-        series[s] = series[s] || {};
-        series[s][k] = (series[s][k] || 0) + (b.of ? +r[b.of] || 0 : 1);
-      });
-      keys.sort();
+      var t = timeline(b, rows, cols), keys = t.keys, series = t.series, by = b.split && cols[b.split], m = money(b.value), day = b.by === 'day';
+      var when = function (k) { return day ? dmy(k) : monthName(k); };
       if (!keys.length) return empty(b);
       var names = Object.keys(series).sort(), max = 0;
       var peak = null;
@@ -194,35 +270,44 @@
         var v = max * g / div;
         svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="grid"/><text x="' + (L - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + short(v, m) + '</text>';
       }
-      var step = Math.ceil(keys.length / Math.max(1, Math.floor(w / 48)));
-      keys.forEach(function (k, i) { if (i % step === 0) svg += '<text x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + MONTHS[+k.slice(5) - 1] + '</text>'; });
+      var step = Math.ceil(keys.length / Math.max(1, Math.floor(w / (day ? 52 : 48))));
+      keys.forEach(function (k, i) { if (i % step === 0) svg += '<text x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + (day ? dayName(k) : MONTHS[+k.slice(5) - 1]) + '</text>'; });
       names.forEach(function (s, si) {
         var c = by ? seriesColour(s, si) : PALETTE[0];
         var pts = keys.map(function (k, i) { return X(i) + ',' + Y(series[s][k] || 0); }).join(' ');
         if (!by) svg += '<polygon points="' + L + ',' + Y(0) + ' ' + pts + ' ' + X(keys.length - 1) + ',' + Y(0) + '" fill="' + c + '" opacity=".1"/>';
         svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="2.5" stroke-linejoin="round"/>';
-        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="3.5" fill="' + c + '"><title>' + esc(s) + ', ' + esc(monthName(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
+        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="3.5" fill="' + c + '"><title>' + esc(s) + ', ' + esc(when(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
       });
       var legend = by ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + seriesColour(s, si) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
-      var finding = keys.length > 1 && peak[2] > 0 ? 'Peak: ' + (by ? peak[0] + ', ' : '') + monthName(peak[1]) + ', ' + short(peak[2], m) : '';
+      var finding = keys.length > 1 && peak[2] > 0 ? 'Peak: ' + (by ? peak[0] + ', ' : '') + when(peak[1]) + ', ' + short(peak[2], m) : '';
       return panel(b, legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dchart" role="img" aria-label="' + esc(b.label) + '">' + svg + '</svg>', finding);
     }
 
     function bar(b, rows) {
-      var g = grouped(rows, b).slice(0, 8), m = money(b.of);
+      var g = bars(b, rows, cols), m = money(b.value), split = b.split && cols[b.split], names = [];
       if (!g.length) return empty(b);
-      var max = g[0][1] || 1;
-      return panel(b, '<ul class="dbars">' + g.map(function (x) {
-        return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span><span class="dbar-t"><span style="width:' + Math.max(0, x[1] / max * 100).toFixed(1) + '%"></span></span><span class="dbar-v">' + short(x[1], m) + '</span></li>';
+      if (split) g.forEach(function (x) { x[2].forEach(function (s) { if (names.indexOf(s[0]) < 0) names.push(s[0]); }); });
+      names.sort();
+      var max = g[0][1] || 1, colour = function (s) { return seriesColour(s, names.indexOf(s)); };
+      var track = function (x) {
+        if (!split) return '<span class="dbar-t"><span style="width:' + Math.max(0, x[1] / max * 100).toFixed(1) + '%"></span></span>';
+        return '<span class="dbar-t split">' + x[2].map(function (s) {
+          return '<span style="width:' + Math.max(0, s[1] / max * 100).toFixed(1) + '%;background:' + colour(s[0]) + '" title="' + esc(s[0]) + ': ' + esc(fmt(s[1], m)) + '"></span>';
+        }).join('') + '</span>';
+      };
+      var legend = split ? '<p class="dlegend">' + names.map(function (s) { return '<span><i style="background:' + colour(s) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
+      return panel(b, legend + '<ul class="dbars">' + g.map(function (x) {
+        return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span>' + track(x) + '<span class="dbar-v">' + short(x[1], m) + '</span></li>';
       }).join('') + '</ul>', g.length > 1 && g[0][1] > 0 ? 'Top: ' + g[0][0] + ', ' + short(g[0][1], m) : '');
     }
 
     function donut(b, rows) {
-      var g = grouped(rows, b), m = money(b.of), tot = g.reduce(function (a, x) { return a + x[1]; }, 0);
+      var g = groups(b.value, scope(b, rows, cols), b.group), m = money(b.value), tot = g.reduce(function (a, x) { return a + x[1]; }, 0);
       if (!tot) return empty(b);
       // Named before the tail folds into Other, which can outweigh the largest group.
       var finding = g.length > 1 ? 'Largest: ' + g[0][0] + ', ' + Math.round(g[0][1] / tot * 100) + '%' : '';
-      if (g.length > 6) { var rest = g.slice(5).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, 5).concat([['Other', rest]]); }
+      g = slices(b, rows, cols);
       var acc = 0, r = 60, C = 2 * Math.PI * r, segs = g.map(function (x, i) {
         var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + PALETTE[i] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
         acc += len; return s;
@@ -233,9 +318,7 @@
     }
 
     function table(b, rows) {
-      var keys = (b.cols || []).filter(function (k) { return cols[k]; }), rs = scope(rows, b).slice(), sk = b.sort;
-      if (sk && cols[sk]) rs.sort(function (a, c) { var x = a[sk], y = c[sk]; return x < y ? 1 : x > y ? -1 : 0; });
-      if (b.limit) rs = rs.slice(0, b.limit);
+      var keys = (b.cols || []).filter(function (k) { return cols[k]; }), rs = tableRows(b, rows, cols);
       var head = keys.map(function (k) { return '<th' + (cols[k].type === 'number' ? ' class="num"' : '') + '>' + esc(cols[k].name) + '</th>'; }).join('');
       var body = rs.map(function (r) {
         return '<tr>' + keys.map(function (k) {
@@ -251,12 +334,16 @@
     function draw() {
       var rows = rowsNow();
       cardsEl.innerHTML = blocks.filter(function (b) { return b.kind === 'card'; }).map(function (b) { return card(b, rows); }).join('');
-      chartsEl.innerHTML = blocks.filter(function (b) { return DRAW[b.kind]; }).map(function (b) { return DRAW[b.kind](b, rows); }).join('');
+      chartsEl.innerHTML = blocks.filter(function (b) { return DRAW[b.kind]; }).map(function (b) {
+        return noMatch(b, all, cols) ? panel(b, '<p class="dnone">No rows match</p>') : DRAW[b.kind](b, rows);
+      }).join('');
     }
     draw();
     var width = innerWidth;
     addEventListener('resize', function () { if (innerWidth !== width) { width = innerWidth; draw(); } });
   }
 
+  drawDashboard.compute = { fromPractice: fromPractice, cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
+    slices: slices, tableRows: tableRows, paused: paused };
   window.drawDashboard = drawDashboard;
 })();

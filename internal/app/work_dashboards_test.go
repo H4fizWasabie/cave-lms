@@ -299,3 +299,35 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 		t.Fatalf("%d stored files after deleting the Dashboard", n)
 	}
 }
+
+func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
+	_, ada := labLearner(t)
+	res, body := ada.get("/lab/new?kind=work&t=roster")
+	for _, want := range []string{`href="/lab/new?kind=work&amp;t=sales"`, "<code>Kod</code>", `href="/lab/samples/roster.xlsx"`, `src="/lab/demo/roster/"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	_, body = ada.get("/lab/new")
+	if strings.Contains(body, "t=sales") || strings.Contains(body, "t=roster") {
+		t.Fatalf("New Practice Dashboard offers Sales or Roster:\n%s", body)
+	}
+	res, body = ada.post("/lab/dashboards", url.Values{"template": {"sales"}, "name": {"Jualan"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+
+	_, demo := ada.get("/lab/demo/roster/")
+	if !strings.Contains(demo, `"work": true`) || !strings.Contains(demo, `"by": "day"`) {
+		t.Fatalf("the Roster demo is not drawn as a Work Dashboard:\n%s", demo)
+	}
+
+	path := ada.createWork("sales", "Kafe")
+	_, sample := ada.get("/lab/samples/sales.xlsx")
+	res, body = ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "item": {"Produk"}, "category": {"Kategori"},
+		"staff": {"Staf"}, "payment": {"Kaedah bayaran"}, "quantity": {"Kuantiti"}})
+	_, index := ada.get(path + "/view/")
+	for _, want := range []string{"What sells, and when?", `"label": "Revenue by payment method"`, `"group": "Kaedah bayaran"`} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("the Sales Dashboard lacks %s:\n%s", want, index)
+		}
+	}
+}

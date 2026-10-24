@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -240,6 +241,11 @@ type newDashboardPage struct {
 	Guess     lab.Choices  // Cave's guesses on that Sample
 }
 
+// offers reports whether this kind of Dashboard offers the Template with key: Sales and Roster are Work only.
+func (p *newDashboardPage) offers(key string) bool {
+	return slices.ContainsFunc(p.Templates, func(t *lab.Template) bool { return t.Key == key })
+}
+
 // renderNewDashboard shows /lab/new with the picked Template's Sample read, so the page can name its columns.
 func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
 	t := lab.TemplateByKey(p.Picked)
@@ -256,9 +262,10 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	p := &newDashboardPage{Templates: lab.Templates, Picked: r.URL.Query().Get("t"), Work: r.URL.Query().Get("kind") == "work"}
-	if lab.TemplateByKey(p.Picked) == nil {
-		p.Picked = lab.Templates[0].Key
+	work := r.URL.Query().Get("kind") == "work"
+	p := &newDashboardPage{Templates: lab.TemplatesFor(work), Picked: r.URL.Query().Get("t"), Work: work}
+	if !p.offers(p.Picked) {
+		p.Picked = p.Templates[0].Key
 	}
 	a.renderNewDashboard(w, r, http.StatusOK, p)
 }
@@ -272,11 +279,12 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	p := &newDashboardPage{Templates: lab.Templates, Picked: r.FormValue("template"), Name: strings.TrimSpace(r.FormValue("name")),
-		Work: r.FormValue("kind") == "work"}
+	work := r.FormValue("kind") == "work"
+	p := &newDashboardPage{Templates: lab.TemplatesFor(work), Picked: r.FormValue("template"), Name: strings.TrimSpace(r.FormValue("name")),
+		Work: work}
 	switch {
-	case lab.TemplateByKey(p.Picked) == nil:
-		p.Error, p.Picked = text.T(lang, "lab.err.template"), lab.Templates[0].Key
+	case !p.offers(p.Picked):
+		p.Error, p.Picked = text.T(lang, "lab.err.template"), p.Templates[0].Key
 	default:
 		p.Error = dashboardNameError(lang, p.Name)
 	}
@@ -379,6 +387,9 @@ type dashboardPage struct {
 	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
 	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
+	Open      int             // Blocks tab: the block whose form is open; -1 for none
+	Saved     bool            // Blocks tab: an edit was just saved
+	Blocks    *blocksView     // Blocks tab
 	Phone     bool            // preview at phone width
 	ReadOnly  bool            // no Lab access: view and download only
 	Hood      []hoodPart
@@ -425,11 +436,17 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 			return
 		}
 		q := r.URL.Query()
-		if d.Work && tab == "columns" { // a Work Dashboard's blocks name columns themselves
+		// A Work Dashboard's blocks name columns themselves; a Practice Dashboard's blocks are its Template's.
+		if (d.Work && tab == "columns") || (!d.Work && tab == "blocks") {
 			a.notFound(w, r)
 			return
 		}
-		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"), Again: q.Has("again")})
+		open, err := strconv.Atoi(q.Get("open"))
+		if err != nil {
+			open = -1
+		}
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"), Again: q.Has("again"),
+			Open: open, Saved: q.Has("saved")})
 	})
 }
 
@@ -443,6 +460,14 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 				p.Blanks[i].Renamed = bc.SampleName()
 			}
 		}
+	}
+	if p.Tab == "blocks" && d.Config != nil && d.Dataset != nil {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Blocks = newBlocksView(d, lang, p.Open, p.Saved)
 	}
 	if d.Work && p.Tab == "dataset" && p.Pending == nil && !p.ReadOnly {
 		var err error
@@ -812,7 +837,11 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		a.serveDashboardFile(w, r, &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}, name, previewCSP, "")
+		d := &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}
+		if !slices.Contains(lab.Templates, t) { // a Work-only Template draws only as a Work Dashboard
+			d.Work, d.Config = true, t.Open(d.Choices, ds)
+		}
+		a.serveDashboardFile(w, r, d, name, previewCSP, "")
 	}
 }
 
