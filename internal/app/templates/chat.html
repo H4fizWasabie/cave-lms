@@ -1,0 +1,39 @@
+{{define "title"}}{{t .Lang "chat.title"}} · {{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap page-pad chat-page">
+      <p class="crumbs"><a href="/courses">{{t .Lang "nav.courses"}}</a> / <a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+      <h1>{{.Course.Title}}</h1>
+      {{template "course-tabs" (courseTab .Course.ID "chat" .Lang)}}
+      {{if .Earlier}}<p class="chat-more"><a href="/courses/{{.Course.ID}}/chat?before={{.Earlier}}">{{t .Lang "chat.earlier"}}</a></p>{{end}}
+      <ol class="chat" id="chat">
+        {{- range .Messages}}{{template "chat-message" .}}{{else}}
+        <li class="chat-empty">{{t .Lang "chat.empty"}}</li>{{end}}
+      </ol>
+      {{if .Paged}}<p class="chat-more"><a href="/courses/{{.Course.ID}}/chat">{{t .Lang "chat.latest"}}</a></p>{{end}}
+      <form class="chat-compose" id="compose" method="post" action="/courses/{{.Course.ID}}/chat">
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        <label class="sr" for="body">{{t .Lang "chat.message"}}</label>
+        <textarea id="body" name="body" rows="2" maxlength="1000" required placeholder="{{t .Lang "chat.placeholder"}}">{{.Body}}</textarea>
+        <button class="btn btn-solid">{{t .Lang "chat.send"}}</button>
+      </form>
+    </div>
+{{end}}
+
+{{/* chat-message is one Message as its viewer sees it; the Chat page and its live updates both render it. */}}
+{{define "chat-message"}}
+        <li class="msg{{if .Mine}} is-mine{{end}}{{if and .Hidden (not .Deleted)}} is-hidden{{end}}" id="m{{.ID}}">
+          <p class="msg-head"><strong>{{.Writer}}</strong>{{if .ByAdmin}} <span class="badge badge-joined">{{t .Lang "chat.admin"}}</span>{{end}} <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z"}}">{{.When}}</time></p>
+          {{- if .Deleted}}
+          <p class="msg-gone">{{t .Lang "chat.deleted"}}</p>
+          {{- else if .Removed}}
+          <p class="msg-gone">{{t .Lang "chat.removed"}}</p>
+          {{- else}}
+          <p class="msg-text">{{.Text}}</p>
+          {{- end}}
+          {{- if and .Mine (not .Deleted)}}
+          <div class="msg-actions">
+            <form method="post" action="/courses/{{.CourseID}}/chat/{{.ID}}/delete"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.delete"}}</button></form>
+          </div>
+          {{- end}}
+        </li>
+{{- end}}

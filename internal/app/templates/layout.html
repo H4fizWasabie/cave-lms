@@ -166,6 +166,15 @@
       </aside>
 {{end}}
 
+{{/* course-tabs are the tabs of a Course's pages, for those who may open them all; pass (courseTab .Course.ID "<tab>" .Lang),
+the tab being "course" or "chat". */}}
+{{define "course-tabs"}}
+      <nav class="lab-tabs" aria-label="{{t .Lang "course.tabs"}}">
+        <a class="lab-tab" href="/courses/{{.ID}}"{{if eq .Tab "course"}} aria-current="page"{{end}}>{{t .Lang "course.tab.course"}}</a>
+        <a class="lab-tab" href="/courses/{{.ID}}/chat"{{if eq .Tab "chat"}} aria-current="page"{{end}}>{{t .Lang "course.tab.chat"}}</a>
+      </nav>
+{{end}}
+
 {{/* offers lists a Learner page's .Offers side by side as pricing cards: each product's logo, name, tagline, price, its Normal
 price crossed out when set, its benefits, and at the bottom Buy to its payment link, or Contact us without one.
 Visitors see the cards without buttons. */}}

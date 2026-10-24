@@ -298,11 +298,11 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	// one address all gets in while guessing is still stopped.
 	account, address := loginKeys(r, email)
 	now := time.Now()
-	if !a.limiter.allow(account, loginFailuresPerAccount, now) {
+	if !a.limiter.allow(account, loginFailuresPerAccount, rateLimitWindow, now) {
 		a.tooManyAttempts(w, r)
 		return
 	}
-	if !a.limiter.allow(address, loginFailuresPerAddress, now) {
+	if !a.limiter.allow(address, loginFailuresPerAddress, rateLimitWindow, now) {
 		a.limiter.forget(account)
 		a.tooManyAttempts(w, r)
 		return

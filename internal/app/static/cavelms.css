@@ -847,3 +847,24 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
   .cave-loader-peak, .cave-loader-tri { stroke-dasharray: none; animation: cave-pulse 2s ease-in-out infinite; }
   .cave-loader-line { transition: none; }
 }
+
+/* Course tabs and the Chat (spec #186) */
+.c-tabs { padding-top: 1.4rem; }
+.c-tabs .lab-tabs { margin-bottom: 0; }
+.chat-page { max-width: 46rem; }
+.chat { list-style: none; margin: 0 0 1.2rem; padding: 0; display: grid; gap: .6rem; }
+.chat-empty, .chat-more { color: var(--muted); }
+.msg { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: .7rem .95rem; max-width: 36rem; scroll-margin-top: 6rem; }
+.msg.is-mine { justify-self: end; background: var(--brand-gold-soft); }
+.msg.is-hidden { opacity: .5; }
+.msg:target { outline: 2px solid var(--brand-gold); }
+.msg p { margin: 0; }
+.msg-head { font-size: .84rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .4rem; align-items: baseline; }
+.msg-head strong { color: var(--text); }
+.msg-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: .25rem !important; }
+.msg-gone { font-style: italic; color: var(--muted); margin-top: .25rem !important; }
+.msg-actions { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-top: .45rem; }
+.msg-actions form { display: inline; }
+.chat-compose { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: end; background: var(--bg); padding: .8rem 0; border-top: 1px solid var(--line); }
+.chat-compose .field-err { grid-column: 1 / -1; margin: 0; }
+.chat-compose textarea { width: 100%; resize: vertical; }

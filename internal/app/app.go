@@ -194,6 +194,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
 	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
 	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
+	mux.HandleFunc("GET /courses/{id}/chat", a.requireLearner(a.chat))
+	mux.HandleFunc("POST /courses/{id}/chat", a.requireLearner(a.postMessage))
+	mux.HandleFunc("POST /courses/{id}/chat/{mid}/delete", a.requireLearner(a.deleteMessage))
 	mux.HandleFunc("GET /lab", a.lab)
 	mux.HandleFunc("GET /lab/samples/{file}", a.labSample)
 	mux.HandleFunc("GET /lab/demo/{key}/{$}", a.demoFile("index.html"))
@@ -470,6 +473,15 @@ type busyLoader struct{ Label, Lines string }
 // loader is the template function behind {{template "cave-loader" (loader label lines)}}.
 func loader(label, lines string) busyLoader { return busyLoader{label, lines} }
 
+// courseTabs is what the course-tabs template reads: the Course, the current tab and the page's language.
+type courseTabs struct {
+	ID        int64
+	Tab, Lang string
+}
+
+// courseTab is the template function behind {{template "course-tabs" (courseTab .Course.ID "chat" .Lang)}}.
+func courseTab(id int64, tab, lang string) courseTabs { return courseTabs{id, tab, lang} }
+
 // galleryTile is what the gallery-tile template reads: an item and the page's language.
 type galleryTile struct {
 	galleryItem
@@ -481,7 +493,7 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "difficulties": func() []string { return difficulties }, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)

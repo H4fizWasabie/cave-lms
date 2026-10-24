@@ -1,0 +1,278 @@
+package app_test
+
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+// chatSite is a Course "Go Basics" made by the Admin Abah, with Ada (IC set) and Ben joined; the returned site is
+// logged in as Ada, admin as Abah and ben as Ben.
+func chatSite(t *testing.T) (ada, admin, ben *site, id string) {
+	t.Helper()
+	admin = newSite(t)
+	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	admin.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id = admin.onlyCourseID()
+	ada = admin.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	ada.setIC("900101-14-5678")
+	expectStatus(t, must(ada.post("/courses/"+id+"/join", nil)), "", http.StatusSeeOther, "")
+	ben = admin.second()
+	ben.loginAsNewLearner("Ben", "ben@example.com", "correct horse battery")
+	expectStatus(t, must(ben.post("/courses/"+id+"/join", nil)), "", http.StatusSeeOther, "")
+	return ada, admin, ben, id
+}
+
+// must drops a body, for a call whose status is all that matters.
+func must(res *http.Response, _ string) *http.Response { return res }
+
+var messageAnchor = regexp.MustCompile(`#m(\d+)$`)
+
+// say posts a Message to Course id's Chat and returns the new Message's ID, read from where the post redirects.
+func (s *site) say(id, body string) string {
+	s.t.Helper()
+	res, page := s.post("/courses/"+id+"/chat", url.Values{"body": {body}})
+	expectStatus(s.t, res, page, http.StatusSeeOther, "")
+	m := messageAnchor.FindStringSubmatch(res.Header.Get("Location"))
+	if m == nil {
+		s.t.Fatalf("posting a Message redirected to %q, want the Chat at the Message", res.Header.Get("Location"))
+	}
+	return m[1]
+}
+
+func (s *site) chatCount(id string) int {
+	s.t.Helper()
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM chat_messages WHERE course_id = $1`, id).Scan(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n
+}
+
+func TestEnrolledLearnersAndTheAdminReadAndPostInACoursesChat(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+
+	res, body := ada.get("/courses/" + id)
+	expectStatus(t, res, body, http.StatusOK, `href="/courses/`+id+`/chat"`)
+	mid := ada.say(id, "Where do I start?\nLesson 1?")
+	res, _ = ada.post("/courses/"+id+"/chat", url.Values{"body": {"x"}})
+	if loc := res.Header.Get("Location"); !strings.HasPrefix(loc, "/courses/"+id+"/chat") {
+		t.Fatalf("post redirected to %q, want the Chat", loc)
+	}
+	admin.say(id, "Start with Variables.")
+
+	res, body = ben.get("/courses/" + id + "/chat")
+	expectStatus(t, res, body, http.StatusOK, `id="m`+mid+`"`)
+	expectInOrder(t, body, "Ada", "Where do I start?\nLesson 1?", "Abah", "Admin", "Start with Variables.")
+	if strings.Contains(body, "ada@example.com") || strings.Contains(body, "900101") {
+		t.Fatalf("the Chat shows an email or IC: %s", body)
+	}
+
+	_, body = ben.getAsking("/courses/"+id+"/chat", "ms")
+	expectLanguage(t, body, "ms", "Sembang")
+}
+
+func TestOthersAreRefusedACoursesChat(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	cara := admin.second()
+	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
+
+	res, body := cara.get("/courses/" + id + "/chat")
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	res, body = cara.post("/courses/"+id+"/chat", url.Values{"body": {"hi"}})
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	if strings.Contains(body, `href="/courses/`+id+`/chat"`) {
+		t.Fatalf("a Learner not on the Course sees the Chat tab")
+	}
+
+	visitor := admin.second()
+	res, _ = visitor.get("/courses/" + id + "/chat")
+	if loc := res.Header.Get("Location"); res.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/login") {
+		t.Fatalf("Visitor got %d to %q, want the login page", res.StatusCode, loc)
+	}
+
+	// Leaving ends access, but the Learner's Messages stay with their name.
+	ada.say(id, "Bye all")
+	expectStatus(t, must(ada.post("/courses/"+id+"/leave", nil)), "", http.StatusSeeOther, "")
+	res, body = ada.get("/courses/" + id + "/chat")
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	_, body = admin.get("/courses/" + id + "/chat")
+	expectInOrder(t, body, "Ada", "Bye all")
+}
+
+func TestALiveCourseHasItsOwnChat(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	ada.say(id, "Only on the original")
+	copyID := admin.copiedCourseID(id, "Go Basics for Acme", "2026-11-02", "2026-11-03", "2")
+	_, body := admin.get("/courses/" + copyID + "/chat")
+	if strings.Contains(body, "Only on the original") {
+		t.Fatalf("a Live Course's Chat shows its original's Messages")
+	}
+}
+
+func TestBadMessagesAreRefusedAndNotSaved(t *testing.T) {
+	ada, _, _, id := chatSite(t)
+	for _, c := range []struct{ body, want string }{
+		{"  \n ", "Write a Message"},
+		{strings.Repeat("a", 1001), "1,000 characters"},
+	} {
+		res, body := ada.post("/courses/"+id+"/chat", url.Values{"body": {c.body}})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)
+	}
+	if n := ada.chatCount(id); n != 0 {
+		t.Fatalf("%d Messages saved, want none", n)
+	}
+	ada.say(id, strings.Repeat("é", 1000))
+}
+
+func TestMessagesAreShownAsEscapedPlainText(t *testing.T) {
+	ada, _, _, id := chatSite(t)
+	ada.say(id, `<script>alert(1)</script> see https://evil.example/x`)
+	_, body := ada.get("/courses/" + id + "/chat")
+	if strings.Contains(body, "<script>alert") || strings.Contains(body, `href="https://evil.example`) {
+		t.Fatalf("a Message is not escaped plain text: %s", body)
+	}
+	expectInOrder(t, body, "&lt;script&gt;alert(1)&lt;/script&gt; see https://evil.example/x")
+}
+
+func TestTheLatestMessagesShowOldestFirstWithEarlierOnesAPageBack(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	for i := 1; i <= 55; i++ {
+		admin.say(id, fmt.Sprintf("Note %02d.", i))
+	}
+	_, body := ada.get("/courses/" + id + "/chat")
+	expectInOrder(t, body, "Note 06.", "Note 07.", "Note 55.")
+	if strings.Contains(body, "Note 05.") {
+		t.Fatalf("the Chat shows more than the latest 50 Messages")
+	}
+	m := regexp.MustCompile(`href="(/courses/` + id + `/chat\?before=\d+)"`).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("no Show earlier link: %s", body)
+	}
+	_, body = ada.get(m[1])
+	expectInOrder(t, body, "Note 01.", "Note 05.")
+	if strings.Contains(body, "Note 06.") || strings.Contains(body, `href="/courses/`+id+`/chat?before=`) {
+		t.Fatalf("the earlier page shows later Messages or another earlier link: %s", body)
+	}
+}
+
+func TestALearnerDeletesOnlyTheirOwnMessage(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	mid := ada.say(id, "Oops, wrong Course")
+
+	res, body := ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	expectStatus(t, res, body, http.StatusForbidden, "")
+
+	res, body = ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
+		t.Fatalf("delete redirected to %q, want the Chat at the Message", loc)
+	}
+	_, body = ben.get("/courses/" + id + "/chat")
+	expectInOrder(t, body, "Ada", "Message deleted")
+	if strings.Contains(body, "Oops") {
+		t.Fatalf("a deleted Message's text is still sent")
+	}
+}
+
+func TestPostingIsLimitedToTenMessagesAMinuteForLearnersButNotTheAdmin(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	for i := range 10 {
+		ada.say(id, fmt.Sprintf("Message %d", i))
+	}
+	res, body := ada.post("/courses/"+id+"/chat", url.Values{"body": {"One too many"}})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "sending too fast")
+	if n := ada.chatCount(id); n != 10 {
+		t.Fatalf("%d Messages saved, want 10", n)
+	}
+	for i := range 11 {
+		admin.say(id, fmt.Sprintf("Announcement %d", i))
+	}
+}
+
+func TestDeletingALearnerDeletesTheirMessages(t *testing.T) {
+	ada, _, _, id := chatSite(t)
+	ada.say(id, "Hello")
+	if _, err := ada.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	if n := ada.chatCount(id); n != 0 {
+		t.Fatalf("%d Messages left after deleting their writer, want none", n)
+	}
+}
+
+func TestThePrivacyNoticeTellsLearnersWhoSeesTheirChatMessages(t *testing.T) {
+	s := newSite(t)
+	_, body := s.getAsking("/privacy", "en")
+	expectLanguage(t, body, "en", "Chat Messages")
+	_, body = s.getAsking("/privacy", "ms")
+	expectLanguage(t, body, "ms", "Mesej Sembang")
+}
+
+// reply posts a reply to Message mid in Course id's Chat and returns the reply's ID.
+func (s *site) reply(id, mid, body string) string {
+	s.t.Helper()
+	res, page := s.post("/courses/"+id+"/chat", url.Values{"body": {body}, "reply_to": {mid}})
+	expectStatus(s.t, res, page, http.StatusSeeOther, "")
+	return messageAnchor.FindStringSubmatch(res.Header.Get("Location"))[1]
+}
+
+func TestAReplyQuotesItsOriginalAndLinksToIt(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	mid := ada.say(id, "How long is the Exam?\nI have a meeting at 3.")
+
+	_, body := ben.get("/courses/" + id + "/chat")
+	expectInOrder(t, body, `href="/courses/`+id+`/chat?reply=`+mid+`#compose"`)
+	_, body = ben.get("/courses/" + id + "/chat?reply=" + mid)
+	expectInOrder(t, body, `id="compose"`, "How long is the Exam?", `name="reply_to" value="`+mid+`"`)
+
+	rid := ben.reply(id, mid, "One hour.")
+	_, body = ada.get("/courses/" + id + "/chat")
+	_, reply, _ := strings.Cut(body, `id="m`+rid+`"`)
+	expectInOrder(t, reply, `href="/courses/`+id+`/chat?before=`, `#m`+mid+`"`, "Ada", "How long is the Exam?", "One hour.")
+	if strings.Contains(reply, "meeting at 3") {
+		t.Fatalf("a reply quotes more than the original's first line: %s", reply)
+	}
+}
+
+func TestAReplyToADeletedMessageShowsItRemoved(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	mid := ada.say(id, "Secret plans")
+	rid := ben.reply(id, mid, "Nice")
+	ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+
+	_, body := ben.get("/courses/" + id + "/chat")
+	_, reply, _ := strings.Cut(body, `id="m`+rid+`"`)
+	expectInOrder(t, reply, "Message removed", "Nice")
+	if strings.Contains(body, "Secret plans") {
+		t.Fatalf("a deleted original's text is still sent")
+	}
+	res, body := ben.post("/courses/"+id+"/chat", url.Values{"body": {"Again"}, "reply_to": {mid}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+}
+
+func TestARepliesOriginalMustBeInTheSameCourse(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	admin.createCourse("Rust Basics", "Learn Rust.", "")
+	other := admin.courseIDByTitle("Rust Basics")
+	mid := admin.say(other, "Rust only")
+	res, body := ada.post("/courses/"+id+"/chat", url.Values{"body": {"Sneaky"}, "reply_to": {mid}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	if n := ada.chatCount(id); n != 0 {
+		t.Fatalf("%d Messages saved, want none", n)
+	}
+}
+
+func TestRepliesCountTowardTheMessageLimit(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	mid := ben.say(id, "Question")
+	for i := range 10 {
+		ada.reply(id, mid, fmt.Sprintf("Answer %d", i))
+	}
+	res, body := ada.post("/courses/"+id+"/chat", url.Values{"body": {"More"}, "reply_to": {mid}})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "")
+}
