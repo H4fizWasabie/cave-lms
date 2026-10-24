@@ -1,5 +1,7 @@
 package lab
 
+import "cmp"
+
 // Config is a Work Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
 // Dataset's columns rather than Template blanks. It is configuration Cave applies, never code (ADR 0013).
 type Config struct {
@@ -78,6 +80,8 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			switch {
 			case b.Times != "":
 				w.Value = &Value{Agg: "calc", A: c[b.Of], Op: "x", B: c[b.Times], Then: "sum"}
+			case b.Agg == "distinct":
+				w.Value = &Value{Agg: "distinct", Col: c[b.Of]}
 			case b.Of != "":
 				w.Value = &Value{Agg: "sum", Col: c[b.Of]}
 			default:
@@ -85,7 +89,7 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			}
 		}
 		if b.Kind == "line" {
-			w.By = "month"
+			w.By = cmp.Or(b.By, "month")
 		}
 		if b.Kind == "bar" {
 			w.Top = 8
