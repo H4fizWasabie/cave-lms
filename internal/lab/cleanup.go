@@ -62,6 +62,8 @@ type CleanUp struct {
 	Sheets    []Sheet  // every sheet in the workbook, in order
 	Used      []string // the sheets that went into the Dataset, in workbook order
 	HeaderRow int      // the picked sheet's header row number in Excel
+	Month     int      // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year      int      // the grids' year, with Month
 	Dataset   *Dataset
 	Changes   []Change
 	Guess     Choices
@@ -167,7 +169,8 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	}
 	res.Dataset = typed(d, raw, d.RowNumbers, res)
 	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
-		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), int(month), year}})
+		res.Month, res.Year = int(month), year
+		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), res.Month, year}})
 	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))

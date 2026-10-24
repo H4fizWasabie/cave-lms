@@ -55,6 +55,9 @@ func TestCleanUpUnpivotsADaysAcrossGridToStaffDateCodeRows(t *testing.T) {
 	if !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
 		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, wantRows)
 	}
+	if res.Month != 10 || res.Year != 2026 {
+		t.Fatalf("month %d/%d, want 10/2026", res.Month, res.Year)
+	}
 	en, ms := changesIn(res, "en"), changesIn(res, "ms")
 	if !slices.Contains(en, "Turned the days across the columns into 4 rows, one per staff per day, dated 10/2026. Empty days, counts beside the grid and notes below it were left out.") {
 		t.Fatalf("changes = %q", en)
