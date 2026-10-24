@@ -42,7 +42,7 @@ type organisationFormPage struct {
 	Organisation organisation
 }
 
-// maxOrganisationLogo caps the Organisation form, logo included.
+// maxOrganisationLogo caps the logo; the form may be a little larger, for its other fields.
 const maxOrganisationLogo = 2 << 20
 
 // logoSide is the longest side, in pixels, an SVG logo is drawn at: sharp at any size it prints on a Certificate.
@@ -110,7 +110,7 @@ func (a *App) saveOrganisation(w http.ResponseWriter, r *http.Request, existing 
 	fail := func(status int, key string) {
 		a.render(w, r, status, "organisation_form", &organisationFormPage{pageBase{Error: text.T(lang, key)}, o})
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxOrganisationLogo)
+	r.Body = http.MaxBytesReader(w, r.Body, maxOrganisationLogo+64<<10)
 	if err := r.ParseMultipartForm(1 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
@@ -129,7 +129,12 @@ func (a *App) saveOrganisation(w http.ResponseWriter, r *http.Request, existing 
 		return
 	}
 	var logo []byte
-	file, _, err := r.FormFile("logo")
+	file, header, err := r.FormFile("logo")
+	if err == nil && header.Size > maxOrganisationLogo {
+		file.Close()
+		fail(http.StatusRequestEntityTooLarge, "orgs.err.too-large")
+		return
+	}
 	if err == nil {
 		logo, err = io.ReadAll(file)
 		file.Close()

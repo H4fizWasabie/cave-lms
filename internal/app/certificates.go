@@ -24,7 +24,7 @@ import (
 // maxCertificateImage caps the form that carries the background image, which is a full-page print-quality artwork.
 const maxCertificateImage = 20 << 20
 
-// certificate is one issued Certificate. LearnerName, LearnerIC, CourseTitle and Days are copies taken at issue time.
+// certificate is one issued Certificate. LearnerName, LearnerIC, CourseTitle, Days and LogoKey are copies taken at issue time.
 type certificate struct {
 	ID          string
 	Year        int // Year and Seq make the Certificate No.
@@ -38,13 +38,14 @@ type certificate struct {
 	Revoked     bool
 	CurrentName string // the Learner's name now, which a corrected Certificate copies
 
-	GivenByAdmin bool // the Admin gave it by hand; only the Admin Certificates list shows this
+	GivenByAdmin bool   // the Admin gave it by hand; only the Admin Certificates list shows this
+	LogoKey      string // the Live Course's Organisation's logo, "" for none
 }
 
 // certificateColumns must be scanned by queryCertificates. The subquery needs the table unaliased as certificates.
 const certificateColumns = `id, year, number, learner_id, learner_name, COALESCE(learner_ic, ''), course_title,
 	COALESCE(days, 0), issued_at, revoked_at IS NOT NULL,
-	(SELECT name FROM learners WHERE learners.id = certificates.learner_id), given_by_admin`
+	(SELECT name FROM learners WHERE learners.id = certificates.learner_id), given_by_admin, COALESCE(logo_key, '')`
 
 // Number is the Certificate No., as PCC-2026-00509. The ID, not this, goes in URLs and the QR, so it can't be walked.
 func (c certificate) Number() string {
@@ -111,8 +112,8 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	return a.issueCertificate(ctx, learnerID, courseID, false)
 }
 
-// issueCertificate issues the Learner a Certificate for the Course, copying their name and IC and the Course's title
-// and days, unless they have no IC or already have one for it, valid or revoked: a revoked Certificate is replaced
+// issueCertificate issues the Learner a Certificate for the Course, copying their name and IC and the Course's title,
+// days and Organisation's logo, unless they have no IC or already have one for it, valid or revoked: a revoked Certificate is replaced
 // only by the Admin's reissue. Every Certificate is issued through here, once its rule is met, so calling it again
 // changes nothing. givenByAdmin records that the Admin gave it, skipping the Exam check.
 func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, givenByAdmin bool) error {
@@ -130,8 +131,9 @@ func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, g
 		return err
 	}
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin)
-		SELECT $1, l.id, c.id, l.name, l.ic, c.title, c.days, $4, $5, $6, $7 FROM learners l, courses c
+		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin, logo_key)
+		SELECT $1, l.id, c.id, l.name, l.ic, c.title, c.days, $4, $5, $6, $7, o.logo_key FROM learners l, courses c
+		LEFT JOIN organisations o ON o.id = c.organisation_id
 		WHERE l.id = $2 AND c.id = $3 AND l.ic IS NOT NULL
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
 		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number, givenByAdmin)
@@ -237,7 +239,7 @@ func (a *App) queryCertificates(ctx context.Context, query string, args ...any) 
 	var list []certificate
 	for rows.Next() {
 		var c certificate
-		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.LearnerIC, &c.CourseTitle, &c.Days, &c.IssuedAt, &c.Revoked, &c.CurrentName, &c.GivenByAdmin); err != nil {
+		if err := rows.Scan(&c.ID, &c.Year, &c.Seq, &c.LearnerID, &c.LearnerName, &c.LearnerIC, &c.CourseTitle, &c.Days, &c.IssuedAt, &c.Revoked, &c.CurrentName, &c.GivenByAdmin, &c.LogoKey); err != nil {
 			return nil, err
 		}
 		list = append(list, c)
@@ -333,6 +335,10 @@ const (
 	certBadgeX, certBadgeY   = 99.6, 206.4 // the badge image's top left; it carries its own label
 	certBadgeW, certBadgeH   = 39.9, 56.6  // the badge files are 904 by 1280
 	certIssuedX, certIssuedY = 18.2, 281.7 // "Issued on" bottom left
+	// The Organisation's logo is scaled to fit this box and centred in it. A first guess on the plain page, clear of
+	// its heading and the Certificate No. and QR: tune it once the client's artwork with the top-left space blank arrives.
+	certLogoX, certLogoY = 18.0, 12.0
+	certLogoW, certLogoH = 50.0, 35.0
 )
 
 // certificatePDF prints the Certificate's details over the Admin's background artwork on one portrait A4 page, its
@@ -393,6 +399,16 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		pdf.Text(certTitleX+(certTitleW-pdf.GetStringWidth(l))/2, top+float64(i)*lineH+size*0.3, l)
 	}
 
+	if c.LogoKey != "" {
+		info, err := a.registerImage(pdf, c.LogoKey)
+		if err != nil {
+			return nil, err
+		}
+		iw, ih := info.Extent()
+		scale := min(certLogoW/iw, certLogoH/ih)
+		w, h := iw*scale, ih*scale
+		pdf.ImageOptions(c.LogoKey, certLogoX+(certLogoW-w)/2, certLogoY+(certLogoH-h)/2, w, h, false, fpdf.ImageOptions{}, 0, "")
+	}
 	if badge := c.Badge(); badge != "" {
 		f, err := staticFiles.Open("static/" + badge)
 		if err != nil {
@@ -446,29 +462,38 @@ func placeQR(pdf *fpdf.Fpdf, content string, x, y, size float64) error {
 	return pdf.Error()
 }
 
-// placeImage draws a stored JPEG or PNG. Its type is sniffed again, since the file is only trusted as far as the upload check.
+// placeImage draws a stored JPEG or PNG at x, y, w by h.
 func (a *App) placeImage(pdf *fpdf.Fpdf, key string, x, y, w, h float64) error {
+	if _, err := a.registerImage(pdf, key); err != nil {
+		return err
+	}
+	pdf.ImageOptions(key, x, y, w, h, false, fpdf.ImageOptions{}, 0, "")
+	return pdf.Error()
+}
+
+// registerImage loads a stored JPEG or PNG into pdf under its key. Its type is sniffed again, since the file is only
+// trusted as far as the upload check.
+func (a *App) registerImage(pdf *fpdf.Fpdf, key string) (*fpdf.ImageInfoType, error) {
 	f, err := a.store.Open(key)
 	if err != nil {
-		return fmt.Errorf("open certificate image: %w", err)
+		return nil, fmt.Errorf("open certificate image: %w", err)
 	}
 	defer f.Close()
 	head := make([]byte, 512)
 	n, err := io.ReadFull(f, head)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		return err
+		return nil, err
 	}
 	tp := "jpg"
 	if http.DetectContentType(head[:n]) == "image/png" {
 		tp = "png"
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return err
+		return nil, err
 	}
 	opt := fpdf.ImageOptions{ImageType: tp}
-	pdf.RegisterImageOptionsReader(key, opt, f)
-	pdf.ImageOptions(key, x, y, w, h, false, opt, 0, "")
-	return pdf.Error()
+	info := pdf.RegisterImageOptionsReader(key, opt, f)
+	return info, pdf.Error()
 }
 
 func (a *App) certificateSettingsFor(ctx context.Context) (certificateSettings, error) {

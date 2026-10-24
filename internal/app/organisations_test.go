@@ -137,6 +137,7 @@ func TestAnOrganisationLogoOver2MBIsRefusedAndNothingIsStored(t *testing.T) {
 	if n := s.storedFiles(); n != 0 {
 		t.Fatalf("%d files stored, want 0", n)
 	}
+	s.addOrganisation("PDRM", big[:2<<20]) // exactly 2 MB is allowed
 }
 
 func TestAnSVGLogoIsStoredAsAPNG(t *testing.T) {

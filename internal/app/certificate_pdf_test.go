@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/png"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -98,4 +99,79 @@ func TestACertificatePDFWithoutABackgroundPrintsAPlainHeading(t *testing.T) {
 	s.loginAdmin()
 	s.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
 	expectNone(t, s.pdfBody(path), "Certificate of Completion") // the artwork carries its own
+}
+
+// orgCertificate has Ada pass a 2-day Live Course run for an Organisation with logo ("" logo for none) and returns
+// the sites and her Certificate's ID.
+func orgCertificate(t *testing.T, logo []byte) (admin, ada *site, org, certID string) {
+	t.Helper()
+	admin, ada, id, qids := liveCourse(t, "2")
+	if logo != nil {
+		org = admin.addOrganisation("PDRM", logo)
+		start, end := liveDates()
+		res, body := admin.post("/admin/courses/"+id, url.Values{"title": {"Go for Acme"}, "description": {"For Acme."},
+			"start_date": {start}, "end_date": {end}, "days": {"2"}, "organisation_id": {org}})
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+	res, _ := ada.startExam(id)
+	ada.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	ada.releaseResults()
+	_, body := ada.get("/my-certificates")
+	return admin, ada, org, certificateIDs(body)[0]
+}
+
+// hasLogo reports whether the Certificate recorded a logo.
+func hasLogo(t *testing.T, s *site, certID string) bool {
+	t.Helper()
+	var has bool
+	if err := s.db.QueryRow(`SELECT logo_key IS NOT NULL FROM certificates WHERE id = $1`, certID).Scan(&has); err != nil {
+		t.Fatal(err)
+	}
+	return has
+}
+
+func TestALiveCourseCertificatePrintsItsOrganisationsLogoFromIssueUntilReissued(t *testing.T) {
+	admin, ada, org, certID := orgCertificate(t, pngOfSize(t, 11, 13))
+	path := "/certificates/" + certID + "/pdf"
+	if !hasLogo(t, admin, certID) {
+		t.Fatal("the Certificate recorded no logo")
+	}
+	expectAll(t, ada.pdfBody(path), imageSize(11, 13))
+
+	admin.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
+	res, body := admin.saveOrganisation("/admin/organisations/"+org, "PDRM", pngOfSize(t, 17, 19))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	pdf := ada.pdfBody(path)
+	expectAll(t, pdf, imageSize(11, 13), imageSize(3, 5)) // on the artwork too, and as issued
+	expectNone(t, pdf, imageSize(17, 19))
+
+	admin.post("/admin/certificates/"+certID+"/revoke", nil)
+	res, body = admin.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = ada.get("/my-certificates")
+	ids := certificateIDs(body)
+	pdf = ada.pdfBody("/certificates/" + ids[len(ids)-1] + "/pdf")
+	expectAll(t, pdf, imageSize(17, 19))
+	expectNone(t, pdf, imageSize(11, 13))
+}
+
+func TestCertificatesWithoutAnOrganisationRecordAndPrintNoLogo(t *testing.T) {
+	admin, ada, _, certID := orgCertificate(t, nil)
+	if hasLogo(t, admin, certID) {
+		t.Fatal("a Live Course without an Organisation recorded a logo")
+	}
+	if n := strings.Count(ada.pdfBody("/certificates/"+certID+"/pdf"), "/Subtype /Image"); n != 2 {
+		t.Fatalf("Certificate PDF has %d images, want the QR code and the badge", n)
+	}
+
+	s := newSite(t)
+	_, certID = s.adaEarns()
+	if hasLogo(t, s, certID) {
+		t.Fatal("a self-paced Certificate recorded a logo")
+	}
+}
+
+func TestAnSVGLogoPrintsOnTheCertificate(t *testing.T) {
+	_, ada, _, certID := orgCertificate(t, svgLogo)
+	expectAll(t, ada.pdfBody("/certificates/"+certID+"/pdf"), imageSize(1200, 600))
 }
