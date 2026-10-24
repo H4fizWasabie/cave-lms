@@ -1,6 +1,6 @@
 # Installed to /etc/caddy/sites/cave-lms.caddy by deploy/deploy.sh. See docs/deploy.md before changing the domain.
 cavelms.com {
-	bind 169.58.63.110
+	bind 13.140.65.183
 	# The app caps one upload at 2 GB and explains the refusal; this is the outer limit with room for multipart framing.
 	request_body {
 		max_size 2100MiB
@@ -21,6 +21,6 @@ cavelms.com {
 
 # Old and alternate addresses redirect forever, keeping the path (ADR 0002).
 www.cavelms.com, lms.wasabietech.com {
-	bind 169.58.63.110
+	bind 13.140.65.183
 	redir https://cavelms.com{uri} 308
 }
