@@ -397,6 +397,23 @@ func TestCleanUpCombinesSheetsWithTheSameColumnsAndAddsASheetColumn(t *testing.T
 	}
 }
 
+func TestCleanUpListsEveryCombinedSheetsChangesAddingUpCounts(t *testing.T) {
+	file := testutil.Workbook(t,
+		sheet("Kedai A", row("Laporan"), row("Perkara", "Jumlah", "Catatan"), row("Beras", 12)),
+		sheet("Kedai B", row("Perkara", "Jumlah", "Catatan"), row("Gula", 5), row("Teh", 7), row("Jumlah", 12)),
+		sheet("Kedai C", row("Perkara", "Jumlah", "Catatan"), row("Kopi", 3)),
+	)
+	want := []string{
+		"Skipped row 1 above the header in row 2.",
+		"Columns with no data dropped: 3.",
+		"Dropped row 4 at the bottom: a total or note, not data.",
+		"Combined 3 sheets into one Dataset, with each row's sheet name in a new Sheet column.",
+	}
+	if got := changesIn(cleanWith(t, file, lab.Settings{}), "en"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
+
 func TestCleanUpTurnsDateSheetNamesIntoADateColumn(t *testing.T) {
 	file := testutil.Workbook(t, sales("01.09.26", 1), sales("02.09.26", 2))
 	res := cleanWith(t, file, lab.Settings{})

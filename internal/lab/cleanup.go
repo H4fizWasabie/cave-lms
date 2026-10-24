@@ -154,8 +154,9 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}
 	}
 	res.HeaderRow = base.header + 1
-	// ponytail: only the picked sheet's own changes are listed; the other sheets' rows and columns may differ.
-	res.Changes = append(res.Changes, base.changes...)
+	for _, tb := range used {
+		res.addChanges(tb.changes)
+	}
 	res.Dataset = typed(d, raw, d.RowNumbers, res)
 	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
 		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), int(month), year}})
@@ -305,6 +306,25 @@ func sheetDate(name string) (string, bool) {
 		name = m[1] + "/" + m[2] + "/20" + m[3]
 	}
 	return textDate(name)
+}
+
+// counted are the changes whose one number counts cells or columns, so the sheets' counts add up.
+var counted = []string{"lab.clean.merged-down", "lab.clean.empty-columns"}
+
+// addChanges lists one used sheet's changes: a counted change adds to the same change of a sheet before it,
+// and any other is listed once however many sheets made it.
+func (res *CleanUp) addChanges(changes []Change) {
+	for _, c := range changes {
+		i := slices.IndexFunc(res.Changes, func(o Change) bool {
+			return o.Key == c.Key && (slices.Contains(counted, c.Key) || slices.Equal(o.Args, c.Args))
+		})
+		switch {
+		case i < 0:
+			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args)})
+		case slices.Contains(counted, c.Key):
+			res.Changes[i].Args[0] += c.Args[0]
+		}
+	}
 }
 
 // change lists one thing Clean-up changed.
