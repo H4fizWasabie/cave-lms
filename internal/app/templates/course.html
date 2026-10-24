@@ -37,6 +37,16 @@
           </ol>
         </div>
         {{end}}
+        {{if .Assignments}}
+        <div class="c-block">
+          <h2>{{t .Lang "course.assignments"}}</h2>
+          <ol class="lesson-list">
+            {{range .Assignments}}
+            <li><div><span class="ls-n"></span><span class="ls-t"><a href="/courses/{{$.Course.ID}}/assignments/{{.ID}}">{{.Title}}</a>{{if not .Published}} <span class="badge badge-closed">{{t $.Lang "course.lesson-draft"}}</span>{{end}}</span><span></span></div></li>
+            {{end}}
+          </ol>
+        </div>
+        {{end}}
       </div>
       <aside class="c-side">
         <div class="panel">

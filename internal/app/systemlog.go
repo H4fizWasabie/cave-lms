@@ -98,6 +98,9 @@ func (a *App) dailyPrune(ctx context.Context) {
 	if _, err := a.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= now()`); err != nil {
 		a.logError(nil, fmt.Errorf("prune sessions: %w", err))
 	}
+	if n := a.dropDeletedFiles(ctx, nil); n > 0 {
+		a.logInfo("Daily prune deleted %d Submission files", n)
+	}
 	n, err := a.pruneDatasets(ctx)
 	if err != nil {
 		a.logError(nil, fmt.Errorf("prune Datasets: %w", err))

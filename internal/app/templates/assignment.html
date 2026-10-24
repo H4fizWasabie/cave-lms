@@ -1,0 +1,37 @@
+{{define "title"}}{{.Assignment.Title}} · {{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow lesson-page">
+      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+      <article class="lesson">
+        <h1>{{.Assignment.Title}}</h1>
+        {{if not .Assignment.Published}}<p class="callout">{{t .Lang "assignment.draft"}}</p>{{end}}
+        <div class="prose"><p class="pre-line">{{.Assignment.Instructions}}</p></div>
+      </article>
+      {{if .Enrolled}}
+      <section class="card submission">
+        <h2>{{t .Lang "submission.title"}}</h2>
+        {{with .Comment}}<div class="callout"><p><strong>{{t $.Lang "submission.comment"}}</strong><br><span class="pre-line">{{.}}</span></p></div>{{end}}
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        {{if .Files}}
+        <ul class="file-list">
+          {{range .Files}}
+          <li><a href="/submission-files/{{.ID}}">{{.Name}}</a> <small>{{size .Size}}</small>
+            <form method="post" action="/submission-files/{{.ID}}/delete"><button class="btn btn-danger btn-sm" aria-label="{{t $.Lang "submission.delete-file" .Name}}">{{t $.Lang "adm.delete"}}</button></form>
+          </li>
+          {{end}}
+        </ul>
+        {{else}}
+        <p class="muted">{{t .Lang "submission.none"}}</p>
+        {{end}}
+        <form class="form" method="post" action="/courses/{{.Course.ID}}/assignments/{{.Assignment.ID}}/files" enctype="multipart/form-data">
+          <div class="field"><label for="file">{{t .Lang "submission.add"}}</label>
+            <input id="file" type="file" name="file" multiple required accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.zip">
+            <small>{{submissionLimits .Lang}}</small>
+          </div>
+          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "submission.upload"}}</button></div>
+        </form>
+      </section>
+      {{end}}
+      <div class="lesson-foot"><a class="btn btn-ghost" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></div>
+    </div>
+{{end}}

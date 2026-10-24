@@ -1,0 +1,37 @@
+{{define "title"}}{{.Assignment.Title}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/assignments">{{t .Lang "adm.assignments.back"}}</a></p>
+        <div class="adm-head">
+          <div>
+            <h1>{{.Assignment.Title}}</h1>
+            <p>{{t .Lang "adm.submissions.lede" .Course.Title}}</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-quiet" href="/admin/assignments/{{.Assignment.ID}}/edit">{{t .Lang "adm.edit"}}</a></div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "adm.course.name"}}</th><th>{{t .Lang "submission.title"}}</th><th>{{t .Lang "adm.submissions.comment"}}</th></tr>
+              {{range .Submitters}}
+              <tr id="learner-{{.ID}}">
+                <td>{{.Name}}<br><small>{{.Email}}</small>{{if not .Enrolled}}<br><span class="badge badge-closed">{{t $.Lang "adm.submissions.left"}}</span>{{end}}</td>
+                <td>{{if .Files}}<strong>{{tn $.Lang "adm.submissions.files" (len .Files)}}</strong>
+                  <ul class="file-list">{{range .Files}}<li><a href="/submission-files/{{.ID}}">{{.Name}}</a> <small>{{size .Size}}</small></li>{{end}}</ul>
+                  {{else}}{{t $.Lang "adm.submissions.nothing"}}{{end}}</td>
+                <td><form class="form" method="post" action="/admin/assignments/{{$.Assignment.ID}}/learners/{{.ID}}/comment">
+                  <textarea name="comment" rows="3" maxlength="5000" aria-label="{{t $.Lang "adm.submissions.comment-for" .Name}}">{{.Comment}}</textarea>
+                  <button class="btn btn-ghost btn-sm">{{t $.Lang "adm.save"}}</button>
+                </form></td>
+              </tr>
+              {{else}}
+              <tr><td colspan="3">{{t .Lang "adm.course.none-joined"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

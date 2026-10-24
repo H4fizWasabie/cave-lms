@@ -45,7 +45,7 @@ type App struct {
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
-	datasets             storage.Store // where Dataset data lives (ADR 0008)
+	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
 	maxUpload            int64
 	limiter              rateLimiter
 	chatHub              chatHub       // tells open Chat streams of new and changed Messages
@@ -95,6 +95,7 @@ type page struct {
 	Total         int // published Lessons in the Course
 	Lessons       []lesson
 	Lesson        *lesson
+	Assignments   []assignment // the Course's, on its page for an enrolled Learner or the Admin
 	Enrollees     []enrollee
 	Certificates  []certificate
 	Certificate   *certificate // the one a verification page shows
@@ -290,6 +291,23 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses/{id}/lessons/publish-all", a.admin(a.publishAllLessons))
 	mux.HandleFunc("GET /admin/courses/{id}/lessons/new", a.admin(a.newLessonForm))
 	mux.HandleFunc("POST /admin/courses/{id}/lessons", a.admin(a.createLesson))
+	mux.HandleFunc("GET /admin/courses/{id}/assignments", a.admin(a.adminAssignments))
+	mux.HandleFunc("GET /admin/courses/{id}/assignments/new", a.admin(a.newAssignmentForm))
+	mux.HandleFunc("POST /admin/courses/{id}/assignments", a.admin(a.createAssignment))
+	mux.HandleFunc("GET /admin/assignments/{aid}", a.admin(a.adminSubmissions))
+	mux.HandleFunc("POST /admin/assignments/{aid}/learners/{learnerID}/comment", a.admin(a.saveSubmissionComment))
+	mux.HandleFunc("GET /admin/assignments/{aid}/edit", a.admin(a.editAssignmentForm))
+	mux.HandleFunc("POST /admin/assignments/{aid}", a.admin(a.updateAssignment))
+	mux.HandleFunc("POST /admin/assignments/{aid}/up", a.admin(a.moveAssignment(-1)))
+	mux.HandleFunc("POST /admin/assignments/{aid}/down", a.admin(a.moveAssignment(1)))
+	mux.HandleFunc("POST /admin/assignments/{aid}/publish", a.admin(a.setAssignmentPublished(true)))
+	mux.HandleFunc("POST /admin/assignments/{aid}/unpublish", a.admin(a.setAssignmentPublished(false)))
+	mux.HandleFunc("GET /admin/assignments/{aid}/delete", a.admin(a.confirmDeleteAssignment))
+	mux.HandleFunc("POST /admin/assignments/{aid}/delete", a.admin(a.deleteAssignment))
+	mux.HandleFunc("GET /courses/{id}/assignments/{aid}", a.requireLearner(a.showAssignment))
+	mux.HandleFunc("POST /courses/{id}/assignments/{aid}/files", a.requireLearner(a.uploadSubmission))
+	mux.HandleFunc("GET /submission-files/{fid}", a.requireLearner(a.downloadSubmissionFile))
+	mux.HandleFunc("POST /submission-files/{fid}/delete", a.requireLearner(a.deleteSubmissionFile))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
 	mux.HandleFunc("GET /admin/courses/{id}/exam", a.admin(a.adminExam))
@@ -321,6 +339,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses/{id}/exam/answer-sheet", a.requireLearner(a.downloadAnswerSheet))
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
+	mux.HandleFunc("GET /my-folder", a.requireLearner(a.myFolder))
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
 	mux.HandleFunc("GET /my-profile", a.requireLearner(a.myProfile))
 	mux.HandleFunc("POST /my-profile/ic", a.requireLearner(a.setMyIC))
@@ -501,7 +520,7 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
 		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
