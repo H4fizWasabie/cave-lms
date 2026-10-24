@@ -24,6 +24,7 @@ const maxFilterValues = 100
 type option struct {
 	Value, Text string
 	On          bool
+	Gone        bool // a ticked filter value the Dataset no longer has
 }
 
 // choice is one form field of a block: its name, its label and its options.
@@ -46,6 +47,14 @@ type blockRow struct {
 	FilterCol   choice   // the filter's column
 	FilterVals  *choice  // the filter's values, ticked; nil until a column is picked
 	More        int      // the filter offers only this many of the column's values; 0 when it offers all
+	Needs       []need   // the columns the Dataset lacks, so the block is paused
+	Gone        []string // filter values the Dataset lacks, so the block shows no rows
+}
+
+// need is a column a paused block names that the Dataset lacks, with the columns that may stand in for it.
+type need struct {
+	Name    string
+	Options []string
 }
 
 // blocksView is the Blocks tab: the list, the add buttons and the filter bar.
@@ -72,10 +81,15 @@ func newBlocksView(d *dashboard, lang string, open int, saved bool) *blocksView 
 			v.FilterBar = append(v.FilterBar, option{Value: c.Name, Text: c.Name, On: slices.Contains(cfg.FilterBar, c.Name)})
 		}
 	}
+	uses := cfg.Uses()
 	for i, b := range cfg.Blocks {
 		card := b.Kind == "card"
-		row := blockRow{WorkBlock: b, I: i, Summary: b.Summary(lang), Open: i == open,
+		row := blockRow{WorkBlock: b, I: i, Summary: b.Summary(lang), Open: i == open, Gone: b.Gone(ds),
 			First: i == 0 || (cfg.Blocks[i-1].Kind == "card") != card, Last: i == len(cfg.Blocks)-1 || (cfg.Blocks[i+1].Kind == "card") != card}
+		for _, name := range b.Missing(ds) {
+			u := uses[slices.IndexFunc(uses, func(u lab.Use) bool { return u.Name == name })]
+			row.Needs = append(row.Needs, need{Name: name, Options: u.Options(ds)})
+		}
 		if row.Open {
 			row.form(ds, lang)
 		}
@@ -214,7 +228,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			}
 		}
 		for _, s := range all {
-			vals.Options = append(vals.Options, option{Value: s, Text: s, On: slices.Contains(f.Vals, s)})
+			vals.Options = append(vals.Options, option{Value: s, Text: s, On: slices.Contains(f.Vals, s), Gone: slices.Contains(row.Gone, s)})
 		}
 		row.FilterVals = &vals
 	}
@@ -326,7 +340,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	case "save":
 		b := blockFromForm(r.Form, cfg.Blocks[i], d.Dataset, lang)
 		if err = b.KeepsLock(cfg.Blocks[i]); err == nil {
-			err = b.Check(d.Dataset)
+			err = b.Check(d.Dataset, cfg.Blocks[i].Missing(d.Dataset)...)
 		}
 		if err == nil {
 			cfg.Blocks[i] = b
@@ -342,6 +356,16 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		at = cfg.Move(i, 1)
 	case "remove":
 		cfg.Blocks = slices.Delete(cfg.Blocks, i, i+1)
+	case "use": // a paused block's column swapped for another in every block
+		from, to := r.FormValue("from"), r.FormValue("to")
+		uses := cfg.Uses()
+		k := slices.IndexFunc(uses, func(u lab.Use) bool { return u.Name == from })
+		if k < 0 || !(lab.Use{Name: to, Type: uses[k].Type}).Fits(d.Dataset) {
+			err = lab.Problem{Key: "lab.err.block-column", Args: []any{to}}
+			break
+		}
+		cfg.Rename(map[string]string{from: to})
+		at = i
 	case "reset": // the Template's blocks and filter bar from the current columns; General rebuilds from the Dataset
 		cfg, err = *d.Template.Open(d.Choices, d.Dataset), nil
 	case "filter-bar":

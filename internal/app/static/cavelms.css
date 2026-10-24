@@ -779,6 +779,10 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .eb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
 .eb-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 1rem; }
 .eb-item.is-open { border-color: var(--brand-ink); }
+.eb-item.is-paused { border-color: var(--bad); }
+.eb-warn { display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; margin: 0; padding: .4rem .6rem; border-top: 1px solid var(--line); background: var(--bad-soft); color: var(--bad); font-size: .85rem; }
+.eb-warn > span { display: inline-flex; gap: .35rem; align-items: center; }
+.eb-ticks s { color: var(--muted); }
 .eb-row { display: flex; gap: .5rem; align-items: center; padding: .5rem .6rem; }
 .eb-name { flex: 1; min-width: 0; display: grid; gap: .05rem; padding: .15rem .2rem; color: inherit; text-decoration: none; }
 .eb-name strong { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: .3rem; align-items: center; }

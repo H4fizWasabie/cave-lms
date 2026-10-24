@@ -33,6 +33,7 @@ type pendingDataset struct {
 	Chosen  lab.Choices // the Learner's choices on a refused confirm; else Guess
 	Sheets  []lab.Sheet // every sheet of the upload
 	Used    []string    // the sheets that went into the Dataset
+	Header  int         // the Excel row the column names came from
 }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
@@ -184,8 +185,8 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 	var p pendingDataset
 	var key string
 	var changes, guess, sheets, used []byte
-	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, changes, guess, sheets, used FROM datasets
-		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &changes, &guess, &sheets, &used)
+	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, changes, guess, sheets, used, header_row FROM datasets
+		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &changes, &guess, &sheets, &used, &p.Header)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -207,7 +208,8 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 // uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
-// the Dashboard then remembers.
+// the Dashboard then remembers. When Clean-up changed nothing and every column the blocks use is still there,
+// there is nothing to check: the upload is confirmed at once.
 func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
 	lang, err := a.language(r)
 	if err != nil {
@@ -294,8 +296,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, changes, guess, sheets, used)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)`, d.ID, key, name, len(data), len(res.Dataset.Rows), changes, guess, sheets, used)
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, changes, guess, sheets, used, header_row)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10)`, d.ID, key, name, len(data), len(res.Dataset.Rows), changes, guess, sheets, used, res.HeaderRow)
 		return err
 	})
 	if err != nil {
@@ -304,14 +306,37 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
+	if d.Config != nil && len(res.Changes) == 0 && fits(d.Config, res.Dataset) { // nothing to check: it goes live
+		quiet, err := a.dropsOnlyPastKeep(r.Context(), d, int64(len(data)), acc)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if quiet {
+			a.confirmWork(w, r, d)
+			return
+		}
+	}
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+}
+
+// dropsOnlyPastKeep is whether confirming a Dataset of size fits the Storage allowance deleting no earlier Dataset
+// but those past keepEarlier, so the preview has nothing to warn about.
+func (a *App) dropsOnlyPastKeep(ctx context.Context, d *dashboard, size int64, acc labAccess) (bool, error) {
+	kept, err := keptDatasets(ctx, a.db, d.ID)
+	if err != nil {
+		return false, err
+	}
+	drop, _, ok, err := toDrop(ctx, a.db, d, size, acc)
+	return ok && len(drop) <= max(len(kept)-keepEarlier, 0), err
 }
 
 // confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and toDrop's earlier
 // Datasets are deleted. On the first confirm the Learner's column choice for each blank opens the Template onto
-// the Dashboard as its blocks; the Learner may switch to General instead. Later confirms leave the blocks as they
-// are. A confirm that would take the Learner over their Storage allowance even with every earlier Dataset of this
-// Dashboard gone is refused and the Dataset stays pending.
+// the Dashboard as its blocks; the Learner may switch to General instead. Later confirms keep the blocks,
+// swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
+// pauses its blocks. A confirm that would take the Learner over their Storage allowance even with every earlier
+// Dataset of this Dashboard gone is refused and the Dataset stays pending.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -351,6 +376,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			return
 		}
 		cfg = t.Open(c, p.Dataset)
+	} else {
+		r.ParseForm()
+		cfg = picked(cfg, p.Dataset, r.Form)
 	}
 	choices, err := json.Marshal(c)
 	if err != nil {

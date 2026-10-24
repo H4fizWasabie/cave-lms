@@ -349,12 +349,15 @@ func (b *WorkBlock) Fill(d *Dataset) {
 }
 
 // Check refuses a block the editor cannot save on d: an option Cave does not offer, a label over 80
-// characters, or a column the Dataset lacks or of the wrong type, a Locked block's own columns included.
-func (b *WorkBlock) Check(d *Dataset) error {
+// characters, or a column the Dataset lacks or of the wrong type, a Locked block's own columns included. A paused
+// block may keep naming the columns it was paused for.
+func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	bad := Problem{"lab.err.block-option", nil}
 	col := func(name string, t Type) error {
 		have := d.typeOf(name)
 		switch {
+		case have == "" && slices.Contains(paused, name):
+			return nil
 		case name == "" && d.first(t) == "":
 			return Problem{"lab.err.block-none", []any{typeWord(t)}}
 		case name == "":
@@ -511,4 +514,164 @@ func (b *WorkBlock) Summary(lang string) string {
 		parts = append(parts, f.Col+" = "+strings.Join(f.Vals, ", "))
 	}
 	return strings.Join(parts, " · ")
+}
+
+// Use is one column a Work Dashboard's blocks name, with the type they need of it; empty when any type does.
+type Use struct {
+	Name string
+	Type Type
+}
+
+// Fits is whether d has the column, of the type the blocks need.
+func (u Use) Fits(d *Dataset) bool {
+	have := d.typeOf(u.Name)
+	return have != "" && (u.Type == "" || u.Type == have)
+}
+
+// Options are d's columns that may stand in for the column: those of the type the blocks need.
+func (u Use) Options(d *Dataset) []string {
+	var out []string
+	for _, c := range d.Columns {
+		if u.Type == "" || c.Type == u.Type {
+			out = append(out, c.Name)
+		}
+	}
+	return out
+}
+
+// uses are the columns the block names, with the type each needs.
+func (b *WorkBlock) uses() []Use {
+	var out []Use
+	add := func(t Type, names ...string) {
+		for _, n := range names {
+			if n != "" {
+				out = append(out, Use{n, t})
+			}
+		}
+	}
+	if v := b.Value; v != nil {
+		if v.Agg == "distinct" {
+			add("", v.Col)
+		} else {
+			add(Number, v.Col, v.A, v.B)
+		}
+	}
+	add(Date, b.X)
+	add(Text, b.Group, b.Split)
+	add("", b.Cols...)
+	add("", b.Sort)
+	if b.Filter != nil {
+		add(Text, b.Filter.Col)
+	}
+	if len(b.Where) > 0 {
+		add(Text, b.Where[0])
+	}
+	if len(b.Minus) > 0 {
+		add(Text, b.Minus[0])
+	}
+	add(Number, b.Low...)
+	return out
+}
+
+// Missing are the columns the block names that d lacks. While any is missing the block is paused: left off
+// the Dashboard and its Deployment, and back by itself once a Dataset has the column again.
+func (b *WorkBlock) Missing(d *Dataset) []string {
+	var out []string
+	for _, u := range b.uses() {
+		if d.typeOf(u.Name) == "" && !slices.Contains(out, u.Name) {
+			out = append(out, u.Name)
+		}
+	}
+	return out
+}
+
+// Gone are the block's filter values no cell of d holds, so the block shows no rows until they return.
+func (b *WorkBlock) Gone(d *Dataset) []string {
+	f := b.Filter
+	if f == nil {
+		return nil
+	}
+	i := slices.IndexFunc(d.Columns, func(c Column) bool { return c.Name == f.Col })
+	if i < 0 {
+		return nil
+	}
+	have := map[string]bool{}
+	for _, r := range d.Rows {
+		if s, ok := r[i].(string); ok {
+			have[s] = true
+		} else if r[i] == nil {
+			have["(blank)"] = true // as the Dashboard groups empty cells
+		}
+	}
+	var out []string
+	for _, v := range f.Vals {
+		if !have[v] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// Uses are the columns the Config's blocks name, each once, needing the type any block needs of it.
+func (c *Config) Uses() []Use {
+	var out []Use
+	for _, b := range c.Blocks {
+		for _, u := range b.uses() {
+			i := slices.IndexFunc(out, func(o Use) bool { return o.Name == u.Name })
+			switch {
+			case i < 0:
+				out = append(out, u)
+			case out[i].Type == "":
+				out[i].Type = u.Type
+			}
+		}
+	}
+	return out
+}
+
+// Rename puts column m[from] in place of column from, for every from in m, in every block, the filter bar and
+// the money columns. The pairs swap at once, so a rename never feeds another.
+func (c *Config) Rename(m map[string]string) {
+	one := func(s *string) {
+		if to, ok := m[*s]; ok && *s != "" {
+			*s = to
+		}
+	}
+	all := func(s []string) []string {
+		s = slices.Clone(s)
+		for i := range s {
+			one(&s[i])
+		}
+		return s
+	}
+	pair := func(p []string) []string { // [column, value]
+		if len(p) == 0 {
+			return p
+		}
+		p = slices.Clone(p)
+		one(&p[0])
+		return p
+	}
+	c.Blocks = slices.Clone(c.Blocks)
+	for i := range c.Blocks {
+		b := &c.Blocks[i]
+		if b.Value != nil {
+			v := *b.Value
+			one(&v.Col)
+			one(&v.A)
+			one(&v.B)
+			b.Value = &v
+		}
+		one(&b.X)
+		one(&b.Split)
+		one(&b.Group)
+		one(&b.Sort)
+		if b.Filter != nil {
+			b.Filter = &Filter{Col: b.Filter.Col, Vals: b.Filter.Vals}
+			one(&b.Filter.Col)
+		}
+		b.Cols, b.Low = all(b.Cols), all(b.Low)
+		b.Where, b.Minus = pair(b.Where), pair(b.Minus)
+	}
+	c.FilterBar, c.Money = all(c.FilterBar), all(c.Money)
 }

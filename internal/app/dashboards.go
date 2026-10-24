@@ -388,6 +388,8 @@ type dashboardPage struct {
 	Blanks    []blankChoice
 	Pending   *pendingDataset  // a Work Dashboard's upload waiting for its confirm
 	Drops     []earlierDataset // the earlier Datasets confirming Pending deletes
+	Uses      []columnUse      // after the first confirm: the columns the blocks use, as the pending Dataset has them
+	AskHeader int              // most of Uses are missing: the preview asks whether this row is the header
 	Earlier   []earlierDataset // a Work Dashboard's earlier Datasets, newest first
 	Open      int              // Blocks tab: the block whose form is open; -1 for none
 	Saved     bool             // Blocks tab: an edit was just saved
@@ -480,6 +482,12 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	}
 	if p.Pending != nil && d.Config == nil { // the first confirm opens the Template with these choices
 		p.Blanks = blankChoices(d.Template, p.Pending.Dataset, p.Pending.Chosen, p.Pending.Guess)
+	}
+	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
+		p.Uses = columnUses(d.Config, p.Pending.Dataset)
+		if 2*missingUses(p.Uses) > len(p.Uses) {
+			p.AskHeader = p.Pending.Header
+		}
 	}
 	if d.Work && p.Tab == "dataset" && !p.ReadOnly {
 		var err error
