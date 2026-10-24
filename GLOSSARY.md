@@ -251,9 +251,14 @@ _Malay_: Sampel
 _Avoid_: Example file, demo data
 
 **Dataset**:
-A Learner's Excel data, their own or an edited Sample, uploaded to the Lab. It belongs to exactly one Dashboard and is replaced by each new upload. Never a Gallery item.
+The table Cave keeps from a Learner's Excel upload, their own data or an edited Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It belongs to exactly one Dashboard and is replaced when the Learner confirms a new upload. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
+
+**Clean-up**:
+What Cave changes in an upload to turn it into a Dataset, such as skipping title rows or reading `-` as 0, shown to the Learner before they confirm.
+_Malay_: Pembersihan
+_Avoid_: Sanitise, normalise, transform, fix
 
 **Dashboard**:
 A Template filled with one Learner's Dataset and their choice of column for each blank.
