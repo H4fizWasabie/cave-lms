@@ -707,6 +707,11 @@ var catalog = map[string]entry{
 	"lab.err.unnamed-column": {en: "Column %s has no name in row 1.", ms: "Lajur %s tiada nama di baris 1."},
 	"lab.err.same-name":      {en: "Two columns are called %s. Give each column its own name in row 1.", ms: "Dua lajur bernama %s. Berikan setiap lajur namanya sendiri di baris 1."},
 	"lab.err.too-many-rows":  {en: "The file has %s rows. The Lab reads up to %s rows. Row %s is past the limit. Delete some rows and upload again.", ms: "Fail ini ada %s baris. Lab membaca sehingga %s baris. Baris %s melepasi had. Padam beberapa baris dan muat naik semula."},
+	"lab.err.too-many-rows-combined": {
+		en: "The %d ticked sheets have %s rows together. The Lab reads up to %s rows. Tick fewer sheets and upload again.",
+		ms: "%d helaian yang ditanda ada %s baris kesemuanya. Lab membaca sehingga %s baris. Tanda lebih sedikit helaian dan muat naik semula.",
+	},
+	"lab.err.too-many-columns": {en: "The sheet has %d columns. The Lab reads up to %d columns.", ms: "Helaian ini ada %d lajur. Lab membaca sehingga %d lajur."},
 	"lab.err.missing-column": {
 		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
 		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",
@@ -728,6 +733,17 @@ var catalog = map[string]entry{
 	// Clean-up's changes, listed in a Work Dashboard's upload preview
 	"lab.clean.title-row":  {en: "Skipped row 1 above the header in row %d.", ms: "Baris 1 di atas tajuk lajur di baris %d dilangkau."},
 	"lab.clean.title-rows": {en: "Skipped rows 1 to %d above the header in row %d.", ms: "Baris 1 hingga %d di atas tajuk lajur di baris %d dilangkau."},
+	"lab.clean.combined": {
+		en: "Combined %d sheets into one Dataset, with each row's sheet name in a new Sheet column.",
+		ms: "Menggabungkan %d helaian menjadi satu Set data, dengan nama helaian setiap baris dalam lajur baharu Sheet.",
+	},
+	"lab.clean.combined-dates": {
+		en: "Combined %d sheets into one Dataset, with the date in each row's sheet name in a new Date column.",
+		ms: "Menggabungkan %d helaian menjadi satu Set data, dengan tarikh pada nama helaian setiap baris dalam lajur baharu Date.",
+	},
+	// Why a sheet cannot join the picked sheet
+	"lab.clean.sheet-unreadable": {en: "Cave found no table with column names and rows below them.", ms: "Cave tidak menemui jadual dengan nama lajur dan baris di bawahnya."},
+	"lab.clean.sheet-differs":    {en: "Its columns differ from the picked sheet's.", ms: "Lajurnya berbeza daripada lajur helaian yang dipilih."},
 
 	// The Dashboard page
 	"lab.d.zip": {en: "Download zip", ms: "Muat turun zip"},
@@ -863,12 +879,19 @@ var catalog = map[string]entry{
 		ms: "Cave membersihkan setiap muat naik dan menunjukkan pratonton. Dashboard anda dan pautannya kekal dengan Set data semasa sehingga anda mengesahkan.",
 	},
 	"lab.w.file-limits": {
-		en: ".xlsx only · first sheet · title rows above the column names are skipped · up to 5,000 rows and 10 MB",
-		ms: ".xlsx sahaja · helaian pertama · baris tajuk di atas nama lajur dilangkau · sehingga 5,000 baris dan 10 MB",
+		en: ".xlsx only · sheets with the same columns combine · title rows above the column names are skipped · up to 50,000 rows, 100 columns and 10 MB",
+		ms: ".xlsx sahaja · helaian dengan lajur yang sama digabungkan · baris tajuk di atas nama lajur dilangkau · sehingga 50,000 baris, 100 lajur dan 10 MB",
 	},
-	"lab.w.preview":       {en: "Check %s before your Dashboard uses it", ms: "Semak %s sebelum Dashboard anda menggunakannya"},
-	"lab.w.read.one":      {en: "Cave kept %d row. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
-	"lab.w.read.other":    {en: "Cave kept %d rows. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
+	"lab.w.preview":    {en: "Check %s before your Dashboard uses it", ms: "Semak %s sebelum Dashboard anda menggunakannya"},
+	"lab.w.read.one":   {en: "Cave kept %d row. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
+	"lab.w.read.other": {en: "Cave kept %d rows. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
+	"lab.w.used":       {en: "Sheets in this Dataset: %s.", ms: "Helaian dalam Set data ini: %s."},
+	"lab.w.sheets":     {en: "Sheets", ms: "Helaian"},
+	"lab.w.combine":    {en: "combine", ms: "gabung"},
+	"lab.w.sheets-help": {
+		en: "Pick the sheet to read and tick the sheets with the same columns to combine with it, then choose your file again and upload. Cave remembers your choice for the next upload.",
+		ms: "Pilih helaian untuk dibaca dan tanda helaian dengan lajur yang sama untuk digabungkan, kemudian pilih fail anda semula dan muat naik. Cave mengingati pilihan anda untuk muat naik seterusnya.",
+	},
 	"lab.w.changes":       {en: "What Cave changed", ms: "Apa yang Cave ubah"},
 	"lab.w.no-changes":    {en: "Cave changed nothing: the file read as it is.", ms: "Cave tidak mengubah apa-apa: fail dibaca seadanya."},
 	"lab.w.which-column":  {en: "Which column fills each blank of the %s Template? Cave guessed from the column names.", ms: "Lajur mana yang mengisi setiap ruang Templat %s? Cave meneka berdasarkan nama lajur."},
