@@ -236,7 +236,7 @@ _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
 **Template**:
-A dashboard design with blanks for columns, such as Finance, Inventory, HR or General.
+A dashboard design with blanks for columns, such as Finance, Inventory, HR, Sales, Roster or General.
 _Malay_: Templat
 _Avoid_: Theme, layout, preset
 
