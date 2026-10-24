@@ -507,8 +507,17 @@ func (a *App) deleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		a.notFound(w, r)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`, id, d.ID); err != nil {
+	res, err := a.db.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`, id, d.ID)
+	var n int64
+	if err == nil {
+		n, err = res.RowsAffected()
+	}
+	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if n == 0 {
+		a.notFound(w, r)
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)

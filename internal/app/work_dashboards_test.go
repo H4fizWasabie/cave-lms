@@ -314,6 +314,7 @@ func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {
 	if !strings.Contains(body, "2027-01-02") {
 		t.Fatalf("the Learner's month is not used:\n%s", body)
 	}
+	upload(fmt.Sprintf("dated 1/%d.", time.Now().Year()), url.Values{"month": {"1"}, "year": {"99999"}})
 }
 
 func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {

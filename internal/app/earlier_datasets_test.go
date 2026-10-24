@@ -208,4 +208,6 @@ func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
 	if !strings.Contains(ada.rowsOf(path+"/view/"), "Gula") {
 		t.Fatal("deleting an earlier Dataset changed the current one")
 	}
+	res, body = ada.post(path+"/datasets/999999/delete", nil)
+	expectStatus(t, res, body, http.StatusNotFound, "")
 }
