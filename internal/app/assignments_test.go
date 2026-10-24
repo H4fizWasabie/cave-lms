@@ -22,6 +22,16 @@ func (s *site) assignmentIDByTitle(title string) string {
 	return id
 }
 
+// assignmentIDInCourse reads the ID of the Assignment titled title in Course courseID from the database.
+func (s *site) assignmentIDInCourse(title, courseID string) string {
+	s.t.Helper()
+	var id string
+	if err := s.db.QueryRow(`SELECT id::text FROM assignments WHERE title = $1 AND course_id = $2`, title, courseID).Scan(&id); err != nil {
+		s.t.Fatal(err)
+	}
+	return id
+}
+
 // assignmentCourse makes "Go Basics" with Ada enrolled, and returns the Admin, Ada and the Course's ID.
 func assignmentCourse(t *testing.T) (admin, ada *site, id string) {
 	admin = newSite(t)
@@ -125,11 +135,13 @@ func TestAssignmentPagesAreInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Tugasan Baharu")
 }
 
-func TestDuplicatingACourseCopiesItsAssignments(t *testing.T) {
-	admin, _, id := assignmentCourse(t)
+func TestDuplicatingACourseCopiesItsAssignmentsWithoutSubmissions(t *testing.T) {
+	admin, ada, id := assignmentCourse(t)
 	admin.addAssignment(id, "Write a prompt", "Write one prompt.")
 	admin.addAssignment(id, "Still a draft", "Later.")
-	admin.post("/admin/assignments/"+admin.assignmentIDByTitle("Write a prompt")+"/publish", nil)
+	aid := admin.assignmentIDByTitle("Write a prompt")
+	admin.post("/admin/assignments/"+aid+"/publish", nil)
+	ada.postFiles("/courses/"+id+"/assignments/"+aid+"/files", upload{"prompt.pdf", pdfHandIn})
 
 	copyID := admin.copiedCourseID(id, "Go Basics for Acme", "2027-02-01", "2027-02-03", "2")
 	res, body := admin.get("/admin/courses/" + copyID + "/assignments")
@@ -141,5 +153,10 @@ func TestDuplicatingACourseCopiesItsAssignments(t *testing.T) {
 	}
 	if published != 1 || drafts != 1 {
 		t.Fatalf("the copy has %d published and %d Draft Assignments, want 1 and 1", published, drafts)
+	}
+	res, body = admin.get("/admin/assignments/" + admin.assignmentIDInCourse("Write a prompt", copyID))
+	expectStatus(t, res, body, http.StatusOK, "No Learners have joined")
+	if strings.Contains(body, "prompt.pdf") {
+		t.Fatalf("the copy has the original's Submission: %s", body)
 	}
 }

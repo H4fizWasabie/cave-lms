@@ -28,6 +28,11 @@ const (
 	maxSubmissionTotal = 200 << 20
 )
 
+// submissionLimits is the line under the upload field naming the limits, in lang.
+func submissionLimits(lang string) string {
+	return text.T(lang, "submission.limits", sizeText(maxSubmissionFile), maxSubmissionFiles, sizeText(maxSubmissionTotal))
+}
+
 const (
 	zipMagic = "PK\x03\x04"
 	oleMagic = "\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" // the old Word, Excel and PowerPoint formats
@@ -113,7 +118,7 @@ func (a *App) uploadSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 	var over *http.MaxBytesError
 	if errors.As(err, &over) {
-		refuse(text.T(lang, "submission.err.request-too-big"))
+		refuse(text.T(lang, "submission.err.request-too-big", maxSubmissionFiles, sizeText(maxSubmissionFile)))
 		return
 	}
 	var headers []*multipart.FileHeader
@@ -198,7 +203,7 @@ func checkSubmissionFile(h *multipart.FileHeader, lang string) (f checkedFile, m
 		return f, text.T(lang, "submission.err.type", f.name), nil
 	}
 	if h.Size > maxSubmissionFile {
-		return f, text.T(lang, "submission.err.too-big", f.name), nil
+		return f, text.T(lang, "submission.err.too-big", f.name, sizeText(maxSubmissionFile)), nil
 	}
 	file, err := h.Open()
 	if err != nil {
@@ -210,7 +215,7 @@ func checkSubmissionFile(h *multipart.FileHeader, lang string) (f checkedFile, m
 	}
 	switch {
 	case len(f.data) > maxSubmissionFile:
-		return f, text.T(lang, "submission.err.too-big", f.name), nil
+		return f, text.T(lang, "submission.err.too-big", f.name, sizeText(maxSubmissionFile)), nil
 	case len(f.data) == 0 || !strings.HasPrefix(string(f.data[:min(len(f.data), 8)]), kind.magic):
 		return f, text.T(lang, "submission.err.type", f.name), nil
 	}
@@ -358,7 +363,11 @@ func (a *App) deleteSubmissionFile(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if !enrolled || !f.Published {
+	if !f.Published {
+		a.notFound(w, r)
+		return
+	}
+	if !enrolled {
 		a.refuseNotEnrolled(w, r, c)
 		return
 	}
@@ -390,6 +399,10 @@ func (a *App) dropDeletedFiles(ctx context.Context, r *http.Request) int {
 		keys = append(keys, key)
 	}
 	rows.Close()
+	if err := rows.Err(); err != nil {
+		a.logError(r, err)
+		return 0
+	}
 	n := 0
 	for _, key := range keys {
 		if err := a.datasets.Delete(ctx, key); err != nil {

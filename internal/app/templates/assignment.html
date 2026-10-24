@@ -26,7 +26,7 @@
         <form class="form" method="post" action="/courses/{{.Course.ID}}/assignments/{{.Assignment.ID}}/files" enctype="multipart/form-data">
           <div class="field"><label for="file">{{t .Lang "submission.add"}}</label>
             <input id="file" type="file" name="file" multiple required accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.zip">
-            <small>{{t .Lang "submission.limits"}}</small>
+            <small>{{submissionLimits .Lang}}</small>
           </div>
           <div class="form-foot"><button class="btn btn-solid">{{t .Lang "submission.upload"}}</button></div>
         </form>

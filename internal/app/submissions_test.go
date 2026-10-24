@@ -307,6 +307,14 @@ func TestTheAdminCommentsOnASubmissionAndTheLearnerSeesIt(t *testing.T) {
 	res, body = admin.get("/admin/assignments/" + aid)
 	expectStatus(t, res, body, http.StatusOK, ">Well done.</textarea>")
 
+	bea := admin.second()
+	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", "correct horse battery")
+	var beaID string
+	admin.db.QueryRow(`SELECT id::text FROM learners WHERE email = 'bea@example.com'`).Scan(&beaID)
+	if res, _ := admin.post("/admin/assignments/"+aid+"/learners/"+beaID+"/comment", url.Values{"comment": {"Hi."}}); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("a comment for a Learner who never joined got %d, want 404", res.StatusCode)
+	}
+
 	if res, _ := ada.get("/admin/assignments/" + aid); res.StatusCode != http.StatusForbidden {
 		t.Fatalf("a Learner opened the Admin's Assignment page: %d", res.StatusCode)
 	}

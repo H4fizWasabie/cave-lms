@@ -85,9 +85,10 @@ func (a *App) folder(ctx context.Context, learnerID int64) ([]folderCourse, erro
 		if err := rows.Scan(&assignmentID, &f.ID, &f.Name, &f.Size, &f.UploadedAt); err != nil {
 			return nil, err
 		}
-		i := at[assignmentID]
-		as := &list[i[0]].Assignments[i[1]]
-		as.Files = append(as.Files, f)
+		if i, ok := at[assignmentID]; ok { // a file uploaded between the two queries waits for the next visit
+			as := &list[i[0]].Assignments[i[1]]
+			as.Files = append(as.Files, f)
+		}
 	}
 	return list, rows.Err()
 }

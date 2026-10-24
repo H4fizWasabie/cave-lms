@@ -261,7 +261,7 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Enrollments, Lessons, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
+	// Enrollments, Lessons, Assignments, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
 	if isForeignKeyError(err) {
 		lang, err := a.language(r)

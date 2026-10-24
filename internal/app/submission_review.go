@@ -101,6 +101,16 @@ func (a *App) saveSubmissionComment(w http.ResponseWriter, r *http.Request) {
 		a.notFound(w, r)
 		return
 	}
+	var listed bool
+	if err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM enrollments WHERE course_id = $1 AND learner_id = $3)
+		OR EXISTS (SELECT 1 FROM submission_files WHERE assignment_id = $2 AND learner_id = $3)`, as.CourseID, as.ID, learnerID).Scan(&listed); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if !listed { // only a Learner on the Assignment's page gets a comment
+		a.notFound(w, r)
+		return
+	}
 	body := strings.TrimSpace(r.PostFormValue("comment"))
 	if utf8.RuneCountInString(body) > maxComment {
 		lang, err := a.language(r)
@@ -117,10 +127,6 @@ func (a *App) saveSubmissionComment(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_, err = a.db.ExecContext(r.Context(), `INSERT INTO submission_comments (assignment_id, learner_id, body) VALUES ($1, $2, $3)
 			ON CONFLICT (assignment_id, learner_id) DO UPDATE SET body = EXCLUDED.body, updated_at = now()`, as.ID, learnerID, body)
-	}
-	if isForeignKeyError(err) {
-		a.notFound(w, r)
-		return
 	}
 	if err != nil {
 		a.serverError(w, r, err)
