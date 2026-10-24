@@ -37,9 +37,36 @@ func TestABlockedAddressAddsNoAccountKeys(t *testing.T) {
 	now := time.Now()
 	const address = "POST /login 192.0.2.1"
 	for i := range loginFailuresPerAddress + 1000 {
-		l.allowLogin(address+" "+strconv.Itoa(i)+"@example.com", address, now)
+		email := strconv.Itoa(i) + "@example.com"
+		l.allowLogin(address+" "+email, address, "POST /login "+email, now)
 	}
-	if want := loginFailuresPerAddress + 1; len(l.attempts) > want {
+	// One address key, and an account and an email key per login it let through.
+	if want := 2*loginFailuresPerAddress + 1; len(l.attempts) > want {
 		t.Fatalf("limiter keeps %d keys, want at most %d", len(l.attempts), want)
+	}
+}
+
+// Failed logins to one email from many addresses stop at loginFailuresPerEmail, and the first refusal is reported
+// once, not on every refusal after it.
+func TestLoginsToOneEmailFromManyAddressesStopAtTheEmailLimit(t *testing.T) {
+	var l rateLimiter
+	now := time.Now()
+	allowed, reported := 0, 0
+	for i := range loginFailuresPerEmail + 20 {
+		address := "POST /login 192.0.2." + strconv.Itoa(i)
+		ok, report := l.allowLogin(address+" ada@example.com", address, "POST /login ada@example.com", now)
+		if ok {
+			allowed++
+		}
+		if report {
+			reported++
+		}
+	}
+	if allowed != loginFailuresPerEmail || reported != 1 {
+		t.Fatalf("allowed %d logins and reported %d times, want %d and 1", allowed, reported, loginFailuresPerEmail)
+	}
+	// A refusal leaves no count at the address it came from.
+	if n := len(l.attempts["POST /login 192.0.2.60"]); n != 0 {
+		t.Fatalf("refused address kept %d attempts, want 0", n)
 	}
 }

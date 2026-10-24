@@ -306,9 +306,14 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	next := localPath(r.PostFormValue("next"))
 	// Every attempt is counted first; a right password takes its count back, so only failures stay and a class sharing
 	// one address all gets in while guessing is still stopped.
-	account, address := loginKeys(r, email)
+	account, address, emailKey := loginKeys(r, email)
 	now := time.Now()
-	if !a.limiter.allowLogin(account, address, now) {
+	if ok, report := a.limiter.allowLogin(account, address, emailKey, now); !ok {
+		if report {
+			// %q, as the email is whatever the client sent and the System log stores only valid text.
+			a.logInfo("Login limit per email: %q refused after %d failed logins from all addresses within %v",
+				maskEmail(email), loginFailuresPerEmail, loginEmailWindow)
+		}
 		a.tooManyAttempts(w, r)
 		return
 	}
@@ -332,6 +337,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	if !failed {
 		a.limiter.forget(account)
 		a.limiter.forget(address)
+		a.limiter.forget(emailKey)
 	}
 	if failed || !verified {
 		lang, err := a.language(r)
