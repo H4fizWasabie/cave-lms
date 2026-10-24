@@ -103,16 +103,6 @@ One sentence saying what a Learner can do after a Lesson.
 _Malay_: Objektif
 _Avoid_: Learning outcome, goal, aim
 
-**Course Outline**:
-The ordered titles and Objectives of a Course's Lessons, before their content is written.
-_Malay_: Rangka Kursus
-_Avoid_: Syllabus, curriculum (and "plan", which means a Plan)
-
-**Brief**:
-The Admin's free-text description of a Course (topic, audience, tone) that the AI writes from.
-_Malay_: Taklimat
-_Avoid_: Prompt, instructions
-
 **Draft**:
 Course content the Admin has not yet published, such as anything the AI writes. Learners never see a Draft.
 _Malay_: Draf
@@ -144,9 +134,14 @@ _Malay_: Skema Jawapan
 _Avoid_: Answer key, marking scheme, transcript
 
 **Question bank**:
-Every Exam question ever written or generated, site-wide, each tagged with its topic and format. An Exam copies its questions from it.
+Every Exam question ever written or generated, site-wide, each tagged with its topic, format and, when known, its Difficulty. An Exam copies its questions from it.
 _Malay_: Bank Soalan
 _Avoid_: Library, question set
+
+**Difficulty**:
+How hard an Exam question is: Easy, Medium or Hard. Only the Admin sees it.
+_Malay_: Tahap kesukaran (Mudah, Sederhana, Sukar)
+_Avoid_: Level (which means a PCC Level), grade
 
 **Certificate**:
 A PDF of completion issued automatically once a Learner with an IC has passed every one of a Course's Exams and, on a self-paced Course, finished its Lessons. It is issued when the passing Result is released, never at submit, and copies the Learner's name and IC and the Course's PCC Level at issue. It has a unique ID anyone can check.
