@@ -2,13 +2,70 @@ package app_test
 
 import (
 	"bytes"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestALearnerSendsOneSubmissionUploadAtATime(t *testing.T) {
+	admin, ada, path := publishedAssignment(t)
+	ben := admin.second()
+	ben.loginAsNewLearner("Ben Bell", "ben@example.com", "correct horse battery")
+	ben.post("/courses/"+strings.Split(path, "/")[2]+"/join", nil)
+
+	// Ada's first upload stays open: its body is a pipe that is not finished.
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+	t.Cleanup(func() { pw.Close() }) // so a failure here does not leave the server waiting for the body
+	req, err := http.NewRequest(http.MethodPost, ada.server.URL+path+"/files", pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Accept-Language", "en")
+	done := make(chan int, 1)
+	go func() {
+		res, err := ada.client.Do(req)
+		if err != nil {
+			done <- 0
+			return
+		}
+		res.Body.Close()
+		done <- res.StatusCode
+	}()
+	go func() { // the first bytes make the client send the request
+		fw, _ := mw.CreateFormFile("file", "prompt.pdf")
+		fw.Write(pdfHandIn)
+	}()
+
+	// An empty upload is 422 until the first one holds Ada's place, then 429.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		res, _ := ada.postFiles(path + "/files")
+		if res.StatusCode == http.StatusTooManyRequests {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("second upload got %d, want 429", res.StatusCode)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	res, body := ben.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	mw.Close()
+	pw.Close()
+	if code := <-done; code != http.StatusSeeOther {
+		t.Fatalf("first upload got %d, want 303", code)
+	}
+	res, body = ada.postFiles(path+"/files", upload{"more.pdf", pdfHandIn})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
 
 // A minimal file of each kind: only the first bytes are checked.
 var (

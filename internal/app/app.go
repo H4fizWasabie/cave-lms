@@ -60,6 +60,11 @@ type App struct {
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
+	// uploading holds the IDs of Learners with a Submission upload in flight, so each sends one at a time and holds
+	// at most one request's files (5 x 20 MB) in memory.
+	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
+	// reading each whole in checkSubmissionFile would remove the ceiling.
+	uploading sync.Map
 	now       func() time.Time // the clock; tests set it
 	routes    []string         // every registered pattern, so the admin-route test can walk them
 }

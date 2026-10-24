@@ -102,6 +102,17 @@ func (a *App) uploadSubmission(w http.ResponseWriter, r *http.Request) {
 		a.refuseNotEnrolled(w, r, p.Course)
 		return
 	}
+	// Before the body is read: a second upload from the same Learner is refused while the first is in flight.
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if _, busy := a.uploading.LoadOrStore(learner.ID, true); busy {
+		a.tooManyAttempts(w, r)
+		return
+	}
+	defer a.uploading.Delete(learner.ID)
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
