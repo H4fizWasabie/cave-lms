@@ -391,8 +391,8 @@ func sheetList(res *lab.CleanUp) []string {
 		if s.CanCombine {
 			line += " can combine"
 		}
-		if s.Reason != "" {
-			line += ": " + text.T("en", s.Reason)
+		if s.ReasonKey != "" {
+			line += ": " + text.T("en", s.ReasonKey)
 		}
 		out = append(out, line)
 	}
