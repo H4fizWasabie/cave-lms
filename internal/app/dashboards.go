@@ -377,9 +377,11 @@ type dashboardPage struct {
 	Failed    bool   // the store refused the upload's Dataset
 	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
-	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
-	Phone     bool            // preview at phone width
-	ReadOnly  bool            // no Lab access: view and download only
+	Pending   *pendingDataset  // a Work Dashboard's upload waiting for its confirm
+	Drops     []earlierDataset // the earlier Datasets confirming Pending deletes
+	Earlier   []earlierDataset // a Work Dashboard's earlier Datasets, newest first
+	Phone     bool             // preview at phone width
+	ReadOnly  bool             // no Lab access: view and download only
 	Hood      []hoodPart
 	Data      hoodPart // the start of data.json, on the Under the hood tab
 
@@ -452,6 +454,22 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	}
 	if p.Pending != nil && d.Config == nil { // the first confirm opens the Template with these choices
 		p.Blanks = blankChoices(d.Template, p.Pending.Dataset, p.Pending.Chosen, p.Pending.Guess)
+	}
+	if d.Work && p.Tab == "dataset" && !p.ReadOnly {
+		var err error
+		if p.Pending != nil {
+			var fits bool
+			if p.Drops, _, fits, err = toDrop(r.Context(), a.db, d, p.Pending.Size, p.Access); !fits {
+				p.Drops = nil // the confirm is refused, deleting nothing
+			}
+		}
+		if err == nil {
+			p.Earlier, err = a.earlierOf(r.Context(), d)
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
 	if p.Tab == "hood" && d.Dataset != nil {
 		lang, err := a.language(r)

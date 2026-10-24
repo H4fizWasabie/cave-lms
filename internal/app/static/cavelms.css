@@ -754,6 +754,9 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .ds-now { display: flex; gap: .8rem; align-items: center; background: var(--ok-soft); color: var(--ok); padding: .8rem 1rem; border-radius: var(--radius); }
 .ds-now .i { width: 1.6rem; height: 1.6rem; flex: none; }
 .ds-now div { display: grid; }
+.ds-earlier { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.ds-earlier li { display: flex; gap: .6rem; align-items: center; padding: .7rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); }
+.ds-earlier li > div { display: grid; flex: 1; min-width: 0; }
 .ds-err { border: 1px solid #ebbfb3; background: var(--bad-soft); border-radius: var(--radius); padding: 1.1rem 1.3rem; display: grid; gap: .6rem; }
 .ds-err p { margin: 0; }
 .ds-err ul { margin: 0; padding-left: 1.2rem; display: grid; gap: .45rem; }

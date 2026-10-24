@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -8,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -46,6 +49,86 @@ func (p *pendingDataset) Rows() [][]string {
 		out = append(out, cells)
 	}
 	return out
+}
+
+// keepEarlier is how many earlier Datasets a Work Dashboard keeps beside its current one.
+const keepEarlier = 3
+
+// earlierDataset is a Work Dashboard's Dataset that is not pending: an earlier one the Learner may restore or
+// delete, or the current one.
+type earlierDataset struct {
+	ID        int64
+	File      string
+	Size      int64 // saved size
+	Rows      int
+	Confirmed string // formatted as periodTime
+}
+
+func (e earlierDataset) SizeText() string { return sizeText(e.Size) }
+
+// queryer is a *sql.DB or a *sql.Tx.
+type queryer interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// keptDatasets lists the Work Dashboard's earlier Datasets, oldest confirmed first, then its current one, if any.
+func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]earlierDataset, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id, file_name, saved_size, row_count, confirmed_at FROM datasets
+		WHERE dashboard_id = $1 AND state <> 'pending' ORDER BY state = 'current', confirmed_at, id`, dashboardID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []earlierDataset
+	for rows.Next() {
+		var e earlierDataset
+		var confirmed time.Time
+		if err := rows.Scan(&e.ID, &e.File, &e.Size, &e.Rows, &confirmed); err != nil {
+			return nil, err
+		}
+		e.Confirmed = confirmed.UTC().Format(periodTime)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// earlierOf lists the Work Dashboard's earlier Datasets, newest first, as the Dataset tab shows them.
+func (a *App) earlierOf(ctx context.Context, d *dashboard) ([]earlierDataset, error) {
+	kept, err := keptDatasets(ctx, a.db, d.ID)
+	if err != nil || d.Key == "" { // no current Dataset, so no earlier ones
+		return nil, err
+	}
+	kept = kept[:len(kept)-1] // the current one
+	slices.Reverse(kept)
+	return kept, nil
+}
+
+// toDrop is what confirming a pending Dataset of size bytes deletes, the current Dataset turning earlier: the
+// earlier ones past keepEarlier, then, oldest first, as many more as the Storage allowance needs. The Admin has no
+// allowance. fits is false when the Dataset does not fit even with every earlier one gone; used is the bytes the
+// Learner's Datasets take now.
+func toDrop(ctx context.Context, q queryer, d *dashboard, size int64, acc labAccess) (drop []earlierDataset, used int64, fits bool, err error) {
+	kept, err := keptDatasets(ctx, q, d.ID)
+	if err != nil {
+		return nil, 0, false, err
+	}
+	n := max(len(kept)-keepEarlier, 0)
+	period := acc.CountedPeriod()
+	if period == nil {
+		return kept[:n], 0, true, nil
+	}
+	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&used); err != nil {
+		return nil, 0, false, err
+	}
+	after := used + size
+	for _, e := range kept[:n] {
+		after -= e.Size
+	}
+	for ; after > period.Storage() && n < len(kept); n++ {
+		after -= kept[n].Size
+	}
+	return kept[:n], used, after <= period.Storage(), nil
 }
 
 // inTx runs f in a transaction, committed when f returns nil.
@@ -145,10 +228,11 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
 
-// confirmWork makes the pending Dataset current; the one it replaces is deleted. On the first confirm the
-// Learner's column choice for each blank opens the Template onto the Dashboard as its blocks; the Learner may
-// switch to General instead. Later confirms leave the blocks as they are. A confirm that would take the Learner
-// over their Storage allowance is refused and the Dataset stays pending.
+// confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and toDrop's earlier
+// Datasets are deleted. On the first confirm the Learner's column choice for each blank opens the Template onto
+// the Dashboard as its blocks; the Learner may switch to General instead. Later confirms leave the blocks as they
+// are. A confirm that would take the Learner over their Storage allowance even with every earlier Dataset of this
+// Dashboard gone is refused and the Dataset stays pending.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -206,21 +290,22 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
 			return err
 		}
-		if period := acc.CountedPeriod(); period != nil {
-			if err := tx.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&used); err != nil {
+		drop, u, fits, err := toDrop(r.Context(), tx, d, p.Size, acc)
+		if used = u; err != nil || !fits {
+			return cmp.Or(err, full)
+		}
+		for _, e := range drop {
+			if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1`, e.ID); err != nil {
 				return err
 			}
-			if used-d.Size+p.Size > period.Storage() {
-				return full
-			}
 		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'current'`, d.ID); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'earlier' WHERE dashboard_id = $1 AND state = 'current'`, d.ID); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'current', confirmed_at = now() WHERE id = $1`, p.ID); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(r.Context(), `UPDATE dashboards SET template = $2, choices = $3, config = $4, updated_at = now() WHERE id = $1`,
+		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET template = $2, choices = $3, config = $4, updated_at = now() WHERE id = $1`,
 			d.ID, t.Key, choices, config)
 		return err
 	})
@@ -236,4 +321,61 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	a.dropDeletedFiles(r.Context(), r)
 	http.Redirect(w, r, dashboardURL(d)+"/preview", http.StatusSeeOther)
+}
+
+// restoreDataset makes an earlier Dataset current at once, with no preview: the Dashboard and its Deployment show
+// it now, and the one it replaces becomes earlier. The blocks stay as they are. Restore and delete are
+// POST /lab/dashboards/{id}/datasets/{ds}/restore and .../delete.
+func (a *App) restoreDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, ok := a.labOpen(w, r); !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("ds"), 10, 64)
+	if err != nil {
+		a.notFound(w, r)
+		return
+	}
+	gone := errors.New("not an earlier Dataset")
+	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+		// Two statements, as the one-current index is checked row by row.
+		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'earlier' WHERE dashboard_id = $1 AND state = 'current' AND id <> $2`, d.ID, id); err != nil {
+			return err
+		}
+		res, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'current' WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`, id, d.ID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
+			return cmp.Or(err, gone)
+		}
+		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
+		return err
+	})
+	if errors.Is(err, gone) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+}
+
+// deleteDataset deletes an earlier Dataset and its stored data, freeing its bytes from the Storage allowance.
+func (a *App) deleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, ok := a.labOpen(w, r); !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("ds"), 10, 64)
+	if err != nil {
+		a.notFound(w, r)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`, id, d.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.dropDeletedFiles(r.Context(), r)
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
