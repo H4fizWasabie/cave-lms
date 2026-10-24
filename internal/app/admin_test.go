@@ -97,6 +97,29 @@ func TestCreateAdminPromotesExistingLearner(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Admin area")
 }
 
+func TestCreateAdminOnAnExistingAccountSignsItOutEverywhere(t *testing.T) {
+	s := newCaveTextSite(t)
+	const email = "abah@example.com"
+	s.loginAsNewAdmin("Abah", email, "old password one")
+	caveTextToken := s.connect()
+	res, body := s.login(email, "old password one")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	session := res.Cookies()[0]
+
+	if err := s.application.CreateAdmin(context.Background(), "Abah", email, "new password two"); err != nil {
+		t.Fatal(err)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, s.server.URL+"/admin", nil)
+	req.AddCookie(&http.Cookie{Name: session.Name, Value: session.Value})
+	res, body = s.do(req)
+	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/login" {
+		t.Fatalf("old session after CreateAdmin: %d %q, want a redirect to /login; body:\n%s", res.StatusCode, res.Header.Get("Location"), body)
+	}
+	res, body = s.caveText(http.MethodGet, "me", caveTextToken)
+	expectSignedOut(t, res, body)
+}
+
 func TestCreateAdminRejectsInvalidInput(t *testing.T) {
 	s := newSite(t)
 	for _, tc := range []struct{ name, email, password string }{
