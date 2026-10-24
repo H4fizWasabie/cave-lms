@@ -169,29 +169,29 @@ func TestAPromoThatHasNotStartedOrIsOverDoesNotCount(t *testing.T) {
 func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	s := promoSite(t)
 	visitor := s.second()
-	_, body := visitor.getAsking("/plans", "en")
+	_, body := visitor.getAsking("/pricing", "en")
 	main := content(body)
 	expectInOrder(t, main, "Pro Plan", "RM249 a year", "RM99 with a promo code")
 	expectNone(t, main, "CAVE99")
 	if n := strings.Count(main, "with a promo code"); n != 1 {
 		t.Errorf("%d promo lines, want 1 (only the Pro Plan has a Promo)", n)
 	}
-	_, body = visitor.getAsking("/plans", "ms")
+	_, body = visitor.getAsking("/pricing", "ms")
 	expectAll(t, content(body), "RM99 dengan kod promosi")
 
 	s.endPromo("CAVE99")
-	_, body = visitor.getAsking("/plans", "en")
+	_, body = visitor.getAsking("/pricing", "en")
 	expectNone(t, content(body), "with a promo code")
 }
 
-func TestThePlansPageShowsTheCostComparisonWithATextAlternative(t *testing.T) {
+func TestThePricingPageShowsTheCostComparisonWithATextAlternative(t *testing.T) {
 	s := newSite(t)
-	_, body := s.getAsking("/plans", "en")
+	_, body := s.getAsking("/pricing", "en")
 	main := content(body)
 	expectAll(t, main, `<img src="/static/cost-comparison.webp"`, `alt="Yearly cost: CAVELMS RM99`, "Supabase Pro RM1,300", "<figcaption>")
 	res, img := s.get("/static/cost-comparison.webp")
 	expectStatus(t, res, img, http.StatusOK, "")
-	_, body = s.getAsking("/plans", "ms")
+	_, body = s.getAsking("/pricing", "ms")
 	expectAll(t, content(body), `alt="Kos setahun: CAVELMS RM99`)
 }
 
