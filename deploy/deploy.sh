@@ -4,7 +4,8 @@
 # First install steps are in docs/deploy.md.
 set -euo pipefail
 
-host="${CAVE_HOST:-vps}"
+# vps-fr: the old FR box. Cave stays there until it moves to the SG box (ssh vps).
+host="${CAVE_HOST:-vps-fr}"
 env="${CAVE_ENV:-production}"
 case "$env" in
 production) name=cave-lms port=8088 ;;
