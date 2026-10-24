@@ -12,7 +12,7 @@ import (
 )
 
 // CreateAdmin makes name and email the Admin with a verified account and the given password.
-// An existing Learner with that email is promoted and its password replaced.
+// An existing Learner with that email is promoted and its password replaced, and its sessions and CaveText tokens end.
 // It is the only way to make an Admin: registration never can.
 func (a *App) CreateAdmin(ctx context.Context, name, email, password string) error {
 	name = strings.TrimSpace(name)
@@ -24,16 +24,33 @@ func (a *App) CreateAdmin(ctx context.Context, name, email, password string) err
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
-	_, err = a.db.ExecContext(ctx, `
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("save admin: %w", err)
+	}
+	defer tx.Rollback()
+	var id string
+	err = tx.QueryRowContext(ctx, `
 		INSERT INTO learners (name, email, password_hash, verified_at, is_admin)
 		VALUES ($1, $2, $3, now(), true)
 		ON CONFLICT ((lower(email))) DO UPDATE SET
 			name = EXCLUDED.name,
 			password_hash = EXCLUDED.password_hash,
 			verified_at = COALESCE(learners.verified_at, now()),
-			is_admin = true`,
-		name, email, string(hash))
+			is_admin = true
+		RETURNING id`,
+		name, email, string(hash)).Scan(&id)
 	if err != nil {
+		return fmt.Errorf("save admin: %w", err)
+	}
+	// A replaced password signs out whoever held the old one, as a password reset does.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE learner_id = $1`, id); err != nil {
+		return fmt.Errorf("end sessions: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM cavetext_tokens WHERE learner_id = $1`, id); err != nil {
+		return fmt.Errorf("end CaveText tokens: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("save admin: %w", err)
 	}
 	return nil

@@ -57,6 +57,8 @@ Once per VPS. Run as root on the VPS.
    unset pw
    ```
 
+   Running it again for an email that already has an account replaces that password, makes the account an Admin and signs it out everywhere: every session and CaveText token ends, as with a password reset. Use it to recover an Admin account.
+
 ## Deploying an update
 
 From a clean checkout of the commit to ship, staging first, then production (ADR 0011):
