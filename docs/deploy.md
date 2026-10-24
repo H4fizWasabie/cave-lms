@@ -164,7 +164,7 @@ A redirect drops a request's sign-in header and webhook senders may not follow i
 
 ## Upload limit
 
-The app refuses an upload over 2 GB with its own message. Caddy's `request_body` cap (2100 MiB, about 2.2 GB) sits just above it to leave room for multipart framing. Caddy reads `MB` as 10^6 bytes, so keep `MiB`. Caddy streams the body to the app, so the app's cap trips first and even a 2.2 GB upload gets the app's message (tested 2026-10-20: 2047 MiB stored; 2050 MiB and 2200 MiB refused with 413 and nothing stored). Caddy's cap is a backstop.
+The app refuses an upload over 2 GB with its own message. Caddy's `request_body` cap (2100 MiB, about 2.2 GB) sits just above it to leave room for multipart framing. Caddy reads `MB` as 10^6 bytes, so keep `MiB`. Caddy streams the body to the app, so the app's cap trips first and even a 2.2 GB upload gets the app's message (tested 2026-10-20: 2047 MiB stored; 2050 MiB and 2200 MiB refused with 413 and nothing stored). Caddy's cap is a backstop. An Assignment upload has its own smaller cap: 5 files of 20 MB, refused above about 101 MB.
 
 ## System log
 
@@ -188,6 +188,8 @@ Lab Datasets live in a private Cloudflare R2 bucket (ADR 0008); Postgres keeps o
    ```
 
 All four or none: with some set and others missing the app stops at start naming the missing ones (`journalctl -u cave-lms -n 20`); with none set Datasets stay on the disk under `STORAGE_DIR`. Failed reads and writes go to the System log; a failed upload tells the Learner and keeps their previous Dataset. The nightly backup does not cover this bucket.
+
+Assignment Submission files (spec #196) live in the same bucket, under keys starting `submission-<learner id>-`, with the same fallback to the disk. A deleted file or Assignment leaves the bucket at once; a deleted account's files leave it at the next daily prune (or restart). A file the bucket fails to delete stays queued in `stored_file_deletions` and is tried again then.
 
 ## AI writer
 
@@ -272,7 +274,8 @@ The privacy notice (`/privacy`, see `docs/adr/0006-the-client-is-the-data-user-a
 SELECT id, name, email, verified_at, created_at FROM learners WHERE lower(email) = lower('ada@example.com');
 -- correct a name (it changes on every Certificate too)
 UPDATE learners SET name = 'Ada Lovelace' WHERE id = 42;
--- delete the account: everything on it goes with it, Certificates included
+-- delete the account: everything on it goes with it, Certificates and Submissions included
+-- (Submission files leave R2 at the next daily prune)
 DELETE FROM learners WHERE id = 42;
 ```
 

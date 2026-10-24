@@ -132,6 +132,12 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	p := page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total}
+	if admin := learner != nil && learner.IsAdmin; enrolled || admin {
+		if p.Assignments, err = a.assignmentsOf(r.Context(), c.ID, admin); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
 	if enrolled {
 		e, err := a.loadExam(r.Context(), c.ID, written)
 		if err != nil {
@@ -255,7 +261,7 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Enrollments, Lessons, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
+	// Enrollments, Lessons, Assignments, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
 	if isForeignKeyError(err) {
 		lang, err := a.language(r)

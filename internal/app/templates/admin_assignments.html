@@ -1,0 +1,42 @@
+{{define "title"}}{{t .Lang "adm.assignments"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "adm.assignments.title" .Course.Title}}</h1>
+            <p>{{t .Lang "adm.assignments.lede"}}</p>
+          </div>
+          <div class="adm-head-actions">
+            <a class="btn btn-solid" href="/admin/courses/{{.Course.ID}}/assignments/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.assignments.new"}}</a>
+          </div>
+        </div>
+        <ol class="lb-list">
+          {{range .Assignments}}
+          <li class="lb-row lb-row-plain">
+            <span class="lb-n">{{.Position}}</span>
+            <div class="lb-t">
+              <strong><a href="/admin/assignments/{{.ID}}">{{.Title}}</a>{{if not .Published}} <span class="badge badge-draft">{{t $.Lang "adm.draft"}}</span>{{end}}</strong>
+              <small>{{if .Published}}{{t $.Lang "adm.published"}}{{else}}{{t $.Lang "adm.draft"}}{{end}}</small>
+            </div>
+            <div class="lb-act">
+              <form method="post" action="/admin/assignments/{{.ID}}/up"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
+              <form method="post" action="/admin/assignments/{{.ID}}/down"><button class="icon-btn" aria-label="{{t $.Lang "adm.down"}}" title="{{t $.Lang "adm.move-down"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
+              <a class="btn btn-quiet btn-sm" href="/admin/assignments/{{.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
+              {{if .Published}}
+              <form method="post" action="/admin/assignments/{{.ID}}/unpublish"><button class="btn btn-quiet btn-sm">{{t $.Lang "adm.lessons.unpublish"}}</button></form>
+              {{else}}
+              <form method="post" action="/admin/assignments/{{.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>
+              {{end}}
+              <a class="btn btn-danger btn-sm" href="/admin/assignments/{{.ID}}/delete">{{t $.Lang "adm.delete"}}</a>
+            </div>
+          </li>
+          {{else}}
+          <li class="empty-state"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><h3>{{t .Lang "adm.assignments.none"}}</h3><p>{{t .Lang "adm.assignments.none-sub"}}</p></li>
+          {{end}}
+        </ol>
+      </div>
+    </div>
+{{end}}
