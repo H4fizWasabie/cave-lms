@@ -799,6 +799,12 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .eb-add { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .eb-limit { font-size: .82rem; color: var(--muted); }
 .eb-sect { display: grid; gap: .5rem; margin-top: .6rem; }
+.eb-form fieldset:disabled .eb-seg label, .eb-form select:disabled { opacity: .5; cursor: not-allowed; }
+.eb-lock, .eb-reset p { margin: 0; display: flex; gap: .4rem; align-items: flex-start; font-size: .86rem; color: var(--muted); }
+.eb-reset { margin-top: .6rem; }
+.eb-reset summary { list-style: none; width: fit-content; }
+.eb-reset summary::-webkit-details-marker { display: none; }
+.eb-reset form { display: grid; gap: .5rem; justify-items: start; margin-top: .5rem; padding: .7rem .8rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); }
 @media (max-width: 960px) { .eb-two { grid-template-columns: 1fr; } .eb-two > .eb-pv { position: static; } }
 
 /* Lab: Under the hood (each part of the generated files beside its note) and the read-only Lab. */
