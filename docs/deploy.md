@@ -1,6 +1,6 @@
 # Deploying Cave LMS
 
-The app runs on the old FR VPS (`ssh vps-fr`, Ubuntu 24.04; the other apps moved to the SG box, `ssh vps`) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (`www.cavelms.com` and the old `lms.wasabietech.com` redirect to it) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
+The app runs on the SG VPS (`ssh vps`, Ubuntu 24.04, with the other apps; the old FR box, `ssh vps-fr`, is kept stopped as a fallback) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (`www.cavelms.com` and the old `lms.wasabietech.com` redirect to it) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
 
 | What | Where on the VPS |
 |---|---|
@@ -17,7 +17,7 @@ Both the database and the uploads directory are backed up every night (see Backu
 
 Once per VPS. Run as root on the VPS.
 
-1. Point A records for `cavelms.com` and `www.cavelms.com` at `169.58.63.110` (DNS is at NetKL) and wait until `dig +short cavelms.com` returns it. Caddy can't get a certificate before that.
+1. Point A records for `cavelms.com` and `www.cavelms.com` at `13.140.65.183` (DNS is at NetKL) and wait until `dig +short cavelms.com` returns it. Caddy can't get a certificate before that.
 2. Create the system user, database and settings:
 
    ```sh
@@ -72,7 +72,7 @@ It refuses a checkout with uncommitted changes or a commit whose CI run (`.githu
 
 Then it builds a Linux binary and copies the binary, unit, Caddy site and smoke test to the VPS. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails before anything else changes. Then it swaps the binary, restarts `cave-lms` and waits for it to answer. Migrations run on start. Logs: `journalctl -u cave-lms -n 100`.
 
-Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. Run it by hand with `ssh vps-fr cave-lms-smoke production` or `ssh vps-fr cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
+Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. Run it by hand with `ssh vps cave-lms-smoke production` or `ssh vps cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
 
 ## Staging
 
@@ -107,7 +107,7 @@ It ships only the staging binary, unit and Caddy site, and leaves production and
 
 Run as root on the VPS unless a step says otherwise.
 
-1. At NetKL, add an A record `staging.cavelms.com` → `169.58.63.110`, then wait until `dig +short staging.cavelms.com` returns it.
+1. At NetKL, add an A record `staging.cavelms.com` → `13.140.65.183`, then wait until `dig +short staging.cavelms.com` returns it.
 2. Create the system user, database and settings:
 
    ```sh
@@ -151,7 +151,7 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
 
    ```caddy
    old.example.com {
-   	bind 169.58.63.110
+   	bind 13.140.65.183
    	redir https://new.example.com{uri} 308
    }
    ```
