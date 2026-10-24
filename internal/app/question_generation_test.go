@@ -25,7 +25,7 @@ func TestTheAIWritesGeneratedQuestionsAsDraftsInTheBankAndThePool(t *testing.T) 
 	res, body := s.generate(id, " Excel pivot tables ", "en", "2")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
-	want := aiwriter.Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "en", Count: 2}
+	want := aiwriter.Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "en", Count: 2, Difficulty: "medium"}
 	if got := s.ai.Requests(); len(got) != 1 || got[0] != want {
 		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
 	}
@@ -45,9 +45,7 @@ func TestGenerationTakesMatchingBankQuestionsFirstAndAsksTheAIOnlyForTheRest(t *
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
 	excel := s.onlyCourseID()
-	for _, p := range []string{"Bank one", "Bank two", "Bank three"} {
-		s.saveQuestion("/admin/courses/"+excel+"/exam/questions", p, [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
-	}
+	s.publishedBankQuestions(excel, multipleChoice, "Excel", "medium", "Bank one", "Bank two", "Bank three")
 	s.createCourse("Spreadsheets", "Another Course.", "")
 	var sheets string
 	for _, c := range s.courseIDs() {
@@ -56,22 +54,24 @@ func TestGenerationTakesMatchingBankQuestionsFirstAndAsksTheAIOnlyForTheRest(t *
 		}
 	}
 	s.addFromBank(sheets, "excel", "ms", "1")
+	s.saveQuestion("/admin/courses/"+excel+"/exam/questions", "Hand written, no Difficulty", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	before := len(s.ai.Requests())
 
 	res, body := s.generate(sheets, "EXCEL", "ms", "4")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	want := aiwriter.Request{Topic: "EXCEL", Format: "multiple-choice", Language: "ms", Count: 2}
-	if got := s.ai.Requests(); len(got) != 1 || got[0] != want {
+	want := aiwriter.Request{Topic: "EXCEL", Format: "multiple-choice", Language: "ms", Count: 2, Difficulty: "medium"}
+	if got := s.ai.Requests()[before:]; len(got) != 1 || got[0] != want {
 		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
 	}
 	res, body = s.get("/admin/courses/" + sheets + "/exam")
 	for _, p := range []string{"Bank one", "Bank two", "Bank three"} {
-		if n := strings.Count(body, p); n != 1 {
+		if n := strings.Count(body, ">"+p+" <"); n != 1 {
 			t.Fatalf("the Exam shows %q %d times, want once: %s", p, n, body)
 		}
 	}
 	expectInOrder(t, body, "AI question 1", "Draft", "AI question 2", "Draft")
 	if n := len(s.examQuestionIDs(sheets)); n != 5 {
-		t.Fatalf("the Exam has %d questions, want 5", n)
+		t.Fatalf("the Exam has %d questions, want 5: the hand-written one has no Difficulty", n)
 	}
 
 	s.createCourse("Office", "A third Course.", "")
@@ -83,7 +83,7 @@ func TestGenerationTakesMatchingBankQuestionsFirstAndAsksTheAIOnlyForTheRest(t *
 	}
 	res, body = s.generate(office, "Excel", "ms", "3")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if n := len(s.ai.Requests()); n != 1 {
+	if n := len(s.ai.Requests()) - before; n != 1 {
 		t.Fatalf("the AI writer was asked %d times, want once: the bank had enough", n)
 	}
 }
@@ -93,7 +93,7 @@ func TestAIOutputInTheWrongShapeIsRetriedOnceThenReportedAndNothingIsSaved(t *te
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
 	id := s.onlyCourseID()
-	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Bank one", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	s.publishedBankQuestions(id, multipleChoice, "Excel", "medium", "Bank one")
 	s.createCourse("Spreadsheets", "Another Course.", "")
 	var sheets string
 	for _, c := range s.courseIDs() {
@@ -101,6 +101,7 @@ func TestAIOutputInTheWrongShapeIsRetriedOnceThenReportedAndNothingIsSaved(t *te
 			sheets = c
 		}
 	}
+	before := len(s.ai.Requests())
 	right, wrong := aiwriter.Option{Text: "Right", Correct: true}, aiwriter.Option{Text: "Wrong"}
 	bad := []aiwriter.Question{
 		{Prompt: "One option", Options: []aiwriter.Option{right}},
@@ -119,7 +120,7 @@ func TestAIOutputInTheWrongShapeIsRetriedOnceThenReportedAndNothingIsSaved(t *te
 		testutil.FakeReply{Questions: nil})
 	res, body := s.generate(sheets, "Excel", "ms", "2")
 	expectStatus(t, res, body, http.StatusServiceUnavailable, "wrong shape twice")
-	if n := len(s.ai.Requests()); n != 2*len(bad)+2 {
+	if n := len(s.ai.Requests()) - before; n != 2*len(bad)+2 {
 		t.Fatalf("the AI writer was asked %d times, want twice per generation", n)
 	}
 	if n := len(s.examQuestionIDs(sheets)); n != 0 {
@@ -189,7 +190,7 @@ func TestGeneratingForAWrittenExamGivesDraftsWithAModelAnswerInTheBankAndThePool
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
 	excel := s.onlyCourseID()
-	s.saveWrittenQuestion("/admin/courses/"+excel+"/exam/questions?format=written", "Bank prompt", "Bank model answer")
+	s.publishedBankQuestions(excel, written, "Excel", "medium", "Bank prompt")
 	s.createCourse("Spreadsheets", "Another Course.", "")
 	var sheets string
 	for _, c := range s.courseIDs() {
@@ -203,8 +204,8 @@ func TestGeneratingForAWrittenExamGivesDraftsWithAModelAnswerInTheBankAndThePool
 	if loc := res.Header.Get("Location"); loc != writtenExam(sheets) {
 		t.Fatalf("generating went to %q, want %q", loc, writtenExam(sheets))
 	}
-	want := aiwriter.Request{Topic: "excel", Format: "written", Language: "ms", Count: 2}
-	if got := s.ai.Requests(); len(got) != 1 || got[0] != want {
+	want := aiwriter.Request{Topic: "excel", Format: "written", Language: "ms", Count: 2, Difficulty: "medium"}
+	if got := s.ai.Requests(); len(got) != 2 || got[1] != want {
 		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
 	}
 	_, body = s.get(writtenExam(sheets))

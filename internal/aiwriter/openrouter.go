@@ -73,7 +73,7 @@ func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, 
 		"max_tokens": maxReplyTokens,
 		"messages": []map[string]string{
 			{"role": "system", "content": writeQuestionsInstructions},
-			{"role": "user", "content": fmt.Sprintf("Topic: %s\nFormat: %s\nLanguage: %s\nCount: %d", r.Topic, r.Format, languageNames[r.Language], r.Count)},
+			{"role": "user", "content": fmt.Sprintf("Topic: %s\nFormat: %s\nLanguage: %s\nCount: %d\nDifficulty: %s", r.Topic, r.Format, languageNames[r.Language], r.Count, r.Difficulty)},
 		},
 		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "questions", "strict": true, "schema": schema}},
 	}

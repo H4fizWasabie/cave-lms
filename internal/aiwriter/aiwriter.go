@@ -1,5 +1,5 @@
-// Package aiwriter asks an AI to write Exam questions and mark Written answers. Only the topic, format, language and
-// count go out for questions, and only the question, model answer and answer for a mark.
+// Package aiwriter asks an AI to write Exam questions and mark Written answers. Only the topic, format, language,
+// count and Difficulty go out for questions, and only the question, model answer and answer for a mark.
 package aiwriter
 
 import (
@@ -17,10 +17,11 @@ var (
 
 // Request is everything the AI is told: nothing about a Course or a Learner.
 type Request struct {
-	Topic    string
-	Format   string // "multiple-choice" or "written"
-	Language string // "ms" or "en"
-	Count    int
+	Topic      string
+	Format     string // "multiple-choice" or "written"
+	Language   string // "ms" or "en"
+	Count      int
+	Difficulty string // "easy", "medium" or "hard"
 }
 
 // Question is one question the AI wrote: a Multiple-choice one has Options, a Written one a ModelAnswer.

@@ -466,7 +466,7 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "difficulties": func() []string { return difficulties }, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)

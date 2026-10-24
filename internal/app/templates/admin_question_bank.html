@@ -20,7 +20,7 @@
           <ol class="q-list" id="questions">
             {{range $q := .Questions}}
             <li class="q-card" id="q-{{$q.ID}}">
-              <p class="card-sub">{{$q.Topic}} · {{t $.Lang (print "bank.format." $q.Format)}} · {{t $.Lang (print "bank.lang." $q.Language)}}</p>
+              <p class="card-sub">{{$q.Topic}} · {{t $.Lang (print "bank.format." $q.Format)}} · {{t $.Lang (print "bank.lang." $q.Language)}}{{with $q.Difficulty}} · {{t $.Lang (print "difficulty." .)}}{{end}}</p>
               <div class="q-head">
                 <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
                 <div class="lb-act">

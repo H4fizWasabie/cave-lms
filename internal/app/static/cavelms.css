@@ -91,6 +91,7 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .badge-closed { background: #ebebe6; color: var(--muted); }
 .badge-joined { background: var(--brand-gold-soft); color: var(--brand-gold-deep); }
 .badge-revoked { background: var(--bad-soft); color: var(--bad); }
+.badge-difficulty { background: transparent; color: var(--ink-2); border: 1px solid var(--line-strong); }
 
 .empty { color: var(--muted); padding: 1.2rem 0; list-style: none; }
 .link-more { font-weight: 600; font-size: .93rem; text-decoration: underline; text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; white-space: nowrap; }

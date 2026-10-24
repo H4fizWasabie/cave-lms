@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-var excel = Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "ms", Count: 1}
+var excel = Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "ms", Count: 1, Difficulty: "hard"}
 
 func TestAnUnsetOpenRouterKeyOrModelLeavesTheWriterNotConfigured(t *testing.T) {
 	for _, w := range []Writer{New("", "openai/gpt-4o-mini", true), New("sk-or-test", "", true)} {
@@ -59,7 +59,7 @@ func TestOpenRouterSendsTheInstructionsAndOnlyTheRequestAndReadsTheQuestions(t *
 		t.Fatalf("plugins = %v, want web search", b.Plugins)
 	}
 	if len(b.Messages) != 2 || b.Messages[0]["content"] != writeQuestionsInstructions || !strings.Contains(writeQuestionsInstructions, "exactly one of them correct") ||
-		b.Messages[1]["content"] != "Topic: Excel pivot tables\nFormat: multiple-choice\nLanguage: Malay\nCount: 1" {
+		b.Messages[1]["content"] != "Topic: Excel pivot tables\nFormat: multiple-choice\nLanguage: Malay\nCount: 1\nDifficulty: hard" {
 		t.Fatalf("messages = %q", b.Messages)
 	}
 
@@ -180,7 +180,7 @@ func TestOpenRouterAsksForAndReadsWrittenQuestionsWithAModelAnswer(t *testing.T)
 	}))
 	defer server.Close()
 
-	written := Request{Topic: "Excel pivot tables", Format: "written", Language: "ms", Count: 1}
+	written := Request{Topic: "Excel pivot tables", Format: "written", Language: "ms", Count: 1, Difficulty: "hard"}
 	qs, err := OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: server.URL}.WriteQuestions(context.Background(), written)
 	if err != nil {
 		t.Fatal(err)
@@ -192,7 +192,7 @@ func TestOpenRouterAsksForAndReadsWrittenQuestionsWithAModelAnswer(t *testing.T)
 		t.Fatalf("the reply schema requires %v, want prompt and model_answer", req)
 	}
 	if len(sent.Messages) != 2 || !strings.Contains(sent.Messages[0]["content"], `Format "written"`) ||
-		sent.Messages[1]["content"] != "Topic: Excel pivot tables\nFormat: written\nLanguage: Malay\nCount: 1" {
+		sent.Messages[1]["content"] != "Topic: Excel pivot tables\nFormat: written\nLanguage: Malay\nCount: 1\nDifficulty: hard" {
 		t.Fatalf("messages = %q", sent.Messages)
 	}
 }

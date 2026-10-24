@@ -35,6 +35,7 @@
             <div class="field-grid">
               <div class="field"><label for="gen-topic">{{t .Lang "bank.topic"}}</label><input id="gen-topic" type="text" name="topic" list="bank-topics" required></div>
               <div class="field"><label for="gen-language">{{t .Lang "bank.language"}}</label><select id="gen-language" name="language"><option value="ms">{{t .Lang "bank.lang.ms"}}</option><option value="en">{{t .Lang "bank.lang.en"}}</option></select></div>
+              <div class="field"><label for="gen-difficulty">{{t .Lang "difficulty"}}</label><select id="gen-difficulty" name="difficulty">{{range difficulties}}<option value="{{.}}"{{if eq . "medium"}} selected{{end}}>{{t $.Lang (print "difficulty." .)}}</option>{{end}}</select></div>
               <div class="field"><label for="gen-count">{{t .Lang "bank.count"}}</label><input id="gen-count" type="number" name="count" min="1" max="50" value="10" required></div>
             </div>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "gen.button"}}</button></div>
@@ -66,7 +67,7 @@
             <li class="q-card" id="q-{{$q.ID}}">
               <div class="q-head">
                 <span class="q-n"></span>
-                <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
+                <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong>{{with $q.Difficulty}} <span class="badge badge-difficulty">{{t $.Lang (print "difficulty." .)}}</span>{{end}}</p>
                 <div class="lb-act">
                   <a class="btn btn-quiet btn-sm" href="{{$.Exam.AdminPath (printf "/questions/%d/edit" $q.ID)}}">{{t $.Lang "adm.edit"}}</a>
                   <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/up" $q.ID)}}"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
