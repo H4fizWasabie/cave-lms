@@ -153,6 +153,32 @@ func TestAClinicSalesSheetOpensAsSales(t *testing.T) {
 	}
 }
 
+// Sales and Roster guess columns named in words beyond their exact names.
+func TestSalesAndRosterGuessLooselyNamedColumns(t *testing.T) {
+	at := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	for key, c := range map[string]struct {
+		header []string
+		row    []any
+		want   lab.Choices
+	}{
+		"sales": {
+			[]string{"Tarikh Resit", "Nama Produk", "Served By", "Cara Bayar", "Bil. Unit", "Nilai (RM)"},
+			[]any{at, "Kopi", "Aina", "Tunai", 2, 9.5},
+			lab.Choices{"date": "Tarikh Resit", "item": "Nama Produk", "staff": "Served By", "payment": "Cara Bayar", "quantity": "Bil. Unit", "amount": "Nilai (RM)"},
+		},
+		"roster": {
+			[]string{"Staff Name", "Shift Date", "Shift Code", "Ward"},
+			[]any{"Aina", at, "P", "Wad 3"},
+			lab.Choices{"staff": "Staff Name", "date": "Shift Date", "code": "Shift Code", "department": "Ward"},
+		},
+	} {
+		res := clean(t, testutil.XLSX(t, c.header, c.row), template(t, key))
+		if !reflect.DeepEqual(res.Guess, c.want) {
+			t.Errorf("%s guesses = %v, want %v", key, res.Guess, c.want)
+		}
+	}
+}
+
 func TestSalesAndRosterDrawFromTheirSamples(t *testing.T) {
 	for key, want := range map[string][]string{
 		"sales":  {`<span>Sales</span><strong>90</strong>`, "Revenue by month", "Revenue by payment method", "Latest sales"},

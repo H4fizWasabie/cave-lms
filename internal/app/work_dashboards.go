@@ -204,6 +204,12 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	settings := d.Settings
+	// A header row that is not a number lets Cave find it, as when left empty. It counts for this upload only.
+	header, _ := strconv.Atoi(r.FormValue("header"))
+	settings.HeaderRow = max(header, 0)
+	twoRow := r.FormValue("two-row") == "on"
+	remember := twoRow != settings.TwoRowHeader
+	settings.TwoRowHeader = twoRow
 	if sheet := r.FormValue("sheet"); sheet != "" {
 		settings.Sheet, settings.Alone, settings.Ticked = sheet, false, nil
 		// Ticks were made against the sheet the preview showed picked; for another sheet, every match joins.
@@ -211,13 +217,16 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			settings.Ticked = append([]string{}, r.Form["combine"]...)
 			settings.Alone = len(settings.Ticked) == 0
 		}
-		remember, err := json.Marshal(settings)
+		remember = true
+	}
+	if remember {
+		saved, err := json.Marshal(settings)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 		// ponytail: remembered on upload, not confirm; an abandoned preview still sets the next upload's choices.
-		if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET upload_settings = $2 WHERE id = $1`, d.ID, remember); err != nil {
+		if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET upload_settings = $2 WHERE id = $1`, d.ID, saved); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

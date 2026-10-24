@@ -151,6 +151,10 @@
             </fieldset>
             {{- end}}{{end}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
+            {{- if .Dashboard.Work}}
+            <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header" min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
+            <label class="check"><input type="checkbox" name="two-row" value="on"{{if .Dashboard.Settings.TwoRowHeader}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
+            {{- end}}
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>
           {{- with .Earlier}}

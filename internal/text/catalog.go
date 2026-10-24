@@ -744,6 +744,25 @@ var catalog = map[string]entry{
 	// Why a sheet cannot join the picked sheet
 	"lab.clean.sheet-unreadable": {en: "Cave found no table with column names and rows below them.", ms: "Cave tidak menemui jadual dengan nama lajur dan baris di bawahnya."},
 	"lab.clean.sheet-differs":    {en: "Its columns differ from the picked sheet's.", ms: "Lajurnya berbeza daripada lajur helaian yang dipilih."},
+	"lab.clean.bottom-row":       {en: "Dropped row %d at the bottom: a total or note, not data.", ms: "Baris %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
+	"lab.clean.bottom-rows":      {en: "Dropped rows %d to %d at the bottom: totals or notes, not data.", ms: "Baris %d hingga %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
+	"lab.clean.cut-columns": {
+		en: "Stopped at the blank column %d: what is to its right (notes or another table) was not read.",
+		ms: "Berhenti di lajur kosong %d: apa yang di sebelah kanannya (nota atau jadual lain) tidak dibaca.",
+	},
+	"lab.clean.cut-rows": {
+		en: "Stopped at the blank row %d: what is below it (notes or another table) was not read.",
+		ms: "Berhenti di baris kosong %d: apa yang di bawahnya (nota atau jadual lain) tidak dibaca.",
+	},
+	"lab.clean.empty-columns":  {en: "Columns with no data dropped: %d.", ms: "Lajur tanpa data dibuang: %d."},
+	"lab.clean.header-chosen":  {en: "Read row %d as the header, as you chose.", ms: "Baris %d dibaca sebagai tajuk lajur, seperti pilihan anda."},
+	"lab.clean.two-row-header": {en: "Joined header rows %d and %d into one name per column.", ms: "Baris tajuk %d dan %d digabung menjadi satu nama bagi setiap lajur."},
+	"lab.clean.merged-down":    {en: "Merged cells filled down: %d.", ms: "Sel bergabung diisi ke bawah: %d."},
+	"lab.clean.dash-zero":      {en: "Cells holding - read as 0: %d.", ms: "Sel berisi - dibaca sebagai 0: %d."},
+	"lab.clean.other-dates": {
+		en: "Dates written another way (with a time, as 2026-11-05 or as 05.11.26) read as dates, times left out: %d.",
+		ms: "Tarikh yang ditulis cara lain (dengan masa, sebagai 2026-11-05 atau 05.11.26) dibaca sebagai tarikh, tanpa masa: %d.",
+	},
 
 	// The Dashboard page
 	"lab.d.zip": {en: "Download zip", ms: "Muat turun zip"},
@@ -912,8 +931,15 @@ var catalog = map[string]entry{
 	"lab.w.choose":       {en: "Choose a column", ms: "Pilih lajur"},
 	"lab.w.use-general":  {en: "Use General instead", ms: "Guna General"},
 	"lab.w.confirm":      {en: "Confirm and use this Dataset", ms: "Sahkan dan guna Set data ini"},
-	"lab.w.another":      {en: "Or upload another file", ms: "Atau muat naik fail lain"},
-	"lab.w.earlier":      {en: "Earlier Datasets", ms: "Set data terdahulu"},
+	"lab.w.header-row":   {en: "Header row (optional)", ms: "Baris tajuk lajur (pilihan)"},
+	"lab.w.header-auto":  {en: "Cave finds it", ms: "Cave mencarinya"},
+	"lab.w.header-help": {
+		en: "Cave finds the row with your column names. If the preview shows the wrong one, upload the file again with its row number.",
+		ms: "Cave mencari baris yang mengandungi nama lajur anda. Jika pratonton menunjukkan baris yang salah, muat naik fail sekali lagi dengan nombor barisnya.",
+	},
+	"lab.w.two-row": {en: "My column names take 2 rows", ms: "Nama lajur saya mengambil 2 baris"},
+	"lab.w.another": {en: "Or upload another file", ms: "Atau muat naik fail lain"},
+	"lab.w.earlier": {en: "Earlier Datasets", ms: "Set data terdahulu"},
 	"lab.w.earlier-body": {
 		en: "Cave keeps your last 3. Restore one to use it again at once; your blocks stay as they are. Cave does not keep the .xlsx itself: to clean up a file again, upload it again.",
 		ms: "Cave menyimpan 3 yang terakhir. Pulihkan satu untuk menggunakannya semula serta-merta; blok anda kekal seperti sedia ada. Cave tidak menyimpan fail .xlsx itu sendiri: untuk membersihkan fail semula, muat naik semula.",
