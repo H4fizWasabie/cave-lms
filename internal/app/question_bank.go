@@ -5,9 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -31,16 +35,55 @@ type bankPage struct {
 	Topics        []string // every topic in the bank, one spelling per topic ignoring case
 	Formats       []string
 	Topic, Format string        // the filters, empty for all
+	Difficulty    string        // the Difficulty filter, empty for all, "none" for questions without one
 	Question      *bankQuestion // the edit form's
 	Languages     []string
+	Query         template.URL // the filters as a query string with its "?", empty for none, kept across actions
 }
 
-// adminQuestionBank lists the bank's questions, filtered by ?topic= (ignoring case) and ?format= when given.
+// bankFilters are the query parameters the Question bank page filters by.
+var bankFilters = []string{"topic", "format", "difficulty"}
+
+// bankQuery is the request's Question bank filters as a query string with its "?", empty for none. Anything else in
+// the request's query is dropped.
+func bankQuery(r *http.Request) template.URL {
+	v := url.Values{}
+	for _, k := range bankFilters {
+		if f := r.URL.Query().Get(k); f != "" {
+			v.Set(k, f)
+		}
+	}
+	if len(v) == 0 {
+		return ""
+	}
+	return template.URL("?" + v.Encode())
+}
+
+// bankCardPath is the address of bank question id's card on the Question bank page under the request's filters, or
+// of the question list when id is 0.
+func bankCardPath(r *http.Request, id int64) string {
+	if id == 0 {
+		return "/admin/question-bank" + string(bankQuery(r)) + "#questions"
+	}
+	return "/admin/question-bank" + string(bankQuery(r)) + "#q-" + strconv.FormatInt(id, 10)
+}
+
+// filteredBankQuestions reads the bank's questions under the request's ?topic= (ignoring case), ?format= and
+// ?difficulty= ("none" for questions without one).
+func (a *App) filteredBankQuestions(r *http.Request) ([]bankQuestion, error) {
+	q := r.URL.Query()
+	return a.queryBankQuestions(r.Context(), `($1 = '' OR lower(q.topic) = lower($1)) AND ($2 = '' OR q.format = $2)
+		AND ($3 = '' OR q.difficulty = $3 OR ($3 = 'none' AND q.difficulty IS NULL))`, q.Get("topic"), q.Get("format"), q.Get("difficulty"))
+}
+
+// adminQuestionBank lists the bank's questions, filtered by ?topic= (ignoring case), ?format= and ?difficulty= when
+// given.
 func (a *App) adminQuestionBank(w http.ResponseWriter, r *http.Request) {
-	p := &bankPage{Topic: r.URL.Query().Get("topic"), Format: r.URL.Query().Get("format"), Formats: bankFormats}
+	q := r.URL.Query()
+	p := &bankPage{Topic: q.Get("topic"), Format: q.Get("format"), Difficulty: q.Get("difficulty"), Formats: bankFormats, Query: bankQuery(r)}
 	var err error
 	if p.Topics, err = a.bankTopics(r.Context()); err == nil {
-		p.Questions, err = a.queryBankQuestions(r.Context(), `($1 = '' OR lower(q.topic) = lower($1)) AND ($2 = '' OR q.format = $2)`, p.Topic, p.Format)
+		p.Questions, err = a.filteredBankQuestions(r)
 	}
 	if err != nil {
 		a.serverError(w, r, err)
@@ -70,7 +113,7 @@ func (a *App) bankTopics(ctx context.Context) ([]string, error) {
 // queryBankQuestions reads the bank questions matching the SQL condition where, by topic then age.
 func (a *App) queryBankQuestions(ctx context.Context, where string, args ...any) ([]bankQuestion, error) {
 	rows, err := a.db.QueryContext(ctx, `
-		SELECT q.id, q.format, q.topic, q.language, q.prompt, q.is_draft, q.model_answer, o.position, o.text, o.is_correct
+		SELECT q.id, q.format, q.topic, q.language, q.prompt, q.is_draft, q.model_answer, COALESCE(q.difficulty, ''), o.position, o.text, o.is_correct
 		FROM bank_questions q
 		LEFT JOIN bank_options o ON o.question_id = q.id
 		WHERE `+where+`
@@ -87,7 +130,7 @@ func (a *App) queryBankQuestions(ctx context.Context, where string, args ...any)
 			text    sql.NullString
 			correct sql.NullBool
 		)
-		if err := rows.Scan(&q.ID, &q.Format, &q.Topic, &q.Language, &q.Prompt, &q.Draft, &q.ModelAnswer, &slot, &text, &correct); err != nil {
+		if err := rows.Scan(&q.ID, &q.Format, &q.Topic, &q.Language, &q.Prompt, &q.Draft, &q.ModelAnswer, &q.Difficulty, &slot, &text, &correct); err != nil {
 			return nil, fmt.Errorf("load bank questions: %w", err)
 		}
 		if len(list) == 0 || list[len(list)-1].ID != q.ID {
@@ -123,11 +166,11 @@ func (a *App) editBankQuestionForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "bank_question_form", &bankPage{Question: &q, Languages: text.Languages})
+	a.render(w, r, http.StatusOK, "bank_question_form", &bankPage{Question: &q, Languages: text.Languages, Query: bankQuery(r)})
 }
 
-// updateBankQuestion replaces a bank question's topic, language, prompt and options or model answer. Exam copies are
-// left alone.
+// updateBankQuestion replaces a bank question's topic, language, Difficulty, prompt and options or model answer. Exam
+// copies are left alone.
 func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 	existing, ok := a.bankQuestionFor(w, r)
 	if !ok {
@@ -150,14 +193,14 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 		msg = text.T(lang, "bank.err.language")
 	}
 	if msg != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "bank_question_form", &bankPage{pageBase: pageBase{Error: msg}, Question: &q, Languages: text.Languages})
+		a.render(w, r, http.StatusUnprocessableEntity, "bank_question_form", &bankPage{pageBase: pageBase{Error: msg}, Question: &q, Languages: text.Languages, Query: bankQuery(r)})
 		return
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err == nil {
 		defer tx.Rollback()
-		_, err = tx.ExecContext(r.Context(), `UPDATE bank_questions SET topic = $2, language = $3, prompt = $4, model_answer = $5 WHERE id = $1`,
-			q.ID, q.Topic, q.Language, q.Prompt, q.ModelAnswer)
+		_, err = tx.ExecContext(r.Context(), `UPDATE bank_questions SET topic = $2, language = $3, prompt = $4, model_answer = $5,
+			difficulty = NULLIF($6, '') WHERE id = $1`, q.ID, q.Topic, q.Language, q.Prompt, q.ModelAnswer, q.Difficulty)
 	}
 	if err == nil {
 		_, err = tx.ExecContext(r.Context(), `DELETE FROM bank_options WHERE question_id = $1`, q.ID)
@@ -172,20 +215,31 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/question-bank", http.StatusSeeOther)
+	http.Redirect(w, r, bankCardPath(r, q.ID), http.StatusSeeOther)
 }
 
-// deleteBankQuestion removes a bank question. Exam copies are left alone.
+// deleteBankQuestion removes a bank question and returns to the card after it under the same filters. Exam copies
+// are left alone.
 func (a *App) deleteBankQuestion(w http.ResponseWriter, r *http.Request) {
 	q, ok := a.bankQuestionFor(w, r)
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM bank_questions WHERE id = $1`, q.ID); err != nil {
+	list, err := a.filteredBankQuestions(r)
+	if err == nil {
+		_, err = a.db.ExecContext(r.Context(), `DELETE FROM bank_questions WHERE id = $1`, q.ID)
+	}
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/question-bank", http.StatusSeeOther)
+	var next int64 // the question after the deleted one, 0 for none
+	for i, bq := range list {
+		if bq.ID == q.ID && i+1 < len(list) {
+			next = list[i+1].ID
+		}
+	}
+	http.Redirect(w, r, bankCardPath(r, next), http.StatusSeeOther)
 }
 
 // publishBankQuestion turns a Draft bank question into a published one, which Exams can then take from the bank.
@@ -198,7 +252,7 @@ func (a *App) publishBankQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/question-bank", http.StatusSeeOther)
+	http.Redirect(w, r, bankCardPath(r, q.ID), http.StatusSeeOther)
 }
 
 // addFromBank copies up to count published bank questions of the Exam's format, the topic (ignoring case) and the
@@ -212,7 +266,7 @@ func (a *App) addFromBank(w http.ResponseWriter, r *http.Request) {
 	var added int64
 	if msg == "" {
 		var err error
-		if added, err = a.copyFromBank(r.Context(), e, topic, qlang, count, nil); err != nil {
+		if added, err = a.copyFromBank(r.Context(), e, topic, qlang, "", count, nil); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -230,9 +284,36 @@ func (a *App) addFromBank(w http.ResponseWriter, r *http.Request) {
 // maxGenerated is the most questions one generation asks for, so the AI's reply fits its length cap.
 const maxGenerated = 50
 
-// generateQuestions fills the Exam with count questions on the topic in the language: matching published bank
-// questions first, as addFromBank takes them, then the AI writes the rest, which are saved as Drafts in the bank and
-// the Exam. When the AI fails nothing is saved.
+// maxKeyPoints is the longest key points one generation takes, in characters, so one click can't send a huge request.
+const maxKeyPoints = 1000
+
+// maxAvoided is how many of the bank's existing prompts one generation tells the AI not to repeat.
+const maxAvoided = 100
+
+// bankPrompts lists the prompts of the newest maxAvoided bank questions, Drafts included, of the format, topic
+// (ignoring case) and language, newest first.
+func (a *App) bankPrompts(ctx context.Context, format, topic, lang string) ([]string, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT prompt FROM bank_questions WHERE format = $1 AND lower(topic) = lower($2) AND language = $3
+		ORDER BY id DESC LIMIT $4`, format, topic, lang, maxAvoided)
+	if err != nil {
+		return nil, fmt.Errorf("load bank prompts: %w", err)
+	}
+	defer rows.Close()
+	var prompts []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("load bank prompts: %w", err)
+		}
+		prompts = append(prompts, p)
+	}
+	return prompts, rows.Err()
+}
+
+// generateQuestions fills the Exam with count questions on the topic in the language at the Difficulty, Medium when
+// none or an unknown one is posted: matching published bank questions of that Difficulty first, then the AI writes
+// the rest, keeping to the optional key points and avoiding the bank's existing prompts on the topic. They are saved
+// with the Difficulty as Drafts in the bank and the Exam. When the AI fails nothing is saved. Key points are not kept.
 func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 	c, e, ok := a.examFor(w, r)
 	if !ok {
@@ -246,29 +327,44 @@ func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 		a.examProblem(w, r, c, e, http.StatusUnprocessableEntity, msg)
 		return
 	}
+	difficulty := r.PostFormValue("difficulty")
+	if !slices.Contains(difficulties, difficulty) {
+		difficulty = "medium"
+	}
+	keyPoints := strings.TrimSpace(r.PostFormValue("key_points"))
+	if utf8.RuneCountInString(keyPoints) > maxKeyPoints {
+		a.examProblem(w, r, c, e, http.StatusUnprocessableEntity, "gen.err.key-points")
+		return
+	}
 	var banked int
-	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM bank_questions b WHERE `+bankMatch, e.ID, e.Format, topic, qlang).Scan(&banked)
+	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM bank_questions b WHERE `+bankMatch, e.ID, e.Format, topic, qlang, difficulty).Scan(&banked)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	var aiWritten []examQuestion
 	if rest := count - banked; rest > 0 {
-		qs, err := aiwriter.Questions(r.Context(), a.writer, aiwriter.Request{Topic: topic, Format: e.Format, Language: qlang, Count: rest})
+		avoid, err := a.bankPrompts(r.Context(), e.Format, topic, qlang)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		qs, err := aiwriter.Questions(r.Context(), a.writer, aiwriter.Request{Topic: topic, Format: e.Format, Language: qlang, Count: rest,
+			Difficulty: difficulty, KeyPoints: keyPoints, Avoid: avoid})
 		if msg = aiProblem(err); msg != "" {
 			a.logError(r, err)
 			a.examProblem(w, r, c, e, http.StatusServiceUnavailable, msg)
 			return
 		}
 		for _, q := range qs {
-			eq := examQuestion{Prompt: strings.TrimSpace(q.Prompt), ModelAnswer: strings.TrimSpace(q.ModelAnswer), Draft: true}
+			eq := examQuestion{Prompt: strings.TrimSpace(q.Prompt), ModelAnswer: strings.TrimSpace(q.ModelAnswer), Draft: true, Difficulty: difficulty}
 			for i, o := range q.Options {
 				eq.Options[i] = examOption{Text: strings.TrimSpace(o.Text), Correct: o.Correct}
 			}
 			aiWritten = append(aiWritten, eq)
 		}
 	}
-	if _, err := a.copyFromBank(r.Context(), e, topic, qlang, count, aiWritten); err != nil {
+	if _, err := a.copyFromBank(r.Context(), e, topic, qlang, difficulty, count, aiWritten); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -319,14 +415,15 @@ func (a *App) examProblem(w http.ResponseWriter, r *http.Request, c course, e ex
 	a.render(w, r, status, "exam", page{Course: &c, Exam: &e, Error: text.T(lang, msg)})
 }
 
-// bankMatch picks, as b, the published bank questions of format $2, topic $3 (ignoring case) and language $4 that
-// Exam $1 has not copied yet.
+// bankMatch picks, as b, the published bank questions of format $2, topic $3 (ignoring case), language $4 and
+// Difficulty $5 (any when empty; one with none matches only that) that Exam $1 has not copied yet.
 const bankMatch = `b.format = $2 AND lower(b.topic) = lower($3) AND b.language = $4 AND NOT b.is_draft
+	AND ($5 = '' OR b.difficulty = $5)
 	AND b.id NOT IN (SELECT bank_question_id FROM exam_questions WHERE exam_id = $1 AND bank_question_id IS NOT NULL)`
 
-// copyFromBank copies up to count bank questions as addFromBank does, then adds aiWritten as new bank questions under
+// copyFromBank copies up to count bank questions matching bankMatch, then adds aiWritten as new bank questions under
 // the topic and language with copies in the Exam, all in one transaction. It returns how many it copied from the bank.
-func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, count int, aiWritten []examQuestion) (int64, error) {
+func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang, difficulty string, count int, aiWritten []examQuestion) (int64, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -339,18 +436,18 @@ func (a *App) copyFromBank(ctx context.Context, e exam, topic, lang string, coun
 	var added int64
 	err = tx.QueryRowContext(ctx, `
 		WITH picked AS (
-			SELECT id, prompt, model_answer, row_number() OVER () AS n FROM (
-				SELECT b.id, b.prompt, b.model_answer FROM bank_questions b WHERE `+bankMatch+`
-				ORDER BY random() LIMIT $5) r),
+			SELECT id, prompt, model_answer, difficulty, row_number() OVER () AS n FROM (
+				SELECT b.id, b.prompt, b.model_answer, b.difficulty FROM bank_questions b WHERE `+bankMatch+`
+				ORDER BY random() LIMIT $6) r),
 		copied AS (
-			INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id, model_answer)
-			SELECT $1, (SELECT COALESCE(MAX(position), 0) FROM exam_questions WHERE exam_id = $1) + n, prompt, false, id, model_answer
+			INSERT INTO exam_questions (exam_id, position, prompt, is_draft, bank_question_id, model_answer, difficulty)
+			SELECT $1, (SELECT COALESCE(MAX(position), 0) FROM exam_questions WHERE exam_id = $1) + n, prompt, false, id, model_answer, difficulty
 			FROM picked
 			RETURNING id, bank_question_id),
 		options AS (
 			INSERT INTO exam_options (question_id, position, text, is_correct)
 			SELECT c.id, o.position, o.text, o.is_correct FROM copied c JOIN bank_options o ON o.question_id = c.bank_question_id)
-		SELECT count(*) FROM copied`, examID, e.Format, topic, lang, count).Scan(&added)
+		SELECT count(*) FROM copied`, examID, e.Format, topic, lang, difficulty, count).Scan(&added)
 	if err != nil {
 		return 0, err
 	}

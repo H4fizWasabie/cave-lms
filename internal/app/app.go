@@ -291,6 +291,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
+	mux.HandleFunc("POST /admin/courses/{id}/exam/publish-drafts", a.admin(a.publishExamDrafts))
 	mux.HandleFunc("GET /admin/question-bank", a.admin(a.adminQuestionBank))
 	mux.HandleFunc("GET /admin/question-bank/{qid}/edit", a.admin(a.editBankQuestionForm))
 	mux.HandleFunc("POST /admin/question-bank/{qid}", a.admin(a.updateBankQuestion))
@@ -462,6 +463,13 @@ func adminSide(section string, l *learner, lang string) adminSidebar {
 	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
 }
 
+// busyLoader is what the cave-loader template reads: what it says to screen readers, and the lines it rotates,
+// separated by "|".
+type busyLoader struct{ Label, Lines string }
+
+// loader is the template function behind {{template "cave-loader" (loader label lines)}}.
+func loader(label, lines string) busyLoader { return busyLoader{label, lines} }
+
 // galleryTile is what the gallery-tile template reads: an item and the page's language.
 type galleryTile struct {
 	galleryItem
@@ -473,8 +481,8 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
-		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }}).ParseFS(appFiles, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "difficulties": func() []string { return difficulties }, "tile": tile, "t": text.T, "tn": text.N, "size": sizeText,
+		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
