@@ -157,14 +157,33 @@ const (
 	MaxCards  = 8
 )
 
-// Kinds are the kinds of block, in the order the editor offers them.
-var Kinds = []string{"card", "line", "bar", "donut", "table"}
+// The options the editor offers, in its order.
+var (
+	Kinds  = []string{"card", "line", "bar", "donut", "table"}
+	Aggs   = []string{"count", "sum", "avg", "distinct", "calc"}
+	Ops    = [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} // a calculation's operators, as posted and as written
+	Tops   = []int{5, 8, 15, 0}                                          // a bar's largest groups; 0 shows all
+	Limits = []int{10, 25, 50}                                           // a table's rows
+)
+
+// opSign is operator op as people write it; empty for one Cave does not offer.
+func opSign(op string) string {
+	for _, o := range Ops {
+		if o[0] == op {
+			return o[1]
+		}
+	}
+	return ""
+}
+
+// IsCard is whether the block is a card: cards sit in their own rows above the charts and tables.
+func (b *WorkBlock) IsCard() bool { return b.Kind == "card" }
 
 // Cards counts the Config's cards.
 func (c *Config) Cards() int {
 	n := 0
 	for _, b := range c.Blocks {
-		if b.Kind == "card" {
+		if b.IsCard() {
 			n++
 		}
 	}
@@ -190,7 +209,7 @@ func (c *Config) Arrange(i int) int {
 		order[k] = k
 	}
 	rest := func(k int) int {
-		if c.Blocks[k].Kind == "card" {
+		if c.Blocks[k].IsCard() {
 			return 0
 		}
 		return 1
@@ -231,7 +250,7 @@ func (c *Config) Add(kind string, d *Dataset, lang string) (int, error) {
 // and tables among themselves; at the end of its sort it stays. It returns where the block is now.
 func (c *Config) Move(i, step int) int {
 	j := i + step
-	if i < 0 || j < 0 || i >= len(c.Blocks) || j >= len(c.Blocks) || (c.Blocks[i].Kind == "card") != (c.Blocks[j].Kind == "card") {
+	if i < 0 || j < 0 || i >= len(c.Blocks) || j >= len(c.Blocks) || c.Blocks[i].IsCard() != c.Blocks[j].IsCard() {
 		return i
 	}
 	c.Blocks[i], c.Blocks[j] = c.Blocks[j], c.Blocks[i]
@@ -297,7 +316,7 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		if b.Sort == "" {
 			b.Sort = d.first(Date)
 		}
-		if !slices.Contains([]int{10, 25, 50}, b.Limit) {
+		if !slices.Contains(Limits, b.Limit) {
 			b.Limit = 10
 		}
 		return
@@ -396,7 +415,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 			errs = append(errs, col(c, ""))
 		}
 		errs = append(errs, maybe(b.Sort, ""))
-		if !slices.Contains([]int{10, 25, 50}, b.Limit) {
+		if !slices.Contains(Limits, b.Limit) {
 			return bad
 		}
 	case "card", "line", "bar", "donut":
@@ -411,7 +430,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		case "distinct":
 			errs = append(errs, col(v.Col, ""))
 		case "calc":
-			if ops[v.Op] == "" || (v.Then != "sum" && v.Then != "avg") {
+			if opSign(v.Op) == "" || (v.Then != "sum" && v.Then != "avg") {
 				return bad
 			}
 			errs = append(errs, col(v.A, Number), col(v.B, Number))
@@ -428,7 +447,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		}
 		errs = append(errs, col(b.X, Date), maybe(b.Split, Text))
 	case "bar":
-		if !slices.Contains([]int{0, 5, 8, 15}, b.Top) {
+		if !slices.Contains(Tops, b.Top) {
 			return bad
 		}
 		errs = append(errs, col(b.Group, Text), maybe(b.Split, Text))
@@ -470,9 +489,6 @@ func (b *WorkBlock) KeepsLock(old WorkBlock) error {
 	return nil
 }
 
-// ops are the calculation's operators as people write them.
-var ops = map[string]string{"+": "+", "-": "−", "x": "×", "/": "÷"}
-
 // what is the block's value in a few words: Rows, Jumlah, Average Jumlah, Jumlah − Kos.
 func (b *WorkBlock) what(lang string) string {
 	v := b.Value
@@ -480,7 +496,7 @@ func (b *WorkBlock) what(lang string) string {
 	case v == nil || v.Agg == "count":
 		return text.T(lang, "lab.b.lbl.count")
 	case v.Agg == "calc":
-		return v.A + " " + ops[v.Op] + " " + v.B
+		return v.A + " " + opSign(v.Op) + " " + v.B
 	case v.Agg == "sum":
 		return v.Col
 	}

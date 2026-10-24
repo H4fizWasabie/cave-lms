@@ -104,13 +104,13 @@
               {{- if $.Uses}}
               <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
               <ul class="ds-uses">
-                {{- range $.Uses}}
+                {{- range $k, $u := $.Uses}}
                 {{- if .Fits}}
                 <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><code>{{.Name}}</code></li>
                 {{- else}}
                 <li class="field map-row">
-                  <label for="use-{{.Name}}">{{t $.Lang "lab.w.blocks-use"}} <code>{{.Name}}</code>{{t $.Lang "lab.w.pick-or-leave"}}</label>
-                  <select id="use-{{.Name}}" name="use:{{.Name}}">
+                  <label for="use-{{$k}}">{{t $.Lang "lab.w.blocks-use"}} <code>{{.Name}}</code>{{t $.Lang "lab.w.pick-or-leave"}}</label>
+                  <select id="use-{{$k}}" name="use:{{.Name}}">
                     <option value="" selected>{{t $.Lang "lab.w.leave-out"}}</option>
                     {{- range .Options}}
                     <option value="{{.}}">{{.}}</option>
@@ -262,15 +262,15 @@
                   <button class="eb-ic" name="do" value="remove" title="{{t $.Lang "lab.b.remove" .Label}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">{{t $.Lang "lab.b.remove" .Label}}</span></button>
                 </form>
               </div>
-              {{- $i := .I}}{{range .Needs}}
+              {{- $i := .I}}{{range $n, $need := .Needs}}
               <form class="eb-warn" method="post" action="{{$url}}/blocks">
                 <input type="hidden" name="do" value="use">
                 <input type="hidden" name="block" value="{{$i}}">
                 <input type="hidden" name="from" value="{{.Name}}">
                 <span><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.needs"}} <code>{{.Name}}</code></span>
                 {{- if .Options}}
-                <label class="sr" for="use-{{$i}}-{{.Name}}">{{t $.Lang "lab.b.use-instead-of" .Name}}</label>
-                <select id="use-{{$i}}-{{.Name}}" name="to">{{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+                <label class="sr" for="use-{{$i}}-{{$n}}">{{t $.Lang "lab.b.use-instead-of" .Name}}</label>
+                <select id="use-{{$i}}-{{$n}}" name="to">{{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}</select>
                 <button class="btn btn-quiet btn-sm">{{t $.Lang "lab.b.use-instead"}}</button>
                 {{- end}}
               </form>

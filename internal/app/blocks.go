@@ -83,9 +83,9 @@ func newBlocksView(d *dashboard, lang string, open int, saved bool) *blocksView 
 	}
 	uses := cfg.Uses()
 	for i, b := range cfg.Blocks {
-		card := b.Kind == "card"
+		card := b.IsCard()
 		row := blockRow{WorkBlock: b, I: i, Summary: b.Summary(lang), Open: i == open, Gone: b.Gone(ds),
-			First: i == 0 || (cfg.Blocks[i-1].Kind == "card") != card, Last: i == len(cfg.Blocks)-1 || (cfg.Blocks[i+1].Kind == "card") != card}
+			First: i == 0 || cfg.Blocks[i-1].IsCard() != card, Last: i == len(cfg.Blocks)-1 || cfg.Blocks[i+1].IsCard() != card}
 		for _, name := range b.Missing(ds) {
 			u := uses[slices.IndexFunc(uses, func(u lab.Use) bool { return u.Name == name })]
 			row.Needs = append(row.Needs, need{Name: name, Options: u.Options(ds)})
@@ -141,7 +141,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	}
 	if v := b.Value; v != nil {
 		var aggs []option
-		for _, a := range []string{"count", "sum", "avg", "distinct", "calc"} {
+		for _, a := range lab.Aggs {
 			aggs = append(aggs, option{Value: a, Text: text.T(lang, "lab.b.agg."+a), On: v.Agg == a})
 		}
 		field("agg", "lab.b.value", aggs)
@@ -154,7 +154,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		case "calc":
 			field("a", "lab.b.calc-a", columns(ds, lab.Number, v.A, ""))
 			var ops []option
-			for _, o := range [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} {
+			for _, o := range lab.Ops {
 				ops = append(ops, option{Value: o[0], Text: o[1], On: v.Op == o[0]})
 			}
 			field("op", "lab.b.calc-op", ops)
@@ -169,10 +169,13 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	case "bar":
 		field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
 		top := choice{Name: "top", Label: text.T(lang, "lab.b.top")}
-		for _, n := range []int{5, 8, 15} {
-			top.Options = append(top.Options, option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n})
+		for _, n := range lab.Tops {
+			o := option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n}
+			if n == 0 {
+				o.Text = text.T(lang, "lab.b.top-all")
+			}
+			top.Options = append(top.Options, o)
 		}
-		top.Options = append(top.Options, option{Value: "0", Text: text.T(lang, "lab.b.top-all"), On: b.Top == 0})
 		row.Radios = append(row.Radios, top)
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
@@ -182,7 +185,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		row.ColTicks = &cols
 		field("sort", "lab.b.sort", columns(ds, "", b.Sort, text.T(lang, "lab.b.none")))
 		limit := choice{Name: "limit", Label: text.T(lang, "lab.b.rows")}
-		for _, n := range []int{10, 25, 50} {
+		for _, n := range lab.Limits {
 			limit.Options = append(limit.Options, option{Value: strconv.Itoa(n), Text: strconv.Itoa(n), On: b.Limit == n})
 		}
 		row.Radios = append(row.Radios, limit)
@@ -236,7 +239,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		}
 		row.FilterVals = &vals
 	}
-	if b.Kind != "card" {
+	if !b.IsCard() {
 		wide := "half"
 		if b.Wide {
 			wide = "full"
