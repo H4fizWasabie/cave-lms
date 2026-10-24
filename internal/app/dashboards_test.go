@@ -45,10 +45,17 @@ func (s *site) createDashboard(template, name string) string {
 }
 
 // postFile posts a multipart form with one file field named "file".
-func (s *site) postFile(path, filename string, content []byte) (*http.Response, string) {
+func (s *site) postFile(path, filename string, content []byte, fields ...url.Values) (*http.Response, string) {
 	s.t.Helper()
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
+	for _, f := range fields {
+		for k, vs := range f {
+			for _, v := range vs {
+				mw.WriteField(k, v)
+			}
+		}
+	}
 	fw, err := mw.CreateFormFile("file", filename)
 	if err != nil {
 		s.t.Fatal(err)

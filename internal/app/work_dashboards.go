@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -27,7 +29,30 @@ type pendingDataset struct {
 	Changes []lab.Change
 	Guess   lab.Choices
 	Chosen  lab.Choices // the Learner's choices on a refused confirm; else Guess
+	Sheets  []lab.Sheet // every sheet of the upload
+	Used    []string    // the sheets that went into the Dataset
 }
+
+// Picked is the sheet Clean-up read first, the one the others joined.
+func (p *pendingDataset) Picked() string {
+	for _, s := range p.Sheets {
+		if s.Readable && !s.CanCombine && s.Reason == "" {
+			return s.Name
+		}
+	}
+	return ""
+}
+
+// In reports whether the sheet called name went into the Dataset.
+func (p *pendingDataset) In(name string) bool { return slices.Contains(p.Used, name) }
+
+// Tickable reports whether any sheet could be ticked to join the picked one.
+func (p *pendingDataset) Tickable() bool {
+	return slices.ContainsFunc(p.Sheets, func(s lab.Sheet) bool { return s.CanCombine })
+}
+
+// UsedList is the sheets that went in, for the preview.
+func (p *pendingDataset) UsedList() string { return strings.Join(p.Used, ", ") }
 
 // Rows are the first previewRows cleaned rows as the preview shows them.
 func (p *pendingDataset) Rows() [][]string {
@@ -65,16 +90,17 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, error) {
 	var p pendingDataset
 	var key string
-	var changes, guess []byte
-	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, changes, guess FROM datasets
-		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &changes, &guess)
+	var changes, guess, sheets, used []byte
+	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, changes, guess, sheets, used FROM datasets
+		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &changes, &guess, &sheets, &used)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if err := errors.Join(json.Unmarshal(changes, &p.Changes), json.Unmarshal(guess, &p.Guess)); err != nil {
+	if err := errors.Join(json.Unmarshal(changes, &p.Changes), json.Unmarshal(guess, &p.Guess),
+		json.Unmarshal(sheets, &p.Sheets), json.Unmarshal(used, &p.Used)); err != nil {
 		return nil, err
 	}
 	data, err := a.datasets.Get(ctx, key)
@@ -86,14 +112,35 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 }
 
 // uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
-// any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message.
+// any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
+// with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
+// the Dashboard then remembers.
 func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	res, err := lab.Clean(file, d.Template, lab.Settings{})
+	settings := d.Settings
+	if sheet := r.FormValue("sheet"); sheet != "" {
+		settings.Sheet, settings.Alone, settings.Ticked = sheet, false, nil
+		// Ticks were made against the sheet the preview showed picked; for another sheet, every match joins.
+		if sheet == r.FormValue("shown") && r.FormValue("tickable") != "" {
+			settings.Ticked = append([]string{}, r.Form["combine"]...)
+			settings.Alone = len(settings.Ticked) == 0
+		}
+		remember, err := json.Marshal(settings)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		// ponytail: remembered on upload, not confirm; an abandoned preview still sets the next upload's choices.
+		if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET upload_settings = $2 WHERE id = $1`, d.ID, remember); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	res, err := lab.Clean(file, d.Template, settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem.In(lang), Upload: name})
@@ -118,6 +165,16 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
+	sheets, err := json.Marshal(res.Sheets)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	used, err := json.Marshal(res.Used)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	key, err := newDatasetKey()
 	if err != nil {
 		a.serverError(w, r, err)
@@ -132,8 +189,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, changes, guess)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`, d.ID, key, name, len(data), len(res.Dataset.Rows), changes, guess)
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, changes, guess, sheets, used)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)`, d.ID, key, name, len(data), len(res.Dataset.Rows), changes, guess, sheets, used)
 		return err
 	})
 	if err != nil {
