@@ -29,6 +29,19 @@
           </form>
         </div>
         <div class="card">
+          <h2>{{t .Lang "gen.heading"}}</h2>
+          <p class="card-sub">{{t .Lang "gen.intro"}}</p>
+          <form class="form" method="post" action="{{.Exam.AdminPath "/generate"}}" data-busy>
+            <div class="field-grid">
+              <div class="field"><label for="gen-topic">{{t .Lang "bank.topic"}}</label><input id="gen-topic" type="text" name="topic" list="bank-topics" required></div>
+              <div class="field"><label for="gen-language">{{t .Lang "bank.language"}}</label><select id="gen-language" name="language"><option value="ms">{{t .Lang "bank.lang.ms"}}</option><option value="en">{{t .Lang "bank.lang.en"}}</option></select></div>
+              <div class="field"><label for="gen-count">{{t .Lang "bank.count"}}</label><input id="gen-count" type="number" name="count" min="1" max="50" value="10" required></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "gen.button"}}</button></div>
+            {{template "cave-loader" (loader (t .Lang "gen.busy") (t .Lang "gen.busy-lines"))}}
+          </form>
+        </div>
+        <div class="card">
           <h2>{{t .Lang "bank.add"}}</h2>
           <p class="card-sub">{{t .Lang "bank.add-intro"}}</p>
           <form class="form" method="post" action="{{.Exam.AdminPath "/from-bank"}}">
@@ -37,18 +50,20 @@
               <div class="field"><label for="language">{{t .Lang "bank.language"}}</label><select id="language" name="language"><option value="ms">{{t .Lang "bank.lang.ms"}}</option><option value="en">{{t .Lang "bank.lang.en"}}</option></select></div>
               <div class="field"><label for="count">{{t .Lang "bank.count"}}</label><input id="count" type="number" name="count" min="1" value="10" required></div>
             </div>
-            <p class="card-sub">{{t .Lang "gen.intro"}}</p>
-            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.add"}}</button><button class="btn btn-solid" formaction="{{.Exam.AdminPath "/generate"}}">{{t .Lang "gen.button"}}</button></div>
+            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.add"}}</button></div>
           </form>
         </div>
         <div class="card">
           <div class="card-head">
             <h2>{{t .Lang "adm.exam.questions"}}</h2>
-            <a class="btn btn-ghost btn-sm" href="{{.Exam.AdminPath "/questions/new"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.exam.add"}}</a>
+            <div class="lb-act">
+              {{with .Exam.Drafts}}<form method="post" action="{{$.Exam.AdminPath "/publish-drafts"}}" data-confirm="{{t $.Lang "adm.exam.publish-drafts-confirm" .}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.exam.publish-drafts" .}}</button></form>{{end}}
+              <a class="btn btn-ghost btn-sm" href="{{.Exam.AdminPath "/questions/new"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.exam.add"}}</a>
+            </div>
           </div>
-          <ol class="q-list">
+          <ol class="q-list" id="questions">
             {{range $q := .Exam.Questions}}
-            <li class="q-card">
+            <li class="q-card" id="q-{{$q.ID}}">
               <div class="q-head">
                 <span class="q-n"></span>
                 <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
@@ -72,4 +87,5 @@
         </div>
       </div>
     </div>
+    <script src="{{static "forms.js"}}" defer></script>
 {{end}}

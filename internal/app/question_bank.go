@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -33,14 +35,48 @@ type bankPage struct {
 	Topic, Format string        // the filters, empty for all
 	Question      *bankQuestion // the edit form's
 	Languages     []string
+	Query         template.URL // the filters as a query string with its "?", empty for none, kept across actions
+}
+
+// bankFilters are the query parameters the Question bank page filters by.
+var bankFilters = []string{"topic", "format"}
+
+// bankQuery is the request's Question bank filters as a query string with its "?", empty for none. Anything else in
+// the request's query is dropped.
+func bankQuery(r *http.Request) template.URL {
+	v := url.Values{}
+	for _, k := range bankFilters {
+		if f := r.URL.Query().Get(k); f != "" {
+			v.Set(k, f)
+		}
+	}
+	if len(v) == 0 {
+		return ""
+	}
+	return template.URL("?" + v.Encode())
+}
+
+// bankCardPath is the address of bank question id's card on the Question bank page under the request's filters, or
+// of the question list when id is 0.
+func bankCardPath(r *http.Request, id int64) string {
+	if id == 0 {
+		return "/admin/question-bank" + string(bankQuery(r)) + "#questions"
+	}
+	return "/admin/question-bank" + string(bankQuery(r)) + "#q-" + strconv.FormatInt(id, 10)
+}
+
+// filteredBankQuestions reads the bank's questions under the request's ?topic= (ignoring case) and ?format=.
+func (a *App) filteredBankQuestions(r *http.Request) ([]bankQuestion, error) {
+	q := r.URL.Query()
+	return a.queryBankQuestions(r.Context(), `($1 = '' OR lower(q.topic) = lower($1)) AND ($2 = '' OR q.format = $2)`, q.Get("topic"), q.Get("format"))
 }
 
 // adminQuestionBank lists the bank's questions, filtered by ?topic= (ignoring case) and ?format= when given.
 func (a *App) adminQuestionBank(w http.ResponseWriter, r *http.Request) {
-	p := &bankPage{Topic: r.URL.Query().Get("topic"), Format: r.URL.Query().Get("format"), Formats: bankFormats}
+	p := &bankPage{Topic: r.URL.Query().Get("topic"), Format: r.URL.Query().Get("format"), Formats: bankFormats, Query: bankQuery(r)}
 	var err error
 	if p.Topics, err = a.bankTopics(r.Context()); err == nil {
-		p.Questions, err = a.queryBankQuestions(r.Context(), `($1 = '' OR lower(q.topic) = lower($1)) AND ($2 = '' OR q.format = $2)`, p.Topic, p.Format)
+		p.Questions, err = a.filteredBankQuestions(r)
 	}
 	if err != nil {
 		a.serverError(w, r, err)
@@ -123,7 +159,7 @@ func (a *App) editBankQuestionForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "bank_question_form", &bankPage{Question: &q, Languages: text.Languages})
+	a.render(w, r, http.StatusOK, "bank_question_form", &bankPage{Question: &q, Languages: text.Languages, Query: bankQuery(r)})
 }
 
 // updateBankQuestion replaces a bank question's topic, language, prompt and options or model answer. Exam copies are
@@ -150,7 +186,7 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 		msg = text.T(lang, "bank.err.language")
 	}
 	if msg != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "bank_question_form", &bankPage{pageBase: pageBase{Error: msg}, Question: &q, Languages: text.Languages})
+		a.render(w, r, http.StatusUnprocessableEntity, "bank_question_form", &bankPage{pageBase: pageBase{Error: msg}, Question: &q, Languages: text.Languages, Query: bankQuery(r)})
 		return
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
@@ -172,20 +208,31 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/question-bank", http.StatusSeeOther)
+	http.Redirect(w, r, bankCardPath(r, q.ID), http.StatusSeeOther)
 }
 
-// deleteBankQuestion removes a bank question. Exam copies are left alone.
+// deleteBankQuestion removes a bank question and returns to the card after it under the same filters. Exam copies
+// are left alone.
 func (a *App) deleteBankQuestion(w http.ResponseWriter, r *http.Request) {
 	q, ok := a.bankQuestionFor(w, r)
 	if !ok {
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM bank_questions WHERE id = $1`, q.ID); err != nil {
+	list, err := a.filteredBankQuestions(r)
+	if err == nil {
+		_, err = a.db.ExecContext(r.Context(), `DELETE FROM bank_questions WHERE id = $1`, q.ID)
+	}
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/question-bank", http.StatusSeeOther)
+	var next int64 // the question after the deleted one, 0 for none
+	for i, bq := range list {
+		if bq.ID == q.ID && i+1 < len(list) {
+			next = list[i+1].ID
+		}
+	}
+	http.Redirect(w, r, bankCardPath(r, next), http.StatusSeeOther)
 }
 
 // publishBankQuestion turns a Draft bank question into a published one, which Exams can then take from the bank.
@@ -198,7 +245,7 @@ func (a *App) publishBankQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/question-bank", http.StatusSeeOther)
+	http.Redirect(w, r, bankCardPath(r, q.ID), http.StatusSeeOther)
 }
 
 // addFromBank copies up to count published bank questions of the Exam's format, the topic (ignoring case) and the

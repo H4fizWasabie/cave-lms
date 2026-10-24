@@ -212,3 +212,16 @@ and Buy to its payment link, or Contact us without one. Visitors see the prices 
             </div>
             <label class="check-card"><input type="checkbox" name="promotional" value="on"{{if .Item.Promotional}} checked{{end}}><span><strong>{{t .Lang "adm.gallery.promotional"}}</strong><small>{{t .Lang "adm.gallery.promotional-sub"}}</small></span></label>
 {{end}}
+
+{{/* The CaveLMS busy indicator: the logo's gold A peak drawing itself. forms.js shows it when its form is sent;
+     it says Label to screen readers and rotates the Lines under it. */}}
+{{define "cave-loader"}}
+            <div class="cave-loader" role="status" hidden>
+              <svg class="cave-loader-mark" viewBox="176 94 172 130" aria-hidden="true">
+                <defs><linearGradient id="cave-gold" gradientUnits="userSpaceOnUse" x1="0" y1="99" x2="0" y2="220"><stop offset="0" stop-color="#F4C35A"/><stop offset=".55" stop-color="#D99B33"/><stop offset="1" stop-color="#A86A12"/></linearGradient></defs>
+                <path class="cave-loader-peak" pathLength="1" d="M181.5 219.5L262 99.5L342.5 219.5H306L262 154.5L218 219.5Z"/>
+                <path class="cave-loader-tri" d="M232.5 219.5L262 177L291 219.5Z"/>
+              </svg>
+              <div><p class="cave-loader-label">{{.Label}}</p><p class="cave-loader-line" aria-hidden="true" data-lines="{{.Lines}}"></p></div>
+            </div>
+{{end}}

@@ -17,16 +17,16 @@
           <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.filter"}}</button></div>
         </form>
         <div class="card">
-          <ol class="q-list">
+          <ol class="q-list" id="questions">
             {{range $q := .Questions}}
-            <li class="q-card">
+            <li class="q-card" id="q-{{$q.ID}}">
               <p class="card-sub">{{$q.Topic}} · {{t $.Lang (print "bank.format." $q.Format)}} · {{t $.Lang (print "bank.lang." $q.Language)}}</p>
               <div class="q-head">
                 <p>{{$q.Prompt}} <strong class="badge {{if $q.Draft}}badge-draft{{else}}badge-open{{end}}">{{if $q.Draft}}{{t $.Lang "adm.draft"}}{{else}}{{t $.Lang "adm.published"}}{{end}}</strong></p>
                 <div class="lb-act">
-                  <a class="btn btn-quiet btn-sm" href="/admin/question-bank/{{$q.ID}}/edit">{{t $.Lang "adm.edit"}}</a>
-                  {{if $q.Draft}}<form method="post" action="/admin/question-bank/{{$q.ID}}/publish"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
-                  <form method="post" action="/admin/question-bank/{{$q.ID}}/delete"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
+                  <a class="btn btn-quiet btn-sm" href="/admin/question-bank/{{$q.ID}}/edit{{$.Query}}">{{t $.Lang "adm.edit"}}</a>
+                  {{if $q.Draft}}<form method="post" action="/admin/question-bank/{{$q.ID}}/publish{{$.Query}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
+                  <form method="post" action="/admin/question-bank/{{$q.ID}}/delete{{$.Query}}"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
                 </div>
               </div>
               {{with $q.ModelAnswer}}<p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{.}}</p>{{end}}

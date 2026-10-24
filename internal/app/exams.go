@@ -82,6 +82,25 @@ func (a *App) examFor(w http.ResponseWriter, r *http.Request) (course, exam, boo
 	return c, e, true
 }
 
+// Drafts counts the Exam's Draft questions.
+func (e exam) Drafts() int {
+	n := 0
+	for _, q := range e.Questions {
+		if q.Draft {
+			n++
+		}
+	}
+	return n
+}
+
+// cardPath is the address of question id's card on the Exam's Admin page, or of the question list when id is 0.
+func (e exam) cardPath(id int64) string {
+	if id == 0 {
+		return e.AdminPath("") + "#questions"
+	}
+	return e.AdminPath("") + "#q-" + strconv.FormatInt(id, 10)
+}
+
 // Written reports whether the Exam is a Written Exam.
 func (e exam) Written() bool { return e.Format == written }
 
@@ -371,7 +390,7 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
+	http.Redirect(w, r, e.cardPath(q.ID), http.StatusSeeOther)
 }
 
 // replaceQuestion rewrites a question's prompt, model answer and options in one transaction.
@@ -420,7 +439,7 @@ func (a *App) moveExamQuestion(down bool) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
+		http.Redirect(w, r, e.cardPath(q.ID), http.StatusSeeOther)
 	}
 }
 
@@ -472,7 +491,13 @@ func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
+	var next int64 // the question after the deleted one, 0 for none
+	for i, eq := range e.Questions {
+		if eq.ID == q.ID && i+1 < len(e.Questions) {
+			next = e.Questions[i+1].ID
+		}
+	}
+	http.Redirect(w, r, e.cardPath(next), http.StatusSeeOther)
 }
 
 // publishExamQuestion turns a Draft question into a published one. Learners see it from then on. The bank question
@@ -489,7 +514,22 @@ func (a *App) publishExamQuestion(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, e.AdminPath(""), http.StatusSeeOther)
+	http.Redirect(w, r, e.cardPath(q.ID), http.StatusSeeOther)
+}
+
+// publishExamDrafts publishes every Draft question on the Exam, and their bank questions as publishExamQuestion does.
+func (a *App) publishExamDrafts(w http.ResponseWriter, r *http.Request) {
+	_, e, ok := a.examFor(w, r)
+	if !ok {
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `
+		WITH q AS (UPDATE exam_questions SET is_draft = false WHERE exam_id = $1 AND is_draft RETURNING bank_question_id)
+		UPDATE bank_questions SET is_draft = false WHERE id IN (SELECT bank_question_id FROM q) AND is_draft`, e.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, e.cardPath(0), http.StatusSeeOther)
 }
 
 // examQuestionFor loads the question named by {qid} on the Exam the request names. When there is none it writes
