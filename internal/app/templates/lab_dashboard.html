@@ -176,6 +176,16 @@
               <small>{{t $.Lang "lab.w.sheets-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
+            {{- with .Pending}}{{with .Grid}}
+            <fieldset class="field">
+              <legend>{{t $.Lang "lab.w.grid"}}</legend>
+              <label for="grid-month">{{t $.Lang "lab.w.grid-month"}}</label>
+              <input id="grid-month" type="number" name="month" value="{{.Month}}" min="1" max="12" required>
+              <label for="grid-year">{{t $.Lang "lab.w.grid-year"}}</label>
+              <input id="grid-year" type="number" name="year" value="{{.Year}}" min="1900" max="2100" required>
+              <small>{{t $.Lang "lab.w.grid-help"}}</small>
+            </fieldset>
+            {{- end}}{{end}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>

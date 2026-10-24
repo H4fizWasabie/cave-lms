@@ -1,0 +1,104 @@
+package lab_test
+
+import (
+	"reflect"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/lab"
+	"github.com/H4fizWasabie/cave-lms/internal/testutil"
+)
+
+// roster is a days-across grid sheet: a title, a header of Staff and days 1 to 31, then a blank column and side
+// counts, each staff's codes on given days, and a legend below a blank row.
+func roster(name, title string, codes map[string]map[int]string) testutil.Sheet {
+	header := []any{"Staff"}
+	for d := 1; d <= 31; d++ {
+		header = append(header, d)
+	}
+	header = append(header, nil, "Jumlah P", "Jumlah M")
+	rows := [][]any{{title}, header}
+	staff := make([]string, 0, len(codes))
+	for s := range codes {
+		staff = append(staff, s)
+	}
+	slices.Sort(staff)
+	for _, s := range staff {
+		r := make([]any, 35)
+		r[0] = s
+		for d, c := range codes[s] {
+			r[d] = c
+		}
+		r[33], r[34] = 2, 1
+		rows = append(rows, r)
+	}
+	rows = append(rows, nil, []any{"P = Pagi, M = Malam"}, []any{"Disediakan oleh: Penyelia"})
+	return testutil.Sheet{Name: name, Rows: rows}
+}
+
+func TestCleanUpUnpivotsADaysAcrossGridToStaffDateCodeRows(t *testing.T) {
+	file := testutil.Workbook(t, roster("Jadual", "Jadual Tugas Oktober 2026", map[string]map[int]string{
+		"Ali":  {1: "P", 2: "M", 31: "P"},
+		"Siti": {5: "M"},
+	}))
+	res := clean(t, file, lab.General)
+
+	wantCols := []lab.Column{{"Staff", lab.Text}, {"Date", lab.Date}, {"Code", lab.Text}}
+	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) {
+		t.Fatalf("columns = %v, want %v", res.Dataset.Columns, wantCols)
+	}
+	wantRows := [][]any{
+		{"Ali", "2026-10-01", "P"}, {"Ali", "2026-10-02", "M"}, {"Ali", "2026-10-31", "P"},
+		{"Siti", "2026-10-05", "M"},
+	}
+	if !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
+		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, wantRows)
+	}
+	en, ms := changesIn(res, "en"), changesIn(res, "ms")
+	if !slices.Contains(en, "Turned the days across the columns into 4 rows, one per staff per day, dated 10/2026. Empty days, counts beside the grid and notes below it were left out.") {
+		t.Fatalf("changes = %q", en)
+	}
+	if !slices.Contains(ms, "Hari merentas lajur ditukar menjadi 4 baris, satu bagi setiap staf setiap hari, bertarikh 10/2026. Hari kosong, kiraan di sebelah grid dan nota di bawahnya tidak diambil.") {
+		t.Fatalf("changes = %q", ms)
+	}
+}
+
+func TestCleanUpReadsTheGridMonthFromTheSheetNameOrTheLearnerElseThisMonth(t *testing.T) {
+	codes := map[string]map[int]string{"Ali": {3: "P"}}
+	at := func(res *lab.CleanUp) any { return res.Dataset.Rows[0][1] }
+
+	if got := at(clean(t, testutil.Workbook(t, roster("Mac 2025", "Jadual Tugas", codes)), lab.General)); got != "2025-03-03" {
+		t.Fatalf("Malay month in the sheet name: %v", got)
+	}
+	if got := at(clean(t, testutil.Workbook(t, roster("Roster", "Duty roster, February", codes)), lab.General)); got != time.Date(time.Now().Year(), 2, 3, 0, 0, 0, 0, time.UTC).Format("2006-01-02") {
+		t.Fatalf("English month in the title, this year: %v", got)
+	}
+	if got := at(clean(t, testutil.Workbook(t, roster("Roster", "Jadual Tugas", codes)), lab.General)); got != time.Date(time.Now().Year(), time.Now().Month(), 3, 0, 0, 0, 0, time.UTC).Format("2006-01-02") {
+		t.Fatalf("no month named, this month: %v", got)
+	}
+	res := cleanWith(t, testutil.Workbook(t, roster("Oktober", "Jadual Tugas Oktober 2026", codes)), lab.Settings{Month: 1, Year: 2027})
+	if got := at(res); got != "2027-01-03" {
+		t.Fatalf("the Learner's month: %v", got)
+	}
+}
+
+func TestDepartmentGridsAreEachUnpivotedThenCombined(t *testing.T) {
+	file := testutil.Workbook(t,
+		roster("Dapur", "Jadual Tugas November 2026", map[string]map[int]string{"Ali": {1: "P"}}),
+		roster("Kaunter", "Jadual Tugas November 2026", map[string]map[int]string{"Siti": {2: "M"}, "Abu": {30: "P"}}),
+	)
+	res := clean(t, file, lab.General)
+
+	wantCols := []lab.Column{{"Sheet", lab.Text}, {"Staff", lab.Text}, {"Date", lab.Date}, {"Code", lab.Text}}
+	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) {
+		t.Fatalf("columns = %v, want %v", res.Dataset.Columns, wantCols)
+	}
+	wantRows := [][]any{
+		{"Dapur", "Ali", "2026-11-01", "P"},
+		{"Kaunter", "Abu", "2026-11-30", "P"}, {"Kaunter", "Siti", "2026-11-02", "M"},
+	}
+	if !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
+		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, wantRows)
+	}
+}

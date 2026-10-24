@@ -1,10 +1,12 @@
 package lab
 
 import (
+	"cmp"
 	"io"
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/xuri/excelize/v2"
@@ -18,6 +20,8 @@ type Settings struct {
 	TwoRowHeader bool     `json:"twoRowHeader,omitempty"` // the header is two rows, joined into one name per column
 	Ticked       []string `json:"-"`                      // of the sheets that can join, just these; nil is all of them
 	HeaderRow    int      `json:"-"`                      // the header's row number in Excel, on every sheet; 0 lets Cave find each
+	Month        int      `json:"-"`                      // the month, 1 to 12, of every days-across grid; 0 lets Cave find it
+	Year         int      `json:"-"`                      // the grids' year, with Month; 0 is this year
 }
 
 // Sheet is one sheet of an uploaded workbook.
@@ -77,6 +81,19 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	res := &CleanUp{}
 	for i, name := range names {
 		tables[i], problems[i] = readTable(f, name, s)
+	}
+	year, month := gridMonth(tables, time.Now())
+	if s.Month >= 1 && s.Month <= 12 {
+		year, month = cmp.Or(s.Year, time.Now().Year()), time.Month(s.Month)
+	}
+	for i, tb := range tables {
+		if tb != nil && tb.days > 0 {
+			if tb.unpivot(year, month); len(tb.raw) == 0 {
+				tables[i], problems[i] = nil, Problem{"lab.err.no-data", nil}
+			}
+		}
+	}
+	for i, name := range names {
 		sh := Sheet{Name: name, Reason: "lab.clean.sheet-unreadable"}
 		if tb := tables[i]; tb != nil {
 			sh = Sheet{Name: name, Rows: len(tb.raw), Readable: true}
@@ -156,6 +173,9 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	case h > 1:
 		res.Changes = append(res.Changes, Change{"lab.clean.title-rows", []int{h, h + 1}})
 	}
+	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
+		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), int(month), year}})
+	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
 	}
@@ -173,6 +193,8 @@ type table struct {
 	raw    [][]cell // each data row, as wide as cols
 	rowNo  []int    // each data row's number in Excel
 	flat   bool     // a flat list, not a grouped notes table with a label on a group's first row only
+	days   int      // a days-across grid's day columns, after its staff columns in raw until unpivot; 0 if not a grid
+	title  string   // a grid's title rows and sheet name, where its month may be named
 }
 
 // readTable reads one sheet as a table, or gives the Problem that stops it.
@@ -187,6 +209,9 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	}
 	if h < 0 || h+1 >= len(cells) {
 		return nil, Problem{"lab.err.no-data", nil}
+	}
+	if first, days := gridDays(cells[h]); days > 0 {
+		return readGrid(name, cells, h, first, days)
 	}
 	cols, err := columnsOf(cells[h])
 	if err != nil {
@@ -207,7 +232,7 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	}
 	// ponytail: a blank first cell on any row reads as a grouped table; the Learner can pick the sheet instead.
 	flat := !slices.ContainsFunc(raw, func(vals []cell) bool { return vals[0].v == "" })
-	return &table{name, h, cols, raw, rowNo, flat}, nil
+	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat}, nil
 }
 
 // columnKey is a column name as sheets are matched on: ignoring case and extra spaces.
