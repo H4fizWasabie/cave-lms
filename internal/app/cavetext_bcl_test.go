@@ -365,6 +365,23 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 	return f
 }
 
+// setDown makes BCL's API answer 503 while down.
+func (f *fakeBCL) setDown(down bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.down = down
+}
+
+// setOrder makes BCL's API report o for number from now on.
+func (f *fakeBCL) setOrder(number string, o bclOrder) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.orders == nil {
+		f.orders = map[string]bclOrder{}
+	}
+	f.orders[number] = o
+}
+
 // lastAsked is the last request BCL's API received.
 func (f *fakeBCL) lastAsked(t *testing.T) *http.Request {
 	t.Helper()
@@ -385,19 +402,31 @@ func confirmingSite(t *testing.T, bcl *fakeBCL, opts ...func(*config.Config)) *s
 	}}, opts...)...)
 }
 
-func TestAnOrderBCLDoesNotKnowIsLoggedAndGivesNothing(t *testing.T) {
-	s := confirmingSite(t, newFakeBCL(t, nil))
+// An order BCL does not know yet, or has not settled, may be a real payment BCL is still writing down: it is answered
+// 500, so BCL retries, and gives nothing until BCL confirms it.
+func TestBCLDoesNotKnowTheOrderYetSo500ThenOnRetryItIsConfirmedAndGranted(t *testing.T) {
+	bcl := newFakeBCL(t, nil)
+	s := confirmingSite(t, bcl)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	s.bclPay(paid("FORGED-1", "ada@example.com"))
-	s.bclPay(paid("FORGED-2", "nobody@example.com"))
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook for an order BCL does not know: status %d, want 500", code)
+	}
+	bcl.setOrder("LINK-1", bclOrder{amount: "26.00", email: "ada@example.com", status: "1"}) // pending
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook for an order pending at BCL: status %d, want 500", code)
+	}
 	if ada.me(token).Pro {
-		t.Fatalf("an order BCL does not know gave Pro")
+		t.Fatalf("an order BCL has not confirmed gave Pro")
 	}
 	_, body := s.get("/admin/cavetext")
-	expectNone(t, body, "FORGED-1", "FORGED-2")
+	expectNone(t, body, "LINK-1")
 	_, body = s.get("/admin/log")
-	expectAll(t, body, "order FORGED-1 is not one BCL knows", "order FORGED-2 is not one BCL knows")
+	expectAll(t, body, "order LINK-1: confirm with BCL: BCL does not know it", "order LINK-1: confirm with BCL: it has status 1 at BCL")
 	expectNone(t, body, bclToken, bclKey)
+
+	bcl.setOrder("LINK-1", confirmed("ada@example.com"))
+	s.bclPay(paid("LINK-1", "ada@example.com")) // BCL's retry
+	expectProForAYear(t, ada, token)
 }
 
 func TestAnOrderBCLConfirmsGivesProAndIsLookedUpWithTheToken(t *testing.T) {
@@ -439,32 +468,35 @@ func TestAnOrderBCLReportsDifferentlyIsLoggedAndGivesNothing(t *testing.T) {
 	bcl := newFakeBCL(t, map[string]bclOrder{
 		"LINK-1": {amount: "1.00", email: "ada@example.com", status: "3"},   // cheaper than the webhook says
 		"LINK-2": {amount: "26.00", email: "eve@example.com", status: "3"},  // someone else's order
-		"LINK-3": {amount: "26.00", email: "ada@example.com", status: "2"},  // failed
 		"LINK-4": {amount: "26.00", email: "ada@example.com", status: "3"},  // real, but the body claims a dearer order
 		"LINK-5": {amount: "twenty", email: "ada@example.com", status: "3"}, // unreadable
+		"LINK-6": {amount: "26.00", email: "ada@example.com", status: "3"},  // real, but the body's subtotal is unreadable
 	})
 	s := confirmingSite(t, bcl)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	dearer := paid("LINK-4", "ada@example.com")
 	dearer.subtotal = "249.00" // what a Pro Plan costs, though BCL charged RM26
+	unreadable := paid("LINK-6", "ada@example.com")
+	unreadable.subtotal = "lots"
 	for _, p := range []bclPayment{paid("LINK-1", "ada@example.com"), paid("LINK-2", "ada@example.com"),
-		paid("LINK-3", "ada@example.com"), dearer, paid("LINK-5", "ada@example.com")} {
+		dearer, paid("LINK-5", "ada@example.com"), unreadable} {
 		s.bclPay(p)
 	}
 	if ada.me(token).Pro {
 		t.Fatalf("an order BCL reports differently gave Pro")
 	}
 	_, body := s.get("/admin/cavetext")
-	expectNone(t, body, "LINK-1", "LINK-2", "LINK-3", "LINK-4", "LINK-5")
+	expectNone(t, body, "LINK-1", "LINK-2", "LINK-4", "LINK-5", "LINK-6")
 	_, body = s.get("/admin/log")
 	expectAll(t, body, "order LINK-1 is for 1.00 at BCL, not 26.00", "order LINK-2 was paid by eve@example.com at BCL, not ada@example.com",
-		"order LINK-3 has status 2 at BCL", "order LINK-4 charged 26.00 at BCL, under the RM249", "order LINK-5 is for twenty at BCL, not 26.00")
+		"order LINK-4 charged 26.00 at BCL, under the RM249", "order LINK-5 is for twenty at BCL, not 26.00",
+		"order LINK-6 claims an unreadable subtotal or discount")
 	expectNone(t, body, bclToken)
 }
 
 func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(t *testing.T) {
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
-	bcl.down = true
+	bcl.setDown(true)
 	s := confirmingSite(t, bcl)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
@@ -477,9 +509,7 @@ func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(
 	expectAll(t, body, "order LINK-1: confirm with BCL")
 	expectNone(t, body, bclToken)
 
-	bcl.mu.Lock()
-	bcl.down = false
-	bcl.mu.Unlock()
+	bcl.setDown(false)
 	s.bclPay(paid("LINK-1", "ada@example.com")) // BCL's retry
 	expectProForAYear(t, ada, token)
 }

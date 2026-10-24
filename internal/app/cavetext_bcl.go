@@ -125,8 +125,8 @@ func sameForm(formURL, link string) bool { return link != "" && formKey(formURL)
 // Learner, pays less than the price or comes from another form is kept for an Admin. Test Mode payments, unpaid
 // orders and other events are answered 200 and only noted in the System log, so BCL does not retry them. A database
 // failure is answered 500, so BCL tries again. With a BCL API token, each paid order is first confirmed with BCL
-// (confirmBCLOrder): one BCL does not back is answered 200 and only logged as an error, and BCL out of reach is
-// answered 500. With BCL_PAYMENTS=test (staging, ADR 0010) Test Mode orders count and live ones are only noted. A
+// (confirmBCLOrder): one BCL reports differently is answered 200 and only logged as an error, and one BCL does not
+// know or has not settled yet, or BCL out of reach, is answered 500. With BCL_PAYMENTS=test (staging, ADR 0010) Test Mode orders count and live ones are only noted. A
 // wrong or unset key gets the not-found page. Nothing logged names the key or the token: every line gives the path as
 // /cavetext/bcl/….
 func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
@@ -203,7 +203,8 @@ var bclClient = &http.Client{Timeout: 10 * time.Second}
 // confirmBCLOrder looks order up in BCL's API, with a.bclAPIToken; with none set it confirms every order. BCL backs
 // the webhook b when it knows the order as successful, for the same amount and payer email, and that amount covers
 // the subtotal less discount the price is checked against, so a cheap real order cannot claim a dearer form. refused
-// says why not, for the System log. err is BCL out of reach or failing, so BCL should retry.
+// says why not, for the System log: those are forgeries of a real order. err is BCL out of reach or failing, or the
+// order not yet known or successful there, so BCL should retry rather than a real payment be lost.
 func (a *App) confirmBCLOrder(ctx context.Context, b *bclWebhookBody, order string) (refused string, err error) {
 	if a.bclAPIToken == "" {
 		return "", nil
@@ -226,8 +227,8 @@ func (a *App) confirmBCLOrder(ctx context.Context, b *bclWebhookBody, order stri
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
-	case http.StatusNotFound:
-		return "is not one BCL knows", nil
+	case http.StatusNotFound: // a real order BCL has not written down yet must not be lost, so BCL retries
+		return "", errors.New("BCL does not know it")
 	default:
 		return "", fmt.Errorf("BCL answered %s", res.Status)
 	}
@@ -246,14 +247,19 @@ func (a *App) confirmBCLOrder(ctx context.Context, b *bclWebhookBody, order stri
 	t, m := found.Data.Transaction, b.Data.Main
 	charged, readable := parseRM(t.Amount.String())
 	claimed, claimedReadable := parseRM(m.Amount.String())
-	paid, _ := b.paidSen()
+	if t.Status != "3" { // 3 is successful; any other may still settle, so BCL retries
+		return "", fmt.Errorf("it has status %s at BCL, not 3 (successful)", t.Status)
+	}
+	paid, paidReadable := b.paidSen()
 	switch {
-	case t.Status != "3": // 3 is successful, 2 failed
-		return fmt.Sprintf("has status %s at BCL, not 3 (successful)", t.Status), nil
+	case !paidReadable:
+		return fmt.Sprintf("claims an unreadable subtotal or discount (%s, %s)", b.Data.Main.Subtotal, b.Data.Main.Discount), nil
 	case !readable || !claimedReadable || charged != claimed:
 		return fmt.Sprintf("is for %s at BCL, not %s", t.Amount, m.Amount), nil
 	case !strings.EqualFold(t.PayerEmail.String(), m.PayerEmail.String()):
 		return fmt.Sprintf("was paid by %s at BCL, not %s", t.PayerEmail, m.PayerEmail), nil
+	// BCL's amount includes its fee, so an order on a cheaper form whose fee-included charge reaches a dearer price
+	// still passes here: the gap is fee-sized.
 	case charged < paid:
 		return fmt.Sprintf("charged %s at BCL, under the %s the webhook says it paid before the fee", t.Amount, rm(paid)), nil
 	}
