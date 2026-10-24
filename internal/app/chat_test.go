@@ -378,3 +378,136 @@ func TestDeletingALearnerDeletesTheirReactions(t *testing.T) {
 		t.Fatalf("%d Reactions left after deleting their giver, want none", n)
 	}
 }
+
+func (s *site) report(id, mid, reason string) (*http.Response, string) {
+	return s.post("/courses/"+id+"/chat/"+mid+"/report", url.Values{"reason": {reason}})
+}
+
+func (s *site) openReports() int {
+	s.t.Helper()
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM chat_reports WHERE closed_at IS NULL`).Scan(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n
+}
+
+func TestALearnerReportsAMessageOnceAndItStaysVisible(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	mid := ben.say(id, "Buy cheap watches")
+
+	res, body := ada.report(id, mid, "Spam")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if m := ada.messageHTML(id, mid); !strings.Contains(m, "Buy cheap watches") || !strings.Contains(m, "Reported") {
+		t.Fatalf("a Reported Message is not shown as visible and reported: %s", m)
+	}
+	res, body = ada.report(id, mid, "Again")
+	expectStatus(t, res, body, http.StatusConflict, "already reported")
+
+	res, body = admin.get("/admin/reports")
+	expectStatus(t, res, body, http.StatusOK, "")
+	expectInOrder(t, body, `href="/admin/reports" aria-current="page"`, "Buy cheap watches", "Ben", "Go Basics", "Ada", "Spam")
+	_, body = admin.getAsking("/admin/reports", "ms")
+	expectLanguage(t, body, "ms", "Laporan")
+}
+
+func TestTheEleventhReportInAnHourIsRefused(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	var mids []string
+	for i := range 11 {
+		mids = append(mids, admin.say(id, fmt.Sprintf("Note %d", i)))
+	}
+	for _, mid := range mids[:10] {
+		expectStatus(t, must(ada.report(id, mid, "")), "", http.StatusSeeOther, "")
+	}
+	res, body := ada.report(id, mids[10], "")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "")
+	if n := ada.openReports(); n != 10 {
+		t.Fatalf("%d Reports saved, want 10", n)
+	}
+}
+
+func TestHidingAMessageRemovesItForLearnersAndClosesItsReports(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	mid := ben.say(id, "Something nasty")
+	rid := ada.reply(id, mid, "Not nice")
+	ada.report(id, mid, "Rude")
+	cara := admin.second()
+	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
+	cara.post("/courses/"+id+"/join", nil)
+	cara.report(id, mid, "")
+
+	res, body := admin.post("/admin/chat/"+mid+"/hide", url.Values{"back": {"reports"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/admin/reports" {
+		t.Fatalf("hiding from the Reports page went to %q", loc)
+	}
+	if n := ada.openReports(); n != 0 {
+		t.Fatalf("%d Reports still open after hiding their Message", n)
+	}
+	_, body = ada.get("/courses/" + id + "/chat")
+	if strings.Contains(body, "Something nasty") {
+		t.Fatalf("a hidden Message's text reaches a Learner")
+	}
+	expectInOrder(t, ada.messageHTML(id, mid), "Message removed")
+	expectInOrder(t, ada.messageHTML(id, rid), "Message removed", "Not nice")
+
+	m := admin.messageHTML(id, mid)
+	expectInOrder(t, m, "Something nasty", `action="/admin/chat/`+mid+`/unhide"`)
+	if !strings.Contains(adminLi(admin, id, mid), "is-hidden") {
+		t.Fatalf("the Admin does not see the hidden Message greyed out")
+	}
+
+	res, body = admin.post("/admin/chat/"+mid+"/unhide", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
+		t.Fatalf("unhiding from the Chat went to %q, want the Chat at the Message", loc)
+	}
+	expectInOrder(t, ada.messageHTML(id, mid), "Something nasty")
+}
+
+// adminLi is the opening tag of Message mid's item on the Chat page as s sees it.
+func adminLi(s *site, id, mid string) string {
+	_, body := s.get("/courses/" + id + "/chat")
+	i := strings.Index(body, `id="m`+mid+`"`)
+	return body[strings.LastIndex(body[:i], "<li"):i]
+}
+
+func TestDismissingAReportClosesOnlyThatOne(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	mid := ben.say(id, "Edgy joke")
+	ada.report(id, mid, "Not funny")
+	_, body := admin.get("/admin/reports")
+	m := regexp.MustCompile(`action="(/admin/reports/\d+/dismiss)"`).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("no Dismiss on the Reports page: %s", body)
+	}
+	res, body := admin.post(m[1], nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if n := ada.openReports(); n != 0 {
+		t.Fatalf("%d Reports open after dismissing, want none", n)
+	}
+	expectInOrder(t, ada.messageHTML(id, mid), "Edgy joke")
+}
+
+func TestLearnersCannotHideOrSeeReports(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	mid := ben.say(id, "Hi")
+	res, body := ada.post("/admin/chat/"+mid+"/hide", nil)
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	if strings.Contains(ada.messageHTML(id, mid), "/hide") {
+		t.Fatalf("a Learner is offered Hide")
+	}
+}
+
+func TestDeletingALearnerDeletesTheirReports(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	mid := ben.say(id, "Hi")
+	ada.report(id, mid, "")
+	if _, err := ada.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	if n := ada.openReports(); n != 0 {
+		t.Fatalf("%d Reports left after deleting their maker, want none", n)
+	}
+}

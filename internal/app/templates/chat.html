@@ -52,9 +52,29 @@
           </form>
           <div class="msg-actions">
             <a class="btn btn-quiet btn-sm" href="/courses/{{.CourseID}}/chat?reply={{.ID}}#compose" data-reply="{{.ID}}" data-writer="{{.Writer}}" data-line="{{.FirstLine}}">{{t .Lang "chat.reply"}}</a>
+            {{- if and (not .Mine) (not .ViewerAdmin)}}{{if .Reported}}
+            <span class="msg-reported">{{t .Lang "chat.reported"}}</span>
+            {{- else}}
+            <details class="msg-report">
+              <summary class="btn btn-quiet btn-sm">{{t .Lang "chat.report"}}</summary>
+              <form method="post" action="/courses/{{.CourseID}}/chat/{{.ID}}/report">
+                <label for="reason-{{.ID}}">{{t .Lang "chat.report-reason"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label>
+                <textarea id="reason-{{.ID}}" name="reason" rows="2" maxlength="500"></textarea>
+                <button class="btn btn-solid btn-sm">{{t .Lang "chat.send-report"}}</button>
+              </form>
+            </details>
+            {{- end}}{{end}}
+            {{- if .ViewerAdmin}}
+            <form method="post" action="/admin/chat/{{.ID}}/hide"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.hide"}}</button></form>
+            {{- end}}
             {{- if .Mine}}
             <form method="post" action="/courses/{{.CourseID}}/chat/{{.ID}}/delete"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.delete"}}</button></form>
             {{- end}}
+          </div>
+          {{- else if and .ViewerAdmin .Hidden (not .Deleted)}}
+          <div class="msg-actions">
+            <span class="msg-reported">{{t .Lang "chat.hidden"}}</span>
+            <form method="post" action="/admin/chat/{{.ID}}/unhide"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.unhide"}}</button></form>
           </div>
           {{- end}}
         </li>

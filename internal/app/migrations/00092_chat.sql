@@ -27,6 +27,19 @@ CREATE TABLE chat_reactions (
 );
 CREATE INDEX chat_reactions_learner ON chat_reactions (learner_id);
 
+-- A Learner's Report of a Message, at most one per Message, open until the Admin hides the Message or dismisses it.
+CREATE TABLE chat_reports (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    message_id bigint NOT NULL REFERENCES chat_messages ON DELETE CASCADE,
+    learner_id bigint NOT NULL REFERENCES learners ON DELETE CASCADE,
+    reason text NOT NULL DEFAULT '' CHECK (char_length(reason) <= 500),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    closed_at timestamptz,
+    UNIQUE (message_id, learner_id)
+);
+CREATE INDEX chat_reports_learner ON chat_reports (learner_id);
+
 -- +goose Down
+DROP TABLE chat_reports;
 DROP TABLE chat_reactions;
 DROP TABLE chat_messages;

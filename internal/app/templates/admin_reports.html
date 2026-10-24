@@ -1,0 +1,34 @@
+{{define "title"}}{{t .Lang "admin.side.reports"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "reports" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "reports.heading"}}</h1>
+            <p>{{t .Lang "reports.intro"}}</p>
+          </div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "chat.message"}}</th><th>{{t .Lang "reports.course"}}</th><th>{{t .Lang "reports.reporter"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .Reports}}
+              <tr>
+                <td><a href="/courses/{{.CourseID}}/chat?before={{.Page}}#m{{.MessageID}}">{{if .Text}}<span class="msg-text">{{.Text}}</span>{{else}}{{t $.Lang "chat.deleted"}}{{end}}</a><small>{{t $.Lang "reports.by" .Writer}}</small></td>
+                <td>{{.Course}}</td>
+                <td>{{.Reporter}}<small>{{.When}}</small>{{with .Reason}}<small>{{t $.Lang "reports.reason" .}}</small>{{end}}</td>
+                <td class="actions">
+                  <form method="post" action="/admin/chat/{{.MessageID}}/hide"><input type="hidden" name="back" value="reports"><button class="btn btn-danger btn-sm">{{t $.Lang "chat.hide"}}</button></form>
+                  <form method="post" action="/admin/reports/{{.ID}}/dismiss"><button class="btn btn-quiet btn-sm">{{t $.Lang "reports.dismiss"}}</button></form>
+                </td>
+              </tr>
+              {{else}}
+              <tr><td colspan="4">{{t .Lang "reports.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

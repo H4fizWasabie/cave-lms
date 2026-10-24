@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -20,6 +22,8 @@ const (
 	// A Learner's posting budgets in a Chat; the Admin has none.
 	messagesPerMinute  = 10
 	reactionsPerMinute = 30
+	reportsPerHour     = 10
+	maxReportReason    = 500 // characters
 )
 
 // reactions are the six a Message can have, in the order they are shown.
@@ -50,6 +54,7 @@ type chatMessage struct {
 	ReplyLine    string
 	ReplyRemoved bool
 	Reactions    []chatReaction // all six, in order
+	Reported     bool           // the viewer has Reported it
 	ViewerAdmin  bool
 	Lang         string
 }
@@ -137,7 +142,8 @@ const chatColumns = `m.id, m.course_id, l.name, l.is_admin, m.learner_id = $1,
 	CASE WHEN m.hidden AND NOT $2 THEN '' ELSE m.body END, m.created_at, m.deleted, m.hidden,
 	coalesce(m.reply_to, 0), o.id IS NULL OR o.deleted OR o.hidden,
 	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(ol.name, '') END,
-	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(split_part(o.body, E'\n', 1), '') END
+	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(split_part(o.body, E'\n', 1), '') END,
+	EXISTS (SELECT 1 FROM chat_reports rp WHERE rp.message_id = m.id AND rp.learner_id = $1)
 	FROM chat_messages m JOIN learners l ON l.id = m.learner_id
 	LEFT JOIN chat_messages o ON o.id = m.reply_to LEFT JOIN learners ol ON ol.id = o.learner_id`
 
@@ -157,7 +163,7 @@ func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args
 			m.Reactions[i].Emoji = e
 		}
 		if err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
-			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine); err != nil {
+			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine, &m.Reported); err != nil {
 			return nil, err
 		}
 		at[m.ID] = len(list)
@@ -358,6 +364,81 @@ func (a *App) react(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.backToMessage(w, r, m)
+}
+
+// reportMessage is a Learner Reporting a Message to the Admin, with an optional reason. The Message stays visible.
+func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
+	c, v, ok := a.chatFor(w, r)
+	if !ok {
+		return
+	}
+	m, ok := a.chatMessageFor(w, r, c, v)
+	if !ok {
+		return
+	}
+	refuse := func(status int, title, key string) {
+		a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
+	}
+	reason := strings.TrimSpace(r.PostFormValue("reason"))
+	switch {
+	case !m.Visible():
+		refuse(http.StatusUnprocessableEntity, "chat.not-reported", "chat.err.report-removed")
+		return
+	case utf8.RuneCountInString(reason) > maxReportReason:
+		refuse(http.StatusUnprocessableEntity, "chat.not-reported", "chat.err.reason-too-long")
+		return
+	case !v.IsAdmin && !a.limiter.allow(fmt.Sprintf("chat report %d", v.ID), reportsPerHour, time.Hour, a.now()):
+		refuse(http.StatusTooManyRequests, "limited.title", "chat.err.reports-limited")
+		return
+	}
+	res, err := a.db.ExecContext(r.Context(), `INSERT INTO chat_reports (message_id, learner_id, reason) VALUES ($1, $2, $3)
+		ON CONFLICT DO NOTHING`, m.ID, v.ID, reason)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		refuse(http.StatusConflict, "chat.not-reported", "chat.err.reported")
+		return
+	}
+	a.backToMessage(w, r, m)
+}
+
+// setHidden returns the handler with which the Admin hides or unhides a Message. Hiding closes every open Report on
+// it. The form's back field "reports" returns to the Reports page, else to the Chat at the Message.
+func (a *App) setHidden(hidden bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var m chatMessage
+		mid, err := strconv.ParseInt(r.PathValue("mid"), 10, 64)
+		if err == nil {
+			err = a.db.QueryRowContext(r.Context(), `UPDATE chat_messages SET hidden = $2 WHERE id = $1 RETURNING id, course_id`,
+				mid, hidden).Scan(&m.ID, &m.CourseID)
+		}
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+			a.notFound(w, r)
+			return
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if hidden {
+			if _, err := a.db.ExecContext(r.Context(), `UPDATE chat_reports SET closed_at = now()
+				WHERE message_id = $1 AND closed_at IS NULL`, m.ID); err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+		}
+		if r.PostFormValue("back") == "reports" {
+			http.Redirect(w, r, "/admin/reports", http.StatusSeeOther)
+			return
+		}
+		a.backToMessage(w, r, m)
+	}
 }
 
 // backToMessage redirects to the Chat page that shows m: the latest, or an earlier one ending with it.
