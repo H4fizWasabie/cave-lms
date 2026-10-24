@@ -1,8 +1,10 @@
 package app_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -113,7 +115,7 @@ func TestBankFirstTakesOnlyPublishedBankQuestionsOfTheSameDifficulty(t *testing.
 	res, body := s.generateWith(sheets, "excel", "3", url.Values{"difficulty": {"hard"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	want := aiwriter.Request{Topic: "excel", Format: "multiple-choice", Language: "ms", Count: 2, Difficulty: "hard"}
-	if got := s.ai.Requests()[before:]; len(got) != 1 || got[0] != want {
+	if got := s.ai.Requests()[before:]; len(got) != 1 || !sameRequest(got[0], want) {
 		t.Fatalf("the AI writer was asked %#v, want only %#v: one published Hard question was in the bank", got, want)
 	}
 	_, body = s.get("/admin/courses/" + sheets + "/exam")
@@ -227,4 +229,82 @@ func TestAdminSetsClearsAndFiltersByADifficultyInTheQuestionBank(t *testing.T) {
 	form.Set("difficulty", "extreme")
 	res, body = s.post("/admin/question-bank/"+b[0], form)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose Easy, Medium, Hard or Not set.")
+}
+
+// sameRequest reports whether got is want, ignoring the existing prompts it was told to avoid.
+func sameRequest(got, want aiwriter.Request) bool {
+	got.Avoid = nil
+	return reflect.DeepEqual(got, want)
+}
+
+func TestGenerationSendsTrimmedKeyPointsAndRefusesOverAThousandCharacters(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	id := s.onlyCourseID()
+	_, body := s.get("/admin/courses/" + id + "/exam")
+	expectAll(t, body, `<textarea id="gen-key-points" name="key_points" rows="3" maxlength="1000">`)
+
+	res, body := s.generateWith(id, "Excel", "1", url.Values{"key_points": {"  Pivot tables\nVLOOKUP  "}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.generateWith(id, "Excel", "1", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	got := s.ai.Requests()
+	if len(got) != 2 || got[0].KeyPoints != "Pivot tables\nVLOOKUP" || got[1].KeyPoints != "" {
+		t.Fatalf("the AI writer was asked %#v, want the trimmed key points, then none", got)
+	}
+
+	res, body = s.generateWith(id, "Excel", "1", url.Values{"key_points": {strings.Repeat("é", 1000)}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.generateWith(id, "Excel", "1", url.Values{"key_points": {strings.Repeat("é", 1001)}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Keep the key points to 1,000 characters or fewer.")
+	if n := len(s.ai.Requests()); n != 3 {
+		t.Fatalf("the AI writer was asked %d times, want 3: too long key points send nothing", n)
+	}
+	s.switchLanguage("ms", "/admin/courses/"+id+"/exam")
+	res, body = s.generateWith(id, "Excel", "1", url.Values{"key_points": {strings.Repeat("a", 1001)}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Hadkan perkara utama kepada 1,000 aksara atau kurang.")
+}
+
+func TestGenerationTellsTheAIItsBankPromptsOnTheTopicFormatAndLanguageNewestHundred(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	id := s.onlyCourseID()
+	reply := func(prompts ...string) {
+		qs := make([]aiwriter.Question, len(prompts))
+		for i, p := range prompts {
+			qs[i] = aiwriter.Question{Prompt: p, Options: []aiwriter.Option{{Text: "Right", Correct: true}, {Text: "Wrong"}}}
+		}
+		s.ai.Reply(testutil.FakeReply{Questions: qs})
+	}
+	var all []string
+	for batch := range 3 {
+		var prompts []string
+		for i := range []int{50, 50, 2}[batch] {
+			prompts = append(prompts, fmt.Sprintf("Excel %d-%d", batch, i))
+		}
+		reply(prompts...)
+		s.generateWith(id, "Excel", strconv.Itoa(len(prompts)), nil) // Drafts
+		all = append(all, prompts...)
+	}
+	s.publishedBankQuestions(id, multipleChoice, "EXCEL", "hard", "Excel published")
+	all = append(all, "Excel published")
+	s.publishedBankQuestions(id, written, "Excel", "hard", "Excel written")
+	reply("Excel in English")
+	s.post("/admin/courses/"+id+"/exam/generate", url.Values{"topic": {"Excel"}, "language": {"en"}, "count": {"1"}})
+	reply("Word one")
+	s.generateWith(id, "Word", "1", nil)
+	before := len(s.ai.Requests())
+
+	res, body := s.generateWith(id, "excel", "1", url.Values{"difficulty": {"easy"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	got := s.ai.Requests()[before:]
+	var want []string // newest first
+	for i := len(all) - 1; i >= len(all)-100; i-- {
+		want = append(want, all[i])
+	}
+	if len(got) != 1 || !reflect.DeepEqual(got[0].Avoid, want) {
+		t.Fatalf("the AI writer was told to avoid %q, want the newest 100 Multiple-choice Malay Excel prompts %q", got[0].Avoid, want)
+	}
 }

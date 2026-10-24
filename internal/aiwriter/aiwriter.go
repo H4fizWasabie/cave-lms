@@ -1,5 +1,6 @@
 // Package aiwriter asks an AI to write Exam questions and mark Written answers. Only the topic, format, language,
-// count and Difficulty go out for questions, and only the question, model answer and answer for a mark.
+// count, Difficulty, the Admin's key points and the Question bank's existing prompts on the topic go out for
+// questions, and only the question, model answer and answer for a mark. No Learner data goes out for questions.
 package aiwriter
 
 import (
@@ -21,7 +22,9 @@ type Request struct {
 	Format     string // "multiple-choice" or "written"
 	Language   string // "ms" or "en"
 	Count      int
-	Difficulty string // "easy", "medium" or "hard"
+	Difficulty string   // "easy", "medium" or "hard"
+	KeyPoints  string   // what the questions should keep to, empty for the whole topic
+	Avoid      []string // existing prompts on the topic, not to be repeated or closely rephrased
 }
 
 // Question is one question the AI wrote: a Multiple-choice one has Options, a Written one a ModelAnswer.

@@ -26,7 +26,7 @@ func TestTheAIWritesGeneratedQuestionsAsDraftsInTheBankAndThePool(t *testing.T) 
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
 	want := aiwriter.Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "en", Count: 2, Difficulty: "medium"}
-	if got := s.ai.Requests(); len(got) != 1 || got[0] != want {
+	if got := s.ai.Requests(); len(got) != 1 || !sameRequest(got[0], want) {
 		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
 	}
 	res, body = s.get("/admin/courses/" + id + "/exam")
@@ -60,7 +60,7 @@ func TestGenerationTakesMatchingBankQuestionsFirstAndAsksTheAIOnlyForTheRest(t *
 	res, body := s.generate(sheets, "EXCEL", "ms", "4")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	want := aiwriter.Request{Topic: "EXCEL", Format: "multiple-choice", Language: "ms", Count: 2, Difficulty: "medium"}
-	if got := s.ai.Requests()[before:]; len(got) != 1 || got[0] != want {
+	if got := s.ai.Requests()[before:]; len(got) != 1 || !sameRequest(got[0], want) {
 		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
 	}
 	res, body = s.get("/admin/courses/" + sheets + "/exam")
@@ -205,7 +205,7 @@ func TestGeneratingForAWrittenExamGivesDraftsWithAModelAnswerInTheBankAndThePool
 		t.Fatalf("generating went to %q, want %q", loc, writtenExam(sheets))
 	}
 	want := aiwriter.Request{Topic: "excel", Format: "written", Language: "ms", Count: 2, Difficulty: "medium"}
-	if got := s.ai.Requests(); len(got) != 2 || got[1] != want {
+	if got := s.ai.Requests(); len(got) != 2 || !sameRequest(got[1], want) {
 		t.Fatalf("the AI writer was asked %#v, want only %#v", got, want)
 	}
 	_, body = s.get(writtenExam(sheets))

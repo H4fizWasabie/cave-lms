@@ -63,6 +63,20 @@ func TestOpenRouterSendsTheInstructionsAndOnlyTheRequestAndReadsTheQuestions(t *
 		t.Fatalf("messages = %q", b.Messages)
 	}
 
+	r := excel
+	r.KeyPoints, r.Avoid = "Grouping\nFilters", []string{"Apakah jadual pangsi?", "Bagaimana menapis?"}
+	if _, err := w.WriteQuestions(context.Background(), r); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Topic: Excel pivot tables\nFormat: multiple-choice\nLanguage: Malay\nCount: 1\nDifficulty: hard" +
+		"\nKey points:\nGrouping\nFilters" +
+		"\nExisting questions on this topic, not to repeat or closely rephrase:\n- Apakah jadual pangsi?\n- Bagaimana menapis?"; got.body.Messages[1]["content"] != want {
+		t.Fatalf("user message = %q, want %q", got.body.Messages[1]["content"], want)
+	}
+	if !strings.Contains(writeQuestionsInstructions, "key points") || !strings.Contains(writeQuestionsInstructions, "closely rephrase") {
+		t.Fatalf("the instructions don't explain key points and existing questions: %s", writeQuestionsInstructions)
+	}
+
 	w.WebSearch, got.body.Plugins = false, nil
 	if _, err := w.WriteQuestions(context.Background(), excel); err != nil || got.body.Plugins != nil {
 		t.Fatalf("with web search off: plugins = %v, err = %v", got.body.Plugins, err)

@@ -10,6 +10,10 @@ Format "multiple-choice": each question has a clear prompt and 2 to 5 options, e
 
 Format "written": each question has a clear prompt the learner answers in their own words in a few sentences, and a model answer: a short, complete answer that a marker compares the learner's answer against.
 
+When the user message gives key points, keep every question within them: they are what the course teaches on the topic. Without key points, cover the topic as a whole.
+
+When the user message lists existing questions, do not repeat any of them or closely rephrase one; ask about something else or from a clearly different angle.
+
 Keep each question independent of the others, test understanding rather than trivia, and do not repeat a question.
 
 Reply only with JSON in the required shape: {"questions": [{"prompt": "...", "options": [{"text": "...", "correct": true}, ...]}, ...]} for "multiple-choice", or {"questions": [{"prompt": "...", "model_answer": "..."}, ...]} for "written".

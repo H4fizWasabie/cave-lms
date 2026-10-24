@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -284,9 +285,36 @@ func (a *App) addFromBank(w http.ResponseWriter, r *http.Request) {
 // maxGenerated is the most questions one generation asks for, so the AI's reply fits its length cap.
 const maxGenerated = 50
 
+// maxKeyPoints is the longest key points one generation takes, in characters, so one click can't send a huge request.
+const maxKeyPoints = 1000
+
+// maxAvoided is how many of the bank's existing prompts one generation tells the AI not to repeat.
+const maxAvoided = 100
+
+// bankPrompts lists the prompts of the newest maxAvoided bank questions, Drafts included, of the format, topic
+// (ignoring case) and language, newest first.
+func (a *App) bankPrompts(ctx context.Context, format, topic, lang string) ([]string, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT prompt FROM bank_questions WHERE format = $1 AND lower(topic) = lower($2) AND language = $3
+		ORDER BY id DESC LIMIT $4`, format, topic, lang, maxAvoided)
+	if err != nil {
+		return nil, fmt.Errorf("load bank prompts: %w", err)
+	}
+	defer rows.Close()
+	var prompts []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, fmt.Errorf("load bank prompts: %w", err)
+		}
+		prompts = append(prompts, p)
+	}
+	return prompts, rows.Err()
+}
+
 // generateQuestions fills the Exam with count questions on the topic in the language at the Difficulty, Medium when
 // none or an unknown one is posted: matching published bank questions of that Difficulty first, then the AI writes
-// the rest, which are saved with the Difficulty as Drafts in the bank and the Exam. When the AI fails nothing is saved.
+// the rest, keeping to the optional key points and avoiding the bank's existing prompts on the topic. They are saved
+// with the Difficulty as Drafts in the bank and the Exam. When the AI fails nothing is saved. Key points are not kept.
 func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 	c, e, ok := a.examFor(w, r)
 	if !ok {
@@ -304,6 +332,11 @@ func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 	if !slices.Contains(difficulties, difficulty) {
 		difficulty = "medium"
 	}
+	keyPoints := strings.TrimSpace(r.PostFormValue("key_points"))
+	if utf8.RuneCountInString(keyPoints) > maxKeyPoints {
+		a.examProblem(w, r, c, e, http.StatusUnprocessableEntity, "gen.err.key-points")
+		return
+	}
 	var banked int
 	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM bank_questions b WHERE `+bankMatch, e.ID, e.Format, topic, qlang, difficulty).Scan(&banked)
 	if err != nil {
@@ -312,7 +345,13 @@ func (a *App) generateQuestions(w http.ResponseWriter, r *http.Request) {
 	}
 	var aiWritten []examQuestion
 	if rest := count - banked; rest > 0 {
-		qs, err := aiwriter.Questions(r.Context(), a.writer, aiwriter.Request{Topic: topic, Format: e.Format, Language: qlang, Count: rest, Difficulty: difficulty})
+		avoid, err := a.bankPrompts(r.Context(), e.Format, topic, qlang)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		qs, err := aiwriter.Questions(r.Context(), a.writer, aiwriter.Request{Topic: topic, Format: e.Format, Language: qlang, Count: rest,
+			Difficulty: difficulty, KeyPoints: keyPoints, Avoid: avoid})
 		if msg = aiProblem(err); msg != "" {
 			a.logError(r, err)
 			a.examProblem(w, r, c, e, http.StatusServiceUnavailable, msg)
