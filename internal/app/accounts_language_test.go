@@ -55,7 +55,7 @@ func TestAccountFormErrorsAndAnswersAreInMalay(t *testing.T) {
 	res, body := register("Ada", email, password)
 	expectStatus(t, res, body, http.StatusOK, "Semak e-mel anda")
 	res, body = register("Ada", email, password)
-	expectStatus(t, res, body, http.StatusConflict, "E-mel ini sudah didaftarkan")
+	expectStatus(t, res, body, http.StatusOK, "Semak e-mel anda")
 
 	login := func(password string) (*http.Response, string) {
 		return s.postAsking("/login", "ms", url.Values{"email": {email}, "password": {password}})

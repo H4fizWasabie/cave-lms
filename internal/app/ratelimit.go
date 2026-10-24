@@ -23,7 +23,8 @@ const (
 	// Only failed logins count: per account from one address, and per address across all accounts.
 	loginFailuresPerAccount = 10
 	loginFailuresPerAddress = 100
-	// verificationsPerAddress caps the verification emails to one address, over sign-ups and resends from anywhere.
+	// verificationsPerAddress caps the verification emails and used-email notices to one address together, over sign-ups and
+	// resends from anywhere.
 	// ponytail: in memory like every count here, so a restart resets it.
 	verificationsPerAddress = 3
 	verificationWindow      = 24 * time.Hour
