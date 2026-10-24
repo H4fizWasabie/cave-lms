@@ -284,10 +284,28 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	}
 	a.dropDeletedFiles(r.Context(), r)
 	if d.Config != nil && len(res.Changes) == 0 && fits(d.Config, res.Dataset) { // nothing to check: it goes live
-		a.confirmWork(w, r, d)
-		return
+		quiet, err := a.dropsOnlyPastKeep(r.Context(), d, int64(len(data)), acc)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if quiet {
+			a.confirmWork(w, r, d)
+			return
+		}
 	}
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+}
+
+// dropsOnlyPastKeep is whether confirming a Dataset of size fits the Storage allowance deleting no earlier Dataset
+// but those past keepEarlier, so the preview has nothing to warn about.
+func (a *App) dropsOnlyPastKeep(ctx context.Context, d *dashboard, size int64, acc labAccess) (bool, error) {
+	kept, err := keptDatasets(ctx, a.db, d.ID)
+	if err != nil {
+		return false, err
+	}
+	drop, _, ok, err := toDrop(ctx, a.db, d, size, acc)
+	return ok && len(drop) <= max(len(kept)-keepEarlier, 0), err
 }
 
 // confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and toDrop's earlier
