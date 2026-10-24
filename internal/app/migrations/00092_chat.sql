@@ -7,6 +7,9 @@ CREATE TABLE chat_messages (
     course_id bigint NOT NULL REFERENCES courses ON DELETE CASCADE,
     learner_id bigint NOT NULL REFERENCES learners ON DELETE CASCADE,
     body text NOT NULL,
+    -- The Message this one replies to. No foreign key: a reply outlives its original, whose quote then shows as
+    -- removed.
+    reply_to bigint,
     created_at timestamptz NOT NULL DEFAULT now(),
     hidden boolean NOT NULL DEFAULT false,
     deleted boolean NOT NULL DEFAULT false,

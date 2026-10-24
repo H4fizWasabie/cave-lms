@@ -868,3 +868,8 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .chat-compose { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr auto; gap: .6rem; align-items: end; background: var(--bg); padding: .8rem 0; border-top: 1px solid var(--line); }
 .chat-compose .field-err { grid-column: 1 / -1; margin: 0; }
 .chat-compose textarea { width: 100%; resize: vertical; }
+.msg-quote { margin-top: .35rem !important; border-left: 3px solid var(--brand-gold); padding: .2rem .55rem; background: rgba(0, 0, 0, .03); font-size: .88rem; }
+.msg-quote a { color: var(--muted); text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-quote strong { color: var(--text); }
+.chat-replying { grid-column: 1 / -1; margin: 0; display: flex; justify-content: space-between; gap: 1rem; font-size: .88rem; color: var(--muted); border-left: 3px solid var(--brand-gold); padding-left: .55rem; }
+.chat-replying > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
