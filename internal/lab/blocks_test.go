@@ -67,6 +67,23 @@ func TestOpeningInventoryKeepsLowStockLockedAndStockValueAsACalculation(t *testi
 	}
 }
 
+func TestOpeningLeavesOutBlocksWhoseChosenColumnIsGoneOrRetyped(t *testing.T) {
+	tpl := finance(t)
+	d := readSample(t, tpl)
+	c := tpl.Guess(d)
+	c["category"] = "Gone"  // no such column now
+	c["type"] = c["amount"] // a Number column where Text is needed
+	cfg := tpl.Open(c, d)
+	for _, b := range cfg.Blocks {
+		if b.Label == "Spending by category" || b.Label == "Balance" {
+			t.Errorf("%s needs a column the Dataset no longer has: %+v", b.Label, b)
+		}
+	}
+	if want := []string{c["date"]}; !reflect.DeepEqual(cfg.FilterBar, want) {
+		t.Errorf("filter bar = %v, want %v", cfg.FilterBar, want)
+	}
+}
+
 func TestOpeningGeneralBuildsItsBlocksFromTheDataset(t *testing.T) {
 	tpl := lab.TemplateByKey("general")
 	d := readSample(t, tpl)
