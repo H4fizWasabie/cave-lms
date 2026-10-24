@@ -89,6 +89,12 @@
               <p class="muted">{{t $.Lang "lab.w.which-column" $.Dashboard.Template.Name}}</p>
               {{- end}}
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+              {{- with $.AskHeader}}
+              <div class="ds-err" role="alert">
+                <p><strong>{{t $.Lang "lab.w.header-ask" .}}</strong></p>
+                <p>{{t $.Lang "lab.w.header-ask-body"}}</p>
+              </div>
+              {{- end}}
               {{- if $.Uses}}
               <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
               <ul class="ds-uses">

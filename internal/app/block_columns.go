@@ -23,6 +23,22 @@ func columnUses(cfg *lab.Config, d *lab.Dataset) []columnUse {
 	return out
 }
 
+// fits is whether d has every column cfg's blocks use, by name and type.
+func fits(cfg *lab.Config, d *lab.Dataset) bool {
+	return missingUses(columnUses(cfg, d)) == 0
+}
+
+// missingUses counts the uses d does not fit.
+func missingUses(uses []columnUse) int {
+	n := 0
+	for _, u := range uses {
+		if !u.Fits {
+			n++
+		}
+	}
+	return n
+}
+
 // picked is cfg with the Learner's pick for each column its blocks use that d lacks or has of another type,
 // posted as use:<column>; a column left out, or a pick d lacks, stays as it is.
 func picked(cfg *lab.Config, d *lab.Dataset, form url.Values) *lab.Config {

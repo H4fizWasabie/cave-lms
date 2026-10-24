@@ -53,6 +53,36 @@ func TestAPickForARenamedColumnSwapsInEveryBlock(t *testing.T) {
 	}
 }
 
+func TestAnUnchangedUploadSkipsThePreviewAndGoesLive(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	link := ada.deploy(path)
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview" {
+		t.Fatalf("an unchanged upload redirects to %q", loc)
+	}
+	if page := ada.second().rowsOf(link); !strings.Contains(page, "Gula") {
+		t.Fatalf("the Deployment's data = %s", page)
+	}
+}
+
+func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Hari", "Barang", "Kumpulan", "Jenis", "Amaun"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "Is row 1 your header?")
+
+	res, body = ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path)
+	if res.StatusCode != http.StatusOK || strings.Contains(body, "your header?") {
+		t.Fatalf("one column of four missing asks about the header:\n%s", body)
+	}
+}
+
 func TestUseInsteadSwapsTheColumnInEveryBlock(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()

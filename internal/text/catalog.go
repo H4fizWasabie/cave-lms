@@ -902,8 +902,13 @@ var catalog = map[string]entry{
 	"lab.w.uses":          {en: "Columns your blocks use", ms: "Lajur yang digunakan oleh blok anda"},
 	"lab.w.blocks-use":    {en: "Blocks use", ms: "Blok menggunakan"},
 	"lab.w.pick-or-leave": {en: ": pick a column or leave it out", ms: ": pilih lajur atau tinggalkan"},
-	"lab.w.leave-out":     {en: "Leave it out", ms: "Tinggalkan"},
-	"lab.d.start-sample":  {en: "Start from the Sample", ms: "Mulakan daripada Sampel"},
+	"lab.w.header-ask":    {en: "Is row %d your header?", ms: "Adakah baris %d tajuk lajur anda?"},
+	"lab.w.header-ask-body": {
+		en: "Most columns your blocks use are not in this file. If the column names are on another row, upload the file again and give that row.",
+		ms: "Kebanyakan lajur yang digunakan oleh blok anda tiada dalam fail ini. Jika nama lajur berada di baris lain, muat naik fail itu semula dan nyatakan baris tersebut.",
+	},
+	"lab.w.leave-out":    {en: "Leave it out", ms: "Tinggalkan"},
+	"lab.d.start-sample": {en: "Start from the Sample", ms: "Mulakan daripada Sampel"},
 	"lab.d.start-sample-body": {
 		en: "Or download it, open it in Excel, add rows or change numbers, save, and upload it here. Required:",
 		ms: "Atau muat turun, buka dalam Excel, tambah baris atau tukar nombor, simpan, dan muat naik di sini. Wajib:",
