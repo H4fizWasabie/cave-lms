@@ -143,8 +143,8 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 			t.Fatalf("after confirming, data = %s", page)
 		}
 	}
-	if n := ada.storedFiles(); n != 1 {
-		t.Fatalf("%d stored files, want only the current Dataset", n)
+	if n := ada.storedFiles(); n != 2 {
+		t.Fatalf("%d stored files, want the current Dataset and the earlier one", n)
 	}
 }
 

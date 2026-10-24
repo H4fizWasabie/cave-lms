@@ -84,6 +84,12 @@
               <thead><tr>{{range .Dataset.Columns}}<th scope="col">{{.Name}}<br><small class="muted">{{t $.Lang (print "lab.type." .Type)}}</small></th>{{end}}</tr></thead>
               <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
             </table></div>
+            {{- with $.Drops}}
+            <div>
+              <h3 class="h-sm">{{t $.Lang "lab.w.drops"}}</h3>
+              <ul>{{range .}}<li>{{.File}} · {{t $.Lang "lab.w.confirmed" .Confirmed}} · {{.SizeText}}</li>{{end}}</ul>
+            </div>
+            {{- end}}
             <form class="form" method="post" action="{{$url}}/dataset/confirm">
               {{- if $.Blanks}}
               <p class="muted">{{t $.Lang "lab.w.which-column" $.Dashboard.Template.Name}}</p>
@@ -157,6 +163,17 @@
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>
+          {{- with .Earlier}}
+          <h2 class="h-md">{{t $.Lang "lab.w.earlier"}}</h2>
+          <p class="muted">{{t $.Lang "lab.w.earlier-body"}}</p>
+          <ul class="ds-earlier">
+            {{- range .}}
+            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.w.confirmed" .Confirmed}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}}</span></div>
+              <form method="post" action="{{$url}}/datasets/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form>
+              <form method="post" action="{{$url}}/datasets/{{.ID}}/delete"><button class="btn btn-quiet">{{t $.Lang "lab.w.delete"}}</button></form></li>
+            {{- end}}
+          </ul>
+          {{- end}}
           {{- end}}
         </section>
         <aside class="panel">
