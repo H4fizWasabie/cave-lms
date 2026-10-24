@@ -18,9 +18,10 @@
     if (old) {
       var typing = old.querySelector(".msg-report[open]"), fresh = li.querySelector(".msg-report");
       if (typing && fresh) { // keep a Report being written
-        fresh.open = true;
+        fresh.open = fresh.closest(".msg-menu").open = true;
         fresh.querySelector("textarea").value = typing.querySelector("textarea").value;
       }
+      li.classList.toggle("follows", old.classList.contains("follows"));
       old.replaceWith(li);
       return;
     }
@@ -28,8 +29,19 @@
     var atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 80;
     var empty = list.querySelector(".chat-empty");
     if (empty) empty.remove();
+    if (follows(list.lastElementChild, li)) li.classList.add("follows");
     list.appendChild(li);
     if (atBottom) li.scrollIntoView({ block: "nearest" });
+  }
+
+  // follows reports whether Message li, just in, comes soon enough after Message prev by the same writer to show under
+  // prev's name, as the page groups them. The writer is told by the name shown, so two Learners of the same name
+  // group together here. The page's date headings are not added to, so one that arrives after midnight has none.
+  function follows(prev, li) {
+    if (!prev || !prev.classList.contains("msg")) return false;
+    var name = function (m) { return m.querySelector(".msg-head strong").textContent + m.classList.contains("is-mine"); };
+    var at = function (m) { return Date.parse(m.querySelector("time").getAttribute("datetime")); };
+    return name(prev) === name(li) && at(li) - at(prev) < Number(list.dataset.followsWithin);
   }
 
   function showError(text) {
@@ -82,7 +94,29 @@
       .catch(function () { showError(compose.dataset.failed); });
   });
 
+  // A Message's open menu or Reaction picker closes on a click elsewhere, on opening another, or on Escape.
+  function closeTools(except) {
+    list.querySelectorAll(".msg-tools details[open]").forEach(function (d) {
+      if (!d.contains(except)) d.open = false;
+    });
+  }
+  list.addEventListener("toggle", function (e) { if (e.target.open) closeTools(e.target); }, true);
+  document.addEventListener("keydown", function (e) {
+    var open = e.key === "Escape" && document.activeElement.closest(".msg-tool[open]");
+    if (open) {
+      closeTools(null);
+      open.querySelector("summary").focus();
+    }
+  });
+  body.addEventListener("keydown", function (e) { // Ctrl+Enter or Cmd+Enter sends
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      compose.requestSubmit();
+    }
+  });
+
   document.addEventListener("click", function (e) {
+    if (!e.target.closest(".msg-tools details")) closeTools(null);
     var reply = e.target.closest("[data-reply]");
     if (reply) {
       e.preventDefault();

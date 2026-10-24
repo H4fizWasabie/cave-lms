@@ -1066,6 +1066,8 @@ var catalog = map[string]entry{
 	"chat.hide":                {en: "Hide", ms: "Sembunyikan"},
 	"chat.unhide":              {en: "Unhide", ms: "Tunjukkan semula"},
 	"chat.hidden":              {en: "Hidden from Learners", ms: "Disembunyikan daripada Pelajar"},
+	"chat.about":               {en: "Everyone on this Course and the Admin read this Chat. Ask about the lessons and help each other.", ms: "Semua dalam Kursus ini dan Pentadbir membaca Sembang ini. Tanya tentang pelajaran dan bantu satu sama lain."},
+	"chat.more":                {en: "More", ms: "Lagi"},
 	"admin.side.reports":       {en: "Reports", ms: "Laporan"},
 	"reports.heading":          {en: "Reports", ms: "Laporan"},
 	"reports.intro":            {en: "Chat Messages Learners have reported, newest first. Hide the Message, which closes every Report on it, or dismiss the Report.", ms: "Mesej Sembang yang dilaporkan oleh Pelajar, yang terbaru dahulu. Sembunyikan Mesej itu, yang menutup setiap Laporan mengenainya, atau tolak Laporan itu."},
