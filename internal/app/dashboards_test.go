@@ -430,7 +430,7 @@ func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 }
 
-func TestTheErrorPageListsEveryProblemAndChangesNothing(t *testing.T) {
+func TestAnUnreadableUploadGivesOneMessageAndChangesNothing(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createDashboard("finance", "Kewangan")
 	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
@@ -438,9 +438,14 @@ func TestTheErrorPageListsEveryProblemAndChangesNothing(t *testing.T) {
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	bad := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{day, "dua ratus"}, []any{"31/02/2026", 5}, []any{day, nil})
 	res, body := ada.postFile(path+"/dataset", "bad.xlsx", bad)
-	for _, want := range []string{"We could not read bad.xlsx", "Row 2, Jumlah: not a number (&#34;dua ratus&#34;).", "Row 3, Tarikh: not a date",
-		"Row 4, Jumlah: empty, but this column is required.", "Fix these in Excel, save, and upload again. Nothing changed: your Dashboard still uses finance-sample.xlsx."} {
+	for _, want := range []string{"We could not read bad.xlsx", "Row 2, Jumlah: not a number (&#34;dua ratus&#34;).",
+		"Fix this in Excel, save, and upload again. Nothing changed: your Dashboard still uses finance-sample.xlsx."} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+	for _, later := range []string{"Row 3", "Row 4", "<li>"} {
+		if strings.Contains(body, later) {
+			t.Fatalf("the page lists more than the first problem (%q): %s", later, body)
+		}
 	}
 
 	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))

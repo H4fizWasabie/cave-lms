@@ -695,7 +695,7 @@ var catalog = map[string]entry{
 	"lab.err.no-data":        {en: "The first sheet needs column names in row 1 and at least one row of data below them.", ms: "Helaian pertama memerlukan nama lajur di baris 1 dan sekurang-kurangnya satu baris data di bawahnya."},
 	"lab.err.unnamed-column": {en: "Column %s has no name in row 1.", ms: "Lajur %s tiada nama di baris 1."},
 	"lab.err.same-name":      {en: "Two columns are called %s. Give each column its own name in row 1.", ms: "Dua lajur bernama %s. Berikan setiap lajur namanya sendiri di baris 1."},
-	"lab.err.too-many-rows":  {en: "The file has %s rows. The Lab reads up to %s rows. Delete some rows and upload again.", ms: "Fail ini ada %s baris. Lab membaca sehingga %s baris. Padam beberapa baris dan muat naik semula."},
+	"lab.err.too-many-rows":  {en: "The file has %s rows. The Lab reads up to %s rows. Row %s is past the limit. Delete some rows and upload again.", ms: "Fail ini ada %s baris. Lab membaca sehingga %s baris. Baris %s melepasi had. Padam beberapa baris dan muat naik semula."},
 	"lab.err.missing-column": {
 		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
 		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",
@@ -746,7 +746,6 @@ var catalog = map[string]entry{
 	"lab.d.not-uploaded":      {en: "We did not upload %s", ms: "Kami tidak memuat naik %s"},
 	"lab.d.not-read":          {en: "We could not read %s", ms: "Kami tidak dapat membaca %s"},
 	"lab.d.not-read-file":     {en: "We could not read that file", ms: "Kami tidak dapat membaca fail itu"},
-	"lab.d.fix-these":         {en: "Fix these in Excel, save, and upload again.", ms: "Betulkan perkara ini dalam Excel, simpan, dan muat naik semula."},
 	"lab.d.fix-this":          {en: "Fix this in Excel, save, and upload again.", ms: "Betulkan perkara ini dalam Excel, simpan, dan muat naik semula."},
 	"lab.d.still-uses":        {en: "Nothing changed: your Dashboard still uses %s.", ms: "Tiada apa yang berubah: Dashboard anda masih menggunakan %s."},
 	"lab.d.nothing-changed":   {en: "Nothing changed.", ms: "Tiada apa yang berubah."},

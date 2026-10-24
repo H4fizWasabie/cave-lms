@@ -53,9 +53,12 @@ func emptyCell(row int, col string) Problem {
 	return Problem{"lab.err.empty-cell", []any{row, col}}
 }
 
-// Problem is one thing wrong with an upload or a column choice, as a text catalog key and the
+// Problem is what is wrong with an upload or a column choice, as a text catalog key and the
 // values it fills in, so the page can word it in the Learner's language. A value that is itself
 // a Problem is worded too. As an error it reads in English, for logs.
+//
+// A file Cave cannot read gives one Problem, not a list: the likely cause and, where a row is to
+// blame, the first such row's number in Excel, so the Learner knows what to fix and where.
 type Problem struct {
 	Key  string
 	Args []any
@@ -78,20 +81,6 @@ func (p Problem) Error() string { return p.In("en") }
 // typeWord is typ as a word, like "number".
 func typeWord(typ Type) Problem { return Problem{"lab.type." + string(typ), nil} }
 
-// Errors is everything wrong with an upload, each in words a Learner can act on.
-type Errors []Problem
-
-// In words every problem in lang.
-func (e Errors) In(lang string) []string {
-	out := make([]string, len(e))
-	for i, p := range e {
-		out[i] = p.In(lang)
-	}
-	return out
-}
-
-func (e Errors) Error() string { return strings.Join(e.In("en"), "; ") }
-
 // MaxRows is the most data rows the Lab reads from one file.
 const MaxRows = 5000
 
@@ -103,7 +92,7 @@ const MaxUnzipped = 50 << 20
 // against the Template. A column named like one of a blank's guesses is read as that blank's
 // type; any other column's type comes from its cells. Dates may be real Excel dates,
 // day/month/year text or Excel date serial numbers; numbers may carry RM and thousands commas.
-// A file Cave cannot use gives Errors, every problem listed in row order; failing to read r at all gives
+// A file Cave cannot use gives one Problem, the first in row order; failing to read r at all gives
 // that plain error. Only fully blank rows are skipped.
 func Read(r io.Reader, t *Template) (*Dataset, error) {
 	file, err := io.ReadAll(r)
@@ -112,46 +101,42 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	z, err := zip.NewReader(bytes.NewReader(file), int64(len(file)))
 	if err != nil {
-		return nil, Errors{{"lab.err.not-workbook", nil}}
+		return nil, Problem{"lab.err.not-workbook", nil}
 	}
 	var unzipped uint64
 	for _, entry := range z.File {
 		unzipped += entry.UncompressedSize64
 	}
 	if unzipped > MaxUnzipped {
-		return nil, Errors{{"lab.err.too-big-unzipped", nil}}
+		return nil, Problem{"lab.err.too-big-unzipped", nil}
 	}
 	// The limit holds while excelize unpacks too: archive/zip refuses an entry longer than its header claims.
 	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped})
 	if err != nil {
-		return nil, Errors{{"lab.err.not-workbook", nil}}
+		return nil, Problem{"lab.err.not-workbook", nil}
 	}
 	defer f.Close()
 	sheet := f.GetSheetList()[0]
 	cells, err := f.GetRows(sheet, excelize.Options{RawCellValue: true})
 	if err != nil {
-		return nil, Errors{{"lab.err.unreadable", []any{err.Error()}}}
+		return nil, Problem{"lab.err.unreadable", []any{err.Error()}}
 	}
 	if len(cells) < 2 {
-		return nil, Errors{{"lab.err.no-data", nil}}
+		return nil, Problem{"lab.err.no-data", nil}
 	}
 
-	var errs Errors
 	d := &Dataset{}
 	seen := map[string]bool{}
 	for i, name := range cells[0] {
 		name = strings.TrimSpace(name)
 		switch {
 		case name == "":
-			errs = append(errs, Problem{"lab.err.unnamed-column", []any{colLetter(i)}})
+			return nil, Problem{"lab.err.unnamed-column", []any{colLetter(i)}}
 		case seen[strings.ToLower(name)]:
-			errs = append(errs, Problem{"lab.err.same-name", []any{name}})
+			return nil, Problem{"lab.err.same-name", []any{name}}
 		}
 		seen[strings.ToLower(name)] = true
 		d.Columns = append(d.Columns, Column{Name: name})
-	}
-	if errs != nil {
-		return nil, errs
 	}
 
 	dates := dateStyles{f: f, sheet: sheet, known: map[int]bool{}}
@@ -169,7 +154,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		raw, rowNo = append(raw, vals), append(rowNo, ri+2)
 	}
 	if len(raw) > MaxRows {
-		return nil, Errors{{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows)}}}
+		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows), thousands(rowNo[MaxRows])}}
 	}
 
 	for ci := range d.Columns {
@@ -181,7 +166,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	for _, b := range t.Blanks {
 		if b.Required && !hasType(d.Columns, b.Type) {
-			errs = append(errs, Problem{"lab.err.missing-column", []any{b.SampleName(), t.Name, b.Label, Problem{"lab.types." + string(b.Type), nil}}})
+			return nil, Problem{"lab.err.missing-column", []any{b.SampleName(), t.Name, b.Label, Problem{"lab.types." + string(b.Type), nil}}}
 		}
 	}
 	required, guess := map[string]bool{}, t.Guess(d)
@@ -196,27 +181,24 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		for ci, c := range vals {
 			if ci >= len(d.Columns) {
 				if c.v != "" {
-					errs = append(errs, Problem{"lab.err.stray-cell", []any{rowNo[ri], c.v, colLetter(ci)}})
+					return nil, Problem{"lab.err.stray-cell", []any{rowNo[ri], c.v, colLetter(ci)}}
 				}
 				continue
 			}
 			col := d.Columns[ci]
 			if c.v == "" {
 				if required[col.Name] {
-					errs = append(errs, emptyCell(rowNo[ri], col.Name))
+					return nil, emptyCell(rowNo[ri], col.Name)
 				}
 				continue
 			}
 			v, problem := parse(c, col.Type)
 			if problem != "" {
-				errs = append(errs, Problem{problem, []any{rowNo[ri], col.Name, c.v}})
+				return nil, Problem{problem, []any{rowNo[ri], col.Name, c.v}}
 			}
 			row[ci] = v
 		}
 		d.Rows = append(d.Rows, row)
-	}
-	if errs != nil {
-		return nil, errs
 	}
 	d.RowNumbers = rowNo
 	return d, nil
