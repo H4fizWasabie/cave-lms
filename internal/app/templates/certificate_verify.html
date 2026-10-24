@@ -25,7 +25,7 @@
         <div>
           <p class="result-k">{{if .Revoked}}{{t $.Lang "check.status" (t $.Lang "certificate.revoked")}}{{else}}{{t $.Lang "check.status" (t $.Lang "check.valid")}}{{end}}</p>
           <p>{{t $.Lang "certificate.certifies"}} <strong>{{.LearnerName}}</strong></p>
-          {{if and $.Query .LearnerIC}}<p class="muted">{{t $.Lang "check.ic" .MaskedIC}}</p>{{end}}
+          {{if and .LearnerIC (eq $.Query .LearnerIC)}}<p class="muted">{{t $.Lang "check.ic" .MaskedIC}}</p>{{end}}
           <p>{{t $.Lang "certificate.completed"}} <strong>{{.CourseTitle}}</strong></p>
           {{with .Level}}<p class="pcc-level"><img src="{{static $c.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160"> {{t $.Lang "course.pcc-level" .}}</p>{{end}}
           <p class="muted">{{if $.Query}}<a href="/certificates/{{.ID}}">{{t $.Lang "certificate.number" .Number}}</a>{{else}}{{t $.Lang "certificate.number" .Number}}{{end}}</p>
