@@ -35,17 +35,15 @@ func expectInOrder(t *testing.T, body string, wants ...string) {
 	}
 }
 
-func TestTheHeaderShowsTheSevenSectionsInMalayAndEnglishButNoCommunity(t *testing.T) {
+func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
 	s := newSite(t)
 	for _, path := range []string{"/", "/courses", "/certificates"} {
 		_, body := s.getAsking(path, "en")
 		head := header(t, body)
-		expectInOrder(t, head, ">Home<", ">Courses<", ">Lab<", ">Classroom<", ">Pricing<", ">Program<", ">Certification<")
-		expectNone(t, head, "Community")
+		expectInOrder(t, head, ">Home<", ">Courses<", ">Lab<", ">Classroom<", ">Pricing<", ">Program<", ">Certification<", ">Community<")
 		_, body = s.getAsking(path, "ms")
 		head = header(t, body)
-		expectInOrder(t, head, ">Utama<", ">Kursus<", ">Lab<", ">Kelas<", ">Harga<", ">Program<", ">Pensijilan<")
-		expectNone(t, head, "Komuniti")
+		expectInOrder(t, head, ">Utama<", ">Kursus<", ">Lab<", ">Kelas<", ">Harga<", ">Program<", ">Pensijilan<", ">Komuniti<")
 	}
 }
 

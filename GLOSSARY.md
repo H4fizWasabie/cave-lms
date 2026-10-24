@@ -74,9 +74,14 @@ _Malay_: Penyertaan
 _Avoid_: Registration, subscription, signup
 
 **Chat**:
-A Course's one shared conversation, open only to its enrolled Learners and the Admin. Each Course, Live Courses included, has its own.
+A shared conversation of Messages. Each Course, Live Courses included, has its own, open only to its enrolled Learners and the Admin; the Community Chat is the one Chat not tied to a Course.
 _Malay_: Sembang
-_Avoid_: Channel, forum, group, discussion, community
+_Avoid_: Channel, forum, group, discussion, room
+
+**Community Chat**:
+The one Chat for the whole site, not tied to any Course. Any verified account may join it and leave it; only those who joined, and the Admin, read and post in it.
+_Malay_: Sembang Komuniti
+_Avoid_: Open channel, lounge, forum, community (alone)
 
 **Message**:
 One text post in a Chat, by a Learner or the Admin, optionally replying to an earlier Message. Hidden by the Admin or deleted by its writer, it shows as removed.

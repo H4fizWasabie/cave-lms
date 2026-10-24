@@ -32,6 +32,7 @@ var catalog = map[string]entry{
 	"nav.program":         {en: "Program", ms: "Program"},
 	"nav.programmes":      {en: "Upcoming Programmes", ms: "Program akan datang"},
 	"nav.certification":   {en: "Certification", ms: "Pensijilan"},
+	"nav.community":       {en: "Community", ms: "Komuniti"},
 
 	// Layout: footer
 	"footer.powered-by":      {en: "Powered by The Cave Consult (TCC)", ms: "Dikuasakan oleh The Cave Consult (TCC)"},
@@ -99,6 +100,10 @@ var catalog = map[string]entry{
 	"privacy.collect.chat": {
 		en: "Your Chat Messages: what you post in a Course's Chat, your Reactions and any Reports you make. Chat Messages are seen by the Learners on that Course and the Admin, with your name but never your email address or IC, and are kept while the Course exists. A Message you delete is emptied; a Report and its reason are seen only by the Admin.",
 		ms: "Mesej Sembang anda: apa yang anda hantar dalam Sembang sesuatu Kursus, Reaksi anda dan sebarang Laporan yang anda buat. Mesej Sembang dilihat oleh Pelajar Kursus itu dan Pentadbir, bersama nama anda tetapi tidak sekali-kali alamat e-mel atau IC anda, dan disimpan selagi Kursus itu wujud. Mesej yang anda padam akan dikosongkan; Laporan dan sebabnya hanya dilihat oleh Pentadbir.",
+	},
+	"privacy.collect.community": {
+		en: "The Community Chat, if you join it: your Messages, Reactions and Reports there. Everyone who has joined, and the Admin, sees your Messages with your name but never your email address or IC. Your Messages stay after you leave the Community Chat, until you delete them or your account is deleted. A Report and its reason are seen only by the Admin.",
+		ms: "Sembang Komuniti, jika anda menyertainya: Mesej, Reaksi dan Laporan anda di sana. Semua yang telah menyertainya, dan Pentadbir, melihat Mesej anda bersama nama anda tetapi tidak sekali-kali alamat e-mel atau IC anda. Mesej anda kekal selepas anda keluar dari Sembang Komuniti, sehingga anda memadamnya atau akaun anda dipadam. Laporan dan sebabnya hanya dilihat oleh Pentadbir.",
 	},
 	"privacy.collect.language": {
 		en: "Your language: the language you pick, saved on your account and in a cookie, so that the site stays in it.",
@@ -1064,7 +1069,14 @@ var catalog = map[string]entry{
 	"admin.side.reports":       {en: "Reports", ms: "Laporan"},
 	"reports.heading":          {en: "Reports", ms: "Laporan"},
 	"reports.intro":            {en: "Chat Messages Learners have reported, newest first. Hide the Message, which closes every Report on it, or dismiss the Report.", ms: "Mesej Sembang yang dilaporkan oleh Pelajar, yang terbaru dahulu. Sembunyikan Mesej itu, yang menutup setiap Laporan mengenainya, atau tolak Laporan itu."},
-	"reports.course":           {en: "Course", ms: "Kursus"},
+	"reports.chat":             {en: "Chat", ms: "Sembang"},
+	"community.chat":           {en: "Community Chat", ms: "Sembang Komuniti"},
+	"community.intro":          {en: "One open Chat for everyone on CAVELMS, whichever Courses they are on. Join to read and post; leave any time.", ms: "Satu Sembang terbuka untuk semua di CAVELMS, apa jua Kursus mereka. Sertai untuk membaca dan menghantar mesej; keluar bila-bila masa."},
+	"community.privacy":        {en: "Everyone who has joined, and the Admin, sees your Messages with your name but never your email address or IC.", ms: "Semua yang telah menyertainya, dan Pentadbir, melihat Mesej anda bersama nama anda tetapi tidak sekali-kali alamat e-mel atau IC anda."},
+	"community.join":           {en: "Join the Community Chat", ms: "Sertai Sembang Komuniti"},
+	"community.leave":          {en: "Leave the Community Chat", ms: "Keluar dari Sembang Komuniti"},
+	"community.log-in":         {en: "Log in to join", ms: "Log masuk untuk menyertai"},
+	"community.join-to-open":   {en: "Join the Community Chat to read and post in it.", ms: "Sertai Sembang Komuniti untuk membaca dan menghantar mesej di dalamnya."},
 	"reports.reporter":         {en: "Reported by", ms: "Dilaporkan oleh"},
 	"reports.by":               {en: "by %s", ms: "oleh %s"},
 	"reports.reason":           {en: "Reason: %s", ms: "Sebab: %s"},

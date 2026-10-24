@@ -12,11 +12,11 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "chat.message"}}</th><th>{{t .Lang "reports.course"}}</th><th>{{t .Lang "reports.reporter"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "chat.message"}}</th><th>{{t .Lang "reports.chat"}}</th><th>{{t .Lang "reports.reporter"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Reports}}
               <tr>
-                <td><a href="/courses/{{.CourseID}}/chat?before={{.Page}}#m{{.MessageID}}">{{if .Text}}<span class="msg-text">{{.Text}}</span>{{else}}{{t $.Lang "chat.deleted"}}{{end}}</a><small>{{t $.Lang "reports.by" .Writer}}</small></td>
-                <td>{{.Course}}</td>
+                <td><a href="{{.Path}}?before={{.Page}}#m{{.MessageID}}">{{if .Text}}<span class="msg-text">{{.Text}}</span>{{else}}{{t $.Lang "chat.deleted"}}{{end}}</a><small>{{t $.Lang "reports.by" .Writer}}</small></td>
+                <td>{{if .CourseID}}{{.Course}}{{else}}{{t $.Lang "community.chat"}}{{end}}</td>
                 <td>{{.Reporter}}<small>{{.When}}</small>{{with .Reason}}<small>{{t $.Lang "reports.reason" .}}</small>{{end}}</td>
                 <td class="actions">
                   <form method="post" action="/admin/chat/{{.MessageID}}/hide"><input type="hidden" name="back" value="reports"><button class="btn btn-danger btn-sm">{{t $.Lang "chat.hide"}}</button></form>

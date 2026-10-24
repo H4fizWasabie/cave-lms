@@ -69,18 +69,41 @@ func (m chatMessage) Removed() bool { return m.Hidden && !m.ViewerAdmin && !m.De
 // FirstLine is the first line of the Message's text, which a reply quotes.
 func (m chatMessage) FirstLine() string { line, _, _ := strings.Cut(m.Text, "\n"); return line }
 
+// Path is the address of the Message's Chat.
+func (m chatMessage) Path() string { return chatPath(m.CourseID) }
+
 // ReplyLink is the address of the Chat page that shows the Message this one replies to.
 func (m chatMessage) ReplyLink() string {
-	return fmt.Sprintf("/courses/%d/chat?before=%d#m%d", m.CourseID, m.ReplyID+1, m.ReplyID)
+	return fmt.Sprintf("%s?before=%d#m%d", m.Path(), m.ReplyID+1, m.ReplyID)
+}
+
+// communityChat is the Course ID that stands for the Community Chat, whose Messages have no Course.
+const communityChat int64 = 0
+
+// chatPath is the address of Course courseID's Chat, or of the Community Chat when courseID is 0.
+func chatPath(courseID int64) string {
+	if courseID == communityChat {
+		return "/community"
+	}
+	return fmt.Sprintf("/courses/%d/chat", courseID)
+}
+
+// inChat is the SQL condition that Message m is in Course $3's Chat, or in the Community Chat when courseID, which
+// is $3, is 0.
+func inChat(courseID int64) string {
+	if courseID == communityChat {
+		return `m.course_id IS NULL AND $3::bigint = 0`
+	}
+	return `m.course_id = $3`
 }
 
 // When is the time the Message was posted.
 func (m chatMessage) When() string { return dateTimeIn(m.Lang, m.At) }
 
-// chatPage is a Course's Chat page.
+// chatPage is a Chat's page.
 type chatPage struct {
 	pageBase
-	Course   course
+	Course   course // the zero course for the Community Chat
 	Messages []chatMessage
 	Earlier  int64        // where "Show earlier" pages back to, 0 when there is nothing earlier
 	Paged    bool         // an earlier page, not the latest Messages
@@ -88,18 +111,25 @@ type chatPage struct {
 	ReplyTo  *chatMessage // the Message the composer replies to, nil when none
 }
 
+// Path is the address of the page's Chat.
+func (p chatPage) Path() string { return chatPath(p.Course.ID) }
+
 // chatViewer is who is reading a Chat.
 type chatViewer struct {
 	*learner
 	lang string
 }
 
-// chatFor loads the Course named by {id} and checks that the logged-in Learner may use its Chat: enrolled in it, or
-// the Admin. When not, it writes the refusal and returns false.
+// chatFor loads the Chat the request names, the Chat of the Course named by {id} or else the Community Chat, whose
+// course is the zero one, and checks that the logged-in Learner may use it. When not, it writes the refusal and
+// returns false.
 func (a *App) chatFor(w http.ResponseWriter, r *http.Request) (course, chatViewer, bool) {
-	c, ok := a.courseFor(w, r)
-	if !ok {
-		return c, chatViewer{}, false
+	var c course
+	if r.PathValue("id") != "" {
+		var ok bool
+		if c, ok = a.courseFor(w, r); !ok {
+			return c, chatViewer{}, false
+		}
 	}
 	l, err := a.currentLearner(r)
 	if err != nil {
@@ -111,7 +141,7 @@ func (a *App) chatFor(w http.ResponseWriter, r *http.Request) (course, chatViewe
 		a.serverError(w, r, err)
 		return c, chatViewer{}, false
 	}
-	if !c.Published && !l.IsAdmin {
+	if c.ID != communityChat && !c.Published && !l.IsAdmin {
 		a.courseNotFound(w, r)
 		return c, chatViewer{}, false
 	}
@@ -121,22 +151,30 @@ func (a *App) chatFor(w http.ResponseWriter, r *http.Request) (course, chatViewe
 		return c, chatViewer{}, false
 	}
 	if !allowed {
-		a.render(w, r, http.StatusForbidden, "members_only", page{Learner: l, Course: &c, Message: text.T(lang, "chat.join-to-open")})
+		p := page{Learner: l, Course: &c, Message: text.T(lang, "chat.join-to-open")}
+		if c.ID == communityChat {
+			p.Course, p.Message = nil, text.T(lang, "community.join-to-open")
+		}
+		a.render(w, r, http.StatusForbidden, "members_only", p)
 		return c, chatViewer{}, false
 	}
 	return c, chatViewer{l, lang}, true
 }
 
-// mayChat reports whether l may read and post in Course courseID's Chat: the Admin, or a Learner enrolled in it.
+// mayChat reports whether l may read and post in Course courseID's Chat, or the Community Chat when courseID is 0:
+// the Admin, or a Learner enrolled in the Course or joined to the Community Chat.
 func (a *App) mayChat(ctx context.Context, l *learner, courseID int64) (bool, error) {
 	if l.IsAdmin {
 		return true, nil
+	}
+	if courseID == communityChat {
+		return a.communityMember(ctx, l.ID)
 	}
 	return a.enrolled(ctx, l.ID, courseID)
 }
 
 // chatColumns selects a Message as viewer $1, who is the Admin when $2, sees it. Removed text never leaves the database.
-const chatColumns = `m.id, m.course_id, l.name, l.is_admin, m.learner_id = $1,
+const chatColumns = `m.id, coalesce(m.course_id, 0), l.name, l.is_admin, m.learner_id = $1,
 	CASE WHEN m.hidden AND NOT $2 THEN '' ELSE m.body END, m.created_at, m.deleted, m.hidden,
 	coalesce(m.reply_to, 0), o.id IS NULL OR o.deleted OR o.hidden,
 	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(ol.name, '') END,
@@ -153,14 +191,16 @@ func (a *App) chatRefusal(w http.ResponseWriter, r *http.Request, v chatViewer, 
 	}
 }
 
-// chatBudget records one of v's actions of kind and reports whether it is within limit in window. The Admin has no
-// limit.
-func (a *App) chatBudget(v chatViewer, kind string, limit int, window time.Duration) bool {
-	return v.IsAdmin || a.limiter.allow(chatBudgetKey(v, kind), limit, window, a.now())
+// chatBudget records one of v's actions of kind in Course courseID's Chat, or the Community Chat, and reports whether
+// it is within limit in window. Each Chat has its own count. The Admin has no limit.
+func (a *App) chatBudget(v chatViewer, courseID int64, kind string, limit int, window time.Duration) bool {
+	return v.IsAdmin || a.limiter.allow(chatBudgetKey(v, courseID, kind), limit, window, a.now())
 }
 
-// chatBudgetKey is the limiter key of v's actions of kind.
-func chatBudgetKey(v chatViewer, kind string) string { return fmt.Sprintf("chat %s %d", kind, v.ID) }
+// chatBudgetKey is the limiter key of v's actions of kind in Course courseID's Chat, or the Community Chat.
+func chatBudgetKey(v chatViewer, courseID int64, kind string) string {
+	return fmt.Sprintf("chat %s %d %d", kind, courseID, v.ID)
+}
 
 // chatMessages loads the Messages that where picks, as v sees them. where's own arguments start at $3.
 func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args ...any) ([]chatMessage, error) {
@@ -232,7 +272,7 @@ func (a *App) replyTo(w http.ResponseWriter, r *http.Request, c course, v chatVi
 	if err != nil {
 		return nil, true
 	}
-	list, err := a.chatMessages(r.Context(), v, `m.course_id = $3 AND m.id = $4 AND NOT m.deleted AND NOT m.hidden`, c.ID, id)
+	list, err := a.chatMessages(r.Context(), v, inChat(c.ID)+` AND m.id = $4 AND NOT m.deleted AND NOT m.hidden`, c.ID, id)
 	if err != nil {
 		a.serverError(w, r, err)
 		return nil, false
@@ -243,13 +283,13 @@ func (a *App) replyTo(w http.ResponseWriter, r *http.Request, c course, v chatVi
 	return &list[0], true
 }
 
-// renderChat renders the Chat page p of Course c for v, loading its Messages.
+// renderChat renders the Chat page p of Course c, or the Community Chat, for v, loading its Messages.
 func (a *App) renderChat(w http.ResponseWriter, r *http.Request, status int, c course, v chatViewer, p chatPage) {
 	before := int64(math.MaxInt64)
 	if b, err := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64); err == nil {
 		before, p.Paged = b, true
 	}
-	list, err := a.chatMessages(r.Context(), v, `m.course_id = $3 AND m.id < $4 ORDER BY m.id DESC LIMIT $5`, c.ID, before, chatPageSize+1)
+	list, err := a.chatMessages(r.Context(), v, inChat(c.ID)+` AND m.id < $4 ORDER BY m.id DESC LIMIT $5`, c.ID, before, chatPageSize+1)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -293,7 +333,7 @@ func (a *App) postMessage(w http.ResponseWriter, r *http.Request) {
 	case utf8.RuneCountInString(body) > maxMessageLength:
 		refuse(http.StatusUnprocessableEntity, "chat.err.too-long")
 		return
-	case !a.chatBudget(v, "message", messagesPerMinute, time.Minute):
+	case !a.chatBudget(v, c.ID, "message", messagesPerMinute, time.Minute):
 		refuse(http.StatusTooManyRequests, "chat.err.too-fast")
 		return
 	}
@@ -303,7 +343,7 @@ func (a *App) postMessage(w http.ResponseWriter, r *http.Request) {
 		replyID = &replyTo.ID
 	}
 	err := a.db.QueryRowContext(r.Context(), `INSERT INTO chat_messages (course_id, learner_id, body, reply_to)
-		VALUES ($1, $2, $3, $4) RETURNING id`, c.ID, v.ID, body, replyID).Scan(&id)
+		VALUES (nullif($1::bigint, 0), $2, $3, $4) RETURNING id`, c.ID, v.ID, body, replyID).Scan(&id)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -321,7 +361,7 @@ func (a *App) chatMessageFor(w http.ResponseWriter, r *http.Request, c course, v
 		a.notFound(w, r)
 		return chatMessage{}, false
 	}
-	list, err := a.chatMessages(r.Context(), v, `m.course_id = $3 AND m.id = $4`, c.ID, mid)
+	list, err := a.chatMessages(r.Context(), v, inChat(c.ID)+` AND m.id = $4`, c.ID, mid)
 	if err != nil {
 		a.serverError(w, r, err)
 		return chatMessage{}, false
@@ -379,7 +419,7 @@ func (a *App) react(w http.ResponseWriter, r *http.Request) {
 	case !slices.Contains(reactions, emoji) || !m.Visible():
 		refuse(http.StatusUnprocessableEntity, "chat.no-reaction.title", "chat.no-reaction")
 		return
-	case !a.chatBudget(v, "reaction", reactionsPerMinute, time.Minute):
+	case !a.chatBudget(v, c.ID, "reaction", reactionsPerMinute, time.Minute):
 		refuse(http.StatusTooManyRequests, "limited.title", "chat.err.too-fast")
 		return
 	}
@@ -417,7 +457,7 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 	case utf8.RuneCountInString(reason) > maxReportReason:
 		refuse(http.StatusUnprocessableEntity, "chat.not-reported", "chat.err.reason-too-long")
 		return
-	case !a.chatBudget(v, "report", reportsPerHour, time.Hour):
+	case !a.chatBudget(v, c.ID, "report", reportsPerHour, time.Hour):
 		refuse(http.StatusTooManyRequests, "limited.title", "chat.err.reports-limited")
 		return
 	}
@@ -432,7 +472,7 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		a.limiter.forget(chatBudgetKey(v, "report")) // a Report refused as a repeat doesn't count
+		a.limiter.forget(chatBudgetKey(v, c.ID, "report")) // a Report refused as a repeat doesn't count
 		refuse(http.StatusConflict, "chat.not-reported", "chat.err.reported")
 		return
 	}
@@ -449,7 +489,7 @@ func (a *App) setHidden(hidden bool) http.HandlerFunc {
 			return
 		}
 		var m chatMessage
-		err = a.db.QueryRowContext(r.Context(), `UPDATE chat_messages SET hidden = $2 WHERE id = $1 RETURNING id, course_id`,
+		err = a.db.QueryRowContext(r.Context(), `UPDATE chat_messages SET hidden = $2 WHERE id = $1 RETURNING id, coalesce(course_id, 0)`,
 			mid, hidden).Scan(&m.ID, &m.CourseID)
 		if errors.Is(err, sql.ErrNoRows) {
 			a.notFound(w, r)
@@ -493,15 +533,15 @@ func (a *App) closeReports(ctx context.Context, id int64) error {
 // backToMessage redirects to the Chat page that shows m: the latest, or an earlier one ending with it.
 func (a *App) backToMessage(w http.ResponseWriter, r *http.Request, m chatMessage) {
 	var newer int
-	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM (SELECT 1 FROM chat_messages WHERE course_id = $1 AND id > $2
-		LIMIT $3) n`, m.CourseID, m.ID, chatPageSize).Scan(&newer)
+	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM (SELECT 1 FROM chat_messages m WHERE `+inChat(m.CourseID)+`
+		AND m.id > $1 LIMIT $2) n`, m.ID, chatPageSize, m.CourseID).Scan(&newer)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	to := fmt.Sprintf("/courses/%d/chat#m%d", m.CourseID, m.ID)
+	to := fmt.Sprintf("%s#m%d", m.Path(), m.ID)
 	if newer >= chatPageSize {
-		to = fmt.Sprintf("/courses/%d/chat?before=%d#m%d", m.CourseID, m.ID+1, m.ID)
+		to = fmt.Sprintf("%s?before=%d#m%d", m.Path(), m.ID+1, m.ID)
 	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }

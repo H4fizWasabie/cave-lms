@@ -9,12 +9,15 @@ import (
 // chatReport is an open Report as the Admin's Reports page lists it.
 type chatReport struct {
 	ID, MessageID, CourseID  int64
-	Course, Writer, Reporter string
+	Course, Writer, Reporter string // Course is empty for the Community Chat
 	Text                     string // the Message's, empty when its writer deleted it
 	Reason                   string
 	At                       time.Time
 	Lang                     string
 }
+
+// Path is the address of the Message's Chat.
+func (r chatReport) Path() string { return chatPath(r.CourseID) }
 
 // Page is where the Chat page that ends with the Message starts paging back from.
 func (r chatReport) Page() int64 { return r.MessageID + 1 }
@@ -36,8 +39,8 @@ func (a *App) adminReports(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT rp.id, m.id, c.id, c.title, wl.name, rl.name, m.body, rp.reason, rp.created_at
-		FROM chat_reports rp JOIN chat_messages m ON m.id = rp.message_id JOIN courses c ON c.id = m.course_id
+	rows, err := a.db.QueryContext(r.Context(), `SELECT rp.id, m.id, coalesce(c.id, 0), coalesce(c.title, ''), wl.name, rl.name, m.body, rp.reason, rp.created_at
+		FROM chat_reports rp JOIN chat_messages m ON m.id = rp.message_id LEFT JOIN courses c ON c.id = m.course_id
 		JOIN learners wl ON wl.id = m.learner_id JOIN learners rl ON rl.id = rp.learner_id
 		WHERE rp.closed_at IS NULL ORDER BY rp.created_at DESC, rp.id DESC`)
 	if err != nil {

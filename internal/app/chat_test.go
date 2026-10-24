@@ -27,6 +27,17 @@ func chatSite(t *testing.T) (ada, admin, ben *site, id string) {
 	return ada, admin, ben, id
 }
 
+// community is the id the Chat helpers take for the Community Chat.
+const community = ""
+
+// chatURL is the address of Course id's Chat, or of the Community Chat.
+func chatURL(id string) string {
+	if id == community {
+		return "/community"
+	}
+	return "/courses/" + id + "/chat"
+}
+
 // must drops a body, for a call whose status is all that matters.
 func must(res *http.Response, _ string) *http.Response { return res }
 
@@ -35,7 +46,7 @@ var messageAnchor = regexp.MustCompile(`#m(\d+)$`)
 // say posts a Message to Course id's Chat and returns the new Message's ID, read from where the post redirects.
 func (s *site) say(id, body string) string {
 	s.t.Helper()
-	res, page := s.post("/courses/"+id+"/chat", url.Values{"body": {body}})
+	res, page := s.post(chatURL(id), url.Values{"body": {body}})
 	expectStatus(s.t, res, page, http.StatusSeeOther, "")
 	m := messageAnchor.FindStringSubmatch(res.Header.Get("Location"))
 	if m == nil {
@@ -216,7 +227,7 @@ func TestThePrivacyNoticeTellsLearnersWhoSeesTheirChatMessages(t *testing.T) {
 // reply posts a reply to Message mid in Course id's Chat and returns the reply's ID.
 func (s *site) reply(id, mid, body string) string {
 	s.t.Helper()
-	res, page := s.post("/courses/"+id+"/chat", url.Values{"body": {body}, "reply_to": {mid}})
+	res, page := s.post(chatURL(id), url.Values{"body": {body}, "reply_to": {mid}})
 	expectStatus(s.t, res, page, http.StatusSeeOther, "")
 	return messageAnchor.FindStringSubmatch(res.Header.Get("Location"))[1]
 }
@@ -294,13 +305,13 @@ func shown(emoji string, mine bool, n int) string {
 
 // react puts emoji on Message mid in Course id's Chat, or takes it off when it is already there.
 func (s *site) react(id, mid, emoji string) (*http.Response, string) {
-	return s.post("/courses/"+id+"/chat/"+mid+"/react", url.Values{"emoji": {emoji}})
+	return s.post(chatURL(id)+"/"+mid+"/react", url.Values{"emoji": {emoji}})
 }
 
 // messageHTML is Message mid's part of Course id's Chat page.
 func (s *site) messageHTML(id, mid string) string {
 	s.t.Helper()
-	_, body := s.get("/courses/" + id + "/chat")
+	_, body := s.get(chatURL(id))
 	_, m, ok := strings.Cut(body, `id="m`+mid+`"`)
 	if !ok {
 		s.t.Fatalf("Message %s is not on the Chat page: %s", mid, body)
@@ -395,7 +406,7 @@ func TestDeletingALearnerDeletesTheirReactions(t *testing.T) {
 }
 
 func (s *site) report(id, mid, reason string) (*http.Response, string) {
-	return s.post("/courses/"+id+"/chat/"+mid+"/report", url.Values{"reason": {reason}})
+	return s.post(chatURL(id)+"/"+mid+"/report", url.Values{"reason": {reason}})
 }
 
 func (s *site) openReports() int {
@@ -483,7 +494,7 @@ func TestHidingAMessageRemovesItForLearnersAndClosesItsReports(t *testing.T) {
 
 // adminLi is the opening tag of Message mid's item on the Chat page as s sees it.
 func adminLi(s *site, id, mid string) string {
-	_, body := s.get("/courses/" + id + "/chat")
+	_, body := s.get(chatURL(id))
 	i := strings.Index(body, `id="m`+mid+`"`)
 	return body[strings.LastIndex(body[:i], "<li"):i]
 }
