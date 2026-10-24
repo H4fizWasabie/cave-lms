@@ -342,12 +342,13 @@ func confirmed(email string) bclOrder {
 // BCL may; /transaction/<order> reports one order (Test Mode too) or 404; /forms lists forms by slug and title. It
 // answers 503 to everything while down.
 type fakeBCL struct {
-	url    string
-	orders map[string]bclOrder
-	forms  map[string]string // slug to title
-	mu     sync.Mutex
-	down   bool
-	asked  []*http.Request
+	url       string
+	orders    map[string]bclOrder
+	forms     map[string]string // slug to title
+	mu        sync.Mutex
+	down      bool
+	formsDown bool // only /forms answers 503
+	asked     []*http.Request
 }
 
 func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
@@ -370,6 +371,8 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 			return
 		}
 		switch {
+		case r.URL.Path == "/forms" && f.formsDown:
+			http.Error(w, "down", http.StatusServiceUnavailable)
 		case r.URL.Path == "/forms":
 			var forms []any
 			for slug, title := range f.forms {
@@ -414,6 +417,26 @@ func (f *fakeBCL) setDown(down bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.down = down
+}
+
+// setFormsDown makes BCL's /forms alone answer 503 while down.
+func (f *fakeBCL) setFormsDown(down bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.formsDown = down
+}
+
+// askedFor counts the requests BCL's API received at path.
+func (f *fakeBCL) askedFor(path string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, r := range f.asked {
+		if r.URL.Path == path {
+			n++
+		}
+	}
+	return n
 }
 
 // setOrder makes BCL's API report o for number from now on.
@@ -493,6 +516,9 @@ func TestAnOrderBCLConfirmsGivesProAndIsLookedUpWithTheToken(t *testing.T) {
 	if got := asked.URL.Query().Get("search"); got != "LINK-1" {
 		t.Errorf("searched BCL's orders for %q, want LINK-1", got)
 	}
+	if got := asked.URL.Query().Get("per_page"); got != "100" { // a search may match loosely, so the order may not be first
+		t.Errorf("per_page = %q, want 100", got)
+	}
 	if got := asked.Header.Get("Authorization"); got != "Bearer "+bclToken {
 		t.Errorf("Authorization = %q, want the token as a Bearer", got)
 	}
@@ -514,6 +540,9 @@ func TestWithTestPaymentsATestModeOrderIsLookedUpWhereBCLFindsTestOrders(t *test
 	s.bclPay(test)
 	expectProForAYear(t, ada, token)
 	bcl.lastAsked(t, "/transaction/LINK-1")
+	if n := bcl.askedFor("/forms"); n != 0 { // /transaction/ does not say which form, so staging does not check it
+		t.Errorf("staging asked BCL for its forms %d times, want none", n)
+	}
 }
 
 func TestAnOrderBCLReportsDifferentlyIsLoggedAndGivesNothing(t *testing.T) {
@@ -567,8 +596,9 @@ func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(
 }
 
 // A real order on the Lab Plan form, replayed with the Pro Plan's form address, must not give the Pro Plan, even when
-// what it paid covers the Pro Plan's price: BCL says which form the order was paid on.
-func TestARealOrderReplayedWithAnotherFormsAddressGivesNothing(t *testing.T) {
+// what it paid covers the Pro Plan's price: BCL says which form the order was paid on. It may still be a real payment
+// whose form was mixed up, so it is kept for an Admin to give by hand.
+func TestARealOrderReplayedWithAnotherFormsAddressGivesNothingAndIsKeptForAnAdmin(t *testing.T) {
 	bcl := newFakeBCL(t, map[string]bclOrder{
 		"LINK-12": confirmed("ada@example.com"), // a near match BCL's search also lists
 		"LINK-1":  {amount: "90.00", email: "ada@example.com", status: "3", form: labPlanFormTitle},
@@ -586,9 +616,32 @@ func TestARealOrderReplayedWithAnotherFormsAddressGivesNothing(t *testing.T) {
 		t.Fatalf("a Lab Plan order replayed on the Pro Plan form gave CaveText Pro")
 	}
 	_, body = s.get("/admin/cavetext")
-	expectNone(t, body, "LINK-1")
+	expectAll(t, body, "Payments not matched", "LINK-1")
 	_, body = s.get("/admin/log")
-	expectAll(t, body, "order LINK-1 was paid on BCL form", labPlanFormTitle, proPlanFormTitle, "nothing given")
+	expectAll(t, body, "order LINK-1 was paid on BCL form", labPlanFormTitle, proPlanFormTitle, "kept for an Admin")
+}
+
+// An order on a form whose address BCL no longer knows is kept for an Admin, not given and not lost.
+func TestAnOrderOnAFormBCLDoesNotKnowIsKeptForAnAdmin(t *testing.T) {
+	const goneFormURL = "https://shop.bcl.my/form/cavetext-pro-old"
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	s := confirmingSite(t, bcl)
+	res, body := s.savePrices(map[string]string{"cavetext-pro_link": goneFormURL})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	p := paid("LINK-1", "ada@example.com")
+	p.formURL = goneFormURL
+	s.bclPay(p)
+	if ada.me(token).Pro {
+		t.Fatalf("an order on a form BCL does not know gave Pro")
+	}
+	_, body = s.get("/admin/cavetext")
+	expectAll(t, body, "Payments not matched", "LINK-1")
+	if got := unmatchedProduct(t, body, "LINK-1"); got != "CaveText Pro" {
+		t.Errorf("LINK-1 is shown as for %q, want CaveText Pro", got)
+	}
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "BCL has no form at "+goneFormURL, "kept for an Admin")
 }
 
 // Form titles are read from BCL each time, so a form renamed at BCL keeps taking payments under its new title.
@@ -603,4 +656,47 @@ func TestAnOrderOnAFormRenamedAtBCLStillGivesPro(t *testing.T) {
 	bcl.setOrder("LINK-2", o)
 	s.bclPay(paid("LINK-2", "ada@example.com"))
 	near(t, "Pro until after an order on the renamed form", *ada.me(token).ProUntil, time.Now().AddDate(2, 0, 0))
+}
+
+// BCL may escape a title in one place and not the other, or space and case it differently: the form still matches.
+func TestAnOrderWhoseFormTitleDiffersOnlyInCaseSpacingOrEscapingStillGivesPro(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": {amount: "26.00", email: "ada@example.com", status: "3",
+		form: "cavetext  PRO &amp; more"}})
+	bcl.renameForm("cavetext-pro", "CaveText Pro & More")
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(paid("LINK-1", "ada@example.com"))
+	expectProForAYear(t, ada, token)
+}
+
+// The form check reading BCL's forms is part of confirming the order: BCL failing there is answered 500 too, so BCL
+// retries and the real payment is given then.
+func TestWhileBCLsFormsAreDownAnOrderIsAnswered500AndGivenOnRetry(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	bcl.setFormsDown(true)
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook while BCL's forms are down: status %d, want 500", code)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("an order whose form could not be checked gave Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: confirm with BCL: read BCL", "forms: BCL answered 503")
+
+	bcl.setFormsDown(false)
+	s.bclPay(paid("LINK-1", "ada@example.com")) // BCL's retry
+	expectProForAYear(t, ada, token)
+}
+
+// BCL may send the form's address with a trailing slash, a query string or another case: it is still that form.
+func TestAnOrderWhoseFormAddressDiffersOnlyInSlashQueryOrCaseStillGivesPro(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	p := paid("LINK-1", "ada@example.com")
+	p.formURL = "https://shop.bcl.my/form/CaveText-Pro/?utm_source=ig"
+	s.bclPay(p)
+	expectProForAYear(t, ada, token)
 }
