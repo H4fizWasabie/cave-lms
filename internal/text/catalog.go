@@ -741,6 +741,10 @@ var catalog = map[string]entry{
 		en: "Combined %d sheets into one Dataset, with the date in each row's sheet name in a new Date column.",
 		ms: "Menggabungkan %d helaian menjadi satu Set data, dengan tarikh pada nama helaian setiap baris dalam lajur baharu Date.",
 	},
+	"lab.clean.unpivoted": {
+		en: "Turned the days across the columns into %d rows, one per staff per day, dated %d/%d. Empty days, counts beside the grid and notes below it were left out.",
+		ms: "Hari merentas lajur ditukar menjadi %d baris, satu bagi setiap staf setiap hari, bertarikh %d/%d. Hari kosong, kiraan di sebelah grid dan nota di bawahnya tidak diambil.",
+	},
 	// Why a sheet cannot join the picked sheet
 	"lab.clean.sheet-unreadable": {en: "Cave found no table with column names and rows below them.", ms: "Cave tidak menemui jadual dengan nama lajur dan baris di bawahnya."},
 	"lab.clean.sheet-differs":    {en: "Its columns differ from the picked sheet's.", ms: "Lajurnya berbeza daripada lajur helaian yang dipilih."},
@@ -884,6 +888,13 @@ var catalog = map[string]entry{
 	"lab.w.used":       {en: "Sheets in this Dataset: %s.", ms: "Helaian dalam Set data ini: %s."},
 	"lab.w.sheets":     {en: "Sheets", ms: "Helaian"},
 	"lab.w.combine":    {en: "combine", ms: "gabung"},
+	"lab.w.grid":       {en: "Month of the days across the columns", ms: "Bulan bagi hari merentas lajur"},
+	"lab.w.grid-month": {en: "Month (1 to 12)", ms: "Bulan (1 hingga 12)"},
+	"lab.w.grid-year":  {en: "Year", ms: "Tahun"},
+	"lab.w.grid-help": {
+		en: "Cave dated each day number in this month. To change it, set the month and year, then choose your file again and upload.",
+		ms: "Cave mentarikhkan setiap nombor hari dalam bulan ini. Untuk menukarnya, tetapkan bulan dan tahun, kemudian pilih fail anda semula dan muat naik.",
+	},
 	"lab.w.sheets-help": {
 		en: "Pick the sheet to read and tick the sheets with the same columns to combine with it, then choose your file again and upload. Cave remembers your choice for the next upload.",
 		ms: "Pilih helaian untuk dibaca dan tanda helaian dengan lajur yang sama untuk digabungkan, kemudian pilih fail anda semula dan muat naik. Cave mengingati pilihan anda untuk muat naik seterusnya.",
