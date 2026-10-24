@@ -188,6 +188,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			return
 		}
 		cfg = t.Open(c, p.Dataset)
+	} else {
+		r.ParseForm()
+		cfg = picked(cfg, p.Dataset, r.Form)
 	}
 	choices, err := json.Marshal(c)
 	if err != nil {

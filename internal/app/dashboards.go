@@ -386,6 +386,7 @@ type dashboardPage struct {
 	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
 	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
+	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	Open      int             // Blocks tab: the block whose form is open; -1 for none
 	Saved     bool            // Blocks tab: an edit was just saved
 	Blocks    *blocksView     // Blocks tab
@@ -477,6 +478,9 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	}
 	if p.Pending != nil && d.Config == nil { // the first confirm opens the Template with these choices
 		p.Blanks = blankChoices(d.Template, p.Pending.Dataset, p.Pending.Chosen, p.Pending.Guess)
+	}
+	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
+		p.Uses = columnUses(d.Config, p.Pending.Dataset)
 	}
 	if p.Tab == "hood" && d.Dataset != nil {
 		lang, err := a.language(r)

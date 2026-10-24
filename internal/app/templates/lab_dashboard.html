@@ -88,6 +88,26 @@
               <p class="muted">{{t $.Lang "lab.w.which-column" $.Dashboard.Template.Name}}</p>
               {{- end}}
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+              {{- if $.Uses}}
+              <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
+              <ul class="ds-uses">
+                {{- range $.Uses}}
+                {{- if .Fits}}
+                <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><code>{{.Name}}</code></li>
+                {{- else}}
+                <li class="field map-row">
+                  <label for="use-{{.Name}}">{{t $.Lang "lab.w.blocks-use"}} <code>{{.Name}}</code>{{t $.Lang "lab.w.pick-or-leave"}}</label>
+                  <select id="use-{{.Name}}" name="use:{{.Name}}">
+                    <option value="" selected>{{t $.Lang "lab.w.leave-out"}}</option>
+                    {{- range .Options}}
+                    <option value="{{.}}">{{.}}</option>
+                    {{- end}}
+                  </select>
+                </li>
+                {{- end}}
+                {{- end}}
+              </ul>
+              {{- end}}
               {{- range $.Blanks}}
               <div class="field map-row">
                 <label for="m-{{.Key}}">{{.Label}}</label>
@@ -171,7 +191,7 @@
           {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
           <ul class="eb-list" aria-label="{{t $.Lang "lab.b.list"}}">
             {{- range .Rows}}
-            <li class="eb-item{{if .Open}} is-open{{end}}" id="b-{{.I}}">
+            <li class="eb-item{{if .Needs}} is-paused{{end}}{{if .Open}} is-open{{end}}" id="b-{{.I}}">
               <div class="eb-row">
                 <span class="eb-kind">{{t $.Lang (print "lab.b.kind." .Kind)}}</span>
                 <a class="eb-name" href="{{$url}}/blocks{{if not .Open}}?open={{.I}}#b-{{.I}}{{end}}" aria-expanded="{{if .Open}}true{{else}}false{{end}}" title="{{t $.Lang "lab.b.open" .Label}}">
@@ -184,6 +204,22 @@
                   <button class="eb-ic" name="do" value="remove" title="{{t $.Lang "lab.b.remove" .Label}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">{{t $.Lang "lab.b.remove" .Label}}</span></button>
                 </form>
               </div>
+              {{- $i := .I}}{{range .Needs}}
+              <form class="eb-warn" method="post" action="{{$url}}/blocks">
+                <input type="hidden" name="do" value="use">
+                <input type="hidden" name="block" value="{{$i}}">
+                <input type="hidden" name="from" value="{{.Name}}">
+                <span><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.needs"}} <code>{{.Name}}</code></span>
+                {{- if .Options}}
+                <label class="sr" for="use-{{$i}}-{{.Name}}">{{t $.Lang "lab.b.use-instead-of" .Name}}</label>
+                <select id="use-{{$i}}-{{.Name}}" name="to">{{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+                <button class="btn btn-quiet btn-sm">{{t $.Lang "lab.b.use-instead"}}</button>
+                {{- end}}
+              </form>
+              {{- end}}
+              {{- range .Gone}}
+              <p class="eb-warn"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.gone" .}}</p>
+              {{- end}}
               {{- if .Open}}
               <form class="eb-form" method="post" action="{{$url}}/blocks" data-autosave>
                 <input type="hidden" name="do" value="save">
@@ -204,7 +240,7 @@
                 {{- end}}
                 <div class="field"><label for="b-fcol">{{.FilterCol.Label}}</label><select id="b-fcol" name="fcol">{{range .FilterCol.Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
                 {{- with .FilterVals}}
-                <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="fval" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
+                <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="fval" value="{{.Value}}"{{if .On}} checked{{end}}>{{if .Gone}}<s>{{.Text}}</s>{{else}}{{.Text}}{{end}}</label>{{end}}</div></fieldset>
                 {{- end}}
                 {{- with .More}}<small class="muted">{{t $.Lang "lab.b.filter-more" .}}</small>{{end}}
                 <div class="form-foot">
