@@ -148,6 +148,58 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 	}
 }
 
+// months is a workbook of one Finance-like sheet per name, with a notes sheet of other columns when notes.
+func months(t *testing.T, notes bool, names ...string) []byte {
+	t.Helper()
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	var sheets []testutil.Sheet
+	for _, name := range names {
+		sheets = append(sheets, testutil.Sheet{Name: name, Rows: [][]any{
+			{"Tarikh", "Perkara", "Jumlah"}, {day, "Beras " + name, 12.0},
+		}})
+	}
+	if notes {
+		sheets = append(sheets, testutil.Sheet{Name: "Nota", Rows: [][]any{{"Kumpulan", "Perkara"}, {"Dapur", "Beras"}}})
+	}
+	return testutil.Workbook(t, sheets...)
+}
+
+func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	upload := func(file []byte, want string, fields ...url.Values) string {
+		t.Helper()
+		res, body := ada.postFile(path+"/dataset", "buku.xlsx", file, fields...)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+		res, body = ada.get(path)
+		expectStatus(t, res, body, http.StatusOK, "Sheets in this Dataset: "+want+".")
+		return body
+	}
+
+	body := upload(months(t, true, "Jan", "Feb"), "Jan, Feb")
+	for _, want := range []string{
+		`name="sheet" value="Jan" checked`, `name="combine" value="Feb" checked`, `name="shown" value="Jan"`,
+		`name="sheet" value="Nota"`, "Its columns differ from the picked sheet", "1 row",
+		"Combined 2 sheets into one Dataset",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the preview lacks %s:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, `name="combine" value="Nota"`) {
+		t.Fatal("a sheet of other columns can be ticked")
+	}
+
+	// Read again with Feb unticked: Jan alone, remembered for the next upload.
+	upload(months(t, true, "Jan", "Feb"), "Jan", url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}})
+	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan")
+	// Combining again: next time a new sheet with the same columns joins by itself.
+	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan, Feb", url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}, "combine": {"Feb"}})
+	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan, Feb, Mac")
+	// The remembered sheet is gone: the first readable one is picked.
+	upload(months(t, false, "Apr", "Mei"), "Apr, Mei")
+}
+
 func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createWork("finance", "Kedai")

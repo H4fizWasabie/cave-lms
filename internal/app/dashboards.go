@@ -50,7 +50,8 @@ type dashboard struct {
 	Template *lab.Template
 	Name     string
 	Choices  lab.Choices
-	Config   *lab.Config // a Work Dashboard's blocks and filter bar; nil until its first confirm
+	Config   *lab.Config  // a Work Dashboard's blocks and filter bar; nil until its first confirm
+	Settings lab.Settings // what a Work Dashboard remembers for its next upload
 	Dataset  *lab.Dataset
 	Key      string // where the Dataset is in the Dataset store; empty until the first upload
 	File     string // the uploaded Dataset's file name
@@ -131,14 +132,14 @@ func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*dashboard, error) {
 	var d dashboard
 	var key string
-	var choices, config []byte
+	var choices, config, settings []byte
 	var updated time.Time
 	// A Work Dashboard's current Dataset is in datasets; a Practice Dashboard's is on its own row.
-	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.kind = 'work', d.template, d.name, d.choices, d.config,
+	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.kind = 'work', d.template, d.name, d.choices, d.config, d.upload_settings,
 			COALESCE(ds.storage_key, d.dataset_key, ''), COALESCE(ds.file_name, d.dataset_file), COALESCE(ds.saved_size, d.dataset_size), d.updated_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
 		LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'`, args...).
-		Scan(&d.ID, &d.Work, &key, &d.Name, &choices, &config, &d.Key, &d.File, &d.Size, &updated)
+		Scan(&d.ID, &d.Work, &key, &d.Name, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -149,7 +150,7 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 		return nil, fmt.Errorf("dashboard %d has unknown template %q", d.ID, key)
 	}
 	d.Updated = updated.UTC().Format(periodTime)
-	if err := json.Unmarshal(choices, &d.Choices); err != nil {
+	if err := errors.Join(json.Unmarshal(choices, &d.Choices), json.Unmarshal(settings, &d.Settings)); err != nil {
 		return nil, err
 	}
 	if config != nil {

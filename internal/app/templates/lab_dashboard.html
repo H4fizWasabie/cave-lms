@@ -71,6 +71,7 @@
             <div>
               <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
               <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
+              <p class="muted">{{t $.Lang "lab.w.used" .UsedList}}</p>
             </div>
             {{- if .Changes}}
             <div>
@@ -124,6 +125,26 @@
           {{- end}}
           {{- end}}
           <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
+            {{- with .Pending}}{{if gt (len .Sheets) 1}}
+            {{- $p := .}}{{$picked := .Picked}}
+            <fieldset class="field">
+              <legend>{{t $.Lang "lab.w.sheets"}}</legend>
+              <input type="hidden" name="shown" value="{{$picked}}">
+              {{- if .Tickable}}<input type="hidden" name="tickable" value="1">{{end}}
+              <ul>
+                {{- range .Sheets}}
+                <li>
+                  <label><input type="radio" name="sheet" value="{{.Name}}"{{if eq .Name $picked}} checked{{end}}{{if not .Readable}} disabled{{end}}> {{.Name}}</label>
+                  {{- if .CanCombine}}
+                  <label><input type="checkbox" name="combine" value="{{.Name}}"{{if $p.In .Name}} checked{{end}}> {{t $.Lang "lab.w.combine"}}</label>
+                  {{- end}}
+                  <small class="muted">{{tn $.Lang "lab.d.rows" .Rows}}{{with .Reason}} · {{t $.Lang .}}{{end}}</small>
+                </li>
+                {{- end}}
+              </ul>
+              <small>{{t $.Lang "lab.w.sheets-help"}}</small>
+            </fieldset>
+            {{- end}}{{end}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>
