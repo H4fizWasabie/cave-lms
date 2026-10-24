@@ -308,6 +308,7 @@ var catalog = map[string]entry{
 	"adm.assignments.err.instructions":  {en: "Write the instructions (up to 20,000 characters).", ms: "Tulis arahan (sehingga 20,000 aksara)."},
 	"adm.submissions.title":             {en: "Submissions", ms: "Serahan"},
 	"adm.submissions.lede":              {en: "Every Learner in %s, and anyone who left with files. Assignments earn no mark.", ms: "Setiap Pelajar dalam %s, dan sesiapa yang telah keluar dengan fail. Tugasan tidak diberi markah."},
+	"adm.submissions.submission":        {en: "Submission", ms: "Serahan"},
 	"adm.submissions.comment":           {en: "Your comment", ms: "Ulasan anda"},
 	"adm.submissions.comment-for":       {en: "Comment for %s", ms: "Ulasan untuk %s"},
 	"adm.submissions.left":              {en: "Left the Course", ms: "Telah keluar dari Kursus"},
