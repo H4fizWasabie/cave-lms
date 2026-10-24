@@ -493,8 +493,14 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		var err error
 		if p.Pending != nil {
 			var room storageRoom
-			if room, err = roomFor(r.Context(), a.db, d, p.Pending.Size, p.Access); room.Fits {
+			room, err = roomFor(r.Context(), a.db, d, p.Pending.Size, p.Access)
+			if err == nil && room.Fits {
 				p.Drops = room.Drop
+			}
+			if err == nil && !room.Fits && p.Error == "" { // the confirm will be refused: say so now
+				var lang string
+				lang, err = a.language(r)
+				p.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Pending.Size), sizeText(room.Used), sizeText(p.Access.Period.Storage()))
 			}
 		}
 		if err == nil {

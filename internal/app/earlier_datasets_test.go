@@ -139,6 +139,11 @@ func TestAnUploadOverTheAllowanceDropsThisDashboardsOldestEarlierDatasets(t *tes
 
 	res, body = ada.postFile(path+"/dataset", "4.xlsx", workSized(t, 5, 700)) // 400 + 700 even with 3 gone
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path) // the preview says so before the Learner confirms
+	expectStatus(t, res, body, http.StatusOK, "would take you over your Storage allowance")
+	if strings.Contains(body, "Confirming deletes") {
+		t.Fatal("the preview lists earlier Datasets a refused confirm would not delete")
+	}
 	res, body = ada.post(path+"/dataset/confirm", nil)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
 	if n := ada.storedFiles(); n != 3 {
