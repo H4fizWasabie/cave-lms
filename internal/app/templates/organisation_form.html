@@ -1,0 +1,21 @@
+{{define "title"}}{{if .Organisation.ID}}{{t .Lang "orgs.edit"}}{{else}}{{t .Lang "orgs.new"}}{{end}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "organisations" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/organisations">{{t .Lang "orgs.back"}}</a></p>
+        <div class="adm-head"><h1>{{if .Organisation.ID}}{{t .Lang "orgs.edit"}}{{else}}{{t .Lang "orgs.new"}}{{end}}</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="{{if .Organisation.ID}}/admin/organisations/{{.Organisation.ID}}{{else}}/admin/organisations{{end}}" enctype="multipart/form-data">
+            <div class="field"><label for="name">{{t .Lang "orgs.name"}}</label><input id="name" type="text" name="name" value="{{.Organisation.Name}}" maxlength="200" required></div>
+            {{with .Organisation.LogoKey}}<img class="org-logo" src="/admin/organisations/{{$.Organisation.ID}}/logo?v={{.}}" alt="{{t $.Lang "orgs.logo-alt" $.Organisation.Name}}" height="80">{{end}}
+            <div class="field"><label for="logo">{{t .Lang "orgs.logo"}}</label><input id="logo" type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml"{{if not .Organisation.ID}} required{{end}}><small>{{t .Lang "orgs.logo-hint"}} <a href="{{.Organisation.LogoSearch}}" target="_blank" rel="noopener" data-logo-search>{{t .Lang "orgs.search"}}</a></small></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/organisations">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
+          </form>
+          {{if .Organisation.ID}}<form method="post" action="/admin/organisations/{{.Organisation.ID}}/delete"><button class="btn btn-danger btn-sm">{{t .Lang "adm.delete"}}</button></form>{{end}}
+        </div>
+      </div>
+    </div>
+    <script src="{{static "logo-search.js"}}" defer></script>
+{{end}}

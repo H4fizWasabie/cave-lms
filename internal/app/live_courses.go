@@ -7,13 +7,13 @@ import (
 	"strconv"
 )
 
-// duplicateCourseForm is the form that duplicates a Course into a Live Course, filled with the original's title.
+// duplicateCourseForm is the form that duplicates a Course into a Live Course, filled with the original's title and Organisation.
 func (a *App) duplicateCourseForm(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "course_form", page{Course: &course{Title: c.Title, Description: c.Description}, DuplicateOf: c.ID})
+	a.renderCourseForm(w, r, http.StatusOK, page{Course: &course{Title: c.Title, Description: c.Description, OrganisationID: c.OrganisationID}, DuplicateOf: c.ID})
 }
 
 // duplicateCourse copies a Course, its Lessons and its Exams with their questions into a new Draft Live Course.
@@ -30,7 +30,7 @@ func (a *App) duplicateCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	c, msg := courseFromForm(r, lang, true)
 	if msg != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, DuplicateOf: from.ID, Error: msg})
+		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, DuplicateOf: from.ID, Error: msg})
 		return
 	}
 	id, err := a.copyCourse(r.Context(), from.ID, c)
@@ -48,8 +48,9 @@ func (a *App) copyCourse(ctx context.Context, from int64, c course) (int64, erro
 	}
 	defer tx.Rollback()
 	var id int64
-	if err := tx.QueryRowContext(ctx, `INSERT INTO courses (title, description, start_date, end_date, days, published)
-		VALUES ($1, $2, $3::date, $4::date, $5, false) RETURNING id`, c.Title, c.Description, c.StartDate, c.EndDate, c.Days).Scan(&id); err != nil {
+	if err := tx.QueryRowContext(ctx, `INSERT INTO courses (title, description, start_date, end_date, days, organisation_id, published)
+		VALUES ($1, $2, $3::date, $4::date, $5, NULLIF($6, 0), false) RETURNING id`,
+		c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID).Scan(&id); err != nil {
 		return 0, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO lessons (course_id, position, title, objective, body, gallery_item_id, published)

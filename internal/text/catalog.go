@@ -263,6 +263,8 @@ var catalog = map[string]entry{
 	"adm.courses.end-date":            {en: "End date", ms: "Tarikh tamat"},
 	"adm.courses.days":                {en: "Days", ms: "Bilangan hari"},
 	"adm.courses.days-hint":           {en: "1 to 5. Sets the PCC Level: 1 Basic, 2 Foundation, 3 Practitioner, 4 or 5 Professional.", ms: "1 hingga 5. Menentukan Tahap PCC: 1 Basic, 2 Foundation, 3 Practitioner, 4 atau 5 Professional."},
+	"adm.courses.organisation":        {en: "Organisation", ms: "Organisasi"},
+	"adm.courses.no-organisation":     {en: "None", ms: "Tiada"},
 	"adm.courses.duplicate":           {en: "Duplicate into a Live Course", ms: "Salin menjadi Kursus Langsung"},
 	"adm.courses.do-duplicate":        {en: "Duplicate", ms: "Salin"},
 	"adm.courses.do-publish":          {en: "Publish", ms: "Terbitkan"},
@@ -479,6 +481,7 @@ var catalog = map[string]entry{
 	"admin.side.courses":       {en: "Courses", ms: "Kursus"},
 	"admin.side.gallery":       {en: "Gallery", ms: "Galeri"},
 	"admin.side.programmes":    {en: "Programmes", ms: "Program"},
+	"admin.side.organisations": {en: "Organisations", ms: "Organisasi"},
 	"admin.side.certificates":  {en: "Certificates", ms: "Sijil"},
 	"admin.side.cert-details":  {en: "Certificate details", ms: "Butiran Sijil"},
 	"admin.side.plans":         {en: "Lab Plans", ms: "Pelan Lab"},
@@ -1478,6 +1481,26 @@ var catalog = map[string]entry{
 	"programmes.not-found.title": {en: "Programme not found", ms: "Program tidak dijumpai"},
 	"programmes.not-found":       {en: "This Programme does not exist or was deleted.", ms: "Program ini tidak wujud atau telah dipadam."},
 	// ---- end Programmes (#123) ----
+
+	// ---- Organisations: the bodies Live Courses are run for, and their logos (#198) ----
+	"orgs.title":           {en: "Organisations", ms: "Organisasi"},
+	"orgs.intro":           {en: "The bodies Live Courses are run for. A Live Course's Certificates print its Organisation's logo.", ms: "Badan yang menjadi penganjur Kursus Langsung. Sijil Kursus Langsung mencetak logo Organisasinya."},
+	"orgs.none":            {en: "No Organisations yet.", ms: "Belum ada Organisasi."},
+	"orgs.new":             {en: "New Organisation", ms: "Organisasi baharu"},
+	"orgs.edit":            {en: "Edit Organisation", ms: "Sunting Organisasi"},
+	"orgs.back":            {en: "All Organisations", ms: "Semua Organisasi"},
+	"orgs.name":            {en: "Name", ms: "Nama"},
+	"orgs.logo":            {en: "Logo", ms: "Logo"},
+	"orgs.logo-alt":        {en: "%s logo", ms: "Logo %s"},
+	"orgs.logo-hint":       {en: "PNG, JPG or SVG, up to 2 MB. A new logo replaces the current one on later Certificates.", ms: "PNG, JPG atau SVG, sehingga 2 MB. Logo baharu menggantikan logo semasa pada Sijil seterusnya."},
+	"orgs.search":          {en: "Search the web for this logo", ms: "Cari logo ini di web"},
+	"orgs.err.name":        {en: "Enter a name.", ms: "Masukkan nama."},
+	"orgs.err.logo":        {en: "Upload a PNG, JPG or SVG logo. An SVG may not contain scripts.", ms: "Muat naik logo PNG, JPG atau SVG. SVG tidak boleh mengandungi skrip."},
+	"orgs.err.too-large":   {en: "This logo is too large. Logos are limited to 2 MB, and nothing was saved.", ms: "Logo ini terlalu besar. Logo terhad kepada 2 MB, dan tiada apa-apa disimpan."},
+	"orgs.err.in-use":      {en: "A Live Course uses this Organisation. Choose another for it, or none, before deleting.", ms: "Kursus Langsung menggunakan Organisasi ini. Pilih Organisasi lain atau tiada untuknya sebelum memadam."},
+	"orgs.not-found.title": {en: "Organisation not found", ms: "Organisasi tidak dijumpai"},
+	"orgs.not-found":       {en: "This Organisation does not exist or was deleted.", ms: "Organisasi ini tidak wujud atau telah dipadam."},
+	// ---- end Organisations (#198) ----
 
 	// Home page: Coach Adam's write-up in Malay; the English is its translation, for him to proofread.
 	"home.title":         {en: "Welcome to CAVELMS", ms: "Selamat Datang ke CAVELMS"},
