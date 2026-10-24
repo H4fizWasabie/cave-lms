@@ -205,8 +205,10 @@ type table struct {
 // header row below any title rows (or take the Learner's, of one or two rows), fill merged data cells down,
 // stop at the first fully blank row and column, then drop totals and labels at the bottom and columns with no data.
 func readTable(f *excelize.File, name string, s Settings) (*table, error) {
-	cells, err := f.GetRows(name, excelize.Options{RawCellValue: true})
-	if err != nil {
+	cells, err := sheetRows(f, name, excelize.Options{RawCellValue: true})
+	if p, ok := err.(Problem); ok {
+		return nil, p
+	} else if err != nil {
 		return nil, Problem{"lab.err.sheet-unreadable", []any{err.Error()}}
 	}
 	h := s.HeaderRow - 1
@@ -295,7 +297,7 @@ func likeliest(f *excelize.File, names []string, picked string) int {
 	}
 	best, most := 0, -1
 	for i, name := range names {
-		cells, _ := f.GetRows(name)
+		cells, _ := sheetRows(f, name)
 		n := 0
 		for _, row := range cells {
 			if strings.TrimSpace(strings.Join(row, "")) != "" {

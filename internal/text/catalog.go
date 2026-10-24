@@ -688,6 +688,10 @@ var catalog = map[string]entry{
 		en: "This workbook is over 50 MB once unpacked. The Lab reads workbooks up to 50 MB unpacked. Delete sheets, pictures or rows you do not need, and upload again.",
 		ms: "Buku kerja ini melebihi 50 MB selepas dibuka. Lab membaca buku kerja sehingga 50 MB selepas dibuka. Padam helaian, gambar atau baris yang tidak diperlukan, dan muat naik semula.",
 	},
+	"lab.err.too-many-cells": {
+		en: "This sheet has too many cells to read: some rows have a cell far out to the right, past the table. Delete the columns to the right of your table, and upload again.",
+		ms: "Helaian ini mempunyai terlalu banyak sel untuk dibaca: beberapa baris mempunyai sel jauh di sebelah kanan, melepasi jadual. Padam lajur di sebelah kanan jadual anda, dan muat naik semula.",
+	},
 	"lab.err.storage-full": {
 		en: "This %s file would take you over your Storage allowance: your Datasets use %s of your %s. Delete a Dashboard you no longer need, or upload a smaller file.",
 		ms: "Fail %s ini akan melebihi had storan anda: Set data anda menggunakan %s daripada %s. Padam Dashboard yang tidak diperlukan lagi, atau muat naik fail yang lebih kecil.",
