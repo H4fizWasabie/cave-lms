@@ -33,7 +33,8 @@ type Sheet struct {
 	Reason     string `json:"reason,omitempty"`     // a text catalog key saying why it cannot join the picked sheet
 }
 
-// MaxCleanRows is the most rows Clean-up keeps, counted on the combined Dataset; MaxColumns the most columns.
+// MaxCleanRows is the most rows Clean-up keeps and MaxColumns the most columns, both counted on the Dataset as
+// made: combined, with empty columns dropped and the Sheet or Date column added.
 const (
 	MaxCleanRows = 50000
 	MaxColumns   = 100
@@ -162,6 +163,12 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
 	}
+	switch n := len(d.Columns); {
+	case n > MaxColumns && len(used) > 1:
+		return nil, Problem{"lab.err.too-many-columns-combined", []any{n, d.Columns[0].Name, MaxColumns}}
+	case n > MaxColumns:
+		return nil, Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}
+	}
 	if t.Build == nil {
 		res.Guess = t.guessWork(d)
 	}
@@ -225,9 +232,6 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	header := cells[h]
 	if s.TwoRowHeader {
 		header = joinHeader(f, name, cells, h, res)
-	}
-	if len(header) > MaxColumns {
-		return nil, Problem{"lab.err.too-many-columns", []any{len(header), MaxColumns}}
 	}
 	raw, rowNo := rawRows(f, name, cells, first-1, len(header))
 	if len(raw) == 0 {

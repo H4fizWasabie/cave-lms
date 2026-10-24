@@ -466,7 +466,19 @@ func TestCleanUpRefusesMoreThan50000CombinedRowsAnd100Columns(t *testing.T) {
 	for i := range wide {
 		wide[i] = fmt.Sprintf("C%d", i+1)
 	}
-	if got, want := cleanProblem(t, testutil.Workbook(t, sheet("Lebar", wide, row(1)))), "The sheet has 101 columns. The Lab reads up to 100 columns."; got != want {
+	data := make([]any, 101)
+	for i := range data {
+		data[i] = i
+	}
+	if got, want := cleanProblem(t, testutil.Workbook(t, sheet("Lebar", wide, data))), "The sheet has 101 columns with data. The Lab reads up to 100 columns. Delete some columns and upload again."; got != want {
+		t.Fatalf("problem = %q, want %q", got, want)
+	}
+	// The limit counts the Dataset as made: an empty column is dropped first, and the Sheet column added after.
+	if res := cleanWith(t, testutil.Workbook(t, sheet("Lebar", wide, data[:100])), lab.Settings{}); len(res.Dataset.Columns) != 100 {
+		t.Fatalf("%d columns, want 100 once the empty one is dropped", len(res.Dataset.Columns))
+	}
+	file = testutil.Workbook(t, sheet("A", wide[:100], data[:100]), sheet("B", wide[:100], data[:100]))
+	if got, want := cleanProblem(t, file), "Combined, the sheets have 101 columns, counting the Sheet column Cave adds. The Lab reads up to 100 columns. Delete a column, or pick one sheet alone, and upload again."; got != want {
 		t.Fatalf("problem = %q, want %q", got, want)
 	}
 }

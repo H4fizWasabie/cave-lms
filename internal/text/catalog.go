@@ -711,7 +711,14 @@ var catalog = map[string]entry{
 		en: "The %d ticked sheets have %s rows together. The Lab reads up to %s rows. Tick fewer sheets and upload again.",
 		ms: "%d helaian yang ditanda ada %s baris kesemuanya. Lab membaca sehingga %s baris. Tanda lebih sedikit helaian dan muat naik semula.",
 	},
-	"lab.err.too-many-columns": {en: "The sheet has %d columns. The Lab reads up to %d columns.", ms: "Helaian ini ada %d lajur. Lab membaca sehingga %d lajur."},
+	"lab.err.too-many-columns": {
+		en: "The sheet has %d columns with data. The Lab reads up to %d columns. Delete some columns and upload again.",
+		ms: "Helaian ini ada %d lajur berisi data. Lab membaca sehingga %d lajur. Padam beberapa lajur dan muat naik semula.",
+	},
+	"lab.err.too-many-columns-combined": {
+		en: "Combined, the sheets have %d columns, counting the %s column Cave adds. The Lab reads up to %d columns. Delete a column, or pick one sheet alone, and upload again.",
+		ms: "Apabila digabung, helaian ini ada %d lajur, termasuk lajur %s yang ditambah oleh Cave. Lab membaca sehingga %d lajur. Padam satu lajur, atau pilih satu helaian sahaja, dan muat naik semula.",
+	},
 	"lab.err.missing-column": {
 		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
 		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",
