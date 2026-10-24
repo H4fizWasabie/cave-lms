@@ -261,6 +261,29 @@ func TestATwoRowHeaderJoinsItsRowsIntoOneNamePerColumn(t *testing.T) {
 	}
 }
 
+// A two-row header's top row may hold only a few group names merged across; it is still the header's first row.
+func TestATwoRowHeaderKeepsASparseMergedTopRow(t *testing.T) {
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Jualan Oktober 2026"},
+		[]any{nil, "Jualan", nil, nil, "Kos", nil, nil},
+		[]any{"Tarikh", "Tunai", "Kad", "QR", "Sewa", "Gaji", "Lain"},
+		[]any{day, 120, 80, 10, 500, 300, 20},
+	)
+	file = testutil.Merge(t, file, "B2:D2", "E2:G2")
+	res, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{TwoRowHeader: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, c := range res.Dataset.Columns {
+		names = append(names, c.Name)
+	}
+	want := []string{"Tarikh", "Jualan Tunai", "Jualan Kad", "Jualan QR", "Kos Sewa", "Kos Gaji", "Kos Lain"}
+	if res.HeaderRow != 2 || !reflect.DeepEqual(names, want) || len(res.Dataset.Rows) != 1 {
+		t.Fatalf("header row %d, columns %q, %d rows; want 2, %q, 1 row", res.HeaderRow, names, len(res.Dataset.Rows), want)
+	}
+}
+
 func TestWorkGuessingMatchesNamesLooselyAndNeverByTypeAlone(t *testing.T) {
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
 	file := testutil.XLSX(t, []string{"No. Resit", "Created Date & Time", "Total Amount (RM)", "Bilangan"},

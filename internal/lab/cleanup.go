@@ -200,7 +200,9 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	}
 	h := s.HeaderRow - 1
 	if h < 0 {
-		h = headerRow(cells)
+		if h = headerRow(cells); s.TwoRowHeader && groupsAbove(f, name, cells, h) {
+			h--
+		}
 	}
 	first := h + 1 // the first data row
 	if s.TwoRowHeader {
@@ -247,6 +249,22 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	// ponytail: a blank first cell on any row reads as a grouped table; the Learner can pick the sheet instead.
 	flat := !slices.ContainsFunc(raw, func(vals []cell) bool { return vals[0].v == "" })
 	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat, changes: res.Changes}, nil
+}
+
+// groupsAbove reports whether header row h, found by headerRow, is the bottom row of a two-row header whose
+// top row holds only a few group names: data starts right below h, and the row above has two names or more, or
+// a name merged across columns other than from the first (a title merged across the sheet starts at A).
+func groupsAbove(f *excelize.File, sheet string, cells [][]string, h int) bool {
+	if h < 1 || h+1 >= len(cells) || !slices.ContainsFunc(cells[h+1], func(v string) bool { _, ok := number(strings.TrimSpace(v)); return ok }) {
+		return false
+	}
+	names := 0
+	for _, v := range cells[h-1] {
+		if strings.TrimSpace(v) != "" {
+			names++
+		}
+	}
+	return names >= 2 || slices.ContainsFunc(merged(f, sheet), func(m [4]int) bool { return m[0] == h-1 && m[1] > 0 && m[3] > m[1] })
 }
 
 // columnKey is a column name as sheets are matched on: ignoring case and extra spaces.
