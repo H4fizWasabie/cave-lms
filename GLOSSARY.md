@@ -236,7 +236,7 @@ _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
 **Template**:
-A dashboard design with blanks for columns, such as Finance, Inventory, HR, Sales, Roster or General.
+A dashboard design with blanks for columns, such as Finance, Inventory, HR, Sales, Roster or General. It is where every Dashboard starts: its blocks stay fixed in a Practice Dashboard and can be changed in a Work Dashboard.
 _Malay_: Templat
 _Avoid_: Theme, layout, preset
 
@@ -251,19 +251,29 @@ _Malay_: Sampel
 _Avoid_: Example file, demo data
 
 **Dataset**:
-The table Cave keeps from a Learner's Excel upload, their own data or an edited Sample, from one sheet, or from several sheets with the same columns combined, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It belongs to exactly one Dashboard. Confirming a new upload makes it the Dashboard's current Dataset; the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
+The table Cave keeps from a Learner's Excel upload, their own data or an edited Sample; the uploaded file itself is not kept. It belongs to exactly one Dashboard. In a Practice Dashboard it is read as uploaded and replaced by each new upload. In a Work Dashboard it comes from one sheet, or from several sheets with the same columns combined, after Clean-up and the Learner's confirmation; confirming a new upload makes it the current Dataset, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
 
 **Clean-up**:
-What Cave changes in an upload to turn it into a Dataset, such as skipping title rows or reading `-` as 0, shown to the Learner before they confirm.
+What Cave changes in an upload to turn it into a Dataset, such as skipping title rows or reading `-` as 0, shown to the Learner before they confirm. Only in a Work Dashboard.
 _Malay_: Pembersihan
 _Avoid_: Sanitise, normalise, transform, fix
 
 **Dashboard**:
-A Template filled with one Learner's Dataset and their choice of column for each blank.
+A Template filled with one Learner's Dataset and their choice of column for each blank. Either a Practice Dashboard or a Work Dashboard; both can be deployed.
 _Malay_: Dashboard (kept in English)
 _Avoid_: Report, chart, app
+
+**Practice Dashboard**:
+A Dashboard for learning: its Template's blocks are fixed, an upload is read as it is, and the Learner can look under the hood at the code Cave generates.
+_Malay_: Dashboard Latihan
+_Avoid_: Static dashboard, teaching dashboard, demo
+
+**Work Dashboard**:
+A Dashboard for a Learner's real work data: Cave cleans each upload, the Learner can change the blocks its Template starts with, and earlier Datasets are kept. It is made new, never from a Practice Dashboard.
+_Malay_: Dashboard Kerja
+_Avoid_: Live dashboard, dynamic dashboard, hosted dashboard, real dashboard, dashboard engine
 
 **Deployment**:
 A Dashboard put online for anyone with its link. It is awake while the Learner has an active Plan period, and updating its Dataset updates it. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
