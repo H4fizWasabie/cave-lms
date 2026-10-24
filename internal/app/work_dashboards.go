@@ -321,7 +321,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
-	if d.Config != nil && fits(d.Config, res.Dataset) { // nothing new to check: it goes live
+	if d.Config != nil && allFit(d.Config, res.Dataset) { // nothing new to check: it goes live
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
@@ -389,7 +389,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		cfg = picked(cfg, p.Dataset, r.Form)
+		cfg, c = withPicks(cfg, c, p.Dataset, r.Form)
 	}
 	choices, err := json.Marshal(c)
 	if err != nil {

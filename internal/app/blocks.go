@@ -83,9 +83,9 @@ func newBlocksView(d *dashboard, lang string, open int, saved bool) *blocksView 
 	}
 	uses := cfg.Uses()
 	for i, b := range cfg.Blocks {
-		card := b.Kind == "card"
+		card := b.IsCard()
 		row := blockRow{WorkBlock: b, I: i, Summary: b.Summary(lang), Open: i == open, Gone: b.Gone(ds),
-			First: i == 0 || (cfg.Blocks[i-1].Kind == "card") != card, Last: i == len(cfg.Blocks)-1 || (cfg.Blocks[i+1].Kind == "card") != card}
+			First: i == 0 || cfg.Blocks[i-1].IsCard() != card, Last: i == len(cfg.Blocks)-1 || cfg.Blocks[i+1].IsCard() != card}
 		for _, name := range b.Missing(ds) {
 			u := uses[slices.IndexFunc(uses, func(u lab.Use) bool { return u.Name == name })]
 			row.Needs = append(row.Needs, need{Name: name, Options: u.Options(ds)})
@@ -141,7 +141,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	}
 	if v := b.Value; v != nil {
 		var aggs []option
-		for _, a := range []string{"count", "sum", "avg", "distinct", "calc"} {
+		for _, a := range lab.Aggs {
 			aggs = append(aggs, option{Value: a, Text: text.T(lang, "lab.b.agg."+a), On: v.Agg == a})
 		}
 		field("agg", "lab.b.value", aggs)
@@ -154,7 +154,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		case "calc":
 			field("a", "lab.b.calc-a", columns(ds, lab.Number, v.A, ""))
 			var ops []option
-			for _, o := range [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} {
+			for _, o := range lab.Ops {
 				ops = append(ops, option{Value: o[0], Text: o[1], On: v.Op == o[0]})
 			}
 			field("op", "lab.b.calc-op", ops)
@@ -169,10 +169,13 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	case "bar":
 		field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
 		top := choice{Name: "top", Label: text.T(lang, "lab.b.top")}
-		for _, n := range []int{5, 8, 15} {
-			top.Options = append(top.Options, option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n})
+		for _, n := range lab.Tops {
+			o := option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n}
+			if n == 0 {
+				o.Text = text.T(lang, "lab.b.top-all")
+			}
+			top.Options = append(top.Options, o)
 		}
-		top.Options = append(top.Options, option{Value: "0", Text: text.T(lang, "lab.b.top-all"), On: b.Top == 0})
 		row.Radios = append(row.Radios, top)
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
@@ -182,7 +185,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		row.ColTicks = &cols
 		field("sort", "lab.b.sort", columns(ds, "", b.Sort, text.T(lang, "lab.b.none")))
 		limit := choice{Name: "limit", Label: text.T(lang, "lab.b.rows")}
-		for _, n := range []int{10, 25, 50} {
+		for _, n := range lab.Limits {
 			limit.Options = append(limit.Options, option{Value: strconv.Itoa(n), Text: strconv.Itoa(n), On: b.Limit == n})
 		}
 		row.Radios = append(row.Radios, limit)
@@ -228,11 +231,15 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			}
 		}
 		for _, s := range all {
-			vals.Options = append(vals.Options, option{Value: s, Text: s, On: slices.Contains(f.Vals, s), Gone: slices.Contains(row.Gone, s)})
+			o := option{Value: s, Text: s, On: slices.Contains(f.Vals, s), Gone: slices.Contains(row.Gone, s)}
+			if s == "(blank)" {
+				o.Text = text.T(lang, "lab.b.blank")
+			}
+			vals.Options = append(vals.Options, o)
 		}
 		row.FilterVals = &vals
 	}
-	if b.Kind != "card" {
+	if !b.IsCard() {
 		wide := "half"
 		if b.Wide {
 			wide = "full"
@@ -294,7 +301,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		}
 		b.Filter = &lab.Filter{Col: col, Vals: vals}
 	}
-	b.Fill(ds)
+	b.Fill(ds, old.Missing(ds)...)
 	switch typed := strings.TrimSpace(f.Get("label")); {
 	case typed == "":
 		b.Label, b.LabelSet = b.AutoLabel(lang), false
@@ -325,6 +332,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	}
 	cfg := *d.Config // edited apart, so a refused edit leaves d.Config as saved
 	cfg.Blocks = slices.Clone(cfg.Blocks)
+	choices := d.Choices // follow Use instead, so Reset to Template fills the blanks from the new column
 	i, err := strconv.Atoi(r.FormValue("block"))
 	if err != nil || i < 0 || i >= len(cfg.Blocks) {
 		i = -1
@@ -365,6 +373,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 			break
 		}
 		cfg.Rename(map[string]string{from: to})
+		choices = choices.Rename(map[string]string{from: to})
 		at = i
 	case "reset": // the Template's blocks and filter bar from the current columns; General rebuilds from the Dataset
 		cfg, err = *d.Template.Open(d.Choices, d.Dataset), nil
@@ -393,7 +402,12 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		a.serverError(w, r, err)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, updated_at = now() WHERE id = $1`, d.ID, config); err != nil {
+	chosen, err := json.Marshal(choices)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, choices = $3, updated_at = now() WHERE id = $1`, d.ID, config, chosen); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
