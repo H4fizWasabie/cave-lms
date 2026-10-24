@@ -53,6 +53,17 @@ func (p *pendingDataset) Tickable() bool {
 	return slices.ContainsFunc(p.Sheets, func(s lab.Sheet) bool { return s.CanCombine })
 }
 
+// Grid is the month and year Clean-up dated the days-across grids in, for the preview to ask again; nil if the
+// upload had no grid.
+func (p *pendingDataset) Grid() *struct{ Month, Year int } {
+	for _, c := range p.Changes {
+		if c.Key == "lab.clean.unpivoted" && len(c.Args) == 3 {
+			return &struct{ Month, Year int }{c.Args[1], c.Args[2]}
+		}
+	}
+	return nil
+}
+
 // UsedList is the sheets that went in, for the preview.
 func (p *pendingDataset) UsedList() string { return strings.Join(p.Used, ", ") }
 
@@ -231,6 +242,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			return
 		}
 	}
+	// The grid month and year hold for this upload only, so the next month's workbook is dated afresh.
+	settings.Month, _ = strconv.Atoi(r.FormValue("month"))
+	settings.Year, _ = strconv.Atoi(r.FormValue("year"))
 	res, err := lab.Clean(file, d.Template, settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {

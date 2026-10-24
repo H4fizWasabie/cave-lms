@@ -202,6 +202,36 @@ func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
 	upload(months(t, false, "Apr", "Mei"), "Apr, Mei")
 }
 
+func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	header := []any{"Staff"}
+	for d := 1; d <= 31; d++ {
+		header = append(header, d)
+	}
+	ali := []any{"Ali", "P", "M"}
+	file := testutil.Workbook(t, testutil.Sheet{Name: "Jadual", Rows: [][]any{{"Jadual Tugas Oktober 2026"}, header, ali}})
+	upload := func(want string, fields ...url.Values) string {
+		t.Helper()
+		res, body := ada.postFile(path+"/dataset", "jadual.xlsx", file, fields...)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+		res, body = ada.get(path)
+		expectStatus(t, res, body, http.StatusOK, want)
+		return body
+	}
+
+	body := upload("Turned the days across the columns into 2 rows, one per staff per day, dated 10/2026.")
+	for _, want := range []string{`name="month" value="10"`, `name="year" value="2026"`, "2026-10-02"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the preview lacks %s:\n%s", want, body)
+		}
+	}
+	body = upload("dated 1/2027.", url.Values{"month": {"1"}, "year": {"2027"}})
+	if !strings.Contains(body, "2027-01-02") {
+		t.Fatalf("the Learner's month is not used:\n%s", body)
+	}
+}
+
 func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createWork("finance", "Kedai")
