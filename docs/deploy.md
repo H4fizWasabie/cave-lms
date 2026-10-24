@@ -41,6 +41,8 @@ Once per VPS. Run as root on the VPS.
 
    For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only live orders on the form that Admin > CaveText settings > Payment link points to give Pro; Test Mode orders are only logged. The Test Mode copies of the forms send to staging instead (see Staging). Without the key every webhook gets 404.
 
+   BCL signs no webhook, so also add `BCL_API_TOKEN`: in BCL, Platform Setup > Integrations > Developer, create an API token with Read access, named for production. Each paid order is then looked up at `https://bcl.my/api/transactions/<order>` (live orders only) and gives nothing unless BCL reports it successful (status 3), for the webhook's amount and payer email, and that amount covers what the order claims to have paid. An order BCL reports differently (amount, payer email, or a charge under the claimed price) is answered 200 (so BCL does not retry it), gives nothing, is not kept for an Admin, and writes a System log error naming the order number: look there for orders nobody recognises. An order BCL does not know yet or has not marked successful, or BCL out of reach or failing (10 s timeout, or a wrong or revoked token), is answered 500 and logged, and BCL retries: a real payment is given once BCL confirms it. A forged order number keeps failing that way, so many such System log errors for one order, or every order failing (the token), need a look. Without the token, orders are not confirmed, the app says so at startup, and anyone who learns the webhook address can forge one. `BCL_API_URL` (default `https://bcl.my/api`) is for tests only.
+
    For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
 
    For AI-written Exam questions, add the `OPENROUTER_` settings the same way (see AI writer below). Without them the Exam page says the AI writer is not configured.
@@ -95,7 +97,7 @@ It ships only the staging binary, unit and Caddy site, and leaves production and
 ### What keeps staging off the real world
 
 - **Email** goes only to the addresses in `EMAIL_ALLOWLIST` (comma-separated; `@example.com` allows a whole domain). Any other message is not sent: it goes to the System log (and journald) in full, link included, so the Owner can read it at `staging.cavelms.com/admin/log`. Production leaves `EMAIL_ALLOWLIST` unset and emails everyone.
-- **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
+- **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Each is confirmed with BCL's API when `BCL_API_TOKEN` is set, as on production. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
 - **Data** starts empty. Set up Courses, Exams and prices by hand in staging's Admin.
 - **CaveText** can't sign in to staging: `CAVETEXT_EXTENSION_IDS` is unset and the extension would trip over the login. A Test Mode payment still gives Pro, and the System log says so.
 
@@ -123,7 +125,7 @@ Run as root on the VPS unless a step says otherwise.
    EOF
    ```
 
-   Add the client's addresses to `EMAIL_ALLOWLIST`. Then, with an editor, add `RESEND_API_KEY` (a new Resend key with Sending access only, named for staging, so it can be revoked alone; it shares production's 100 emails a day) and `BCL_WEBHOOK_KEY` (a new one, `openssl rand -hex 24`, not production's).
+   Add the client's addresses to `EMAIL_ALLOWLIST`. Then, with an editor, add `RESEND_API_KEY` (a new Resend key with Sending access only, named for staging, so it can be revoked alone; it shares production's 100 emails a day), `BCL_WEBHOOK_KEY` (a new one, `openssl rand -hex 24`, not production's) and `BCL_API_TOKEN` (a new BCL API token with Read access, from Platform Setup > Integrations > Developer, named for staging so it can be revoked alone). With `BCL_PAYMENTS=test` orders are looked up at `https://bcl.my/api/transaction/<order>`, which also finds Test Mode orders.
 3. Create the login, user `cave`. The password is generated into a root-only file; read it there (`cat /etc/cave-lms/staging-login-password`) and give it to the client out of band:
 
    ```sh

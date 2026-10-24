@@ -57,6 +57,9 @@ func serve() error {
 	} else {
 		log.Printf("Writing Exam questions and marking Written answers with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
 	}
+	if cfg.BCLWebhookKey != "" && cfg.BCLAPIToken == "" {
+		log.Print("BCL_API_TOKEN is not set: BCL webhook orders are not confirmed with BCL, so a forged one would count")
+	}
 	application, err := app.New(context.Background(), cfg, m, w)
 	if err != nil {
 		return err

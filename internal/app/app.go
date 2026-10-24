@@ -52,6 +52,8 @@ type App struct {
 	caveTextExtensionIDs []string      // the extensions the CaveText connect page may send tokens to
 	bclWebhookKey        string        // the secret in BCL's webhook address; empty refuses every webhook
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
+	bclAPIToken          string        // a BCL API Read token to confirm orders with; empty confirms none
+	bclAPIURL            string        // BCL's API, without a trailing slash
 	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
 	// releasing is held by a run of releaseResults, so two runs never release at once.
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
@@ -162,7 +164,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, done: make(chan struct{}), now: time.Now}
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now}
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
