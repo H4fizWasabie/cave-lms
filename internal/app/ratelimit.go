@@ -98,6 +98,19 @@ func (l *rateLimiter) allow(key string, limit int, window time.Duration, now tim
 	return true
 }
 
+// allowLogin records a login attempt from address to account and reports whether both are within budget. The address
+// goes first, so once it is blocked a flood of new emails from it adds no account keys; a refusal leaves no count.
+func (l *rateLimiter) allowLogin(account, address string, now time.Time) bool {
+	if !l.allow(address, loginFailuresPerAddress, rateLimitWindow, now) {
+		return false
+	}
+	if !l.allow(account, loginFailuresPerAccount, rateLimitWindow, now) {
+		l.forget(address)
+		return false
+	}
+	return true
+}
+
 // sweep drops, at most once per longestWindow, every key with no attempt in the last longestWindow, so the map doesn't
 // grow with each address ever seen. The caller holds mu.
 func (l *rateLimiter) sweep(now time.Time) {
@@ -116,12 +129,15 @@ func (l *rateLimiter) sweep(now time.Time) {
 func (l *rateLimiter) forget(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if n := len(l.attempts[key]); n > 0 {
+	switch n := len(l.attempts[key]); n {
+	case 0, 1:
+		delete(l.attempts, key) // an empty key holds nothing
+	default:
 		l.attempts[key] = l.attempts[key][:n-1]
 	}
 }
 
-// recent drops key's attempts older than window and returns how many are left. The caller holds mu.
+// recent drops key's attempts older than window, and key itself once none are left, and returns how many are left. The caller holds mu.
 func (l *rateLimiter) recent(key string, window time.Duration, now time.Time) int {
 	if l.attempts == nil {
 		l.attempts = map[string][]time.Time{}
@@ -133,6 +149,10 @@ func (l *rateLimiter) recent(key string, window time.Duration, now time.Time) in
 			kept = append(kept, t)
 		}
 	}
-	l.attempts[key] = kept
+	if len(kept) == 0 {
+		delete(l.attempts, key)
+	} else {
+		l.attempts[key] = kept
+	}
 	return len(kept)
 }
