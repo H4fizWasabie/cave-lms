@@ -91,7 +91,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	for i, tb := range tables {
 		if tb != nil && tb.days > 0 {
 			if tb.unpivot(year, month); len(tb.raw) == 0 {
-				tables[i], problems[i] = nil, Problem{"lab.err.no-data", nil}
+				tables[i], problems[i] = nil, Problem{"lab.err.grid-empty", []any{tb.header + 1}}
 			}
 		}
 	}
@@ -109,8 +109,16 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil })
 		}
 	}
+	// onSheet names the sheet a Problem is on, when the workbook has several.
+	onSheet := func(p error, sheet string) error {
+		if len(names) > 1 {
+			return Problem{"lab.err.on-sheet", []any{sheet, p}}
+		}
+		return p
+	}
 	if pick < 0 {
-		return nil, problems[max(slices.Index(names, s.Sheet), 0)]
+		i := likeliest(f, names, s.Sheet)
+		return nil, onSheet(problems[i], names[i])
 	}
 	base := tables[pick]
 	var used []*table
@@ -151,7 +159,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	case len(raw) > MaxCleanRows && len(used) > 1:
 		return nil, Problem{"lab.err.too-many-rows-combined", []any{len(used), thousands(len(raw)), thousands(MaxCleanRows)}}
 	case len(raw) > MaxCleanRows:
-		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}
+		return nil, onSheet(Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}, base.name)
 	}
 	res.HeaderRow = base.header + 1
 	for _, tb := range used {
@@ -168,7 +176,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	case n > MaxColumns && len(used) > 1:
 		return nil, Problem{"lab.err.too-many-columns-combined", []any{n, d.Columns[0].Name, MaxColumns}}
 	case n > MaxColumns:
-		return nil, Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}
+		return nil, onSheet(Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}, base.name)
 	}
 	if t.Build == nil {
 		res.Guess = t.guessWork(d)
@@ -196,7 +204,7 @@ type table struct {
 func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	cells, err := f.GetRows(name, excelize.Options{RawCellValue: true})
 	if err != nil {
-		return nil, Problem{"lab.err.unreadable", []any{err.Error()}}
+		return nil, Problem{"lab.err.sheet-unreadable", []any{err.Error()}}
 	}
 	h := s.HeaderRow - 1
 	if h < 0 {
@@ -208,8 +216,11 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	if s.TwoRowHeader {
 		first++
 	}
-	if h < 0 || first >= len(cells) {
-		return nil, Problem{"lab.err.no-data", nil}
+	switch {
+	case h < 0:
+		return nil, Problem{"lab.err.no-header", nil}
+	case first >= len(cells):
+		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	res := &CleanUp{} // collects this sheet's changes
 	if s.HeaderRow > 0 {
@@ -238,12 +249,18 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	}
 	raw, rowNo := rawRows(f, name, cells, first-1, len(header))
 	if len(raw) == 0 {
-		return nil, Problem{"lab.err.no-data", nil}
+		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	raw, rowNo = dropBottom(raw, rowNo, res)
 	header, raw = dropEmpty(header, raw, res)
 	cols, err := columnsOf(header)
-	if err != nil {
+	if p, ok := err.(Problem); ok {
+		switch p.Key {
+		case "lab.err.unnamed-column":
+			return nil, Problem{"lab.err.header-unnamed", append(p.Args, h+1)}
+		case "lab.err.same-name":
+			return nil, Problem{"lab.err.header-same-name", append(p.Args, h+1)}
+		}
 		return nil, err
 	}
 	// ponytail: a blank first cell on any row reads as a grouped table; the Learner can pick the sheet instead.
@@ -265,6 +282,28 @@ func groupsAbove(f *excelize.File, sheet string, cells [][]string, h int) bool {
 		}
 	}
 	return names >= 2 || slices.ContainsFunc(merged(f, sheet), func(m [4]int) bool { return m[0] == h-1 && m[1] > 0 && m[3] > m[1] })
+}
+
+// likeliest is the index of the sheet whose Problem to give when no sheet reads: the one the Learner picked,
+// else the one with the most filled rows, likely the table rather than a cover or notes sheet.
+func likeliest(f *excelize.File, names []string, picked string) int {
+	if i := slices.Index(names, picked); i >= 0 {
+		return i
+	}
+	best, most := 0, -1
+	for i, name := range names {
+		cells, _ := f.GetRows(name)
+		n := 0
+		for _, row := range cells {
+			if strings.TrimSpace(strings.Join(row, "")) != "" {
+				n++
+			}
+		}
+		if n > most {
+			best, most = i, n
+		}
+	}
+	return best
 }
 
 // columnKey is a column name as sheets are matched on: ignoring case and extra spaces.

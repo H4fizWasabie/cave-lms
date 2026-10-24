@@ -80,7 +80,7 @@ func readGrid(name string, cells [][]string, h, first, days int) (*table, error)
 		tb.raw, tb.rowNo = append(tb.raw, vals), append(tb.rowNo, r+1)
 	}
 	if len(tb.raw) == 0 {
-		return nil, Problem{"lab.err.no-data", nil}
+		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	for _, row := range cells[:h] {
 		tb.title += " " + strings.Join(row, " ")

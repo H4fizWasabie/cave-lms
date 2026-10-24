@@ -333,6 +333,43 @@ func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 	}
 }
 
+// A file Clean-up cannot read gives the likely cause, the row in Excel and, with several sheets, the sheet: the
+// one most like a table, not a cover sheet before it.
+func TestCleanUpSaysWhyAFileCannotBeReadAndWhere(t *testing.T) {
+	codes := grid("Jadual", []any{"Nama"}, days([]any{"Ali"}, nil))
+	for _, c := range []struct {
+		file   []byte
+		en, ms string
+	}{
+		{testutil.Workbook(t, sheet("Jualan", row("Laporan"), row("Perkara", "Jumlah", nil), row("Beras", 12, "nota"))),
+			"Column C has data but no name in the header, row 2. Name the column there and upload again.",
+			"Lajur C ada data tetapi tiada nama dalam tajuk lajur, baris 2. Namakan lajur itu di situ dan muat naik semula."},
+		{testutil.Workbook(t,
+			sheet("Kulit", row("Laporan Jualan 2026"), row("Disediakan oleh", "Ali")),
+			sheet("Data", row("Laporan"), row("Perkara", "Jumlah", "Jumlah"), row("Beras", 12, 3), row("Gula", 5, 1))),
+			"Sheet Data: Two columns are called Jumlah in the header, row 2. Give each column its own name and upload again.",
+			"Helaian Data: Dua lajur bernama Jumlah dalam tajuk lajur, baris 2. Berikan setiap lajur namanya sendiri dan muat naik semula."},
+		{testutil.Workbook(t, sheet("Jualan", row("Perkara", "Jumlah"))),
+			"Cave read row 1 as the column names but found no data below it. Add the data under that row and upload again.",
+			"Cave membaca baris 1 sebagai nama lajur tetapi tiada data di bawahnya. Tambah data di bawah baris itu dan muat naik semula."},
+		{testutil.Workbook(t, sheet("Kosong")),
+			"Cave found no row of column names with data below it. Put the column names in one row above the data and upload again.",
+			"Cave tidak menemui baris nama lajur dengan data di bawahnya. Letakkan nama lajur dalam satu baris di atas data dan muat naik semula."},
+		{testutil.Workbook(t, codes),
+			"The days-across grid with its days in row 2 has no codes in the month's days. Fill in the codes and upload again.",
+			"Grid hari merentas lajur dengan harinya di baris 2 tiada kod pada hari-hari bulan itu. Isi kod tersebut dan muat naik semula."},
+	} {
+		_, err := lab.Clean(bytes.NewReader(c.file), lab.General, lab.Settings{})
+		var p lab.Problem
+		if !errors.As(err, &p) {
+			t.Fatalf("err = %v, want a Problem", err)
+		}
+		if p.In("en") != c.en || p.In("ms") != c.ms {
+			t.Errorf("problem = %q / %q, want %q / %q", p.In("en"), p.In("ms"), c.en, c.ms)
+		}
+	}
+}
+
 func row(cells ...any) []any { return cells }
 
 func sheet(name string, rows ...[]any) testutil.Sheet { return testutil.Sheet{Name: name, Rows: rows} }
