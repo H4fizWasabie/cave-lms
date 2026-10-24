@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -68,12 +69,19 @@ func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, 
 	if r.Format == "written" {
 		schema = writtenSchema
 	}
+	user := fmt.Sprintf("Topic: %s\nFormat: %s\nLanguage: %s\nCount: %d\nDifficulty: %s", r.Topic, r.Format, languageNames[r.Language], r.Count, r.Difficulty)
+	if r.KeyPoints != "" {
+		user += "\nKey points:\n" + r.KeyPoints
+	}
+	if len(r.Avoid) > 0 {
+		user += "\nExisting questions on this topic, not to repeat or closely rephrase:\n- " + strings.Join(r.Avoid, "\n- ")
+	}
 	req := map[string]any{
 		"model":      o.Model,
 		"max_tokens": maxReplyTokens,
 		"messages": []map[string]string{
 			{"role": "system", "content": writeQuestionsInstructions},
-			{"role": "user", "content": fmt.Sprintf("Topic: %s\nFormat: %s\nLanguage: %s\nCount: %d", r.Topic, r.Format, languageNames[r.Language], r.Count)},
+			{"role": "user", "content": user},
 		},
 		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "questions", "strict": true, "schema": schema}},
 	}

@@ -3,15 +3,16 @@
     <div class="adm">
       {{template "admin-side" (side "question-bank" $.Learner $.Lang)}}
       <div class="adm-main">
-        <p class="crumbs"><a href="/admin/question-bank">{{t .Lang "bank.back"}}</a></p>
+        <p class="crumbs"><a href="/admin/question-bank{{.Query}}#q-{{.Question.ID}}">{{t .Lang "bank.back"}}</a></p>
         <div class="adm-head"><h1>{{t .Lang "bank.edit-q"}}</h1><p>{{t .Lang (print "bank.format." .Question.Format)}}</p></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-          <form class="form" method="post" action="/admin/question-bank/{{.Question.ID}}">
+          <form class="form" method="post" action="/admin/question-bank/{{.Question.ID}}{{.Query}}">
             <div class="field-grid field-grid-2">
               <div class="field"><label for="topic">{{t .Lang "bank.topic"}}</label><input id="topic" type="text" name="topic" value="{{.Question.Topic}}" required></div>
               <div class="field"><label for="language">{{t .Lang "bank.language"}}</label><select id="language" name="language">{{range .Languages}}<option value="{{.}}"{{if eq . $.Question.Language}} selected{{end}}>{{t $.Lang (print "bank.lang." .)}}</option>{{end}}</select></div>
             </div>
+            <div class="field"><label for="difficulty">{{t .Lang "difficulty"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><select id="difficulty" name="difficulty"><option value=""{{if not .Question.Difficulty}} selected{{end}}>{{t .Lang "difficulty.none"}}</option>{{range difficulties}}<option value="{{.}}"{{if eq . $.Question.Difficulty}} selected{{end}}>{{t $.Lang (print "difficulty." .)}}</option>{{end}}</select></div>
             <div class="field"><label for="prompt">{{t .Lang "adm.exam.question"}}</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
             {{if .Question.Written}}
             <div class="field"><label for="model_answer">{{t .Lang "adm.exam.model-answer"}}</label><textarea id="model_answer" name="model_answer" rows="5" required>{{.Question.ModelAnswer}}</textarea></div>
@@ -28,7 +29,7 @@
               </div>
             </fieldset>
             {{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/question-bank">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.exam.save-q"}}</button></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/question-bank{{.Query}}#q-{{.Question.ID}}">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.exam.save-q"}}</button></div>
           </form>
         </div>
       </div>

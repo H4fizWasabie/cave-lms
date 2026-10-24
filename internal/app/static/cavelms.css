@@ -91,6 +91,7 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .badge-closed { background: #ebebe6; color: var(--muted); }
 .badge-joined { background: var(--brand-gold-soft); color: var(--brand-gold-deep); }
 .badge-revoked { background: var(--bad-soft); color: var(--bad); }
+.badge-difficulty { background: transparent; color: var(--ink-2); border: 1px solid var(--line-strong); }
 
 .empty { color: var(--muted); padding: 1.2rem 0; list-style: none; }
 .link-more { font-weight: 600; font-size: .93rem; text-decoration: underline; text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; white-space: nowrap; }
@@ -814,3 +815,35 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .pcc-level { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; }
 .pcc-level img { height: 6rem; width: auto; }
 .cert-background { display: block; height: auto; margin-top: 12px; border: 1px solid var(--line); }
+
+/* ============================ Exam proofreading ============================
+   An action on a question card comes back to #q-<id>: keep it clear of the top edge and mark it. */
+.q-card { scroll-margin-top: 1.5rem; }
+.q-card:target { border-color: var(--brand-gold); box-shadow: 0 0 0 3px var(--brand-gold-soft); }
+
+/* The CaveLMS busy indicator (cave-loader in layout.html, shown by forms.js): the logo's A peak draws
+   itself, its inner peak rises, and both fade before the next round. Reduced motion: a still mark that pulses. */
+.cave-loader { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; padding: .9rem 1.1rem; border-radius: var(--radius); background: var(--brand-gold-soft); }
+.cave-loader[hidden] { display: none; }
+.cave-loader-mark { width: 3.25rem; height: auto; flex: none; overflow: visible; }
+.cave-loader-label { margin: 0; font-weight: 600; }
+.cave-loader-line { margin: .15rem 0 0; color: var(--muted); font-size: .9rem; min-height: 1.4em; transition: opacity var(--duration-fast) ease; }
+.cave-loader-line.is-out { opacity: 0; }
+.cave-loader-peak { fill: url(#cave-gold); stroke: url(#cave-gold); stroke-width: 4; stroke-linejoin: round; stroke-dasharray: 1; animation: cave-draw 2.4s ease-in-out infinite; }
+.cave-loader-tri { fill: url(#cave-gold); transform-box: view-box; transform-origin: 262px 219.5px; animation: cave-rise 2.4s ease-in-out infinite; }
+@keyframes cave-draw {
+  0% { stroke-dashoffset: 1; fill-opacity: 0; opacity: 1; }
+  45% { stroke-dashoffset: 0; fill-opacity: 0; }
+  65%, 85% { stroke-dashoffset: 0; fill-opacity: 1; opacity: 1; }
+  100% { stroke-dashoffset: 0; fill-opacity: 1; opacity: 0; }
+}
+@keyframes cave-rise {
+  0%, 45% { opacity: 0; transform: scaleY(0); }
+  65%, 85% { opacity: 1; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(1); }
+}
+@keyframes cave-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .cave-loader-peak, .cave-loader-tri { stroke-dasharray: none; animation: cave-pulse 2s ease-in-out infinite; }
+  .cave-loader-line { transition: none; }
+}
