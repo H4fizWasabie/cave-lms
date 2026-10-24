@@ -87,6 +87,17 @@ func (a *App) examFor(w http.ResponseWriter, r *http.Request) (course, exam, boo
 	return c, e, true
 }
 
+// publishedExamFor is examFor for the Learner's routes: a Draft Course is Not found to anyone but the Admin, as on its
+// Course page.
+func (a *App) publishedExamFor(w http.ResponseWriter, r *http.Request, l *learner) (course, exam, bool) {
+	c, e, ok := a.examFor(w, r)
+	if ok && !c.Published && (l == nil || !l.IsAdmin) {
+		a.courseNotFound(w, r)
+		return course{}, exam{}, false
+	}
+	return c, e, ok
+}
+
 // Drafts counts the Exam's Draft questions.
 func (e exam) Drafts() int {
 	n := 0
