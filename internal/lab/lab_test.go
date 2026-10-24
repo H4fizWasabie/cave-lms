@@ -298,6 +298,18 @@ func TestAHeaderBelowRow1IsNamedByItsRow(t *testing.T) {
 	if got, want := p.In("ms"), "Nama lajur anda nampaknya di baris 4, bukan baris 1. Padam baris di atasnya, atau guna Dashboard Kerja, dan muat naik semula."; got != want {
 		t.Fatalf("message = %q, want %q", got, want)
 	}
+
+	// A title in A1 reads as a text column, so HR's text blanks are not missing; the header's cells are stray.
+	file = testutil.Workbook(t, testutil.Sheet{Name: "Sheet1", Rows: [][]any{{"Senarai Staf"}, {}, {"Nama", "Jabatan"}, {"Ali", "Dapur"}}})
+	if _, err := lab.Read(bytes.NewReader(file), lab.TemplateByKey("hr")); err == nil || !strings.HasPrefix(err.Error(), "Your column names seem to be on row 3,") {
+		t.Fatalf("HR: Read gave %v, want the header named on row 3", err)
+	}
+
+	// One name in a data row, like a Total row, is not a header.
+	got := readProblem(t, testutil.XLSX(t, []string{"Tarikh", "Kategori"}, []any{day, "Sewa"}, []any{nil, "Total"}))
+	if !strings.HasPrefix(got, "Column Jumlah is missing.") {
+		t.Fatalf("message = %q, want the missing column", got)
+	}
 }
 
 func TestRefusesMoreThan5000Rows(t *testing.T) {

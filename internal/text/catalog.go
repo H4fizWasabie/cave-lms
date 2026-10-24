@@ -784,13 +784,9 @@ var catalog = map[string]entry{
 	"lab.clean.sheet-differs":    {en: "Its columns differ from the picked sheet's.", ms: "Lajurnya berbeza daripada lajur helaian yang dipilih."},
 	"lab.clean.bottom-row":       {en: "Dropped row %d at the bottom: a total or note, not data.", ms: "Baris %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
 	"lab.clean.bottom-rows":      {en: "Dropped rows %d to %d at the bottom: totals or notes, not data.", ms: "Baris %d hingga %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
-	"lab.clean.bottom-row-each": {
-		en: "Dropped row %d at the bottom of each of %d sheets: a total or note, not data.",
-		ms: "Baris %d di bawah sekali dibuang daripada setiap satu daripada %d helaian: jumlah atau nota, bukan data.",
-	},
-	"lab.clean.bottom-rows-each": {
-		en: "Dropped rows %d to %d at the bottom of each of %d sheets: totals or notes, not data.",
-		ms: "Baris %d hingga %d di bawah sekali dibuang daripada setiap satu daripada %d helaian: jumlah atau nota, bukan data.",
+	"lab.clean.bottom-sheets": {
+		en: "Dropped the rows at the bottom of each of %d sheets: totals or notes, not data.",
+		ms: "Baris di bawah sekali setiap satu daripada %d helaian dibuang: jumlah atau nota, bukan data.",
 	},
 	"lab.clean.cut-columns": {
 		en: "Stopped at the blank column %d: what is to its right (notes or another table) was not read.",

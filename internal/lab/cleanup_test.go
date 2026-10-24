@@ -399,12 +399,15 @@ func TestCleanUpPassesOverAHeaderlessSummarySheetForTheList(t *testing.T) {
 }
 
 func TestCleanUpSaysATotalRowWasDroppedFromEachCombinedSheet(t *testing.T) {
-	file := testutil.Workbook(t, monthSales("June", 40), monthSales("July", 40), monthSales("August", 40))
+	july := monthSales("July", 37)
+	july.Rows = append(july.Rows, row("Checked by Ali")) // two rows at its bottom, on other rows than June's
+	file := testutil.Workbook(t, monthSales("June", 40), july, monthSales("August", 40))
 	res := cleanWith(t, file, lab.Settings{})
-	if got := changesIn(res, "en"); !slices.Contains(got, "Dropped row 45 at the bottom of each of 3 sheets: a total or note, not data.") {
-		t.Fatalf("changes = %q, want the total row dropped from each sheet", got)
+	want := "Dropped the rows at the bottom of each of 3 sheets: totals or notes, not data."
+	if got := changesIn(res, "en"); !slices.Contains(got, want) || slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Dropped row") }) {
+		t.Fatalf("changes = %q, want one line: %q", got, want)
 	}
-	if got := changesIn(res, "ms"); !slices.Contains(got, "Baris 45 di bawah sekali dibuang daripada setiap satu daripada 3 helaian: jumlah atau nota, bukan data.") {
+	if got := changesIn(res, "ms"); !slices.Contains(got, "Baris di bawah sekali setiap satu daripada 3 helaian dibuang: jumlah atau nota, bukan data.") {
 		t.Fatalf("changes = %q", got)
 	}
 }
