@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/xml"
 	"errors"
@@ -27,10 +28,16 @@ type organisation struct {
 	LogoKey string
 }
 
+// logoSearchBase is a web image search, before its query.
+const logoSearchBase = "https://www.google.com/search?tbm=isch&q="
+
 // LogoSearch is a web image search for the Organisation's name, which the Admin opens to find its logo.
 func (o organisation) LogoSearch() string {
-	return "https://www.google.com/search?tbm=isch&q=" + url.QueryEscape(o.Name)
+	return logoSearchBase + url.QueryEscape(o.Name)
 }
+
+// LogoSearchBase is logoSearchBase, for logo-search.js to search for the name as it is typed.
+func (organisation) LogoSearchBase() string { return logoSearchBase }
 
 type organisationsPage struct {
 	pageBase
@@ -52,8 +59,8 @@ const logoSide = 1200
 var svgScript = regexp.MustCompile(`(?i)<script|\son[a-z]+\s*=|javascript:`)
 
 // organisations lists every Organisation, by name, for the Admin and for the Live Course form.
-func (a *App) organisations(r *http.Request) ([]organisation, error) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT id, name, logo_key FROM organisations ORDER BY lower(name), id`)
+func (a *App) organisations(ctx context.Context) ([]organisation, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT id, name, logo_key FROM organisations ORDER BY lower(name), id`)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +77,7 @@ func (a *App) organisations(r *http.Request) ([]organisation, error) {
 }
 
 func (a *App) adminOrganisations(w http.ResponseWriter, r *http.Request) {
-	list, err := a.organisations(r)
+	list, err := a.organisations(r.Context())
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -117,7 +124,7 @@ func (a *App) saveOrganisation(w http.ResponseWriter, r *http.Request, existing 
 			fail(http.StatusRequestEntityTooLarge, "orgs.err.too-large")
 			return
 		}
-		fail(http.StatusBadRequest, "adm.certs.err.unread")
+		fail(http.StatusBadRequest, "orgs.err.unread")
 		return
 	}
 	if r.MultipartForm != nil {
@@ -215,15 +222,7 @@ func (a *App) organisationLogo(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	f, err := a.store.Open(o.LogoKey)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	head := make([]byte, 512)
-	n, _ := io.ReadFull(f, head)
-	f.Close()
-	a.serveStored(w, r, o.LogoKey, http.DetectContentType(head[:n]))
+	a.serveImage(w, r, o.LogoKey)
 }
 
 // deleteOrganisation removes an Organisation no Live Course uses. Its logo file is kept for the Certificates that print it.

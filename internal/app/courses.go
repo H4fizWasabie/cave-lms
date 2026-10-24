@@ -169,7 +169,7 @@ func (a *App) editCourseForm(w http.ResponseWriter, r *http.Request) {
 // renderCourseForm renders the Course form with the Organisations a Live Course may be run for.
 func (a *App) renderCourseForm(w http.ResponseWriter, r *http.Request, status int, p page) {
 	var err error
-	if p.Organisations, err = a.organisations(r); err != nil {
+	if p.Organisations, err = a.organisations(r.Context()); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -216,6 +216,10 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 	_, err = a.db.ExecContext(r.Context(), `UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date,
 		end_date = NULLIF($5, '')::date, days = NULLIF($6, 0), organisation_id = NULLIF($7, 0) WHERE id = $1`,
 		c.ID, c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID)
+	if isForeignKeyError(err) { // the Organisation was deleted while the form was open
+		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Error: text.T(lang, "adm.courses.err.organisation")})
+		return
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -348,12 +352,15 @@ func courseFromForm(r *http.Request, lang string, live bool) (c course, msg stri
 	var end time.Time
 	endErr := errors.New("self-paced")
 	daysText := ""
+	var orgErr error
 	if live {
 		c.EndDate = strings.TrimSpace(r.PostFormValue("end_date"))
 		end, endErr = time.Parse(time.DateOnly, c.EndDate)
 		daysText = strings.TrimSpace(r.PostFormValue("days"))
 		c.Days, _ = strconv.Atoi(daysText)
-		c.OrganisationID, _ = strconv.ParseInt(r.PostFormValue("organisation_id"), 10, 64) // empty is none
+		if v := r.PostFormValue("organisation_id"); v != "" { // empty is none
+			c.OrganisationID, orgErr = strconv.ParseInt(v, 10, 64)
+		}
 	}
 	switch {
 	case c.Title == "":
@@ -366,6 +373,8 @@ func courseFromForm(r *http.Request, lang string, live bool) (c course, msg stri
 		msg = text.T(lang, "adm.courses.err.end-date")
 	case live && (c.Days < 1 || c.Days > 5 || strconv.Itoa(c.Days) != daysText):
 		msg = text.T(lang, "adm.courses.err.days")
+	case orgErr != nil:
+		msg = text.T(lang, "adm.courses.err.organisation")
 	case c.StartDate != "" && startErr != nil:
 		msg = text.T(lang, "adm.courses.err.start-date")
 	}

@@ -476,7 +476,7 @@ func (a *App) placeImage(pdf *fpdf.Fpdf, key string, x, y, w, h float64) error {
 func (a *App) registerImage(pdf *fpdf.Fpdf, key string) (*fpdf.ImageInfoType, error) {
 	f, err := a.store.Open(key)
 	if err != nil {
-		return nil, fmt.Errorf("open certificate image: %w", err)
+		return nil, fmt.Errorf("open stored image: %w", err)
 	}
 	defer f.Close()
 	head := make([]byte, 512)
@@ -526,15 +526,24 @@ func (a *App) certificateBackground(w http.ResponseWriter, r *http.Request) {
 		a.notFound(w, r)
 		return
 	}
-	f, err := a.store.Open(s.BackgroundKey)
+	a.serveImage(w, r, s.BackgroundKey)
+}
+
+// serveImage serves a stored image as the type its content is sniffed as. Only JPEG and PNG pass the upload checks.
+func (a *App) serveImage(w http.ResponseWriter, r *http.Request, key string) {
+	f, err := a.store.Open(key)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	head := make([]byte, 512)
-	n, _ := io.ReadFull(f, head)
+	n, err := io.ReadFull(f, head)
 	f.Close()
-	a.serveStored(w, r, s.BackgroundKey, http.DetectContentType(head[:n])) // the upload check allowed only JPEG and PNG
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		a.serverError(w, r, err)
+		return
+	}
+	a.serveStored(w, r, key, http.DetectContentType(head[:n]))
 }
 
 // saveCertificateSettings stores a new background image, if one was sent, and removes the one it replaces.

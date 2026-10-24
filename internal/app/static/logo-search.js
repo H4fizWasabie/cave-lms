@@ -2,6 +2,6 @@
 (function () {
   var name = document.getElementById("name"), link = document.querySelector("[data-logo-search]");
   name.addEventListener("input", function () {
-    link.href = "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(name.value);
+    link.href = link.dataset.logoSearch + encodeURIComponent(name.value);
   });
 })();

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // duplicateCourseForm is the form that duplicates a Course into a Live Course, filled with the original's title and Organisation.
@@ -34,6 +36,10 @@ func (a *App) duplicateCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, err := a.copyCourse(r.Context(), from.ID, c)
+	if isForeignKeyError(err) { // the Organisation was deleted while the form was open
+		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, DuplicateOf: from.ID, Error: text.T(lang, "adm.courses.err.organisation")})
+		return
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return

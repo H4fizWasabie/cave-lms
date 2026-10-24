@@ -227,3 +227,19 @@ func TestTheLiveCourseFormSetsAndClearsTheOrganisationAndADuplicateKeepsIt(t *te
 	_, body = s.get("/admin/courses/new")
 	expectNone(t, body, "organisation_id")
 }
+
+func TestTheLiveCourseFormRefusesAnOrganisationThatIsNotThere(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	org := s.addOrganisation("PDRM", pngFile)
+	course := s.liveCourseFor("")
+	s.post("/admin/organisations/"+org+"/delete", nil) // deleted while the form was open
+	live := url.Values{"title": {"Go for PDRM"}, "description": {"For PDRM."}, "start_date": {"2027-02-01"}, "end_date": {"2027-02-03"}, "days": {"2"}}
+	for _, id := range []string{org, "x"} {
+		live.Set("organisation_id", id)
+		res, body := s.post("/admin/courses/"+course, live)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose an Organisation from the list.")
+		res, body = s.post("/admin/courses/"+course+"/duplicate", live)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose an Organisation from the list.")
+	}
+}
