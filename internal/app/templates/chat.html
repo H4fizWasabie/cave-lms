@@ -5,83 +5,102 @@
       <p class="crumbs"><a href="/courses">{{t .Lang "nav.courses"}}</a> / <a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
       <h1>{{.Course.Title}}</h1>
       {{template "course-tabs" (courseTab .Course.ID "chat" .Lang)}}
+      <p class="chat-about"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "chat.about"}}</span></p>
       {{- else}}
-      <h1>{{t .Lang "community.chat"}}</h1>
-      {{if not .Learner.IsAdmin}}<form method="post" action="/community/leave"><button class="btn btn-quiet btn-sm">{{t .Lang "community.leave"}}</button></form>{{end}}
+      <div class="chat-intro">
+        <h1>{{t .Lang "community.chat"}}</h1>
+        {{if not .Learner.IsAdmin}}<form method="post" action="/community/leave"><button class="btn btn-ghost btn-sm"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-sign-out"/></svg>{{t .Lang "community.leave"}}</button></form>{{end}}
+      </div>
+      <p class="chat-about"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "community.privacy"}}</span></p>
       {{- end}}
-      {{if .Earlier}}<p class="chat-more"><a href="{{.Path}}?before={{.Earlier}}">{{t .Lang "chat.earlier"}}</a></p>{{end}}
-      <ol class="chat" id="chat" data-stream="{{.Path}}/events"{{if .Paged}} data-paged{{end}}>
-        {{- range .Messages}}{{template "chat-message" .}}{{else}}
-        <li class="chat-empty">{{t .Lang "chat.empty"}}</li>{{end}}
-      </ol>
-      {{if .Paged}}<p class="chat-more"><a href="{{.Path}}">{{t .Lang "chat.latest"}}</a></p>{{end}}
-      <form class="chat-compose" id="compose" method="post" action="{{.Path}}" data-failed="{{t .Lang "chat.err.failed"}}">
-        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-        <p class="chat-replying" id="replying"{{if not .ReplyTo}} hidden{{end}}>
-          <span>{{t .Lang "chat.replying-to"}} <strong>{{with .ReplyTo}}{{.Writer}}{{end}}</strong> <span>{{with .ReplyTo}}{{.FirstLine}}{{end}}</span></span>
-          <a href="{{.Path}}#compose">{{t .Lang "chat.cancel-reply"}}</a>
-        </p>
-        <input type="hidden" name="reply_to" value="{{with .ReplyTo}}{{.ID}}{{end}}">
-        <label class="sr" for="body">{{t .Lang "chat.message"}}</label>
-        <textarea id="body" name="body" rows="2" maxlength="{{maxMessageLength}}" required placeholder="{{t .Lang "chat.placeholder"}}">{{.Body}}</textarea>
-        <button class="btn btn-solid">{{t .Lang "chat.send"}}</button>
-      </form>
+      <div class="chat-shell">
+        {{if .Earlier}}<p class="chat-more"><a href="{{.Path}}?before={{.Earlier}}">{{t .Lang "chat.earlier"}}</a></p>{{end}}
+        <ol class="chat" id="chat" data-stream="{{.Path}}/events" data-follows-within="{{.FollowsWithin}}"{{if .Paged}} data-paged{{end}}>
+          {{- range .Messages}}{{with .Day}}
+          <li class="chat-day">{{.}}</li>{{end}}{{template "chat-message" .}}{{else}}
+          <li class="chat-empty"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-chats-circle"/></svg><p>{{t .Lang "chat.empty"}}</p></li>{{end}}
+        </ol>
+        {{if .Paged}}<p class="chat-more"><a href="{{.Path}}">{{t .Lang "chat.latest"}}</a></p>{{end}}
+        <form class="chat-compose" id="compose" method="post" action="{{.Path}}" data-failed="{{t .Lang "chat.err.failed"}}">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <p class="chat-replying" id="replying"{{if not .ReplyTo}} hidden{{end}}>
+            <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-bend-up-left"/></svg>
+            <span>{{t .Lang "chat.replying-to"}} <strong>{{with .ReplyTo}}{{.Writer}}{{end}}</strong> <span>{{with .ReplyTo}}{{.FirstLine}}{{end}}</span></span>
+            <a href="{{.Path}}#compose" aria-label="{{t .Lang "chat.cancel-reply"}}" title="{{t .Lang "chat.cancel-reply"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg></a>
+          </p>
+          <input type="hidden" name="reply_to" value="{{with .ReplyTo}}{{.ID}}{{end}}">
+          <label class="sr" for="body">{{t .Lang "chat.message"}}</label>
+          <textarea id="body" name="body" rows="1" maxlength="{{maxMessageLength}}" required placeholder="{{t .Lang "chat.placeholder"}}">{{.Body}}</textarea>
+          <button class="chat-send"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-paper-plane-right"/></svg><span>{{t .Lang "chat.send"}}</span></button>
+        </form>
+      </div>
     </div>
     <script src="{{static "chat.js"}}" defer></script>
 {{end}}
 
-{{/* chat-message is one Message as its viewer sees it; the Chat page and its live updates both render it. */}}
+{{/* chat-message is one Message as its viewer sees it; the Chat page and its live updates both render it. Its tools
+   (React, Reply and the More menu) show on hover or focus, and always on touch screens. */}}
 {{define "chat-message"}}
-        <li class="msg{{if .Mine}} is-mine{{end}}{{if and .Hidden .ViewerAdmin (not .Deleted)}} is-hidden{{end}}" id="m{{.ID}}">
-          <p class="msg-head"><strong>{{.Writer}}</strong>{{if .ByAdmin}} <span class="badge badge-joined">{{t .Lang "chat.admin"}}</span>{{end}} <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z"}}">{{.When}}</time></p>
-          {{- if .ReplyID}}
-          <p class="msg-quote">{{if .ReplyRemoved}}<span class="msg-gone">{{t .Lang "chat.removed"}}</span>{{else}}<a href="{{.ReplyLink}}" data-to="m{{.ReplyID}}"><strong>{{.ReplyWriter}}</strong> <span>{{.ReplyLine}}</span></a>{{end}}</p>
-          {{- end}}
-          {{- if .Deleted}}
-          <p class="msg-gone">{{t .Lang "chat.deleted"}}</p>
-          {{- else if .Removed}}
-          <p class="msg-gone">{{t .Lang "chat.removed"}}</p>
-          {{- else}}
-          <p class="msg-text">{{.Text}}</p>
-          {{- end}}
-          {{- if .Visible}}
-          <form class="msg-reactions" method="post" action="{{.Path}}/{{.ID}}/react">
-            {{- range .Reactions}}{{if .Count}}
-            <button class="react" name="emoji" value="{{.Emoji}}" aria-pressed="{{.Mine}}">{{.Emoji}} {{.Count}}</button>
-            {{- end}}{{end}}
-            <details class="react-pick">
-              <summary aria-label="{{t .Lang "chat.react"}}">+</summary>
-              {{- range .Reactions}}
-              <button name="emoji" value="{{.Emoji}}">{{.Emoji}}</button>
+          <li class="msg{{if .Mine}} is-mine{{end}}{{if .ByAdmin}} is-admin{{end}}{{if .Follows}} follows{{end}}{{if and .Hidden .ViewerAdmin (not .Deleted)}} is-hidden{{end}}" id="m{{.ID}}">
+            <span class="msg-avatar" aria-hidden="true">{{.Initial}}</span>
+            <div class="msg-main">
+              <p class="msg-head"><strong>{{.Writer}}</strong>{{if .ByAdmin}} <span class="msg-badge">{{t .Lang "chat.admin"}}</span>{{end}} <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z"}}" title="{{.When}}">{{.Clock}}</time></p>
+              <div class="msg-bubble">
+                {{- if .ReplyID}}
+                {{- if .ReplyRemoved}}<p class="msg-quote msg-gone">{{t .Lang "chat.removed"}}</p>{{else}}<a class="msg-quote" href="{{.ReplyLink}}" data-to="m{{.ReplyID}}"><strong>{{.ReplyWriter}}</strong> <span>{{.ReplyLine}}</span></a>{{end}}
+                {{- end}}
+                {{- if .Deleted}}
+                <p class="msg-gone">{{t .Lang "chat.deleted"}}</p>
+                {{- else if .Removed}}
+                <p class="msg-gone">{{t .Lang "chat.removed"}}</p>
+                {{- else}}
+                <p class="msg-text">{{.Text}}</p>
+                {{- end}}
+              </div>
+              {{- if .Visible}}
+              <div class="msg-foot">
+                <form class="msg-reactions" id="r{{.ID}}" method="post" action="{{.Path}}/{{.ID}}/react">
+                  {{- range .Reactions}}{{if .Count}}<button class="react" name="emoji" value="{{.Emoji}}" aria-pressed="{{.Mine}}">{{.Emoji}} {{.Count}}</button>{{end}}{{end -}}
+                </form>
+                <div class="msg-tools">
+                  <details class="msg-tool">
+                    <summary aria-label="{{t .Lang "chat.react"}}" title="{{t .Lang "chat.react"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-smiley"/></svg></summary>
+                    <div class="msg-pop msg-pop-react">
+                      {{- range .Reactions}}<button form="r{{$.ID}}" name="emoji" value="{{.Emoji}}">{{.Emoji}}</button>{{end -}}
+                    </div>
+                  </details>
+                  <a class="msg-tool" href="{{.Path}}?reply={{.ID}}#compose" data-reply="{{.ID}}" data-writer="{{.Writer}}" data-line="{{.FirstLine}}" aria-label="{{t .Lang "chat.reply"}}" title="{{t .Lang "chat.reply"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-bend-up-left"/></svg></a>
+                  <details class="msg-tool msg-menu">
+                    <summary aria-label="{{t .Lang "chat.more"}}" title="{{t .Lang "chat.more"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-dots-three"/></svg></summary>
+                    <div class="msg-pop msg-pop-menu">
+                      {{- if and (not .Mine) (not .ViewerAdmin)}}{{if .Reported}}
+                      <p class="msg-reported"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-flag"/></svg>{{t .Lang "chat.reported"}}</p>
+                      {{- else}}
+                      <details class="msg-report">
+                        <summary><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-flag"/></svg>{{t .Lang "chat.report"}}</summary>
+                        <form method="post" action="{{.Path}}/{{.ID}}/report">
+                          <label for="reason-{{.ID}}">{{t .Lang "chat.report-reason"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label>
+                          <textarea id="reason-{{.ID}}" name="reason" rows="2" maxlength="{{maxReportReason}}"></textarea>
+                          <button class="btn btn-solid btn-sm">{{t .Lang "chat.send-report"}}</button>
+                        </form>
+                      </details>
+                      {{- end}}{{end}}
+                      {{- if .ViewerAdmin}}
+                      <form method="post" action="/admin/chat/{{.ID}}/hide"><button><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-eye-slash"/></svg>{{t .Lang "chat.hide"}}</button></form>
+                      {{- end}}
+                      {{- if .Mine}}
+                      <form method="post" action="{{.Path}}/{{.ID}}/delete"><button><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg>{{t .Lang "chat.delete"}}</button></form>
+                      {{- end}}
+                    </div>
+                  </details>
+                </div>
+              </div>
+              {{- else if and .ViewerAdmin .Hidden (not .Deleted)}}
+              <div class="msg-foot msg-hidden-note">
+                <span>{{t .Lang "chat.hidden"}}</span>
+                <form method="post" action="/admin/chat/{{.ID}}/unhide"><button class="btn btn-quiet btn-sm"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-eye"/></svg>{{t .Lang "chat.unhide"}}</button></form>
+              </div>
               {{- end}}
-            </details>
-          </form>
-          <div class="msg-actions">
-            <a class="btn btn-quiet btn-sm" href="{{.Path}}?reply={{.ID}}#compose" data-reply="{{.ID}}" data-writer="{{.Writer}}" data-line="{{.FirstLine}}">{{t .Lang "chat.reply"}}</a>
-            {{- if and (not .Mine) (not .ViewerAdmin)}}{{if .Reported}}
-            <span class="msg-reported">{{t .Lang "chat.reported"}}</span>
-            {{- else}}
-            <details class="msg-report">
-              <summary class="btn btn-quiet btn-sm">{{t .Lang "chat.report"}}</summary>
-              <form method="post" action="{{.Path}}/{{.ID}}/report">
-                <label for="reason-{{.ID}}">{{t .Lang "chat.report-reason"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label>
-                <textarea id="reason-{{.ID}}" name="reason" rows="2" maxlength="{{maxReportReason}}"></textarea>
-                <button class="btn btn-solid btn-sm">{{t .Lang "chat.send-report"}}</button>
-              </form>
-            </details>
-            {{- end}}{{end}}
-            {{- if .ViewerAdmin}}
-            <form method="post" action="/admin/chat/{{.ID}}/hide"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.hide"}}</button></form>
-            {{- end}}
-            {{- if .Mine}}
-            <form method="post" action="{{.Path}}/{{.ID}}/delete"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.delete"}}</button></form>
-            {{- end}}
-          </div>
-          {{- else if and .ViewerAdmin .Hidden (not .Deleted)}}
-          <div class="msg-actions">
-            <span class="msg-reported">{{t .Lang "chat.hidden"}}</span>
-            <form method="post" action="/admin/chat/{{.ID}}/unhide"><button class="btn btn-quiet btn-sm">{{t .Lang "chat.unhide"}}</button></form>
-          </div>
-          {{- end}}
-        </li>
+            </div>
+          </li>
 {{- end}}

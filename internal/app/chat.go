@@ -58,6 +58,12 @@ type chatMessage struct {
 	Reported     bool           // the viewer has Reported it
 	ViewerAdmin  bool
 	Lang         string
+	writerID     int64 // who wrote it, which groups their Messages
+	// Where the Message sits on its page: Follows when it comes within followsWithin of the one before it by the same
+	// writer, so it shows under that one's name; Day is the date heading before it when it starts a day, else "".
+	// A live Message is sent without either, and the script groups it.
+	Follows bool
+	Day     string
 }
 
 // Visible reports whether the Message's text is shown, so it may be replied to, reacted to and reported.
@@ -100,6 +106,34 @@ func inChat(courseID int64) string {
 // When is the time the Message was posted.
 func (m chatMessage) When() string { return dateTimeIn(m.Lang, m.At) }
 
+// Clock is the time of day the Message was posted, as "11:14" Malaysia time.
+func (m chatMessage) Clock() string { return m.At.In(malaysia).Format("15:04") }
+
+// Initial is the first letter of the writer's name, which stands in for their picture.
+func (m chatMessage) Initial() string {
+	for _, r := range m.Writer {
+		return strings.ToUpper(string(r))
+	}
+	return ""
+}
+
+// followsWithin is how soon after a writer's Message their next one shows under the same name.
+const followsWithin = 5 * time.Minute
+
+// groupByWriterAndDay sets where each Message of a page, oldest first, sits: under the previous one's name or not, and after a
+// date heading or not.
+func groupByWriterAndDay(list []chatMessage) {
+	day := ""
+	for i := range list {
+		m := &list[i]
+		if d := text.Date(m.Lang, m.At.In(malaysia)); d != day {
+			m.Day, day = d, d
+		} else if p := list[i-1]; p.writerID == m.writerID && m.At.Sub(p.At) < followsWithin {
+			m.Follows = true
+		}
+	}
+}
+
 // chatPage is a Chat's page.
 type chatPage struct {
 	pageBase
@@ -113,6 +147,9 @@ type chatPage struct {
 
 // Path is the address of the page's Chat.
 func (p chatPage) Path() string { return chatPath(p.Course.ID) }
+
+// FollowsWithin is followsWithin in milliseconds, for the script that groups live Messages.
+func (p chatPage) FollowsWithin() int64 { return followsWithin.Milliseconds() }
 
 // chatViewer is who is reading a Chat.
 type chatViewer struct {
@@ -179,7 +216,7 @@ const chatColumns = `m.id, coalesce(m.course_id, 0), l.name, l.is_admin, m.learn
 	coalesce(m.reply_to, 0), o.id IS NULL OR o.deleted OR o.hidden,
 	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(ol.name, '') END,
 	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(split_part(o.body, E'\n', 1), '') END,
-	EXISTS (SELECT 1 FROM chat_reports rp WHERE rp.message_id = m.id AND rp.learner_id = $1)
+	EXISTS (SELECT 1 FROM chat_reports rp WHERE rp.message_id = m.id AND rp.learner_id = $1), m.learner_id
 	FROM chat_messages m JOIN learners l ON l.id = m.learner_id
 	LEFT JOIN chat_messages o ON o.id = m.reply_to LEFT JOIN learners ol ON ol.id = o.learner_id`
 
@@ -218,7 +255,7 @@ func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args
 			m.Reactions[i].Emoji = e
 		}
 		if err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
-			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine, &m.Reported); err != nil {
+			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine, &m.Reported, &m.writerID); err != nil {
 			return nil, err
 		}
 		at[m.ID] = len(list)
@@ -301,6 +338,7 @@ func (a *App) renderChat(w http.ResponseWriter, r *http.Request, status int, c c
 	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
 		list[i], list[j] = list[j], list[i]
 	}
+	groupByWriterAndDay(list)
 	p.Course, p.Messages, p.Learner = c, list, v.learner
 	a.render(w, r, status, "chat", &p)
 }

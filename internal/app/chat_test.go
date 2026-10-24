@@ -556,3 +556,34 @@ func TestTheAdminAndWritersCannotReportAndARepeatReportCostsNothing(t *testing.T
 		t.Fatalf("%d Reports open, want only the one on the Message still there", n)
 	}
 }
+
+func TestAWritersMessagesInARowAreGroupedUnderOneNameAndEachDayHasAHeading(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	first := ada.say(id, "One")
+	second := ada.say(id, "Two")
+	third := ben.say(id, "Three")
+	later := ben.say(id, "Four")
+	for mid, at := range map[string]string{first: "2026-01-01 10:00", second: "2026-01-01 10:02", third: "2026-01-02 10:00", later: "2026-01-02 10:06"} {
+		if _, err := ada.db.Exec(`UPDATE chat_messages SET created_at = ($2 || '+08')::timestamptz WHERE id = $1`, mid, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, body := ada.get("/courses/" + id + "/chat")
+	class := func(mid string) string {
+		m := regexp.MustCompile(`<li class="([^"]*)" id="m` + mid + `"`).FindStringSubmatch(body)
+		if m == nil {
+			t.Fatalf("no Message %s: %s", mid, body)
+		}
+		return m[1]
+	}
+	for mid, want := range map[string]string{first: "msg is-mine", second: "msg is-mine follows", third: "msg", later: "msg"} {
+		if got := class(mid); got != want {
+			t.Errorf("Message %s has class %q, want %q", mid, got, want)
+		}
+	}
+	if n := strings.Count(body, `<li class="chat-day">`); n != 2 {
+		t.Fatalf("%d day headings, want one for each of the two days: %s", n, body)
+	}
+	expectInOrder(t, body, `<li class="chat-day">`, `id="m`+first+`"`, `<li class="chat-day">`, `id="m`+third+`"`)
+}
