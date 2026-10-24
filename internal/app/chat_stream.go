@@ -77,6 +77,9 @@ func (a *App) changed(ctx context.Context, m chatMessage, withReplies bool) {
 	}
 }
 
+// sseLines starts a new data field at every kind of line end (CRLF, CR, LF), which an event stream parser reads as one.
+var sseLines = strings.NewReplacer("\r\n", "\ndata: ", "\r", "\ndata: ", "\n", "\ndata: ")
+
 // chatEvents is a Chat's Server-Sent Events stream: each new or changed Message, rendered as its viewer sees it.
 // The browser reconnects by itself when the stream drops, after a restart or deploy.
 func (a *App) chatEvents(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +123,7 @@ func (a *App) chatEvents(w http.ResponseWriter, r *http.Request) {
 			if html == "" {
 				continue
 			}
-			event = "data: " + strings.ReplaceAll(html, "\n", "\ndata: ") + "\n\n"
+			event = "data: " + sseLines.Replace(html) + "\n\n"
 		}
 		if _, err := fmt.Fprint(w, event); err != nil || rc.Flush() != nil {
 			return
