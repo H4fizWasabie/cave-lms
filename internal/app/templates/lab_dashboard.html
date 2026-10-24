@@ -72,6 +72,12 @@
               <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
               <p class="muted">{{t $.Lang "lab.w.used" .UsedList}}</p>
             </div>
+            {{- with $.AskHeader}}
+            <div class="ds-err" role="alert">
+              <p><strong>{{t $.Lang "lab.w.header-ask" .}}</strong></p>
+              <p>{{t $.Lang "lab.w.header-ask-body"}} <a href="#header">{{t $.Lang "lab.w.header-row"}}</a></p>
+            </div>
+            {{- end}}
             {{- if .Changes}}
             <div>
               <h3 class="h-sm">{{t $.Lang "lab.w.changes"}}</h3>
@@ -95,12 +101,6 @@
               <p class="muted">{{t $.Lang "lab.w.which-column" $.Dashboard.Template.Name}}</p>
               {{- end}}
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-              {{- with $.AskHeader}}
-              <div class="ds-err" role="alert">
-                <p><strong>{{t $.Lang "lab.w.header-ask" .}}</strong></p>
-                <p>{{t $.Lang "lab.w.header-ask-body"}}</p>
-              </div>
-              {{- end}}
               {{- if $.Uses}}
               <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
               <ul class="ds-uses">
@@ -142,7 +142,7 @@
                 {{- if $.Blanks}}
                 <button class="btn btn-quiet" name="template" value="general">{{t $.Lang "lab.w.use-general"}}</button>
                 {{- end}}
-                <button class="btn btn-solid">{{t $.Lang "lab.w.confirm"}}</button>
+                <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
               </div>
             </form>
           </section>
@@ -188,7 +188,7 @@
             {{- end}}{{end}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
             {{- if .Dashboard.Work}}
-            <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header" min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
+            <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
             {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
             <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
             {{- end}}

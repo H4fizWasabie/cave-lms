@@ -74,6 +74,13 @@ func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "Is row 1 your header?")
+	expectStatus(t, res, body, http.StatusOK, `name="header" value="1"`) // the answer, ready to change
+	if ask, table := strings.Index(body, "your header?"), strings.Index(body, "<table"); ask > table {
+		t.Fatal("the preview asks about the header after the rows")
+	}
+	if strings.Contains(body, `<button class="btn btn-solid">Confirm`) {
+		t.Fatal("Confirm is the main action while the header is in question")
+	}
 
 	res, body = ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
 	expectStatus(t, res, body, http.StatusSeeOther, "")

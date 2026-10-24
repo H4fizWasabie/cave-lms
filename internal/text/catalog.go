@@ -971,8 +971,8 @@ var catalog = map[string]entry{
 	"lab.w.pick-or-leave": {en: ": pick a column or leave it out", ms: ": pilih lajur atau tinggalkan"},
 	"lab.w.header-ask":    {en: "Is row %d your header?", ms: "Adakah baris %d tajuk lajur anda?"},
 	"lab.w.header-ask-body": {
-		en: "Most columns your blocks use are not in this file. If the column names are on another row, upload the file again and give that row.",
-		ms: "Kebanyakan lajur yang digunakan oleh blok anda tiada dalam fail ini. Jika nama lajur berada di baris lain, muat naik fail itu semula dan nyatakan baris tersebut.",
+		en: "Most columns your blocks use are not in this file. If the column names are on another row, give that row and upload the file again:",
+		ms: "Kebanyakan lajur yang digunakan oleh blok anda tiada dalam fail ini. Jika nama lajur berada di baris lain, nyatakan baris tersebut dan muat naik fail itu semula:",
 	},
 	"lab.w.leave-out":    {en: "Leave it out", ms: "Tinggalkan"},
 	"lab.d.start-sample": {en: "Start from the Sample", ms: "Mulakan daripada Sampel"},
