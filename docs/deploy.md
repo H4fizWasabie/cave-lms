@@ -189,6 +189,8 @@ Lab Datasets live in a private Cloudflare R2 bucket (ADR 0008); Postgres keeps o
 
 All four or none: with some set and others missing the app stops at start naming the missing ones (`journalctl -u cave-lms -n 20`); with none set Datasets stay on the disk under `STORAGE_DIR`. Failed reads and writes go to the System log; a failed upload tells the Learner and keeps their previous Dataset. The nightly backup does not cover this bucket.
 
+Assignment Submission files (spec #196) live in the same bucket, under keys starting `submission-<learner id>-`, with the same fallback to the disk. A deleted file or Assignment leaves the bucket at once; a deleted account's files leave it at the next daily prune (or restart). A file the bucket fails to delete stays queued in `stored_file_deletions` and is tried again then.
+
 ## AI writer
 
 From an Exam's Admin page, Generate questions takes matching published Question bank questions first, then asks the AI to write the rest through [OpenRouter](https://openrouter.ai) (ADR 0009). Only the topic, format, language and count are sent. The AI's questions arrive as Drafts in the Question bank and the Exam. One generation asks for at most 50 questions, with a reply capped at 16000 tokens and a 60-second timeout; a reply in the wrong shape is asked for once more, then reported, and nothing is saved.
@@ -272,7 +274,8 @@ The privacy notice (`/privacy`, see `docs/adr/0006-the-client-is-the-data-user-a
 SELECT id, name, email, verified_at, created_at FROM learners WHERE lower(email) = lower('ada@example.com');
 -- correct a name (it changes on every Certificate too)
 UPDATE learners SET name = 'Ada Lovelace' WHERE id = 42;
--- delete the account: everything on it goes with it, Certificates included
+-- delete the account: everything on it goes with it, Certificates and Submissions included
+-- (Submission files leave R2 at the next daily prune)
 DELETE FROM learners WHERE id = 42;
 ```
 

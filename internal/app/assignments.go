@@ -37,6 +37,15 @@ type assignmentPage struct {
 	Course      course
 	Assignment  assignment
 	Assignments []assignment
+	Enrolled    bool             // the Learner may change their Submission
+	Files       []submissionFile // the Learner's Submission
+}
+
+// path is the Assignment's page for Learners.
+func (p *assignmentPage) path() string { return assignmentPath(p.Course.ID, p.Assignment.ID) }
+
+func assignmentPath(courseID, assignmentID int64) string {
+	return "/courses/" + strconv.FormatInt(courseID, 10) + "/assignments/" + strconv.FormatInt(assignmentID, 10)
 }
 
 // assignmentsOf lists a Course's Assignments in order. Learners get only the published ones.
@@ -237,6 +246,7 @@ func (a *App) deleteAssignment(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	a.dropDeletedFiles(r.Context(), r)
 	http.Redirect(w, r, assignmentsPath(as.CourseID), http.StatusSeeOther)
 }
 
@@ -275,7 +285,7 @@ func (a *App) learnerAssignmentFor(w http.ResponseWriter, r *http.Request) (assi
 			Message: text.T(lang, "assignment.join-to-open")})
 		return assignmentPage{}, false
 	}
-	return assignmentPage{pageBase: pageBase{Learner: learner}, Course: c, Assignment: as}, true
+	return assignmentPage{pageBase: pageBase{Learner: learner}, Course: c, Assignment: as, Enrolled: enrolled}, true
 }
 
 // showAssignment is an Assignment's page for an enrolled Learner or the Admin.
@@ -284,5 +294,15 @@ func (a *App) showAssignment(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "assignment", &p)
+	a.renderAssignment(w, r, http.StatusOK, &p)
+}
+
+// renderAssignment renders the Assignment page with the Learner's Submission.
+func (a *App) renderAssignment(w http.ResponseWriter, r *http.Request, status int, p *assignmentPage) {
+	var err error
+	if p.Files, err = a.submissionFiles(r.Context(), p.Assignment.ID, p.Learner.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, status, "assignment", p)
 }

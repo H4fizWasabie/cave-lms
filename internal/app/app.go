@@ -45,7 +45,7 @@ type App struct {
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
-	datasets             storage.Store // where Dataset data lives (ADR 0008)
+	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
 	maxUpload            int64
 	limiter              rateLimiter
 	ownerEmail           string        // the Owner's, from OWNER_EMAIL; empty means no Owner
@@ -292,6 +292,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/assignments/{aid}/delete", a.admin(a.confirmDeleteAssignment))
 	mux.HandleFunc("POST /admin/assignments/{aid}/delete", a.admin(a.deleteAssignment))
 	mux.HandleFunc("GET /courses/{id}/assignments/{aid}", a.requireLearner(a.showAssignment))
+	mux.HandleFunc("POST /courses/{id}/assignments/{aid}/files", a.requireLearner(a.uploadSubmission))
+	mux.HandleFunc("GET /submission-files/{fid}", a.requireLearner(a.downloadSubmissionFile))
+	mux.HandleFunc("POST /submission-files/{fid}/delete", a.requireLearner(a.deleteSubmissionFile))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
 	mux.HandleFunc("GET /admin/courses/{id}/exam", a.admin(a.adminExam))

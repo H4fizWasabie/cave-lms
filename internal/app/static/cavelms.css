@@ -851,3 +851,8 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 /* Assignments and Submissions (spec #196) */
 .lb-row-plain { grid-template-columns: 2rem 1fr auto; }
 .pre-line { white-space: pre-line; overflow-wrap: anywhere; }
+.submission { margin-top: 2rem; }
+.file-list { list-style: none; margin: 0 0 1.2rem; padding: 0; }
+.file-list li { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.file-list li a { overflow-wrap: anywhere; }
+.file-list form { margin-left: auto; }
