@@ -12,6 +12,8 @@ import (
 
 const (
 	rateLimitWindow = 15 * time.Minute
+	// longestWindow is the longest window any key is counted over; a key with no attempt in it is dropped.
+	longestWindow = time.Hour
 	// rateLimitAttempts is each address's budget at most forms. Sign-up allows a whole class on one network.
 	rateLimitAttempts = 10
 	signUpAttempts    = 100
@@ -23,7 +25,8 @@ const (
 	loginFailuresPerAddress = 100
 )
 
-// rateLimiter counts attempts per key (a form and client address, for logins also the account), in memory.
+// rateLimiter counts attempts per key (a form and client address, for logins also the account; in a Chat the
+// Learner), in memory.
 // ponytail: per process and reset on restart; move the counts to Postgres if there is ever more than one server.
 type rateLimiter struct {
 	mu       sync.Mutex
@@ -35,7 +38,7 @@ type rateLimiter struct {
 // Each form has its own budget, so failed logins never block a password reset.
 func (a *App) limited(limit int, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), limit, time.Now()) {
+		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), limit, rateLimitWindow, time.Now()) {
 			a.tooManyAttempts(w, r)
 			return
 		}
@@ -81,28 +84,29 @@ func clientAddress(r *http.Request) string {
 	return host
 }
 
-// allow records an attempt at key at now and reports whether it was within limit. Recording before the work, not
+// allow records an attempt at key at now and reports whether it was within limit attempts in window. Each key is
+// always counted over the same window. Recording before the work, not
 // after, means attempts sent at once cannot all slip under the limit together.
-func (l *rateLimiter) allow(key string, limit int, now time.Time) bool {
+func (l *rateLimiter) allow(key string, limit int, window time.Duration, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.sweep(now)
-	if l.recent(key, now) >= limit {
+	if l.recent(key, window, now) >= limit {
 		return false
 	}
 	l.attempts[key] = append(l.attempts[key], now)
 	return true
 }
 
-// sweep drops, at most once a window, every key with no attempt left in it, so the map doesn't grow with each
-// address ever seen. The caller holds mu.
+// sweep drops, at most once per longestWindow, every key with no attempt in the last longestWindow, so the map doesn't
+// grow with each address ever seen. The caller holds mu.
 func (l *rateLimiter) sweep(now time.Time) {
-	if now.Sub(l.swept) < rateLimitWindow {
+	if now.Sub(l.swept) < longestWindow {
 		return
 	}
 	l.swept = now
 	for key := range l.attempts {
-		if l.recent(key, now) == 0 {
+		if l.recent(key, longestWindow, now) == 0 {
 			delete(l.attempts, key)
 		}
 	}
@@ -117,12 +121,12 @@ func (l *rateLimiter) forget(key string) {
 	}
 }
 
-// recent drops key's attempts older than the window and returns how many are left. The caller holds mu.
-func (l *rateLimiter) recent(key string, now time.Time) int {
+// recent drops key's attempts older than window and returns how many are left. The caller holds mu.
+func (l *rateLimiter) recent(key string, window time.Duration, now time.Time) int {
 	if l.attempts == nil {
 		l.attempts = map[string][]time.Time{}
 	}
-	cutoff := now.Add(-rateLimitWindow)
+	cutoff := now.Add(-window)
 	kept := l.attempts[key][:0]
 	for _, t := range l.attempts[key] {
 		if t.After(cutoff) {

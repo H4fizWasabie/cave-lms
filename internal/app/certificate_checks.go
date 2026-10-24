@@ -30,7 +30,7 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusOK, "certificate_verify", page{})
 		return
 	}
-	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, a.now()) {
+	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, rateLimitWindow, a.now()) {
 		a.tooManyAttempts(w, r)
 		return
 	}

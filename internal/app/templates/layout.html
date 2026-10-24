@@ -136,7 +136,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "design", "plans", "prices", "deployments", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "design", "plans", "prices", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
@@ -156,6 +156,7 @@
           <a href="/admin/prices"{{if eq .Section "prices"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.prices"}}</span></a>
           <a href="/admin/promos"{{if eq .Section "promos"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.promos"}}</span></a>
           <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span></a>
+          <a href="/admin/reports"{{if eq .Section "reports"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span>{{t .Lang "admin.side.reports"}}</span></a>
           <a href="/admin/cavetext"{{if eq .Section "cavetext"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "admin.side.cavetext"}}</span></a>
           <a href="/admin/cavetext/settings"{{if eq .Section "cavetext-settings"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-set"}}</span></a>
           {{if .Owner}}<a href="/admin/cavetext/caps"{{if eq .Section "cavetext-caps"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-caps"}}</span></a>{{end}}
@@ -165,6 +166,15 @@
           <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>{{t .Lang "admin.side.view-site"}}</span></a>
         </div>
       </aside>
+{{end}}
+
+{{/* course-tabs are the tabs of a Course's pages, for those who may open them all; pass (courseTab .Course.ID "<tab>" .Lang),
+the tab being "course" or "chat". */}}
+{{define "course-tabs"}}
+      <nav class="lab-tabs" aria-label="{{t .Lang "course.tabs"}}">
+        <a class="lab-tab" href="/courses/{{.ID}}"{{if eq .Tab "course"}} aria-current="page"{{end}}>{{t .Lang "course.tab.course"}}</a>
+        <a class="lab-tab" href="/courses/{{.ID}}/chat"{{if eq .Tab "chat"}} aria-current="page"{{end}}>{{t .Lang "course.tab.chat"}}</a>
+      </nav>
 {{end}}
 
 {{/* offers lists a Learner page's .Offers side by side as pricing cards: each product's logo, name, tagline, price, its Normal
