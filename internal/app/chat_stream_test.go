@@ -16,12 +16,12 @@ type chatStream struct {
 	events chan string
 }
 
-// openStream opens Course id's Chat event stream as s, which must be allowed it; the stream closes with the test.
+// openStream opens Course id's Chat, or the Community Chat's, event stream as s, which must be allowed it; the stream closes with the test.
 func (s *site) openStream(id string) *chatStream {
 	s.t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.t.Cleanup(cancel)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.server.URL+"/courses/"+id+"/chat/events", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.server.URL+chatURL(id)+"/events", nil)
 	if err != nil {
 		s.t.Fatal(err)
 	}

@@ -1,0 +1,13 @@
+{{define "title"}}{{t .Lang "community.chat"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap page-pad chat-page">
+      <h1>{{t .Lang "community.chat"}}</h1>
+      <p>{{t .Lang "community.intro"}}</p>
+      {{- if .Learner}}
+      <p class="muted">{{t .Lang "community.privacy"}}</p>
+      <form method="post" action="/community/join"><button class="btn btn-solid">{{t .Lang "community.join"}}</button></form>
+      {{- else}}
+      <p><a class="btn btn-solid" href="/login?next=%2Fcommunity">{{t .Lang "community.log-in"}}</a></p>
+      {{- end}}
+    </div>
+{{end}}

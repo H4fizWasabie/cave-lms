@@ -123,6 +123,9 @@
           <a href="/my-certificates">{{t .Lang "footer.my-certificates"}}</a>
           {{- end}}
         </div></details>
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.community"}}</summary><div class="hdr-panel">
+          <a href="/community">{{t .Lang "community.chat"}}</a>
+        </div></details>
 {{- end}}
 {{/* account-links are Log in and Register for a Visitor, or the logged-in Learner's links. */}}
 {{define "account-links"}}

@@ -17,7 +17,7 @@ const chatPing = 25 * time.Second
 // ponytail: in-process, right for one server; a second server would need Postgres LISTEN/NOTIFY.
 type chatHub struct {
 	mu      sync.Mutex
-	streams map[int64]map[chan int64]bool // by Course
+	streams map[int64]map[chan int64]bool // by Course, 0 for the Community Chat
 }
 
 // subscribe opens a stream of the IDs of Course courseID's new and changed Messages.
@@ -128,9 +128,9 @@ func (a *App) chatEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// messageFragment renders Message id of Course courseID as v sees it, or "" when there is no such Message.
+// messageFragment renders Message id of Course courseID, or the Community Chat, as v sees it, or "" when there is no such Message.
 func (a *App) messageFragment(ctx context.Context, v chatViewer, courseID, id int64) (string, error) {
-	list, err := a.chatMessages(ctx, v, `m.course_id = $3 AND m.id = $4`, courseID, id)
+	list, err := a.chatMessages(ctx, v, inChat(courseID)+` AND m.id = $4`, courseID, id)
 	if err != nil || len(list) == 0 {
 		return "", err
 	}
