@@ -90,7 +90,7 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 	}
 	for _, b := range t.included(c) {
 		w := WorkBlock{Kind: b.Kind, Label: b.Label, X: c[b.X], Split: c[b.Series], Group: c[b.Group], Cols: cols(b.Cols),
-			Sort: c[b.Sort], Limit: b.Limit, Wide: b.Wide}
+			Sort: c[b.Sort], Limit: b.Limit, Wide: b.Wide || b.Kind == "table"} // a Template's tables span the row
 		if b.Kind != "table" {
 			switch {
 			case b.Times != "":

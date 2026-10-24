@@ -220,12 +220,13 @@
     var allCards = blocks.filter(function (b) { return b.kind === 'card'; }).length, cardCount = Math.min(4, allCards);
     if (dash.work && allCards > 4) cardsEl.style.setProperty('--cols', 'repeat(' + Math.ceil(allCards / 2) + ',minmax(0,1fr))');
     else if (cardCount > 1) cardsEl.style.setProperty('--cols', 'minmax(0,2fr) repeat(' + (cardCount - 1) + ',minmax(0,1fr))');
-    // Panels sit two to a row; tables, and a half-width panel with no half-width neighbour, span the row, so no gap is left.
+    // Panels sit two to a row; a half-width panel with no half-width neighbour spans the row, so no gap is left.
+    // A Practice table always spans it; a Work table is as wide as the Learner set it.
     var panels = blocks.filter(function (b) { return b.kind !== 'card'; });
+    var full = function (b) { return b.wide || (!dash.work && b.kind === 'table'); };
     for (var i = 0; i < panels.length; i++) {
-      if (panels[i].kind === 'table') panels[i].wide = true;
-      if (panels[i].wide) continue;
-      if (panels[i + 1] && !panels[i + 1].wide && panels[i + 1].kind !== 'table') i++;
+      if (full(panels[i])) { panels[i].wide = true; continue; }
+      if (panels[i + 1] && !full(panels[i + 1])) i++;
       else panels[i].wide = true;
     }
 

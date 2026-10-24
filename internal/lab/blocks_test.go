@@ -34,7 +34,7 @@ func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 		"Spending by category": `{"kind":"bar","label":"Spending by category","value":{"agg":"sum","col":"Jumlah"},"group":"Kategori","top":8,"filter":{"col":"Jenis","vals":["Keluar"]}}`,
 		"Transactions":         `{"kind":"card","label":"Transactions","value":{"agg":"count"}}`,
 		"By month":             `{"kind":"line","label":"By month","value":{"agg":"sum","col":"Jumlah"},"x":"Tarikh","by":"month","split":"Jenis","wide":true}`,
-		"Latest transactions":  `{"kind":"table","label":"Latest transactions","cols":["Tarikh","Perkara","Kategori","Jenis","Jumlah"],"sort":"Tarikh","limit":10}`,
+		"Latest transactions":  `{"kind":"table","label":"Latest transactions","cols":["Tarikh","Perkara","Kategori","Jenis","Jumlah"],"sort":"Tarikh","limit":10,"wide":true}`,
 		"Balance":              `{"kind":"card","label":"Balance","value":{"agg":"sum","col":"Jumlah"},"locked":true,"where":["Jenis","Masuk"],"minus":["Jenis","Keluar"]}`,
 	} {
 		if got := blockJSON(t, cfg, label); got != want {

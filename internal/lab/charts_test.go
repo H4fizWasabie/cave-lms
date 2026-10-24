@@ -53,7 +53,10 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 			lab.WorkBlock{Kind: "bar", Label: "Ikut staf", Value: &lab.Value{Agg: "count"}, Group: "Staf", Top: 5},
 			lab.WorkBlock{Kind: "donut", Label: "Dr Farah sahaja", Value: &lab.Value{Agg: "count"}, Group: "Staf", Filter: &lab.Filter{Col: "Staf", Vals: []string{"Dr Farah"}}},
 			lab.WorkBlock{Kind: "bar", Label: "Ikut cawangan", Value: &lab.Value{Agg: "count"}, Group: "Cawangan"},
-			lab.WorkBlock{Kind: "table", Label: "Terkini", Cols: []string{"Tarikh", "Staf", "Jumlah"}, Sort: "Jumlah", Limit: 10},
+			lab.WorkBlock{Kind: "bar", Label: "Ikut jumlah", Value: &lab.Value{Agg: "count"}, Group: "Jumlah"},
+			lab.WorkBlock{Kind: "table", Label: "Terkini", Cols: []string{"Tarikh", "Staf", "Jumlah"}, Sort: "Jumlah", Limit: 10, Wide: true},
+			lab.WorkBlock{Kind: "table", Label: "Jadual A", Cols: []string{"Staf"}, Limit: 10},
+			lab.WorkBlock{Kind: "table", Label: "Jadual B", Cols: []string{"Kos"}, Limit: 10},
 		),
 	}
 	index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Klinik", cfg, d, "data.json")
@@ -71,14 +74,14 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("%v in %s", err, out)
 	}
-	for _, want := range []string{"<span>C6</span>", "<span>Untung</span><strong>RM70.00</strong>", "<span>Purata</span><strong>RM60.00</strong>",
+	for _, want := range []string{`<article class="dpanel"><h2>Jadual A`, `<article class="dpanel"><h2>Jadual B`, "<span>C6</span>", "<span>Untung</span><strong>RM70.00</strong>", "<span>Purata</span><strong>RM60.00</strong>",
 		"Ikut hari", "6 Jan", "Ikut staf", "(blank)", "Dr Farah sahaja</h2><p class=\"dnone\">No rows match</p>", "Terkini"} {
 		if !strings.Contains(got.Cards+got.Charts, want) {
 			t.Errorf("drawn Dashboard lacks %q:\n%s\n%s", want, got.Cards, got.Charts)
 		}
 	}
-	if strings.Contains(got.Charts, "Ikut cawangan") {
-		t.Errorf("the block needing Cawangan, absent from the Dataset, is drawn:\n%s", got.Charts)
+	if strings.Contains(got.Charts, "Ikut cawangan") || strings.Contains(got.Charts, "Ikut jumlah") {
+		t.Errorf("a block needing Cawangan, absent from the Dataset, or grouping by the Number Jumlah, is drawn:\n%s", got.Charts)
 	}
 	if got.CardCols != "repeat(4,minmax(0,1fr))" {
 		t.Errorf("8 cards sit in %q, want two rows of 4", got.CardCols)
