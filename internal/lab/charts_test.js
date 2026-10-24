@@ -52,6 +52,7 @@ eq(card({ agg: 'calc', a: 'Jumlah', op: '-', b: 'Kos', then: 'avg' }), 93 / 4, '
 // One filter per block; a ticked (blank) matches empty cells.
 eq(card({ agg: 'count' }, { filter: { col: 'Staf', vals: ['Siti'] } }), 2, 'filter');
 eq(card({ agg: 'count' }, { filter: { col: 'Staf', vals: ['Siti', '(blank)'] } }), 3, 'filter with (blank)');
+eq(card({ agg: 'count' }, { filter: { col: 'Staf', vals: [] } }), rows.length, 'a filter with nothing ticked keeps every row');
 eq(C.noMatch({ filter: { col: 'Staf', vals: ['Dr Farah'] } }, rows, cols), true, 'a filter value not in the Dataset matches no rows');
 eq(C.noMatch({ filter: { col: 'Staf', vals: ['Ali'] } }, rows, cols), false, 'a filter value in the Dataset');
 eq(C.noMatch({}, [], cols), false, 'no filter is never "No rows match"');

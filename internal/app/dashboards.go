@@ -378,6 +378,9 @@ type dashboardPage struct {
 	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
 	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
+	Open      int             // Blocks tab: the block whose form is open; -1 for none
+	Saved     bool            // Blocks tab: an edit was just saved
+	Blocks    *blocksView     // Blocks tab
 	Phone     bool            // preview at phone width
 	ReadOnly  bool            // no Lab access: view and download only
 	Hood      []hoodPart
@@ -424,11 +427,17 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 			return
 		}
 		q := r.URL.Query()
-		if d.Work && tab == "columns" { // a Work Dashboard's blocks name columns themselves
+		// A Work Dashboard's blocks name columns themselves; a Practice Dashboard's blocks are its Template's.
+		if (d.Work && tab == "columns") || (!d.Work && tab == "blocks") {
 			a.notFound(w, r)
 			return
 		}
-		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"), Again: q.Has("again")})
+		open, err := strconv.Atoi(q.Get("open"))
+		if err != nil {
+			open = -1
+		}
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"), Again: q.Has("again"),
+			Open: open, Saved: q.Has("saved")})
 	})
 }
 
@@ -442,6 +451,14 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 				p.Blanks[i].Renamed = bc.SampleName()
 			}
 		}
+	}
+	if p.Tab == "blocks" && d.Config != nil && d.Dataset != nil {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Blocks = newBlocksView(d, lang, p.Open, p.Saved)
 	}
 	if d.Work && p.Tab == "dataset" && p.Pending == nil && !p.ReadOnly {
 		var err error

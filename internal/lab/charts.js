@@ -108,9 +108,10 @@
     return v.agg === 'avg' || (v.agg === 'calc' && v.then === 'avg') ? (n ? tot / n : 0) : tot;
   }
   // where keeps the rows whose column holds one of the values: f is a block's filter, or a Template's [column, value].
+  // A filter with its column picked and no value ticked yet keeps every row.
   function where(rows, f, cols) {
     if (f && !f.col) f = { col: f[0], vals: f.slice(1) };
-    return f && cols[f.col] ? rows.filter(function (r) { return f.vals.indexOf(String(blank(r[f.col]))) >= 0; }) : rows;
+    return f && f.vals.length && cols[f.col] ? rows.filter(function (r) { return f.vals.indexOf(String(blank(r[f.col]))) >= 0; }) : rows;
   }
   // scope is the rows a block draws: those its filter keeps, and with low, those at or below the level.
   function scope(b, rows, cols) {
