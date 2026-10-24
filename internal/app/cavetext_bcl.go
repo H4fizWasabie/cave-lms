@@ -266,8 +266,8 @@ func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string)
 	if formKey(b.Data.FormURL) != formKey(formURL) {
 		diffs = append(diffs, fmt.Sprintf("form address %s, paid on %s", b.Data.FormURL, formURL))
 	}
-	if hook := b.Data.Main.PayerEmail; !strings.EqualFold(hook.String(), m.PayerEmail.String()) {
-		diffs = append(diffs, fmt.Sprintf("payer email %s, BCL %s", hook, m.PayerEmail))
+	if !strings.EqualFold(b.Data.Main.PayerEmail.String(), m.PayerEmail.String()) { // no email is logged
+		diffs = append(diffs, "another payer email than BCL's")
 	}
 	for _, f := range []struct {
 		name      string
@@ -308,11 +308,10 @@ func sameRM(hook, bcl bclText) bool {
 // status: no form and no custom fields, and BCL's API has no other record of a Test Mode order. So the form is bound
 // only by the amount and the product's price, and the account by BCL's payer: the webhook's CAVELMS email, when it
 // names one, must be BCL's payer email, or the order is held for an Admin, as someone with the key could otherwise
-// send a real order to any account. Testers therefore pay with the email of their staging account, or an Admin gives
-// the product by hand. BCL backs the webhook b when it knows the order as successful, for the same amount and payer
-// email, and that amount covers the subtotal less discount the price is checked against. refused says why not, for
-// the System log: those are forgeries of a real order. held says why a backed order is kept for an Admin and gives
-// nothing. err is as takeBCLOrder's.
+// send a real order to any account (docs/deploy.md's Staging BCL bullet says how testers pay). BCL backs the webhook
+// b when it knows the order as successful, for the same amount and payer email, and that amount covers the subtotal
+// less discount the price is checked against. refused says why not, for the System log: those are forgeries of a real
+// order. held says why a backed order is kept for an Admin and gives nothing. err is as takeBCLOrder's.
 func (a *App) confirmBCLTestOrder(ctx context.Context, b *bclWebhookBody, order string) (refused, held string, err error) {
 	var found struct {
 		Data struct {
@@ -336,7 +335,7 @@ func (a *App) confirmBCLTestOrder(ctx context.Context, b *bclWebhookBody, order 
 	case !readable || !claimedReadable || charged != claimed:
 		return fmt.Sprintf("is for %s at BCL, not %s", t.Amount, m.Amount), "", nil
 	case !strings.EqualFold(t.PayerEmail.String(), m.PayerEmail.String()):
-		return fmt.Sprintf("was paid by %s at BCL, not %s", t.PayerEmail, m.PayerEmail), "", nil
+		return "was paid by another payer email at BCL than the webhook's", "", nil // no email is logged
 	case charged < paid:
 		return fmt.Sprintf("charged %s at BCL, under the %s the webhook says it paid before the fee", t.Amount, rm(paid)), "", nil
 	}
@@ -431,8 +430,14 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	if form.Product == "" {
 		return fmt.Sprintf("paid on %s, no current payment link; kept for an Admin", b.Data.FormURL), tx.Commit()
 	}
+	emails := []string{cavelms, payer}
+	if held && a.bclTestPayments {
+		// Staging holds an order only for naming another CAVELMS account than BCL's payer (confirmBCLTestOrder), so it
+		// is linked to BCL's payer's Learner, never the account the webhook named.
+		emails = []string{payer}
+	}
 	var learnerID int64
-	for _, email := range []string{cavelms, payer} {
+	for _, email := range emails {
 		if email == "" {
 			continue
 		}
