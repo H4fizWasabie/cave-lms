@@ -132,6 +132,12 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	p := page{Course: &c, Learner: learner, Enrolled: enrolled, Lessons: lessons, Done: done, Total: total}
+	if admin := learner != nil && learner.IsAdmin; enrolled || admin {
+		if p.Assignments, err = a.assignmentsOf(r.Context(), c.ID, admin); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
 	if enrolled {
 		e, err := a.loadExam(r.Context(), c.ID, written)
 		if err != nil {

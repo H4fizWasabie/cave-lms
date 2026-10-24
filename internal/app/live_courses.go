@@ -18,8 +18,8 @@ func (a *App) duplicateCourseForm(w http.ResponseWriter, r *http.Request) {
 	a.renderCourseForm(w, r, http.StatusOK, page{Course: &course{Title: c.Title, Description: c.Description, OrganisationID: c.OrganisationID}, DuplicateOf: c.ID})
 }
 
-// duplicateCourse copies a Course, its Lessons and its Exams with their questions into a new Draft Live Course.
-// Learners, attempts and Certificates stay with the original.
+// duplicateCourse copies a Course, its Lessons, its Assignments and its Exams with their questions into a new Draft
+// Live Course. Learners, attempts, Submissions and Certificates stay with the original.
 func (a *App) duplicateCourse(w http.ResponseWriter, r *http.Request) {
 	from, ok := a.courseFor(w, r)
 	if !ok {
@@ -61,6 +61,10 @@ func (a *App) copyCourse(ctx context.Context, from int64, c course) (int64, erro
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO lessons (course_id, position, title, objective, body, gallery_item_id, published)
 		SELECT $2, position, title, objective, body, gallery_item_id, published FROM lessons WHERE course_id = $1`, from, id); err != nil {
+		return 0, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO assignments (course_id, position, title, instructions, published)
+		SELECT $2, position, title, instructions, published FROM assignments WHERE course_id = $1`, from, id); err != nil {
 		return 0, err
 	}
 	exams, err := idsOf(ctx, tx, `SELECT id FROM exams WHERE course_id = $1 ORDER BY id`, from)

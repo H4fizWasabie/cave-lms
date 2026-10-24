@@ -1,0 +1,12 @@
+{{define "title"}}{{.Assignment.Title}} · {{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow lesson-page">
+      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+      <article class="lesson">
+        <h1>{{.Assignment.Title}}</h1>
+        {{if not .Assignment.Published}}<p class="callout">{{t .Lang "assignment.draft"}}</p>{{end}}
+        <div class="prose"><p class="pre-line">{{.Assignment.Instructions}}</p></div>
+      </article>
+      <div class="lesson-foot"><a class="btn btn-ghost" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></div>
+    </div>
+{{end}}

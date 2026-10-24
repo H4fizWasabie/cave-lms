@@ -1,0 +1,16 @@
+{{define "title"}}{{t .Lang "adm.assignments.delete"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head"><h1>{{t .Lang "adm.assignments.delete"}}</h1></div>
+        <div class="card">
+          <p>{{t .Lang "adm.delete"}} &ldquo;{{.Assignment.Title}}&rdquo;? {{t .Lang "adm.assignments.delete-warning"}} {{t .Lang "adm.not-undone"}}</p>
+          <div class="form-foot">
+            <a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/assignments">{{t .Lang "adm.cancel"}}</a>
+            <form method="post" action="/admin/assignments/{{.Assignment.ID}}/delete"><button class="btn btn-danger-solid">{{t .Lang "adm.assignments.delete"}}</button></form>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

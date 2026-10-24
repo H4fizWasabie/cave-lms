@@ -1,0 +1,21 @@
+{{define "title"}}{{t .Lang "adm.assignments.assignment"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/courses/{{.Course.ID}}/assignments">{{t .Lang "adm.assignments.back"}}</a></p>
+        <div class="adm-head"><h1>{{if .Assignment.ID}}{{t .Lang "adm.assignments.edit-for" .Course.Title}}{{else}}{{t .Lang "adm.assignments.new-for" .Course.Title}}{{end}}</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="{{if .Assignment.ID}}/admin/assignments/{{.Assignment.ID}}{{else}}/admin/courses/{{.Course.ID}}/assignments{{end}}">
+            <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Assignment.Title}}" maxlength="200" required></div>
+            <div class="field"><label for="instructions">{{t .Lang "adm.assignments.instructions"}}</label><textarea id="instructions" name="instructions" rows="10" maxlength="20000" required>{{.Assignment.Instructions}}</textarea>
+              <small>{{t .Lang "adm.assignments.instructions-hint"}}</small>
+            </div>
+            {{if not .Assignment.ID}}<p class="muted">{{t .Lang "adm.assignments.starts-draft"}}</p>{{end}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/assignments">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+{{end}}

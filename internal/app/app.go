@@ -94,6 +94,7 @@ type page struct {
 	Total         int // published Lessons in the Course
 	Lessons       []lesson
 	Lesson        *lesson
+	Assignments   []assignment // the Course's, on its page for an enrolled Learner or the Admin
 	Enrollees     []enrollee
 	Certificates  []certificate
 	Certificate   *certificate // the one a verification page shows
@@ -279,6 +280,18 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses/{id}/lessons/publish-all", a.admin(a.publishAllLessons))
 	mux.HandleFunc("GET /admin/courses/{id}/lessons/new", a.admin(a.newLessonForm))
 	mux.HandleFunc("POST /admin/courses/{id}/lessons", a.admin(a.createLesson))
+	mux.HandleFunc("GET /admin/courses/{id}/assignments", a.admin(a.adminAssignments))
+	mux.HandleFunc("GET /admin/courses/{id}/assignments/new", a.admin(a.newAssignmentForm))
+	mux.HandleFunc("POST /admin/courses/{id}/assignments", a.admin(a.createAssignment))
+	mux.HandleFunc("GET /admin/assignments/{aid}/edit", a.admin(a.editAssignmentForm))
+	mux.HandleFunc("POST /admin/assignments/{aid}", a.admin(a.updateAssignment))
+	mux.HandleFunc("POST /admin/assignments/{aid}/up", a.admin(a.moveAssignment(-1)))
+	mux.HandleFunc("POST /admin/assignments/{aid}/down", a.admin(a.moveAssignment(1)))
+	mux.HandleFunc("POST /admin/assignments/{aid}/publish", a.admin(a.setAssignmentPublished(true)))
+	mux.HandleFunc("POST /admin/assignments/{aid}/unpublish", a.admin(a.setAssignmentPublished(false)))
+	mux.HandleFunc("GET /admin/assignments/{aid}/delete", a.admin(a.confirmDeleteAssignment))
+	mux.HandleFunc("POST /admin/assignments/{aid}/delete", a.admin(a.deleteAssignment))
+	mux.HandleFunc("GET /courses/{id}/assignments/{aid}", a.requireLearner(a.showAssignment))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
 	mux.HandleFunc("GET /admin/courses/{id}/exam", a.admin(a.adminExam))

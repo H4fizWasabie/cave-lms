@@ -209,39 +209,42 @@ func (a *App) moveLesson(dir int) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		ctx := r.Context()
-		tx, err := a.db.BeginTx(ctx, nil)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		defer tx.Rollback()
-		op, order := "<", "DESC"
-		if dir > 0 {
-			op, order = ">", "ASC"
-		}
-		var otherID int64
-		var otherPos int
-		err = tx.QueryRowContext(ctx, `SELECT id, position FROM lessons
-			WHERE course_id = $1 AND position `+op+` $2 ORDER BY position `+order+`, id `+order+` LIMIT 1`,
-			l.CourseID, l.Position).Scan(&otherID, &otherPos)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			a.serverError(w, r, err)
-			return
-		}
-		if err == nil {
-			if _, err := tx.ExecContext(ctx, `UPDATE lessons SET position = CASE WHEN id = $1 THEN $2::integer ELSE $3::integer END WHERE id IN ($1, $4)`,
-				l.ID, otherPos, l.Position, otherID); err != nil {
-				a.serverError(w, r, err)
-				return
-			}
-		}
-		if err := tx.Commit(); err != nil {
+		if err := a.swapWithNeighbour(r.Context(), "lessons", l.ID, l.CourseID, l.Position, dir); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 		http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
 	}
+}
+
+// swapWithNeighbour swaps the positions of row id and its neighbour in the same Course, in table (a constant, never
+// user input): dir -1 is up, +1 is down. At the top or bottom it changes nothing.
+func (a *App) swapWithNeighbour(ctx context.Context, table string, id, courseID int64, position, dir int) error {
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	op, order := "<", "DESC"
+	if dir > 0 {
+		op, order = ">", "ASC"
+	}
+	var otherID int64
+	var otherPos int
+	err = tx.QueryRowContext(ctx, `SELECT id, position FROM `+table+`
+		WHERE course_id = $1 AND position `+op+` $2 ORDER BY position `+order+`, id `+order+` LIMIT 1`,
+		courseID, position).Scan(&otherID, &otherPos)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE `+table+` SET position = CASE WHEN id = $1 THEN $2::integer ELSE $3::integer END WHERE id IN ($1, $4)`,
+		id, otherPos, position, otherID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func lessonsPath(courseID int64) string {

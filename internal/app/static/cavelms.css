@@ -847,3 +847,7 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
   .cave-loader-peak, .cave-loader-tri { stroke-dasharray: none; animation: cave-pulse 2s ease-in-out infinite; }
   .cave-loader-line { transition: none; }
 }
+
+/* Assignments and Submissions (spec #196) */
+.lb-row-plain { grid-template-columns: 2rem 1fr auto; }
+.pre-line { white-space: pre-line; overflow-wrap: anywhere; }
