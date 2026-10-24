@@ -148,6 +148,58 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 	}
 }
 
+// months is a workbook of one Finance-like sheet per name, with a notes sheet of other columns when notes.
+func months(t *testing.T, notes bool, names ...string) []byte {
+	t.Helper()
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	var sheets []testutil.Sheet
+	for _, name := range names {
+		sheets = append(sheets, testutil.Sheet{Name: name, Rows: [][]any{
+			{"Tarikh", "Perkara", "Jumlah"}, {day, "Beras " + name, 12.0},
+		}})
+	}
+	if notes {
+		sheets = append(sheets, testutil.Sheet{Name: "Nota", Rows: [][]any{{"Kumpulan", "Perkara"}, {"Dapur", "Beras"}}})
+	}
+	return testutil.Workbook(t, sheets...)
+}
+
+func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	upload := func(file []byte, want string, fields ...url.Values) string {
+		t.Helper()
+		res, body := ada.postFile(path+"/dataset", "buku.xlsx", file, fields...)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+		res, body = ada.get(path)
+		expectStatus(t, res, body, http.StatusOK, "Sheets in this Dataset: "+want+".")
+		return body
+	}
+
+	body := upload(months(t, true, "Jan", "Feb"), "Jan, Feb")
+	for _, want := range []string{
+		`name="sheet" value="Jan" checked`, `name="combine" value="Feb" checked`, `name="shown" value="Jan"`,
+		`name="sheet" value="Nota"`, "Its columns differ from the picked sheet", "1 row",
+		"Combined 2 sheets into one Dataset",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the preview lacks %s:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, `name="combine" value="Nota"`) {
+		t.Fatal("a sheet of other columns can be ticked")
+	}
+
+	// Read again with Feb unticked: Jan alone, remembered for the next upload.
+	upload(months(t, true, "Jan", "Feb"), "Jan", url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}})
+	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan")
+	// Combining again: next time a new sheet with the same columns joins by itself.
+	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan, Feb", url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}, "combine": {"Feb"}})
+	upload(months(t, false, "Jan", "Feb", "Mac"), "Jan, Feb, Mac")
+	// The remembered sheet is gone: the first readable one is picked.
+	upload(months(t, false, "Apr", "Mei"), "Apr, Mei")
+}
+
 func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createWork("finance", "Kedai")
@@ -245,5 +297,37 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after deleting the Dashboard", n)
+	}
+}
+
+func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
+	_, ada := labLearner(t)
+	res, body := ada.get("/lab/new?kind=work&t=roster")
+	for _, want := range []string{`href="/lab/new?kind=work&amp;t=sales"`, "<code>Kod</code>", `href="/lab/samples/roster.xlsx"`, `src="/lab/demo/roster/"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	_, body = ada.get("/lab/new")
+	if strings.Contains(body, "t=sales") || strings.Contains(body, "t=roster") {
+		t.Fatalf("New Practice Dashboard offers Sales or Roster:\n%s", body)
+	}
+	res, body = ada.post("/lab/dashboards", url.Values{"template": {"sales"}, "name": {"Jualan"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+
+	_, demo := ada.get("/lab/demo/roster/")
+	if !strings.Contains(demo, `"work": true`) || !strings.Contains(demo, `"by": "day"`) {
+		t.Fatalf("the Roster demo is not drawn as a Work Dashboard:\n%s", demo)
+	}
+
+	path := ada.createWork("sales", "Kafe")
+	_, sample := ada.get("/lab/samples/sales.xlsx")
+	res, body = ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "item": {"Produk"}, "category": {"Kategori"},
+		"staff": {"Staf"}, "payment": {"Kaedah bayaran"}, "quantity": {"Kuantiti"}})
+	_, index := ada.get(path + "/view/")
+	for _, want := range []string{"What sells, and when?", `"label": "Revenue by payment method"`, `"group": "Kaedah bayaran"`} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("the Sales Dashboard lacks %s:\n%s", want, index)
+		}
 	}
 }

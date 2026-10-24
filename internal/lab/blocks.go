@@ -1,5 +1,14 @@
 package lab
 
+import (
+	"cmp"
+	"slices"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
+)
+
 // Config is a Work Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
 // Dataset's columns rather than Template blanks. It is configuration Cave applies, never code (ADR 0013).
 type Config struct {
@@ -78,6 +87,8 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			switch {
 			case b.Times != "":
 				w.Value = &Value{Agg: "calc", A: c[b.Of], Op: "x", B: c[b.Times], Then: "sum"}
+			case b.Agg == "distinct":
+				w.Value = &Value{Agg: "distinct", Col: c[b.Of]}
 			case b.Of != "":
 				w.Value = &Value{Agg: "sum", Col: c[b.Of]}
 			default:
@@ -85,7 +96,7 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			}
 		}
 		if b.Kind == "line" {
-			w.By = "month"
+			w.By = cmp.Or(b.By, "month")
 		}
 		if b.Kind == "bar" {
 			w.Top = 8
@@ -130,4 +141,344 @@ func (t *Template) included(c Choices) []Block {
 		}
 	}
 	return blocks
+}
+
+// MaxBlocks is the most blocks a Work Dashboard holds, and MaxCards the most of them that are cards (two rows).
+const (
+	MaxBlocks = 20
+	MaxCards  = 8
+)
+
+// Kinds are the kinds of block, in the order the editor offers them.
+var Kinds = []string{"card", "line", "bar", "donut", "table"}
+
+// Cards counts the Config's cards.
+func (c *Config) Cards() int {
+	n := 0
+	for _, b := range c.Blocks {
+		if b.Kind == "card" {
+			n++
+		}
+	}
+	return n
+}
+
+// Check refuses a Config over the limits: 20 blocks, 8 of them cards.
+func (c *Config) Check() error {
+	switch {
+	case len(c.Blocks) > MaxBlocks:
+		return Problem{"lab.err.blocks-full", []any{MaxBlocks}}
+	case c.Cards() > MaxCards:
+		return Problem{"lab.err.cards-full", []any{MaxCards}}
+	}
+	return nil
+}
+
+// Arrange puts the cards first, keeping the order within cards and within the rest: the Dashboard draws cards
+// in their own rows on top, so the list shows them the same way. It returns where block i went.
+func (c *Config) Arrange(i int) int {
+	order := make([]int, len(c.Blocks))
+	for k := range order {
+		order[k] = k
+	}
+	rest := func(k int) int {
+		if c.Blocks[k].Kind == "card" {
+			return 0
+		}
+		return 1
+	}
+	slices.SortStableFunc(order, func(a, b int) int { return rest(a) - rest(b) })
+	blocks, at := make([]WorkBlock, len(order)), -1
+	for k, from := range order {
+		blocks[k] = c.Blocks[from]
+		if from == i {
+			at = k
+		}
+	}
+	c.Blocks = blocks
+	return at
+}
+
+// Add adds a new block of kind with its options at their defaults for d and returns where it went: a card after
+// the last card, anything else at the end.
+func (c *Config) Add(kind string, d *Dataset, lang string) (int, error) {
+	b := WorkBlock{Kind: kind}
+	if kind == "line" || kind == "table" {
+		b.Wide = true
+	}
+	if kind == "bar" {
+		b.Top = 8
+	}
+	b.Fill(d)
+	b.Label = b.AutoLabel(lang)
+	if err := b.Check(d); err != nil {
+		return 0, err
+	}
+	c.Blocks = append(c.Blocks, b)
+	at := c.Arrange(len(c.Blocks) - 1)
+	return at, c.Check()
+}
+
+// Move moves block i one place up (step -1) or down (step 1) among its own sort, cards among cards and charts
+// and tables among themselves; at the end of its sort it stays. It returns where the block is now.
+func (c *Config) Move(i, step int) int {
+	j := i + step
+	if i < 0 || j < 0 || i >= len(c.Blocks) || j >= len(c.Blocks) || (c.Blocks[i].Kind == "card") != (c.Blocks[j].Kind == "card") {
+		return i
+	}
+	c.Blocks[i], c.Blocks[j] = c.Blocks[j], c.Blocks[i]
+	return j
+}
+
+// CheckFilterBar refuses a filter bar naming anything but the Dataset's Text and Date columns.
+func CheckFilterBar(names []string, d *Dataset) error {
+	for _, n := range names {
+		if t := d.typeOf(n); t != Text && t != Date {
+			return Problem{"lab.err.filter-bar", []any{n}}
+		}
+	}
+	return nil
+}
+
+// typeOf is the type of the Dataset's column called name; empty if it has none.
+func (d *Dataset) typeOf(name string) Type {
+	for _, c := range d.Columns {
+		if c.Name == name {
+			return c.Type
+		}
+	}
+	return ""
+}
+
+// first is the name of the Dataset's first column of type t (any type when t is empty) other than skip;
+// empty if there is none.
+func (d *Dataset) first(t Type, skip ...string) string {
+	for _, c := range d.Columns {
+		if (t == "" || c.Type == t) && !slices.Contains(skip, c.Name) {
+			return c.Name
+		}
+	}
+	return ""
+}
+
+// Fill gives each option the block's kind needs and the editor left empty, or set to a column of the wrong
+// type, its default for d; options the kind does not use are cleared. A column the Dataset lacks is left as it
+// is, so the block can say what it needs.
+func (b *WorkBlock) Fill(d *Dataset) {
+	fit := func(col string, t Type) string {
+		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t) {
+			return d.first(t)
+		}
+		return col
+	}
+	if b.Kind == "table" {
+		b.Value, b.X, b.By, b.Split, b.Group, b.Top = nil, "", "", "", "", 0
+		if len(b.Cols) == 0 {
+			for _, c := range d.Columns[:min(3, len(d.Columns))] {
+				b.Cols = append(b.Cols, c.Name)
+			}
+		}
+		if b.Sort == "" {
+			b.Sort = d.first(Date)
+		}
+		if !slices.Contains([]int{10, 25, 50}, b.Limit) {
+			b.Limit = 10
+		}
+		return
+	}
+	b.Cols, b.Sort, b.Limit = nil, "", 0
+	if b.Value == nil {
+		b.Value = &Value{Agg: "count"}
+	}
+	v := b.Value
+	switch v.Agg {
+	case "sum", "avg":
+		v.Col, v.A, v.Op, v.B, v.Then = fit(v.Col, Number), "", "", "", ""
+	case "distinct":
+		v.Col, v.A, v.Op, v.B, v.Then = fit(v.Col, ""), "", "", "", ""
+	case "calc":
+		v.Col, v.A = "", fit(v.A, Number)
+		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number) {
+			if v.B = d.first(Number, v.A); v.B == "" {
+				v.B = v.A
+			}
+		}
+		if v.Op == "" {
+			v.Op = "-"
+		}
+		if v.Then == "" {
+			v.Then = "sum"
+		}
+	case "count":
+		*v = Value{Agg: "count"}
+	}
+	if b.Kind != "line" {
+		b.X, b.By = "", ""
+	}
+	if b.Kind != "bar" && b.Kind != "donut" {
+		b.Group = ""
+	}
+	if b.Kind != "line" && b.Kind != "bar" {
+		b.Split = ""
+	}
+	if b.Kind != "bar" {
+		b.Top = 0
+	}
+	switch b.Kind {
+	case "card":
+		b.Wide = false
+	case "line":
+		b.X = fit(b.X, Date)
+		if b.By == "" {
+			b.By = "month"
+		}
+	case "bar", "donut":
+		b.Group = fit(b.Group, Text)
+	}
+	if have := d.typeOf(b.Split); have != "" && have != Text {
+		b.Split = ""
+	}
+}
+
+// Check refuses a block the editor cannot save on d: an option Cave does not offer, a label over 80
+// characters, or a column the Dataset lacks or of the wrong type.
+// #247: the lock rules for Locked blocks (kind and calculation fixed) belong with these checks.
+func (b *WorkBlock) Check(d *Dataset) error {
+	bad := Problem{"lab.err.block-option", nil}
+	col := func(name string, t Type) error {
+		have := d.typeOf(name)
+		switch {
+		case name == "" && d.first(t) == "":
+			return Problem{"lab.err.block-none", []any{typeWord(t)}}
+		case name == "":
+			return bad
+		case have == "":
+			return Problem{"lab.err.block-column", []any{name}}
+		case t != "" && have != t:
+			return Problem{"lab.err.block-type", []any{typeWord(t), name, typeWord(have)}}
+		}
+		return nil
+	}
+	maybe := func(name string, t Type) error {
+		if name == "" {
+			return nil
+		}
+		return col(name, t)
+	}
+	if utf8.RuneCountInString(b.Label) > 80 {
+		return Problem{"lab.err.block-label", nil}
+	}
+	var errs []error
+	switch b.Kind {
+	case "table":
+		if len(b.Cols) == 0 {
+			return Problem{"lab.err.block-cols", nil}
+		}
+		for _, c := range b.Cols {
+			errs = append(errs, col(c, ""))
+		}
+		errs = append(errs, maybe(b.Sort, ""))
+		if !slices.Contains([]int{10, 25, 50}, b.Limit) {
+			return bad
+		}
+	case "card", "line", "bar", "donut":
+		v := b.Value
+		if v == nil {
+			return bad
+		}
+		switch v.Agg {
+		case "count":
+		case "sum", "avg":
+			errs = append(errs, col(v.Col, Number))
+		case "distinct":
+			errs = append(errs, col(v.Col, ""))
+		case "calc":
+			if ops[v.Op] == "" || (v.Then != "sum" && v.Then != "avg") {
+				return bad
+			}
+			errs = append(errs, col(v.A, Number), col(v.B, Number))
+		default:
+			return bad
+		}
+	default:
+		return bad
+	}
+	switch b.Kind {
+	case "line":
+		if b.By != "day" && b.By != "month" {
+			return bad
+		}
+		errs = append(errs, col(b.X, Date), maybe(b.Split, Text))
+	case "bar":
+		if !slices.Contains([]int{0, 5, 8, 15}, b.Top) {
+			return bad
+		}
+		errs = append(errs, col(b.Group, Text), maybe(b.Split, Text))
+	case "donut":
+		errs = append(errs, col(b.Group, Text))
+	}
+	if b.Filter != nil {
+		errs = append(errs, col(b.Filter.Col, Text))
+	}
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ops are the calculation's operators as people write them.
+var ops = map[string]string{"+": "+", "-": "−", "x": "×", "/": "÷"}
+
+// what is the block's value in a few words: Rows, Jumlah, Average Jumlah, Jumlah − Kos.
+func (b *WorkBlock) what(lang string) string {
+	v := b.Value
+	switch {
+	case v == nil || v.Agg == "count":
+		return text.T(lang, "lab.b.lbl.count")
+	case v.Agg == "calc":
+		return v.A + " " + ops[v.Op] + " " + v.B
+	case v.Agg == "sum":
+		return v.Col
+	}
+	return text.T(lang, "lab.b.lbl."+v.Agg, v.Col)
+}
+
+// AutoLabel is the label the block's choices give it, such as "Jumlah by Staf", until the Learner types one.
+func (b *WorkBlock) AutoLabel(lang string) string {
+	switch b.Kind {
+	case "table":
+		return text.T(lang, "lab.b.kind.table")
+	case "line":
+		return text.T(lang, "lab.b.by", b.what(lang), text.T(lang, "lab.b.by-"+b.By))
+	case "bar", "donut":
+		return text.T(lang, "lab.b.by", b.what(lang), b.Group)
+	}
+	return b.what(lang)
+}
+
+// Summary is the block's one line in the list: its value, what it groups by, and its filter.
+func (b *WorkBlock) Summary(lang string) string {
+	var parts []string
+	switch v := b.Value; {
+	case b.Kind == "table":
+		parts = append(parts, strings.Join(b.Cols, ", "))
+	case v == nil || v.Agg == "count":
+		parts = append(parts, text.T(lang, "lab.b.agg.count"))
+	case v.Agg == "calc":
+		parts = append(parts, b.what(lang))
+	default:
+		parts = append(parts, text.T(lang, "lab.b.agg."+v.Agg)+" "+v.Col)
+	}
+	switch {
+	case b.Kind == "line":
+		parts = append(parts, text.T(lang, "lab.b.by", b.X, text.T(lang, "lab.b.by-"+b.By)))
+	case b.Group != "":
+		parts = append(parts, b.Group)
+	}
+	if f := b.Filter; f != nil && len(f.Vals) > 0 {
+		parts = append(parts, f.Col+" = "+strings.Join(f.Vals, ", "))
+	}
+	return strings.Join(parts, " · ")
 }

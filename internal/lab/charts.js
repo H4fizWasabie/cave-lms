@@ -86,7 +86,7 @@
   // fromPractice reads a Template's block, naming blanks, as the same block naming columns would be.
   function fromPractice(b) {
     return { kind: b.kind, label: b.label, wide: b.wide, x: b.x, by: b.kind === 'line' ? 'month' : undefined, split: b.series,
-      group: b.group, top: b.kind === 'bar' ? 8 : undefined, cols: b.cols, sort: b.sort, limit: b.limit, where: b.where, minus: b.minus, low: b.low,
+      group: b.group, top: b.kind === 'bar' ? 8 : undefined, other: b.kind === 'donut' ? 5 : undefined, cols: b.cols, sort: b.sort, limit: b.limit, where: b.where, minus: b.minus, low: b.low,
       value: b.kind === 'table' ? undefined : b.agg === 'count' || !b.of ? { agg: 'count' } : b.times ? { agg: 'calc', a: b.of, op: 'x', b: b.times, then: 'sum' } : { agg: 'sum', col: b.of } };
   }
   function num(x) { var n = +x; return x == null || x === '' || isNaN(n) ? null : n; }
@@ -108,9 +108,10 @@
     return v.agg === 'avg' || (v.agg === 'calc' && v.then === 'avg') ? (n ? tot / n : 0) : tot;
   }
   // where keeps the rows whose column holds one of the values: f is a block's filter, or a Template's [column, value].
+  // A filter with its column picked and no value ticked yet keeps every row.
   function where(rows, f, cols) {
     if (f && !f.col) f = { col: f[0], vals: f.slice(1) };
-    return f && cols[f.col] ? rows.filter(function (r) { return f.vals.indexOf(String(blank(r[f.col]))) >= 0; }) : rows;
+    return f && f.vals.length && cols[f.col] ? rows.filter(function (r) { return f.vals.indexOf(String(blank(r[f.col]))) >= 0; }) : rows;
   }
   // scope is the rows a block draws: those its filter keeps, and with low, those at or below the level.
   function scope(b, rows, cols) {
@@ -137,10 +138,10 @@
       return [x[0], x[1]].concat(b.split ? [groups(b.value, x[2], b.split).map(function (s) { return [s[0], s[1]]; }).sort(function (a, c) { return a[0] < c[0] ? -1 : 1; })] : []);
     });
   }
-  // slices is a donut's groups, past the top 5 folded into one Other.
+  // slices is a donut's groups, past the top 6 folded into one Other (a Practice donut's, past the top 5, as it always was).
   function slices(b, rows, cols) {
-    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; });
-    if (g.length > 6) { var rest = g.slice(5).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, 5).concat([['Other', rest]]); }
+    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; }), n = b.other || 6;
+    if (g.length > n + 1) { var rest = g.slice(n).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, n).concat([['Other', rest]]); }
     return g;
   }
   // timeline is a line's values by month or day, one series per split value; empty dates are left off the axis.

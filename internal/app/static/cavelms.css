@@ -768,6 +768,42 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 @media (max-width: 999px) { .tp-pick { grid-template-columns: repeat(2, 1fr); } .lab-split { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .tp-pick { grid-template-columns: 1fr; } .pv-stage { padding: .5rem; } .pv-frame { height: 900px; } }
 
+/* A Work Dashboard's Blocks tab (Edit blocks): the list and its forms on the left, the live Dashboard on the right. */
+.eb-head { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.eb-saved { margin: 0; font-size: .88rem; color: var(--ok); display: inline-flex; gap: .3rem; align-items: center; }
+.eb-two { display: grid; grid-template-columns: minmax(22rem, 30rem) 1fr; gap: 1.6rem; align-items: start; }
+.eb-two > section { display: grid; gap: .8rem; min-width: 0; }
+.eb-two > .eb-pv { position: sticky; top: 1rem; min-width: 0; }
+.eb-pvk { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.eb-pv .pv-frame { height: calc(100vh - 6rem); }
+.eb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.eb-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 1rem; }
+.eb-item.is-open { border-color: var(--brand-ink); }
+.eb-row { display: flex; gap: .5rem; align-items: center; padding: .5rem .6rem; }
+.eb-name { flex: 1; min-width: 0; display: grid; gap: .05rem; padding: .15rem .2rem; color: inherit; text-decoration: none; }
+.eb-name strong { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: .3rem; align-items: center; }
+.eb-name small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eb-kind { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--brand-gold-deep); background: var(--brand-gold-soft); border-radius: var(--radius); padding: .12rem .4rem; flex: none; width: 4.4rem; text-align: center; }
+.eb-tools { display: flex; gap: .1rem; flex: none; }
+.eb-ic { border: 1px solid transparent; background: none; border-radius: var(--radius); padding: .3rem; cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; }
+.eb-ic:hover { border-color: var(--line-strong); background: #fff; }
+.eb-ic:disabled { opacity: .3; cursor: default; border-color: transparent; background: none; }
+.eb-form { display: grid; gap: .8rem; padding: .9rem .9rem 1rem; border-top: 1px solid var(--line); }
+.eb-form .field select, .eb-form .field input[type=text] { width: 100%; }
+.eb-form fieldset, .eb-sect fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.eb-form legend, .eb-sect legend { font-weight: 600; font-size: .9rem; margin-bottom: .3rem; padding: 0; }
+.eb-seg { display: flex; flex-wrap: wrap; gap: .3rem; }
+.eb-seg label { position: relative; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: .32rem .6rem; font-size: .86rem; font-weight: 600; cursor: pointer; background: #fff; }
+.eb-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.eb-seg label:has(input:checked) { background: var(--brand-ink); border-color: var(--brand-ink); color: #f8f8f4; }
+.eb-seg label:has(input:focus-visible) { box-shadow: var(--focus); }
+.eb-ticks { display: flex; flex-wrap: wrap; gap: .3rem .9rem; font-size: .88rem; }
+.eb-ticks label { display: inline-flex; gap: .35rem; align-items: center; font-weight: 400; }
+.eb-add { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.eb-limit { font-size: .82rem; color: var(--muted); }
+.eb-sect { display: grid; gap: .5rem; margin-top: .6rem; }
+@media (max-width: 960px) { .eb-two { grid-template-columns: 1fr; } .eb-two > .eb-pv { position: static; } }
+
 /* Lab: Under the hood (each part of the generated files beside its note) and the read-only Lab. */
 .hood { margin-bottom: 2rem; }
 .hood .h-sm { margin-bottom: .8rem; }
