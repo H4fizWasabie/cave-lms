@@ -3,6 +3,7 @@ package lab
 import (
 	_ "embed"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -35,6 +36,8 @@ type Blank struct {
 	// Loose, when set, are the names a Work Dashboard's guessing looks for in column names instead of Guess,
 	// lower case, best first.
 	Loose []string
+	// Not, with Loose, are words that keep a column from being guessed by part of its name, lower case.
+	Not []string
 }
 
 // Block is one part of a Dashboard. Fields name blanks by key; the chart script (charts.js) draws it.
@@ -107,7 +110,8 @@ var Inventory = &Template{
 			Loose: []string{"nama barang", "nama item", "item", "barang", "produk", "product", "nama", "name"}},
 		// Stock on hand: a closing or actual count beats purchases, opening stock and movements.
 		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"},
-			Loose: []string{"closing", "actual", "baki akhir", "on hand", "in stock", "kuantiti", "quantity", "qty", "stok", "stock", "baki", "balance"}},
+			Loose: []string{"closing", "actual", "baki akhir", "on hand", "in stock", "kuantiti", "quantity", "qty", "stok", "stock", "baki", "balance"},
+			Not:   []string{"opening", "awal", "purchase", "belian", "movement", "pergerakan"}},
 		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"},
 			Loose: []string{"paras pesanan semula", "paras minimum", "reorder", "minimum", "par level", "safety stock"}},
 		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"},
@@ -226,7 +230,7 @@ var Sales = &Template{
 		{Key: "payment", Label: "Payment method", Type: Text, Help: "Tunai, Kad, DuitNow QR and so on", Guess: []string{"kaedah bayaran", "bayaran", "payment method", "payment mode", "payment"},
 			Loose: []string{"kaedah bayaran", "cara bayar", "payment method", "payment mode", "bayaran", "bayar", "payment", "paid by"}},
 		{Key: "quantity", Label: "Quantity", Type: Number, Help: "How many were sold", Guess: []string{"kuantiti", "quantity", "qty", "unit"},
-			Loose: []string{"kuantiti", "quantity", "qty", "bil", "unit"}},
+			Loose: []string{"kuantiti", "quantity", "qty", "bil. unit", "bilangan unit", "units sold"}},
 	},
 	Blocks: []Block{
 		{Kind: "card", Label: "Revenue", Agg: "sum", Of: "amount"},
@@ -258,7 +262,7 @@ var Roster = &Template{
 		{Key: "code", Label: "Code", Type: Text, Required: true, Help: "The shift code, such as P, M or C", Guess: []string{"kod", "code", "syif", "shift", "kod syif", "shift code"},
 			Loose: []string{"kod syif", "shift code", "kod", "code", "syif", "shift"}},
 		{Key: "department", Label: "Department", Type: Text, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department", "unit"},
-			Loose: []string{"jabatan", "bahagian", "department", "dept", "unit", "ward", "wad", "section"}},
+			Loose: []string{"jabatan", "bahagian", "department", "dept", "ward", "wad", "section"}},
 	},
 	Blocks: []Block{
 		{Kind: "card", Label: "Staff", Agg: "distinct", Of: "staff"},
@@ -327,26 +331,41 @@ func (t *Template) Guess(d *Dataset) Choices {
 }
 
 // guessWork is a Work Dashboard's guess for each blank: an unused column of the blank's type whose name holds
-// one of the blank's names (Loose, else Guess), trying the names in order and, for each, a column of exactly
-// that name first. A blank no column name matches is left empty, required or not: a guess by type alone
-// is too often wrong on real files.
+// one of the blank's Loose names (else Guess names), trying the names in order and, for each, a column of exactly
+// that name first; then, after Loose, a column named exactly as one of its Guess names. A column whose name holds
+// one of the blank's Not words is never guessed by part of its name. A blank no column name matches is left
+// empty, required or not: a guess by type alone is too often wrong on real files.
 func (t *Template) guessWork(d *Dataset) Choices {
 	c, used := Choices{}, map[string]bool{}
 	for _, b := range t.Blanks {
-		names := b.Loose
+		names, whole := b.Loose, b.Guess
 		if len(names) == 0 {
-			names = b.Guess
+			names, whole = b.Guess, nil
 		}
-	find:
-		for _, g := range names {
-			for _, exact := range []bool{true, false} {
-				for _, col := range d.Columns {
-					name := strings.Join(strings.Fields(strings.ToLower(col.Name)), " ")
-					if !used[col.Name] && col.Type == b.Type && (name == g || !exact && strings.Contains(name, g)) {
-						c[b.Key], used[col.Name] = col.Name, true
-						break find
-					}
+		pick := func(match func(name string) bool) bool {
+			for _, col := range d.Columns {
+				if name := columnKey(col.Name); !used[col.Name] && col.Type == b.Type && match(name) {
+					c[b.Key], used[col.Name] = col.Name, true
+					return true
 				}
+			}
+			return false
+		}
+		part := func(g string) func(string) bool {
+			return func(name string) bool {
+				return strings.Contains(name, g) && !slices.ContainsFunc(b.Not, func(w string) bool { return strings.Contains(name, w) })
+			}
+		}
+		is := func(g string) func(string) bool { return func(name string) bool { return name == g } }
+		found := false
+		for _, g := range names {
+			if found = pick(is(g)) || pick(part(g)); found {
+				break
+			}
+		}
+		for _, g := range whole {
+			if found = found || pick(is(g)); found {
+				break
 			}
 		}
 	}

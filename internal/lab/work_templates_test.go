@@ -179,6 +179,27 @@ func TestSalesAndRosterGuessLooselyNamedColumns(t *testing.T) {
 	}
 }
 
+// A loose name that is part of another column's name, like unit in Unit Price, is never guessed by part; a column
+// named exactly so still is.
+func TestSalesAndRosterNeverGuessBySharedWords(t *testing.T) {
+	at := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	for _, c := range []struct {
+		key    string
+		header []string
+		row    []any
+		want   lab.Choices
+	}{
+		{"sales", []string{"Bil", "Tarikh", "Barang", "Unit Price", "Jumlah"}, []any{1, at, "Kopi", 4.5, 9}, lab.Choices{"date": "Tarikh", "item": "Barang", "amount": "Jumlah"}},
+		{"roster", []string{"Nama", "Tarikh", "Kod", "Community"}, []any{"Aina", at, "P", "Taman Melati"}, lab.Choices{"staff": "Nama", "date": "Tarikh", "code": "Kod"}},
+		{"roster", []string{"Nama", "Tarikh", "Kod", "Unit"}, []any{"Aina", at, "P", "ICU"}, lab.Choices{"staff": "Nama", "date": "Tarikh", "code": "Kod", "department": "Unit"}},
+	} {
+		res := clean(t, testutil.XLSX(t, c.header, c.row), template(t, c.key))
+		if !reflect.DeepEqual(res.Guess, c.want) {
+			t.Errorf("%s %v guesses = %v, want %v", c.key, c.header, res.Guess, c.want)
+		}
+	}
+}
+
 func TestSalesAndRosterDrawFromTheirSamples(t *testing.T) {
 	for key, want := range map[string][]string{
 		"sales":  {`<span>Sales</span><strong>90</strong>`, "Revenue by month", "Revenue by payment method", "Latest sales"},

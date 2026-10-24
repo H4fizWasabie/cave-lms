@@ -284,6 +284,22 @@ func TestInventoryGuessesTheClosingBalanceForQuantity(t *testing.T) {
 	if want := (lab.Choices{"item": "Nama Barang", "quantity": "Closing Balance"}); !reflect.DeepEqual(got, want) {
 		t.Fatalf("guess = %v, want %v", got, want)
 	}
+
+	// With no closing or actual column, an opening, purchase or movement column is never stock on hand.
+	for _, c := range []struct {
+		header []string
+		want   string
+	}{
+		{[]string{"Nama Barang", "Opening Balance", "Purchase Qty", "Stock Movement"}, ""},
+		{[]string{"Nama Barang", "Baki Awal", "Belian"}, ""},
+		{[]string{"Nama Barang", "Baki Awal", "Baki"}, "Baki"},
+		{[]string{"Nama Barang", "Opening Stock", "Stock Balance"}, "Stock Balance"},
+	} {
+		got := clean(t, testutil.XLSX(t, c.header, []any{"Gula", 5, 3, 1}[:len(c.header)]), template(t, "inventory")).Guess["quantity"]
+		if got != c.want {
+			t.Errorf("%v: quantity = %q, want %q", c.header, got, c.want)
+		}
+	}
 }
 
 func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
