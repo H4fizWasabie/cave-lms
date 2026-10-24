@@ -10,6 +10,7 @@ CREATE TABLE organisations (
 );
 -- Only a Live Course names one. No cascade: an Organisation in use is not deleted.
 ALTER TABLE courses ADD COLUMN organisation_id bigint REFERENCES organisations (id);
+CREATE INDEX courses_organisation ON courses (organisation_id);
 
 -- +goose Down
 ALTER TABLE courses DROP COLUMN organisation_id;
