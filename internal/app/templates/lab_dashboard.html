@@ -169,7 +169,7 @@
                   {{- if .CanCombine}}
                   <label><input type="checkbox" name="combine" value="{{.Name}}"{{if $p.In .Name}} checked{{end}}> {{t $.Lang "lab.w.combine"}}</label>
                   {{- end}}
-                  <small class="muted">{{tn $.Lang "lab.d.rows" .Rows}}{{with .Reason}} · {{t $.Lang .}}{{end}}</small>
+                  <small class="muted">{{tn $.Lang "lab.d.rows" .Rows}}{{with .ReasonKey}} · {{t $.Lang .}}{{end}}</small>
                 </li>
                 {{- end}}
               </ul>

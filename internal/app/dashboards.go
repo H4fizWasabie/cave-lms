@@ -250,11 +250,18 @@ func (p *newDashboardPage) offers(key string) bool {
 func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
 	t := lab.TemplateByKey(p.Picked)
 	var err error
-	if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err != nil {
+	if p.Work { // read and guessed as a Work Dashboard's upload is
+		var res *lab.CleanUp
+		if res, err = lab.Clean(bytes.NewReader(t.Sample), t, lab.Settings{}); err == nil {
+			p.Sample, p.Guess = res.Dataset, res.Guess
+		}
+	} else if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err == nil {
+		p.Guess = t.Guess(p.Sample)
+	}
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	p.Guess = t.Guess(p.Sample)
 	a.render(w, r, status, "lab_new", p)
 }
 

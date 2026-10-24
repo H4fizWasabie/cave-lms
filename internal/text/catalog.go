@@ -711,7 +711,37 @@ var catalog = map[string]entry{
 		en: "The %d ticked sheets have %s rows together. The Lab reads up to %s rows. Tick fewer sheets and upload again.",
 		ms: "%d helaian yang ditanda ada %s baris kesemuanya. Lab membaca sehingga %s baris. Tanda lebih sedikit helaian dan muat naik semula.",
 	},
-	"lab.err.too-many-columns": {en: "The sheet has %d columns. The Lab reads up to %d columns.", ms: "Helaian ini ada %d lajur. Lab membaca sehingga %d lajur."},
+	// Why Clean-up cannot read a Work Dashboard upload, with the row in Excel; lab.err.on-sheet names the sheet.
+	"lab.err.on-sheet":         {en: "Sheet %s: %s", ms: "Helaian %s: %s"},
+	"lab.err.sheet-unreadable": {en: "The sheet could not be read: %s", ms: "Helaian ini tidak dapat dibaca: %s"},
+	"lab.err.no-header": {
+		en: "Cave found no row of column names with data below it. Put the column names in one row above the data and upload again.",
+		ms: "Cave tidak menemui baris nama lajur dengan data di bawahnya. Letakkan nama lajur dalam satu baris di atas data dan muat naik semula.",
+	},
+	"lab.err.no-rows": {
+		en: "Cave read row %d as the column names but found no data below it. Add the data under that row and upload again.",
+		ms: "Cave membaca baris %d sebagai nama lajur tetapi tiada data di bawahnya. Tambah data di bawah baris itu dan muat naik semula.",
+	},
+	"lab.err.header-unnamed": {
+		en: "Column %s has data but no name in the header, row %d. Name the column there and upload again.",
+		ms: "Lajur %s ada data tetapi tiada nama dalam tajuk lajur, baris %d. Namakan lajur itu di situ dan muat naik semula.",
+	},
+	"lab.err.header-same-name": {
+		en: "Two columns are called %s in the header, row %d. Give each column its own name and upload again.",
+		ms: "Dua lajur bernama %s dalam tajuk lajur, baris %d. Berikan setiap lajur namanya sendiri dan muat naik semula.",
+	},
+	"lab.err.grid-empty": {
+		en: "The days-across grid with its days in row %d has no codes in the month's days. Fill in the codes and upload again.",
+		ms: "Grid hari merentas lajur dengan harinya di baris %d tiada kod pada hari-hari bulan itu. Isi kod tersebut dan muat naik semula.",
+	},
+	"lab.err.too-many-columns": {
+		en: "The sheet has %d columns with data. The Lab reads up to %d columns. Delete some columns and upload again.",
+		ms: "Helaian ini ada %d lajur berisi data. Lab membaca sehingga %d lajur. Padam beberapa lajur dan muat naik semula.",
+	},
+	"lab.err.too-many-columns-combined": {
+		en: "Combined, the sheets have %d columns, counting the %s column Cave adds. The Lab reads up to %d columns. Delete a column, or pick one sheet alone, and upload again.",
+		ms: "Apabila digabung, helaian ini ada %d lajur, termasuk lajur %s yang ditambah oleh Cave. Lab membaca sehingga %d lajur. Padam satu lajur, atau pilih satu helaian sahaja, dan muat naik semula.",
+	},
 	"lab.err.missing-column": {
 		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
 		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",

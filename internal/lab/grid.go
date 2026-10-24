@@ -29,39 +29,58 @@ func gridDays(header []string) (first, days int) {
 	return first, days
 }
 
-// readGrid reads a days-across grid whose header at cells[h] has days from column first: the columns before
-// day 1 (a blank first one is Staff) then Date and Code. Its rows keep their day cells until unpivot dates them.
-// The grid ends at the first fully blank row, so a legend below it is left out, and at its last day, so counts
-// beside it are too. A row with no staff, like weekday names under the days, is skipped.
+// readGrid reads a days-across grid whose header at cells[h] has days from column first as the columns Staff,
+// Date and Code. Staff is the first column before day 1 holding names, not only numbers like a Bil column; the
+// other columns before day 1 are left out. Its rows keep their day cells until unpivot dates them. The grid ends
+// at the first fully blank row, so a legend below it is left out, and at its last day, so counts beside it are
+// too. It also ends at a Total or Jumlah row, or a row of only numbers under rows of codes: counts per day, not
+// shifts. A row with no staff, like weekday names under the days, is skipped.
 func readGrid(name string, cells [][]string, h, first, days int) (*table, error) {
-	names := append(slices.Clone(cells[h][:first]), "Date", "Code")
-	if strings.TrimSpace(names[0]) == "" {
-		names[0] = "Staff"
-	}
-	cols, err := columnsOf(names)
-	if err != nil {
-		return nil, err
-	}
-	tb := &table{name: name, header: h, cols: cols, flat: true, days: days}
-	for r := h + 1; r < len(cells); r++ {
-		vals := make([]cell, first+days)
-		for c := range vals {
-			if c < len(cells[r]) {
-				vals[c].v = strings.TrimSpace(cells[r][c])
-			}
+	at := func(r, c int) string {
+		if c < len(cells[r]) {
+			return strings.TrimSpace(cells[r][c])
 		}
+		return ""
+	}
+	var rows []int
+	for r := h + 1; r < len(cells); r++ {
 		if strings.TrimSpace(strings.Join(cells[r], "")) == "" {
-			if len(tb.raw) > 0 {
+			if len(rows) > 0 {
 				break
 			}
 			continue
 		}
-		if slices.ContainsFunc(vals[:first], func(c cell) bool { return c.v != "" }) {
-			tb.raw, tb.rowNo = append(tb.raw, vals), append(tb.rowNo, r+1)
+		rows = append(rows, r)
+	}
+	staff := 0
+	for c := range first {
+		if slices.ContainsFunc(rows, func(r int) bool { _, isNumber := number(at(r, c)); return at(r, c) != "" && !isNumber }) {
+			staff = c
+			break
 		}
 	}
+	tb := &table{name: name, header: h, cols: []Column{{Name: "Staff"}, {Name: "Date"}, {Name: "Code"}}, flat: true, days: days}
+	coded := false // a row above has a code that is not a number
+	for _, r := range rows {
+		who := at(r, staff)
+		if who == "" {
+			continue
+		}
+		vals, filled, numbers := []cell{{v: who}}, false, true
+		for d := range days {
+			v := at(r, first+d)
+			_, isNumber := number(v)
+			vals = append(vals, cell{v: v})
+			filled, numbers = filled || v != "", numbers && (v == "" || isNumber)
+		}
+		if totalLabel.MatchString(who) || coded && filled && numbers {
+			break
+		}
+		coded = coded || filled && !numbers
+		tb.raw, tb.rowNo = append(tb.raw, vals), append(tb.rowNo, r+1)
+	}
 	if len(tb.raw) == 0 {
-		return nil, Problem{"lab.err.no-data", nil}
+		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	for _, row := range cells[:h] {
 		tb.title += " " + strings.Join(row, " ")

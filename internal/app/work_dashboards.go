@@ -46,7 +46,7 @@ type pendingDataset struct {
 // Picked is the sheet Clean-up read first, the one the others joined.
 func (p *pendingDataset) Picked() string {
 	for _, s := range p.Sheets {
-		if s.Readable && !s.CanCombine && s.Reason == "" {
+		if s.Readable && !s.CanCombine && s.ReasonKey == "" {
 			return s.Name
 		}
 	}

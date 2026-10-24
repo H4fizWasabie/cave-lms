@@ -55,6 +55,9 @@ func TestCleanUpUnpivotsADaysAcrossGridToStaffDateCodeRows(t *testing.T) {
 	if !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
 		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, wantRows)
 	}
+	if res.Month != 10 || res.Year != 2026 {
+		t.Fatalf("month %d/%d, want 10/2026", res.Month, res.Year)
+	}
 	en, ms := changesIn(res, "en"), changesIn(res, "ms")
 	if !slices.Contains(en, "Turned the days across the columns into 4 rows, one per staff per day, dated 10/2026. Empty days, counts beside the grid and notes below it were left out.") {
 		t.Fatalf("changes = %q", en)
@@ -100,5 +103,42 @@ func TestDepartmentGridsAreEachUnpivotedThenCombined(t *testing.T) {
 	}
 	if !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
 		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, wantRows)
+	}
+}
+
+// grid is a days-across sheet: a title, a header of lead names then days 1 to 31, and rows of lead cells then
+// each row's cells by day.
+func grid(name string, lead []any, rows ...[]any) testutil.Sheet {
+	header := slices.Clone(lead)
+	for d := 1; d <= 31; d++ {
+		header = append(header, d)
+	}
+	return testutil.Sheet{Name: name, Rows: append([][]any{{"Jadual Tugas Oktober 2026"}, header}, rows...)}
+}
+
+// days is one grid row: its lead cells, then a value on given days.
+func days(lead []any, by map[int]any) []any {
+	r := append(slices.Clone(lead), make([]any, 31)...)
+	for d, v := range by {
+		r[len(lead)+d-1] = v
+	}
+	return r
+}
+
+// A grid's staff column is the names one, always called Staff, beside only Date and Code; count and total rows
+// right under the staff rows are not shifts.
+func TestAGridGivesStaffDateCodeAndLeavesOutCountRowsUnderIt(t *testing.T) {
+	file := testutil.Workbook(t, grid("Jadual", []any{"Bil", "Nama Pekerja"},
+		days([]any{1, "Ali"}, map[int]any{1: "P"}),
+		days([]any{2, "Siti"}, map[int]any{2: "M"}),
+		days([]any{nil, "Bilangan Pagi"}, map[int]any{1: 1, 2: 0}),
+		days([]any{nil, "Jumlah"}, map[int]any{1: 1, 2: 1}),
+	))
+	res := clean(t, file, template(t, "roster"))
+
+	wantCols := []lab.Column{{"Staff", lab.Text}, {"Date", lab.Date}, {"Code", lab.Text}}
+	wantRows := [][]any{{"Ali", "2026-10-01", "P"}, {"Siti", "2026-10-02", "M"}}
+	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) || !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
+		t.Fatalf("dataset = %v %v, want %v %v", res.Dataset.Columns, res.Dataset.Rows, wantCols, wantRows)
 	}
 }

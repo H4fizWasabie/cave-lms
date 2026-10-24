@@ -30,10 +30,11 @@ type Sheet struct {
 	Rows       int    `json:"rows"`                 // data rows below its header; 0 if it cannot be read
 	Readable   bool   `json:"readable,omitempty"`   // Clean-up can read it as a table, so it can be picked
 	CanCombine bool   `json:"canCombine,omitempty"` // it has the picked sheet's columns, so it can be ticked to join it
-	Reason     string `json:"reason,omitempty"`     // a text catalog key saying why it cannot join the picked sheet
+	ReasonKey  string `json:"reason,omitempty"`     // the text catalog key (lab.clean.sheet-*) saying why it cannot join the picked sheet
 }
 
-// MaxCleanRows is the most rows Clean-up keeps, counted on the combined Dataset; MaxColumns the most columns.
+// MaxCleanRows is the most rows Clean-up keeps and MaxColumns the most columns, both counted on the Dataset as
+// made: combined, with empty columns dropped and the Sheet or Date column added.
 const (
 	MaxCleanRows = 50000
 	MaxColumns   = 100
@@ -61,6 +62,8 @@ type CleanUp struct {
 	Sheets    []Sheet  // every sheet in the workbook, in order
 	Used      []string // the sheets that went into the Dataset, in workbook order
 	HeaderRow int      // the picked sheet's header row number in Excel
+	Month     int      // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year      int      // the grids' year, with Month
 	Dataset   *Dataset
 	Changes   []Change
 	Guess     Choices
@@ -90,12 +93,12 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	for i, tb := range tables {
 		if tb != nil && tb.days > 0 {
 			if tb.unpivot(year, month); len(tb.raw) == 0 {
-				tables[i], problems[i] = nil, Problem{"lab.err.no-data", nil}
+				tables[i], problems[i] = nil, Problem{"lab.err.grid-empty", []any{tb.header + 1}}
 			}
 		}
 	}
 	for i, name := range names {
-		sh := Sheet{Name: name, Reason: "lab.clean.sheet-unreadable"}
+		sh := Sheet{Name: name, ReasonKey: "lab.clean.sheet-unreadable"}
 		if tb := tables[i]; tb != nil {
 			sh = Sheet{Name: name, Rows: len(tb.raw), Readable: true}
 		}
@@ -108,8 +111,16 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil })
 		}
 	}
+	// onSheet names the sheet a Problem is on, when the workbook has several.
+	onSheet := func(p error, sheet string) error {
+		if len(names) > 1 {
+			return Problem{"lab.err.on-sheet", []any{sheet, p}}
+		}
+		return p
+	}
 	if pick < 0 {
-		return nil, problems[max(slices.Index(names, s.Sheet), 0)]
+		i := likeliest(f, names, s.Sheet)
+		return nil, onSheet(problems[i], names[i])
 	}
 	base := tables[pick]
 	var used []*table
@@ -119,7 +130,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 			continue
 		case i == pick:
 		case !sameColumns(tb.cols, base.cols):
-			sh.Reason = "lab.clean.sheet-differs"
+			sh.ReasonKey = "lab.clean.sheet-differs"
 			continue
 		default:
 			sh.CanCombine = true
@@ -150,17 +161,25 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	case len(raw) > MaxCleanRows && len(used) > 1:
 		return nil, Problem{"lab.err.too-many-rows-combined", []any{len(used), thousands(len(raw)), thousands(MaxCleanRows)}}
 	case len(raw) > MaxCleanRows:
-		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}
+		return nil, onSheet(Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}, base.name)
 	}
 	res.HeaderRow = base.header + 1
-	// ponytail: only the picked sheet's own changes are listed; the other sheets' rows and columns may differ.
-	res.Changes = append(res.Changes, base.changes...)
+	for _, tb := range used {
+		res.addChanges(tb.changes)
+	}
 	res.Dataset = typed(d, raw, d.RowNumbers, res)
 	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
-		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), int(month), year}})
+		res.Month, res.Year = int(month), year
+		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), res.Month, year}})
 	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
+	}
+	switch n := len(d.Columns); {
+	case n > MaxColumns && len(used) > 1:
+		return nil, Problem{"lab.err.too-many-columns-combined", []any{n, d.Columns[0].Name, MaxColumns}}
+	case n > MaxColumns:
+		return nil, onSheet(Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}, base.name)
 	}
 	if t.Build == nil {
 		res.Guess = t.guessWork(d)
@@ -188,18 +207,23 @@ type table struct {
 func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	cells, err := f.GetRows(name, excelize.Options{RawCellValue: true})
 	if err != nil {
-		return nil, Problem{"lab.err.unreadable", []any{err.Error()}}
+		return nil, Problem{"lab.err.sheet-unreadable", []any{err.Error()}}
 	}
 	h := s.HeaderRow - 1
 	if h < 0 {
-		h = headerRow(cells)
+		if h = headerRow(cells); s.TwoRowHeader && groupsAbove(f, name, cells, h) {
+			h--
+		}
 	}
 	first := h + 1 // the first data row
 	if s.TwoRowHeader {
 		first++
 	}
-	if h < 0 || first >= len(cells) {
-		return nil, Problem{"lab.err.no-data", nil}
+	switch {
+	case h < 0:
+		return nil, Problem{"lab.err.no-header", nil}
+	case first >= len(cells):
+		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	res := &CleanUp{} // collects this sheet's changes
 	if s.HeaderRow > 0 {
@@ -226,22 +250,63 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	if s.TwoRowHeader {
 		header = joinHeader(f, name, cells, h, res)
 	}
-	if len(header) > MaxColumns {
-		return nil, Problem{"lab.err.too-many-columns", []any{len(header), MaxColumns}}
-	}
 	raw, rowNo := rawRows(f, name, cells, first-1, len(header))
 	if len(raw) == 0 {
-		return nil, Problem{"lab.err.no-data", nil}
+		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	raw, rowNo = dropBottom(raw, rowNo, res)
 	header, raw = dropEmpty(header, raw, res)
 	cols, err := columnsOf(header)
-	if err != nil {
+	if p, ok := err.(Problem); ok {
+		switch p.Key {
+		case "lab.err.unnamed-column":
+			return nil, Problem{"lab.err.header-unnamed", append(p.Args, h+1)}
+		case "lab.err.same-name":
+			return nil, Problem{"lab.err.header-same-name", append(p.Args, h+1)}
+		}
 		return nil, err
 	}
 	// ponytail: a blank first cell on any row reads as a grouped table; the Learner can pick the sheet instead.
 	flat := !slices.ContainsFunc(raw, func(vals []cell) bool { return vals[0].v == "" })
 	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat, changes: res.Changes}, nil
+}
+
+// groupsAbove reports whether header row h, found by headerRow, is the bottom row of a two-row header whose
+// top row holds only a few group names: data starts right below h, and the row above has two names or more, or
+// a name merged across columns other than from the first (a title merged across the sheet starts at A).
+func groupsAbove(f *excelize.File, sheet string, cells [][]string, h int) bool {
+	if h < 1 || h+1 >= len(cells) || !slices.ContainsFunc(cells[h+1], func(v string) bool { _, ok := number(strings.TrimSpace(v)); return ok }) {
+		return false
+	}
+	names := 0
+	for _, v := range cells[h-1] {
+		if strings.TrimSpace(v) != "" {
+			names++
+		}
+	}
+	return names >= 2 || slices.ContainsFunc(merged(f, sheet), func(m [4]int) bool { return m[0] == h-1 && m[1] > 0 && m[3] > m[1] })
+}
+
+// likeliest is the index of the sheet whose Problem to give when no sheet reads: the one the Learner picked,
+// else the one with the most filled rows, likely the table rather than a cover or notes sheet.
+func likeliest(f *excelize.File, names []string, picked string) int {
+	if i := slices.Index(names, picked); i >= 0 {
+		return i
+	}
+	best, most := 0, -1
+	for i, name := range names {
+		cells, _ := f.GetRows(name)
+		n := 0
+		for _, row := range cells {
+			if strings.TrimSpace(strings.Join(row, "")) != "" {
+				n++
+			}
+		}
+		if n > most {
+			best, most = i, n
+		}
+	}
+	return best
 }
 
 // columnKey is a column name as sheets are matched on: ignoring case and extra spaces.
@@ -301,6 +366,25 @@ func sheetDate(name string) (string, bool) {
 		name = m[1] + "/" + m[2] + "/20" + m[3]
 	}
 	return textDate(name)
+}
+
+// counted are the changes whose one number counts cells or columns, so the sheets' counts add up.
+var counted = []string{"lab.clean.merged-down", "lab.clean.empty-columns"}
+
+// addChanges lists one used sheet's changes: a counted change adds to the same change of a sheet before it,
+// and any other is listed once however many sheets made it.
+func (res *CleanUp) addChanges(changes []Change) {
+	for _, c := range changes {
+		i := slices.IndexFunc(res.Changes, func(o Change) bool {
+			return o.Key == c.Key && (slices.Contains(counted, c.Key) || slices.Equal(o.Args, c.Args))
+		})
+		switch {
+		case i < 0:
+			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args)})
+		case slices.Contains(counted, c.Key):
+			res.Changes[i].Args[0] += c.Args[0]
+		}
+	}
 }
 
 // change lists one thing Clean-up changed.

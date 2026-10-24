@@ -261,6 +261,29 @@ func TestATwoRowHeaderJoinsItsRowsIntoOneNamePerColumn(t *testing.T) {
 	}
 }
 
+// A two-row header's top row may hold only a few group names merged across; it is still the header's first row.
+func TestATwoRowHeaderKeepsASparseMergedTopRow(t *testing.T) {
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Jualan Oktober 2026"},
+		[]any{nil, "Jualan", nil, nil, "Kos", nil, nil},
+		[]any{"Tarikh", "Tunai", "Kad", "QR", "Sewa", "Gaji", "Lain"},
+		[]any{day, 120, 80, 10, 500, 300, 20},
+	)
+	file = testutil.Merge(t, file, "B2:D2", "E2:G2")
+	res, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{TwoRowHeader: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, c := range res.Dataset.Columns {
+		names = append(names, c.Name)
+	}
+	want := []string{"Tarikh", "Jualan Tunai", "Jualan Kad", "Jualan QR", "Kos Sewa", "Kos Gaji", "Kos Lain"}
+	if res.HeaderRow != 2 || !reflect.DeepEqual(names, want) || len(res.Dataset.Rows) != 1 {
+		t.Fatalf("header row %d, columns %q, %d rows; want 2, %q, 1 row", res.HeaderRow, names, len(res.Dataset.Rows), want)
+	}
+}
+
 func TestWorkGuessingMatchesNamesLooselyAndNeverByTypeAlone(t *testing.T) {
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
 	file := testutil.XLSX(t, []string{"No. Resit", "Created Date & Time", "Total Amount (RM)", "Bilangan"},
@@ -284,6 +307,22 @@ func TestInventoryGuessesTheClosingBalanceForQuantity(t *testing.T) {
 	if want := (lab.Choices{"item": "Nama Barang", "quantity": "Closing Balance"}); !reflect.DeepEqual(got, want) {
 		t.Fatalf("guess = %v, want %v", got, want)
 	}
+
+	// With no closing or actual column, an opening, purchase or movement column is never stock on hand.
+	for _, c := range []struct {
+		header []string
+		want   string
+	}{
+		{[]string{"Nama Barang", "Opening Balance", "Purchase Qty", "Stock Movement"}, ""},
+		{[]string{"Nama Barang", "Baki Awal", "Belian"}, ""},
+		{[]string{"Nama Barang", "Baki Awal", "Baki"}, "Baki"},
+		{[]string{"Nama Barang", "Opening Stock", "Stock Balance"}, "Stock Balance"},
+	} {
+		got := clean(t, testutil.XLSX(t, c.header, []any{"Gula", 5, 3, 1}[:len(c.header)]), template(t, "inventory")).Guess["quantity"]
+		if got != c.want {
+			t.Errorf("%v: quantity = %q, want %q", c.header, got, c.want)
+		}
+	}
 }
 
 func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
@@ -291,6 +330,43 @@ func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 	var p lab.Problem
 	if !errors.As(err, &p) || !strings.Contains(p.In("en"), "CSV") {
 		t.Fatalf("err = %v, want one Problem naming CSV", err)
+	}
+}
+
+// A file Clean-up cannot read gives the likely cause, the row in Excel and, with several sheets, the sheet: the
+// one most like a table, not a cover sheet before it.
+func TestCleanUpSaysWhyAFileCannotBeReadAndWhere(t *testing.T) {
+	codes := grid("Jadual", []any{"Nama"}, days([]any{"Ali"}, nil))
+	for _, c := range []struct {
+		file   []byte
+		en, ms string
+	}{
+		{testutil.Workbook(t, sheet("Jualan", row("Laporan"), row("Perkara", "Jumlah", nil), row("Beras", 12, "nota"))),
+			"Column C has data but no name in the header, row 2. Name the column there and upload again.",
+			"Lajur C ada data tetapi tiada nama dalam tajuk lajur, baris 2. Namakan lajur itu di situ dan muat naik semula."},
+		{testutil.Workbook(t,
+			sheet("Kulit", row("Laporan Jualan 2026"), row("Disediakan oleh", "Ali")),
+			sheet("Data", row("Laporan"), row("Perkara", "Jumlah", "Jumlah"), row("Beras", 12, 3), row("Gula", 5, 1))),
+			"Sheet Data: Two columns are called Jumlah in the header, row 2. Give each column its own name and upload again.",
+			"Helaian Data: Dua lajur bernama Jumlah dalam tajuk lajur, baris 2. Berikan setiap lajur namanya sendiri dan muat naik semula."},
+		{testutil.Workbook(t, sheet("Jualan", row("Perkara", "Jumlah"))),
+			"Cave read row 1 as the column names but found no data below it. Add the data under that row and upload again.",
+			"Cave membaca baris 1 sebagai nama lajur tetapi tiada data di bawahnya. Tambah data di bawah baris itu dan muat naik semula."},
+		{testutil.Workbook(t, sheet("Kosong")),
+			"Cave found no row of column names with data below it. Put the column names in one row above the data and upload again.",
+			"Cave tidak menemui baris nama lajur dengan data di bawahnya. Letakkan nama lajur dalam satu baris di atas data dan muat naik semula."},
+		{testutil.Workbook(t, codes),
+			"The days-across grid with its days in row 2 has no codes in the month's days. Fill in the codes and upload again.",
+			"Grid hari merentas lajur dengan harinya di baris 2 tiada kod pada hari-hari bulan itu. Isi kod tersebut dan muat naik semula."},
+	} {
+		_, err := lab.Clean(bytes.NewReader(c.file), lab.General, lab.Settings{})
+		var p lab.Problem
+		if !errors.As(err, &p) {
+			t.Fatalf("err = %v, want a Problem", err)
+		}
+		if p.In("en") != c.en || p.In("ms") != c.ms {
+			t.Errorf("problem = %q / %q, want %q / %q", p.In("en"), p.In("ms"), c.en, c.ms)
+		}
 	}
 }
 
@@ -315,8 +391,8 @@ func sheetList(res *lab.CleanUp) []string {
 		if s.CanCombine {
 			line += " can combine"
 		}
-		if s.Reason != "" {
-			line += ": " + text.T("en", s.Reason)
+		if s.ReasonKey != "" {
+			line += ": " + text.T("en", s.ReasonKey)
 		}
 		out = append(out, line)
 	}
@@ -378,6 +454,23 @@ func TestCleanUpCombinesSheetsWithTheSameColumnsAndAddsASheetColumn(t *testing.T
 	alone := cleanWith(t, file, lab.Settings{Sheet: "Kedai B", Alone: true})
 	if !reflect.DeepEqual(alone.Used, []string{"Kedai B"}) || len(alone.Dataset.Columns) != 2 {
 		t.Fatalf("alone: used %v, columns %v; want Kedai B and no Sheet column", alone.Used, alone.Dataset.Columns)
+	}
+}
+
+func TestCleanUpListsEveryCombinedSheetsChangesAddingUpCounts(t *testing.T) {
+	file := testutil.Workbook(t,
+		sheet("Kedai A", row("Laporan"), row("Perkara", "Jumlah", "Catatan"), row("Beras", 12)),
+		sheet("Kedai B", row("Perkara", "Jumlah", "Catatan"), row("Gula", 5), row("Teh", 7), row("Jumlah", 12)),
+		sheet("Kedai C", row("Perkara", "Jumlah", "Catatan"), row("Kopi", 3)),
+	)
+	want := []string{
+		"Skipped row 1 above the header in row 2.",
+		"Columns with no data dropped: 3.",
+		"Dropped row 4 at the bottom: a total or note, not data.",
+		"Combined 3 sheets into one Dataset, with each row's sheet name in a new Sheet column.",
+	}
+	if got := changesIn(cleanWith(t, file, lab.Settings{}), "en"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
 	}
 }
 
@@ -450,7 +543,19 @@ func TestCleanUpRefusesMoreThan50000CombinedRowsAnd100Columns(t *testing.T) {
 	for i := range wide {
 		wide[i] = fmt.Sprintf("C%d", i+1)
 	}
-	if got, want := cleanProblem(t, testutil.Workbook(t, sheet("Lebar", wide, row(1)))), "The sheet has 101 columns. The Lab reads up to 100 columns."; got != want {
+	data := make([]any, 101)
+	for i := range data {
+		data[i] = i
+	}
+	if got, want := cleanProblem(t, testutil.Workbook(t, sheet("Lebar", wide, data))), "The sheet has 101 columns with data. The Lab reads up to 100 columns. Delete some columns and upload again."; got != want {
+		t.Fatalf("problem = %q, want %q", got, want)
+	}
+	// The limit counts the Dataset as made: an empty column is dropped first, and the Sheet column added after.
+	if res := cleanWith(t, testutil.Workbook(t, sheet("Lebar", wide, data[:100])), lab.Settings{}); len(res.Dataset.Columns) != 100 {
+		t.Fatalf("%d columns, want 100 once the empty one is dropped", len(res.Dataset.Columns))
+	}
+	file = testutil.Workbook(t, sheet("A", wide[:100], data[:100]), sheet("B", wide[:100], data[:100]))
+	if got, want := cleanProblem(t, file), "Combined, the sheets have 101 columns, counting the Sheet column Cave adds. The Lab reads up to 100 columns. Delete a column, or pick one sheet alone, and upload again."; got != want {
 		t.Fatalf("problem = %q, want %q", got, want)
 	}
 }
