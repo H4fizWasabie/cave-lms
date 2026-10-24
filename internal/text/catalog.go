@@ -848,8 +848,8 @@ var catalog = map[string]entry{
 	"lab.b.done":           {en: "Done", ms: "Siap"},
 	"lab.b.filter-bar":     {en: "Filter bar", ms: "Bar penapis"},
 	"lab.b.filter-bar-help": {
-		en: "The dropdowns above the Dashboard: tick the Text and Date columns viewers can slice by.",
-		ms: "Senarai juntai di atas Dashboard: tandakan lajur Teks dan Tarikh yang boleh digunakan penonton untuk menapis.",
+		en: "The dropdowns above the Dashboard: tick the Text columns, and one Date column, viewers can slice by.",
+		ms: "Senarai juntai di atas Dashboard: tandakan lajur Teks, dan satu lajur Tarikh, yang boleh digunakan penonton untuk menapis.",
 	},
 	"lab.b.save-filter-bar": {en: "Save the filter bar", ms: "Simpan bar penapis"},
 	"lab.b.preview":         {en: "What the live link shows", ms: "Yang dipaparkan oleh pautan langsung"},
@@ -884,6 +884,7 @@ var catalog = map[string]entry{
 	"lab.err.block-label":       {en: "Keep the label to 80 characters.", ms: "Hadkan label kepada 80 aksara."},
 	"lab.err.block-cols":        {en: "Tick at least one column for the table.", ms: "Tandakan sekurang-kurangnya satu lajur untuk jadual."},
 	"lab.err.filter-bar":        {en: "The filter bar takes Text and Date columns; %s is not one.", ms: "Bar penapis menerima lajur Teks dan Tarikh; %s bukan salah satunya."},
+	"lab.err.filter-bar-dates":  {en: "The filter bar takes one Date column.", ms: "Bar penapis menerima satu lajur Tarikh sahaja."},
 	"lab.d.needs-access":        {en: "Needs Lab access", ms: "Memerlukan akses Lab"},
 	"lab.d.upload-first":        {en: "Upload a Dataset first", ms: "Muat naik Set data dahulu"},
 	"lab.d.rows.one":            {en: "%d row", ms: "%d baris"},

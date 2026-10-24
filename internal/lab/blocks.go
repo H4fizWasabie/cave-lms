@@ -238,10 +238,18 @@ func (c *Config) Move(i, step int) int {
 	return j
 }
 
-// CheckFilterBar refuses a filter bar naming anything but the Dataset's Text and Date columns.
+// CheckFilterBar refuses a filter bar naming anything but the Dataset's Text and Date columns, or more than one
+// Date column: the Dashboard draws one From and To.
 func CheckFilterBar(names []string, d *Dataset) error {
+	dates := 0
 	for _, n := range names {
-		if t := d.typeOf(n); t != Text && t != Date {
+		switch d.typeOf(n) {
+		case Date:
+			if dates++; dates > 1 {
+				return Problem{"lab.err.filter-bar-dates", nil}
+			}
+		case Text:
+		default:
 			return Problem{"lab.err.filter-bar", []any{n}}
 		}
 	}

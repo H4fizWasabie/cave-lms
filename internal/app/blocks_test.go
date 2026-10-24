@@ -257,6 +257,19 @@ func TestTheFilterBarIsTheTickedColumns(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `name="bar" value="Perkara" checked`)
 }
 
+func TestTheFilterBarTakesOneDateColumn(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "tugas.xlsx", testutil.XLSX(t, []string{"Mula", "Tamat", "Nota"}, []any{day, day, "Cat"}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.post(path+"/blocks", url.Values{"do": {"filter-bar"}, "bar": {"Mula", "Tamat"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "one Date column")
+	ada.editBlocks(path, url.Values{"do": {"filter-bar"}, "bar": {"Nota", "Tamat"}})
+}
+
 func TestResetToTemplatePutsBackTheTemplatesBlocksFromTheCurrentColumns(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
