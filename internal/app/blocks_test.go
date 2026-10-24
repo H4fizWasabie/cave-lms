@@ -257,6 +257,43 @@ func TestTheFilterBarIsTheTickedColumns(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `name="bar" value="Perkara" checked`)
 }
 
+func TestABlankFilterValueReadsInTheLearnersLanguage(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+		[]any{day, nil, "Dapur", "Keluar", 80.0}, []any{day, "Jualan", "Kedai", "Masuk", 700.0}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
+	ada.editBlocks(path, barForm(url.Values{"fcol": {"Perkara"}}))
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=5")
+	expectStatus(t, res, body, http.StatusOK, `name="fval" value="(blank)">(kosong)</label>`)
+}
+
+func TestTheTemplatePickerShowsEachDashboardQuestion(t *testing.T) {
+	_, ada := labLearner(t)
+	for _, page := range []string{"/lab/new", "/lab/new?kind=work"} {
+		res, body := ada.get(page)
+		expectStatus(t, res, body, http.StatusOK, "Am I spending more than I earn?")
+	}
+	res, body := ada.second().get("/lab") // a visitor sees the Templates
+	expectStatus(t, res, body, http.StatusOK, "Am I spending more than I earn?")
+}
+
+func TestTheFilterBarTakesOneDateColumn(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "tugas.xlsx", testutil.XLSX(t, []string{"Mula", "Tamat", "Nota"}, []any{day, day, "Cat"}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.post(path+"/blocks", url.Values{"do": {"filter-bar"}, "bar": {"Mula", "Tamat"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "one Date column")
+	ada.editBlocks(path, url.Values{"do": {"filter-bar"}, "bar": {"Nota", "Tamat"}})
+}
+
 func TestResetToTemplatePutsBackTheTemplatesBlocksFromTheCurrentColumns(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
@@ -328,6 +365,21 @@ func TestALockedBlockKeepsItsKindAndCalculationButMovesToOtherColumns(t *testing
 		fmt.Sprint(b.Where, b.Minus) != "[Kategori Masuk] [Kategori Keluar]" {
 		t.Fatalf("the repointed Balance is %+v", b)
 	}
+}
+
+func TestALockedBlockTakesNoFilter(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	at := fmt.Sprint(slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Label == "Balance" }))
+	res, body := ada.get(path + "/blocks?open=" + at)
+	expectStatus(t, res, body, http.StatusOK, `name="where"`)
+	if strings.Contains(body, `name="fcol"`) {
+		t.Fatal("a locked block's form offers a filter")
+	}
+	res, body = ada.post(path+"/blocks", url.Values{"do": {"save"}, "block": {at}, "label": {"Balance"}, "col": {"Jumlah"},
+		"where": {"Jenis"}, "minus": {"Jenis"}, "fcol": {"Kategori"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `class="up-err" role="alert"`)
 }
 
 func TestResetOnGeneralRebuildsFromTheCurrentDataset(t *testing.T) {

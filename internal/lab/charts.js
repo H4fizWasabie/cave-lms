@@ -163,10 +163,15 @@
     if (k && cols[k]) rs.sort(function (a, c) { var x = a[k], y = c[k]; return x == null ? (y == null ? 0 : 1) : y == null ? -1 : x < y ? 1 : x > y ? -1 : 0; });
     return b.limit ? rs.slice(0, b.limit) : rs;
   }
-  // paused is whether the block names a column the Dataset lacks; it is then left off the Dashboard.
+  // paused is whether the block names a column the Dataset lacks, or has of another type than the block needs
+  // (as lab's WorkBlock.Missing); it is then left off the Dashboard.
   function paused(b, cols) {
-    var v = b.value || {}, f = b.filter, need = [v.col, v.a, v.b, b.x, b.split, b.group, b.sort, f && f.col, b.where && b.where[0], b.minus && b.minus[0]];
-    return need.concat(b.cols || [], b.low || []).some(function (k) { return k && !cols[k]; });
+    var v = b.value || {}, f = b.filter, need = [
+      [v.agg === 'distinct' ? '' : 'number', v.col], ['number', v.a], ['number', v.b], ['date', b.x], ['text', b.split], ['text', b.group],
+      ['', b.sort], ['text', f && f.col], ['text', b.where && b.where[0]], ['text', b.minus && b.minus[0]]];
+    (b.cols || []).forEach(function (k) { need.push(['', k]); });
+    (b.low || []).forEach(function (k) { need.push(['number', k]); });
+    return need.some(function (n) { return n[1] && (!cols[n[1]] || (n[0] && cols[n[1]].type !== n[0])); });
   }
 
   function drawDashboard(dash, data) {
@@ -215,12 +220,13 @@
     var allCards = blocks.filter(function (b) { return b.kind === 'card'; }).length, cardCount = Math.min(4, allCards);
     if (dash.work && allCards > 4) cardsEl.style.setProperty('--cols', 'repeat(' + Math.ceil(allCards / 2) + ',minmax(0,1fr))');
     else if (cardCount > 1) cardsEl.style.setProperty('--cols', 'minmax(0,2fr) repeat(' + (cardCount - 1) + ',minmax(0,1fr))');
-    // Panels sit two to a row; tables, and a half-width panel with no half-width neighbour, span the row, so no gap is left.
+    // Panels sit two to a row; a half-width panel with no half-width neighbour spans the row, so no gap is left.
+    // A Practice table always spans it; a Work table is as wide as the Learner set it.
     var panels = blocks.filter(function (b) { return b.kind !== 'card'; });
+    var full = function (b) { return b.wide || (!dash.work && b.kind === 'table'); };
     for (var i = 0; i < panels.length; i++) {
-      if (panels[i].kind === 'table') panels[i].wide = true;
-      if (panels[i].wide) continue;
-      if (panels[i + 1] && !panels[i + 1].wide && panels[i + 1].kind !== 'table') i++;
+      if (full(panels[i])) { panels[i].wide = true; continue; }
+      if (panels[i + 1] && !full(panels[i + 1])) i++;
       else panels[i].wide = true;
     }
 

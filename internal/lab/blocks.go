@@ -90,7 +90,7 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 	}
 	for _, b := range t.included(c) {
 		w := WorkBlock{Kind: b.Kind, Label: b.Label, X: c[b.X], Split: c[b.Series], Group: c[b.Group], Cols: cols(b.Cols),
-			Sort: c[b.Sort], Limit: b.Limit, Wide: b.Wide}
+			Sort: c[b.Sort], Limit: b.Limit, Wide: b.Wide || b.Kind == "table"} // a Template's tables span the row
 		if b.Kind != "table" {
 			switch {
 			case b.Times != "":
@@ -157,14 +157,33 @@ const (
 	MaxCards  = 8
 )
 
-// Kinds are the kinds of block, in the order the editor offers them.
-var Kinds = []string{"card", "line", "bar", "donut", "table"}
+// The options the editor offers, in its order.
+var (
+	Kinds  = []string{"card", "line", "bar", "donut", "table"}
+	Aggs   = []string{"count", "sum", "avg", "distinct", "calc"}
+	Ops    = [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} // a calculation's operators, as posted and as written
+	Tops   = []int{5, 8, 15, 0}                                          // a bar's largest groups; 0 shows all
+	Limits = []int{10, 25, 50}                                           // a table's rows
+)
+
+// opSign is operator op as people write it; empty for one Cave does not offer.
+func opSign(op string) string {
+	for _, o := range Ops {
+		if o[0] == op {
+			return o[1]
+		}
+	}
+	return ""
+}
+
+// IsCard is whether the block is a card: cards sit in their own rows above the charts and tables.
+func (b *WorkBlock) IsCard() bool { return b.Kind == "card" }
 
 // Cards counts the Config's cards.
 func (c *Config) Cards() int {
 	n := 0
 	for _, b := range c.Blocks {
-		if b.Kind == "card" {
+		if b.IsCard() {
 			n++
 		}
 	}
@@ -190,7 +209,7 @@ func (c *Config) Arrange(i int) int {
 		order[k] = k
 	}
 	rest := func(k int) int {
-		if c.Blocks[k].Kind == "card" {
+		if c.Blocks[k].IsCard() {
 			return 0
 		}
 		return 1
@@ -231,17 +250,25 @@ func (c *Config) Add(kind string, d *Dataset, lang string) (int, error) {
 // and tables among themselves; at the end of its sort it stays. It returns where the block is now.
 func (c *Config) Move(i, step int) int {
 	j := i + step
-	if i < 0 || j < 0 || i >= len(c.Blocks) || j >= len(c.Blocks) || (c.Blocks[i].Kind == "card") != (c.Blocks[j].Kind == "card") {
+	if i < 0 || j < 0 || i >= len(c.Blocks) || j >= len(c.Blocks) || c.Blocks[i].IsCard() != c.Blocks[j].IsCard() {
 		return i
 	}
 	c.Blocks[i], c.Blocks[j] = c.Blocks[j], c.Blocks[i]
 	return j
 }
 
-// CheckFilterBar refuses a filter bar naming anything but the Dataset's Text and Date columns.
+// CheckFilterBar refuses a filter bar naming anything but the Dataset's Text and Date columns, or more than one
+// Date column: the Dashboard draws one From and To.
 func CheckFilterBar(names []string, d *Dataset) error {
+	dates := 0
 	for _, n := range names {
-		if t := d.typeOf(n); t != Text && t != Date {
+		switch d.typeOf(n) {
+		case Date:
+			if dates++; dates > 1 {
+				return Problem{"lab.err.filter-bar-dates", nil}
+			}
+		case Text:
+		default:
 			return Problem{"lab.err.filter-bar", []any{n}}
 		}
 	}
@@ -270,11 +297,11 @@ func (d *Dataset) first(t Type, skip ...string) string {
 }
 
 // Fill gives each option the block's kind needs and the editor left empty, or set to a column of the wrong
-// type, its default for d; options the kind does not use are cleared. A column the Dataset lacks is left as it
-// is, so the block can say what it needs.
-func (b *WorkBlock) Fill(d *Dataset) {
+// type, its default for d; options the kind does not use are cleared. A column the Dataset lacks, or one in
+// paused, is left as it is, so the block can say what it needs.
+func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	fit := func(col string, t Type) string {
-		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t) {
+		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t && !slices.Contains(paused, col)) {
 			return d.first(t)
 		}
 		return col
@@ -289,7 +316,7 @@ func (b *WorkBlock) Fill(d *Dataset) {
 		if b.Sort == "" {
 			b.Sort = d.first(Date)
 		}
-		if !slices.Contains([]int{10, 25, 50}, b.Limit) {
+		if !slices.Contains(Limits, b.Limit) {
 			b.Limit = 10
 		}
 		return
@@ -306,7 +333,7 @@ func (b *WorkBlock) Fill(d *Dataset) {
 		v.Col, v.A, v.Op, v.B, v.Then = fit(v.Col, ""), "", "", "", ""
 	case "calc":
 		v.Col, v.A = "", fit(v.A, Number)
-		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number) {
+		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number && !slices.Contains(paused, v.B)) {
 			if v.B = d.first(Number, v.A); v.B == "" {
 				v.B = v.A
 			}
@@ -343,7 +370,7 @@ func (b *WorkBlock) Fill(d *Dataset) {
 	case "bar", "donut":
 		b.Group = fit(b.Group, Text)
 	}
-	if have := d.typeOf(b.Split); have != "" && have != Text {
+	if have := d.typeOf(b.Split); have != "" && have != Text && !slices.Contains(paused, b.Split) {
 		b.Split = ""
 	}
 }
@@ -356,7 +383,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	col := func(name string, t Type) error {
 		have := d.typeOf(name)
 		switch {
-		case have == "" && slices.Contains(paused, name):
+		case slices.Contains(paused, name):
 			return nil
 		case name == "" && d.first(t) == "":
 			return Problem{"lab.err.block-none", []any{typeWord(t)}}
@@ -388,7 +415,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 			errs = append(errs, col(c, ""))
 		}
 		errs = append(errs, maybe(b.Sort, ""))
-		if !slices.Contains([]int{10, 25, 50}, b.Limit) {
+		if !slices.Contains(Limits, b.Limit) {
 			return bad
 		}
 	case "card", "line", "bar", "donut":
@@ -403,7 +430,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		case "distinct":
 			errs = append(errs, col(v.Col, ""))
 		case "calc":
-			if ops[v.Op] == "" || (v.Then != "sum" && v.Then != "avg") {
+			if opSign(v.Op) == "" || (v.Then != "sum" && v.Then != "avg") {
 				return bad
 			}
 			errs = append(errs, col(v.A, Number), col(v.B, Number))
@@ -420,7 +447,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		}
 		errs = append(errs, col(b.X, Date), maybe(b.Split, Text))
 	case "bar":
-		if !slices.Contains([]int{0, 5, 8, 15}, b.Top) {
+		if !slices.Contains(Tops, b.Top) {
 			return bad
 		}
 		errs = append(errs, col(b.Group, Text), maybe(b.Split, Text))
@@ -446,8 +473,9 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	return nil
 }
 
-// KeepsLock refuses a change to a Locked block's kind or calculation: of a block old locks, only the label,
-// place, width, filter and columns change.
+// KeepsLock refuses a change to a Locked block's kind or calculation, or a filter on it: of a block old locks,
+// only the label, place, width and columns change. Its Template calculation filters rows itself, so a filter
+// would reach only some of them.
 func (b *WorkBlock) KeepsLock(old WorkBlock) error {
 	calc := func(v *Value) Value {
 		if v == nil {
@@ -455,14 +483,11 @@ func (b *WorkBlock) KeepsLock(old WorkBlock) error {
 		}
 		return Value{Agg: v.Agg, Op: v.Op, Then: v.Then}
 	}
-	if old.Locked && (b.Kind != old.Kind || calc(b.Value) != calc(old.Value)) {
+	if old.Locked && (b.Kind != old.Kind || calc(b.Value) != calc(old.Value) || b.Filter != nil) {
 		return Problem{"lab.err.block-locked", nil}
 	}
 	return nil
 }
-
-// ops are the calculation's operators as people write them.
-var ops = map[string]string{"+": "+", "-": "−", "x": "×", "/": "÷"}
 
 // what is the block's value in a few words: Rows, Jumlah, Average Jumlah, Jumlah − Kos.
 func (b *WorkBlock) what(lang string) string {
@@ -471,7 +496,7 @@ func (b *WorkBlock) what(lang string) string {
 	case v == nil || v.Agg == "count":
 		return text.T(lang, "lab.b.lbl.count")
 	case v.Agg == "calc":
-		return v.A + " " + ops[v.Op] + " " + v.B
+		return v.A + " " + opSign(v.Op) + " " + v.B
 	case v.Agg == "sum":
 		return v.Col
 	}
@@ -573,12 +598,13 @@ func (b *WorkBlock) uses() []Use {
 	return out
 }
 
-// Missing are the columns the block names that d lacks. While any is missing the block is paused: left off
-// the Dashboard and its Deployment, and back by itself once a Dataset has the column again.
+// Missing are the columns the block names that d lacks, or has of another type than the block needs. While any
+// is missing the block is paused: left off the Dashboard and its Deployment, and back by itself once a Dataset
+// has the column again.
 func (b *WorkBlock) Missing(d *Dataset) []string {
 	var out []string
 	for _, u := range b.uses() {
-		if d.typeOf(u.Name) == "" && !slices.Contains(out, u.Name) {
+		if !u.Fits(d) && !slices.Contains(out, u.Name) {
 			out = append(out, u.Name)
 		}
 	}
@@ -625,6 +651,16 @@ func (c *Config) Uses() []Use {
 				out[i].Type = u.Type
 			}
 		}
+	}
+	return out
+}
+
+// Rename is c with column m[from] in place of column from, as Config.Rename, so Reset to Template fills the
+// blanks from the columns the blocks were moved to.
+func (c Choices) Rename(m map[string]string) Choices {
+	out := Choices{}
+	for k, v := range c {
+		out[k] = cmp.Or(m[v], v)
 	}
 	return out
 }

@@ -23,8 +23,8 @@ func columnUses(cfg *lab.Config, d *lab.Dataset) []columnUse {
 	return out
 }
 
-// fits is whether d has every column cfg's blocks use, by name and type.
-func fits(cfg *lab.Config, d *lab.Dataset) bool {
+// allFit is whether d has every column cfg's blocks use, by name and type.
+func allFit(cfg *lab.Config, d *lab.Dataset) bool {
 	return missingUses(columnUses(cfg, d)) == 0
 }
 
@@ -39,9 +39,9 @@ func missingUses(uses []columnUse) int {
 	return n
 }
 
-// picked is cfg with the Learner's pick for each column its blocks use that d lacks or has of another type,
-// posted as use:<column>; a column left out, or a pick d lacks, stays as it is.
-func picked(cfg *lab.Config, d *lab.Dataset, form url.Values) *lab.Config {
+// withPicks is cfg and the Template choices c with the Learner's pick for each column cfg's blocks use that d
+// lacks or has of another type, posted as use:<column>; a column left out, or a pick d lacks, stays as it is.
+func withPicks(cfg *lab.Config, c lab.Choices, d *lab.Dataset, form url.Values) (*lab.Config, lab.Choices) {
 	m := map[string]string{}
 	for _, u := range columnUses(cfg, d) {
 		if to := form.Get("use:" + u.Name); !u.Fits && to != "" && (lab.Use{Name: to, Type: u.Type}).Fits(d) {
@@ -50,5 +50,5 @@ func picked(cfg *lab.Config, d *lab.Dataset, form url.Values) *lab.Config {
 	}
 	out := *cfg
 	out.Rename(m)
-	return &out
+	return &out, c.Rename(m)
 }

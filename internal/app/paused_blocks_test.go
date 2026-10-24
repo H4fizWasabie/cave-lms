@@ -175,3 +175,50 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 		t.Fatalf("blocks still paused once Jumlah is back:\n%s", body)
 	}
 }
+
+func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+		[]any{day, "Gula", "Dapur", "Keluar", "lapan puluh"}, []any{day, "Jualan", "Kedai", "Masuk", "tujuh ratus"}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"use:Jumlah": {""}})
+	res, body = ada.get(path + "/blocks")
+	expectStatus(t, res, body, http.StatusOK, `class="eb-item is-paused`)
+	expectStatus(t, res, body, http.StatusOK, "Needs <code>Jumlah</code>")
+
+	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path + "/blocks")
+	if res.StatusCode != http.StatusOK || strings.Contains(body, "is-paused") {
+		t.Fatalf("blocks still paused after restoring a Dataset with a Number Jumlah:\n%s", body)
+	}
+}
+
+func TestResetAfterARenameFillsTheBlanksFromTheRenamedColumn(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	opened, _ := ada.pageBlocks(path + "/view/")
+
+	// An upload pick: Jumlah is now Amount.
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amount"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"use:Jumlah": {"Amount"}})
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	if labels(blocks) != labels(opened) || using(blocks, "Amount") != using(opened, "Jumlah") {
+		t.Fatalf("Reset after the pick: %s, Amount in %d blocks", labels(blocks), using(blocks, "Amount"))
+	}
+
+	// Use instead: Amount is now Wang, a name Cave does not guess.
+	res, body = ada.postFile(path+"/dataset", "disember.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Wang"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"use:Amount": {""}})
+	ada.editBlocks(path, url.Values{"do": {"use"}, "block": {"5"}, "from": {"Amount"}, "to": {"Wang"}})
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if labels(blocks) != labels(opened) || using(blocks, "Wang") != using(opened, "Jumlah") {
+		t.Fatalf("Reset after Use instead: %s, Wang in %d blocks", labels(blocks), using(blocks, "Wang"))
+	}
+}

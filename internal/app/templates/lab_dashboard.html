@@ -104,13 +104,13 @@
               {{- if $.Uses}}
               <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
               <ul class="ds-uses">
-                {{- range $.Uses}}
+                {{- range $k, $u := $.Uses}}
                 {{- if .Fits}}
                 <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><code>{{.Name}}</code></li>
                 {{- else}}
                 <li class="field map-row">
-                  <label for="use-{{.Name}}">{{t $.Lang "lab.w.blocks-use"}} <code>{{.Name}}</code>{{t $.Lang "lab.w.pick-or-leave"}}</label>
-                  <select id="use-{{.Name}}" name="use:{{.Name}}">
+                  <label for="use-{{$k}}">{{t $.Lang "lab.w.blocks-use"}} <code>{{.Name}}</code>{{t $.Lang "lab.w.pick-or-leave"}}</label>
+                  <select id="use-{{$k}}" name="use:{{.Name}}">
                     <option value="" selected>{{t $.Lang "lab.w.leave-out"}}</option>
                     {{- range .Options}}
                     <option value="{{.}}">{{.}}</option>
@@ -262,15 +262,15 @@
                   <button class="eb-ic" name="do" value="remove" title="{{t $.Lang "lab.b.remove" .Label}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">{{t $.Lang "lab.b.remove" .Label}}</span></button>
                 </form>
               </div>
-              {{- $i := .I}}{{range .Needs}}
+              {{- $i := .I}}{{range $n, $need := .Needs}}
               <form class="eb-warn" method="post" action="{{$url}}/blocks">
                 <input type="hidden" name="do" value="use">
                 <input type="hidden" name="block" value="{{$i}}">
                 <input type="hidden" name="from" value="{{.Name}}">
                 <span><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t $.Lang "lab.b.needs"}} <code>{{.Name}}</code></span>
                 {{- if .Options}}
-                <label class="sr" for="use-{{$i}}-{{.Name}}">{{t $.Lang "lab.b.use-instead-of" .Name}}</label>
-                <select id="use-{{$i}}-{{.Name}}" name="to">{{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+                <label class="sr" for="use-{{$i}}-{{$n}}">{{t $.Lang "lab.b.use-instead-of" .Name}}</label>
+                <select id="use-{{$i}}-{{$n}}" name="to">{{range .Options}}<option value="{{.}}">{{.}}</option>{{end}}</select>
                 <button class="btn btn-quiet btn-sm">{{t $.Lang "lab.b.use-instead"}}</button>
                 {{- end}}
               </form>
@@ -299,11 +299,13 @@
                 {{- range .Radios}}
                 <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-seg">{{$name := .Name}}{{range .Options}}<label><input type="radio" name="{{$name}}" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
                 {{- end}}
+                {{- if not .Locked}}
                 <div class="field"><label for="b-fcol">{{.FilterCol.Label}}</label><select id="b-fcol" name="fcol">{{range .FilterCol.Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
                 {{- with .FilterVals}}
                 <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="fval" value="{{.Value}}"{{if .On}} checked{{end}}>{{if .Gone}}<s>{{.Text}}</s>{{else}}{{.Text}}{{end}}</label>{{end}}</div></fieldset>
                 {{- end}}
                 {{- with .More}}<small class="muted">{{t $.Lang "lab.b.filter-more" .}}</small>{{end}}
+                {{- end}}
                 <div class="form-foot">
                   <button class="btn btn-quiet btn-sm" data-apply>{{t $.Lang "lab.b.apply"}}</button>
                   <button class="btn btn-solid btn-sm" name="close" value="1">{{t $.Lang "lab.b.done"}}</button>

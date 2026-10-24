@@ -66,7 +66,7 @@ func TestOpeningSalesGivesItsBlocksAndFilterBar(t *testing.T) {
 		"Revenue by item":           `{"kind":"bar","label":"Revenue by item","value":{"agg":"sum","col":"Jumlah"},"group":"Produk","top":8}`,
 		"Revenue by staff":          `{"kind":"bar","label":"Revenue by staff","value":{"agg":"sum","col":"Jumlah"},"group":"Staf","top":8}`,
 		"Revenue by payment method": `{"kind":"donut","label":"Revenue by payment method","value":{"agg":"sum","col":"Jumlah"},"group":"Kaedah bayaran"}`,
-		"Latest sales":              `{"kind":"table","label":"Latest sales","cols":["Tarikh","Produk","Kategori","Staf","Kaedah bayaran","Kuantiti","Jumlah"],"sort":"Tarikh","limit":10}`,
+		"Latest sales":              `{"kind":"table","label":"Latest sales","cols":["Tarikh","Produk","Kategori","Staf","Kaedah bayaran","Kuantiti","Jumlah"],"sort":"Tarikh","limit":10,"wide":true}`,
 	} {
 		if got := blockJSON(t, cfg, label); got != want {
 			t.Errorf("%s =\n%s\nwant\n%s", label, got, want)
@@ -101,7 +101,7 @@ func TestOpeningRosterGivesItsBlocksAndFilterBar(t *testing.T) {
 		"Shifts by staff": `{"kind":"bar","label":"Shifts by staff","value":{"agg":"count"},"group":"Staf","top":8}`,
 		"Shifts by code":  `{"kind":"bar","label":"Shifts by code","value":{"agg":"count"},"group":"Kod","top":8}`,
 		"Shifts per day":  `{"kind":"line","label":"Shifts per day","value":{"agg":"count"},"x":"Tarikh","by":"day","wide":true}`,
-		"Roster":          `{"kind":"table","label":"Roster","cols":["Tarikh","Staf","Jabatan","Kod"],"sort":"Tarikh","limit":50}`,
+		"Roster":          `{"kind":"table","label":"Roster","cols":["Tarikh","Staf","Jabatan","Kod"],"sort":"Tarikh","limit":50,"wide":true}`,
 	} {
 		if got := blockJSON(t, cfg, label); got != want {
 			t.Errorf("%s =\n%s\nwant\n%s", label, got, want)

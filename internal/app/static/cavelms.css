@@ -844,6 +844,7 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .tp-body { padding: 1rem 1.2rem 1.2rem; display: grid; gap: .35rem; justify-items: start; }
 .tp-body h3 { font-size: 1.25rem; }
 .tp-body p { color: var(--muted); font-size: .94rem; margin: 0; }
+.tp-card .tp-q, .tp-body .tp-q { color: inherit; font-weight: 600; }
 .tp-body a { display: inline-flex; gap: .35rem; align-items: center; font-weight: 600; }
 .tp-pick .tp-card { overflow: hidden; }
 .tp-pick .tp-frame { --z: 5; margin: -1rem -1.2rem .5rem; }

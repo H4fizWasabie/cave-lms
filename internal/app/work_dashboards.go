@@ -306,7 +306,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
-	if d.Config != nil && len(res.Changes) == 0 && fits(d.Config, res.Dataset) { // nothing to check: it goes live
+	if d.Config != nil && len(res.Changes) == 0 && allFit(d.Config, res.Dataset) { // nothing to check: it goes live
 		quiet, err := a.dropsOnlyPastKeep(r.Context(), d, int64(len(data)), acc)
 		if err != nil {
 			a.serverError(w, r, err)
@@ -378,7 +378,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		cfg = t.Open(c, p.Dataset)
 	} else {
 		r.ParseForm()
-		cfg = picked(cfg, p.Dataset, r.Form)
+		cfg, c = withPicks(cfg, c, p.Dataset, r.Form)
 	}
 	choices, err := json.Marshal(c)
 	if err != nil {
