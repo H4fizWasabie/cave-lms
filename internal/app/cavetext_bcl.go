@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -200,51 +201,54 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 
 var bclClient = &http.Client{Timeout: 10 * time.Second}
 
+// bclTransaction is the part of an order CAVELMS reads from BCL's API.
+type bclTransaction struct {
+	Order      bclText `json:"order_number"`
+	Amount     bclText `json:"amount"`
+	PayerEmail bclText `json:"payer_email"`
+	Status     bclText `json:"status"`      // the status code in /transaction/<order>, a word in the list
+	StatusCode bclText `json:"status_code"` // the list's status code
+	Remarks    bclText `json:"remarks"`     // in the list: the title of the form the order was paid on
+}
+
 // confirmBCLOrder looks order up in BCL's API, with a.bclAPIToken; with none set it confirms every order. BCL backs
 // the webhook b when it knows the order as successful, for the same amount and payer email, and that amount covers
-// the subtotal less discount the price is checked against, so a cheap real order cannot claim a dearer form. refused
-// says why not, for the System log: those are forgeries of a real order. err is BCL out of reach or failing, or the
-// order not yet known or successful there, so BCL should retry rather than a real payment be lost.
+// the subtotal less discount the price is checked against, so a cheap real order cannot claim a dearer form; for a
+// live order, it must also have been paid on the form b names (bclFormTitle). refused says why not, for the System
+// log: those are forgeries of a real order. err is BCL out of reach or failing, or the order not yet known or
+// successful there, so BCL should retry rather than a real payment be lost.
 func (a *App) confirmBCLOrder(ctx context.Context, b *bclWebhookBody, order string) (refused string, err error) {
 	if a.bclAPIToken == "" {
 		return "", nil
 	}
-	lookup := "/transactions/" // finds live orders only
+	var t bclTransaction
 	if a.bclTestPayments {
-		lookup = "/transaction/" // finds Test Mode orders too
+		// Staging: BCL's order list never shows Test Mode orders, so they are read from /transaction/<order>, which
+		// does not say which form an order was paid on. Staging's orders are therefore not checked against the form.
+		var found struct {
+			Data struct {
+				Transaction bclTransaction `json:"transaction"`
+			} `json:"data"`
+		}
+		if err := a.bclGet(ctx, "/transaction/"+url.PathEscape(order), &found); err != nil {
+			return "", err
+		}
+		t = found.Data.Transaction
+	} else {
+		var found struct {
+			Data []bclTransaction `json:"data"`
+		}
+		if err := a.bclGet(ctx, "/transactions?search="+url.QueryEscape(order), &found); err != nil {
+			return "", err
+		}
+		i := slices.IndexFunc(found.Data, func(t bclTransaction) bool { return t.Order.String() == order }) // search may match loosely
+		if i < 0 {                                                                                          // a real order BCL has not listed yet must not be lost, so BCL retries
+			return "", errors.New("BCL does not know it")
+		}
+		t = found.Data[i]
+		t.Status = t.StatusCode
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.bclAPIURL+lookup+url.PathEscape(order), nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+a.bclAPIToken)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "cavelms/1.0") // BCL blocks Go's default agent
-	res, err := bclClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-	switch res.StatusCode {
-	case http.StatusOK:
-	case http.StatusNotFound: // a real order BCL has not written down yet must not be lost, so BCL retries
-		return "", errors.New("BCL does not know it")
-	default:
-		return "", fmt.Errorf("BCL answered %s", res.Status)
-	}
-	var found struct {
-		Data struct {
-			Transaction struct {
-				Amount     bclText `json:"amount"`
-				PayerEmail bclText `json:"payer_email"`
-				Status     bclText `json:"status"`
-			} `json:"transaction"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(io.LimitReader(res.Body, 64<<10)).Decode(&found); err != nil {
-		return "", fmt.Errorf("read BCL's answer: %w", err)
-	}
-	t, m := found.Data.Transaction, b.Data.Main
+	m := b.Data.Main
 	charged, readable := parseRM(t.Amount.String())
 	claimed, claimedReadable := parseRM(m.Amount.String())
 	if t.Status != "3" { // 3 is successful; any other may still settle, so BCL retries
@@ -259,11 +263,76 @@ func (a *App) confirmBCLOrder(ctx context.Context, b *bclWebhookBody, order stri
 	case !strings.EqualFold(t.PayerEmail.String(), m.PayerEmail.String()):
 		return fmt.Sprintf("was paid by %s at BCL, not %s", t.PayerEmail, m.PayerEmail), nil
 	// BCL's amount includes its fee, so an order on a cheaper form whose fee-included charge reaches a dearer price
-	// still passes here: the gap is fee-sized.
+	// still passes here: the gap is fee-sized. The form check below closes it on production.
 	case charged < paid:
 		return fmt.Sprintf("charged %s at BCL, under the %s the webhook says it paid before the fee", t.Amount, rm(paid)), nil
+	case a.bclTestPayments:
+		return "", nil
+	}
+	title, known, err := a.bclFormTitle(ctx, b.Data.FormURL)
+	switch {
+	case err != nil:
+		return "", err
+	case !known:
+		return fmt.Sprintf("was paid on BCL form %q, but BCL has no form at %s", t.Remarks, b.Data.FormURL), nil
+	case t.Remarks.String() != title:
+		return fmt.Sprintf("was paid on BCL form %q, not %q at %s", t.Remarks, title, b.Data.FormURL), nil
 	}
 	return "", nil
+}
+
+// bclFormTitle is the current title, at BCL, of the form at formURL, found by its slug (the address's last part).
+// It is read each time, so a form renamed at BCL keeps taking payments. Titles must stay unique among the forms that
+// point at CAVELMS, as an order names its form only by title. known is false when BCL has no such form.
+// ponytail: reads the first 100 forms only; page through /forms if the merchant ever has more.
+func (a *App) bclFormTitle(ctx context.Context, formURL string) (title string, known bool, err error) {
+	u, err := url.Parse(strings.TrimSpace(formURL))
+	if err != nil {
+		return "", false, nil
+	}
+	slug := path.Base(strings.TrimRight(u.Path, "/"))
+	var forms struct {
+		Data []struct {
+			Slug  bclText `json:"slug"`
+			Title bclText `json:"title"`
+		} `json:"data"`
+	}
+	if err := a.bclGet(ctx, "/forms?per_page=100", &forms); err != nil {
+		return "", false, fmt.Errorf("read BCL's forms: %w", err)
+	}
+	for _, f := range forms.Data {
+		if strings.EqualFold(f.Slug.String(), slug) {
+			return f.Title.String(), true, nil
+		}
+	}
+	return "", false, nil
+}
+
+// bclGet reads BCL's API at pathAndQuery into v, with a.bclAPIToken. 404 is "BCL does not know it".
+func (a *App) bclGet(ctx context.Context, pathAndQuery string, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.bclAPIURL+pathAndQuery, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+a.bclAPIToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "cavelms/1.0") // BCL blocks Go's default agent
+	res, err := bclClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	switch res.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotFound: // a real order BCL has not written down yet must not be lost, so BCL retries
+		return errors.New("BCL does not know it")
+	default:
+		return fmt.Errorf("BCL answered %s", res.Status)
+	}
+	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(v); err != nil {
+		return fmt.Errorf("read BCL's answer: %w", err)
+	}
+	return nil
 }
 
 // recordPayment keeps a paid order on the form of product (none when form.Product is empty) and, when it names a
