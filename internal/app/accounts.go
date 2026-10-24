@@ -99,14 +99,14 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var id int64
 	err = tx.QueryRowContext(r.Context(),
-		`INSERT INTO learners (name, email, password_hash) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING id`,
+		`INSERT INTO learners (name, email, password_hash) VALUES ($1, $2, $3) ON CONFLICT ((lower(email))) DO NOTHING RETURNING id`,
 		name, email, string(hash)).Scan(&id)
+	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		// The email already has an account: answer as for a new one and email its owner, so the page tells nobody.
 		err = a.mailOwnerOfUsedEmail(r, tx, email)
 	case err == nil:
-		// Commit only once the email is sent, so a failed send leaves no half-made account.
 		err = a.sendVerification(r.Context(), tx, lang, id, email)
 	}
 	if err != nil {
@@ -165,8 +165,8 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) er
 }
 
 // verificationAllowed counts an email to email, a verification or a used-email notice, and reports whether it is within
-// verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the link, and answer as if they had, so the requester
-// learns nothing and the link already sent keeps working.
+// verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the link, and answer as if
+// they had, so the requester learns nothing and the link already sent keeps working.
 func (a *App) verificationAllowed(email string) bool {
 	return a.limiter.allow("verification email "+strings.ToLower(email), verificationsPerAddress, verificationWindow, a.now())
 }
@@ -227,6 +227,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, langErr)
 		return
 	}
+	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		a.render(w, r, http.StatusBadRequest, "message", page{

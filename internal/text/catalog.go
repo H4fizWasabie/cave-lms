@@ -66,7 +66,7 @@ var catalog = map[string]entry{
 		ms: "Semuanya datang daripada anda, semasa anda mendaftar dan menggunakan laman ini. Nama, alamat e-mel dan kata laluan diperlukan untuk mendaftar; tanpanya kami tidak dapat memberi anda akaun.",
 	},
 	"privacy.collect.account": {
-		en: "Your account: your name, email address, password (kept only as a one-way hash, never as you typed it) and whether you have verified your email. We use them to log you in, to put your name on your Certificates, and to send you the verification and password reset emails, and to tell you if someone tries to register with your email.",
+		en: "Your account: your name, email address, password (kept only as a one-way hash, never as you typed it) and whether you have verified your email. We use them to log you in, to put your name on your Certificates, to send you the verification and password reset emails, and to tell you if someone tries to register with your email.",
 		ms: "Akaun anda: nama, alamat e-mel, kata laluan (disimpan sebagai hash sehala sahaja, bukan seperti yang anda taip) dan sama ada anda telah mengesahkan e-mel anda. Kami menggunakannya untuk membolehkan anda log masuk, meletakkan nama anda pada Sijil anda, menghantar e-mel pengesahan dan set semula kata laluan kepada anda, dan memberitahu anda jika seseorang cuba mendaftar dengan e-mel anda.",
 	},
 	"privacy.collect.sessions": {
