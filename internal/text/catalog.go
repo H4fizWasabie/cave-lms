@@ -746,6 +746,10 @@ var catalog = map[string]entry{
 		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
 		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",
 	},
+	"lab.err.header-below": {
+		en: "Your column names seem to be on row %d, not row 1. Delete the rows above it, or use a Work Dashboard, and upload again.",
+		ms: "Nama lajur anda nampaknya di baris %d, bukan baris 1. Padam baris di atasnya, atau guna Dashboard Kerja, dan muat naik semula.",
+	},
 	"lab.err.stray-cell": {
 		en: "Row %d has %q in column %s, which has no name in row 1. Name the column or clear the cell.",
 		ms: "Baris %d ada %q dalam lajur %s, yang tiada nama di baris 1. Namakan lajur itu atau kosongkan sel tersebut.",
@@ -780,6 +784,14 @@ var catalog = map[string]entry{
 	"lab.clean.sheet-differs":    {en: "Its columns differ from the picked sheet's.", ms: "Lajurnya berbeza daripada lajur helaian yang dipilih."},
 	"lab.clean.bottom-row":       {en: "Dropped row %d at the bottom: a total or note, not data.", ms: "Baris %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
 	"lab.clean.bottom-rows":      {en: "Dropped rows %d to %d at the bottom: totals or notes, not data.", ms: "Baris %d hingga %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
+	"lab.clean.bottom-row-each": {
+		en: "Dropped row %d at the bottom of each of %d sheets: a total or note, not data.",
+		ms: "Baris %d di bawah sekali dibuang daripada setiap satu daripada %d helaian: jumlah atau nota, bukan data.",
+	},
+	"lab.clean.bottom-rows-each": {
+		en: "Dropped rows %d to %d at the bottom of each of %d sheets: totals or notes, not data.",
+		ms: "Baris %d hingga %d di bawah sekali dibuang daripada setiap satu daripada %d helaian: jumlah atau nota, bukan data.",
+	},
 	"lab.clean.cut-columns": {
 		en: "Stopped at the blank column %d: what is to its right (notes or another table) was not read.",
 		ms: "Berhenti di lajur kosong %d: apa yang di sebelah kanannya (nota atau jadual lain) tidak dibaca.",

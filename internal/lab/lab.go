@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -127,6 +128,12 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	for _, b := range t.Blanks {
 		if b.Required && !hasType(d.Columns, b.Type) {
+			// A row near the top naming the column is the header, under title rows Practice does not skip.
+			for r := 1; r < min(len(cells), 20); r++ {
+				if slices.ContainsFunc(cells[r], func(v string) bool { return b.Named(strings.TrimSpace(v)) }) {
+					return nil, Problem{"lab.err.header-below", []any{r + 1}}
+				}
+			}
 			return nil, Problem{"lab.err.missing-column", []any{b.SampleName(), t.Name, b.Label, Problem{"lab.types." + string(b.Type), nil}}}
 		}
 	}

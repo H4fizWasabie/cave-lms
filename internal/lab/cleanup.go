@@ -71,7 +71,8 @@ type CleanUp struct {
 
 // Clean is Clean-up, a Work Dashboard's way of reading an upload. Its rules run as steps, in order: read every
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
-// sheet (s.Sheet, else the first flat list, else the first readable sheet), combine the sheets with the same
+// sheet (s.Sheet, else the first flat list with no number for a column name, else the first flat list, else the
+// first readable sheet), combine the sheets with the same
 // columns into one Dataset, type each column from its cells (- as 0, more date forms), and guess the Template's
 // blanks by name. Every step that changes something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
@@ -107,8 +108,18 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 
 	pick := slices.Index(names, s.Sheet)
 	if pick < 0 || tables[pick] == nil {
-		if pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && tb.flat }); pick < 0 {
-			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil })
+		// A header with a number for a column name is a summary's label and value pair, not a list's header.
+		named := func(tb *table) bool {
+			return !slices.ContainsFunc(tb.cols, func(c Column) bool { _, ok := number(c.Name); return ok })
+		}
+		for _, ok := range []func(*table) bool{
+			func(tb *table) bool { return tb.flat && named(tb) },
+			func(tb *table) bool { return tb.flat },
+			func(*table) bool { return true },
+		} {
+			if pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && ok(tb) }); pick >= 0 {
+				break
+			}
 		}
 	}
 	// onSheet names the sheet a Problem is on, when the workbook has several.
@@ -371,18 +382,32 @@ func sheetDate(name string) (string, bool) {
 // counted are the changes whose one number counts cells or columns, so the sheets' counts add up.
 var counted = []string{"lab.clean.merged-down", "lab.clean.empty-columns"}
 
-// addChanges lists one used sheet's changes: a counted change adds to the same change of a sheet before it,
-// and any other is listed once however many sheets made it.
+// each is the change's wording, with a count of sheets after its numbers, for when several sheets made it alike:
+// every month's export drops its own total row.
+var each = map[string]string{"lab.clean.bottom-row": "lab.clean.bottom-row-each", "lab.clean.bottom-rows": "lab.clean.bottom-rows-each"}
+
+// addChanges lists one used sheet's changes: a counted change adds to the same change of a sheet before it, a
+// change in each counts the sheets that made it, and any other is listed once however many sheets made it.
 func (res *CleanUp) addChanges(changes []Change) {
 	for _, c := range changes {
 		i := slices.IndexFunc(res.Changes, func(o Change) bool {
-			return o.Key == c.Key && (slices.Contains(counted, c.Key) || slices.Equal(o.Args, c.Args))
+			switch {
+			case o.Key == c.Key:
+				return slices.Contains(counted, c.Key) || slices.Equal(o.Args, c.Args)
+			case o.Key == each[c.Key]:
+				return slices.Equal(o.Args[:len(c.Args)], c.Args)
+			}
+			return false
 		})
-		switch {
+		switch o := &res.Changes; {
 		case i < 0:
-			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args)})
+			*o = append(*o, Change{c.Key, slices.Clone(c.Args)})
 		case slices.Contains(counted, c.Key):
-			res.Changes[i].Args[0] += c.Args[0]
+			(*o)[i].Args[0] += c.Args[0]
+		case (*o)[i].Key == each[c.Key]:
+			(*o)[i].Args[len(c.Args)]++
+		case each[c.Key] != "":
+			(*o)[i] = Change{each[c.Key], append((*o)[i].Args, 2)}
 		}
 	}
 }

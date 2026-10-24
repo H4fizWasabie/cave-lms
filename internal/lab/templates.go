@@ -111,9 +111,9 @@ var Inventory = &Template{
 		// Stock on hand: a closing or actual count beats purchases, opening stock and movements.
 		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"},
 			Loose: []string{"closing", "actual", "baki akhir", "on hand", "in stock", "kuantiti", "quantity", "qty", "stok", "stock", "baki", "balance"},
-			Not:   []string{"opening", "awal", "purchase", "belian", "movement", "pergerakan"}},
+			Not:   []string{"opening", "awal", "purchase", "belian", "movement", "pergerakan", "alert", "amaran"}},
 		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"},
-			Loose: []string{"paras pesanan semula", "paras minimum", "reorder", "minimum", "par level", "safety stock"}},
+			Loose: []string{"paras pesanan semula", "paras minimum", "reorder", "minimum", "par level", "safety stock", "stock alert", "amaran stok"}},
 		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"},
 			Loose: []string{"kategori", "category", "kumpulan", "group"}},
 		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", Guess: []string{"harga seunit", "harga", "unit price", "price"},

@@ -282,6 +282,24 @@ func TestAMissingRequiredColumnIsNamed(t *testing.T) {
 	}
 }
 
+func TestAHeaderBelowRow1IsNamedByItsRow(t *testing.T) {
+	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.Workbook(t, testutil.Sheet{Name: "Sheet1", Rows: [][]any{
+		{}, {"Akaun Mac 2026"}, {}, {"Date", "Description", "Amount"}, {day, "Sewa", 5},
+	}})
+	_, err := lab.Read(bytes.NewReader(file), finance(t))
+	var p lab.Problem
+	if !errors.As(err, &p) {
+		t.Fatalf("Read gave %v, want one lab.Problem", err)
+	}
+	if got, want := p.In("en"), "Your column names seem to be on row 4, not row 1. Delete the rows above it, or use a Work Dashboard, and upload again."; got != want {
+		t.Fatalf("message = %q, want %q", got, want)
+	}
+	if got, want := p.In("ms"), "Nama lajur anda nampaknya di baris 4, bukan baris 1. Padam baris di atasnya, atau guna Dashboard Kerja, dan muat naik semula."; got != want {
+		t.Fatalf("message = %q, want %q", got, want)
+	}
+}
+
 func TestRefusesMoreThan5000Rows(t *testing.T) {
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	rows := make([][]any, 5001)
