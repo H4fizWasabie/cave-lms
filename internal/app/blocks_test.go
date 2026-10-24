@@ -6,10 +6,13 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
+	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 // workReady is a Work Dashboard on Finance with shopReport confirmed, its Perkara column left out of the blanks.
@@ -252,4 +255,95 @@ func TestTheFilterBarIsTheTickedColumns(t *testing.T) {
 	}
 	res, body := ada.get(path + "/blocks")
 	expectStatus(t, res, body, http.StatusOK, `name="bar" value="Perkara" checked`)
+}
+
+func TestResetToTemplatePutsBackTheTemplatesBlocksFromTheCurrentColumns(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	opened, bar := ada.pageBlocks(path + "/view/")
+	res, body := ada.get(path + "/blocks")
+	for _, want := range []string{"Reset to Template", "Your own blocks and changes go", `name="do" value="reset"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+
+	ada.editBlocks(path, url.Values{"do": {"remove"}, "block": {"0"}})
+	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"table"}})
+	ada.editBlocks(path, barForm(url.Values{"block": {"4"}, "label": {"Belanja"}}))
+	ada.editBlocks(path, url.Values{"do": {"filter-bar"}, "bar": {"Perkara"}})
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, filters := ada.pageBlocks(path + "/view/")
+	if labels(blocks) != labels(opened) || fmt.Sprint(filters) != fmt.Sprint(bar) {
+		t.Fatalf("after Reset: %s %v, want %s %v", labels(blocks), filters, labels(opened), bar)
+	}
+
+	// A new Dataset without Kategori: Reset leaves out the blocks that need it.
+	day := time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC)
+	res, body = ada.postFile(path+"/dataset", "baru.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Jenis", "Jumlah"},
+		[]any{day, "Gula", "Keluar", 30.0}, []any{day, "Jualan", "Masuk", 500.0}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, filters = ada.pageBlocks(path + "/view/")
+	if strings.Contains(labels(blocks), "Spending by category") || !strings.Contains(labels(blocks), "Balance") || slices.Contains(filters, "Kategori") {
+		t.Fatalf("Reset without Kategori: %s %v", labels(blocks), filters)
+	}
+
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks")
+	expectStatus(t, res, body, http.StatusOK, "Set semula ke Template")
+}
+
+func TestALockedBlockKeepsItsKindAndCalculationButMovesToOtherColumns(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	i := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Label == "Balance" })
+	at := fmt.Sprint(i)
+	res, body := ada.get(path + "/blocks?open=" + at)
+	for _, want := range []string{`<fieldset class="field" disabled><legend>Kind`, `name="agg" disabled`,
+		"You can still rename, move, resize or remove it, or point it at other columns.", `name="where"`, `name="minus"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+
+	form := func(set url.Values) url.Values {
+		f := url.Values{"do": {"save"}, "block": {at}, "label": {"Balance"}, "col": {"Jumlah"}, "where": {"Jenis"}, "minus": {"Jenis"}, "fcol": {""}}
+		for k, v := range set {
+			f[k] = v
+		}
+		return f
+	}
+	for _, f := range []url.Values{form(url.Values{"kind": {"bar"}}), form(url.Values{"agg": {"count"}}), form(url.Values{"where": {"Jumlah"}})} {
+		res, body := ada.post(path+"/blocks", f)
+		if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(body, `class="up-err" role="alert"`) {
+			t.Fatalf("%v = %d, want refused:\n%s", f, res.StatusCode, body)
+		}
+	}
+	res, body = ada.post(path+"/blocks", form(url.Values{"kind": {"bar"}}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "kind and calculation stay as the Template made them")
+
+	ada.editBlocks(path, form(url.Values{"label": {"Baki"}, "where": {"Kategori"}, "minus": {"Kategori"}}))
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	b := blocks[i]
+	if b.Label != "Baki" || !b.Locked || b.Kind != "card" || b.Value.Agg != "sum" || b.Value.Col != "Jumlah" ||
+		fmt.Sprint(b.Where, b.Minus) != "[Kategori Masuk] [Kategori Keluar]" {
+		t.Fatalf("the repointed Balance is %+v", b)
+	}
+}
+
+func TestResetOnGeneralRebuildsFromTheCurrentDataset(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	res, body := ada.postFile(path+"/dataset", "senarai.xlsx", testutil.XLSX(t, []string{"Hari", "Nota"}, []any{day, "Buka"}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.postFile(path+"/dataset", "senarai.xlsx", testutil.XLSX(t, []string{"Hari", "Nota", "Kos"}, []any{day, "Buka", 12.5}))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	if table := blocks[len(blocks)-1]; table.Kind != "table" || strings.Join(table.Cols, ",") != "Hari,Nota,Kos" {
+		t.Fatalf("Reset on General gave %+v", blocks)
+	}
 }
