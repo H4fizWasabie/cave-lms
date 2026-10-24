@@ -1,0 +1,736 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway: never merge. Answers "How editing a Dashboard looks" (H4fizWasabie/cave-lms#229).
+     Three variants of Edit blocks on a Work Dashboard opened from the Sales Template, switchable via ?variant=A|B|C
+     and the bar at the bottom. Made-up clinic sales data, in memory only; nothing is saved.
+     Run: python3 -m http.server 8229 -d internal/app, then open http://localhost:8229/prototype-edit-blocks/ -->
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/cavelms.css">
+<title>Jualan klinik · Lab · CAVELMS</title>
+<style>
+/* The Lab side of the prototype, in cavelms.css terms. */
+.eb-head { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.eb-head p { margin: 0; }
+.eb-saved { font-size: .84rem; color: var(--ok); display: inline-flex; gap: .3rem; align-items: center; opacity: 0; transition: opacity var(--duration-fast); }
+.eb-saved.on { opacity: 1; }
+.eb-two { display: grid; grid-template-columns: minmax(22rem, 30rem) 1fr; gap: 1.6rem; align-items: start; }
+.eb-two > .eb-pv { position: sticky; top: 1rem; }
+.eb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.eb-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.eb-item.is-open { border-color: var(--brand-ink); }
+.eb-item.is-paused { border-color: var(--bad); background: #fffaf8; }
+.eb-row { display: flex; gap: .5rem; align-items: center; padding: .5rem .6rem; }
+.eb-row .eb-name { flex: 1; min-width: 0; display: grid; gap: .05rem; background: none; border: 0; text-align: left; cursor: pointer; padding: .15rem .2rem; font: inherit; color: inherit; }
+.eb-name strong { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eb-name small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eb-kind { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--brand-gold-deep); background: var(--brand-gold-soft); border-radius: var(--radius); padding: .12rem .4rem; flex: none; width: 4.4rem; text-align: center; }
+.eb-ic { border: 1px solid transparent; background: none; border-radius: var(--radius); padding: .3rem; cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; gap: .2rem; font: 600 .78rem var(--font-body); }
+.eb-ic:hover { border-color: var(--line-strong); background: #fff; }
+.eb-ic:disabled { opacity: .3; cursor: default; border-color: transparent; background: none; }
+.eb-warn { color: var(--bad); font-size: .82rem; font-weight: 600; display: flex; gap: .35rem; align-items: center; padding: 0 .8rem .5rem; }
+.eb-flag { color: var(--brand-gold-deep); font-size: .82rem; font-weight: 600; display: flex; gap: .35rem; align-items: center; padding: 0 .8rem .5rem; }
+.eb-lock { color: var(--muted); font-size: .82rem; display: flex; gap: .35rem; align-items: center; }
+.eb-form { display: grid; gap: .8rem; padding: .9rem .9rem 1rem; border-top: 1px solid var(--line); }
+.eb-form .field select, .eb-form .field input[type=text] { width: 100%; }
+.eb-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+.eb-seg { display: flex; flex-wrap: wrap; gap: .3rem; }
+.eb-seg label { border: 1px solid var(--line-strong); border-radius: var(--radius); padding: .32rem .6rem; font-size: .86rem; font-weight: 600; cursor: pointer; background: #fff; display: inline-flex; gap: .3rem; align-items: center; }
+.eb-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.eb-seg label:has(input:checked) { background: var(--brand-ink); border-color: var(--brand-ink); color: #f8f8f4; }
+.eb-seg label:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+.eb-ticks { display: flex; flex-wrap: wrap; gap: .3rem .9rem; font-size: .88rem; }
+.eb-ticks label { display: inline-flex; gap: .35rem; align-items: center; font-weight: 400; }
+.eb-ticks .gone { color: var(--bad); text-decoration: line-through; }
+.eb-calc { display: grid; grid-template-columns: 1fr auto 1fr; gap: .4rem; align-items: center; }
+.eb-add { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .6rem; }
+.eb-limit { font-size: .82rem; color: var(--muted); }
+.eb-sect { margin-top: 1.4rem; display: grid; gap: .5rem; }
+.eb-sect h3 { font-size: 1.05rem; }
+.eb-foot { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; margin-top: 1.4rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.eb-pvk { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; display: flex; justify-content: space-between; }
+.eb-stage { background: #e4e4de; border-radius: var(--radius-lg); padding: .8rem; max-height: calc(100vh - 6rem); overflow: auto; }
+dialog.eb-dlg { border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: 1.4rem; max-width: 30rem; }
+dialog.eb-dlg::backdrop { background: rgba(31, 33, 36, .35); }
+/* Variant B: the Dashboard is the editing surface, the block form opens in a drawer. */
+.eb-b-dash .dcard, .eb-b-dash .dpanel { position: relative; outline: 2px dashed transparent; outline-offset: 2px; cursor: pointer; }
+.eb-b-dash.is-editing .dcard:hover, .eb-b-dash.is-editing .dpanel:hover { outline-color: var(--brand-gold); }
+.eb-b-dash .is-sel { outline: 2px solid var(--brand-ink) !important; }
+.eb-tools { position: absolute; top: .35rem; right: .35rem; display: none; gap: .1rem; background: #fff; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: .1rem; z-index: 2; }
+.eb-b-dash.is-editing .dcard:hover .eb-tools, .eb-b-dash.is-editing .dpanel:hover .eb-tools, .eb-b-dash .is-sel .eb-tools { display: flex; }
+.eb-tools .eb-ic { padding: .2rem; }
+.eb-ghost { border: 2px dashed #c9cdd4; border-radius: 10px; background: transparent; color: #5b6573; font: 600 .9rem var(--font-body); display: flex; align-items: center; justify-content: center; gap: .4rem; min-height: 4.6rem; cursor: pointer; }
+.eb-ghost:hover { border-color: #1c2430; color: #1c2430; }
+.eb-pausedbar { background: var(--bad-soft); color: var(--bad); border-radius: 10px; padding: .7rem 1rem; font-size: .9rem; margin-bottom: .8rem; display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.eb-pausedbar button { font: 600 .86rem var(--font-body); color: var(--bad); background: #fff; border: 1px solid var(--bad); border-radius: 6px; padding: .2rem .55rem; cursor: pointer; }
+.eb-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(27rem, 92vw); background: var(--surface); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 30px -18px rgba(0,0,0,.35); overflow: auto; z-index: 40; transform: translateX(100%); transition: transform var(--duration-fast) var(--ease-smooth-out); }
+.eb-drawer.on { transform: none; }
+.eb-drawer > header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1rem .4rem; }
+.eb-drawer .eb-form { border-top: 0; }
+.eb-b-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.eb-switch { display: inline-flex; gap: .5rem; align-items: center; font-weight: 600; cursor: pointer; }
+/* Variant C: plain sentences, one step at a time, one block's preview beside it. */
+.eb-c-list { display: grid; gap: .5rem; max-width: 46rem; }
+.eb-c-row { display: grid; grid-template-columns: 2rem 1fr auto; gap: .8rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: .65rem .8rem; }
+.eb-c-row.is-paused { border-color: var(--bad); }
+.eb-c-row p { margin: 0; font-size: .92rem; }
+.eb-c-n { font-family: var(--font-display); font-size: 1.3rem; color: var(--brand-gold-deep); text-align: center; }
+.eb-c-ed { display: grid; grid-template-columns: minmax(20rem, 34rem) 1fr; gap: 2rem; align-items: start; }
+.eb-step { display: grid; gap: .6rem; padding: 1rem 0; border-top: 1px solid var(--line); }
+.eb-step h3 { font-size: 1.05rem; display: flex; gap: .6rem; align-items: baseline; }
+.eb-step h3 span { font-family: var(--font-display); color: var(--brand-gold-deep); }
+.eb-kinds { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; }
+.eb-kinds label { border: 1px solid var(--line-strong); border-radius: var(--radius); padding: .6rem .4rem; text-align: center; cursor: pointer; background: #fff; display: grid; gap: .3rem; justify-items: center; font-size: .82rem; font-weight: 600; }
+.eb-kinds small { font-weight: 400; color: var(--muted); font-size: .74rem; line-height: 1.25; }
+.eb-kinds input { position: absolute; opacity: 0; }
+.eb-kinds label:has(input:checked) { border-color: var(--brand-ink); background: var(--brand-gold-soft); }
+.eb-kinds svg { width: 2.6rem; height: 1.8rem; }
+.eb-sentence { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: .98rem; }
+.eb-sentence select { width: auto; padding: .3rem .5rem; }
+/* The prototype's own controls: not part of the design. */
+.proto-bar { position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); z-index: 60; display: flex; gap: .5rem; align-items: center; background: #111; color: #fff; border-radius: 99px; padding: .35rem .6rem; box-shadow: 0 8px 26px rgba(0,0,0,.35); font: 600 .84rem system-ui, sans-serif; }
+.proto-bar button { background: #333; color: #fff; border: 0; border-radius: 99px; padding: .3rem .6rem; cursor: pointer; font: inherit; }
+.proto-bar select { background: #333; color: #fff; border: 0; border-radius: 99px; padding: .3rem .5rem; font: inherit; width: auto; }
+.proto-json { position: fixed; left: 1rem; bottom: 4rem; width: 26rem; max-height: 60vh; overflow: auto; background: #111; color: #cde; font: 11px/1.4 ui-monospace, monospace; padding: .8rem; border-radius: 8px; z-index: 59; white-space: pre; }
+@media (max-width: 960px) { .eb-two, .eb-c-ed { grid-template-columns: 1fr; } .eb-two > .eb-pv { position: static; } .eb-kinds { grid-template-columns: repeat(3, 1fr); } }
+
+/* The Dashboard itself, as charts.js draws it (its CSS, scoped under .dash). */
+.dash { background: #f3f4f6; color: #1c2430; font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; border-radius: 6px; padding: 1.2rem 1.1rem 1rem; }
+.dash h1, .dash h2 { margin: 0; line-height: 1.2; font-family: inherit; }
+.dash select { font: inherit; padding: .35rem .5rem; border: 1px solid #cfd4dc; border-radius: 6px; background: #fff; color: inherit; max-width: 11rem; width: auto; }
+.dash .dh { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; align-items: flex-end; margin-bottom: 1.2rem; }
+.dash .dh h1 { font-size: 1.6rem; letter-spacing: -.01em; }
+.dash .dh p { color: #5b6573; font-size: .88rem; margin: .2rem 0 0; }
+.dash .dh .dq { color: #1c2430; font-size: 1rem; font-weight: 600; }
+.dash .df { display: flex; flex-wrap: wrap; gap: .6rem .9rem; }
+.dash .df label { display: grid; gap: .2rem; font-size: .78rem; font-weight: 600; color: #5b6573; }
+.dash .dcards { display: grid; grid-template-columns: var(--cols, 1fr); gap: .8rem; margin-bottom: .8rem; }
+.dash .dcard { background: #fff; border: 1px solid #e3e6eb; border-radius: 10px; padding: .9rem 1rem; display: grid; gap: .15rem; }
+.dash .dcard span { font-size: .82rem; color: #5b6573; font-weight: 600; }
+.dash .dcard strong { overflow-wrap: anywhere; font-size: 1.45rem; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.dash .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.dash .dpanel { background: #fff; border: 1px solid #e3e6eb; border-radius: 10px; padding: 1rem 1.1rem; min-width: 0; }
+.dash .dpanel.wide { grid-column: 1/-1; }
+.dash .dpanel h2 { font-size: .98rem; margin-bottom: .7rem; }
+.dash .dfind { margin: -.5rem 0 .7rem; font-size: .84rem; color: #5b6573; }
+.dash .dchart { width: 100%; height: auto; } .dash .dchart text { font-size: 11px; fill: #6b7482; } .dash .dchart .grid { stroke: #eceef2; }
+.dash .dlegend { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .82rem; color: #5b6573; margin: -.3rem 0 .4rem; }
+.dash .dlegend span, .dash .ddonut li { display: flex; align-items: center; gap: .4rem; }
+.dash .dlegend i, .dash .ddonut i { width: .7rem; height: .7rem; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+.dash .dbars { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.dash .dbars li { display: grid; grid-template-columns: minmax(6rem, 9rem) 1fr 4rem; gap: .7rem; align-items: center; font-size: .86rem; }
+.dash .dbar-k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash .dbar-t { height: .8rem; background: #eef0f3; border-radius: 99px; overflow: hidden; display: flex; }
+.dash .dbar-t span { display: block; height: 100%; }
+.dash .dbar-v { text-align: right; font-variant-numeric: tabular-nums; color: #3c4552; }
+.dash .ddonut { display: flex; gap: 1.2rem; align-items: center; } .dash .ddonut svg { width: 9.5rem; flex-shrink: 0; }
+.dash .ddonut .dtot { font-size: 17px; font-weight: 700; fill: #1c2430; }
+.dash .ddonut ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; font-size: .86rem; flex: 1; }
+.dash .ddonut li span { margin-left: auto; color: #5b6573; font-variant-numeric: tabular-nums; }
+.dash .dtable { overflow-x: auto; } .dash .dtable table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.dash .dtable th { text-align: left; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7482; padding: .45rem .6rem; border-bottom: 1px solid #e3e6eb; white-space: nowrap; background: none; }
+.dash .dtable td { padding: .5rem .6rem; border-bottom: 1px solid #f0f1f4; white-space: nowrap; }
+.dash .dtable .num { text-align: right; font-variant-numeric: tabular-nums; }
+.dash .dnone { color: #6b7482; font-size: .88rem; padding: 1rem 0; text-align: center; }
+.eb-pv .dash { font-size: 13px; } .eb-pv .dash .dh h1 { font-size: 1.3rem; } .eb-pv .dash .dcard strong { font-size: 1.15rem; }
+</style>
+</head>
+<body>
+<header class="site-header"><div class="wrap site-header-in">
+  <a class="brand" href="#"><img src="/static/cavelms.svg" alt="CAVELMS" class="brand-logo"></a>
+  <div class="site-header-right">
+    <form class="lang-switch" onsubmit="return false"><button type="button" data-lang="ms">BM</button><span aria-hidden="true">|</span><button type="button" data-lang="en">EN</button></form>
+  </div>
+</div></header>
+<main><div class="wrap page-pad" id="app"></div></main>
+<div class="proto-bar" id="bar"></div>
+<pre class="proto-json" id="json" hidden></pre>
+<dialog class="eb-dlg" id="dlg"></dialog>
+<div class="eb-drawer" id="drawer"></div>
+
+<script>
+'use strict';
+// ---------- Text, in the catalog's style: one key, an English and a Malay line. ----------
+var TEXT = {
+  'tab.dataset': ['1. Dataset', '1. Set data'], 'tab.blocks': ['2. Blocks', '2. Blok'], 'tab.preview': ['3. Preview', '3. Pratonton'],
+  'tab.dashboard': ['2. Dashboard', '2. Dashboard'], 'tab.hood': ['Under the hood', 'Di sebalik tabir'], 'tab.deploy': ['Deploy', 'Deploy'],
+  'edit': ['Edit blocks', 'Ubah blok'], 'saved': ['Saved. The live link shows it now.', 'Disimpan. Pautan langsung memaparkannya sekarang.'],
+  'intro': ['Each block is one card, chart or table. Changes save as you make them.', 'Setiap blok ialah satu kad, carta atau jadual. Perubahan disimpan serta-merta.'],
+  'add': ['Add a block', 'Tambah blok'], 'add.k': ['Add', 'Tambah'],
+  'limit.blocks': ['20 blocks is the most a Dashboard holds.', 'Dashboard memuatkan paling banyak 20 blok.'],
+  'limit.cards': ['8 cards is the most (two rows).', 'Paling banyak 8 kad (dua baris).'],
+  'kind.card': ['Card', 'Kad'], 'kind.line': ['Line', 'Garis'], 'kind.bar': ['Bar', 'Bar'], 'kind.donut': ['Donut', 'Donut'], 'kind.table': ['Table', 'Jadual'],
+  'kindh.card': ['One big number', 'Satu nombor besar'], 'kindh.line': ['How it moves over time', 'Turun naik ikut masa'],
+  'kindh.bar': ['Compare groups', 'Banding kumpulan'], 'kindh.donut': ['Share of a whole', 'Bahagian daripada jumlah'], 'kindh.table': ['The rows themselves', 'Baris itu sendiri'],
+  'f.kind': ['Kind', 'Jenis'], 'f.label': ['Label', 'Label'], 'f.value': ['Value', 'Nilai'], 'f.column': ['Column', 'Lajur'],
+  'agg.count': ['Count rows', 'Kira baris'], 'agg.sum': ['Sum of', 'Jumlahkan'], 'agg.avg': ['Average of', 'Purata'], 'agg.distinct': ['Distinct count of', 'Bilangan unik'],
+  'agg.calc': ['Calculation', 'Pengiraan'], 'calc.then': ['then', 'kemudian'], 'calc.sum': ['summed', 'dijumlahkan'], 'calc.avg': ['averaged', 'dipuratakan'],
+  'calc.help': ['Worked out row by row, then summed or averaged.', 'Dikira baris demi baris, kemudian dijumlahkan atau dipuratakan.'],
+  'f.date': ['Date column', 'Lajur tarikh'], 'f.by': ['By', 'Ikut'], 'by.day': ['Day', 'Hari'], 'by.month': ['Month', 'Bulan'],
+  'f.group': ['Group by', 'Kumpulkan ikut'], 'f.split': ['Split by', 'Pecahkan ikut'], 'none': ['None', 'Tiada'],
+  'f.top': ['Show', 'Tunjuk'], 'top.all': ['All', 'Semua'], 'top.n': ['Top %s', '%s teratas'], 'donut.other': ['Past the top 6, the rest show as Other.', 'Selepas 6 teratas, selebihnya menjadi Lain-lain.'],
+  'f.cols': ['Columns', 'Lajur'], 'f.sort': ['Sort by', 'Susun ikut'], 'sort.date': ['newest first', 'terbaru dahulu'], 'sort.num': ['largest first', 'terbesar dahulu'], 'sort.text': ['A to Z', 'A hingga Z'],
+  'f.rows': ['Rows', 'Baris'],
+  'f.filter': ['Only rows where', 'Hanya baris yang'], 'filter.all': ['All rows', 'Semua baris'], 'filter.is': ['is', 'ialah'],
+  'f.width': ['Width', 'Lebar'], 'w.full': ['Full', 'Penuh'], 'w.half': ['Half', 'Separuh'],
+  'up': ['Move up', 'Naikkan'], 'down': ['Move down', 'Turunkan'], 'remove': ['Remove', 'Buang'], 'done': ['Done', 'Siap'], 'close': ['Close', 'Tutup'],
+  'paused': ['Needs %s', 'Perlu %s'], 'paused.help': ['Hidden on the Dashboard and the live link until it has a column. Pick one, or remove the block.', 'Disembunyikan pada Dashboard dan pautan langsung sehingga ada lajur. Pilih satu, atau buang blok ini.'],
+  'paused.pick': ['Use instead', 'Guna lajur'], 'paused.n': ['%s blocks are hidden: their column is not in this Dataset.', '%s blok disembunyikan: lajurnya tiada dalam set data ini.'],
+  'paused.fix': ['Fix', 'Betulkan'],
+  'gone.value': ['%s is not in this Dataset', '%s tiada dalam set data ini'], 'gone.help': ['The block shows "No rows match" until you untick it or it comes back.', 'Blok memaparkan "Tiada baris sepadan" sehingga anda nyahtanda atau ia kembali.'],
+  'locked': ['From the Template: its calculation cannot change. You can rename, move, resize, remove it or point it at other columns.', 'Dari Templat: pengiraannya tidak boleh diubah. Anda boleh menamakan semula, mengalih, mengubah saiz, membuang atau menukar lajurnya.'],
+  'filterbar': ['Filter bar', 'Bar penapis'], 'filterbar.help': ['The dropdowns above the Dashboard. Text and Date columns.', 'Senarai juntai di atas Dashboard. Lajur Teks dan Tarikh.'],
+  'reset': ['Reset to Template', 'Set semula ke Templat'],
+  'reset.ask': ['Reset to the Sales Template?', 'Set semula ke Templat Sales?'],
+  'reset.body': ['Every block and the filter bar go back to the Sales Template, filled from your current columns. Your own blocks and changes are removed. This cannot be undone.', 'Semua blok dan bar penapis kembali kepada Templat Sales, diisi daripada lajur semasa anda. Blok dan perubahan anda sendiri dibuang. Ini tidak boleh dibuat asal.'],
+  'reset.yes': ['Reset', 'Set semula'], 'cancel': ['Cancel', 'Batal'],
+  'pv': ['Preview', 'Pratonton'], 'pv.live': ['What the live link shows', 'Yang dipaparkan oleh pautan langsung'],
+  'rows': ['%s rows', '%s baris'], 'from': ['From', 'Dari'], 'to': ['To', 'Hingga'], 'all': ['All', 'Semua'],
+  'norows': ['No rows match', 'Tiada baris sepadan'], 'other': ['Other', 'Lain-lain'], 'blank': ['(blank)', '(kosong)'],
+  'peak': ['Peak: %s', 'Puncak: %s'], 'top': ['Top: %s', 'Teratas: %s'], 'largest': ['Largest: %s', 'Terbesar: %s'],
+  'lbl.count': ['Rows', 'Baris'], 'lbl.distinct': ['Distinct %s', '%s unik'], 'lbl.avg': ['Average %s', 'Purata %s'], 'lbl.by': ['%s by %s', '%s ikut %s'],
+  'b.editing': ['Editing blocks', 'Sedang ubah blok'], 'b.hint': ['Click a block to change it. Use the arrows to move it.', 'Klik blok untuk mengubahnya. Guna anak panah untuk mengalihnya.'],
+  'c.step1': ['What kind of block?', 'Blok jenis apa?'], 'c.step2': ['What does it show?', 'Apa yang dipaparkan?'], 'c.step3': ['Which rows?', 'Baris mana?'], 'c.step4': ['Name and size', 'Nama dan saiz'],
+  'c.back': ['Back to blocks', 'Kembali ke senarai blok'], 'c.this': ['This block', 'Blok ini'], 'c.edit': ['Change', 'Ubah'],
+  'c.show': ['Show', 'Tunjuk'], 'c.of': ['of', 'bagi'], 'c.per': ['for each', 'bagi setiap'], 'c.over': ['over', 'mengikut'], 'c.each': ['one line for each', 'satu garis bagi setiap'],
+  'dash.q': ['What sells, and when?', 'Apa yang laku, dan bila?'],
+};
+var lang = new URLSearchParams(location.search).get('lang') || 'ms';
+function t(k) { var s = (TEXT[k] || [k, k])[lang === 'en' ? 0 : 1], a = [].slice.call(arguments, 1); return s.replace(/%s/g, function () { return a.shift(); }); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function icon(n) { return '<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-' + n + '"/></svg>'; }
+
+// ---------- Made-up cleaned sales sheet from a small vet clinic (never the real samples). ----------
+var seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+function pick(a) { return a[Math.floor(rnd() * a.length)]; }
+var ITEMS = [['Konsultasi', 'Servis', 45, 0], ['Vaksin 4-dalam-1', 'Servis', 90, 35], ['Mandian & dandanan', 'Servis', 60, 10], ['Sterilisasi kucing', 'Servis', 250, 80],
+  ['Ubat cacing', 'Produk', 18, 7], ['Makanan kucing 2kg', 'Produk', 42, 30], ['Pasir kucing 10L', 'Produk', 28, 19], ['Ubat kutu (titis)', 'Produk', 55, 31], ['Rawatan kutu', 'Servis', 70, 20]];
+var STAFF = ['Dr Aiman', 'Dr Farah', 'Nurul', 'Hakim'], PAY = ['Tunai', 'Kad', 'QR DuitNow', 'Pindahan bank'];
+var BASE_COLS = [{ name: 'Tarikh', type: 'date' }, { name: 'No. Resit', type: 'text' }, { name: 'Pelanggan', type: 'text' }, { name: 'Perkara', type: 'text' },
+  { name: 'Kategori', type: 'text' }, { name: 'Staf', type: 'text' }, { name: 'Bayaran', type: 'text' }, { name: 'Kuantiti', type: 'number' },
+  { name: 'Harga seunit', type: 'number', money: true }, { name: 'Jumlah', type: 'number', money: true }, { name: 'Kos', type: 'number', money: true }];
+var BASE_ROWS = [];
+for (var i = 0; i < 640; i++) {
+  var it = pick(ITEMS), m = 1 + Math.floor(rnd() * 6), d = 1 + Math.floor(rnd() * 28), q = it[1] === 'Produk' ? 1 + Math.floor(rnd() * 3) : 1;
+  var staff = it[1] === 'Servis' && it[0] !== 'Mandian & dandanan' ? pick(['Dr Aiman', 'Dr Farah']) : pick(['Nurul', 'Hakim', 'Nurul']);
+  BASE_ROWS.push({ 'Tarikh': '2026-0' + m + '-' + (d < 10 ? '0' : '') + d, 'No. Resit': 'R' + (10230 + i), 'Pelanggan': 'P' + (100 + Math.floor(rnd() * 180)),
+    'Perkara': it[0], 'Kategori': it[1], 'Staf': staff, 'Bayaran': pick(PAY), 'Kuantiti': q, 'Harga seunit': it[2], 'Jumlah': it[2] * q, 'Kos': rnd() < .1 ? null : it[3] * q });
+}
+BASE_ROWS.sort(function (a, b) { return a.Tarikh < b.Tarikh ? -1 : 1; });
+
+// ---------- Scenarios: what the Dataset looks like right now. ----------
+var SCENARIOS = {
+  normal: 'Normal: Sales, Jan-Jun 2026',
+  upload: 'After a new upload: no Jumlah column, Dr Farah left',
+  locked: 'With a locked Template block (Finance Balance)',
+};
+var scenario = new URLSearchParams(location.search).get('scenario') || 'normal';
+function dataset() {
+  if (scenario !== 'upload') return { cols: BASE_COLS, rows: BASE_ROWS };
+  return { cols: BASE_COLS.filter(function (c) { return c.name !== 'Jumlah'; }),
+    rows: BASE_ROWS.filter(function (r) { return r.Staf !== 'Dr Farah'; }).map(function (r) { var o = Object.assign({}, r); delete o.Jumlah; return o; }) };
+}
+
+// ---------- Blocks: configuration, opened from the Sales Template with its blanks filled. ----------
+var nextId = 1;
+function B(o) { o.id = nextId++; o.filter = o.filter || null; return o; }
+function template() {
+  return [
+    B({ kind: 'card', label: 'Hasil', value: { agg: 'sum', col: 'Jumlah' } }),
+    B({ kind: 'card', label: 'Jualan', value: { agg: 'count' } }),
+    B({ kind: 'card', label: 'Unit', value: { agg: 'sum', col: 'Kuantiti' } }),
+    B({ kind: 'line', label: 'Hasil ikut bulan', value: { agg: 'sum', col: 'Jumlah' }, x: 'Tarikh', by: 'month', split: 'Kategori', wide: true }),
+    B({ kind: 'bar', label: 'Hasil ikut Perkara', value: { agg: 'sum', col: 'Jumlah' }, group: 'Perkara', top: 8 }),
+    B({ kind: 'bar', label: 'Hasil ikut Staf', value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf', top: 8 }),
+    B({ kind: 'donut', label: 'Kaedah bayaran', value: { agg: 'sum', col: 'Jumlah' }, group: 'Bayaran' }),
+    B({ kind: 'table', label: 'Jualan terkini', cols: ['Tarikh', 'Perkara', 'Staf', 'Jumlah'], sort: 'Tarikh', limit: 10, wide: true }),
+  ];
+}
+var FILTERS_TEMPLATE = ['Kategori', 'Staf', 'Bayaran', 'Tarikh'];
+// The Learner's own edits since opening, so the scenarios have something to break.
+function opened() {
+  var b = template();
+  b.splice(3, 0, B({ kind: 'card', label: 'Pelanggan', value: { agg: 'distinct', col: 'Pelanggan' } }),
+    B({ kind: 'card', label: 'Untung kasar', value: { agg: 'calc', a: 'Jumlah', op: '-', b: 'Kos', then: 'sum' } }));
+  b.splice(10, 0, B({ kind: 'bar', label: 'Servis Dr Farah', value: { agg: 'count' }, group: 'Perkara', top: 5, filter: { col: 'Staf', vals: ['Dr Farah'] } }));
+  if (scenario === 'locked') b.unshift(B({ kind: 'card', label: 'Baki', locked: true, value: { agg: 'balance', col: 'Jumlah', type: 'Kategori', inVal: 'Servis' } }));
+  return b;
+}
+var blocks = opened(), filterBar = FILTERS_TEMPLATE.slice(), open = null, fstate = {};
+
+// ---------- Working a block out. ----------
+function colsOf(b) {
+  var v = b.value || {}, c = [];
+  if (b.kind === 'table') c = c.concat(b.cols || [], b.sort ? [b.sort] : []);
+  else if (v.agg === 'calc') c.push(v.a, v.b); else if (v.agg === 'balance') c.push(v.col, v.type); else if (v.col) c.push(v.col);
+  ['x', 'group', 'split'].forEach(function (k) { if (b[k]) c.push(b[k]); });
+  if (b.filter) c.push(b.filter.col);
+  return c.filter(function (x, i) { return x && c.indexOf(x) === i; });
+}
+function missing(b, ds) { var names = ds.cols.map(function (c) { return c.name; }); return colsOf(b).filter(function (c) { return names.indexOf(c) < 0; }); }
+function goneValues(b, ds) {
+  if (!b.filter || missing(b, ds).length) return [];
+  var have = {}; ds.rows.forEach(function (r) { have[r[b.filter.col]] = 1; });
+  return b.filter.vals.filter(function (v) { return !have[v]; });
+}
+function col(ds, n) { return ds.cols.filter(function (c) { return c.name === n; })[0]; }
+function isMoney(b, ds) {
+  var v = b.value || {}, m = function (n) { var c = col(ds, n); return !!(c && c.money); };
+  if (v.agg === 'sum' || v.agg === 'avg' || v.agg === 'balance') return m(v.col);
+  if (v.agg === 'calc') return (m(v.a) || m(v.b)) && v.op !== '/';
+  return false;
+}
+function num(x) { return x == null || x === '' ? null : +x; }
+function valueOf(v, rows) {
+  if (!v || v.agg === 'count') return rows.length;
+  if (v.agg === 'distinct') { var s = {}; rows.forEach(function (r) { if (r[v.col] != null) s[r[v.col]] = 1; }); return Object.keys(s).length; }
+  if (v.agg === 'balance') return rows.reduce(function (a, r) { return a + (num(r[v.col]) || 0) * (r[v.type] === v.inVal ? 1 : -1); }, 0);
+  var xs = [];
+  rows.forEach(function (r) {
+    if (v.agg === 'calc') {
+      var a = num(r[v.a]), b = num(r[v.b]); if (a == null || b == null || (v.op === '/' && !b)) return;
+      xs.push(v.op === '+' ? a + b : v.op === '-' ? a - b : v.op === 'x' ? a * b : a / b);
+    } else { var n = num(r[v.col]); if (n != null) xs.push(n); }
+  });
+  var tot = xs.reduce(function (a, x) { return a + x; }, 0);
+  return (v.agg === 'avg' || (v.agg === 'calc' && v.then === 'avg')) ? (xs.length ? tot / xs.length : 0) : tot;
+}
+function scoped(b, rows) { return b.filter && b.filter.vals.length ? rows.filter(function (r) { return b.filter.vals.indexOf(String(r[b.filter.col])) >= 0; }) : rows; }
+function groups(rows, key) { var g = {}, o = []; rows.forEach(function (r) { var k = r[key] == null ? t('blank') : String(r[key]); if (!g[k]) { g[k] = []; o.push(k); } g[k].push(r); }); return o.map(function (k) { return [k, g[k]]; }); }
+
+// ---------- Drawing, after charts.js. ----------
+var MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+var PALETTE = ['#2f5d8a', '#d2a649', '#3f8a63', '#b45a3c', '#7a5c9e', '#5e8f9c', '#a3a39a'];
+function fmt(n, money) { var s = Math.abs(n) >= 100 || !money ? Math.round(n).toLocaleString('en-MY') : n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return money ? (n < 0 ? '-RM' + s.replace('-', '') : 'RM' + s) : s; }
+function short(n, money) { var a = Math.abs(n), s = a >= 1e6 ? (a / 1e6).toFixed(1) + 'm' : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'k' : String(Math.round(a * 10) / 10); return (n < 0 ? '-' : '') + (money ? 'RM' : '') + s; }
+function monthName(ym) { return MONTHS[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4); }
+function dayName(iso) { return +iso.slice(8) + ' ' + MONTHS[+iso.slice(5, 7) - 1]; }
+function nice(v) { if (!v) return 1; var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+
+function panel(b, inner, finding, tools) {
+  return '<article class="dpanel' + (b.wide ? ' wide' : '') + '" data-b="' + b.id + '">' + (tools || '') + '<h2>' + esc(b.label) + '</h2>' + (finding ? '<p class="dfind">' + esc(finding) + '</p>' : '') + inner + '</article>';
+}
+function none() { return '<p class="dnone">' + t('norows') + '</p>'; }
+var DRAW = {
+  card: function (b, rows, ds, tools) {
+    var v = valueOf(b.value, scoped(b, rows)), m = isMoney(b, ds);
+    var cls = b.value.agg === 'balance' || (b.value.agg === 'calc' && b.value.op === '-') ? (v < 0 ? ' style="color:#b4432a"' : ' style="color:#2d7a52"') : '';
+    return '<div class="dcard" data-b="' + b.id + '">' + (tools || '') + '<span>' + esc(b.label) + (b.locked ? ' ' + icon('lock-simple') : '') + '</span><strong' + cls + '>' + (scoped(b, rows).length ? fmt(v, m) : '–') + '</strong></div>';
+  },
+  line: function (b, rows, ds, tools, W) {
+    rows = scoped(b, rows); var keys = [], series = {}, m = isMoney(b, ds), byDay = b.by === 'day';
+    groups(rows.filter(function (r) { return r[b.x]; }), b.split || '__').forEach(function (g) {
+      var s = b.split ? g[0] : b.label; series[s] = {};
+      var byKey = {}; g[1].forEach(function (r) { var k = byDay ? r[b.x] : r[b.x].slice(0, 7); (byKey[k] = byKey[k] || []).push(r); if (keys.indexOf(k) < 0) keys.push(k); });
+      Object.keys(byKey).forEach(function (k) { series[s][k] = valueOf(b.value, byKey[k]); });
+    });
+    keys.sort(); if (!keys.length) return panel(b, none(), '', tools);
+    var names = Object.keys(series).sort(), peak = null;
+    names.forEach(function (s) { keys.forEach(function (k) { var v = series[s][k] || 0; if (!peak || v > peak[2]) peak = [s, k, v]; }); });
+    var max = nice(Math.max(0, peak[2])), div = String(max)[0] === '2' ? 4 : 5;
+    W = Math.max(280, (b.wide ? W : W / 2) - 40); var H = W < 500 ? 190 : 230, L = 54, Bm = 26, T = 10, R = 22, w = W - L - R, h = H - Bm - T;
+    var X = function (i) { return L + (keys.length === 1 ? w / 2 : i * w / (keys.length - 1)); }, Y = function (v) { return T + h - v / max * h; }, svg = '';
+    for (var g = 0; g <= div; g++) { var v = max * g / div; svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="grid"/><text x="' + (L - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + short(v, m) + '</text>'; }
+    var step = Math.ceil(keys.length / Math.max(1, Math.floor(w / 52)));
+    keys.forEach(function (k, i) { if (i % step === 0) svg += '<text x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + (byDay ? dayName(k) : MONTHS[+k.slice(5) - 1]) + '</text>'; });
+    names.forEach(function (s, si) {
+      var c = PALETTE[si % 7], pts = keys.map(function (k, i) { return X(i) + ',' + Y(series[s][k] || 0); }).join(' ');
+      if (!b.split) svg += '<polygon points="' + L + ',' + Y(0) + ' ' + pts + ' ' + X(keys.length - 1) + ',' + Y(0) + '" fill="' + c + '" opacity=".1"/>';
+      svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="' + (byDay ? 1.5 : 2.5) + '" stroke-linejoin="round"/>';
+    });
+    var legend = b.split ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + PALETTE[si % 7] + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
+    return panel(b, legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dchart">' + svg + '</svg>', keys.length > 1 ? t('peak', (b.split ? peak[0] + ', ' : '') + (byDay ? dayName(peak[1]) : monthName(peak[1])) + ', ' + short(peak[2], m)) : '', tools);
+  },
+  bar: function (b, rows, ds, tools) {
+    rows = scoped(b, rows); var m = isMoney(b, ds);
+    var g = groups(rows, b.group).map(function (x) { return [x[0], valueOf(b.value, x[1]), x[1]]; }).sort(function (a, c) { return c[1] - a[1]; });
+    if (b.top) g = g.slice(0, b.top);
+    if (!g.length) return panel(b, none(), '', tools);
+    var max = Math.max.apply(null, g.map(function (x) { return x[1]; })) || 1, names = b.split ? groups(rows, b.split).map(function (x) { return x[0]; }).sort() : [];
+    var bars = '<ul class="dbars">' + g.map(function (x) {
+      var segs = b.split ? groups(x[2], b.split).map(function (s) { return '<span style="width:' + (valueOf(b.value, s[1]) / max * 100).toFixed(1) + '%;background:' + PALETTE[names.indexOf(s[0]) % 7] + '" title="' + esc(s[0]) + '"></span>'; }).join('')
+        : '<span style="width:' + (x[1] / max * 100).toFixed(1) + '%;background:#2f5d8a;border-radius:99px"></span>';
+      return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span><span class="dbar-t">' + segs + '</span><span class="dbar-v">' + short(x[1], m) + '</span></li>';
+    }).join('') + '</ul>';
+    var legend = b.split ? '<p class="dlegend">' + names.map(function (s, i) { return '<span><i style="background:' + PALETTE[i % 7] + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
+    return panel(b, legend + bars, g.length > 1 ? t('top', g[0][0] + ', ' + short(g[0][1], m)) : '', tools);
+  },
+  donut: function (b, rows, ds, tools) {
+    rows = scoped(b, rows); var m = isMoney(b, ds);
+    var g = groups(rows, b.group).map(function (x) { return [x[0], valueOf(b.value, x[1])]; }).sort(function (a, c) { return c[1] - a[1]; });
+    var tot = g.reduce(function (a, x) { return a + x[1]; }, 0); if (!tot) return panel(b, none(), '', tools);
+    var finding = g.length > 1 ? t('largest', g[0][0] + ', ' + Math.round(g[0][1] / tot * 100) + '%') : '';
+    if (g.length > 6) { var rest = g.slice(5).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, 5).concat([[t('other'), rest]]); }
+    var acc = 0, r = 60, C = 2 * Math.PI * r, segs = g.map(function (x, i) { var len = x[1] / tot * C, s = '<circle r="60" cx="80" cy="80" fill="none" stroke="' + PALETTE[i] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"/>'; acc += len; return s; }).join('');
+    return panel(b, '<div class="ddonut"><svg viewBox="0 0 160 160">' + segs + '<text x="80" y="86" text-anchor="middle" class="dtot">' + short(tot, m) + '</text></svg><ul>' +
+      g.map(function (x, i) { return '<li><i style="background:' + PALETTE[i] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>', finding, tools);
+  },
+  table: function (b, rows, ds, tools) {
+    var rs = scoped(b, rows).slice(), sc = col(ds, b.sort);
+    if (sc) rs.sort(function (a, c) { var x = a[b.sort], y = c[b.sort]; return sc.type === 'text' ? String(x).localeCompare(String(y)) : (x < y ? 1 : x > y ? -1 : 0); });
+    rs = rs.slice(0, b.limit || 10);
+    var head = b.cols.map(function (k) { return '<th' + (col(ds, k).type === 'number' ? ' class="num"' : '') + '>' + esc(k) + '</th>'; }).join('');
+    var body = rs.map(function (r) { return '<tr>' + b.cols.map(function (k) { var v = r[k], c = col(ds, k); return v == null ? '<td></td>' : c.type === 'number' ? '<td class="num">' + fmt(+v, c.money) + '</td>' : '<td>' + esc(c.type === 'date' ? dayName(v) + ' ' + v.slice(0, 4) : v) + '</td>'; }).join('') + '</tr>'; }).join('') || '<tr><td colspan="' + b.cols.length + '" class="dnone">' + t('norows') + '</td></tr>';
+    return panel(b, '<div class="dtable"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>', '', tools);
+  },
+};
+function filteredRows(ds) {
+  var dateCol = filterBar.filter(function (n) { var c = col(ds, n); return c && c.type === 'date'; })[0];
+  return ds.rows.filter(function (r) {
+    for (var k in fstate) {
+      if (!fstate[k]) continue;
+      if (k === '_from' || k === '_to') { var mo = String(r[dateCol] || '').slice(0, 7); if (k === '_from' ? mo < fstate[k] : mo > fstate[k]) return false; }
+      else if (filterBar.indexOf(k) >= 0 && col(ds, k) && String(r[k]) !== fstate[k]) return false;
+    }
+    return true;
+  });
+}
+// dashboard draws the whole Dashboard; tools(b) adds the edit handles in variant B.
+function dashboard(width, tools) {
+  var ds = dataset(), rows = filteredRows(ds), live = blocks.filter(function (b) { return !missing(b, ds).length; });
+  var months = []; ds.rows.forEach(function (r) { var mo = String(r.Tarikh || '').slice(0, 7); if (mo && months.indexOf(mo) < 0) months.push(mo); }); months.sort();
+  var bar = filterBar.filter(function (n) { return col(ds, n); }).map(function (n) {
+    if (col(ds, n).type === 'date') { var o = function (sel) { return months.map(function (mo) { return '<option value="' + mo + '"' + (mo === sel ? ' selected' : '') + '>' + monthName(mo) + '</option>'; }).join(''); };
+      return '<label>' + t('from') + ' <select data-fb="_from">' + o(fstate._from || months[0]) + '</select></label><label>' + t('to') + ' <select data-fb="_to">' + o(fstate._to || months[months.length - 1]) + '</select></label>'; }
+    var vals = groups(ds.rows, n).map(function (x) { return x[0]; }).sort();
+    return '<label>' + esc(n) + ' <select data-fb="' + esc(n) + '"><option value="">' + t('all') + '</option>' + vals.map(function (v) { return '<option' + (fstate[n] === v ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') + '</select></label>';
+  }).join('');
+  var cards = live.filter(function (b) { return b.kind === 'card'; }), panels = live.filter(function (b) { return b.kind !== 'card'; });
+  var nc = Math.min(4, cards.length) || 1;
+  var tl = tools || function () { return ''; };
+  var extraCards = tools ? tools.addCard() : '', extraPanels = tools ? tools.addPanel() : '';
+  return '<div class="dash"><header class="dh"><div><h1>Jualan klinik</h1><p class="dq">' + t('dash.q') + '</p><p>' + t('rows', rows.length.toLocaleString('en-MY')) + '</p></div><form class="df" onsubmit="return false">' + bar + '</form></header>' +
+    (tools ? tools.paused() : '') +
+    '<section class="dcards" style="--cols:repeat(' + nc + ',minmax(0,1fr))">' + cards.map(function (b) { return DRAW.card(b, rows, ds, tl(b)); }).join('') + extraCards + '</section>' +
+    '<section class="dgrid">' + panels.map(function (b) { return DRAW[b.kind](b, rows, ds, tl(b), width); }).join('') + extraPanels + '</section></div>';
+}
+
+// ---------- The block form, shared by the variants. ----------
+function opts(list, sel, blank) { return (blank ? '<option value="">' + esc(blank) + '</option>' : '') + list.map(function (n) { return '<option value="' + esc(n) + '"' + (n === sel ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join(''); }
+function namesOf(ds, types) { return ds.cols.filter(function (c) { return !types || types.indexOf(c.type) >= 0; }).map(function (c) { return c.name; }); }
+// colOpts keeps a missing column in the list, marked, so the Learner sees what the block wanted.
+function colOpts(ds, types, sel, blank) { var l = namesOf(ds, types); if (sel && l.indexOf(sel) < 0) return '<option value="' + esc(sel) + '" selected>' + esc(sel) + ' ⚠</option>' + opts(l, '', blank); return opts(l, sel, blank); }
+function seg(name, choices, sel, dis) { return '<div class="eb-seg">' + choices.map(function (c) { return '<label><input type="radio" name="' + name + '" value="' + c[0] + '"' + (String(c[0]) === String(sel) ? ' checked' : '') + (dis ? ' disabled' : '') + '>' + c[1] + '</label>'; }).join('') + '</div>'; }
+function valueField(b, ds) {
+  var v = b.value || { agg: 'count' }, lk = b.locked;
+  if (v.agg === 'balance') return '<div class="field"><label>' + t('f.value') + '</label><p class="eb-lock">' + icon('lock-simple') + t('locked') + '</p><div class="eb-pair"><div class="field"><label>' + t('f.column') + ' (RM)</label><select data-k="value.col">' + colOpts(ds, ['number'], v.col) + '</select></div><div class="field"><label>Masuk / Keluar</label><select data-k="value.type">' + colOpts(ds, ['text'], v.type) + '</select></div></div></div>';
+  var h = '<div class="field"><label>' + t('f.value') + '</label><select data-k="value.agg"' + (lk ? ' disabled' : '') + '>' +
+    ['count', 'sum', 'avg', 'distinct', 'calc'].map(function (a) { return '<option value="' + a + '"' + (v.agg === a ? ' selected' : '') + '>' + t('agg.' + a) + '</option>'; }).join('') + '</select>';
+  if (v.agg === 'sum' || v.agg === 'avg') h += '<select data-k="value.col">' + colOpts(ds, ['number'], v.col) + '</select>';
+  if (v.agg === 'distinct') h += '<select data-k="value.col">' + colOpts(ds, null, v.col) + '</select>';
+  if (v.agg === 'calc') h += '<div class="eb-calc"><select data-k="value.a">' + colOpts(ds, ['number'], v.a) + '</select><select data-k="value.op">' + [['+', '+'], ['-', '−'], ['x', '×'], ['/', '÷']].map(function (o) { return '<option value="' + o[0] + '"' + (v.op === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select><select data-k="value.b">' + colOpts(ds, ['number'], v.b) + '</select></div>' +
+    '<div class="eb-sentence"><span class="muted">' + t('calc.then') + '</span>' + seg('then-' + b.id, [['sum', t('calc.sum')], ['avg', t('calc.avg')]], v.then || 'sum') + '</div><small>' + t('calc.help') + '</small>';
+  return h + '</div>';
+}
+function filterField(b, ds) {
+  var f = b.filter || { col: '', vals: [] }, gone = goneValues(b, ds);
+  var h = '<div class="field"><label>' + t('f.filter') + '</label><select data-k="filter.col">' + colOpts(ds, ['text'], f.col, t('filter.all')) + '</select>';
+  if (f.col && col(ds, f.col)) {
+    var vals = groups(ds.rows, f.col).map(function (x) { return x[0]; }).sort();
+    h += '<small>' + esc(f.col) + ' ' + t('filter.is') + ':</small><div class="eb-ticks">' + gone.map(function (v) { return '<label class="gone"><input type="checkbox" data-tick="' + esc(v) + '" checked>' + esc(v) + '</label>'; }).join('') +
+      vals.map(function (v) { return '<label><input type="checkbox" data-tick="' + esc(v) + '"' + (f.vals.indexOf(v) >= 0 ? ' checked' : '') + '>' + esc(v) + '</label>'; }).join('') + '</div>';
+    if (gone.length) h += '<small class="field-err">' + icon('warning-circle') + ' ' + t('gone.value', gone.join(', ')) + '. ' + t('gone.help') + '</small>';
+  }
+  return h + '</div>';
+}
+function kindFields(b, ds) {
+  var text = ['text'], h = '';
+  if (b.kind === 'line') h += '<div class="eb-pair"><div class="field"><label>' + t('f.date') + '</label><select data-k="x">' + colOpts(ds, ['date'], b.x) + '</select></div><div class="field"><label>' + t('f.by') + '</label>' + seg('by-' + b.id, [['day', t('by.day')], ['month', t('by.month')]], b.by || 'month') + '</div></div>';
+  if (b.kind === 'bar' || b.kind === 'donut') h += '<div class="field"><label>' + t('f.group') + '</label><select data-k="group">' + colOpts(ds, text, b.group) + '</select></div>';
+  if (b.kind === 'table') {
+    h += '<div class="field"><label>' + t('f.cols') + '</label><div class="eb-ticks">' + namesOf(ds).map(function (n) { return '<label><input type="checkbox" data-col="' + esc(n) + '"' + (b.cols.indexOf(n) >= 0 ? ' checked' : '') + '>' + esc(n) + '</label>'; }).join('') + '</div></div>';
+    var sc = col(ds, b.sort), dir = sc ? t(sc.type === 'date' ? 'sort.date' : sc.type === 'number' ? 'sort.num' : 'sort.text') : '';
+    h += '<div class="eb-pair"><div class="field"><label>' + t('f.sort') + '</label><select data-k="sort">' + colOpts(ds, null, b.sort) + '</select><small>' + dir + '</small></div><div class="field"><label>' + t('f.rows') + '</label>' + seg('lim-' + b.id, [[10, '10'], [25, '25'], [50, '50']], b.limit || 10) + '</div></div>';
+    return h;
+  }
+  h += valueField(b, ds);
+  if (b.kind === 'line' || b.kind === 'bar') h += '<div class="field"><label>' + t('f.split') + '</label><select data-k="split">' + colOpts(ds, text, b.split, t('none')) + '</select></div>';
+  if (b.kind === 'bar') h += '<div class="field"><label>' + t('f.top') + '</label>' + seg('top-' + b.id, [[5, '5'], [8, '8'], [15, '15'], [0, t('top.all')]], b.top == null ? 8 : b.top) + '</div>';
+  if (b.kind === 'donut') h += '<small class="muted">' + t('donut.other') + '</small>';
+  return h;
+}
+function pausedNote(b, ds) {
+  var miss = missing(b, ds); if (!miss.length) return '';
+  return '<div class="up-err" style="margin:0">' + icon('warning-circle') + '<div><strong>' + t('paused', miss.map(function (m) { return '<code>' + esc(m) + '</code>'; }).join(', ')) + '</strong><br>' + t('paused.help') +
+    miss.map(function (m) { var c = col({ cols: BASE_COLS }, m); return '<div class="eb-sentence" style="margin-top:.4rem"><span>' + t('paused.pick') + '</span><select data-swap="' + esc(m) + '">' + opts(namesOf(ds, [c.type]), '', '…') + '</select></div>'; }).join('') + '</div></div>';
+}
+function blockForm(b, ds) {
+  var kinds = ['card', 'line', 'bar', 'donut', 'table'];
+  return '<div class="eb-form" data-form="' + b.id + '">' + pausedNote(b, ds) +
+    '<div class="field"><label>' + t('f.kind') + '</label>' + seg('kind-' + b.id, kinds.map(function (k) { return [k, t('kind.' + k)]; }), b.kind, b.locked) + '</div>' +
+    '<div class="field"><label>' + t('f.label') + '</label><input type="text" data-k="label" value="' + esc(b.label) + '"></div>' +
+    kindFields(b, ds) + filterField(b, ds) +
+    (b.kind !== 'card' ? '<div class="field"><label>' + t('f.width') + '</label>' + seg('w-' + b.id, [['full', t('w.full')], ['half', t('w.half')]], b.wide ? 'full' : 'half') + '</div>' : '') + '</div>';
+}
+function filterBarField(ds) {
+  return '<div class="eb-ticks">' + namesOf(ds, ['text', 'date']).map(function (n) { return '<label><input type="checkbox" data-fbar="' + esc(n) + '"' + (filterBar.indexOf(n) >= 0 ? ' checked' : '') + '>' + esc(n) + '</label>'; }).join('') + '</div>';
+}
+function summary(b, ds) {
+  var v = b.value || {}, s = b.kind === 'table' ? b.cols.join(', ') : v.agg === 'count' ? t('agg.count') : v.agg === 'calc' ? v.a + ' ' + ({ x: '×', '/': '÷', '-': '−' }[v.op] || v.op) + ' ' + v.b : v.agg === 'balance' ? 'Masuk − Keluar' : t('agg.' + v.agg) + ' ' + v.col;
+  if (b.group) s += ' · ' + b.group; if (b.x) s += ' · ' + t('by.' + (b.by || 'month'));
+  if (b.filter && b.filter.vals.length) s += ' · ' + b.filter.col + ' = ' + b.filter.vals.join(', ');
+  return s;
+}
+function autoLabel(b) {
+  var v = b.value || {}, what = v.agg === 'count' ? t('lbl.count') : v.agg === 'distinct' ? t('lbl.distinct', v.col) : v.agg === 'avg' ? t('lbl.avg', v.col) : v.agg === 'calc' ? v.a + ' ' + ({ x: '×', '/': '÷', '-': '−' }[v.op] || v.op) + ' ' + v.b : v.col;
+  if (b.kind === 'table') return t('kind.table');
+  var by = b.kind === 'line' ? t('by.' + (b.by || 'month')).toLowerCase() : b.group;
+  return by ? t('lbl.by', what, by) : what;
+}
+function newBlock(kind) {
+  var b = B({ kind: kind, value: { agg: kind === 'card' ? 'count' : 'sum', col: 'Jumlah' }, auto: true });
+  var ds = dataset(); if (!col(ds, 'Jumlah')) b.value = { agg: 'count' };
+  if (kind === 'card') b.value = { agg: 'count' };
+  if (kind === 'line') { b.x = 'Tarikh'; b.by = 'month'; b.wide = true; }
+  if (kind === 'bar') { b.group = 'Perkara'; b.top = 8; }
+  if (kind === 'donut') b.group = 'Kategori';
+  if (kind === 'table') { b.cols = ['Tarikh', 'Perkara', 'Kuantiti']; b.sort = 'Tarikh'; b.limit = 10; b.wide = true; delete b.value; }
+  b.label = autoLabel(b);
+  // A new card goes after the last card, anything else at the end.
+  var at = kind === 'card' ? blocks.map(function (x) { return x.kind; }).lastIndexOf('card') + 1 : blocks.length;
+  blocks.splice(at, 0, b); return b;
+}
+
+// ---------- Changes from any variant. Every edit saves at once. ----------
+function find(id) { return blocks.filter(function (b) { return b.id === +id; })[0]; }
+function saved() { var s = document.getElementById('saved'); if (s) { s.classList.add('on'); clearTimeout(saved.t); saved.t = setTimeout(function () { s.classList.remove('on'); }, 1600); } }
+function set(b, k, val) {
+  var p = k.split('.');
+  if (p[0] === 'value') {
+    b.value = b.value || {}; b.value[p[1]] = val;
+    if (p[1] === 'agg') { if (val === 'calc') { b.value.a = b.value.a || 'Jumlah'; b.value.op = b.value.op || '-'; b.value.b = b.value.b || 'Kos'; b.value.then = 'sum'; } if ((val === 'sum' || val === 'avg') && !col(dataset(), b.value.col) || (val === 'sum' || val === 'avg') && col(dataset(), b.value.col).type !== 'number') b.value.col = namesOf(dataset(), ['number'])[0]; if (val === 'distinct' && !b.value.col) b.value.col = 'Pelanggan'; }
+  } else if (p[0] === 'filter') b.filter = val ? { col: val, vals: [] } : null;
+  else if (k === 'split' && !val) delete b.split;
+  else b[k] = val;
+  if (k !== 'label' && b.auto) b.label = autoLabel(b);
+  if (k === 'label') b.auto = false;
+}
+function setKind(b, kind) {
+  var keep = { id: b.id, label: b.label, filter: b.filter, value: b.value || { agg: 'count' }, auto: b.auto, wide: b.wide };
+  Object.keys(b).forEach(function (k) { delete b[k]; }); Object.assign(b, keep, { kind: kind });
+  if (kind === 'line') { b.x = 'Tarikh'; b.by = 'month'; } if (kind === 'bar') { b.group = 'Perkara'; b.top = 8; } if (kind === 'donut') b.group = 'Kategori';
+  if (kind === 'table') { b.cols = ['Tarikh', 'Perkara', 'Kuantiti']; b.sort = 'Tarikh'; b.limit = 10; delete b.value; b.wide = true; }
+  if (kind === 'card') delete b.wide;
+  if (b.auto) b.label = autoLabel(b);
+  var at = blocks.indexOf(b); blocks.splice(at, 1);
+  // Cards always sit in the card rows at the top, so moving kind moves the block too.
+  var lastCard = blocks.map(function (x) { return x.kind; }).lastIndexOf('card');
+  blocks.splice(kind === 'card' ? lastCard + 1 : Math.max(at, lastCard + 1), 0, b);
+}
+function move(b, d) {
+  // Up and down move among blocks of the same row kind: cards among cards, charts among charts.
+  var same = blocks.filter(function (x) { return (x.kind === 'card') === (b.kind === 'card'); }), i = same.indexOf(b), o = same[i + d];
+  if (!o) return; var a = blocks.indexOf(b), c = blocks.indexOf(o); blocks[a] = o; blocks[c] = b;
+}
+function canMove(b, d) { var same = blocks.filter(function (x) { return (x.kind === 'card') === (b.kind === 'card'); }); return !!same[same.indexOf(b) + d]; }
+function counts() { return { all: blocks.length, cards: blocks.filter(function (b) { return b.kind === 'card'; }).length }; }
+
+function handle(e) {
+  var el = e.target, ds = dataset();
+  if (el.dataset.fb) { fstate[el.dataset.fb] = el.value; return render(); }
+  var form = el.closest('[data-form]'), b = form && find(form.dataset.form);
+  if (el.dataset.fbar) { var n = el.dataset.fbar; if (el.checked) filterBar.push(n); else filterBar.splice(filterBar.indexOf(n), 1); delete fstate[n]; saved(); return render(); }
+  if (!b) return;
+  if (el.dataset.k) set(b, el.dataset.k, el.value);
+  else if (el.name && el.name.indexOf('kind-') === 0) setKind(b, el.value);
+  else if (el.name && el.name.indexOf('then-') === 0) b.value.then = el.value;
+  else if (el.name && el.name.indexOf('by-') === 0) { b.by = el.value; if (b.auto) b.label = autoLabel(b); }
+  else if (el.name && el.name.indexOf('top-') === 0) b.top = +el.value;
+  else if (el.name && el.name.indexOf('lim-') === 0) b.limit = +el.value;
+  else if (el.name && el.name.indexOf('w-') === 0) b.wide = el.value === 'full';
+  else if (el.dataset.tick != null) { var v = el.dataset.tick, a = b.filter.vals; if (el.checked) a.push(v); else a.splice(a.indexOf(v), 1); }
+  else if (el.dataset.col) { var c = el.dataset.col; if (el.checked) b.cols.push(c); else b.cols.splice(b.cols.indexOf(c), 1); var order = namesOf(ds); b.cols.sort(function (x, y) { return order.indexOf(x) - order.indexOf(y); }); }
+  else if (el.dataset.swap) {
+    // Picking a column for a missing one swaps it in every block that used it (228).
+    var from = el.dataset.swap, to = el.value; if (!to) return;
+    blocks.forEach(function (x) { var s = JSON.stringify(x).split('"' + from + '"').join('"' + to + '"'); Object.assign(x, JSON.parse(s)); });
+  }
+  saved(); render();
+}
+function act(e) {
+  var btn = e.target.closest('[data-act]'); if (!btn) return;
+  e.stopPropagation();
+  var a = btn.dataset.act, b = find(btn.dataset.id);
+  if (a === 'open') open = open === b.id ? null : b.id;
+  if (a === 'close') open = null;
+  if (a === 'up' || a === 'down') { move(b, a === 'up' ? -1 : 1); saved(); }
+  if (a === 'remove') { blocks.splice(blocks.indexOf(b), 1); if (open === b.id) open = null; saved(); }
+  if (a === 'add') { var nb = newBlock(btn.dataset.kind); open = nb.id; saved(); }
+  if (a === 'reset') return askReset();
+  if (a === 'width') { b.wide = !b.wide; saved(); }
+  render();
+  if (a === 'add' || a === 'open') { var f = document.querySelector('[data-form="' + open + '"]'); if (f) f.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+}
+function askReset() {
+  var d = document.getElementById('dlg');
+  d.innerHTML = '<h2 class="h-sm">' + t('reset.ask') + '</h2><p style="margin:.8rem 0 1.2rem">' + t('reset.body') + '</p><form method="dialog" class="form-foot"><button class="btn btn-quiet" value="no">' + t('cancel') + '</button><button class="btn btn-danger-solid btn-solid" value="yes">' + t('reset.yes') + '</button></form>';
+  d.onclose = function () { if (d.returnValue === 'yes') { blocks = template(); filterBar = FILTERS_TEMPLATE.slice(); open = null; fstate = {}; render(); saved(); } };
+  d.showModal();
+}
+function labelInput(e) {
+  var el = e.target; if (el.dataset.k !== 'label') return;
+  var b = find(el.closest('[data-form]').dataset.form); b.label = el.value; b.auto = false; saved(); renderPreviewOnly();
+}
+
+// ---------- The page shell around each variant. ----------
+function tabs(which) {
+  var on = function (k) { return k === which ? ' aria-current="page"' : ''; };
+  if (variant === 'B') return '<nav class="lab-tabs"><a class="lab-tab" href="#">' + t('tab.dataset') + '</a><a class="lab-tab"' + on('dash') + ' href="#">' + t('tab.dashboard') + '</a><a class="lab-tab" href="#">' + t('tab.hood') + '</a><a class="lab-tab" href="#">' + t('tab.deploy') + '</a></nav>';
+  return '<nav class="lab-tabs"><a class="lab-tab" href="#">' + t('tab.dataset') + '</a><a class="lab-tab"' + on('blocks') + ' href="#">' + t('tab.blocks') + '</a><a class="lab-tab" href="#">' + t('tab.preview') + '</a><a class="lab-tab" href="#">' + t('tab.hood') + '</a><a class="lab-tab" href="#">' + t('tab.deploy') + '</a></nav>';
+}
+function shell(body, tab) {
+  return '<p class="crumbs"><a href="#">Lab</a> / Sales</p><div class="page-head page-head-row"><h1>Jualan klinik</h1><span class="eb-saved" id="saved">' + icon('check-circle') + t('saved') + '</span></div>' + tabs(tab) + body;
+}
+function addButtons() {
+  var c = counts(), full = c.all >= 20;
+  return '<div class="eb-add"><span class="muted">' + icon('plus') + ' ' + t('add') + ':</span>' + ['card', 'line', 'bar', 'donut', 'table'].map(function (k) {
+    var off = full || (k === 'card' && c.cards >= 8);
+    return '<button class="btn btn-ghost btn-sm" data-act="add" data-kind="' + k + '"' + (off ? ' disabled title="' + t(full ? 'limit.blocks' : 'limit.cards') + '"' : '') + '>' + t('kind.' + k) + '</button>';
+  }).join('') + '<span class="eb-limit">' + c.all + '/20 · ' + t('kind.card') + ' ' + c.cards + '/8</span></div>';
+}
+function itemControls(b) {
+  return '<button class="eb-ic" data-act="up" data-id="' + b.id + '" title="' + t('up') + '"' + (canMove(b, -1) ? '' : ' disabled') + '>' + icon('arrow-up') + '</button>' +
+    '<button class="eb-ic" data-act="down" data-id="' + b.id + '" title="' + t('down') + '"' + (canMove(b, 1) ? '' : ' disabled') + '>' + icon('arrow-down') + '</button>' +
+    '<button class="eb-ic" data-act="remove" data-id="' + b.id + '" title="' + t('remove') + '">' + icon('trash') + '</button>';
+}
+function flags(b, ds) {
+  var miss = missing(b, ds), gone = goneValues(b, ds);
+  return (miss.length ? '<p class="eb-warn">' + icon('warning-circle') + t('paused', miss.map(function (m) { return '<code>' + esc(m) + '</code>'; }).join(', ')) + '</p>' : '') +
+    (gone.length ? '<p class="eb-flag">' + icon('warning-circle') + t('gone.value', gone.join(', ')) + '</p>' : '');
+}
+
+// Variant A: the list of blocks on the left, the Dashboard on the right, both on a Blocks tab.
+function variantA() {
+  var ds = dataset();
+  var list = '<ul class="eb-list">' + blocks.map(function (b) {
+    var o = open === b.id, p = missing(b, ds).length;
+    return '<li class="eb-item' + (o ? ' is-open' : '') + (p ? ' is-paused' : '') + '"><div class="eb-row"><span class="eb-kind">' + t('kind.' + b.kind) + '</span>' +
+      '<button class="eb-name" data-act="open" data-id="' + b.id + '"><strong>' + (b.locked ? icon('lock-simple') + ' ' : '') + esc(b.label) + '</strong><small>' + esc(summary(b, ds)) + '</small></button>' + itemControls(b) + '</div>' + flags(b, ds) +
+      (o ? blockForm(b, ds) + '<div style="padding:0 .9rem .9rem"><button class="btn btn-solid btn-sm" data-act="close">' + t('done') + '</button></div>' : '') + '</li>';
+  }).join('') + '</ul>';
+  return shell('<div class="eb-two"><section><p class="muted" style="margin-bottom:.8rem">' + t('intro') + '</p>' + list + addButtons() +
+    '<div class="eb-sect"><h3>' + t('filterbar') + '</h3><small class="muted">' + t('filterbar.help') + '</small>' + filterBarField(ds) + '</div>' +
+    '<div class="eb-foot"><button class="btn btn-quiet btn-sm" data-act="reset">' + t('reset') + '</button></div></section>' +
+    '<aside class="eb-pv"><div class="eb-pvk"><span>' + t('pv') + '</span><span>' + t('pv.live') + '</span></div><div class="eb-stage" id="pv">' + dashboard(760) + '</div></aside></div>', 'blocks');
+}
+
+// Variant B: the Dashboard tab is the editor. Click a block, a drawer opens; handles sit on each block.
+var editing = true;
+function variantB() {
+  var ds = dataset(), paused = blocks.filter(function (b) { return missing(b, ds).length; });
+  var tools = function (b) { return editing ? '<span class="eb-tools">' + '<button class="eb-ic" data-act="open" data-id="' + b.id + '" title="' + t('c.edit') + '">' + icon('pencil-simple') + '</button>' + (b.kind !== 'card' ? '<button class="eb-ic" data-act="width" data-id="' + b.id + '" title="' + t('f.width') + '">' + (b.wide ? '½' : '↔') + '</button>' : '') + itemControls(b) + '</span>' : ''; };
+  tools.addCard = function () { var c = counts(); return editing && c.cards < 8 && c.all < 20 ? '<button class="eb-ghost" data-act="add" data-kind="card">' + icon('plus') + t('kind.card') + '</button>' : ''; };
+  tools.addPanel = function () { return editing && counts().all < 20 ? '<div class="eb-ghost wide" style="grid-column:1/-1;gap:.8rem">' + icon('plus') + t('add') + ':' + ['line', 'bar', 'donut', 'table'].map(function (k) { return '<button class="btn btn-ghost btn-sm" data-act="add" data-kind="' + k + '">' + t('kind.' + k) + '</button>'; }).join('') + '</div>' : ''; };
+  tools.paused = function () { return editing && paused.length ? '<div class="eb-pausedbar">' + icon('warning-circle') + t('paused.n', paused.length) + paused.map(function (b) { return '<button data-act="open" data-id="' + b.id + '">' + esc(b.label) + '</button>'; }).join('') + '</div>' : ''; };
+  var top = '<div class="eb-b-top"><p class="muted" style="margin:0">' + (editing ? t('b.hint') : t('pv.live')) + '</p><div style="display:flex;gap:.6rem;align-items:center">' +
+    (editing ? '<button class="btn btn-quiet btn-sm" data-act="reset">' + t('reset') + '</button><button class="btn btn-ghost btn-sm" data-act="fbar">' + t('filterbar') + '</button>' : '') +
+    '<label class="eb-switch"><input type="checkbox" id="editing"' + (editing ? ' checked' : '') + '>' + t('edit') + '</label></div></div>';
+  return shell(top + '<div class="eb-b-dash' + (editing ? ' is-editing' : '') + '" id="pv">' + dashboard(document.querySelector('main .wrap') ? document.querySelector('main .wrap').clientWidth - 80 : 1100, tools) + '</div>', 'dash');
+}
+function drawer() {
+  var d = document.getElementById('drawer'), ds = dataset();
+  if (variant !== 'B' || open == null) { d.classList.remove('on'); d.innerHTML = ''; return; }
+  if (open === 'fbar') d.innerHTML = '<header><h2 class="h-sm">' + t('filterbar') + '</h2><button class="eb-ic" data-act="close">' + icon('x') + '</button></header><div class="eb-form"><small class="muted">' + t('filterbar.help') + '</small>' + filterBarField(ds) + '</div>';
+  else { var b = find(open); if (!b) { open = null; return drawer(); }
+    d.innerHTML = '<header><h2 class="h-sm">' + (b.locked ? icon('lock-simple') + ' ' : '') + esc(b.label) + '</h2><div style="display:flex">' + itemControls(b) + '<button class="eb-ic" data-act="close" title="' + t('close') + '">' + icon('x') + '</button></div></header>' + blockForm(b, ds); }
+  d.classList.add('on');
+  document.querySelectorAll('.eb-b-dash [data-b]').forEach(function (el) { el.classList.toggle('is-sel', +el.dataset.b === open); });
+}
+
+// Variant C: a plain list on the Blocks tab; changing a block is a page of four plain steps, with that block alone beside it.
+function sentenceValue(b, ds) {
+  var v = b.value || {};
+  if (b.kind === 'table') return kindFields(b, ds);
+  if (v.agg === 'balance' || b.locked) return valueField(b, ds) + kindFields(b, ds).replace(valueField(b, ds), '');
+  var aggSel = '<select data-k="value.agg">' + ['count', 'sum', 'avg', 'distinct', 'calc'].map(function (a) { return '<option value="' + a + '"' + (v.agg === a ? ' selected' : '') + '>' + t('agg.' + a).toLowerCase() + '</option>'; }).join('') + '</select>';
+  var what = v.agg === 'sum' || v.agg === 'avg' ? '<select data-k="value.col">' + colOpts(ds, ['number'], v.col) + '</select>' : v.agg === 'distinct' ? '<select data-k="value.col">' + colOpts(ds, null, v.col) + '</select>' :
+    v.agg === 'calc' ? '<select data-k="value.a">' + colOpts(ds, ['number'], v.a) + '</select><select data-k="value.op">' + [['+', '+'], ['-', '−'], ['x', '×'], ['/', '÷']].map(function (o) { return '<option value="' + o[0] + '"' + (v.op === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select><select data-k="value.b">' + colOpts(ds, ['number'], v.b) + '</select>' + t('calc.then') + seg('then-' + b.id, [['sum', t('calc.sum')], ['avg', t('calc.avg')]], v.then || 'sum') : '';
+  var h = '<div class="eb-sentence">' + t('c.show') + ' ' + aggSel + what + '</div>';
+  if (b.kind === 'line') h += '<div class="eb-sentence">' + t('c.over') + ' <select data-k="x">' + colOpts(ds, ['date'], b.x) + '</select>' + seg('by-' + b.id, [['day', t('by.day')], ['month', t('by.month')]], b.by || 'month') + '</div><div class="eb-sentence">' + t('c.each') + ' <select data-k="split">' + colOpts(ds, ['text'], b.split, t('none')) + '</select></div>';
+  if (b.kind === 'bar' || b.kind === 'donut') h += '<div class="eb-sentence">' + t('c.per') + ' <select data-k="group">' + colOpts(ds, ['text'], b.group) + '</select></div>';
+  if (b.kind === 'bar') h += '<div class="eb-sentence">' + t('f.split').toLowerCase() + ' <select data-k="split">' + colOpts(ds, ['text'], b.split, t('none')) + '</select></div><div class="eb-sentence">' + t('f.top') + seg('top-' + b.id, [[5, '5'], [8, '8'], [15, '15'], [0, t('top.all')]], b.top == null ? 8 : b.top) + '</div>';
+  if (b.kind === 'donut') h += '<small class="muted">' + t('donut.other') + '</small>';
+  return h;
+}
+var PICS = {
+  card: '<rect x="4" y="6" width="40" height="22" rx="3" fill="none" stroke="currentColor"/><text x="10" y="22" font-size="11" font-weight="700" fill="currentColor">123</text>',
+  line: '<polyline points="4,26 14,18 22,21 32,9 44,13" fill="none" stroke="currentColor" stroke-width="2"/>',
+  bar: '<rect x="4" y="6" width="34" height="5" fill="currentColor"/><rect x="4" y="14" width="24" height="5" fill="currentColor"/><rect x="4" y="22" width="14" height="5" fill="currentColor"/>',
+  donut: '<circle cx="24" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="6" stroke-dasharray="40 23"/>',
+  table: '<path d="M4 7h40M4 14h40M4 21h40M4 28h40M18 7v21" stroke="currentColor" fill="none"/>',
+};
+function variantC() {
+  var ds = dataset(), b = open != null && find(open);
+  if (!b) {
+    var list = '<div class="eb-c-list">' + blocks.map(function (b, i) {
+      return '<div class="eb-c-row' + (missing(b, ds).length ? ' is-paused' : '') + '"><span class="eb-c-n">' + (i + 1) + '</span><div><p><strong>' + (b.locked ? icon('lock-simple') + ' ' : '') + esc(b.label) + '</strong> <span class="eb-kind" style="display:inline-block;width:auto">' + t('kind.' + b.kind) + '</span></p><p class="muted" style="font-size:.84rem">' + esc(summary(b, ds)) + (b.kind !== 'card' ? ' · ' + t(b.wide ? 'w.full' : 'w.half') : '') + '</p>' + flags(b, ds).replace(/eb-warn|eb-flag/g, '$& eb-c-f') + '</div>' +
+        '<div style="display:flex;gap:.2rem;align-items:center"><button class="btn btn-ghost btn-sm" data-act="open" data-id="' + b.id + '">' + t('c.edit') + '</button>' + itemControls(b) + '</div></div>';
+    }).join('') + '</div>';
+    return shell('<p class="muted" style="margin-bottom:1rem">' + t('intro') + '</p>' + list + addButtons() +
+      '<div class="eb-sect" style="max-width:46rem"><h3>' + t('filterbar') + '</h3><small class="muted">' + t('filterbar.help') + '</small>' + filterBarField(ds) + '</div>' +
+      '<div class="eb-foot" style="max-width:46rem"><button class="btn btn-quiet btn-sm" data-act="reset">' + t('reset') + '</button><a class="btn btn-solid" href="#">' + t('tab.preview') + '</a></div>', 'blocks');
+  }
+  var kinds = '<div class="eb-kinds">' + ['card', 'line', 'bar', 'donut', 'table'].map(function (k) { return '<label><input type="radio" name="kind-' + b.id + '" value="' + k + '"' + (b.kind === k ? ' checked' : '') + (b.locked ? ' disabled' : '') + '><svg viewBox="0 0 48 32">' + PICS[k] + '</svg>' + t('kind.' + k) + '<small>' + t('kindh.' + k) + '</small></label>'; }).join('') + '</div>';
+  var form = '<div data-form="' + b.id + '">' + pausedNote(b, ds) +
+    '<div class="eb-step"><h3><span>1</span>' + t('c.step1') + '</h3>' + kinds + '</div>' +
+    '<div class="eb-step"><h3><span>2</span>' + t('c.step2') + '</h3>' + sentenceValue(b, ds) + '</div>' +
+    '<div class="eb-step"><h3><span>3</span>' + t('c.step3') + '</h3>' + filterField(b, ds) + '</div>' +
+    '<div class="eb-step"><h3><span>4</span>' + t('c.step4') + '</h3><div class="field"><label>' + t('f.label') + '</label><input type="text" data-k="label" value="' + esc(b.label) + '"></div>' + (b.kind !== 'card' ? '<div class="field"><label>' + t('f.width') + '</label>' + seg('w-' + b.id, [['full', t('w.full')], ['half', t('w.half')]], b.wide ? 'full' : 'half') + '</div>' : '') + '</div></div>';
+  var one = b.kind === 'card' ? '<div class="dash"><section class="dcards">' + (missing(b, ds).length ? '' : DRAW.card(b, filteredRows(ds), ds)) + '</section></div>' : '<div class="dash"><section class="dgrid">' + (missing(b, ds).length ? '' : DRAW[b.kind](Object.assign({}, b, { wide: true }), filteredRows(ds), ds, '', 640)) + '</section></div>';
+  return shell('<p><button class="btn btn-quiet btn-sm" data-act="close">' + icon('caret-left') + t('c.back') + '</button></p><div class="eb-c-ed"><section>' + form +
+    '<div class="eb-foot"><button class="btn btn-quiet btn-sm" data-act="remove" data-id="' + b.id + '">' + icon('trash') + t('remove') + '</button><button class="btn btn-solid" data-act="close">' + t('done') + '</button></div></section>' +
+    '<aside class="eb-pv" style="position:sticky;top:1rem"><div class="eb-pvk"><span>' + t('c.this') + '</span></div><div class="eb-stage" id="pv">' + one + '</div></aside></div>', 'blocks');
+}
+
+// ---------- Variant switching and the prototype bar. ----------
+var VARIANTS = { A: 'List beside the Dashboard', B: 'Edit on the Dashboard', C: 'Plain steps, one block at a time' };
+var variant = new URLSearchParams(location.search).get('variant') || 'A';
+function go(p) { var q = new URLSearchParams(location.search); Object.keys(p).forEach(function (k) { q.set(k, p[k]); }); location.search = q.toString(); }
+function renderBar() {
+  var keys = Object.keys(VARIANTS), i = keys.indexOf(variant);
+  document.getElementById('bar').innerHTML = '<button id="prev">‹</button><span>' + variant + ' · ' + VARIANTS[variant] + '</span><button id="next">›</button>' +
+    '<select id="scn">' + Object.keys(SCENARIOS).map(function (k) { return '<option value="' + k + '"' + (k === scenario ? ' selected' : '') + '>' + SCENARIOS[k] + '</option>'; }).join('') + '</select><button id="js">{ }</button>';
+  document.getElementById('prev').onclick = function () { go({ variant: keys[(i + keys.length - 1) % keys.length] }); };
+  document.getElementById('next').onclick = function () { go({ variant: keys[(i + 1) % keys.length] }); };
+  document.getElementById('scn').onchange = function (e) { go({ scenario: e.target.value }); };
+  document.getElementById('js').onclick = function () { var j = document.getElementById('json'); j.hidden = !j.hidden; renderJSON(); };
+}
+function renderJSON() { var j = document.getElementById('json'); if (!j.hidden) j.textContent = JSON.stringify({ filterBar: filterBar, blocks: blocks }, null, 1); }
+function render() {
+  var y = scrollY;
+  document.getElementById('app').innerHTML = variant === 'B' ? variantB() : variant === 'C' ? variantC() : variantA();
+  drawer(); renderJSON(); scrollTo(0, y);
+  document.querySelectorAll('[data-lang]').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.lang === lang); });
+}
+function renderPreviewOnly() {
+  var pv = document.getElementById('pv'); if (!pv) return;
+  if (variant === 'A') pv.innerHTML = dashboard(760); else render();
+  renderJSON();
+}
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'editing') { editing = e.target.checked; open = null; return render(); }
+  if (e.target.closest('#bar')) return;
+  handle(e);
+});
+document.addEventListener('input', labelInput);
+document.addEventListener('click', function (e) {
+  var l = e.target.closest('[data-lang]'); if (l) return go({ lang: l.dataset.lang });
+  var fb = e.target.closest('[data-act="fbar"]'); if (fb) { open = 'fbar'; return render(); }
+  if (e.target.closest('[data-act]')) return act(e);
+  // In variant B a click anywhere on a block opens it.
+  var blk = variant === 'B' && editing && e.target.closest('.eb-b-dash [data-b]');
+  if (blk && !e.target.closest('select,.eb-tools')) { open = +blk.dataset.b; render(); }
+  if (e.target.closest('a[href="#"]')) e.preventDefault();
+});
+addEventListener('keydown', function (e) {
+  if (e.target.closest('input,select,textarea,[contenteditable]')) return;
+  var keys = Object.keys(VARIANTS), i = keys.indexOf(variant);
+  if (e.key === 'ArrowRight') go({ variant: keys[(i + 1) % keys.length] });
+  if (e.key === 'ArrowLeft') go({ variant: keys[(i + keys.length - 1) % keys.length] });
+  if (e.key === 'Escape' && open != null) { open = null; render(); }
+});
+renderBar(); render();
+</script>
+</body>
+</html>
