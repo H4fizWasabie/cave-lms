@@ -44,9 +44,14 @@ _Malay_: Kursus
 _Avoid_: Programme, class, module
 
 **Live Course**:
-A Course run for a company on agreed dates, made by the Admin duplicating a Course: it has its own copies of the Lessons and Exams, a start date, an end date and a number of days (1 to 5) that need not match the dates. Learners can join it until the end of its end date, Malaysia time; after that it is closed but still viewable.
+A Course run for an Organisation on agreed dates, made by the Admin duplicating a Course: it has its own copies of the Lessons, Exams and Assignments, a start date, an end date and a number of days (1 to 5) that need not match the dates. Learners can join it until the end of its end date, Malaysia time; after that it is closed but still viewable.
 _Malay_: Kursus Langsung
 _Avoid_: Cohort, class, session, event
+
+**Organisation**:
+The body a Live Course is run for, such as a ministry, a police force or a training institute, with a name and a logo printed on its Live Courses' Certificates.
+_Malay_: Organisasi
+_Avoid_: Company, client (which means The Cave Consult), agency
 
 **PCC Level**:
 The level of a Live Course, set by its days: 1 Basic, 2 Foundation, 3 Practitioner, 4 or 5 Professional. Each Level has the client's badge. Never picked by hand.
@@ -152,6 +157,21 @@ _Avoid_: Grade, score report
 A PDF of a passed Exam attempt: every question with the Learner's answer and the correct or model answer. Emailed with the pass Result and downloadable after.
 _Malay_: Skema Jawapan
 _Avoid_: Answer key, marking scheme, transcript
+
+**Assignment**:
+A task in a Course, with a title and instructions, that Learners answer by uploading files. It earns no mark and does not affect a Certificate.
+_Malay_: Tugasan
+_Avoid_: Homework, project, task
+
+**Submission**:
+A Learner's files for one Assignment, which the Admin downloads and comments on.
+_Malay_: Serahan
+_Avoid_: Upload, hand-in, entry
+
+**Folder**:
+A Learner's private page listing their Submissions by Course, with the Admin's comments. Only they and the Admin see it.
+_Malay_: Folder
+_Avoid_: Dashboard (which means a Lab Dashboard), drive, locker
 
 **Question bank**:
 Every Exam question ever written or generated, site-wide, each tagged with its topic, format and, when known, its Difficulty. An Exam copies its questions from it.
