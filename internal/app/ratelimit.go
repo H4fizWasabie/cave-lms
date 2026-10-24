@@ -98,8 +98,8 @@ func (l *rateLimiter) allow(key string, limit int, window time.Duration, now tim
 	return true
 }
 
-// sweep drops, at most once a longest window, every key with no attempt left in that, so the map doesn't grow with each
-// address ever seen. The caller holds mu.
+// sweep drops, at most once per longestWindow, every key with no attempt in the last longestWindow, so the map doesn't
+// grow with each address ever seen. The caller holds mu.
 func (l *rateLimiter) sweep(now time.Time) {
 	if now.Sub(l.swept) < longestWindow {
 		return

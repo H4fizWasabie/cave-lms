@@ -35,6 +35,7 @@ func (h *chatHub) subscribe(courseID int64) chan int64 {
 	return ch
 }
 
+// unsubscribe closes a stream subscribe opened.
 func (h *chatHub) unsubscribe(courseID int64, ch chan int64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -107,6 +108,7 @@ func (a *App) chatEvents(w http.ResponseWriter, r *http.Request) {
 			event = ": ping\n\n"
 		case id := <-changes:
 			// Access may have ended since the stream opened: the Learner left or was removed.
+			// ponytail: one query per change per stream; fine for a class, cache it if Chats grow large.
 			if allowed, err := a.mayChat(r.Context(), v.learner, c.ID); err != nil || !allowed {
 				return
 			}

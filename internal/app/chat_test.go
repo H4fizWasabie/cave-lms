@@ -277,6 +277,21 @@ func TestRepliesCountTowardTheMessageLimit(t *testing.T) {
 	expectStatus(t, res, body, http.StatusTooManyRequests, "")
 }
 
+// The six Reactions and one that isn't, as escapes: the code holds no emoji.
+const (
+	thumbsUp = "\U0001F44D"
+	heart    = "\u2764\uFE0F"
+	laugh    = "\U0001F602"
+	pray     = "\U0001F64F"
+	clap     = "\U0001F44F"
+	clown    = "\U0001F921"
+)
+
+// shown is how a Message shows the count of Reaction emoji, marked when the viewer's own.
+func shown(emoji string, mine bool, n int) string {
+	return fmt.Sprintf(`value="%s" aria-pressed="%t">%s %d<`, emoji, mine, emoji, n)
+}
+
 // react puts emoji on Message mid in Course id's Chat, or takes it off when it is already there.
 func (s *site) react(id, mid, emoji string) (*http.Response, string) {
 	return s.post("/courses/"+id+"/chat/"+mid+"/react", url.Values{"emoji": {emoji}})
@@ -307,22 +322,22 @@ func TestEachPersonHasAtMostOneReactionPerMessage(t *testing.T) {
 	ada, admin, ben, id := chatSite(t)
 	mid := admin.say(id, "The Exam opens tomorrow.")
 
-	res, body := ada.react(id, mid, "👍")
+	res, body := ada.react(id, mid, thumbsUp)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
 		t.Fatalf("reacting redirected to %q, want the Chat at the Message", loc)
 	}
-	ben.react(id, mid, "👍")
-	expectInOrder(t, ada.messageHTML(id, mid), `value="👍" aria-pressed="true">👍 2<`)
+	ben.react(id, mid, thumbsUp)
+	expectInOrder(t, ada.messageHTML(id, mid), shown(thumbsUp, true, 2))
 
-	ada.react(id, mid, "❤️") // changes Ada's
+	ada.react(id, mid, heart) // changes Ada's
 	m := ada.messageHTML(id, mid)
-	expectInOrder(t, m, `value="👍" aria-pressed="false">👍 1<`, `value="❤️" aria-pressed="true">❤️ 1<`)
+	expectInOrder(t, m, shown(thumbsUp, false, 1), shown(heart, true, 1))
 
-	ada.react(id, mid, "❤️") // takes it off
+	ada.react(id, mid, heart) // takes it off
 	m = ben.messageHTML(id, mid)
-	expectInOrder(t, m, `value="👍" aria-pressed="true">👍 1<`)
-	if strings.Contains(m, "❤️ 1") {
+	expectInOrder(t, m, shown(thumbsUp, true, 1))
+	if strings.Contains(m, heart+" 1") {
 		t.Fatalf("a removed Reaction is still counted: %s", m)
 	}
 	if n := ada.reactionCount(); n != 1 {
@@ -333,16 +348,16 @@ func TestEachPersonHasAtMostOneReactionPerMessage(t *testing.T) {
 func TestOnlyTheSixReactionsOnVisibleMessagesByChatMembersAreTaken(t *testing.T) {
 	ada, admin, ben, id := chatSite(t)
 	mid := ben.say(id, "Hello")
-	res, body := ada.react(id, mid, "🤡")
+	res, body := ada.react(id, mid, clown)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
 
 	cara := admin.second()
 	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
-	res, body = cara.react(id, mid, "👍")
+	res, body = cara.react(id, mid, thumbsUp)
 	expectStatus(t, res, body, http.StatusForbidden, "")
 
 	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
-	res, body = ada.react(id, mid, "👍")
+	res, body = ada.react(id, mid, thumbsUp)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
 	if n := ada.reactionCount(); n != 0 {
 		t.Fatalf("%d Reactions saved, want none", n)
@@ -353,16 +368,16 @@ func TestReactingIsLimitedToThirtyAMinuteForLearnersButNotTheAdmin(t *testing.T)
 	ada, admin, _, id := chatSite(t)
 	mid := admin.say(id, "React away")
 	for i := range 30 {
-		res, body := ada.react(id, mid, []string{"👍", "😂"}[i%2])
+		res, body := ada.react(id, mid, []string{thumbsUp, laugh}[i%2])
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 	}
-	res, body := ada.react(id, mid, "🙏")
+	res, body := ada.react(id, mid, pray)
 	expectStatus(t, res, body, http.StatusTooManyRequests, "")
-	if m := ada.messageHTML(id, mid); strings.Contains(m, "🙏 1") {
+	if m := ada.messageHTML(id, mid); strings.Contains(m, pray+" 1") {
 		t.Fatalf("the Reaction over the limit was saved")
 	}
 	for i := range 31 {
-		res, body := admin.react(id, mid, []string{"👍", "😂"}[i%2])
+		res, body := admin.react(id, mid, []string{thumbsUp, laugh}[i%2])
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 	}
 }
@@ -370,7 +385,7 @@ func TestReactingIsLimitedToThirtyAMinuteForLearnersButNotTheAdmin(t *testing.T)
 func TestDeletingALearnerDeletesTheirReactions(t *testing.T) {
 	ada, admin, _, id := chatSite(t)
 	mid := admin.say(id, "Hello")
-	ada.react(id, mid, "👏")
+	ada.react(id, mid, clap)
 	if _, err := ada.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
 		t.Fatal(err)
 	}
@@ -509,5 +524,24 @@ func TestDeletingALearnerDeletesTheirReports(t *testing.T) {
 	}
 	if n := ada.openReports(); n != 0 {
 		t.Fatalf("%d Reports left after deleting their maker, want none", n)
+	}
+}
+
+func TestTheAdminAndWritersCannotReportAndARepeatReportCostsNothing(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	mid := ben.say(id, "Hi")
+	expectStatus(t, must(admin.report(id, mid, "")), "", http.StatusUnprocessableEntity, "")
+	expectStatus(t, must(ben.report(id, mid, "")), "", http.StatusUnprocessableEntity, "")
+	ada.report(id, mid, "")
+	for range 12 {
+		expectStatus(t, must(ada.report(id, mid, "")), "", http.StatusConflict, "")
+	}
+	other := admin.say(id, "Another")
+	expectStatus(t, must(ada.report(id, other, "")), "", http.StatusSeeOther, "")
+
+	// A Message its writer deletes leaves no Report open.
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	if n := ada.openReports(); n != 1 {
+		t.Fatalf("%d Reports open, want only the one on the Message still there", n)
 	}
 }

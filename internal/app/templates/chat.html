@@ -18,7 +18,7 @@
         </p>
         <input type="hidden" name="reply_to" value="{{with .ReplyTo}}{{.ID}}{{end}}">
         <label class="sr" for="body">{{t .Lang "chat.message"}}</label>
-        <textarea id="body" name="body" rows="2" maxlength="1000" required placeholder="{{t .Lang "chat.placeholder"}}">{{.Body}}</textarea>
+        <textarea id="body" name="body" rows="2" maxlength="{{maxMessageLength}}" required placeholder="{{t .Lang "chat.placeholder"}}">{{.Body}}</textarea>
         <button class="btn btn-solid">{{t .Lang "chat.send"}}</button>
       </form>
     </div>
@@ -27,7 +27,7 @@
 
 {{/* chat-message is one Message as its viewer sees it; the Chat page and its live updates both render it. */}}
 {{define "chat-message"}}
-        <li class="msg{{if .Mine}} is-mine{{end}}{{if and .Hidden (not .Deleted)}} is-hidden{{end}}" id="m{{.ID}}">
+        <li class="msg{{if .Mine}} is-mine{{end}}{{if and .Hidden .ViewerAdmin (not .Deleted)}} is-hidden{{end}}" id="m{{.ID}}">
           <p class="msg-head"><strong>{{.Writer}}</strong>{{if .ByAdmin}} <span class="badge badge-joined">{{t .Lang "chat.admin"}}</span>{{end}} <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z"}}">{{.When}}</time></p>
           {{- if .ReplyID}}
           <p class="msg-quote">{{if .ReplyRemoved}}<span class="msg-gone">{{t .Lang "chat.removed"}}</span>{{else}}<a href="{{.ReplyLink}}" data-to="m{{.ReplyID}}"><strong>{{.ReplyWriter}}</strong> <span>{{.ReplyLine}}</span></a>{{end}}</p>
@@ -60,7 +60,7 @@
               <summary class="btn btn-quiet btn-sm">{{t .Lang "chat.report"}}</summary>
               <form method="post" action="/courses/{{.CourseID}}/chat/{{.ID}}/report">
                 <label for="reason-{{.ID}}">{{t .Lang "chat.report-reason"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label>
-                <textarea id="reason-{{.ID}}" name="reason" rows="2" maxlength="500"></textarea>
+                <textarea id="reason-{{.ID}}" name="reason" rows="2" maxlength="{{maxReportReason}}"></textarea>
                 <button class="btn btn-solid btn-sm">{{t .Lang "chat.send-report"}}</button>
               </form>
             </details>

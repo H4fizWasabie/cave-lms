@@ -73,8 +73,8 @@ func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
 	expectInOrder(t, e, `<li class="msg" id="m`+mid+`"`, "Ben", "Live hello")
 	adminStream.next()
 
-	ben.react(id, mid, "😂")
-	expectInOrder(t, stream.next(), `id="m`+mid+`"`, `aria-pressed="false">😂 1<`)
+	ben.react(id, mid, laugh)
+	expectInOrder(t, stream.next(), `id="m`+mid+`"`, shown(laugh, false, 1))
 	adminStream.next()
 
 	rid := ada.reply(id, mid, "Hi Ben")
@@ -92,6 +92,9 @@ func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
 
 	ben.post("/courses/"+id+"/chat/"+rid+"/delete", url.Values{}) // not Ben's: refused, nothing sent
 	ada.post("/courses/"+id+"/chat/"+rid+"/delete", nil)
+	if e := stream.next(); !strings.Contains(e, "Message deleted") || strings.Contains(e, "Hi Ben") {
+		t.Fatalf("a Learner's stream does not show a deleted Message as deleted: %s", e)
+	}
 	adminStream.next()
 	e = adminStream.next()
 	expectInOrder(t, e, `id="m`+rid+`"`, "Message deleted")

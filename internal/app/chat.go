@@ -26,8 +26,9 @@ const (
 	maxReportReason    = 500 // characters
 )
 
-// reactions are the six a Message can have, in the order they are shown.
-var reactions = []string{"👍", "❤️", "😂", "😮", "🙏", "👏"}
+// reactions are the six a Message can have, in the order they are shown: thumbs up, red heart, tears of joy, open
+// mouth, folded hands and clapping hands. Written as escapes, as the code holds no emoji.
+var reactions = []string{"\U0001F44D", "\u2764\uFE0F", "\U0001F602", "\U0001F62E", "\U0001F64F", "\U0001F44F"}
 
 // chatReaction is one of the six Reactions on a Message: how many people put it there, and whether the viewer did.
 type chatReaction struct {
@@ -73,11 +74,8 @@ func (m chatMessage) ReplyLink() string {
 	return fmt.Sprintf("/courses/%d/chat?before=%d#m%d", m.CourseID, m.ReplyID+1, m.ReplyID)
 }
 
-// When is the time the Message was posted, Malaysia time.
-func (m chatMessage) When() string {
-	at := m.At.In(malaysia)
-	return text.Date(m.Lang, at) + ", " + at.Format("15:04")
-}
+// When is the time the Message was posted.
+func (m chatMessage) When() string { return dateTimeIn(m.Lang, m.At) }
 
 // chatPage is a Course's Chat page.
 type chatPage struct {
@@ -146,6 +144,23 @@ const chatColumns = `m.id, m.course_id, l.name, l.is_admin, m.learner_id = $1,
 	EXISTS (SELECT 1 FROM chat_reports rp WHERE rp.message_id = m.id AND rp.learner_id = $1)
 	FROM chat_messages m JOIN learners l ON l.id = m.learner_id
 	LEFT JOIN chat_messages o ON o.id = m.reply_to LEFT JOIN learners ol ON ol.id = o.learner_id`
+
+// chatRefusal refuses an action in a Chat: with the text under key to the Chat's script, else on a page titled
+// under title.
+func (a *App) chatRefusal(w http.ResponseWriter, r *http.Request, v chatViewer, status int, title, key string) {
+	if !refuseInPlace(w, r, status, text.T(v.lang, key)) {
+		a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
+	}
+}
+
+// chatBudget records one of v's actions of kind and reports whether it is within limit in window. The Admin has no
+// limit.
+func (a *App) chatBudget(v chatViewer, kind string, limit int, window time.Duration) bool {
+	return v.IsAdmin || a.limiter.allow(chatBudgetKey(v, kind), limit, window, a.now())
+}
+
+// chatBudgetKey is the limiter key of v's actions of kind.
+func chatBudgetKey(v chatViewer, kind string) string { return fmt.Sprintf("chat %s %d", kind, v.ID) }
 
 // chatMessages loads the Messages that where picks, as v sees them. where's own arguments start at $3.
 func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args ...any) ([]chatMessage, error) {
@@ -278,7 +293,7 @@ func (a *App) postMessage(w http.ResponseWriter, r *http.Request) {
 	case utf8.RuneCountInString(body) > maxMessageLength:
 		refuse(http.StatusUnprocessableEntity, "chat.err.too-long")
 		return
-	case !v.IsAdmin && !a.limiter.allow(fmt.Sprintf("chat message %d", v.ID), messagesPerMinute, time.Minute, a.now()):
+	case !a.chatBudget(v, "message", messagesPerMinute, time.Minute):
 		refuse(http.StatusTooManyRequests, "chat.err.too-fast")
 		return
 	}
@@ -339,6 +354,10 @@ func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	if err := a.closeReports(r.Context(), m.ID); err != nil { // nothing left to act on
+		a.serverError(w, r, err)
+		return
+	}
 	a.changed(r.Context(), m, true)
 	a.answer(w, r, v, m)
 }
@@ -354,17 +373,13 @@ func (a *App) react(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	refuse := func(status int, title, key string) {
-		if !refuseInPlace(w, r, status, text.T(v.lang, key)) {
-			a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
-		}
-	}
+	refuse := func(status int, title, key string) { a.chatRefusal(w, r, v, status, title, key) }
 	emoji := r.PostFormValue("emoji")
 	switch {
 	case !slices.Contains(reactions, emoji) || !m.Visible():
 		refuse(http.StatusUnprocessableEntity, "chat.no-reaction.title", "chat.no-reaction")
 		return
-	case !v.IsAdmin && !a.limiter.allow(fmt.Sprintf("chat reaction %d", v.ID), reactionsPerMinute, time.Minute, a.now()):
+	case !a.chatBudget(v, "reaction", reactionsPerMinute, time.Minute):
 		refuse(http.StatusTooManyRequests, "limited.title", "chat.err.too-fast")
 		return
 	}
@@ -390,20 +405,19 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	refuse := func(status int, title, key string) {
-		if !refuseInPlace(w, r, status, text.T(v.lang, key)) {
-			a.render(w, r, status, "message", page{Title: text.T(v.lang, title), Message: text.T(v.lang, key)})
-		}
-	}
+	refuse := func(status int, title, key string) { a.chatRefusal(w, r, v, status, title, key) }
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	switch {
+	case v.IsAdmin || m.Mine: // the Admin hides; a writer deletes
+		refuse(http.StatusUnprocessableEntity, "chat.not-reported", "chat.err.report-own")
+		return
 	case !m.Visible():
 		refuse(http.StatusUnprocessableEntity, "chat.not-reported", "chat.err.report-removed")
 		return
 	case utf8.RuneCountInString(reason) > maxReportReason:
 		refuse(http.StatusUnprocessableEntity, "chat.not-reported", "chat.err.reason-too-long")
 		return
-	case !v.IsAdmin && !a.limiter.allow(fmt.Sprintf("chat report %d", v.ID), reportsPerHour, time.Hour, a.now()):
+	case !a.chatBudget(v, "report", reportsPerHour, time.Hour):
 		refuse(http.StatusTooManyRequests, "limited.title", "chat.err.reports-limited")
 		return
 	}
@@ -418,6 +432,7 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
+		a.limiter.forget(chatBudgetKey(v, "report")) // a Report refused as a repeat doesn't count
 		refuse(http.StatusConflict, "chat.not-reported", "chat.err.reported")
 		return
 	}
@@ -428,13 +443,15 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 // it. The form's back field "reports" returns to the Reports page, else to the Chat at the Message.
 func (a *App) setHidden(hidden bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var m chatMessage
 		mid, err := strconv.ParseInt(r.PathValue("mid"), 10, 64)
-		if err == nil {
-			err = a.db.QueryRowContext(r.Context(), `UPDATE chat_messages SET hidden = $2 WHERE id = $1 RETURNING id, course_id`,
-				mid, hidden).Scan(&m.ID, &m.CourseID)
+		if err != nil {
+			a.notFound(w, r)
+			return
 		}
-		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		var m chatMessage
+		err = a.db.QueryRowContext(r.Context(), `UPDATE chat_messages SET hidden = $2 WHERE id = $1 RETURNING id, course_id`,
+			mid, hidden).Scan(&m.ID, &m.CourseID)
+		if errors.Is(err, sql.ErrNoRows) {
 			a.notFound(w, r)
 			return
 		}
@@ -443,8 +460,7 @@ func (a *App) setHidden(hidden bool) http.HandlerFunc {
 			return
 		}
 		if hidden {
-			if _, err := a.db.ExecContext(r.Context(), `UPDATE chat_reports SET closed_at = now()
-				WHERE message_id = $1 AND closed_at IS NULL`, m.ID); err != nil {
+			if err := a.closeReports(r.Context(), m.ID); err != nil {
 				a.serverError(w, r, err)
 				return
 			}
@@ -466,6 +482,12 @@ func (a *App) setHidden(hidden bool) http.HandlerFunc {
 		}
 		a.answer(w, r, chatViewer{l, lang}, m)
 	}
+}
+
+// closeReports closes every open Report on Message id.
+func (a *App) closeReports(ctx context.Context, id int64) error {
+	_, err := a.db.ExecContext(ctx, `UPDATE chat_reports SET closed_at = now() WHERE message_id = $1 AND closed_at IS NULL`, id)
+	return err
 }
 
 // backToMessage redirects to the Chat page that shows m: the latest, or an earlier one ending with it.

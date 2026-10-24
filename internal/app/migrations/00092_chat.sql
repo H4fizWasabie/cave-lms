@@ -19,11 +19,12 @@ CREATE INDEX chat_messages_course ON chat_messages (course_id, id);
 CREATE INDEX chat_messages_learner ON chat_messages (learner_id);
 CREATE INDEX chat_messages_reply_to ON chat_messages (reply_to);
 
--- One of six fixed emoji, at most one per person per Message.
+-- One of six fixed emoji, at most one per person per Message: thumbs up, red heart, tears of joy, open mouth, folded
+-- hands and clapping hands, written as escapes.
 CREATE TABLE chat_reactions (
     message_id bigint NOT NULL REFERENCES chat_messages ON DELETE CASCADE,
     learner_id bigint NOT NULL REFERENCES learners ON DELETE CASCADE,
-    emoji text NOT NULL CHECK (emoji IN ('👍', '❤️', '😂', '😮', '🙏', '👏')),
+    emoji text NOT NULL CHECK (emoji IN (U&'\+01F44D', U&'\2764\FE0F', U&'\+01F602', U&'\+01F62E', U&'\+01F64F', U&'\+01F44F')),
     PRIMARY KEY (message_id, learner_id)
 );
 CREATE INDEX chat_reactions_learner ON chat_reactions (learner_id);

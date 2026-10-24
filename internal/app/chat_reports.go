@@ -20,15 +20,16 @@ type chatReport struct {
 func (r chatReport) Page() int64 { return r.MessageID + 1 }
 
 // When is the time the Report was made, Malaysia time.
-func (r chatReport) When() string { return chatMessage{At: r.At, Lang: r.Lang}.When() }
+func (r chatReport) When() string { return dateTimeIn(r.Lang, r.At) }
 
+// chatReportsPage is the Admin's Reports page.
 type chatReportsPage struct {
 	pageBase
 	Reports []chatReport
 }
 
-// ponytail: lists every open Report on one page; add paging if they ever pile up.
 // adminReports is the Admin's Reports page: open Reports, newest first.
+// ponytail: lists every open Report on one page; add paging if they ever pile up.
 func (a *App) adminReports(w http.ResponseWriter, r *http.Request) {
 	lang, err := a.language(r)
 	if err != nil {
