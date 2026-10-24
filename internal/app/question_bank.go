@@ -33,14 +33,16 @@ type bankPage struct {
 	Questions     []bankQuestion
 	Topics        []string // every topic in the bank, one spelling per topic ignoring case
 	Formats       []string
-	Topic, Format string        // the filters, empty for all
+	Topic, Format string // the filters, empty for all
+	Difficulty    string // the Difficulty filter, empty for all, "none" for questions without one
+	Difficulties  []string
 	Question      *bankQuestion // the edit form's
 	Languages     []string
 	Query         template.URL // the filters as a query string with its "?", empty for none, kept across actions
 }
 
 // bankFilters are the query parameters the Question bank page filters by.
-var bankFilters = []string{"topic", "format"}
+var bankFilters = []string{"topic", "format", "difficulty"}
 
 // bankQuery is the request's Question bank filters as a query string with its "?", empty for none. Anything else in
 // the request's query is dropped.
@@ -66,15 +68,19 @@ func bankCardPath(r *http.Request, id int64) string {
 	return "/admin/question-bank" + string(bankQuery(r)) + "#q-" + strconv.FormatInt(id, 10)
 }
 
-// filteredBankQuestions reads the bank's questions under the request's ?topic= (ignoring case) and ?format=.
+// filteredBankQuestions reads the bank's questions under the request's ?topic= (ignoring case), ?format= and
+// ?difficulty= ("none" for questions without one).
 func (a *App) filteredBankQuestions(r *http.Request) ([]bankQuestion, error) {
 	q := r.URL.Query()
-	return a.queryBankQuestions(r.Context(), `($1 = '' OR lower(q.topic) = lower($1)) AND ($2 = '' OR q.format = $2)`, q.Get("topic"), q.Get("format"))
+	return a.queryBankQuestions(r.Context(), `($1 = '' OR lower(q.topic) = lower($1)) AND ($2 = '' OR q.format = $2)
+		AND ($3 = '' OR q.difficulty = $3 OR ($3 = 'none' AND q.difficulty IS NULL))`, q.Get("topic"), q.Get("format"), q.Get("difficulty"))
 }
 
-// adminQuestionBank lists the bank's questions, filtered by ?topic= (ignoring case) and ?format= when given.
+// adminQuestionBank lists the bank's questions, filtered by ?topic= (ignoring case), ?format= and ?difficulty= when
+// given.
 func (a *App) adminQuestionBank(w http.ResponseWriter, r *http.Request) {
-	p := &bankPage{Topic: r.URL.Query().Get("topic"), Format: r.URL.Query().Get("format"), Formats: bankFormats, Query: bankQuery(r)}
+	q := r.URL.Query()
+	p := &bankPage{Topic: q.Get("topic"), Format: q.Get("format"), Difficulty: q.Get("difficulty"), Formats: bankFormats, Difficulties: difficulties, Query: bankQuery(r)}
 	var err error
 	if p.Topics, err = a.bankTopics(r.Context()); err == nil {
 		p.Questions, err = a.filteredBankQuestions(r)
@@ -163,8 +169,8 @@ func (a *App) editBankQuestionForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "bank_question_form", &bankPage{Question: &q, Languages: text.Languages, Query: bankQuery(r)})
 }
 
-// updateBankQuestion replaces a bank question's topic, language, prompt and options or model answer. Exam copies are
-// left alone.
+// updateBankQuestion replaces a bank question's topic, language, Difficulty, prompt and options or model answer. Exam
+// copies are left alone.
 func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 	existing, ok := a.bankQuestionFor(w, r)
 	if !ok {
@@ -193,8 +199,8 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err == nil {
 		defer tx.Rollback()
-		_, err = tx.ExecContext(r.Context(), `UPDATE bank_questions SET topic = $2, language = $3, prompt = $4, model_answer = $5 WHERE id = $1`,
-			q.ID, q.Topic, q.Language, q.Prompt, q.ModelAnswer)
+		_, err = tx.ExecContext(r.Context(), `UPDATE bank_questions SET topic = $2, language = $3, prompt = $4, model_answer = $5,
+			difficulty = NULLIF($6, '') WHERE id = $1`, q.ID, q.Topic, q.Language, q.Prompt, q.ModelAnswer, q.Difficulty)
 	}
 	if err == nil {
 		_, err = tx.ExecContext(r.Context(), `DELETE FROM bank_options WHERE question_id = $1`, q.ID)

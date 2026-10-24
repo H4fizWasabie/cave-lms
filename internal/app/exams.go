@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -273,6 +274,12 @@ func saveExamRow(ctx context.Context, tx *sql.Tx, e exam) (int64, error) {
 // questionFromForm reads the question form of a question of the format. msg is the first problem found, in lang,
 // empty when the form is valid.
 func questionFromForm(r *http.Request, lang, format string) (q examQuestion, msg string) {
+	q.Difficulty = r.PostFormValue("difficulty")
+	defer func() {
+		if msg == "" && q.Difficulty != "" && !slices.Contains(difficulties, q.Difficulty) {
+			msg = text.T(lang, "adm.exam.err.difficulty")
+		}
+	}()
 	q.Prompt = strings.TrimSpace(r.PostFormValue("prompt"))
 	q.Draft = r.PostFormValue("draft") == "on"
 	if format == written {
@@ -374,7 +381,7 @@ func (a *App) editExamQuestionForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "exam_question_form", page{Course: &c, Exam: &e, Question: &q})
 }
 
-// updateExamQuestion replaces the prompt and options. Draft state is changed only by publishing.
+// updateExamQuestion replaces the prompt, options and Difficulty. Draft state is changed only by publishing.
 func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 	c, e, existing, ok := a.examQuestionFor(w, r)
 	if !ok {
@@ -398,15 +405,15 @@ func (a *App) updateExamQuestion(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, e.cardPath(q.ID), http.StatusSeeOther)
 }
 
-// replaceQuestion rewrites a question's prompt, model answer and options in one transaction.
+// replaceQuestion rewrites a question's prompt, model answer, Difficulty and options in one transaction.
 func (a *App) replaceQuestion(ctx context.Context, examID int64, q examQuestion) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `UPDATE exam_questions SET prompt = $3, model_answer = $4 WHERE id = $1 AND exam_id = $2`,
-		q.ID, examID, q.Prompt, q.ModelAnswer); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE exam_questions SET prompt = $3, model_answer = $4, difficulty = NULLIF($5, '') WHERE id = $1 AND exam_id = $2`,
+		q.ID, examID, q.Prompt, q.ModelAnswer, q.Difficulty); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exam_options WHERE question_id = $1`, q.ID); err != nil {

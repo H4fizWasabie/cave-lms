@@ -152,3 +152,79 @@ func TestLearnersNeverSeeAQuestionsDifficulty(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "AI question 1")
 	expectNone(t, body, "badge-difficulty", ">Hard<")
 }
+
+func TestAdminSetsAndClearsADifficultyOnAnExamQuestion(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	id := s.onlyCourseID()
+	exam := "/admin/courses/" + id + "/exam"
+	_, body := s.get(exam + "/questions/new")
+	expectAll(t, body, `<select id="difficulty" name="difficulty"><option value="" selected>Not set</option>`)
+	res, body := s.post(exam+"/questions", url.Values{"prompt": {"Hand written"}, "correct": {"0"}, "option": {"Right", "Wrong", "", "", ""}, "difficulty": {"easy"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	qid := s.examQuestionIDs(id)[0]
+	_, body = s.get(exam)
+	expectAll(t, body, `badge-difficulty">Easy`)
+	_, body = s.get("/admin/question-bank")
+	expectAll(t, body, "Excel · Multiple-choice · Malay · Easy")
+
+	_, body = s.get(exam + "/questions/" + qid + "/edit")
+	expectAll(t, body, `<option value="easy" selected>Easy</option>`)
+	res, body = s.post(exam+"/questions/"+qid, url.Values{"prompt": {"Hand written"}, "correct": {"0"}, "option": {"Right", "Wrong", "", "", ""}, "difficulty": {"hard"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get(exam)
+	expectAll(t, body, `badge-difficulty">Hard`)
+	res, body = s.post(exam+"/questions/"+qid, url.Values{"prompt": {"Hand written"}, "correct": {"0"}, "option": {"Right", "Wrong", "", "", ""}, "difficulty": {""}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get(exam)
+	expectNone(t, body, `badge-difficulty"`)
+	res, body = s.post(exam+"/questions/"+qid, url.Values{"prompt": {"Hand written"}, "correct": {"0"}, "option": {"Right", "Wrong", "", "", ""}, "difficulty": {"extreme"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose Easy, Medium, Hard or Not set.")
+
+	s.saveQuestion(exam+"/questions", "No Difficulty", [5]string{"Right", "Wrong", "", "", ""}, "0", false)
+	_, body = s.get(exam)
+	expectNone(t, body, `badge-difficulty"`)
+	_, body = s.get("/admin/question-bank")
+	expectAll(t, body, "Excel · Multiple-choice · Malay · Easy") // the bank question keeps its own
+}
+
+func TestAdminSetsClearsAndFiltersByADifficultyInTheQuestionBank(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	id := s.onlyCourseID()
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Excel unset", [5]string{"Right", "Wrong", "", "", ""}, "0", false)
+	s.publishedBankQuestions(id, multipleChoice, "Excel", "hard", "Excel hard")
+	s.publishedBankQuestions(id, multipleChoice, "Word", "hard", "Word hard")
+	b := s.bankQuestionIDs("/admin/question-bank?topic=Excel")
+
+	_, body := s.get("/admin/question-bank/" + b[0] + "/edit")
+	expectAll(t, body, `<option value="" selected>Not set</option>`)
+	res, body := s.saveBankQuestion(b[0], "Excel", "ms", "Excel unset", [5]string{"Right", "Wrong", "", "", ""}, "0")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/question-bank?difficulty=none")
+	expectAll(t, body, "Excel unset")
+	expectNone(t, body, "Excel hard", "Word hard")
+
+	form := url.Values{"topic": {"Excel"}, "language": {"ms"}, "prompt": {"Excel unset"}, "correct": {"0"}, "option": {"Right", "Wrong", "", "", ""}, "difficulty": {"easy"}}
+	res, body = s.post("/admin/question-bank/"+b[0], form)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/question-bank?difficulty=easy")
+	expectAll(t, body, "Excel unset", `<option value="easy" selected>Easy</option>`)
+	expectNone(t, body, "Excel hard", "Word hard")
+	_, body = s.get("/admin/question-bank?difficulty=hard&topic=Excel&format=multiple-choice")
+	expectAll(t, body, "Excel hard")
+	expectNone(t, body, "Excel unset", "Word hard")
+	_, body = s.get("/admin/question-bank/" + b[1] + "/edit?difficulty=hard&topic=Excel")
+	expectAll(t, body, `action="/admin/question-bank/`+b[1]+`?difficulty=hard&amp;topic=Excel"`)
+
+	form.Set("difficulty", "")
+	res, body = s.post("/admin/question-bank/"+b[0], form)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/question-bank?difficulty=easy")
+	expectNone(t, body, "Excel unset")
+	form.Set("difficulty", "extreme")
+	res, body = s.post("/admin/question-bank/"+b[0], form)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose Easy, Medium, Hard or Not set.")
+}

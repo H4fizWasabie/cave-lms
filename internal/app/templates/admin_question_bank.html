@@ -13,6 +13,7 @@
           <div class="field-grid">
             <div class="field"><label for="topic">{{t .Lang "bank.topic"}}</label><select id="topic" name="topic"><option value="">{{t .Lang "bank.all-topics"}}</option>{{range .Topics}}<option{{if eq . $.Topic}} selected{{end}}>{{.}}</option>{{end}}</select></div>
             <div class="field"><label for="format">{{t .Lang "bank.format"}}</label><select id="format" name="format"><option value="">{{t .Lang "bank.all-formats"}}</option>{{range .Formats}}<option value="{{.}}"{{if eq . $.Format}} selected{{end}}>{{t $.Lang (print "bank.format." .)}}</option>{{end}}</select></div>
+            <div class="field"><label for="difficulty">{{t .Lang "difficulty"}}</label><select id="difficulty" name="difficulty"><option value="">{{t .Lang "difficulty.all"}}</option>{{range .Difficulties}}<option value="{{.}}"{{if eq . $.Difficulty}} selected{{end}}>{{t $.Lang (print "difficulty." .)}}</option>{{end}}<option value="none"{{if eq "none" .Difficulty}} selected{{end}}>{{t .Lang "difficulty.none"}}</option></select></div>
           </div>
           <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "bank.filter"}}</button></div>
         </form>

@@ -9,6 +9,7 @@
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="{{if .Question.ID}}{{.Exam.AdminPath (printf "/questions/%d" .Question.ID)}}{{else}}{{.Exam.AdminPath "/questions"}}{{end}}">
             <div class="field"><label for="prompt">{{t .Lang "adm.exam.question"}}</label><textarea id="prompt" name="prompt" rows="3" required>{{.Question.Prompt}}</textarea></div>
+            <div class="field"><label for="difficulty">{{t .Lang "difficulty"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><select id="difficulty" name="difficulty"><option value=""{{if not .Question.Difficulty}} selected{{end}}>{{t .Lang "difficulty.none"}}</option>{{range difficulties}}<option value="{{.}}"{{if eq . $.Question.Difficulty}} selected{{end}}>{{t $.Lang (print "difficulty." .)}}</option>{{end}}</select></div>
             {{if .Exam.Written}}
             <div class="field"><label for="model_answer">{{t .Lang "adm.exam.model-answer"}}</label><textarea id="model_answer" name="model_answer" rows="5" required>{{.Question.ModelAnswer}}</textarea></div>
             {{else}}
