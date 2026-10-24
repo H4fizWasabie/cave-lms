@@ -68,6 +68,26 @@ A Learner's membership in a Course. Created when the Learner joins, with no Admi
 _Malay_: Penyertaan
 _Avoid_: Registration, subscription, signup
 
+**Chat**:
+A Course's one shared conversation, open only to its enrolled Learners and the Admin. Each Course, Live Courses included, has its own.
+_Malay_: Sembang
+_Avoid_: Channel, forum, group, discussion, community
+
+**Message**:
+One text post in a Chat, by a Learner or the Admin, optionally replying to an earlier Message. Hidden by the Admin or deleted by its writer, it shows as removed.
+_Malay_: Mesej
+_Avoid_: Post, comment, chat (for one post)
+
+**Reaction**:
+One of six fixed emoji a person puts on a Message; each person has at most one per Message.
+_Malay_: Reaksi
+_Avoid_: Like, emoji vote
+
+**Report**:
+A Learner's flag that a Message is abusive, with an optional reason, for the Admin to hide the Message or dismiss the Report.
+_Malay_: Laporan
+_Avoid_: Complaint, flag
+
 **Gallery**:
 The collection of everything the Admin uploads.
 _Malay_: Galeri
