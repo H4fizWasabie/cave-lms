@@ -39,6 +39,7 @@ type assignmentPage struct {
 	Assignments []assignment
 	Enrolled    bool             // the Learner may change their Submission
 	Files       []submissionFile // the Learner's Submission
+	Comment     string           // the Admin's comment on it
 }
 
 // path is the Assignment's page for Learners.
@@ -301,6 +302,10 @@ func (a *App) showAssignment(w http.ResponseWriter, r *http.Request) {
 func (a *App) renderAssignment(w http.ResponseWriter, r *http.Request, status int, p *assignmentPage) {
 	var err error
 	if p.Files, err = a.submissionFiles(r.Context(), p.Assignment.ID, p.Learner.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if p.Comment, err = a.submissionComment(r.Context(), p.Assignment.ID, p.Learner.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

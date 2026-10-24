@@ -283,6 +283,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/courses/{id}/assignments", a.admin(a.adminAssignments))
 	mux.HandleFunc("GET /admin/courses/{id}/assignments/new", a.admin(a.newAssignmentForm))
 	mux.HandleFunc("POST /admin/courses/{id}/assignments", a.admin(a.createAssignment))
+	mux.HandleFunc("GET /admin/assignments/{aid}", a.admin(a.adminSubmissions))
+	mux.HandleFunc("POST /admin/assignments/{aid}/learners/{learnerID}/comment", a.admin(a.saveSubmissionComment))
 	mux.HandleFunc("GET /admin/assignments/{aid}/edit", a.admin(a.editAssignmentForm))
 	mux.HandleFunc("POST /admin/assignments/{aid}", a.admin(a.updateAssignment))
 	mux.HandleFunc("POST /admin/assignments/{aid}/up", a.admin(a.moveAssignment(-1)))

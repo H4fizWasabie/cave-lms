@@ -10,6 +10,7 @@
       {{if .Enrolled}}
       <section class="card submission">
         <h2>{{t .Lang "submission.title"}}</h2>
+        {{with .Comment}}<div class="callout"><p><strong>{{t $.Lang "submission.comment"}}</strong><br><span class="pre-line">{{.}}</span></p></div>{{end}}
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{if .Files}}
         <ul class="file-list">

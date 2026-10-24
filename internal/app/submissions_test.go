@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -230,4 +231,86 @@ func TestThePrivacyNoticeSaysWhoSeesSubmissions(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Only you and the Admins see them")
 	res, body = s.getAsking("/privacy", "ms")
 	expectStatus(t, res, body, http.StatusOK, "Hanya anda dan Pentadbir yang melihatnya")
+}
+
+func TestTheAdminSeesWhoHandedInAndDownloadsTheirFiles(t *testing.T) {
+	admin, ada, path := publishedAssignment(t)
+	courseID, aid := strings.Split(path, "/")[2], strings.Split(path, "/")[4]
+	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn}, upload{"notes.docx", docxHandIn})
+	bea := admin.second()
+	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", "correct horse battery")
+	bea.post("/courses/"+courseID+"/join", nil)
+	cy := admin.second()
+	cy.loginAsNewLearner("Cy Young", "cy@example.com", "correct horse battery")
+	cy.post("/courses/"+courseID+"/join", nil)
+	cy.postFiles(path+"/files", upload{"cy.png", pngHandIn})
+	cy.post("/courses/"+courseID+"/leave", nil)
+	dan := admin.second()
+	dan.loginAsNewLearner("Dan Brown", "dan@example.com", "correct horse battery")
+
+	res, body := admin.get("/admin/assignments/" + aid)
+	expectStatus(t, res, body, http.StatusOK, "<h1>Write a prompt</h1>")
+	row := func(name string) string {
+		_, after, ok := strings.Cut(body, name)
+		if !ok {
+			t.Fatalf("%s is not listed: %s", name, body)
+		}
+		end, _, _ := strings.Cut(after, "</tr>")
+		return end
+	}
+	for name, want := range map[string]string{"Ada Lovelace": "2 files", "Bea Hopper": "Nothing yet", "Cy Young": "Left the Course"} {
+		if r := row(name); !strings.Contains(r, want) {
+			t.Errorf("%s's row lacks %q: %s", name, want, r)
+		}
+	}
+	if !strings.Contains(row("Cy Young"), "1 file") {
+		t.Errorf("Cy's row lacks 1 file")
+	}
+	if strings.Contains(body, "Dan Brown") {
+		t.Errorf("a Learner who never joined is listed: %s", body)
+	}
+	links := fileLink.FindAllStringSubmatch(row("Ada Lovelace"), -1)
+	if len(links) != 2 {
+		t.Fatalf("Ada's row has %d download links, want 2", len(links))
+	}
+	res, body = admin.get(links[0][1])
+	expectStatus(t, res, body, http.StatusOK, string(pdfHandIn))
+}
+
+// adaID reads Ada's ID from the database.
+func (s *site) adaID() string {
+	s.t.Helper()
+	var id string
+	if err := s.db.QueryRow(`SELECT id::text FROM learners WHERE email = 'ada@example.com'`).Scan(&id); err != nil {
+		s.t.Fatal(err)
+	}
+	return id
+}
+
+func TestTheAdminCommentsOnASubmissionAndTheLearnerSeesIt(t *testing.T) {
+	admin, ada, path := publishedAssignment(t)
+	aid := strings.Split(path, "/")[4]
+	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
+	comment := "/admin/assignments/" + aid + "/learners/" + admin.adaID() + "/comment"
+
+	res, body := admin.post(comment, url.Values{"comment": {"Good start.\nAdd an example."}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "Good start.\nAdd an example.")
+
+	admin.post(comment, url.Values{"comment": {"Well done."}})
+	res, body = ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "Well done.")
+	if strings.Contains(body, "Good start.") {
+		t.Fatalf("the old comment still shows: %s", body)
+	}
+	res, body = admin.get("/admin/assignments/" + aid)
+	expectStatus(t, res, body, http.StatusOK, ">Well done.</textarea>")
+
+	if res, _ := ada.get("/admin/assignments/" + aid); res.StatusCode != http.StatusForbidden {
+		t.Fatalf("a Learner opened the Admin's Assignment page: %d", res.StatusCode)
+	}
+	if res, _ := ada.post(comment, url.Values{"comment": {"I am the Admin."}}); res.StatusCode != http.StatusForbidden {
+		t.Fatalf("a Learner commented: %d", res.StatusCode)
+	}
 }
