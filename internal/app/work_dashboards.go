@@ -26,10 +26,12 @@ const previewRows = 20
 type cleaned struct {
 	Changes   []lab.Change `json:"changes"`
 	Guess     lab.Choices  `json:"guess"`
-	Sheets    []lab.Sheet  `json:"sheets"`    // every sheet of the upload
-	Used      []string     `json:"used"`      // the sheets that went into the Dataset
-	HeaderRow int          `json:"headerRow"` // the Excel row the column names came from
-	Settings  lab.Settings `json:"settings"`  // the remembered part of the settings Clean-up read with
+	Sheets    []lab.Sheet  `json:"sheets"`          // every sheet of the upload
+	Used      []string     `json:"used"`            // the sheets that went into the Dataset
+	HeaderRow int          `json:"headerRow"`       // the Excel row the column names came from
+	Settings  lab.Settings `json:"settings"`        // the remembered part of the settings Clean-up read with
+	Month     int          `json:"month,omitempty"` // the month the days-across grids were dated in; 0 when no grid was used
+	Year      int          `json:"year,omitempty"`
 }
 
 // pendingDataset is a Work Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
@@ -64,12 +66,10 @@ func (p *pendingDataset) Tickable() bool {
 // Grid is the month and year Clean-up dated the days-across grids in, for the preview to ask again; nil if the
 // upload had no grid.
 func (p *pendingDataset) Grid() *struct{ Month, Year int } {
-	for _, c := range p.Changes {
-		if c.Key == "lab.clean.unpivoted" && len(c.Args) == 3 {
-			return &struct{ Month, Year int }{c.Args[1], c.Args[2]}
-		}
+	if p.Month == 0 {
+		return nil
 	}
-	return nil
+	return &struct{ Month, Year int }{p.Month, p.Year}
 }
 
 // UsedList is the sheets that went in, for the preview.
@@ -291,7 +291,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	found := cleaned{Changes: res.Changes, Guess: res.Guess, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings}
+	found := cleaned{Changes: res.Changes, Guess: res.Guess, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
 	c, err := json.Marshal(found)
 	if err != nil {
 		a.serverError(w, r, err)
