@@ -446,8 +446,9 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	return nil
 }
 
-// KeepsLock refuses a change to a Locked block's kind or calculation: of a block old locks, only the label,
-// place, width, filter and columns change.
+// KeepsLock refuses a change to a Locked block's kind or calculation, or a filter on it: of a block old locks,
+// only the label, place, width and columns change. Its Template calculation filters rows itself, so a filter
+// would reach only some of them.
 func (b *WorkBlock) KeepsLock(old WorkBlock) error {
 	calc := func(v *Value) Value {
 		if v == nil {
@@ -455,7 +456,7 @@ func (b *WorkBlock) KeepsLock(old WorkBlock) error {
 		}
 		return Value{Agg: v.Agg, Op: v.Op, Then: v.Then}
 	}
-	if old.Locked && (b.Kind != old.Kind || calc(b.Value) != calc(old.Value)) {
+	if old.Locked && (b.Kind != old.Kind || calc(b.Value) != calc(old.Value) || b.Filter != nil) {
 		return Problem{"lab.err.block-locked", nil}
 	}
 	return nil

@@ -330,6 +330,21 @@ func TestALockedBlockKeepsItsKindAndCalculationButMovesToOtherColumns(t *testing
 	}
 }
 
+func TestALockedBlockTakesNoFilter(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	at := fmt.Sprint(slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Label == "Balance" }))
+	res, body := ada.get(path + "/blocks?open=" + at)
+	expectStatus(t, res, body, http.StatusOK, `name="where"`)
+	if strings.Contains(body, `name="fcol"`) {
+		t.Fatal("a locked block's form offers a filter")
+	}
+	res, body = ada.post(path+"/blocks", url.Values{"do": {"save"}, "block": {at}, "label": {"Balance"}, "col": {"Jumlah"},
+		"where": {"Jenis"}, "minus": {"Jenis"}, "fcol": {"Kategori"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `class="up-err" role="alert"`)
+}
+
 func TestResetOnGeneralRebuildsFromTheCurrentDataset(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createWork("finance", "Kedai")

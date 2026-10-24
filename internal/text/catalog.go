@@ -814,7 +814,6 @@ var catalog = map[string]entry{
 	"lab.b.then":           {en: "Then", ms: "Kemudian"},
 	"lab.b.then.sum":       {en: "summed", ms: "dijumlahkan"},
 	"lab.b.then.avg":       {en: "averaged", ms: "dipuratakan"},
-	"lab.b.calc-help":      {en: "Worked out row by row, then summed or averaged.", ms: "Dikira baris demi baris, kemudian dijumlahkan atau dipuratakan."},
 	"lab.b.column":         {en: "Column", ms: "Lajur"},
 	"lab.b.date":           {en: "Date column", ms: "Lajur tarikh"},
 	"lab.b.by-word":        {en: "By", ms: "Ikut"},
@@ -855,16 +854,16 @@ var catalog = map[string]entry{
 	"lab.b.save-filter-bar": {en: "Save the filter bar", ms: "Simpan bar penapis"},
 	"lab.b.preview":         {en: "What the live link shows", ms: "Yang dipaparkan oleh pautan langsung"},
 	"lab.b.locked": {
-		en: "A Template block: its kind and calculation stay. You can still rename, move, resize or remove it, or point it at other columns.",
-		ms: "Blok Template: jenis dan pengiraannya kekal. Anda masih boleh menamakan semula, mengalihkan, mengubah saiz atau membuangnya, atau menghalakannya ke lajur lain.",
+		en: "A Template block: its kind and calculation stay, with no filter. You can still rename, move, resize or remove it, or point it at other columns.",
+		ms: "Blok Template: jenis dan pengiraannya kekal, tanpa penapis. Anda masih boleh menamakan semula, mengalihkan, mengubah saiz atau membuangnya, atau menghalakannya ke lajur lain.",
 	},
 	"lab.b.lock-where": {en: "Column holding %s", ms: "Lajur yang mengandungi %s"},
 	"lab.b.lock-minus": {en: "Less the column holding %s", ms: "Tolak lajur yang mengandungi %s"},
 	"lab.b.lock-low-a": {en: "Stock level", ms: "Paras stok"},
 	"lab.b.lock-low-b": {en: "Reorder level", ms: "Paras pesanan semula"},
 	"lab.err.block-locked": {
-		en: "This is a Template block: its kind and calculation stay as the Template made them.",
-		ms: "Ini blok Template: jenis dan pengiraannya kekal seperti yang dibuat oleh Template.",
+		en: "This is a Template block: its kind and calculation stay as the Template made them, with no filter.",
+		ms: "Ini blok Template: jenis dan pengiraannya kekal seperti yang dibuat oleh Template, tanpa penapis.",
 	},
 	"lab.b.reset": {en: "Reset to Template", ms: "Set semula ke Template"},
 	"lab.b.reset-q": {

@@ -299,11 +299,13 @@
                 {{- range .Radios}}
                 <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-seg">{{$name := .Name}}{{range .Options}}<label><input type="radio" name="{{$name}}" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
                 {{- end}}
+                {{- if not .Locked}}
                 <div class="field"><label for="b-fcol">{{.FilterCol.Label}}</label><select id="b-fcol" name="fcol">{{range .FilterCol.Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
                 {{- with .FilterVals}}
                 <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="fval" value="{{.Value}}"{{if .On}} checked{{end}}>{{if .Gone}}<s>{{.Text}}</s>{{else}}{{.Text}}{{end}}</label>{{end}}</div></fieldset>
                 {{- end}}
                 {{- with .More}}<small class="muted">{{t $.Lang "lab.b.filter-more" .}}</small>{{end}}
+                {{- end}}
                 <div class="form-foot">
                   <button class="btn btn-quiet btn-sm" data-apply>{{t $.Lang "lab.b.apply"}}</button>
                   <button class="btn btn-solid btn-sm" name="close" value="1">{{t $.Lang "lab.b.done"}}</button>
