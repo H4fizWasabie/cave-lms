@@ -75,10 +75,14 @@ eq(C.bars(bar, rows, cols).map(function (g) { return g[0]; }), ['Ali', '(blank)'
 bar.split = 'Kategori';
 eq(C.bars(bar, rows, cols)[0], ['Ali', 158, [['Servis', 58], ['Ubat', 100]]], 'bar split');
 
-// Donut: past the top 5, the rest is one Other slice, so it stays at 6.
+// Donut: a Work donut folds everything past the top 6 into one Other slice; a Practice donut, past the top 5, as before.
 var many = 'ABCDEFGH'.split('').reduce(function (a, k, i) { for (var n = 0; n < 8 - i; n++) a.push({ G: k }); return a; }, []);
-eq(C.slices({ value: { agg: 'count' }, group: 'G' }, many, { G: { type: 'text' } }),
-  [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['Other', 6]], 'donut Other');
+eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many, { G: { type: 'text' } }),
+  [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['F', 3], ['Other', 3]], 'donut Other past 6');
+eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many.filter(function (r) { return r.G !== 'H'; }), { G: { type: 'text' } }).length,
+  7, 'donut of 7 groups shows all 7');
+eq(C.slices(C.fromPractice({ kind: 'donut', agg: 'count', group: 'G' }), many, { G: { type: 'text' } }),
+  [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['Other', 6]], 'Practice donut Other past 5');
 eq(C.slices({ value: { agg: 'count' }, group: 'Staf' }, rows, cols), [['Ali', 3], ['Siti', 2], ['(blank)', 1]], 'donut (blank)');
 
 // Table: newest or largest first, empty cells last, 10, 25 or 50 rows.
