@@ -88,6 +88,35 @@ const MaxRows = 5000
 // 10 MB upload of zeros or repeated cells can unpack to gigabytes and take the server down.
 const MaxUnzipped = 50 << 20
 
+// maxSheetCells is the most cells the Lab holds from one sheet, counted as excelize gives them: each row padded
+// with "" out to its last filled cell. MaxCleanRows rows of MaxColumns columns fit; a small file with one cell
+// far out on every row, padded to millions of cells, does not.
+const maxSheetCells = MaxCleanRows * MaxColumns
+
+// sheetRows is excelize's GetRows read row by row, so a sheet past maxSheetCells is refused before it is held whole.
+func sheetRows(f *excelize.File, name string, opts ...excelize.Options) ([][]string, error) {
+	rows, err := f.Rows(name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cells [][]string
+	kept, n := 0, 0 // rows up to the last with a cell, as GetRows gives; cells read
+	for rows.Next() {
+		row, err := rows.Columns(opts...)
+		if err != nil {
+			break // as GetRows does
+		}
+		if n += len(row); n > maxSheetCells {
+			return nil, Problem{"lab.err.too-many-cells", nil}
+		}
+		if cells = append(cells, row); len(row) > 0 {
+			kept = len(cells)
+		}
+	}
+	return cells[:kept], nil
+}
+
 // Read reads the first sheet of an .xlsx file, row 1 being the column names, and checks it
 // against the Template. A column named like one of a blank's guesses is read as that blank's
 // type; any other column's type comes from its cells. Dates may be real Excel dates,
@@ -101,8 +130,10 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	defer f.Close()
 	sheet := f.GetSheetList()[0]
-	cells, err := f.GetRows(sheet, excelize.Options{RawCellValue: true})
-	if err != nil {
+	cells, err := sheetRows(f, sheet, excelize.Options{RawCellValue: true})
+	if p, ok := err.(Problem); ok {
+		return nil, p
+	} else if err != nil {
 		return nil, Problem{"lab.err.unreadable", []any{err.Error()}}
 	}
 	if len(cells) < 2 {

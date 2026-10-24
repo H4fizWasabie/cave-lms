@@ -7,12 +7,14 @@ import (
 	"errors"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
+	"github.com/xuri/excelize/v2"
 )
 
 func finance(t *testing.T) *lab.Template {
@@ -340,5 +342,34 @@ func TestACSVIsRefusedWithWhyXLSX(t *testing.T) {
 	got := readProblem(t, []byte("Tarikh,Jumlah\n05/11/2026,RM5\n"))
 	if !strings.Contains(got, "A CSV file stores everything as plain text") {
 		t.Fatalf("errors = %v", got)
+	}
+}
+
+// farOutWorkbook has a header and rows rows, each with one cell at column XFD, the last there is. excelize pads
+// each such row out to 16,384 cells, so a small file holds millions of them.
+func farOutWorkbook(t *testing.T, rows int) []byte {
+	t.Helper()
+	f := excelize.NewFile()
+	defer f.Close()
+	f.SetCellValue("Sheet1", "A1", "Tarikh")
+	for n := 2; n <= rows+1; n++ {
+		f.SetCellValue("Sheet1", "XFD"+strconv.Itoa(n), 1)
+	}
+	var b bytes.Buffer
+	if err := f.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func TestRefusesASheetOfTooManyCells(t *testing.T) {
+	file := farOutWorkbook(t, 400)
+	_, readErr := lab.Read(bytes.NewReader(file), finance(t))
+	_, cleanErr := lab.Clean(bytes.NewReader(file), finance(t), lab.Settings{})
+	for name, err := range map[string]error{"Read": readErr, "Clean": cleanErr} {
+		var p lab.Problem
+		if !errors.As(err, &p) || p.Key != "lab.err.too-many-cells" {
+			t.Errorf("%s: got %v, want lab.err.too-many-cells", name, err)
+		}
 	}
 }
