@@ -71,7 +71,7 @@ func (a *App) downloadAnswerSheet(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, e, ok := a.examFor(w, r)
+	c, e, ok := a.publishedExamFor(w, r, learner)
 	if !ok {
 		return
 	}

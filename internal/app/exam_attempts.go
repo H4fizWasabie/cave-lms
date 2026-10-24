@@ -212,7 +212,7 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, e, ok := a.examFor(w, r)
+	c, e, ok := a.publishedExamFor(w, r, learner)
 	if !ok {
 		return
 	}
@@ -231,7 +231,7 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, e, ok := a.examFor(w, r)
+	c, e, ok := a.publishedExamFor(w, r, learner)
 	if !ok {
 		return
 	}
@@ -356,7 +356,7 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, e, ok := a.examFor(w, r)
+	c, e, ok := a.publishedExamFor(w, r, learner)
 	if !ok {
 		return
 	}
@@ -375,7 +375,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	c, e, ok := a.examFor(w, r)
+	c, e, ok := a.publishedExamFor(w, r, learner)
 	if !ok {
 		return
 	}

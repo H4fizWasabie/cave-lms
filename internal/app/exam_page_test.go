@@ -132,3 +132,27 @@ func TestGenerateHasItsOwnCardAboveAddFromTheBankWithABusyIndicator(t *testing.T
 	}
 	expectAll(t, body, `src="/static/forms.js`)
 }
+
+func TestADraftCoursesExamIsNotFoundToLearnersButOpenToTheAdmin(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("50", "30", "3", "Q1")
+	exam := "/courses/" + id + "/exam"
+	if res, body := s.get(exam); res.StatusCode != http.StatusOK || !strings.Contains(body, "Go Basics") {
+		t.Fatalf("published Course's Exam page = %d, want 200 with the title", res.StatusCode)
+	}
+	if _, err := s.db.Exec(`UPDATE courses SET published = false`); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{exam, exam + "?format=written"} {
+		res, body := s.get(p)
+		expectStatus(t, res, body, http.StatusNotFound, "")
+		if strings.Contains(body, "Go Basics") {
+			t.Fatalf("GET %s leaked the draft Course's title", p)
+		}
+	}
+	s.logOut()
+	s.login("admin@example.com", examPassword)
+	if res, body := s.get(exam); res.StatusCode != http.StatusOK || !strings.Contains(body, "Go Basics") {
+		t.Fatalf("Admin's view of a draft Course's Exam = %d, want 200", res.StatusCode)
+	}
+}
