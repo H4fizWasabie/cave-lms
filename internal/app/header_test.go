@@ -40,11 +40,11 @@ func TestTheHeaderShowsTheSevenSectionsInMalayAndEnglishButNoCommunity(t *testin
 	for _, path := range []string{"/", "/courses", "/certificates"} {
 		_, body := s.getAsking(path, "en")
 		head := header(t, body)
-		expectInOrder(t, head, ">Home<", ">Courses<", ">Lab<", ">Classroom<", ">Shop<", ">Program<", ">Certification<")
+		expectInOrder(t, head, ">Home<", ">Courses<", ">Lab<", ">Classroom<", ">Pricing<", ">Program<", ">Certification<")
 		expectNone(t, head, "Community")
 		_, body = s.getAsking(path, "ms")
 		head = header(t, body)
-		expectInOrder(t, head, ">Utama<", ">Kursus<", ">Lab<", ">Kelas<", ">Kedai<", ">Program<", ">Pensijilan<")
+		expectInOrder(t, head, ">Utama<", ">Kursus<", ">Lab<", ">Kelas<", ">Harga<", ">Program<", ">Pensijilan<")
 		expectNone(t, head, "Komuniti")
 	}
 }

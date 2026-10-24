@@ -1,13 +1,13 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,12 +19,14 @@ import (
 )
 
 // bclWebhookBody is the part of BCL's webhook CAVELMS reads. BCL signs nothing, so the secret key in the address
-// proves the call is BCL's, and with a BCL API token each order is also confirmed with BCL (confirmBCLOrder).
+// proves the call is BCL's, and with a BCL API token each order is also confirmed with BCL (takeBCLOrder). An
+// order's detail in BCL's API has the same shape.
 type bclWebhookBody struct {
 	Event string `json:"event"`
 	Data  struct {
-		FormURL string `json:"form_url"`
-		Main    struct {
+		FormURL    string  `json:"form_url"`
+		FormableID bclText `json:"formable_id"` // the id of the BCL form the order was paid on
+		Main       struct {
 			PayerName  bclText `json:"payer_name"`
 			PayerEmail bclText `json:"payer_email"`
 			Order      bclText `json:"order_number"`
@@ -33,6 +35,7 @@ type bclWebhookBody struct {
 			Amount     bclText `json:"amount"`          // what the payer was charged, fee included
 			Discount   bclText `json:"discount_amount"` // a coupon's discount, off the subtotal; empty with none
 			Paid       bclText `json:"is_paid"`
+			Status     bclText `json:"status"` // 3 for successful
 		} `json:"main_data"`
 		// Custom holds the form's own fields, keyed by a name BCL makes from each label. PHP sends [] when there are
 		// none, so it stays raw until read.
@@ -130,11 +133,12 @@ func sameForm(formURL, link string) bool { return link != "" && formKey(formURL)
 // no Learner, pays less than the price or comes from another form than a payment link is kept for an Admin. Test Mode
 // payments, unpaid orders and other events are answered 200 and only noted in the System log, so BCL does not retry
 // them. A database failure is answered 500, so BCL tries again. With a BCL API token, each paid order is first
-// confirmed with BCL (confirmBCLOrder): one BCL reports differently is answered 200 and only logged as an error, one
-// BCL lists as paid on another form than the webhook names (or on a form BCL does not know) is kept for an Admin and
-// gives nothing, and one BCL does not know or has not settled yet, or BCL out of reach, is answered 500. With
-// BCL_PAYMENTS=test (staging, ADR 0010) Test Mode orders count and live ones are only noted. A wrong or unset key gets
-// the not-found page. Nothing logged names the key or the token: every line gives the path as /cavetext/bcl/….
+// taken from BCL (takeBCLOrder): its payer, amounts, CAVELMS email field and form are used in place of the webhook's,
+// so on production the webhook gives only the event and the order number; one BCL does not know or has not settled
+// yet, or BCL out of reach, is answered 500. With BCL_PAYMENTS=test (staging, ADR 0010) Test Mode orders
+// count and live ones are only noted, and orders are confirmed with confirmBCLTestOrder: one BCL reports differently
+// is answered 200 and only logged as an error. A wrong or unset key gets the not-found page. Nothing logged names the
+// key or the token: every line gives the path as /cavetext/bcl/….
 func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	if a.bclWebhookKey == "" || subtle.ConstantTimeCompare([]byte(r.PathValue("key")), []byte(a.bclWebhookKey)) != 1 {
 		a.notFound(w, r)
@@ -155,20 +159,7 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	order := b.Data.Main.Order.String()
-	var form price // the product whose payment link is the paid form; none when Product is empty
-	for _, product := range products {
-		p, err := a.priceOf(r.Context(), product)
-		if err != nil {
-			note("error", "order %s: %v", order, err)
-			http.Error(w, "server error", http.StatusInternalServerError)
-			return
-		}
-		if sameForm(b.Data.FormURL, p.PaymentLink) {
-			form = p
-			break
-		}
-	}
-	test := b.Data.Main.Kind == "test"
+	test := strings.EqualFold(b.Data.Main.Kind.String(), "test")
 	switch {
 	case b.Event != "payment-success":
 		note("info", "order %s, event %q ignored", order, b.Event)
@@ -183,7 +174,16 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 	case order == "":
 		note("info", "paid order with no order number on %s; ignored", b.Data.FormURL)
 	default:
-		refused, held, err := a.confirmBCLOrder(r.Context(), &b, order)
+		var refused, held, differs string
+		switch {
+		case a.bclAPIToken == "":
+			// No token: the order is taken as the webhook sends it, unconfirmed, as before BCL's API was used; the app
+			// warns at startup (see docs/deploy.md).
+		case a.bclTestPayments:
+			refused, err = a.confirmBCLTestOrder(r.Context(), &b, order)
+		default:
+			held, differs, err = a.takeBCLOrder(r.Context(), &b, order)
+		}
 		if err != nil {
 			note("error", "order %s: confirm with BCL: %v", order, err)
 			http.Error(w, "server error", http.StatusInternalServerError)
@@ -193,6 +193,19 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 			note("error", "order %s %s; nothing given", order, refused)
 			break
 		}
+		var form price // the product whose payment link is the paid form; none when Product is empty
+		for _, product := range products {
+			p, err := a.priceOf(r.Context(), product)
+			if err != nil {
+				note("error", "order %s: %v", order, err)
+				http.Error(w, "server error", http.StatusInternalServerError)
+				return
+			}
+			if sameForm(b.Data.FormURL, p.PaymentLink) {
+				form = p
+				break
+			}
+		}
 		outcome, err := a.recordPayment(r.Context(), &b, order, form, held != "")
 		if err != nil {
 			note("error", "order %s: %v", order, err)
@@ -200,132 +213,160 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if held != "" {
-			note("error", "order %s %s; %s", order, held, outcome)
+			note("error", "order %s %s; %s%s", order, held, outcome, differs)
 			break
 		}
-		note("info", "order %s: %s", order, outcome)
+		level := "info"
+		if differs != "" { // a body unlike BCL's own is forged or BCL changed: worth a look
+			level = "error"
+		}
+		note(level, "order %s: %s%s", order, outcome, differs)
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
 var bclClient = &http.Client{Timeout: 10 * time.Second}
 
-// bclTransaction is the part of an order CAVELMS reads from BCL's API.
+// bclTransaction is the part of an order CAVELMS reads from BCL's /transaction/<order>, on staging.
 type bclTransaction struct {
-	Order      bclText `json:"order_number"`
 	Amount     bclText `json:"amount"`
 	PayerEmail bclText `json:"payer_email"`
-	Status     bclText `json:"status"`      // /transaction/<order>'s status code; in the list, a word CAVELMS ignores
-	StatusCode bclText `json:"status_code"` // the list's status code
-	Remarks    bclText `json:"remarks"`     // in the list: the title of the form the order was paid on
+	Status     bclText `json:"status"` // 3 for successful
 }
 
-// confirmBCLOrder looks order up in BCL's API, with a.bclAPIToken; with none set it confirms every order. BCL backs
-// the webhook b when it knows the order as successful, for the same amount and payer email, and that amount covers
-// the subtotal less discount the price is checked against, so a cheap real order cannot claim a dearer form; for a
-// live order, it must also have been paid on the form b names (bclFormTitle). refused says why not, for the System
-// log: those are forgeries of a real order. held says why a live order BCL backs was paid on another form than b
-// names, or one BCL does not know: it may be a real payment, so it is kept for an Admin, and gives nothing. err is
-// BCL out of reach or failing, or the order not yet known or successful there, so BCL should retry rather than a
-// real payment be lost.
-func (a *App) confirmBCLOrder(ctx context.Context, b *bclWebhookBody, order string) (refused, held string, err error) {
-	if a.bclAPIToken == "" {
-		return "", "", nil
+// takeBCLOrder overwrites the webhook b with BCL's own order: it reads order's detail from BCL's API
+// (/transactions/<order>, live orders only), with a.bclAPIToken, and puts BCL's payer, amounts, CAVELMS email field and
+// form in b in place of the webhook's, so nothing a forged body says decides who is given what, which product, or
+// whether it paid enough. The form is BCL's form id for the order (formable_id) matched, through BCL's /forms, to the
+// form at a product's payment link; b's form address becomes that link, or "BCL form <id>" when the form is no
+// product's, so the order is kept for an Admin. differs names the webhook's values BCL's replaced, for the System log.
+// held says why a paid, live order is kept for an Admin and gives nothing: BCL charged less than it says was paid
+// before the fee. err is BCL out of reach or failing, or the order not yet known there, not paid and live, or naming
+// no form, so BCL retries rather than a real payment be lost.
+func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string) (held, differs string, err error) {
+	var d bclWebhookBody // the detail's data has the webhook's shape
+	// A 404 is a real order BCL has not written down yet, or a forged number: either way BCL retries.
+	if err := a.bclGet(ctx, "/transactions/"+url.PathEscape(order), &d); err != nil {
+		return "", "", err
 	}
-	var t bclTransaction
-	var status bclText // the order's status code, 3 for successful
-	if a.bclTestPayments {
-		// Staging: BCL's order list never shows Test Mode orders, so they are read from /transaction/<order>, which
-		// does not say which form an order was paid on. Staging's orders are therefore not checked against the form.
-		var found struct {
-			Data struct {
-				Transaction bclTransaction `json:"transaction"`
-			} `json:"data"`
-		}
-		// A 404 is a real order BCL has not written down yet: it must not be lost, so BCL retries.
-		if err := a.bclGet(ctx, "/transaction/"+url.PathEscape(order), &found); err != nil {
-			return "", "", err
-		}
-		t = found.Data.Transaction
-		status = t.Status
-	} else {
-		var found struct {
-			Data []bclTransaction `json:"data"`
-		}
-		if err := a.bclGet(ctx, "/transactions?per_page=100&search="+url.QueryEscape(order), &found); err != nil {
-			return "", "", err
-		}
-		i := slices.IndexFunc(found.Data, func(t bclTransaction) bool { return t.Order.String() == order }) // search may match loosely
-		// A real order BCL has not listed yet must not be lost, so BCL retries.
-		if i < 0 {
-			return "", "", errBCLUnknown
-		}
-		t = found.Data[i]
-		status = t.StatusCode
+	m := d.Data.Main
+	if m.Status != "3" || !d.paid() || !strings.EqualFold(m.Kind.String(), "live") { // any other may still settle, so BCL retries
+		return "", "", fmt.Errorf("it has status %s, is_paid %s, type %s at BCL, not 3, paid and live", m.Status, m.Paid, m.Kind)
 	}
-	m := b.Data.Main
+	formID := d.Data.FormableID
+	if formID == "" { // never matched against a form BCL lists without an id
+		return "", "", errors.New("BCL's order detail names no form (formable_id)")
+	}
+	formURL, err := a.bclProductLink(ctx, formID)
+	if err != nil {
+		return "", "", err
+	}
+	var diffs []string
+	if formKey(b.Data.FormURL) != formKey(formURL) {
+		diffs = append(diffs, fmt.Sprintf("form address %s, paid on %s", b.Data.FormURL, formURL))
+	}
+	if hook := b.Data.Main.PayerEmail; !strings.EqualFold(hook.String(), m.PayerEmail.String()) {
+		diffs = append(diffs, fmt.Sprintf("payer email %s, BCL %s", hook, m.PayerEmail))
+	}
+	for _, f := range []struct {
+		name      string
+		hook, bcl bclText
+	}{{"subtotal", b.Data.Main.Subtotal, m.Subtotal}, {"discount", b.Data.Main.Discount, m.Discount}, {"amount", b.Data.Main.Amount, m.Amount}} {
+		if !sameRM(f.hook, f.bcl) {
+			diffs = append(diffs, fmt.Sprintf("%s %s, BCL %s", f.name, f.hook, f.bcl))
+		}
+	}
+	// A webhook that leaves the field out names no one; one that names someone else is forged. Neither email is logged.
+	if hook := b.cavelmsEmail(); hook != "" && !strings.EqualFold(hook, d.cavelmsEmail()) {
+		diffs = append(diffs, "another CAVELMS account than BCL's")
+	}
+	if len(diffs) > 0 {
+		differs = "; the webhook said " + strings.Join(diffs, ", ") + ": BCL's are used"
+	}
+	b.Data.FormURL, b.Data.Main, b.Data.Custom = formURL, m, d.Data.Custom
+	if paid, readable := b.paidSen(); readable { // an unreadable one is kept for an Admin by recordPayment
+		if charged, ok := parseRM(m.Amount.String()); !ok || charged < paid {
+			return fmt.Sprintf("charged %s at BCL, under the %s it paid before the fee", m.Amount, rm(paid)), differs, nil
+		}
+	}
+	return "", differs, nil
+}
+
+// sameRM says whether two amounts BCL sent are the same number of sen, however written; empty is 0.
+func sameRM(hook, bcl bclText) bool {
+	if hook == bcl {
+		return true
+	}
+	hookSen, hookReadable := parseRM(cmp.Or(hook.String(), "0"))
+	bclSen, bclReadable := parseRM(cmp.Or(bcl.String(), "0"))
+	return hookReadable && bclReadable && hookSen == bclSen
+}
+
+// confirmBCLTestOrder is takeBCLOrder on staging (BCL_PAYMENTS=test). BCL's /transactions/<order> does not find
+// Test Mode orders, so they are read from /transaction/<order>, which gives no form and no custom fields: staging's
+// orders are therefore not checked against the form, and the webhook's CAVELMS email field is trusted. BCL backs the
+// webhook b when it knows the order as successful, for the same amount and payer email, and that amount covers the
+// subtotal less discount the price is checked against. refused says why not, for the System log: those are forgeries
+// of a real order. err is as takeBCLOrder's.
+func (a *App) confirmBCLTestOrder(ctx context.Context, b *bclWebhookBody, order string) (refused string, err error) {
+	var found struct {
+		Data struct {
+			Transaction bclTransaction `json:"transaction"`
+		} `json:"data"`
+	}
+	// A 404 is a real order BCL has not written down yet: it must not be lost, so BCL retries.
+	if err := a.bclGet(ctx, "/transaction/"+url.PathEscape(order), &found); err != nil {
+		return "", err
+	}
+	t, m := found.Data.Transaction, b.Data.Main
+	if t.Status != "3" { // 3 is successful; any other may still settle, so BCL retries
+		return "", fmt.Errorf("it has status %s at BCL, not 3 (successful)", t.Status)
+	}
 	charged, readable := parseRM(t.Amount.String())
 	claimed, claimedReadable := parseRM(m.Amount.String())
-	if status != "3" { // 3 is successful; any other may still settle, so BCL retries
-		return "", "", fmt.Errorf("it has status %s at BCL, not 3 (successful)", status)
-	}
 	paid, paidReadable := b.paidSen()
 	switch {
 	case !paidReadable:
-		return fmt.Sprintf("claims an unreadable subtotal or discount (%s, %s)", b.Data.Main.Subtotal, b.Data.Main.Discount), "", nil
+		return fmt.Sprintf("claims an unreadable subtotal or discount (%s, %s)", m.Subtotal, m.Discount), nil
 	case !readable || !claimedReadable || charged != claimed:
-		return fmt.Sprintf("is for %s at BCL, not %s", t.Amount, m.Amount), "", nil
+		return fmt.Sprintf("is for %s at BCL, not %s", t.Amount, m.Amount), nil
 	case !strings.EqualFold(t.PayerEmail.String(), m.PayerEmail.String()):
-		return fmt.Sprintf("was paid by %s at BCL, not %s", t.PayerEmail, m.PayerEmail), "", nil
-	// BCL's amount includes its fee, so an order on a cheaper form whose fee-included charge reaches a dearer price
-	// still passes here: the gap is fee-sized. The form check below closes it on production.
+		return fmt.Sprintf("was paid by %s at BCL, not %s", t.PayerEmail, m.PayerEmail), nil
 	case charged < paid:
-		return fmt.Sprintf("charged %s at BCL, under the %s the webhook says it paid before the fee", t.Amount, rm(paid)), "", nil
-	case a.bclTestPayments:
-		return "", "", nil
+		return fmt.Sprintf("charged %s at BCL, under the %s the webhook says it paid before the fee", t.Amount, rm(paid)), nil
 	}
-	u, err := url.Parse(formKey(b.Data.FormURL))
-	if err != nil {
-		return "", fmt.Sprintf("was paid on BCL form %q, but the webhook gives an unreadable form address %q", t.Remarks, b.Data.FormURL), nil
-	}
-	title, known, err := a.bclFormTitle(ctx, path.Base(u.Path))
-	switch {
-	case err != nil:
-		return "", "", err
-	case !known:
-		return "", fmt.Sprintf("was paid on BCL form %q, but BCL has no form at %s", t.Remarks, b.Data.FormURL), nil
-	case !sameTitle(t.Remarks.String(), title):
-		return "", fmt.Sprintf("was paid on BCL form %q, not %q at %s", t.Remarks, title, b.Data.FormURL), nil
-	}
-	return "", "", nil
+	return "", nil
 }
 
-// sameTitle says whether two BCL form titles match, ignoring case, spacing and HTML escaping, as BCL may write either.
-func sameTitle(a, b string) bool {
-	norm := func(s string) string { return strings.Join(strings.Fields(html.UnescapeString(s)), " ") }
-	return strings.EqualFold(norm(a), norm(b))
-}
-
-// bclFormTitle is the current title, at BCL, of the form whose slug (its address's last part, in lower case) is slug.
-// It is read each time, so a form renamed at BCL keeps taking payments. Titles must stay unique among the forms that
-// point at CAVELMS, as an order names its form only by title. known is false when BCL has no such form.
+// bclProductLink is the payment link of the product sold on BCL's form formID: the link whose slug (its address's
+// last part) BCL's /forms lists with that id. With none it is "BCL form <formID>", which is no product's link.
 // ponytail: reads the first 100 forms only; page through /forms if the merchant ever has more.
-func (a *App) bclFormTitle(ctx context.Context, slug string) (title string, known bool, err error) {
+func (a *App) bclProductLink(ctx context.Context, formID bclText) (string, error) {
 	var forms struct {
 		Data []struct {
-			Slug  bclText `json:"slug"`
-			Title bclText `json:"title"`
+			ID   bclText `json:"form_id"`
+			Slug bclText `json:"slug"`
 		} `json:"data"`
 	}
 	if err := a.bclGet(ctx, "/forms?per_page=100", &forms); err != nil {
-		return "", false, fmt.Errorf("read BCL's forms: %w", err)
+		return "", fmt.Errorf("read BCL's forms: %w", err)
 	}
-	for _, f := range forms.Data {
-		if strings.EqualFold(f.Slug.String(), slug) {
-			return f.Title.String(), true, nil
+	for _, product := range products {
+		p, err := a.priceOf(ctx, product)
+		if err != nil {
+			return "", err
+		}
+		u, err := url.Parse(formKey(p.PaymentLink))
+		if p.PaymentLink == "" || err != nil {
+			continue
+		}
+		for _, f := range forms.Data {
+			if f.ID == formID && strings.EqualFold(f.Slug.String(), path.Base(u.Path)) {
+				return p.PaymentLink, nil
+			}
 		}
 	}
-	return "", false, nil
+	return "BCL form " + formID.String(), nil
 }
 
 // errBCLUnknown is BCL's API answering 404: it has nothing at that address.
