@@ -115,7 +115,8 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 // uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
-// the Dashboard then remembers.
+// the Dashboard then remembers. When Clean-up changed nothing and every column the blocks use is still there,
+// there is nothing to check: the upload is confirmed at once.
 func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
 	lang, err := a.language(r)
 	if err != nil {
@@ -209,7 +210,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 
 // confirmWork makes the pending Dataset current; the one it replaces is deleted. On the first confirm the
 // Learner's column choice for each blank opens the Template onto the Dashboard as its blocks; the Learner may
-// switch to General instead. Later confirms leave the blocks as they are. A confirm that would take the Learner
+// switch to General instead. Later confirms keep the blocks, swapping in the Learner's pick (use:<column>) for
+// each column they use that the Dataset lacks; one left out pauses its blocks. A confirm that would take the Learner
 // over their Storage allowance is refused and the Dataset stays pending.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
