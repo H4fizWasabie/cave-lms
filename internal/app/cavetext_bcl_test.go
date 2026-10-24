@@ -185,7 +185,7 @@ func TestWebhooksThatAreNotAPaidProOrderGiveNoPro(t *testing.T) {
 	submitted := paid("LINK-3", "ada@example.com")
 	submitted.event = "form-submit"
 	test := paid("LINK-4", "ada@example.com")
-	test.kind = "test" // Test Mode switched on for the live form itself
+	test.kind = "Test" // Test Mode switched on for the live form itself; BCL's case is not relied on
 	for _, p := range []bclPayment{other, unpaid, submitted, test} {
 		s.bclPay(p)
 	}
@@ -394,7 +394,11 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 		case r.URL.Path == "/forms":
 			var forms []any
 			for slug, form := range f.forms {
-				forms = append(forms, map[string]any{"form_id": form.id, "slug": slug, "title": form.title,
+				var id any // null for a form with no id
+				if form.id != 0 {
+					id = form.id
+				}
+				forms = append(forms, map[string]any{"form_id": id, "slug": slug, "title": form.title,
 					"form_url": "https://shop.bcl.my/form/" + slug, "status": "active"})
 			}
 			json.NewEncoder(w).Encode(map[string]any{"success": true, "data": forms})
@@ -410,8 +414,12 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 				custom = map[string]any{"e_mel_akaun_cavelms_cavelms_account_email": o.cavelms}
 			}
 			code, _ := strconv.Atoi(o.status)
+			var formID any // null when the order names no form
+			if o.formID != 0 {
+				formID = o.formID
+			}
 			json.NewEncoder(w).Encode(map[string]any{"success": true, "data": map[string]any{
-				"record_id": order, "record_type": "Transaction", "formable_id": o.formID, "formable_type": "payment_form",
+				"record_id": order, "record_type": "Transaction", "formable_id": formID, "formable_type": "payment_form",
 				"form_title": "some form", "custom_fields_data": custom,
 				"customer":    map[string]any{"id": 1, "email": o.payer, "name": "Payer", "phone": "+60123456789"},
 				"receipt_url": "https://bcl.my/receipt/1",
@@ -537,9 +545,8 @@ func TestAnOrderBCLConfirmsGoesToBCLsCAVELMSEmailAndIsLookedUpWithTheToken(t *te
 }
 
 // Someone with the webhook key who knows a real order can race BCL's own webhook with another CAVELMS email. BCL's
-// order names the account, so the forged one gets nothing; the order is kept for an Admin, as a body unlike BCL's own
-// is a forgery worth a look, and BCL's real webhook after it is a repeat.
-func TestAWebhookNamingAnotherCAVELMSAccountThanBCLsOrderGivesItNothingAndIsKeptForAnAdmin(t *testing.T) {
+// order names the account, so that one gets it and the forged one nothing; the System log names neither email.
+func TestAWebhookNamingAnotherCAVELMSAccountThanBCLsOrderGivesItToBCLs(t *testing.T) {
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl)
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -551,13 +558,10 @@ func TestAWebhookNamingAnotherCAVELMSAccountThanBCLsOrderGivesItNothingAndIsKept
 	if eve.me(eveToken).Pro {
 		t.Fatalf("a forged CAVELMS email got Pro from someone else's order")
 	}
-	if ada.me(adaToken).Pro {
-		t.Fatalf("a forged order gave Pro without an Admin")
-	}
-	_, body := s.get("/admin/cavetext")
-	expectAll(t, body, "Payments not matched", "LINK-1")
-	_, body = s.get("/admin/log")
-	expectAll(t, body, "order LINK-1 names CAVELMS account eve@example.com, but BCL has ada@example.com", "kept for an Admin")
+	expectProForAYear(t, ada, adaToken)
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: gave Learner", "another CAVELMS account than BCL", "order LINK-1: already received")
+	expectNone(t, body, "eve@example.com", "ada@example.com")
 }
 
 // BCL's amounts and payer decide, not the webhook's: a body claiming less still gives what BCL says was paid, and one
@@ -588,10 +592,10 @@ func TestAnOrderIsTakenAtBCLsAmountsNotTheWebhooks(t *testing.T) {
 		"order LINK-3 charged 20 at BCL, under the RM25 it paid before the fee; kept for an Admin")
 }
 
-// A real order on the Lab Plan form, replayed with the Pro Plan's form address, must not give the Pro Plan, even when
-// what it paid covers the Pro Plan's price: BCL says which form the order was paid on. It may still be a real payment
-// whose form was mixed up, so it is kept for an Admin to give by hand.
-func TestARealOrderReplayedWithAnotherFormsAddressGivesNothingAndIsKeptForAnAdmin(t *testing.T) {
+// A forged body naming a real Lab Plan order with the Pro Plan's form address, racing BCL's own webhook, gives what BCL
+// says the order bought, to the account BCL's order names: BCL's form id picks the product, not the webhook's address.
+// BCL's real webhook after it is a repeat.
+func TestAForgedWebhookNamingARealOrderWithAnotherFormsAddressGivesWhatBCLsFormSells(t *testing.T) {
 	lab := confirmed("ada@example.com")
 	lab.subtotal, lab.amount, lab.formID = "89.00", "90.00", labPlanFormID
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": lab})
@@ -599,62 +603,73 @@ func TestARealOrderReplayedWithAnotherFormsAddressGivesNothingAndIsKeptForAnAdmi
 	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL, "lab-plan_link": labFormURL,
 		"pro-plan_link": proPlanFormURL, "pro-plan_price": "89", "pro-plan_normal": ""})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.createPlan("Lab Month", "30", "5")
+	s.markLabPlan("Lab Month")
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	replay := paid("LINK-1", "ada@example.com")
-	replay.formURL, replay.subtotal = proPlanFormURL, "89.00"
-	replay.extra = map[string]any{"amount": "90.00"}
-	s.bclPay(replay)
+	s.newCaveTextLearner("Eve Mallory", "eve@example.com")
+	forged := paid("LINK-1", "eve@example.com")
+	forged.formURL, forged.subtotal = proPlanFormURL, "89.00"
+	forged.extra = map[string]any{"amount": "90.00"}
+	s.bclPay(forged)
+	lab2 := paidLabPlan("LINK-1", "ada@example.com")
+	lab2.extra = map[string]any{"amount": "90.00"}
+	s.bclPay(lab2) // BCL's own webhook, second
 	if ada.me(token).Pro {
-		t.Fatalf("a Lab Plan order replayed on the Pro Plan form gave CaveText Pro")
+		t.Fatalf("a Lab Plan order sent with the Pro Plan's address gave CaveText Pro")
 	}
-	_, body = s.get("/admin/cavetext")
-	expectAll(t, body, "Payments not matched", "LINK-1")
+	if periods := s.periodsOf("ada@example.com"); len(periods) != 1 {
+		t.Fatalf("Ada's periods = %+v, want the one Lab Plan period", periods)
+	}
+	if periods := s.periodsOf("eve@example.com"); len(periods) != 0 {
+		t.Fatalf("Eve's periods = %+v, want none", periods)
+	}
 	_, body = s.get("/admin/log")
-	expectAll(t, body, "order LINK-1 was paid on BCL form 19613, not form 19615 at "+proPlanFormURL, "kept for an Admin")
+	expectAll(t, body, "order LINK-1: gave Learner", "lab-plan", "form address "+proPlanFormURL+", paid on "+labFormURL,
+		"order LINK-1: already received")
 }
 
-// An order names its form by id, so two BCL forms with one title are still told apart.
-func TestTwoBCLFormsWithOneTitleAreToldApartByTheirID(t *testing.T) {
+// An order names its form by id, so two BCL forms with one title are still told apart: one paid on a form that is no
+// product's is kept for an Admin, whatever form address the webhook gives.
+func TestAnOrderOnABCLFormThatIsNoProductsIsKeptForAnAdmin(t *testing.T) {
 	bcl := newFakeBCL(t, nil)
 	bcl.addForm("cavetext-pro-copy", bclForm{19999, "CaveText Pro (1 tahun / 1 year)"}) // same title as cavetext-pro
 	copied := confirmed("ada@example.com")
 	copied.formID = 19999
 	bcl.setOrder("LINK-1", copied)
-	bcl.setOrder("LINK-2", confirmed("bea@example.com"))
+	gone := confirmed("ada@example.com")
+	gone.formID = 20000 // a form BCL no longer lists
+	bcl.setOrder("LINK-2", gone)
+	bcl.setOrder("LINK-3", confirmed("bea@example.com"))
 	s := confirmingSite(t, bcl)
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
-	s.bclPay(paid("LINK-1", "ada@example.com")) // paid on the copy, sent with the Pro form's address
-	s.bclPay(paid("LINK-2", "bea@example.com"))
+	s.bclPay(paid("LINK-1", "ada@example.com")) // sent with the Pro form's address
+	s.bclPay(paid("LINK-2", "ada@example.com"))
+	s.bclPay(paid("LINK-3", "bea@example.com"))
 	if ada.me(adaToken).Pro {
-		t.Fatalf("an order on another form with the same title gave Pro")
+		t.Fatalf("an order on a form that is no product's gave Pro")
 	}
 	expectProForAYear(t, bea, beaToken)
-	_, body := s.get("/admin/log")
-	expectAll(t, body, "order LINK-1 was paid on BCL form 19999, not form 19548")
-}
-
-// An order on a form whose address BCL no longer knows is kept for an Admin, not given and not lost.
-func TestAnOrderOnAFormBCLDoesNotKnowIsKeptForAnAdmin(t *testing.T) {
-	const goneFormURL = "https://shop.bcl.my/form/cavetext-pro-old"
-	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
-	s := confirmingSite(t, bcl)
-	res, body := s.savePrices(map[string]string{"cavetext-pro_link": goneFormURL})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	p := paid("LINK-1", "ada@example.com")
-	p.formURL = goneFormURL
-	s.bclPay(p)
-	if ada.me(token).Pro {
-		t.Fatalf("an order on a form BCL does not know gave Pro")
-	}
-	_, body = s.get("/admin/cavetext")
-	expectAll(t, body, "Payments not matched", "LINK-1")
-	if got := unmatchedProduct(t, body, "LINK-1"); got != "CaveText Pro" {
-		t.Errorf("LINK-1 is shown as for %q, want CaveText Pro", got)
+	_, body := s.get("/admin/cavetext")
+	for _, order := range []string{"LINK-1", "LINK-2"} {
+		if got := unmatchedProduct(t, body, order); got != "-" {
+			t.Errorf("%s is shown as for %q, want -", order, got)
+		}
 	}
 	_, body = s.get("/admin/log")
-	expectAll(t, body, "BCL has no form at "+goneFormURL, "kept for an Admin")
+	expectAll(t, body, "order LINK-1: paid on BCL form 19999, no current payment link; kept for an Admin",
+		"form address "+proFormURL+", paid on BCL form 19999", "order LINK-2: paid on BCL form 20000")
+}
+
+// BCL's case for an order's transaction type is not relied on.
+func TestAnOrderBCLHasAsLiveInAnyCaseGivesPro(t *testing.T) {
+	o := confirmed("ada@example.com")
+	o.kind = "LIVE"
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": o})
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(paid("LINK-1", "ada@example.com"))
+	expectProForAYear(t, ada, token)
 }
 
 // BCL may send the form's address with a trailing slash, a query string or another case: it is still that form.
@@ -702,6 +717,25 @@ func TestBCLDoesNotKnowTheOrderYetSo500ThenOnRetryItIsConfirmedAndGranted(t *tes
 	bcl.setOrder("LINK-1", confirmed("ada@example.com"))
 	s.bclPay(paid("LINK-1", "ada@example.com")) // BCL's retry
 	expectProForAYear(t, ada, token)
+}
+
+// An order whose detail names no form is never matched to a form BCL lists without an id: BCL retries, and a form
+// listed with no id gives nothing.
+func TestAnOrderWhoseDetailNamesNoFormIsAnswered500(t *testing.T) {
+	noForm := confirmed("ada@example.com")
+	noForm.formID = 0
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": noForm})
+	bcl.addForm("cavetext-pro", bclForm{}) // listed without an id
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook for an order naming no form: status %d, want 500", code)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("an order naming no form gave Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: confirm with BCL: BCL", "names no form")
 }
 
 func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(t *testing.T) {
