@@ -6,6 +6,7 @@ package lab
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"io"
 	"regexp"
 	"strconv"
@@ -106,25 +107,13 @@ const MaxUnzipped = 50 << 20
 // A file Cave cannot use gives Errors, every problem listed in row order; failing to read r at all gives
 // that plain error. Only fully blank rows are skipped.
 func Read(r io.Reader, t *Template) (*Dataset, error) {
-	file, err := io.ReadAll(r)
+	f, err := openWorkbook(r)
+	var p Problem
+	if errors.As(err, &p) {
+		return nil, Errors{p}
+	}
 	if err != nil {
 		return nil, err
-	}
-	z, err := zip.NewReader(bytes.NewReader(file), int64(len(file)))
-	if err != nil {
-		return nil, Errors{{"lab.err.not-workbook", nil}}
-	}
-	var unzipped uint64
-	for _, entry := range z.File {
-		unzipped += entry.UncompressedSize64
-	}
-	if unzipped > MaxUnzipped {
-		return nil, Errors{{"lab.err.too-big-unzipped", nil}}
-	}
-	// The limit holds while excelize unpacks too: archive/zip refuses an entry longer than its header claims.
-	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped})
-	if err != nil {
-		return nil, Errors{{"lab.err.not-workbook", nil}}
 	}
 	defer f.Close()
 	sheet := f.GetSheetList()[0]
@@ -136,38 +125,12 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 		return nil, Errors{{"lab.err.no-data", nil}}
 	}
 
-	var errs Errors
 	d := &Dataset{}
-	seen := map[string]bool{}
-	for i, name := range cells[0] {
-		name = strings.TrimSpace(name)
-		switch {
-		case name == "":
-			errs = append(errs, Problem{"lab.err.unnamed-column", []any{colLetter(i)}})
-		case seen[strings.ToLower(name)]:
-			errs = append(errs, Problem{"lab.err.same-name", []any{name}})
-		}
-		seen[strings.ToLower(name)] = true
-		d.Columns = append(d.Columns, Column{Name: name})
-	}
-	if errs != nil {
+	var errs Errors
+	if d.Columns, errs = columnsOf(cells[0]); errs != nil {
 		return nil, errs
 	}
-
-	dates := dateStyles{f: f, sheet: sheet, known: map[int]bool{}}
-	var raw [][]cell // every row with data, as wide as the widest row
-	var rowNo []int  // its row number in Excel
-	for ri, row := range cells[1:] {
-		if strings.TrimSpace(strings.Join(row, "")) == "" {
-			continue // a blank line carries no data
-		}
-		vals := make([]cell, max(len(row), len(d.Columns)))
-		for ci, v := range row {
-			v = strings.TrimSpace(v)
-			vals[ci] = cell{v, v != "" && dates.at(ci, ri+2)}
-		}
-		raw, rowNo = append(raw, vals), append(rowNo, ri+2)
-	}
+	raw, rowNo := rawRows(f, sheet, cells, 0, len(d.Columns))
 	if len(raw) > MaxRows {
 		return nil, Errors{{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows)}}}
 	}
@@ -220,6 +183,69 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 	}
 	d.RowNumbers = rowNo
 	return d, nil
+}
+
+// openWorkbook opens an .xlsx file within the size limits; a file that is not one gives a Problem.
+func openWorkbook(r io.Reader) (*excelize.File, error) {
+	file, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	z, err := zip.NewReader(bytes.NewReader(file), int64(len(file)))
+	if err != nil {
+		return nil, Problem{"lab.err.not-workbook", nil}
+	}
+	var unzipped uint64
+	for _, entry := range z.File {
+		unzipped += entry.UncompressedSize64
+	}
+	if unzipped > MaxUnzipped {
+		return nil, Problem{"lab.err.too-big-unzipped", nil}
+	}
+	// The limit holds while excelize unpacks too: archive/zip refuses an entry longer than its header claims.
+	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped})
+	if err != nil {
+		return nil, Problem{"lab.err.not-workbook", nil}
+	}
+	return f, nil
+}
+
+// columnsOf names the columns from a header row; a blank or repeated name is a problem. Types come later.
+func columnsOf(header []string) ([]Column, Errors) {
+	var errs Errors
+	var cols []Column
+	seen := map[string]bool{}
+	for i, name := range header {
+		name = strings.TrimSpace(name)
+		switch {
+		case name == "":
+			errs = append(errs, Problem{"lab.err.unnamed-column", []any{colLetter(i)}})
+		case seen[strings.ToLower(name)]:
+			errs = append(errs, Problem{"lab.err.same-name", []any{name}})
+		}
+		seen[strings.ToLower(name)] = true
+		cols = append(cols, Column{Name: name})
+	}
+	return cols, errs
+}
+
+// rawRows is every row with data below the header at cells[h], as wide as the widest row and at least width,
+// with its row number in Excel. Fully blank rows are skipped.
+func rawRows(f *excelize.File, sheet string, cells [][]string, h, width int) (raw [][]cell, rowNo []int) {
+	dates := dateStyles{f: f, sheet: sheet, known: map[int]bool{}}
+	for ri := h + 1; ri < len(cells); ri++ {
+		row := cells[ri]
+		if strings.TrimSpace(strings.Join(row, "")) == "" {
+			continue // a blank line carries no data
+		}
+		vals := make([]cell, max(len(row), width))
+		for ci, v := range row {
+			v = strings.TrimSpace(v)
+			vals[ci] = cell{v, v != "" && dates.at(ci, ri+1)}
+		}
+		raw, rowNo = append(raw, vals), append(rowNo, ri+1)
+	}
+	return raw, rowNo
 }
 
 // cell is a raw cell value; date is true when Excel shows it as a date.

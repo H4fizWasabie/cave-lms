@@ -379,13 +379,13 @@ func (a *App) deleteSubmissionFile(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, assignmentPath(f.CourseID, f.AssignmentID), http.StatusSeeOther)
 }
 
-// dropDeletedFiles deletes from the store every Submission file whose record is gone, and returns how many. A file
-// the store fails to delete stays queued for the next run.
+// dropDeletedFiles deletes from the store every Submission file and Work Dataset whose record is gone, and returns
+// how many. A file the store fails to delete stays queued for the next run.
 func (a *App) dropDeletedFiles(ctx context.Context, r *http.Request) int {
 	ctx = context.WithoutCancel(ctx)
 	rows, err := a.db.QueryContext(ctx, `SELECT storage_key FROM stored_file_deletions`)
 	if err != nil {
-		a.logError(r, fmt.Errorf("list deleted Submission files: %w", err))
+		a.logError(r, fmt.Errorf("list deleted stored files: %w", err))
 		return 0
 	}
 	var keys []string
@@ -406,7 +406,7 @@ func (a *App) dropDeletedFiles(ctx context.Context, r *http.Request) int {
 	n := 0
 	for _, key := range keys {
 		if err := a.datasets.Delete(ctx, key); err != nil {
-			a.logError(r, fmt.Errorf("delete Submission file %s: %w", key, err))
+			a.logError(r, fmt.Errorf("delete stored file %s: %w", key, err))
 			continue
 		}
 		if _, err := a.db.ExecContext(ctx, `DELETE FROM stored_file_deletions WHERE storage_key = $1`, key); err != nil {

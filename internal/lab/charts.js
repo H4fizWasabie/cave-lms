@@ -75,12 +75,23 @@
   function nice(v) { if (!v) return 1; var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
   function seriesColour(s, i) { return IN_OUT[String(s).toLowerCase()] || PALETTE[i % PALETTE.length]; }
 
+  // fromWork reads a Work Dashboard's block, which names columns in the shape Cave stores (value, split, filter),
+  // as the drawing code below reads a Template's. Its columns are keyed by name, so a column is its own key.
+  // ponytail: only count, sum and A x B summed draw for now; the other values come with the Blocks tab.
+  function fromWork(b) {
+    var v = b.value || {}, f = b.filter;
+    return { kind: b.kind, label: b.label, wide: b.wide, agg: v.agg === 'count' ? 'count' : 'sum', of: v.col || v.a,
+      times: v.op === 'x' ? v.b : null, x: b.x, series: b.split, group: b.group, cols: b.cols, sort: b.sort,
+      limit: b.limit, where: f ? [f.col].concat(f.vals) : b.where, minus: b.minus, low: b.low };
+  }
+
   function drawDashboard(dash, data) {
     var style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
 
     var cols = dash.columns, blocks = dash.blocks || [], filters = dash.filters || [], state = {};
+    if (dash.work) blocks = blocks.map(fromWork);
     // Each row by blank key: r.amount is the cell in the column chosen for Amount.
     var all = data.map(function (o) { var r = {}; Object.keys(cols).forEach(function (k) { r[k] = o[cols[k].name]; }); return r; });
     var dateKey = filters.filter(function (k) { return cols[k].type === 'date'; })[0];
@@ -132,7 +143,8 @@
         return true;
       });
     }
-    function where(rows, w) { return w && cols[w[0]] ? rows.filter(function (r) { return r[w[0]] === w[1]; }) : rows; }
+    // w is [key, value, ...]: the rows whose key holds one of the values.
+    function where(rows, w) { return w && cols[w[0]] ? rows.filter(function (r) { return w.indexOf(r[w[0]], 1) > 0; }) : rows; }
     // The rows a block draws: those matching its where, and with low, those at or below the level.
     function scope(rows, b) {
       rows = where(rows, b.where);

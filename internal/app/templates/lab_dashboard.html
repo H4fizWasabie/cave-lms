@@ -15,7 +15,8 @@
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
         {{- if .Dashboard.Dataset}}
-        {{- if .ReadOnly}}
+        {{- if .Dashboard.Work}}
+        {{- else if .ReadOnly}}
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.needs-access"}}">{{t .Lang "lab.d.tab.columns"}}</span>
         {{- else}}
         <a class="lab-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.columns"}}</a>
@@ -24,7 +25,9 @@
         <a class="lab-tab" href="{{$url}}/hood"{{if eq .Tab "hood"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.hood"}}</a>
         <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
+        {{- if not .Dashboard.Work}}
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.columns"}}</span>
+        {{- end}}
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.preview"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.hood"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.deploy"}}</span>
@@ -45,7 +48,7 @@
           {{- with .Dashboard.Dataset}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
-          <p class="muted">{{t $.Lang "lab.d.upload-new-body"}}</p>
+          <p class="muted">{{if $.Dashboard.Work}}{{t $.Lang "lab.w.upload-body"}}{{else}}{{t $.Lang "lab.d.upload-new-body"}}{{end}}</p>
           {{- else}}
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
           <p class="muted">{{t .Lang "lab.d.upload-yours-body" .Dashboard.Template.Name}}</p>
@@ -63,14 +66,65 @@
             <p>{{with .Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
-          {{- with .Error}}
+          {{- with .Pending}}
+          <section class="card ds-preview">
+            <div>
+              <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
+              <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
+            </div>
+            {{- if .Changes}}
+            <div>
+              <h3 class="h-sm">{{t $.Lang "lab.w.changes"}}</h3>
+              <ul>{{range .Changes}}<li>{{.In $.Lang}}</li>{{end}}</ul>
+            </div>
+            {{- else}}
+            <p>{{t $.Lang "lab.w.no-changes"}}</p>
+            {{- end}}
+            <div class="table-wrap"><table class="table">
+              <thead><tr>{{range .Dataset.Columns}}<th scope="col">{{.Name}}<br><small class="muted">{{t $.Lang (print "lab.type." .Type)}}</small></th>{{end}}</tr></thead>
+              <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
+            </table></div>
+            <form class="form" method="post" action="{{$url}}/dataset/confirm">
+              {{- if $.Blanks}}
+              <p class="muted">{{t $.Lang "lab.w.which-column" $.Dashboard.Template.Name}}</p>
+              {{- end}}
+              {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+              {{- range $.Blanks}}
+              <div class="field map-row">
+                <label for="m-{{.Key}}">{{.Label}}</label>
+                <select id="m-{{.Key}}" name="{{.Key}}">
+                  {{- if not .Chosen}}
+                  <option value="" selected>{{if .Required}}{{t $.Lang "lab.w.choose"}}{{else}}{{t $.Lang "lab.d.skip"}}{{end}}</option>
+                  {{- else if not .Required}}
+                  <option value="">{{t $.Lang "lab.d.skip"}}</option>
+                  {{- end}}
+                  {{- $chosen := .Chosen}}
+                  {{- range .Options}}
+                  <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
+                  {{- end}}
+                </select>
+                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{.Help}}</small>
+              </div>
+              {{- end}}
+              <div class="form-foot">
+                {{- if $.Blanks}}
+                <button class="btn btn-quiet" name="template" value="general">{{t $.Lang "lab.w.use-general"}}</button>
+                {{- end}}
+                <button class="btn btn-solid">{{t $.Lang "lab.w.confirm"}}</button>
+              </div>
+            </form>
+          </section>
+          <h2 class="h-md">{{t $.Lang "lab.w.another"}}</h2>
+          {{- else}}
+          {{- with $.Error}}
           <div class="ds-err" role="alert">
             <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
             <p>{{.}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
+          {{- end}}
           <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
-            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.d.file-limits"}}</small></div>
+            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
           </form>
           {{- end}}

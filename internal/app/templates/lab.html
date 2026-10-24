@@ -2,10 +2,13 @@
 {{define "content"}}
     <div class="wrap page-pad">
       {{- if .Access.Open}}
-      <div class="page-head page-head-row">
+      <div class="page-head">
         <div><h1>Lab</h1><p>{{t .Lang "lab.sub"}}</p></div>
-        <a class="btn btn-solid" href="/lab/new">{{t .Lang "lab.new"}}</a>
       </div>
+      <ul class="tp-pick lab-start">
+        <li><a class="tp-card" href="/lab/new"><strong>{{t .Lang "lab.kind.practice-dashboard"}}</strong><span>{{t .Lang "lab.start.practice"}}</span></a></li>
+        <li><a class="tp-card" href="/lab/new?kind=work"><strong>{{t .Lang "lab.kind.work-dashboard"}}</strong><span>{{t .Lang "lab.start.work"}}</span></a></li>
+      </ul>
       {{- with .Access.CountedPeriod}}
       <div class="lab-plan">
         <div><span class="panel-k">{{t $.Lang "lab.plan"}}</span><strong>{{.PlanName}}</strong><span class="muted">{{t $.Lang "lab.ends" .Ends}}</span></div>
@@ -56,7 +59,7 @@
         <li class="mc-row mc-row-plain">
           <div class="mc-main">
             <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
-            <ul class="meta"><li>{{t $.Lang "lab.template-name" .Template}}</li><li>{{t $.Lang "lab.changed" .Updated}}</li>{{with .TakenDown}}<li><span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .}}</span></li>{{end}}</ul>
+            <ul class="meta"><li>{{if .Work}}{{t $.Lang "lab.kind.work"}}{{else}}{{t $.Lang "lab.kind.practice"}}{{end}}</li><li>{{t $.Lang "lab.template-name" .Template}}</li><li>{{t $.Lang "lab.changed" .Updated}}</li>{{with .TakenDown}}<li><span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .}}</span></li>{{end}}</ul>
           </div>
           <div class="row-actions">
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">{{t $.Lang "lab.open"}}</a>

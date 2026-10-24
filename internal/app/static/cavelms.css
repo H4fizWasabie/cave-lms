@@ -734,6 +734,7 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 /* Lab: New Dashboard and the Dashboard page */
 .h-sm { font-size: 1.2rem; }
 .tp-pick { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.lab-start { grid-template-columns: repeat(2, 1fr); max-width: 48rem; margin-bottom: 2rem; }
 .tp-card { display: grid; gap: .3rem; height: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.2rem; color: inherit; text-decoration: none; }
 .tp-card strong { font-family: var(--font-display); font-size: 1.25rem; }
 .tp-card span { color: var(--muted); font-size: .88rem; }
