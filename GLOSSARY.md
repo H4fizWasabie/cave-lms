@@ -250,6 +250,11 @@ The Excel file Cave provides for a Template, showing the shape of data it expect
 _Malay_: Sampel
 _Avoid_: Example file, demo data
 
+**Block**:
+One card, chart or table on a Dashboard. A Template's blocks are where a Dashboard starts; in a Work Dashboard the Learner can add, remove and change blocks, and reset them to the Template's.
+_Malay_: Blok
+_Avoid_: Widget, tile, panel, chart (a chart is one kind of block), builder, pivot
+
 **Dataset**:
 The table Cave keeps from a Learner's Excel upload, their own data or an edited Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It belongs to exactly one Dashboard. Confirming a new upload makes it the Dashboard's current Dataset; the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
 _Malay_: Set data
