@@ -39,6 +39,17 @@
           <p class="msg-text">{{.Text}}</p>
           {{- end}}
           {{- if .Visible}}
+          <form class="msg-reactions" method="post" action="/courses/{{.CourseID}}/chat/{{.ID}}/react">
+            {{- range .Reactions}}{{if .Count}}
+            <button class="react" name="emoji" value="{{.Emoji}}" aria-pressed="{{.Mine}}">{{.Emoji}} {{.Count}}</button>
+            {{- end}}{{end}}
+            <details class="react-pick">
+              <summary aria-label="{{t .Lang "chat.react"}}">+</summary>
+              {{- range .Reactions}}
+              <button name="emoji" value="{{.Emoji}}">{{.Emoji}}</button>
+              {{- end}}
+            </details>
+          </form>
           <div class="msg-actions">
             <a class="btn btn-quiet btn-sm" href="/courses/{{.CourseID}}/chat?reply={{.ID}}#compose" data-reply="{{.ID}}" data-writer="{{.Writer}}" data-line="{{.FirstLine}}">{{t .Lang "chat.reply"}}</a>
             {{- if .Mine}}

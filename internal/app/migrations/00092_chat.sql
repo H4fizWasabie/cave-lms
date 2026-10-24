@@ -18,5 +18,15 @@ CREATE TABLE chat_messages (
 CREATE INDEX chat_messages_course ON chat_messages (course_id, id);
 CREATE INDEX chat_messages_learner ON chat_messages (learner_id);
 
+-- One of six fixed emoji, at most one per person per Message.
+CREATE TABLE chat_reactions (
+    message_id bigint NOT NULL REFERENCES chat_messages ON DELETE CASCADE,
+    learner_id bigint NOT NULL REFERENCES learners ON DELETE CASCADE,
+    emoji text NOT NULL CHECK (emoji IN ('👍', '❤️', '😂', '😮', '🙏', '👏')),
+    PRIMARY KEY (message_id, learner_id)
+);
+CREATE INDEX chat_reactions_learner ON chat_reactions (learner_id);
+
 -- +goose Down
+DROP TABLE chat_reactions;
 DROP TABLE chat_messages;

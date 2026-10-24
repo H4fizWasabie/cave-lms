@@ -873,3 +873,10 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .msg-quote strong { color: var(--text); }
 .chat-replying { grid-column: 1 / -1; margin: 0; display: flex; justify-content: space-between; gap: 1rem; font-size: .88rem; color: var(--muted); border-left: 3px solid var(--brand-gold); padding-left: .55rem; }
 .chat-replying > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-reactions { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-top: .45rem; }
+.msg-reactions button { font: inherit; font-size: .88rem; line-height: 1; padding: .3rem .5rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; }
+.msg-reactions .react[aria-pressed="true"] { border-color: var(--brand-gold); background: var(--brand-gold-soft); }
+.react-pick { position: relative; }
+.react-pick summary { list-style: none; cursor: pointer; font-size: .88rem; padding: .3rem .55rem; border: 1px dashed var(--line-strong); border-radius: 999px; color: var(--muted); }
+.react-pick summary::-webkit-details-marker { display: none; }
+.react-pick[open] { display: flex; gap: .2rem; flex-wrap: wrap; }

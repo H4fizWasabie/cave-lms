@@ -197,6 +197,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses/{id}/chat", a.requireLearner(a.chat))
 	mux.HandleFunc("POST /courses/{id}/chat", a.requireLearner(a.postMessage))
 	mux.HandleFunc("POST /courses/{id}/chat/{mid}/delete", a.requireLearner(a.deleteMessage))
+	mux.HandleFunc("POST /courses/{id}/chat/{mid}/react", a.requireLearner(a.react))
 	mux.HandleFunc("GET /lab", a.lab)
 	mux.HandleFunc("GET /lab/samples/{file}", a.labSample)
 	mux.HandleFunc("GET /lab/demo/{key}/{$}", a.demoFile("index.html"))

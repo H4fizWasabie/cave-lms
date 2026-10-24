@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -16,9 +17,20 @@ import (
 const (
 	chatPageSize     = 50   // Messages a Chat page shows
 	maxMessageLength = 1000 // characters
-	// A Learner's posting budget in a Chat; the Admin has none.
-	messagesPerMinute = 10
+	// A Learner's posting budgets in a Chat; the Admin has none.
+	messagesPerMinute  = 10
+	reactionsPerMinute = 30
 )
+
+// reactions are the six a Message can have, in the order they are shown.
+var reactions = []string{"👍", "❤️", "😂", "😮", "🙏", "👏"}
+
+// chatReaction is one of the six Reactions on a Message: how many people put it there, and whether the viewer did.
+type chatReaction struct {
+	Emoji string
+	Count int
+	Mine  bool
+}
 
 // chatMessage is a Message as one viewer sees it, which is what the chat-message template reads. Text is empty when
 // the Message is removed for the viewer, so removed text is never sent to them.
@@ -37,6 +49,7 @@ type chatMessage struct {
 	ReplyWriter  string
 	ReplyLine    string
 	ReplyRemoved bool
+	Reactions    []chatReaction // all six, in order
 	ViewerAdmin  bool
 	Lang         string
 }
@@ -136,15 +149,44 @@ func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args
 	}
 	defer rows.Close()
 	var list []chatMessage
+	var ids []int64
+	at := map[int64]int{} // index in list by Message ID
 	for rows.Next() {
-		m := chatMessage{ViewerAdmin: v.IsAdmin, Lang: v.lang}
+		m := chatMessage{ViewerAdmin: v.IsAdmin, Lang: v.lang, Reactions: make([]chatReaction, len(reactions))}
+		for i, e := range reactions {
+			m.Reactions[i].Emoji = e
+		}
 		if err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
 			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine); err != nil {
 			return nil, err
 		}
+		at[m.ID] = len(list)
+		ids = append(ids, m.ID)
 		list = append(list, m)
 	}
-	return list, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return list, a.countReactions(ctx, v, ids, func(id int64, i int, r chatReaction) { list[at[id]].Reactions[i] = r })
+}
+
+// countReactions counts the Reactions on the Messages ids, calling put with each Message's i-th Reaction found.
+func (a *App) countReactions(ctx context.Context, v chatViewer, ids []int64, put func(id int64, i int, r chatReaction)) error {
+	rows, err := a.db.QueryContext(ctx, `SELECT message_id, emoji, count(*), bool_or(learner_id = $2) FROM chat_reactions
+		WHERE message_id = ANY($1) GROUP BY message_id, emoji`, ids, v.ID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var r chatReaction
+		if err := rows.Scan(&id, &r.Emoji, &r.Count, &r.Mine); err != nil {
+			return err
+		}
+		put(id, slices.Index(reactions, r.Emoji), r)
+	}
+	return rows.Err()
 }
 
 // chat is a Course's Chat page: the latest Messages, oldest first, or with ?before= the ones before that Message.
@@ -281,6 +323,37 @@ func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE chat_messages SET deleted = true, body = '' WHERE id = $1`, m.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.backToMessage(w, r, m)
+}
+
+// react is a Learner or the Admin putting a Reaction on a Message, changing theirs to it, or taking it off when it
+// is theirs already.
+func (a *App) react(w http.ResponseWriter, r *http.Request) {
+	c, v, ok := a.chatFor(w, r)
+	if !ok {
+		return
+	}
+	m, ok := a.chatMessageFor(w, r, c, v)
+	if !ok {
+		return
+	}
+	emoji := r.PostFormValue("emoji")
+	switch {
+	case !slices.Contains(reactions, emoji) || !m.Visible():
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: text.T(v.lang, "chat.no-reaction.title"), Message: text.T(v.lang, "chat.no-reaction")})
+		return
+	case !v.IsAdmin && !a.limiter.allow(fmt.Sprintf("chat reaction %d", v.ID), reactionsPerMinute, time.Minute, a.now()):
+		a.render(w, r, http.StatusTooManyRequests, "message", page{Title: text.T(v.lang, "limited.title"), Message: text.T(v.lang, "chat.err.too-fast")})
+		return
+	}
+	_, err := a.db.ExecContext(r.Context(), `WITH off AS (
+			DELETE FROM chat_reactions WHERE message_id = $1 AND learner_id = $2 AND emoji = $3 RETURNING 1)
+		INSERT INTO chat_reactions (message_id, learner_id, emoji) SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM off)
+		ON CONFLICT (message_id, learner_id) DO UPDATE SET emoji = EXCLUDED.emoji`, m.ID, v.ID, emoji)
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}

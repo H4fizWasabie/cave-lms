@@ -276,3 +276,105 @@ func TestRepliesCountTowardTheMessageLimit(t *testing.T) {
 	res, body := ada.post("/courses/"+id+"/chat", url.Values{"body": {"More"}, "reply_to": {mid}})
 	expectStatus(t, res, body, http.StatusTooManyRequests, "")
 }
+
+// react puts emoji on Message mid in Course id's Chat, or takes it off when it is already there.
+func (s *site) react(id, mid, emoji string) (*http.Response, string) {
+	return s.post("/courses/"+id+"/chat/"+mid+"/react", url.Values{"emoji": {emoji}})
+}
+
+// messageHTML is Message mid's part of Course id's Chat page.
+func (s *site) messageHTML(id, mid string) string {
+	s.t.Helper()
+	_, body := s.get("/courses/" + id + "/chat")
+	_, m, ok := strings.Cut(body, `id="m`+mid+`"`)
+	if !ok {
+		s.t.Fatalf("Message %s is not on the Chat page: %s", mid, body)
+	}
+	m, _, _ = strings.Cut(m, "</li>")
+	return m
+}
+
+func (s *site) reactionCount() int {
+	s.t.Helper()
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM chat_reactions`).Scan(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n
+}
+
+func TestEachPersonHasAtMostOneReactionPerMessage(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	mid := admin.say(id, "The Exam opens tomorrow.")
+
+	res, body := ada.react(id, mid, "👍")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
+		t.Fatalf("reacting redirected to %q, want the Chat at the Message", loc)
+	}
+	ben.react(id, mid, "👍")
+	expectInOrder(t, ada.messageHTML(id, mid), `value="👍" aria-pressed="true">👍 2<`)
+
+	ada.react(id, mid, "❤️") // changes Ada's
+	m := ada.messageHTML(id, mid)
+	expectInOrder(t, m, `value="👍" aria-pressed="false">👍 1<`, `value="❤️" aria-pressed="true">❤️ 1<`)
+
+	ada.react(id, mid, "❤️") // takes it off
+	m = ben.messageHTML(id, mid)
+	expectInOrder(t, m, `value="👍" aria-pressed="true">👍 1<`)
+	if strings.Contains(m, "❤️ 1") {
+		t.Fatalf("a removed Reaction is still counted: %s", m)
+	}
+	if n := ada.reactionCount(); n != 1 {
+		t.Fatalf("%d Reactions saved, want 1", n)
+	}
+}
+
+func TestOnlyTheSixReactionsOnVisibleMessagesByChatMembersAreTaken(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	mid := ben.say(id, "Hello")
+	res, body := ada.react(id, mid, "🤡")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+
+	cara := admin.second()
+	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
+	res, body = cara.react(id, mid, "👍")
+	expectStatus(t, res, body, http.StatusForbidden, "")
+
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	res, body = ada.react(id, mid, "👍")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	if n := ada.reactionCount(); n != 0 {
+		t.Fatalf("%d Reactions saved, want none", n)
+	}
+}
+
+func TestReactingIsLimitedToThirtyAMinuteForLearnersButNotTheAdmin(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	mid := admin.say(id, "React away")
+	for i := range 30 {
+		res, body := ada.react(id, mid, []string{"👍", "😂"}[i%2])
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+	res, body := ada.react(id, mid, "🙏")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "")
+	if m := ada.messageHTML(id, mid); strings.Contains(m, "🙏 1") {
+		t.Fatalf("the Reaction over the limit was saved")
+	}
+	for i := range 31 {
+		res, body := admin.react(id, mid, []string{"👍", "😂"}[i%2])
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+}
+
+func TestDeletingALearnerDeletesTheirReactions(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	mid := admin.say(id, "Hello")
+	ada.react(id, mid, "👏")
+	if _, err := ada.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	if n := ada.reactionCount(); n != 0 {
+		t.Fatalf("%d Reactions left after deleting their giver, want none", n)
+	}
+}
