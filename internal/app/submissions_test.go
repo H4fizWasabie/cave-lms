@@ -250,6 +250,10 @@ func TestTheAdminSeesWhoHandedInAndDownloadsTheirFiles(t *testing.T) {
 
 	res, body := admin.get("/admin/assignments/" + aid)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Write a prompt</h1>")
+	expectStatus(t, res, body, http.StatusOK, "<th>Submission</th>")
+	if strings.Contains(body, "Your Submission") {
+		t.Fatalf("the Admin's Submissions table is headed as if it were theirs: %s", body)
+	}
 	row := func(name string) string {
 		_, after, ok := strings.Cut(body, name)
 		if !ok {

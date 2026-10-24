@@ -14,7 +14,7 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "adm.course.name"}}</th><th>{{t .Lang "submission.title"}}</th><th>{{t .Lang "adm.submissions.comment"}}</th></tr>
+              <tr><th>{{t .Lang "adm.course.name"}}</th><th>{{t .Lang "adm.submissions.submission"}}</th><th>{{t .Lang "adm.submissions.comment"}}</th></tr>
               {{range .Submitters}}
               <tr id="learner-{{.ID}}">
                 <td>{{.Name}}<br><small>{{.Email}}</small>{{if not .Enrolled}}<br><span class="badge badge-closed">{{t $.Lang "adm.submissions.left"}}</span>{{end}}</td>

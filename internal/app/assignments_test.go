@@ -52,6 +52,9 @@ func TestAnAssignmentIsADraftUntilTheAdminPublishesIt(t *testing.T) {
 	res, body = admin.get("/admin/courses/" + id + "/assignments")
 	expectStatus(t, res, body, http.StatusOK, "Write a prompt")
 	expectStatus(t, res, body, http.StatusOK, "Draft")
+	if n := strings.Count(body, ">Draft<"); n != 1 {
+		t.Fatalf("a Draft Assignment's row says Draft %d times, want once: %s", n, body)
+	}
 
 	_, body = ada.get("/courses/" + id)
 	if strings.Contains(body, "Write a prompt") {
