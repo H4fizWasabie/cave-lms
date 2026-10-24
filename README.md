@@ -27,12 +27,12 @@ To run it on the VPS, see `docs/deploy.md`.
 Registration can never make an Admin. Run this once per deployment, with the same environment as above:
 
 ```sh
-CAVE_ADMIN_PASSWORD='a long password' go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
-# or, keeping the password out of the environment:
-printf '%s\n' 'a long password' | go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
+read -rsp 'Admin password: ' pw; echo
+printf '%s\n' "$pw" | go run ./cmd/cave-lms create-admin --name "Abah" --email abah@example.com
+unset pw
 ```
 
-The password comes from `CAVE_ADMIN_PASSWORD` if set, otherwise from the first line of stdin. It is never a flag. The account is created verified. If a Learner already uses that email, it is promoted and its password is replaced. The Admin logs in on the normal login page and opens `/admin`.
+The password comes from `CAVE_ADMIN_PASSWORD` if set, otherwise from the first line of stdin. It is never a flag. Read it with `read -s` and pipe it in, as above, so it stays out of shell history; make sure `CAVE_ADMIN_PASSWORD` is not set, or it wins over stdin. The account is created verified. If a Learner already uses that email, it is promoted and its password is replaced. The Admin logs in on the normal login page and opens `/admin`.
 
 ## Tests
 
