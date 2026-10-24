@@ -7,12 +7,12 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-func TestMyMembershipIsInTheShopMenuAndSendsAVisitorToLogIn(t *testing.T) {
+func TestMyMembershipIsInThePricingMenuAndSendsAVisitorToLogIn(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
-	expectInOrder(t, header(t, body), ">Shop<", `href="/cavetext"`, `<a href="/my-membership">My membership</a>`, ">Program<")
+	expectInOrder(t, header(t, body), ">Pricing<", `href="/cavetext"`, `<a href="/my-membership">My membership</a>`, ">Program<")
 	_, body = s.getAsking("/", "ms")
-	expectInOrder(t, header(t, body), ">Kedai<", `<a href="/my-membership">Keahlian saya</a>`)
+	expectInOrder(t, header(t, body), ">Harga<", `<a href="/my-membership">Keahlian saya</a>`)
 
 	res, body := s.get("/my-membership")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -27,9 +27,9 @@ func TestMyMembershipWithNoPlanSaysSoAndLinksToThePlans(t *testing.T) {
 
 	_, body := s.getAsking("/my-membership", "en")
 	main := content(body)
-	expectInOrder(t, main, "My membership", "Plan", "No Plan", `href="/plans"`, "CaveText Pro", "Free", "Snippet cap")
+	expectInOrder(t, main, "My membership", "Plan", "No Plan", `href="/pricing"`, "CaveText Pro", "Free", "Snippet cap")
 	_, body = s.getAsking("/my-membership", "ms")
-	expectInOrder(t, content(body), "Keahlian saya", "Pelan", "Tiada Pelan", `href="/plans"`, "CaveText Pro", "Percuma", "Had Snippet")
+	expectInOrder(t, content(body), "Keahlian saya", "Pelan", "Tiada Pelan", `href="/pricing"`, "CaveText Pro", "Percuma", "Had Snippet")
 }
 
 func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T) {
@@ -61,7 +61,7 @@ func TestMyMembershipShowsCaveTextProAndTheSnippetCapButNoPlanFromCaveTextProAlo
 	s.givePro("ada@example.com")
 	until := expectProForAYear(t, ada, token)
 	_, body = ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "No Plan", `href="/plans"`, "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "Unlimited")
+	expectInOrder(t, content(body), "No Plan", `href="/pricing"`, "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "Unlimited")
 	_, body = ada.getAsking("/my-membership", "ms")
 	expectInOrder(t, content(body), "CaveText Pro", "Hingga "+text.Date("ms", until.UTC()), "Had Snippet", "Tanpa had")
 }

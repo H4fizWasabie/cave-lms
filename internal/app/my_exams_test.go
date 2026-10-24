@@ -95,9 +95,9 @@ func TestMyExamsWithNoExamsSaysSoAndLinksToTheCourses(t *testing.T) {
 func TestMyExamsIsInTheClassroomMenuAndSendsAVisitorToLogIn(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
-	expectInOrder(t, header(t, body), ">Classroom<", `href="/my-courses"`, `<a href="/my-exams">My exams</a>`, ">Shop<")
+	expectInOrder(t, header(t, body), ">Classroom<", `href="/my-courses"`, `<a href="/my-exams">My exams</a>`, ">Pricing<")
 	_, body = s.getAsking("/", "ms")
-	expectInOrder(t, header(t, body), ">Kelas<", `<a href="/my-exams">Peperiksaan saya</a>`, ">Kedai<")
+	expectInOrder(t, header(t, body), ">Kelas<", `<a href="/my-exams">Peperiksaan saya</a>`, ">Harga<")
 
 	res, body := s.get("/my-exams")
 	expectStatus(t, res, body, http.StatusSeeOther, "")

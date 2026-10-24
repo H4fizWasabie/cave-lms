@@ -48,6 +48,15 @@ type offer struct {
 	Renew                               bool   // Buy reads Renew: the Learner already has the product
 }
 
+// offerBenefits are the catalog keys of what each product includes, listed under its price.
+var offerBenefits = map[string][]string{
+	caveTextProProduct: {"offers.cavetext-pro.unlimited", "offers.cavetext-pro.user", "offers.cavetext-pro.ready", "offers.cavetext-pro.keep"},
+	labPlanProduct:     {"offers.lab-plan.build", "offers.lab-plan.deploy", "offers.lab-plan.hosting", "offers.lab-plan.code"},
+	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.both"},
+}
+
+func (o offer) Benefits() []string { return offerBenefits[o.Product] }
+
 // offersOf reads the products' prices as offers, in the order given.
 func (a *App) offersOf(ctx context.Context, products ...string) ([]offer, error) {
 	var offers []offer
@@ -164,8 +173,8 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/prices?saved", http.StatusSeeOther)
 }
 
-// plans is the public Shop > Plans page: the three products the Admin sells, as offers.
-func (a *App) plans(w http.ResponseWriter, r *http.Request) {
+// pricing is the public Pricing page: the three products the Admin sells, as offers.
+func (a *App) pricing(w http.ResponseWriter, r *http.Request) {
 	offers, err := a.offersOf(r.Context(), products...)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -187,7 +196,7 @@ func (a *App) plans(w http.ResponseWriter, r *http.Request) {
 			offers[i].Renew = pro && offers[i].Product == caveTextProProduct
 		}
 	}
-	a.render(w, r, http.StatusOK, "plans", &struct {
+	a.render(w, r, http.StatusOK, "pricing", &struct {
 		pageBase
 		Offers []offer
 	}{pageBase: pageBase{Learner: learner}, Offers: offers})
