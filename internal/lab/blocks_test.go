@@ -31,7 +31,7 @@ func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 	cfg := tpl.Open(tpl.Guess(d), d)
 
 	for label, want := range map[string]string{
-		"Spending by category": `{"kind":"bar","label":"Spending by category","value":{"agg":"sum","col":"Jumlah"},"group":"Kategori","filter":{"col":"Jenis","vals":["Keluar"]}}`,
+		"Spending by category": `{"kind":"bar","label":"Spending by category","value":{"agg":"sum","col":"Jumlah"},"group":"Kategori","top":8,"filter":{"col":"Jenis","vals":["Keluar"]}}`,
 		"Transactions":         `{"kind":"card","label":"Transactions","value":{"agg":"count"}}`,
 		"By month":             `{"kind":"line","label":"By month","value":{"agg":"sum","col":"Jumlah"},"x":"Tarikh","by":"month","split":"Jenis","wide":true}`,
 		"Latest transactions":  `{"kind":"table","label":"Latest transactions","cols":["Tarikh","Perkara","Kategori","Jenis","Jumlah"],"sort":"Tarikh","limit":10}`,

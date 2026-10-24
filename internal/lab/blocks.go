@@ -18,6 +18,7 @@ type WorkBlock struct {
 	By       string   `json:"by,omitempty"`       // line: day or month
 	Split    string   `json:"split,omitempty"`    // line: one line per value of this column
 	Group    string   `json:"group,omitempty"`    // bar, donut
+	Top      int      `json:"top,omitempty"`      // bar: the largest 5, 8 or 15 groups; 0 shows all
 	Cols     []string `json:"cols,omitempty"`     // table: columns shown, in order
 	Sort     string   `json:"sort,omitempty"`     // table: newest or largest first by this column
 	Limit    int      `json:"limit,omitempty"`    // table: 10, 25 or 50 rows
@@ -85,6 +86,9 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 		}
 		if b.Kind == "line" {
 			w.By = "month"
+		}
+		if b.Kind == "bar" {
+			w.Top = 8
 		}
 		if b.Kind == "table" && w.Limit == 0 {
 			w.Limit = 50
