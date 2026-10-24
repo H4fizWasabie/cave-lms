@@ -780,7 +780,7 @@ func TestWhileBCLsFormsAreDownAnOrderIsAnswered500AndGivenOnRetry(t *testing.T) 
 }
 
 // Staging counts Test Mode orders, which BCL's /transactions/<order> does not find, so it asks /transaction/<order>,
-// which names no form and no custom fields: staging checks neither (ADR 0010).
+// which names no form and no custom fields: staging asks BCL for neither (ADR 0010).
 func TestWithTestPaymentsATestModeOrderIsLookedUpWhereBCLFindsTestOrders(t *testing.T) {
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
@@ -829,4 +829,89 @@ func TestWithTestPaymentsAnOrderBCLReportsDifferentlyIsLoggedAndGivesNothing(t *
 		"order LINK-4 charged 26.00 at BCL, under the RM249", "order LINK-5 is for twenty at BCL, not 26.00",
 		"order LINK-6 claims an unreadable subtotal or discount")
 	expectNone(t, body, bclToken)
+}
+
+// testOrder is a paid Test Mode order on the CaveText Pro form naming email in both email fields, as staging takes it.
+func testOrder(order, email string) bclPayment {
+	p := paid(order, email)
+	p.kind = "test"
+	return p
+}
+
+// BCL gives nothing but the payer for a Test Mode order, so on staging the CAVELMS account the webhook names must be
+// BCL's payer: one naming another account is kept for an Admin, gives nothing to either, and the System log names
+// neither email.
+func TestWithTestPaymentsAWebhookNamingAnotherCAVELMSAccountThanBCLsPayerIsKeptForAnAdmin(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
+	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	eve, eveToken := s.newCaveTextLearner("Eve Mallory", "eve@example.com")
+	forged := testOrder("LINK-1", "ada@example.com")
+	forged.cavelmsEmail = "eve@example.com"
+	s.bclPay(forged)
+	s.bclPay(testOrder("LINK-1", "ada@example.com")) // BCL's own webhook, second
+	if eve.me(eveToken).Pro || ada.me(adaToken).Pro {
+		t.Fatalf("a Test Mode order naming another CAVELMS account than BCL's payer gave Pro")
+	}
+	_, body := s.get("/admin/cavetext")
+	expectAll(t, body, "Payments not matched", "LINK-1")
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "order LINK-1 the webhook names another CAVELMS account than BCL", "s payer; kept for an Admin",
+		"order LINK-1: already received")
+	expectNone(t, body, "eve@example.com", "ada@example.com")
+}
+
+// On staging the CAVELMS account email matches BCL's payer ignoring case and spaces, and a webhook with no CAVELMS
+// email field gives the order to BCL's payer.
+func TestWithTestPaymentsTheCAVELMSEmailMatchesBCLsPayerInAnyCaseAndItsAbsenceFallsBackToThePayer(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com"), "LINK-2": confirmed("bea@example.com")})
+	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
+	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
+	p := testOrder("LINK-1", "ada@example.com")
+	p.cavelmsEmail = " ADA@Example.com "
+	s.bclPay(p)
+	body := strings.Replace(bclPayload(testOrder("LINK-2", "bea@example.com")),
+		`"custom_fields_data":{"e_mel_akaun_cavelms_cavelms_account_email":"bea@example.com"}`, `"custom_fields_data":[]`, 1)
+	if !strings.Contains(body, `"custom_fields_data":[]`) {
+		t.Fatalf("the CAVELMS email field was not taken out: %s", body)
+	}
+	if code := s.bclPost(bclKey, body); code != http.StatusOK {
+		t.Fatalf("webhook with no CAVELMS email field: status %d, want 200", code)
+	}
+	expectProForAYear(t, ada, adaToken)
+	expectProForAYear(t, bea, beaToken)
+}
+
+// On staging BCL gives no form for a Test Mode order, so the form is bound only by the amount and the price: a cheaper
+// order sent with a dearer TEST form's address gives nothing, and a dearer one sent with a cheaper form's address
+// gives only the cheaper product.
+func TestWithTestPaymentsAnOrderSentWithAnotherTESTFormsAddressGivesNoMoreThanItPaidFor(t *testing.T) {
+	const proPlanTestFormURL = "https://shop.bcl.my/form/pro-plan-test"
+	dear := bclOrder{amount: "250.00", payer: "bea@example.com", status: "3"}
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com"), "LINK-2": dear})
+	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
+	res, body := s.savePrices(map[string]string{"cavetext-pro_link": testFormURL, "pro-plan_link": proPlanTestFormURL,
+		"pro-plan_price": "249", "pro-plan_normal": ""})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.createPlan("Lab Month", "30", "5")
+	s.markLabPlan("Lab Month")
+	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
+	cheap := testOrder("LINK-1", "ada@example.com") // a RM25 CaveText Pro order
+	cheap.formURL = proPlanTestFormURL
+	s.bclPay(cheap)
+	dearer := testOrder("LINK-2", "bea@example.com") // a RM249 Pro Plan order
+	dearer.formURL, dearer.subtotal = testFormURL, "249.00"
+	dearer.extra = map[string]any{"amount": "250.00"}
+	s.bclPay(dearer)
+	if ada.me(adaToken).Pro || len(s.periodsOf("ada@example.com")) != 0 {
+		t.Fatalf("a RM25 order sent with the Pro Plan's TEST form address gave something")
+	}
+	expectProForAYear(t, bea, beaToken)
+	if periods := s.periodsOf("bea@example.com"); len(periods) != 0 {
+		t.Fatalf("Bea's periods = %+v, want none: a Pro Plan order sent with CaveText Pro's address gives only CaveText Pro", periods)
+	}
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: paid RM25, under the RM249 price; kept for an Admin", "order LINK-2: gave Learner")
 }
