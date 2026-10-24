@@ -275,11 +275,9 @@ func saveExamRow(ctx context.Context, tx *sql.Tx, e exam) (int64, error) {
 // empty when the form is valid.
 func questionFromForm(r *http.Request, lang, format string) (q examQuestion, msg string) {
 	q.Difficulty = r.PostFormValue("difficulty")
-	defer func() {
-		if msg == "" && q.Difficulty != "" && !slices.Contains(difficulties, q.Difficulty) {
-			msg = text.T(lang, "adm.exam.err.difficulty")
-		}
-	}()
+	if q.Difficulty != "" && !slices.Contains(difficulties, q.Difficulty) {
+		return q, text.T(lang, "adm.exam.err.difficulty")
+	}
 	q.Prompt = strings.TrimSpace(r.PostFormValue("prompt"))
 	q.Draft = r.PostFormValue("draft") == "on"
 	if format == written {

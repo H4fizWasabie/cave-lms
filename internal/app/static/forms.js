@@ -18,6 +18,8 @@
     var loader = form.querySelector(".cave-loader");
     if (!loader) return;
     loader.hidden = false;
+    var label = loader.querySelector(".cave-loader-label");
+    label.textContent = label.dataset.label; // after showing, so screen readers announce it
     var line = loader.querySelector(".cave-loader-line"), lines = line.dataset.lines.split("|"), i = 0;
     line.textContent = lines[0];
     form.rotating = setInterval(function () {

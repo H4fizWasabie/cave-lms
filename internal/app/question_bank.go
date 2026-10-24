@@ -34,9 +34,8 @@ type bankPage struct {
 	Questions     []bankQuestion
 	Topics        []string // every topic in the bank, one spelling per topic ignoring case
 	Formats       []string
-	Topic, Format string // the filters, empty for all
-	Difficulty    string // the Difficulty filter, empty for all, "none" for questions without one
-	Difficulties  []string
+	Topic, Format string        // the filters, empty for all
+	Difficulty    string        // the Difficulty filter, empty for all, "none" for questions without one
 	Question      *bankQuestion // the edit form's
 	Languages     []string
 	Query         template.URL // the filters as a query string with its "?", empty for none, kept across actions
@@ -81,7 +80,7 @@ func (a *App) filteredBankQuestions(r *http.Request) ([]bankQuestion, error) {
 // given.
 func (a *App) adminQuestionBank(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	p := &bankPage{Topic: q.Get("topic"), Format: q.Get("format"), Difficulty: q.Get("difficulty"), Formats: bankFormats, Difficulties: difficulties, Query: bankQuery(r)}
+	p := &bankPage{Topic: q.Get("topic"), Format: q.Get("format"), Difficulty: q.Get("difficulty"), Formats: bankFormats, Query: bankQuery(r)}
 	var err error
 	if p.Topics, err = a.bankTopics(r.Context()); err == nil {
 		p.Questions, err = a.filteredBankQuestions(r)
