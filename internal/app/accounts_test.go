@@ -249,6 +249,41 @@ func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
+func TestAccountEmailsLeaveOutTheRegisteredName(t *testing.T) {
+	s := newSite(t)
+	const name, email = "Ada Lovelace", "ada@example.com"
+	s.register(name, email, "correct horse battery")
+	s.post("/forgot-password", url.Values{"email": {email}})
+	messages := s.mail.Messages()
+	if len(messages) != 2 {
+		t.Fatalf("sent %d emails, want a verification and a reset", len(messages))
+	}
+	for _, m := range messages {
+		if strings.Contains(m.Body, name) {
+			t.Errorf("email %q includes the registered name: %s", m.Subject, m.Body)
+		}
+	}
+}
+
+func TestVerificationEmailsToOneAddressStopAfterThreeADay(t *testing.T) {
+	s := newSite(t)
+	s.register("Ada", "ada@example.com", "correct horse battery")
+	var bodies []string
+	for _, email := range []string{"ada@example.com", "Ada@Example.com", "ada@example.com"} {
+		res, body := s.post("/verify/resend", url.Values{"email": {email}})
+		expectStatus(t, res, body, http.StatusOK, "we sent it a new link")
+		bodies = append(bodies, body)
+	}
+	if n := len(s.mail.Messages()); n != 3 {
+		t.Fatalf("sent %d verification emails to one address, want 3", n)
+	}
+	if bodies[2] != bodies[0] {
+		t.Fatalf("a capped resend answered differently:\n%s\nvs\n%s", bodies[2], bodies[0])
+	}
+	res, body := s.get(s.lastVerifyPath("ada@example.com"))
+	expectStatus(t, res, body, http.StatusOK, "Email verified")
+}
+
 func TestFormsRefuseCrossOriginPosts(t *testing.T) {
 	s := newSite(t)
 	form := url.Values{"name": {"Mallory"}, "email": {"m@example.com"}, "password": {"password123"}}

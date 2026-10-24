@@ -13,7 +13,7 @@ import (
 const (
 	rateLimitWindow = 15 * time.Minute
 	// longestWindow is the longest window any key is counted over; a key with no attempt in it is dropped.
-	longestWindow = time.Hour
+	longestWindow = verificationWindow
 	// rateLimitAttempts is each address's budget at most forms. Sign-up allows a whole class on one network.
 	rateLimitAttempts = 10
 	signUpAttempts    = 100
@@ -23,6 +23,10 @@ const (
 	// Only failed logins count: per account from one address, and per address across all accounts.
 	loginFailuresPerAccount = 10
 	loginFailuresPerAddress = 100
+	// verificationsPerAddress caps the verification emails to one address, over sign-ups and resends from anywhere.
+	// ponytail: in memory like every count here, so a restart resets it.
+	verificationsPerAddress = 3
+	verificationWindow      = 24 * time.Hour
 )
 
 // rateLimiter counts attempts per key (a form and client address, for logins also the account; in a Chat the

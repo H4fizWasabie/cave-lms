@@ -108,9 +108,9 @@ func TestVerifyAndResetEmailsComeInTheSavedLanguageElseTheRequests(t *testing.T)
 
 	// No account yet, so no saved language: the email follows the page it was asked from.
 	s.postAsking("/register", "ms", url.Values{"name": {"Ada"}, "email": {ada}, "password": {password}})
-	expectEmail(t, s.lastEmailTo(ada), "Sahkan akaun CAVELMS anda", "Hai Ada,")
+	expectEmail(t, s.lastEmailTo(ada), "Sahkan akaun CAVELMS anda", "Hai,")
 	s.postAsking("/verify/resend", "en", url.Values{"email": {ada}})
-	expectEmail(t, s.lastEmailTo(ada), "Confirm your CAVELMS account", "Hi Ada,")
+	expectEmail(t, s.lastEmailTo(ada), "Confirm your CAVELMS account", "Hi,")
 	s.postAsking("/forgot-password", "ms", url.Values{"email": {ada}})
 	expectEmail(t, s.lastEmailTo(ada), "Set semula kata laluan CAVELMS anda", "dalam masa sejam")
 
