@@ -1,5 +1,10 @@
 # graft's local graph cache: regenerable, not committed (run `graft build`).
 /graft/
 
+# Local secrets; an example file stays tracked.
+.env
+.env.*
+!.env.example
+
 # graphify's output: not used in this repo (AGENTS.md uses graft).
 /graphify-out/
