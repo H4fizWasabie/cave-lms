@@ -103,6 +103,18 @@ func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
 	}
 }
 
+func TestAChatEventSplitsAMessageOnEveryKindOfLineEnd(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	stream := ada.openStream(id)
+
+	ben.say(id, "before\revent: x\rretry: 1\r\nafter")
+	e := stream.next()
+	if strings.Contains(e, "\r") {
+		t.Fatalf("a bare carriage return reaches the stream, where it ends a line: %q", e)
+	}
+	expectInOrder(t, e, "before", "event: x", "retry: 1", "after")
+}
+
 func TestTheChatStreamIsRefusedToThoseWhoCannotReadTheChat(t *testing.T) {
 	_, admin, _, id := chatSite(t)
 	cara := admin.second()
