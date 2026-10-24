@@ -1,8 +1,10 @@
 package app_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -174,6 +176,40 @@ func TestAnUnreadableWorkUploadGivesOneMessage(t *testing.T) {
 	}
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after an unreadable upload", n)
+	}
+}
+
+func TestTheLearnerCanUploadAgainNamingATwoRowHeader(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("finance", "Kedai")
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.Merge(t, testutil.XLSX(t, []string{"Jualan Oktober 2026", "Kedai Ali"},
+		[]any{"Tarikh", "Jualan", nil, "Staf"},
+		[]any{nil, "Tunai", "Kad"},
+		[]any{day, 120, 80, "Ali"},
+	), "B2:C2")
+	res, body := ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, `name="header"`)
+	expectStatus(t, res, body, http.StatusOK, `name="two-row"`)
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	mw.WriteField("header", "2")
+	mw.WriteField("two-row", "on")
+	fw, _ := mw.CreateFormFile("file", "jualan.xlsx")
+	fw.Write(file)
+	mw.Close()
+	req, _ := http.NewRequest(http.MethodPost, ada.server.URL+path+"/dataset", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	res, body = ada.do(req)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	res, body = ada.get(path)
+	for _, want := range []string{
+		"Read row 2 as the header, as you chose.", "Joined header rows 2 and 3 into one name per column.",
+		"Jualan Tunai", "Jualan Kad",
+	} {
+		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }
 

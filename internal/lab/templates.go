@@ -31,6 +31,9 @@ type Blank struct {
 	Money    bool     // a Number shown as RM
 	Help     string   // what goes in it, for the Learner
 	Guess    []string // column names Cave tries first, lower case, Malay and English
+	// Loose, when set, are the names a Work Dashboard's guessing looks for in column names instead of Guess,
+	// lower case, best first.
+	Loose []string
 }
 
 // Block is one part of a Dashboard. Fields name blanks by key; the chart script (charts.js) draws it.
@@ -63,11 +66,16 @@ var Finance = &Template{
 	Blurb:    "Money in and out: totals, balance, spending by month and category.",
 	Question: "Am I spending more than I earn?",
 	Blanks: []Blank{
-		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each transaction", Guess: []string{"tarikh", "date"}},
-		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "How much, in RM", Guess: []string{"jumlah", "amaun", "amount", "total"}},
-		{Key: "category", Label: "Category", Type: Text, Help: "What the money was for", Guess: []string{"kategori", "category"}},
-		{Key: "type", Label: "Type", Type: Text, Help: "Masuk (money in) or Keluar (money out)", Guess: []string{"jenis", "type", "masuk/keluar"}},
-		{Key: "description", Label: "Description", Type: Text, Help: "A short note on each transaction", Guess: []string{"perkara", "butiran", "keterangan", "description", "item"}},
+		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each transaction", Guess: []string{"tarikh", "date"},
+			Loose: []string{"tarikh", "date", "created", "hari", "day"}},
+		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "How much, in RM", Guess: []string{"jumlah", "amaun", "amount", "total"},
+			Loose: []string{"jumlah", "amaun", "amount", "total", "nilai", "value", "harga", "price"}},
+		{Key: "category", Label: "Category", Type: Text, Help: "What the money was for", Guess: []string{"kategori", "category"},
+			Loose: []string{"kategori", "category", "kumpulan", "group"}},
+		{Key: "type", Label: "Type", Type: Text, Help: "Masuk (money in) or Keluar (money out)", Guess: []string{"jenis", "type", "masuk/keluar"},
+			Loose: []string{"jenis", "type", "masuk/keluar", "in/out"}},
+		{Key: "description", Label: "Description", Type: Text, Help: "A short note on each transaction", Guess: []string{"perkara", "butiran", "keterangan", "description", "item"},
+			Loose: []string{"perkara", "butiran", "keterangan", "description", "details", "item", "catatan", "nota", "note", "remark"}},
 	},
 	Blocks: []Block{
 		{Kind: "card", Label: "Balance", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Minus: []string{"type", "Keluar"}, Needs: []string{"type"}},
@@ -93,11 +101,17 @@ var Inventory = &Template{
 	Blurb:    "Stock on hand: items, value, and what is running low.",
 	Question: "What do I need to reorder?",
 	Blanks: []Blank{
-		{Key: "item", Label: "Item", Type: Text, Required: true, Help: "The name of each item", Guess: []string{"nama item", "nama barang", "item", "barang", "nama"}},
-		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"}},
-		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"}},
-		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"}},
-		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", Guess: []string{"harga seunit", "harga", "unit price", "price"}},
+		{Key: "item", Label: "Item", Type: Text, Required: true, Help: "The name of each item", Guess: []string{"nama item", "nama barang", "item", "barang", "nama"},
+			Loose: []string{"nama barang", "nama item", "item", "barang", "produk", "product", "nama", "name"}},
+		// Stock on hand: a closing or actual count beats purchases, opening stock and movements.
+		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"},
+			Loose: []string{"closing", "actual", "baki akhir", "on hand", "in stock", "kuantiti", "quantity", "qty", "stok", "stock", "baki", "balance"}},
+		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"},
+			Loose: []string{"paras pesanan semula", "paras minimum", "reorder", "minimum", "par level", "safety stock"}},
+		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"},
+			Loose: []string{"kategori", "category", "kumpulan", "group"}},
+		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", Guess: []string{"harga seunit", "harga", "unit price", "price"},
+			Loose: []string{"harga seunit", "unit price", "harga", "price", "cost", "kos"}},
 	},
 	Blocks: []Block{
 		{Kind: "card", Label: "Stock value", Agg: "sum", Of: "quantity", Times: "price", Needs: []string{"price"}},
@@ -120,11 +134,15 @@ var HR = &Template{
 	Blurb:    "Staff: headcount, departments, who joined when.",
 	Question: "Is the team growing, and where?",
 	Blanks: []Blank{
-		{Key: "name", Label: "Name", Type: Text, Required: true, Help: "Each staff member's name", Guess: []string{"nama", "nama pekerja", "name"}},
-		{Key: "department", Label: "Department", Type: Text, Required: true, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department"}},
-		{Key: "joined", Label: "Join date", Type: Date, Help: "The day they started", Guess: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "tarikh"}},
+		{Key: "name", Label: "Name", Type: Text, Required: true, Help: "Each staff member's name", Guess: []string{"nama", "nama pekerja", "name"},
+			Loose: []string{"nama pekerja", "nama", "name", "pekerja", "employee", "staf", "staff"}},
+		{Key: "department", Label: "Department", Type: Text, Required: true, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department"},
+			Loose: []string{"jabatan", "bahagian", "department", "dept", "unit", "section"}},
+		{Key: "joined", Label: "Join date", Type: Date, Help: "The day they started", Guess: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "tarikh"},
+			Loose: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "joined", "hired", "lantikan", "tarikh", "date"}},
 		{Key: "status", Label: "Status", Type: Text, Help: "Aktif for staff still working", Guess: []string{"status"}},
-		{Key: "gender", Label: "Gender", Type: Text, Help: "Lelaki or Perempuan", Guess: []string{"jantina", "gender"}},
+		{Key: "gender", Label: "Gender", Type: Text, Help: "Lelaki or Perempuan", Guess: []string{"jantina", "gender"},
+			Loose: []string{"jantina", "gender", "sex"}},
 	},
 	Blocks: []Block{
 		{Kind: "card", Label: "Headcount", Agg: "count"},
@@ -223,6 +241,33 @@ func (t *Template) Guess(d *Dataset) Choices {
 		}
 		if !named && b.Required {
 			pick(b, func(Column) bool { return true })
+		}
+	}
+	return c
+}
+
+// guessWork is a Work Dashboard's guess for each blank: an unused column of the blank's type whose name holds
+// one of the blank's names (Loose, else Guess), trying the names in order and, for each, a column of exactly
+// that name first. A blank no column name matches is left empty, required or not: a guess by type alone
+// is too often wrong on real files.
+func (t *Template) guessWork(d *Dataset) Choices {
+	c, used := Choices{}, map[string]bool{}
+	for _, b := range t.Blanks {
+		names := b.Loose
+		if len(names) == 0 {
+			names = b.Guess
+		}
+	find:
+		for _, g := range names {
+			for _, exact := range []bool{true, false} {
+				for _, col := range d.Columns {
+					name := strings.Join(strings.Fields(strings.ToLower(col.Name)), " ")
+					if !used[col.Name] && col.Type == b.Type && (name == g || !exact && strings.Contains(name, g)) {
+						c[b.Key], used[col.Name] = col.Name, true
+						break find
+					}
+				}
+			}
 		}
 	}
 	return c

@@ -726,8 +726,27 @@ var catalog = map[string]entry{
 	"lab.types.text":         {en: "text", ms: "teks"},
 
 	// Clean-up's changes, listed in a Work Dashboard's upload preview
-	"lab.clean.title-row":  {en: "Skipped row 1 above the header in row %d.", ms: "Baris 1 di atas tajuk lajur di baris %d dilangkau."},
-	"lab.clean.title-rows": {en: "Skipped rows 1 to %d above the header in row %d.", ms: "Baris 1 hingga %d di atas tajuk lajur di baris %d dilangkau."},
+	"lab.clean.title-row":   {en: "Skipped row 1 above the header in row %d.", ms: "Baris 1 di atas tajuk lajur di baris %d dilangkau."},
+	"lab.clean.title-rows":  {en: "Skipped rows 1 to %d above the header in row %d.", ms: "Baris 1 hingga %d di atas tajuk lajur di baris %d dilangkau."},
+	"lab.clean.bottom-row":  {en: "Dropped row %d at the bottom: a total or note, not data.", ms: "Baris %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
+	"lab.clean.bottom-rows": {en: "Dropped rows %d to %d at the bottom: totals or notes, not data.", ms: "Baris %d hingga %d di bawah sekali dibuang: jumlah atau nota, bukan data."},
+	"lab.clean.cut-columns": {
+		en: "Stopped at the blank column %d: what is to its right (notes or another table) was not read.",
+		ms: "Berhenti di lajur kosong %d: apa yang di sebelah kanannya (nota atau jadual lain) tidak dibaca.",
+	},
+	"lab.clean.cut-rows": {
+		en: "Stopped at the blank row %d: what is below it (notes or another table) was not read.",
+		ms: "Berhenti di baris kosong %d: apa yang di bawahnya (nota atau jadual lain) tidak dibaca.",
+	},
+	"lab.clean.empty-columns":  {en: "Columns with no data dropped: %d.", ms: "Lajur tanpa data dibuang: %d."},
+	"lab.clean.header-chosen":  {en: "Read row %d as the header, as you chose.", ms: "Baris %d dibaca sebagai tajuk lajur, seperti pilihan anda."},
+	"lab.clean.two-row-header": {en: "Joined header rows %d and %d into one name per column.", ms: "Baris tajuk %d dan %d digabung menjadi satu nama bagi setiap lajur."},
+	"lab.clean.merged-down":    {en: "Merged cells filled down: %d.", ms: "Sel bergabung diisi ke bawah: %d."},
+	"lab.clean.dash-zero":      {en: "Cells holding - read as 0: %d.", ms: "Sel berisi - dibaca sebagai 0: %d."},
+	"lab.clean.other-dates": {
+		en: "Dates written another way (with a time, as 2026-11-05 or as 05.11.26) read as dates, times left out: %d.",
+		ms: "Tarikh yang ditulis cara lain (dengan masa, sebagai 2026-11-05 atau 05.11.26) dibaca sebagai tarikh, tanpa masa: %d.",
+	},
 
 	// The Dashboard page
 	"lab.d.zip": {en: "Download zip", ms: "Muat turun zip"},
@@ -789,6 +808,13 @@ var catalog = map[string]entry{
 	"lab.w.choose":       {en: "Choose a column", ms: "Pilih lajur"},
 	"lab.w.use-general":  {en: "Use General instead", ms: "Guna General"},
 	"lab.w.confirm":      {en: "Confirm and use this Dataset", ms: "Sahkan dan guna Set data ini"},
+	"lab.w.header-row":   {en: "Header row (optional)", ms: "Baris tajuk lajur (pilihan)"},
+	"lab.w.header-auto":  {en: "Cave finds it", ms: "Cave mencarinya"},
+	"lab.w.header-help": {
+		en: "Cave finds the row with your column names. If the preview shows the wrong one, upload the file again with its row number.",
+		ms: "Cave mencari baris yang mengandungi nama lajur anda. Jika pratonton menunjukkan baris yang salah, muat naik fail sekali lagi dengan nombor barisnya.",
+	},
+	"lab.w.two-row":      {en: "My column names take 2 rows", ms: "Nama lajur saya mengambil 2 baris"},
 	"lab.w.another":      {en: "Or upload another file", ms: "Atau muat naik fail lain"},
 	"lab.d.start-sample": {en: "Start from the Sample", ms: "Mulakan daripada Sampel"},
 	"lab.d.start-sample-body": {

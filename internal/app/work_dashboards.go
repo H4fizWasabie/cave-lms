@@ -93,7 +93,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	res, err := lab.Clean(file, d.Template, lab.Settings{})
+	// A header row that is not a number lets Cave find it, as when left empty.
+	header, _ := strconv.Atoi(r.FormValue("header"))
+	res, err := lab.Clean(file, d.Template, lab.Settings{HeaderRow: max(header, 0), TwoRowHeader: r.FormValue("two-row") == "on"})
 	var problem lab.Problem
 	if errors.As(err, &problem) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem.In(lang), Upload: name})
