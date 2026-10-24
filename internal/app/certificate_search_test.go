@@ -59,6 +59,7 @@ func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
 	}
 }
 
+// A Certificate No. search shows no IC, since the numbers run in order.
 func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.T) {
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
@@ -67,7 +68,7 @@ func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.
 	for _, q := range []string{number, strings.ToLower(number)} {
 		res, body := search(ada, q)
 		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
-		expectAll(t, body, "951206-08-****")
+		expectNone(t, body, "951206", "IC or passport No.")
 	}
 	for _, q := range []string{"5555", "08-5555", "95120608555", "9512060855555", number[:len(number)-1]} {
 		res, body := search(ada, q)
