@@ -100,8 +100,9 @@ type page struct {
 	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
-	Next          string // where the login page goes after logging in
-	DuplicateOf   int64  // the Course the Course form duplicates into a Live Course, 0 when none
+	Next          string         // where the login page goes after logging in
+	DuplicateOf   int64          // the Course the Course form duplicates into a Live Course, 0 when none
+	Organisations []organisation // the Live Course form's choices
 }
 
 func (p *page) learnerField() **learner { return &p.Learner }
@@ -243,6 +244,13 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/programmes/{id}/edit", a.admin(a.editProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes/{id}", a.admin(a.updateProgramme))
 	mux.HandleFunc("POST /admin/programmes/{id}/delete", a.admin(a.deleteProgramme))
+	mux.HandleFunc("GET /admin/organisations", a.admin(a.adminOrganisations))
+	mux.HandleFunc("GET /admin/organisations/new", a.admin(a.newOrganisationForm))
+	mux.HandleFunc("POST /admin/organisations", a.admin(a.createOrganisation))
+	mux.HandleFunc("GET /admin/organisations/{id}/edit", a.admin(a.editOrganisationForm))
+	mux.HandleFunc("GET /admin/organisations/{id}/logo", a.admin(a.organisationLogo))
+	mux.HandleFunc("POST /admin/organisations/{id}", a.admin(a.updateOrganisation))
+	mux.HandleFunc("POST /admin/organisations/{id}/delete", a.admin(a.deleteOrganisation))
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
 	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))

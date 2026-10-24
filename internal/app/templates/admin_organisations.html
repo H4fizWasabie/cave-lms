@@ -1,0 +1,31 @@
+{{define "title"}}{{t .Lang "orgs.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "organisations" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "orgs.title"}}</h1>
+            <p>{{t .Lang "orgs.intro"}}</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-solid" href="/admin/organisations/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "orgs.new"}}</a></div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "orgs.logo"}}</th><th>{{t .Lang "orgs.name"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .Organisations}}
+              <tr>
+                <td><img class="org-logo" src="/admin/organisations/{{.ID}}/logo?v={{.LogoKey}}" alt="{{t $.Lang "orgs.logo-alt" .Name}}" height="40"></td>
+                <td>{{.Name}}</td>
+                <td class="actions"><a class="btn btn-quiet btn-sm" href="{{.LogoSearch}}" target="_blank" rel="noopener">{{t $.Lang "orgs.search"}}</a> <a class="btn btn-quiet btn-sm" href="/admin/organisations/{{.ID}}/edit">{{t $.Lang "admin.common.edit"}}</a></td>
+              </tr>
+              {{else}}
+              <tr><td colspan="3">{{t .Lang "orgs.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}
