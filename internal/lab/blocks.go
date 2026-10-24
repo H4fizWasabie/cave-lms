@@ -60,11 +60,19 @@ type Filter struct {
 
 // Open copies the Template's blocks and filter bar for a Work Dashboard, each blank swapped for the column
 // chosen for it; blocks that need a skipped blank are left out, as in a Practice Dashboard. General builds
-// its blocks from the Dataset.
+// its blocks from the Dataset. A choice naming a column d lacks, or holding another type, counts as skipped, so
+// Reset to Template fills the blanks from the current columns by name.
 func (t *Template) Open(c Choices, d *Dataset) *Config {
 	if t.Build != nil {
 		t, c = t.Build(d)
 	}
+	kept := Choices{}
+	for _, b := range t.Blanks {
+		if col := c[b.Key]; col != "" && d.typeOf(col) == b.Type {
+			kept[b.Key] = col
+		}
+	}
+	c = kept
 	cols := func(keys []string) []string {
 		var out []string
 		for _, k := range keys {
@@ -341,9 +349,8 @@ func (b *WorkBlock) Fill(d *Dataset) {
 }
 
 // Check refuses a block the editor cannot save on d: an option Cave does not offer, a label over 80
-// characters, or a column the Dataset lacks or of the wrong type. A paused block may keep naming the columns
-// it was paused for.
-// #247: the lock rules for Locked blocks (kind and calculation fixed) belong with these checks.
+// characters, or a column the Dataset lacks or of the wrong type, a Locked block's own columns included. A paused
+// block may keep naming the columns it was paused for.
 func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	bad := Problem{"lab.err.block-option", nil}
 	col := func(name string, t Type) error {
@@ -423,10 +430,33 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	if b.Filter != nil {
 		errs = append(errs, col(b.Filter.Col, Text))
 	}
+	for _, p := range [][]string{b.Where, b.Minus} {
+		if len(p) == 2 {
+			errs = append(errs, col(p[0], Text))
+		}
+	}
+	for _, c := range b.Low {
+		errs = append(errs, col(c, Number))
+	}
 	for _, err := range errs {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// KeepsLock refuses a change to a Locked block's kind or calculation: of a block old locks, only the label,
+// place, width, filter and columns change.
+func (b *WorkBlock) KeepsLock(old WorkBlock) error {
+	calc := func(v *Value) Value {
+		if v == nil {
+			return Value{}
+		}
+		return Value{Agg: v.Agg, Op: v.Op, Then: v.Then}
+	}
+	if old.Locked && (b.Kind != old.Kind || calc(b.Value) != calc(old.Value)) {
+		return Problem{"lab.err.block-locked", nil}
 	}
 	return nil
 }

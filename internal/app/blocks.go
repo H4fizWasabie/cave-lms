@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ type option struct {
 type choice struct {
 	Name, Label string
 	Options     []option
+	Off         bool // greyed out: a Locked block's calculation
 }
 
 // blockRow is one block in the Blocks tab's list, with its form when it is open.
@@ -143,6 +145,7 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			aggs = append(aggs, option{Value: a, Text: text.T(lang, "lab.b.agg."+a), On: v.Agg == a})
 		}
 		field("agg", "lab.b.value", aggs)
+		row.Fields[len(row.Fields)-1].Off = b.Locked
 		switch v.Agg {
 		case "sum", "avg":
 			field("col", "lab.b.column", columns(ds, lab.Number, v.Col, ""))
@@ -183,6 +186,16 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			limit.Options = append(limit.Options, option{Value: strconv.Itoa(n), Text: strconv.Itoa(n), On: b.Limit == n})
 		}
 		row.Radios = append(row.Radios, limit)
+	}
+	if len(b.Where) == 2 { // a Locked block's own columns
+		row.Fields = append(row.Fields, choice{Name: "where", Label: text.T(lang, "lab.b.lock-where", b.Where[1]), Options: columns(ds, lab.Text, b.Where[0], "")})
+	}
+	if len(b.Minus) == 2 {
+		row.Fields = append(row.Fields, choice{Name: "minus", Label: text.T(lang, "lab.b.lock-minus", b.Minus[1]), Options: columns(ds, lab.Text, b.Minus[0], "")})
+	}
+	if len(b.Low) == 2 {
+		field("low-a", "lab.b.lock-low-a", columns(ds, lab.Number, b.Low[0], ""))
+		field("low-b", "lab.b.lock-low-b", columns(ds, lab.Number, b.Low[1], ""))
 	}
 	var f lab.Filter
 	if b.Filter != nil {
@@ -237,7 +250,24 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		v := *old.Value
 		b.Value = &v
 	}
-	if kind := f.Get("kind"); kind != old.Kind {
+	kind, agg := f.Get("kind"), f.Get("agg")
+	if old.Locked { // kind and value are greyed out, so not posted: they stay, and KeepsLock refuses a change
+		kind = cmp.Or(kind, old.Kind)
+		if old.Value != nil {
+			agg = cmp.Or(agg, old.Value.Agg)
+		}
+		repoint := func(p []string, name string) []string {
+			if len(p) != 2 {
+				return p
+			}
+			return []string{cmp.Or(f.Get(name), p[0]), p[1]}
+		}
+		b.Where, b.Minus = repoint(old.Where, "where"), repoint(old.Minus, "minus")
+		if len(old.Low) == 2 {
+			b.Low = []string{cmp.Or(f.Get("low-a"), old.Low[0]), cmp.Or(f.Get("low-b"), old.Low[1])}
+		}
+	}
+	if kind != old.Kind {
 		b.Kind = kind
 		switch kind {
 		case "bar":
@@ -247,7 +277,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		}
 	} else {
 		b.Value = nil
-		if agg := f.Get("agg"); agg != "" {
+		if agg != "" {
 			b.Value = &lab.Value{Agg: agg, Col: f.Get("col"), A: f.Get("a"), Op: f.Get("op"), B: f.Get("b"), Then: f.Get("then")}
 		}
 		b.X, b.By, b.Split, b.Group, b.Sort = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort")
@@ -264,7 +294,6 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		}
 		b.Filter = &lab.Filter{Col: col, Vals: vals}
 	}
-	// #247: a Locked block keeps its kind and calculation; the lock rules go here.
 	b.Fill(ds)
 	switch typed := strings.TrimSpace(f.Get("label")); {
 	case typed == "":
@@ -278,7 +307,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 }
 
 // editBlocks applies one edit from the Blocks tab and saves it, live at once on the preview and the Deployment:
-// do is add (a block of kind), save (block's form; close shuts it), up, down, remove (block) or filter-bar.
+// do is add (a block of kind), save (block's form; close shuts it), up, down, remove (block), filter-bar or reset.
 // An edit Cave refuses shows why and changes nothing.
 func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
@@ -301,7 +330,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		i = -1
 	}
 	open, at, do := -1, -1, r.FormValue("do") // the block whose form opens, and the one the page scrolls to
-	if do != "add" && do != "filter-bar" && i < 0 {
+	if do != "add" && do != "filter-bar" && do != "reset" && i < 0 {
 		a.notFound(w, r)
 		return
 	}
@@ -310,7 +339,10 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		open, err = cfg.Add(r.FormValue("kind"), d.Dataset, lang)
 	case "save":
 		b := blockFromForm(r.Form, cfg.Blocks[i], d.Dataset, lang)
-		if err = b.Check(d.Dataset, cfg.Blocks[i].Missing(d.Dataset)...); err == nil {
+		if err = b.KeepsLock(cfg.Blocks[i]); err == nil {
+			err = b.Check(d.Dataset, cfg.Blocks[i].Missing(d.Dataset)...)
+		}
+		if err == nil {
 			cfg.Blocks[i] = b
 			open = cfg.Arrange(i)
 			err = cfg.Check()
@@ -334,6 +366,8 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		}
 		cfg.Rename(map[string]string{from: to})
 		at = i
+	case "reset": // the Template's blocks and filter bar from the current columns; General rebuilds from the Dataset
+		cfg, err = *d.Template.Open(d.Choices, d.Dataset), nil
 	case "filter-bar":
 		bar := append([]string{}, r.Form["bar"]...)
 		if err = lab.CheckFilterBar(bar, d.Dataset); err == nil {

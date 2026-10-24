@@ -83,6 +83,23 @@ func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
 	}
 }
 
+func TestRestoringADatasetWithTheColumnUnpausesItsBlocks(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
+	res, body = ada.get(path + "/blocks")
+	expectStatus(t, res, body, http.StatusOK, "is-paused")
+
+	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path + "/blocks")
+	if res.StatusCode != http.StatusOK || strings.Contains(body, "is-paused") {
+		t.Fatalf("blocks still paused after restoring a Dataset with Jumlah:\n%s", body)
+	}
+}
+
 func TestUseInsteadSwapsTheColumnInEveryBlock(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()

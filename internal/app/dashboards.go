@@ -386,14 +386,16 @@ type dashboardPage struct {
 	Failed    bool   // the store refused the upload's Dataset
 	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
 	Blanks    []blankChoice
-	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
-	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
-	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
-	Open      int             // Blocks tab: the block whose form is open; -1 for none
-	Saved     bool            // Blocks tab: an edit was just saved
-	Blocks    *blocksView     // Blocks tab
-	Phone     bool            // preview at phone width
-	ReadOnly  bool            // no Lab access: view and download only
+	Pending   *pendingDataset  // a Work Dashboard's upload waiting for its confirm
+	Drops     []earlierDataset // the earlier Datasets confirming Pending deletes
+	Uses      []columnUse      // after the first confirm: the columns the blocks use, as the pending Dataset has them
+	AskHeader int              // most of Uses are missing: the preview asks whether this row is the header
+	Earlier   []earlierDataset // a Work Dashboard's earlier Datasets, newest first
+	Open      int              // Blocks tab: the block whose form is open; -1 for none
+	Saved     bool             // Blocks tab: an edit was just saved
+	Blocks    *blocksView      // Blocks tab
+	Phone     bool             // preview at phone width
+	ReadOnly  bool             // no Lab access: view and download only
 	Hood      []hoodPart
 	Data      hoodPart // the start of data.json, on the Under the hood tab
 
@@ -485,6 +487,22 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		p.Uses = columnUses(d.Config, p.Pending.Dataset)
 		if 2*missingUses(p.Uses) > len(p.Uses) {
 			p.AskHeader = p.Pending.Header
+		}
+	}
+	if d.Work && p.Tab == "dataset" && !p.ReadOnly {
+		var err error
+		if p.Pending != nil {
+			var fits bool
+			if p.Drops, _, fits, err = toDrop(r.Context(), a.db, d, p.Pending.Size, p.Access); !fits {
+				p.Drops = nil // the confirm is refused, deleting nothing
+			}
+		}
+		if err == nil {
+			p.Earlier, err = a.earlierOf(r.Context(), d)
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
 		}
 	}
 	if p.Tab == "hood" && d.Dataset != nil {
