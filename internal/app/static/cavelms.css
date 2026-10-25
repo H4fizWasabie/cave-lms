@@ -1165,6 +1165,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .home-hero { background: var(--brand-ink); color: var(--on-dark); }
 .home-hero-in { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-8); align-items: center; padding-block: var(--space-8); }
 .home-hero h1 { color: var(--surface); }
+.home-tagline { font-size: var(--fs-meta); font-weight: 600; letter-spacing: .04em; color: var(--brand-gold); margin-bottom: var(--space-4); }
 .home-hero-lede { font-size: var(--fs-lede); max-width: 34rem; margin: var(--space-5) 0 var(--space-6); }
 .home-hero .btn-ghost, .home-close .btn-ghost { border-color: color-mix(in srgb, var(--surface) 45%, transparent); color: var(--surface); }
 .home-hero .btn-ghost:hover, .home-close .btn-ghost:hover { background: color-mix(in srgb, var(--surface) 8%, transparent); }

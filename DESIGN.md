@@ -177,7 +177,7 @@ Headings balance (`text-wrap: balance`), paragraphs avoid orphans (`text-wrap: p
 
 **The Variable Family Rule.** Rules name fonts only through `--font-display`, `--font-body` and `--font-mono`.
 
-**The No Kicker Rule.** No eyebrow or kicker line above a heading. Let the heading speak.
+**The No Kicker Rule.** No eyebrow or kicker line above a heading. Let the heading speak. The one exception is the client's tagline, "CAVELMS · Learn AI • Build Skills • Create Impact", over the home hero's heading (`.home-tagline`): it is their copy and stays.
 
 ## Layout
 
