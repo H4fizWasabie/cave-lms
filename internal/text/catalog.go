@@ -652,8 +652,6 @@ var catalog = map[string]entry{
 	"lab.step4":         {en: "Deploy it", ms: "Deploy"},
 	"lab.step4-body":    {en: "One click puts it online at a link you can share, for as long as your Plan is active.", ms: "Satu klik meletakkannya dalam talian pada pautan yang boleh anda kongsi, selagi Pelan anda aktif."},
 	"lab.mine":          {en: "My Dashboards", ms: "Dashboard saya"},
-	"lab.kind.practice": {en: "Practice", ms: "Latihan"},
-	"lab.kind.work":     {en: "Work", ms: "Kerja"},
 	"lab.template-name": {en: "%s Template", ms: "Templat %s"},
 	// A Template's words on the Lab's pages, by Template and blank key; the Dashboard itself stays in English (lab/templates.go).
 	"lab.tpl.finance.name":             {en: "Finance", ms: "Kewangan"},
@@ -771,8 +769,6 @@ var catalog = map[string]entry{
 		en: "This is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
 		ms: "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
 	},
-	"lab.err.unreadable":     {en: "The first sheet could not be read: %s", ms: "Helaian pertama tidak dapat dibaca: %s"},
-	"lab.err.no-data":        {en: "The first sheet needs column names in row 1 and at least one row of data below them.", ms: "Helaian pertama memerlukan nama lajur di baris 1 dan sekurang-kurangnya satu baris data di bawahnya."},
 	"lab.err.unnamed-column": {en: "Column %s has no name in row 1.", ms: "Lajur %s tiada nama di baris 1."},
 	"lab.err.same-name":      {en: "Two columns are called %s. Give each column its own name in row 1.", ms: "Dua lajur bernama %s. Berikan setiap lajur namanya sendiri di baris 1."},
 	"lab.err.too-many-rows":  {en: "The file has %s rows. The Lab reads up to %s rows. Row %s is past the limit. Delete some rows and upload again.", ms: "Fail ini ada %s baris. Lab membaca sehingga %s baris. Baris %s melepasi had. Padam beberapa baris dan muat naik semula."},
@@ -780,7 +776,7 @@ var catalog = map[string]entry{
 		en: "The %d ticked sheets have %s rows together. The Lab reads up to %s rows. Tick fewer sheets and upload again.",
 		ms: "%d helaian yang ditanda ada %s baris kesemuanya. Lab membaca sehingga %s baris. Tanda lebih sedikit helaian dan muat naik semula.",
 	},
-	// Why Clean-up cannot read a Work Dashboard upload, with the row in Excel; lab.err.on-sheet names the sheet.
+	// Why Clean-up cannot read an upload, with the row in Excel; lab.err.on-sheet names the sheet.
 	"lab.err.on-sheet":         {en: "Sheet %s: %s", ms: "Helaian %s: %s"},
 	"lab.err.sheet-unreadable": {en: "The sheet could not be read: %s", ms: "Helaian ini tidak dapat dibaca: %s"},
 	"lab.err.no-header": {
@@ -811,29 +807,10 @@ var catalog = map[string]entry{
 		en: "Combined, the sheets have %d columns, counting the %s column Cave adds. The Lab reads up to %d columns. Delete a column, or pick one sheet alone, and upload again.",
 		ms: "Apabila digabung, helaian ini ada %d lajur, termasuk lajur %s yang ditambah oleh Cave. Lab membaca sehingga %d lajur. Padam satu lajur, atau pilih satu helaian sahaja, dan muat naik semula.",
 	},
-	"lab.err.missing-column": {
-		en: "Column %s is missing. The %s Template needs it for %s, a column of %s. Did you rename it? Rename it back in row 1 and upload again.",
-		ms: "Lajur %s tiada. Templat %s memerlukannya untuk %s, iaitu lajur %s. Adakah anda menukar namanya? Tukar semula namanya di baris 1 dan muat naik semula.",
-	},
-	"lab.err.header-below": {
-		en: "Your column names seem to be on row %d, not row 1. Delete the rows above it, or use a Work Dashboard, and upload again.",
-		ms: "Nama lajur anda nampaknya di baris %d, bukan baris 1. Padam baris di atasnya, atau guna Dashboard Kerja, dan muat naik semula.",
-	},
-	"lab.err.stray-cell": {
-		en: "Row %d has %q in column %s, which has no name in row 1. Name the column or clear the cell.",
-		ms: "Baris %d ada %q dalam lajur %s, yang tiada nama di baris 1. Namakan lajur itu atau kosongkan sel tersebut.",
-	},
-	"lab.err.not-date":       {en: "Row %d, %s: not a date (%q). Type it as day/month/year, like 05/11/2026.", ms: "Baris %d, %s: bukan tarikh (%q). Taip sebagai hari/bulan/tahun, seperti 05/11/2026."},
-	"lab.err.not-number":     {en: "Row %d, %s: not a number (%q). Type it as a plain number, like 200 or RM1,200.00.", ms: "Baris %d, %s: bukan nombor (%q). Taip sebagai nombor biasa, seperti 200 atau RM1,200.00."},
-	"lab.err.empty-cell":     {en: "Row %d, %s: empty, but this column is required.", ms: "Baris %d, %s: kosong, tetapi lajur ini wajib diisi."},
-	"lab.err.choose-column":  {en: "Choose a column for %s.", ms: "Pilih lajur untuk %s."},
-	"lab.err.no-such-column": {en: "%s: the Dataset has no column called %s.", ms: "%s: Set data tiada lajur bernama %s."},
-	"lab.err.wrong-type":     {en: "%s needs a %s column, and %s holds %s.", ms: "%s memerlukan lajur %s, tetapi %s mengandungi %s."},
-	"lab.types.date":         {en: "dates", ms: "tarikh"},
-	"lab.types.number":       {en: "numbers", ms: "nombor"},
-	"lab.types.text":         {en: "text", ms: "teks"},
+	"lab.err.not-date":   {en: "Row %d, %s: not a date (%q). Type it as day/month/year, like 05/11/2026.", ms: "Baris %d, %s: bukan tarikh (%q). Taip sebagai hari/bulan/tahun, seperti 05/11/2026."},
+	"lab.err.not-number": {en: "Row %d, %s: not a number (%q). Type it as a plain number, like 200 or RM1,200.00.", ms: "Baris %d, %s: bukan nombor (%q). Taip sebagai nombor biasa, seperti 200 atau RM1,200.00."},
 
-	// Clean-up's changes, listed in a Work Dashboard's upload preview
+	// Clean-up's changes, listed in an upload's preview
 	"lab.clean.title-row":  {en: "Skipped row 1 above the header in row %d.", ms: "Baris 1 di atas tajuk lajur di baris %d dilangkau."},
 	"lab.clean.title-rows": {en: "Skipped rows 1 to %d above the header in row %d.", ms: "Baris 1 hingga %d di atas tajuk lajur di baris %d dilangkau."},
 	"lab.clean.combined": {
@@ -890,13 +867,12 @@ var catalog = map[string]entry{
 	"lab.d.unlock":      {en: "See how to unlock the Lab", ms: "Lihat cara membuka Lab"},
 	"lab.d.steps":       {en: "Dashboard steps", ms: "Langkah Dashboard"},
 	"lab.d.tab.dataset": {en: "1. Dataset", ms: "1. Set data"},
-	"lab.d.tab.columns": {en: "2. Columns", ms: "2. Lajur"},
 	"lab.d.tab.preview": {en: "3. Preview", ms: "3. Pratonton"},
 	"lab.d.tab.hood":    {en: "Under the hood", ms: "Di sebalik tabir"},
 	"lab.d.tab.deploy":  {en: "Deploy", ms: "Deploy"},
 	"lab.d.tab.blocks":  {en: "2. Blocks", ms: "2. Blok"},
 
-	// Lab: a Work Dashboard's Blocks tab (Edit blocks)
+	// Lab: the Blocks tab (Edit blocks)
 	"lab.b.title": {en: "Edit blocks", ms: "Ubah blok"},
 	"lab.b.intro": {
 		en: "Each block is one card, chart or table. Every change saves at once.",
@@ -1020,7 +996,6 @@ var catalog = map[string]entry{
 	"lab.err.block-cols":        {en: "Tick at least one column for the table.", ms: "Tandakan sekurang-kurangnya satu lajur untuk jadual."},
 	"lab.err.filter-bar":        {en: "The filter bar takes Text and Date columns; %s is not one.", ms: "Bar penapis menerima lajur Teks dan Tarikh; %s bukan salah satunya."},
 	"lab.err.filter-bar-dates":  {en: "The filter bar takes one Date column.", ms: "Bar penapis menerima satu lajur Tarikh sahaja."},
-	"lab.d.needs-access":        {en: "Needs Lab access", ms: "Memerlukan akses Lab"},
 	"lab.d.upload-first":        {en: "Upload a Dataset first", ms: "Muat naik Set data dahulu"},
 	"lab.d.rows.one":            {en: "%d row", ms: "%d baris"},
 	"lab.d.rows.other":          {en: "%d rows", ms: "%d baris"},
@@ -1030,29 +1005,21 @@ var catalog = map[string]entry{
 	"lab.d.no-dataset":          {en: "No Dataset was uploaded.", ms: "Tiada Set data dimuat naik."},
 	"lab.d.upload-needs-access": {en: "Uploading a Dataset needs Lab access.", ms: "Memuat naik Set data memerlukan akses Lab."},
 	"lab.d.upload-new":          {en: "Upload a new Dataset", ms: "Muat naik Set data baharu"},
-	"lab.d.upload-new-body": {
-		en: "A new upload replaces the old one. If the columns still match, your Dashboard updates straight away.",
-		ms: "Muat naik baharu menggantikan yang lama. Jika lajurnya masih sepadan, Dashboard anda dikemas kini serta-merta.",
-	},
-	"lab.d.upload-yours":      {en: "Upload your Dataset", ms: "Muat naik Set data anda"},
-	"lab.d.upload-yours-body": {en: "Your own Excel data, or your edited copy of the Sample. Cave checks it against the %s Template.", ms: "Data Excel anda sendiri, atau salinan Sampel yang telah anda sunting. Cave menyemaknya berdasarkan Templat %s."},
-	"lab.d.not-uploaded":      {en: "We did not upload %s", ms: "Kami tidak memuat naik %s"},
-	"lab.d.not-read":          {en: "We could not read %s", ms: "Kami tidak dapat membaca %s"},
-	"lab.d.not-read-file":     {en: "We could not read that file", ms: "Kami tidak dapat membaca fail itu"},
-	"lab.d.fix-this":          {en: "Fix this in Excel, save, and upload again.", ms: "Betulkan perkara ini dalam Excel, simpan, dan muat naik semula."},
-	"lab.d.still-uses":        {en: "Nothing changed: your Dashboard still uses %s.", ms: "Tiada apa yang berubah: Dashboard anda masih menggunakan %s."},
-	"lab.d.nothing-changed":   {en: "Nothing changed.", ms: "Tiada apa yang berubah."},
-	"lab.d.excel-file":        {en: "Excel file", ms: "Fail Excel"},
-	"lab.d.file-limits": {
-		en: ".xlsx only · first sheet · row 1 is the column names · up to 5,000 rows and 10 MB",
-		ms: ".xlsx sahaja · helaian pertama · baris 1 ialah nama lajur · sehingga 5,000 baris dan 10 MB",
-	},
-	"lab.d.upload": {en: "Upload", ms: "Muat naik"},
+	"lab.d.upload-yours":        {en: "Upload your Dataset", ms: "Muat naik Set data anda"},
+	"lab.d.upload-yours-body":   {en: "Your own Excel data, or your edited copy of the Sample. Cave checks it against the %s Template.", ms: "Data Excel anda sendiri, atau salinan Sampel yang telah anda sunting. Cave menyemaknya berdasarkan Templat %s."},
+	"lab.d.not-uploaded":        {en: "We did not upload %s", ms: "Kami tidak memuat naik %s"},
+	"lab.d.not-read":            {en: "We could not read %s", ms: "Kami tidak dapat membaca %s"},
+	"lab.d.not-read-file":       {en: "We could not read that file", ms: "Kami tidak dapat membaca fail itu"},
+	"lab.d.fix-this":            {en: "Fix this in Excel, save, and upload again.", ms: "Betulkan perkara ini dalam Excel, simpan, dan muat naik semula."},
+	"lab.d.still-uses":          {en: "Nothing changed: your Dashboard still uses %s.", ms: "Tiada apa yang berubah: Dashboard anda masih menggunakan %s."},
+	"lab.d.nothing-changed":     {en: "Nothing changed.", ms: "Tiada apa yang berubah."},
+	"lab.d.excel-file":          {en: "Excel file", ms: "Fail Excel"},
+	"lab.d.upload":              {en: "Upload", ms: "Muat naik"},
 	// Shown while the upload waits its turn and is read.
 	"lab.d.reading":       {en: "Reading your file. A large one can take a minute.", ms: "Sedang membaca fail anda. Fail yang besar boleh mengambil masa seminit."},
 	"lab.d.reading-lines": {en: "Opening the workbook|Finding the header row|Tidying the columns", ms: "Membuka buku kerja|Mencari baris tajuk lajur|Mengemas lajur"},
 
-	// A Work Dashboard's Dataset tab: Clean-up's preview
+	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {
 		en: "Cave cleans each upload and shows you a preview. Your Dashboard and its link keep the current Dataset until you confirm.",
 		ms: "Cave membersihkan setiap muat naik dan menunjukkan pratonton. Dashboard anda dan pautannya kekal dengan Set data semasa sehingga anda mengesahkan.",
@@ -1142,43 +1109,18 @@ var catalog = map[string]entry{
 		en: "Delete “%s”? Its Dataset goes too. If it was deployed, its link will say “not found”, and deleting does not give the Deployment back. This cannot be undone.",
 		ms: "Padam “%s”? Set datanya turut dipadam. Jika ia telah di-deploy, pautannya akan menyatakan “tidak dijumpai”, dan pemadaman tidak memulangkan Deployment itu. Tindakan ini tidak boleh dibatalkan.",
 	},
-	"lab.d.delete":              {en: "Delete Dashboard", ms: "Padam Dashboard"},
-	"lab.d.upload-first-p":      {en: "Upload a Dataset first.", ms: "Muat naik Set data dahulu."},
-	"lab.d.go-dataset":          {en: "Go to the Dataset step", ms: "Pergi ke langkah Set data"},
-	"lab.d.columns-need-access": {en: "Choosing columns needs Lab access.", ms: "Memilih lajur memerlukan akses Lab."},
-	"lab.d.see-preview":         {en: "See the preview", ms: "Lihat pratonton"},
-	"lab.d.no-blanks":           {en: "%s has no blanks", ms: "%s tiada ruang"},
-	"lab.d.no-blanks-body": {
-		en: "Cave read each column's type and built the charts from them: a card for each number column, a bar chart for the first text column, a line chart by month for the first date column, and a table.",
-		ms: "Cave membaca jenis setiap lajur dan membina carta daripadanya: satu kad bagi setiap lajur nombor, carta bar bagi lajur teks pertama, carta garis mengikut bulan bagi lajur tarikh pertama, dan satu jadual.",
-	},
-	"lab.d.column":       {en: "Column", ms: "Lajur"},
-	"lab.d.read-as":      {en: "Read as", ms: "Dibaca sebagai"},
-	"lab.d.which-column": {en: "Which column fills each blank?", ms: "Lajur mana yang mengisi setiap ruang?"},
-	"lab.d.cave-read.one": {
-		en: "Cave read %d row from %s and guessed from the column names and types. Change any choice; skip an optional blank to hide the parts that need it.",
-		ms: "Cave membaca %d baris daripada %s dan meneka berdasarkan nama dan jenis lajur. Tukar mana-mana pilihan; langkau ruang pilihan untuk menyembunyikan bahagian yang memerlukannya.",
-	},
-	"lab.d.cave-read.other": {
-		en: "Cave read %d rows from %s and guessed from the column names and types. Change any choice; skip an optional blank to hide the parts that need it.",
-		ms: "Cave membaca %d baris daripada %s dan meneka berdasarkan nama dan jenis lajur. Tukar mana-mana pilihan; langkau ruang pilihan untuk menyembunyikan bahagian yang memerlukannya.",
-	},
-	"lab.d.again": {
-		en: "Your new file does not have every column you chose, so Cave guessed again. Check each choice.",
-		ms: "Fail baharu anda tidak mempunyai setiap lajur yang anda pilih, jadi Cave meneka semula. Semak setiap pilihan.",
-	},
-	"lab.d.pick-another":  {en: "Pick another column, or fill these cells in Excel and upload again.", ms: "Pilih lajur lain, atau isikan sel ini dalam Excel dan muat naik semula."},
-	"lab.d.skip":          {en: "Skip", ms: "Langkau"},
-	"lab.d.guess":         {en: "Cave's guess: %s", ms: "Tekaan Cave: %s"},
-	"lab.d.renamed":       {en: "Cave could not find %s, so it picked %s for %s. Did you rename it?", ms: "Cave tidak menemui %s, jadi ia memilih %s untuk %s. Adakah anda menukar namanya?"},
-	"lab.d.save-preview":  {en: "Save and preview", ms: "Simpan dan pratonton"},
-	"lab.d.preview-note":  {en: "This is what people with the link will see. Try the filters.", ms: "Inilah yang akan dilihat oleh orang yang mempunyai pautan. Cuba penapisnya."},
-	"lab.d.preview-width": {en: "Preview width", ms: "Lebar pratonton"},
-	"lab.d.theme":         {en: "Theme", ms: "Tema"},
-	"lab.d.theme-apply":   {en: "Apply", ms: "Guna"},
-	"lab.d.desktop":       {en: "Desktop", ms: "Desktop"},
-	"lab.d.phone":         {en: "Phone", ms: "Telefon"},
-	"lab.d.preview-title": {en: "Dashboard preview", ms: "Pratonton Dashboard"},
+	"lab.d.delete":         {en: "Delete Dashboard", ms: "Padam Dashboard"},
+	"lab.d.upload-first-p": {en: "Upload a Dataset first.", ms: "Muat naik Set data dahulu."},
+	"lab.d.go-dataset":     {en: "Go to the Dataset step", ms: "Pergi ke langkah Set data"},
+	"lab.d.see-preview":    {en: "See the preview", ms: "Lihat pratonton"},
+	"lab.d.skip":           {en: "Skip", ms: "Langkau"},
+	"lab.d.preview-note":   {en: "This is what people with the link will see. Try the filters.", ms: "Inilah yang akan dilihat oleh orang yang mempunyai pautan. Cuba penapisnya."},
+	"lab.d.preview-width":  {en: "Preview width", ms: "Lebar pratonton"},
+	"lab.d.theme":          {en: "Theme", ms: "Tema"},
+	"lab.d.theme-apply":    {en: "Apply", ms: "Guna"},
+	"lab.d.desktop":        {en: "Desktop", ms: "Desktop"},
+	"lab.d.phone":          {en: "Phone", ms: "Telefon"},
+	"lab.d.preview-title":  {en: "Dashboard preview", ms: "Pratonton Dashboard"},
 	"lab.d.hood-intro": {
 		en: "Every Dashboard is two files plus the chart library. Cave writes them from the Template; you never edit code.",
 		ms: "Setiap Dashboard terdiri daripada dua fail serta pustaka carta. Cave menulisnya daripada Templat; anda tidak perlu menyunting kod.",
@@ -1211,10 +1153,10 @@ var catalog = map[string]entry{
 		en: "Cave's own code that draws the charts and styles the page. It sits next to the page as charts.js, so nothing loads from another website.",
 		ms: "Kod Cave sendiri yang melukis carta dan menggayakan halaman. Ia terletak di sebelah halaman sebagai charts.js, jadi tiada apa yang dimuatkan dari laman web lain.",
 	},
-	"lab.hood.choices.title": {en: "Your column choices", ms: "Pilihan lajur anda"},
+	"lab.hood.choices.title": {en: "Your blocks", ms: "Blok anda"},
 	"lab.hood.choices": {
-		en: "The only part that is yours: which column fills each blank, and the parts of the Dashboard to draw. Parts that need a blank you skipped are simply not here. Change a choice in the Lab and only these lines change.",
-		ms: "Satu-satunya bahagian milik anda: lajur mana yang mengisi setiap ruang, dan bahagian Dashboard yang hendak dilukis. Bahagian yang memerlukan ruang yang anda langkau tiada di sini. Tukar pilihan dalam Lab dan hanya baris-baris ini yang berubah.",
+		en: "The only part that is yours: your columns, the blocks to draw from them and the filter bar. Change a block in the Lab and only these lines change.",
+		ms: "Satu-satunya bahagian milik anda: lajur anda, blok yang dilukis daripadanya dan bar penapis. Tukar blok dalam Lab dan hanya baris-baris ini yang berubah.",
 	},
 	"lab.hood.fetch.title": {en: "Load the data, then draw", ms: "Muatkan data, kemudian lukis"},
 	"lab.hood.fetch": {

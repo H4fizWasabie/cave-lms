@@ -29,8 +29,9 @@ func blockJSON(t *testing.T, cfg *lab.Config, label string) string {
 
 func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
+	res := sample(t, tpl)
+	d := res.Dataset
+	cfg := tpl.Open(res.Guess, d)
 
 	for label, want := range map[string]string{
 		"Spending by category": `{"kind":"bar","label":"Spending by category","value":{"agg":"sum","col":"Jumlah"},"group":"Kategori","top":8,"filter":{"col":"Jenis","vals":["Keluar"]}}`,
@@ -58,9 +59,9 @@ func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 
 func TestOpeningInventoryKeepsLowStockLockedAndStockValueAsACalculation(t *testing.T) {
 	tpl := lab.TemplateByKey("inventory")
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
-	c := tpl.Guess(d)
+	res := sample(t, tpl)
+	d, c := res.Dataset, res.Guess
+	cfg := tpl.Open(c, d)
 	if got, want := blockJSON(t, cfg, "Stock value"), `{"kind":"card","label":"Stock value","icon":"money","value":{"agg":"calc","a":"`+c["quantity"]+`","op":"x","b":"`+c["price"]+`","then":"sum"}}`; got != want {
 		t.Errorf("Stock value =\n%s\nwant\n%s", got, want)
 	}
@@ -71,8 +72,8 @@ func TestOpeningInventoryKeepsLowStockLockedAndStockValueAsACalculation(t *testi
 
 func TestOpeningLeavesOutBlocksWhoseChosenColumnIsGoneOrRetyped(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	c := tpl.Guess(d)
+	res := sample(t, tpl)
+	d, c := res.Dataset, res.Guess
 	c["category"] = "Gone"  // no such column now
 	c["type"] = c["amount"] // a Number column where Text is needed
 	cfg := tpl.Open(c, d)
@@ -88,11 +89,12 @@ func TestOpeningLeavesOutBlocksWhoseChosenColumnIsGoneOrRetyped(t *testing.T) {
 
 var pageConfig = regexp.MustCompile(`(?s)const dashboard = (\{.*?\n    \});`)
 
-func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
+func TestGenerateWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
-	index, data, err := lab.GenerateWork(tpl, "Kedai <Ali>", "", cfg, d, "data/x")
+	res := sample(t, tpl)
+	d := res.Dataset
+	cfg := tpl.Open(res.Guess, d)
+	index, data, err := lab.Generate(tpl, "Kedai <Ali>", "", cfg, d, "data/x")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +103,6 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 		t.Fatalf("no config in\n%s", index)
 	}
 	var got struct {
-		Work    bool `json:"work"`
 		Columns map[string]struct {
 			Name  string
 			Type  lab.Type
@@ -113,7 +114,7 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	if err := json.Unmarshal(m[1], &got); err != nil {
 		t.Fatalf("%v in\n%s", err, m[1])
 	}
-	if !got.Work || !reflect.DeepEqual(got.Blocks, cfg.Blocks) || !reflect.DeepEqual(got.Filters, cfg.FilterBar) {
+	if !reflect.DeepEqual(got.Blocks, cfg.Blocks) || !reflect.DeepEqual(got.Filters, cfg.FilterBar) {
 		t.Fatalf("config = %+v", got)
 	}
 	if c := got.Columns["Jumlah"]; c.Name != "Jumlah" || c.Type != lab.Number || !c.Money || got.Columns["Perkara"].Money {
@@ -129,8 +130,9 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 
 func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
+	res := sample(t, tpl)
+	d := res.Dataset
+	cfg := tpl.Open(res.Guess, d)
 	at, err := cfg.Add("card", d, "en")
 	if err != nil {
 		t.Fatal(err)
@@ -174,9 +176,9 @@ func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 }
 
 func TestEveryTemplateCardNamesAnIconFromTheSet(t *testing.T) {
-	for _, tpl := range lab.TemplatesFor(true) {
-		d := readSample(t, tpl)
-		for _, b := range tpl.Open(tpl.Guess(d), d).Blocks {
+	for _, tpl := range lab.Templates {
+		res := sample(t, tpl)
+		for _, b := range tpl.Open(res.Guess, res.Dataset).Blocks {
 			if b.IsCard() && !slices.Contains(lab.Icons, b.Icon) {
 				t.Errorf("%s card %q names icon %q", tpl.Key, b.Label, b.Icon)
 			}

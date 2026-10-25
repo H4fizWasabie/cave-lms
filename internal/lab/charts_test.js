@@ -78,7 +78,7 @@ eq(C.timeline({ value: { agg: 'count' }, x: 'Tarikh', by: 'day', label: 'Rows' }
 eq(C.timeline({ value: { agg: 'sum', col: 'Jumlah' }, x: 'Tarikh', split: 'Staf' }, rows, cols).series,
   { Ali: { '2026-01': 150, '2026-02': 8 }, Siti: { '2026-01': 0 }, '(blank)': { '2026-02': 30 } }, 'split');
 
-// Bar: largest first, top 8 by default when Practice, top N or all (0) when Work; split stacks each bar.
+// Bar: largest first, its top N or all (0); split stacks each bar.
 var bar = { value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf' };
 eq(C.bars(bar, rows, cols).map(function (g) { return g.slice(0, 2); }), [['Ali', 158], ['(blank)', 30], ['Siti', 20]], 'bar, all');
 bar.top = 2;
@@ -104,14 +104,12 @@ var h11 = C.heat({ value: { agg: 'count' }, group: 'R', split: 'S' }, wide.filte
 eq(h11.cols, 'ABCDEFGHIJ'.split('').concat(['Other']), 'heatmap folds an eleventh column too');
 eq([h.cells[0][10], h.cells[1][10]], [2, 1], 'heatmap Other cells');
 
-// Donut: a Work donut folds everything past the top 6 into one Other slice; a Practice donut, past the top 5, as before.
+// Donut: everything past the top 6 folds into one Other slice.
 var many = 'ABCDEFGH'.split('').reduce(function (a, k, i) { for (var n = 0; n < 8 - i; n++) a.push({ G: k }); return a; }, []);
 eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many, { G: { type: 'text' } }),
   [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['F', 3], ['Other', 3]], 'donut Other past 6');
 eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many.filter(function (r) { return r.G !== 'H'; }), { G: { type: 'text' } }).length,
   7, 'donut of 7 groups shows all 7');
-eq(C.slices(C.fromPractice({ kind: 'donut', agg: 'count', group: 'G' }), many, { G: { type: 'text' } }),
-  [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['Other', 6]], 'Practice donut Other past 5');
 eq(C.slices({ value: { agg: 'count' }, group: 'Staf' }, rows, cols), [['Ali', 3], ['Siti', 2], ['(blank)', 1]], 'donut (blank)');
 
 // Table: newest or largest first, empty cells last, 10, 25 or 50 rows.
@@ -155,18 +153,11 @@ eq(C.iconOf({ value: { agg: 'sum', col: 'Kos' } }, money), 'chart-up', 'sum of a
 eq(C.iconOf({ value: { agg: 'distinct', col: 'Staf' } }, money), 'tag', 'distinct: tag');
 eq(C.iconOf({ value: { agg: 'calc', a: 'Jumlah', op: '-', b: 'Kos', then: 'sum' } }, money), 'chart-up', 'calculation: chart-up');
 
-// A Practice block reads as the same Work block.
-eq(C.fromPractice({ kind: 'card', label: 'Stock value', agg: 'sum', of: 'q', times: 'p' }).value,
-  { agg: 'calc', a: 'q', op: 'x', b: 'p', then: 'sum' }, 'practice times');
-eq(C.fromPractice({ kind: 'card', label: 'Low stock', icon: 'alert', agg: 'count' }).icon, 'alert', 'practice icon');
-eq(C.fromPractice({ kind: 'bar', group: 'c', of: 'a', where: ['t', 'Keluar'] }),
-  { kind: 'bar', value: { agg: 'sum', col: 'a' }, group: 'c', top: 8, where: ['t', 'Keluar'] }, 'practice bar');
-
 // A vertical bar draws columns from the same groups, the largest in the Theme's highlight colour, its value on
 // top and its full name on hover; a split one stacks in the Theme's stack colours.
 var named = {};
 Object.keys(cols).forEach(function (k) { named[k] = { name: k, type: cols[k].type }; });
-window.drawDashboard({ work: true, theme: 'corporate', columns: named, blocks: [
+window.drawDashboard({ theme: 'corporate', columns: named, blocks: [
   { kind: 'bar', label: 'Tegak', dir: 'vertical', value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf', wide: true },
   { kind: 'bar', label: 'Tindan', dir: 'vertical', value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf', split: 'Kategori', wide: true }] }, rows);
 var drawn = els.charts.innerHTML.split('<article');

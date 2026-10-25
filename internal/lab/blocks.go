@@ -9,7 +9,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// Config is a Work Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
+// Config is a Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
 // Dataset's columns rather than Template blanks. It is configuration Cave applies, never code (ADR 0013).
 type Config struct {
 	Blocks    []WorkBlock `json:"blocks"`
@@ -17,7 +17,7 @@ type Config struct {
 	Money     []string    `json:"money,omitempty"` // Number columns shown as RM
 }
 
-// WorkBlock is one block of a Work Dashboard, in the shape charts.js draws (spec #237).
+// WorkBlock is one block of a Dashboard, in the shape charts.js draws (spec #237).
 type WorkBlock struct {
 	Kind     string   `json:"kind"` // card, line, bar, heatmap, donut, table
 	Label    string   `json:"label"`
@@ -60,8 +60,8 @@ type Filter struct {
 	Vals []string `json:"vals"`
 }
 
-// Open copies the Template's blocks and filter bar for a Work Dashboard, each blank swapped for the column
-// chosen for it; blocks that need a skipped blank are left out, as in a Practice Dashboard. General builds
+// Open copies the Template's blocks and filter bar for a Dashboard, each blank swapped for the column
+// chosen for it; blocks that need a skipped blank are left out. General builds
 // its blocks from the Dataset. A choice naming a column d lacks, or holding another type, counts as skipped, so
 // Reset to Template fills the blanks from the current columns by name.
 func (t *Template) Open(c Choices, d *Dataset) *Config {
@@ -153,7 +153,7 @@ func (t *Template) included(c Choices) []Block {
 	return blocks
 }
 
-// MaxBlocks is the most blocks a Work Dashboard holds, and MaxCards the most of them that are cards (two rows).
+// MaxBlocks is the most blocks a Dashboard holds, and MaxCards the most of them that are cards (two rows).
 const (
 	MaxBlocks = 20
 	MaxCards  = 8
@@ -618,7 +618,7 @@ func (b *WorkBlock) Summary(lang string) string {
 	return strings.Join(parts, " · ")
 }
 
-// Use is one column a Work Dashboard's blocks name, with the type they need of it; empty when any type does.
+// Use is one column a Dashboard's blocks name, with the type they need of it; empty when any type does.
 type Use struct {
 	Name string
 	Type Type

@@ -12,7 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// Settings are the Learner's choices for one Work Dashboard upload. The zero value lets Cave choose everything.
+// Settings are the Learner's choices for one Dataset upload. The zero value lets Cave choose everything.
 // The Dashboard remembers the JSON fields for its next upload; the others hold for one upload only.
 type Settings struct {
 	Sheet        string   `json:"sheet,omitempty"`        // the sheet to read; empty, or not a readable sheet in the file, lets Cave pick
@@ -77,7 +77,7 @@ type CleanUp struct {
 	Offers map[string]Choices
 }
 
-// Clean is Clean-up, a Work Dashboard's way of reading an upload. Its rules run as steps, in order: read every
+// Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
 // sheet (s.Sheet, else the first flat list with no number for a column name, else the first flat list, else the
 // first readable sheet), combine the sheets with the same columns into one Dataset, type each column from its
@@ -201,7 +201,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 		res.Guess = t.guessWork(d)
 	}
 	res.Notes = notes(d)
-	for _, o := range workTemplates {
+	for _, o := range Templates {
 		if o.Build != nil {
 			continue
 		}

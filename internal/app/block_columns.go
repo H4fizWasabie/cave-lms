@@ -6,7 +6,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
-// columnUse is one column a Work Dashboard's blocks use, as an upload's preview shows it: matched by itself
+// columnUse is one column a Dashboard's blocks use, as an upload's preview shows it: matched by itself
 // when the new Dataset has it by name and type, else a pick among Options or left out (its blocks pause).
 type columnUse struct {
 	lab.Use

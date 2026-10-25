@@ -74,8 +74,8 @@ func TestCleanUpOfATidySheetChangesNothing(t *testing.T) {
 	if res.HeaderRow != 1 || len(res.Changes) != 0 {
 		t.Fatalf("header row %d, changes %v; want 1 and none", res.HeaderRow, changesIn(res, "en"))
 	}
-	if len(res.Dataset.Rows) != len(readSample(t, finance(t)).Rows) {
-		t.Fatalf("%d rows, want the Sample's", len(res.Dataset.Rows))
+	if len(res.Dataset.Rows) != 65 {
+		t.Fatalf("%d rows, want the Sample's 65", len(res.Dataset.Rows))
 	}
 }
 

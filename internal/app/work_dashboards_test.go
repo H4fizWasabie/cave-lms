@@ -71,21 +71,25 @@ func (s *site) rowsOf(page string) string {
 
 var financeGuess = url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Kategori"}, "type": {"Jenis"}, "description": {"Perkara"}}
 
-func TestTheLabOffersOneNewDashboardAndLabelsEachDashboard(t *testing.T) {
+// The Lab speaks of one kind of Dashboard (ADR 0015): no page names a kind, in either language.
+func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
 	_, ada := labLearner(t)
-	practice := ada.readyDashboard("Latihan")
-	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
-	if strings.Contains(body, "kind=work") {
-		t.Fatalf("the Lab still offers a kind of Dashboard:\n%s", body)
-	}
-	work := ada.createWork("hr", "Staf")
-	_, body = ada.get("/lab")
-	for path, kind := range map[string]string{practice: "Practice", work: "Work"} {
-		row := body[strings.Index(body, `<a href="`+path+`">`):]
-		row = row[:strings.Index(row, "</li></ul>")]
-		if !strings.Contains(row, `<li>`+kind+`</li>`) {
-			t.Fatalf("%s is not labelled %s: %s", path, kind, row)
+	path := ada.readyDashboard("Kewangan")
+	ada.createWork("hr", "Staf")
+	for _, lang := range []string{"en", "ms"} {
+		ada.switchLanguage(lang, "/")
+		res, body := ada.get("/lab")
+		expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
+		for _, p := range []string{"/lab", "/lab/new", path, path + "/blocks", path + "/preview", path + "/hood", path + "/deploy"} {
+			res, body := ada.get(p)
+			expectStatus(t, res, body, http.StatusOK, `<html lang="`+lang+`">`)
+			low := strings.ToLower(body)
+			for _, gone := range []string{"kind=work", "practice dashboard", "work dashboard", "dashboard latihan", "dashboard kerja",
+				"<li>practice</li>", "<li>work</li>", "<li>latihan</li>", "<li>kerja</li>"} {
+				if strings.Contains(low, gone) {
+					t.Errorf("%s in %s still names a kind of Dashboard (%s)", p, lang, gone)
+				}
+			}
 		}
 	}
 }
@@ -117,7 +121,7 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	ada.confirmWork(path, financeGuess)
 	page := ada.rowsOf(path + "/view/")
 	_, index := ada.get(path + "/view/")
-	for _, want := range []string{`"work": true`, `"group": "Kategori"`, `"vals": [`} {
+	for _, want := range []string{`"group": "Kategori"`, `"vals": [`} {
 		if !strings.Contains(index, want) {
 			t.Fatalf("the Work Dashboard page lacks %s:\n%s", want, index)
 		}
@@ -401,11 +405,10 @@ func TestTheStorageAllowanceCountsConfirmedWorkDatasetsBySavedSize(t *testing.T)
 
 func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
-	practice := ada.createDashboard("finance", "Latihan")
-	res, body := ada.postFile(practice+"/dataset", "one.xlsx", bigFinance(t, 1))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	first := ada.createWork("finance", "Satu")
+	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
 	path := ada.createWork("finance", "Kedai")
-	res, body = ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
+	res, body := ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.post(path+"/dataset/confirm", financeGuess)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
@@ -452,8 +455,8 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 func TestTheSalesAndRosterTemplatesOpenAsTheirSamplesShow(t *testing.T) {
 	_, ada := labLearner(t)
 	_, demo := ada.get("/lab/demo/roster/")
-	if !strings.Contains(demo, `"work": true`) || !strings.Contains(demo, `"by": "day"`) {
-		t.Fatalf("the Roster demo is not drawn as a Work Dashboard:\n%s", demo)
+	if !strings.Contains(demo, `"by": "day"`) {
+		t.Fatalf("the Roster demo is not drawn by day:\n%s", demo)
 	}
 
 	path := ada.createWork("sales", "Kafe")

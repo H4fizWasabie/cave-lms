@@ -13,12 +13,11 @@ import (
 	"testing"
 )
 
-// readyDashboard creates a Finance Dashboard filled with the Sample and returns its path.
+// readyDashboard creates a Finance Dashboard with the Sample confirmed and returns its path.
 func (s *site) readyDashboard(name string) string {
 	s.t.Helper()
-	path := s.createDashboard("finance", name)
-	res, body := s.postFile(path+"/dataset", "finance-sample.xlsx", s.financeSample())
-	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+	path := s.createWork("finance", name)
+	s.confirmFile(path, "finance-sample.xlsx", s.financeSample())
 	return path
 }
 
