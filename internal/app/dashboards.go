@@ -838,6 +838,88 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 	return nil
 }
 
+// convertPracticeDashboards is a one-off step at startup (ADR 0015): every Practice Dashboard becomes a normal one.
+// Its Template opens with its column choices onto its Dataset as its blocks, and the Dataset, already in the store
+// in the same format, becomes its current one under the same key, so nothing is copied or deleted and its
+// Deployment, drawn from the Dashboard on each visit, keeps its link and data. A converted Dashboard is not
+// Practice, so starting again changes nothing. Its Theme, Template and choices stay.
+// The migration that drops dashboards.kind removes this step.
+func convertPracticeDashboards(ctx context.Context, db *sql.DB, store storage.Store) error {
+	type row struct {
+		id             int64
+		template, file string
+		key            sql.NullString
+		choices        []byte
+	}
+	rows, err := db.QueryContext(ctx, `SELECT id, template, choices, dataset_key, dataset_file FROM dashboards WHERE kind = 'practice' ORDER BY id`)
+	if err != nil {
+		return err
+	}
+	var todo []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.template, &r.choices, &r.key, &r.file); err != nil {
+			rows.Close()
+			return err
+		}
+		todo = append(todo, r)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, r := range todo {
+		if err := convertPractice(ctx, db, store, r.id, r.template, r.choices, r.key, r.file); err != nil {
+			return fmt.Errorf("convert Practice Dashboard %d: %w", r.id, err)
+		}
+	}
+	return nil
+}
+
+// convertPractice converts one Practice Dashboard, as convertPracticeDashboards says, in one transaction.
+func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id int64, template string, choices []byte, key sql.NullString, file string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if !key.Valid { // never uploaded: its blocks come at its first confirm, as for any new Dashboard
+		if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET kind = 'work' WHERE id = $1 AND kind = 'practice'`, id); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	t := lab.TemplateByKey(template)
+	if t == nil {
+		return fmt.Errorf("unknown template %q", template)
+	}
+	var c lab.Choices
+	if err := json.Unmarshal(choices, &c); err != nil {
+		return err
+	}
+	data, err := store.Get(ctx, key.String)
+	if err != nil {
+		return fmt.Errorf("get Dataset %s: %w", key.String, err)
+	}
+	var ds lab.Dataset
+	if err := json.Unmarshal(data, &ds); err != nil {
+		return err
+	}
+	config, err := json.Marshal(t.Open(c, &ds))
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, confirmed_at)
+		VALUES ($1, $2, $3, $4, $5, 'current', now())`, id, key.String, file, len(data), len(ds.Rows)); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET kind = 'work', config = $2, dataset_key = NULL, dataset_file = '', dataset_size = 0
+		WHERE id = $1`, id, config); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // saveColumns stores the Learner's column choice for each blank; an empty value skips an optional blank.
 func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
