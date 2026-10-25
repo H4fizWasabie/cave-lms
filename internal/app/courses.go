@@ -169,6 +169,14 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			p.NeedsIC = ic == ""
+			if p.NeedsIC {
+				err = a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM exam_attempts t JOIN exams x ON x.id = t.exam_id
+					WHERE t.learner_id = $1 AND x.course_id = $2 AND t.passed)`, learner.ID, c.ID).Scan(&p.PassedNoIC)
+				if err != nil {
+					a.serverError(w, r, err)
+					return
+				}
+			}
 		}
 	}
 	a.render(w, r, http.StatusOK, "course", p)

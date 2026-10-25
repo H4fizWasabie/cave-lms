@@ -106,6 +106,25 @@ func TestTheCoursePageRemindsOnlyAnEnrolledLearnerWithoutAnICOnACourseWithAnExam
 	expectNone(t, mainOf(body), reminder)
 }
 
+func TestTheCoursePageAsksALearnerWhoPassedWithoutAnICToSetItForTheirCertificate(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "Which is right?")
+	res, body := s.startExam(id)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	// Ada passes without an IC, as a Learner could before the IC step: it is cleared once the attempt is open.
+	if _, err := s.db.Exec(`UPDATE learners SET ic = NULL WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	s.releaseResults()
+
+	_, body = s.getAsking("/courses/"+id, "en")
+	expectInOrder(t, mainOf(body), "Set your IC so we can issue your Certificate", `href="/my-profile"`)
+	expectNone(t, mainOf(body), "before your first Exam attempt")
+	_, body = s.getAsking("/courses/"+id, "ms")
+	expectInOrder(t, mainOf(body), "Tetapkan No. KP anda supaya Sijil anda dapat dikeluarkan")
+}
+
 func TestAWrittenExamSendsALearnerWithoutAnICToItsOwnICStepAndBack(t *testing.T) {
 	s := newSite(t)
 	id := s.examCourseForBea()
