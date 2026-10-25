@@ -107,6 +107,7 @@ func sheetRows(f *excelize.File, name string, opts ...excelize.Options) ([][]str
 // as excelize gives them; it stops counting once past limit. One long string shared by thousands of cells is a few
 // KB in the file and gigabytes in memory. Every part of the archive is read, not just the worksheets, as a workbook
 // can keep a sheet anywhere; a part that is not XML ends its own read at its first bad byte.
+// ponytail: excelize lengthens a Strict namespace name written in the text by a quarter; the count leaves it out.
 func sharedText(f *excelize.File, z *zip.Reader, limit int) int {
 	decoder := func(entry *zip.File) (*xml.Decoder, io.Closer) {
 		r, err := entry.Open()
@@ -120,7 +121,15 @@ func sharedText(f *excelize.File, z *zip.Reader, limit int) int {
 	isStrings := func(entry *zip.File) bool {
 		return strings.EqualFold(strings.ReplaceAll(entry.Name, "\\", "/"), "xl/sharedStrings.xml")
 	}
-	var sizes []int // each shared string's length, from the last such part, as excelize keeps
+	// Each shared string's length, at its most: excelize may read any shared strings part the archive repeats, and
+	// counts either the strings right under the root or, for a part kept on disk, every string at any depth.
+	var sizes []int
+	most := func(i, n int) {
+		if i >= len(sizes) {
+			sizes = append(sizes, make([]int, i+1-len(sizes))...)
+		}
+		sizes[i] = max(sizes[i], n)
+	}
 	for _, entry := range z.File {
 		if !isStrings(entry) {
 			continue
@@ -129,13 +138,20 @@ func sharedText(f *excelize.File, z *zip.Reader, limit int) int {
 		if d == nil {
 			continue
 		}
-		sizes = sizes[:0]
+		depth, top, all := 0, 0, 0 // in the part; the strings counted right under its root, and at any depth
 		for {
 			tok, err := d.Token()
 			if err != nil {
 				break
 			}
-			if el, ok := tok.(xml.StartElement); ok && el.Name.Local == "si" {
+			switch el := tok.(type) {
+			case xml.EndElement:
+				depth--
+			case xml.StartElement:
+				if el.Name.Local != "si" {
+					depth++
+					continue
+				}
 				var si struct {
 					T string `xml:"t"`
 					R []struct {
@@ -147,14 +163,24 @@ func sharedText(f *excelize.File, z *zip.Reader, limit int) int {
 				for _, run := range si.R {
 					n += len(run.T)
 				}
-				sizes = append(sizes, n)
+				if most(all, n); depth == 1 {
+					most(top, n)
+					top++
+				}
+				all++
 			}
 		}
 		r.Close()
 	}
+	if len(sizes) == 0 {
+		return 0
+	}
 	total := 0
 	for _, entry := range z.File {
-		if len(sizes) == 0 || isStrings(entry) {
+		if total > limit {
+			break
+		}
+		if isStrings(entry) {
 			continue
 		}
 		d, r := decoder(entry)
