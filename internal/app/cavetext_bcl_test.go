@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -368,6 +370,7 @@ type fakeBCL struct {
 	mu        sync.Mutex
 	down      bool
 	formsDown bool // only /forms answers 503
+	refuse    int  // a status, 401 or 403, everything answers when BCL refuses the token; 0 for none
 	asked     []*http.Request
 }
 
@@ -391,6 +394,10 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 		f.asked = append(f.asked, r)
 		if f.down {
 			http.Error(w, "down", http.StatusServiceUnavailable)
+			return
+		}
+		if f.refuse != 0 {
+			http.Error(w, `{"message":"Unauthenticated."}`, f.refuse)
 			return
 		}
 		notFound := func() {
@@ -464,6 +471,13 @@ func (f *fakeBCL) setDown(down bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.down = down
+}
+
+// setRefuse makes BCL answer status (401 or 403) to everything, as for a revoked or wrong token; 0 accepts it again.
+func (f *fakeBCL) setRefuse(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.refuse = status
 }
 
 // setFormsDown makes BCL's /forms alone answer 503 while down.
@@ -911,4 +925,81 @@ func TestWithTestPaymentsAnOrderSentWithAnotherTESTFormsAddressGivesNoMoreThanIt
 	}
 	_, body = s.get("/admin/log")
 	expectAll(t, body, "order LINK-1: paid RM25, under the RM249 price; kept for an Admin", "order LINK-2: gave Learner")
+}
+
+const tokenRefused = "BCL API token refused"
+
+// A revoked, expired or wrong token is named as the cause, so an Admin knows to replace it; BCL still retries.
+func TestAWebhookBCLRefusesTheTokenForIsAnswered500AndLogsTheTokenAsTheCause(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+			s := confirmingSite(t, bcl)
+			ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+			bcl.setRefuse(status)
+			if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+				t.Fatalf("webhook with a refused token: status %d, want 500", code)
+			}
+			if ada.me(token).Pro {
+				t.Fatalf("an order BCL could not confirm gave Pro")
+			}
+			_, body := s.get("/admin/log")
+			expectAll(t, body, fmt.Sprintf("order LINK-1: confirm with BCL: %s (%d): replace BCL_API_TOKEN", tokenRefused, status))
+			expectNone(t, body, bclToken)
+		})
+	}
+}
+
+func TestAWebhookWhileBCLFailsIsNotBlamedOnTheToken(t *testing.T) {
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
+	s := confirmingSite(t, bcl)
+	bcl.setDown(true)
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook while BCL is down: status %d, want 500", code)
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: confirm with BCL: BCL answered 503")
+	expectNone(t, body, tokenRefused)
+}
+
+func TestStartingWithATokenBCLRefusesLogsItAndStillServes(t *testing.T) {
+	bcl := newFakeBCL(t, nil)
+	bcl.setRefuse(http.StatusUnauthorized)
+	s := confirmingSite(t, bcl) // it started: the site answers
+	bcl.lastAsked(t, "/forms")
+	_, body := s.get("/admin/log")
+	expectAll(t, body, tokenRefused+" (401): replace BCL_API_TOKEN")
+}
+
+func TestStartingWhileBCLIsOutOfReachLogsItUnreachableNotRefused(t *testing.T) {
+	gone := httptest.NewServer(http.NotFoundHandler())
+	gone.Close()
+	s := confirmingSite(t, &fakeBCL{url: gone.URL})
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "check BCL_API_TOKEN: BCL out of reach or failing")
+	expectNone(t, body, tokenRefused)
+}
+
+func TestTheDailyTokenCheckLogsARefusedTokenAndNothingForAnAcceptedOne(t *testing.T) {
+	bcl := newFakeBCL(t, nil)
+	s := confirmingSite(t, bcl)
+	s.application.CheckBCLToken(context.Background())
+	_, body := s.get("/admin/log")
+	expectNone(t, body, tokenRefused, "check BCL_API_TOKEN")
+
+	bcl.setRefuse(http.StatusForbidden)
+	s.application.CheckBCLToken(context.Background())
+	_, body = s.get("/admin/log")
+	expectAll(t, body, tokenRefused+" (403): replace BCL_API_TOKEN")
+}
+
+func TestWithoutATokenBCLIsNeverAskedAtStartup(t *testing.T) {
+	bcl := newFakeBCL(t, nil)
+	s := bclSite(t, func(c *config.Config) { c.BCLAPIURL = bcl.url })
+	s.application.CheckBCLToken(context.Background())
+	bcl.mu.Lock()
+	defer bcl.mu.Unlock()
+	if len(bcl.asked) != 0 {
+		t.Fatalf("BCL's API was asked %d times without a token", len(bcl.asked))
+	}
 }

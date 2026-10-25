@@ -21,6 +21,9 @@ func (a *App) PruneSystemLog(ctx context.Context) error { return a.pruneSystemLo
 // RunDailyPrune runs the whole daily prune now, for tests.
 func (a *App) RunDailyPrune(ctx context.Context) { a.dailyPrune(ctx) }
 
+// CheckBCLToken runs the daily BCL API token check now, for tests.
+func (a *App) CheckBCLToken(ctx context.Context) { a.checkBCLToken(ctx) }
+
 // TemplateTextKeys lists every catalog key a template names in {{t .Lang "key"}} or {{tn .Lang "key" n}}, for tests.
 func TemplateTextKeys() ([]string, error) {
 	pages, err := parsePages()

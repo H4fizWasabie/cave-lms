@@ -191,6 +191,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
 	a.dailyPrune(ctx)
+	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
 	mux := routeMux{http.NewServeMux(), &a.routes}
