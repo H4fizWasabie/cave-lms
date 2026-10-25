@@ -324,17 +324,18 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// The Certificate's layout on A4 portrait, in mm, matching the client's sample PCC-2026-00509. Baselines are where
-// the sample's text sits on the artwork; the artwork itself prints every fixed word.
+// The Certificate's layout on A4 portrait, in mm, after the client's sample PCC-2026-00509. Baselines are where the
+// built-in artwork leaves room for the details; it prints every fixed word itself.
 const (
 	certNumberX, certNumberY = 183.0, 19.9 // centre and baseline of the Certificate No., under the artwork's label
 	certQRX, certQRY, certQR = 173.2, 21.1, 19.3
-	certNameY, certICY       = 97.7, 102.1 // centred on the page
-	certTitleX, certTitleW   = 30.0, 150.0 // the title box, under "has successfully completed..."
-	certTitleY, certTitleH   = 114.0, 48.0 // the title is centred in it, shrunk until it fits
-	certBadgeX, certBadgeY   = 99.6, 206.4 // the badge image's top left; it carries its own label
-	certBadgeW, certBadgeH   = 39.9, 56.6  // the badge files are 904 by 1280
-	certIssuedX, certIssuedY = 18.2, 281.7 // "Issued on" bottom left
+	certNameY, certICY       = 103.0, 109.0 // centred on the page, over the rule
+	certNameW                = 160.0        // a longer name shrinks to this width, inside the 172 mm rule
+	certTitleX, certTitleW   = 30.0, 150.0  // the title box, under "has successfully completed..."
+	certTitleY, certTitleH   = 124.5, 24.0  // three lines at 16 pt; the title is centred in it, shrunk until it fits
+	certBadgeX, certBadgeY   = 99.6, 206.4  // the badge image's top left; it carries its own label
+	certBadgeW, certBadgeH   = 39.9, 56.6   // the badge files are 904 by 1280
+	certIssuedX, certIssuedY = 18.2, 281.7  // "Issued on" bottom left
 	// The Organisation's logo is scaled to fit this box and centred in it. A first guess on the plain page, clear of
 	// its heading and the Certificate No. and QR: tune it once the client's artwork with the top-left space blank arrives.
 	certLogoX, certLogoY = 18.0, 12.0
@@ -372,16 +373,16 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 
 	pdf.SetTextColor(214, 132, 28) // the sample's gold
 	centred(certNumberX, certNumberY, "Helvetica", "", 8, c.Number())
-	pdf.SetTextColor(0, 0, 0)
+	pdf.SetTextColor(artInk[0], artInk[1], artInk[2])
 	checkURL := a.publicBaseURL + "/certificates/" + c.ID
 	if err := placeQR(pdf, checkURL, certQRX, certQRY, certQR); err != nil {
 		return nil, err
 	}
 	pdf.LinkString(certQRX, certQRY, certQR, certQR, checkURL)
 
-	centred(pageW/2, certNameY, "Times", "B", 13, c.LearnerName)
+	centred(pageW/2, certNameY, "Times", "B", certNameSize(pdf, c.LearnerName), c.LearnerName)
 	if c.LearnerIC != "" {
-		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
+		centred(pageW/2, certICY, "Times", "", 11, formatIC(c.LearnerIC))
 	}
 	size, lines := certTitleLines(pdf, c.CourseTitle)
 	for _, l := range lines {
@@ -399,16 +400,13 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 		pdf.ImageOptions(c.LogoKey, certLogoX+(certLogoW-w)/2, certLogoY+(certLogoH-h)/2, w, h, false, fpdf.ImageOptions{}, 0, "")
 	}
 	if badge := c.Badge(); badge != "" {
-		f, err := staticFiles.Open("static/" + badge)
+		cut, err := badgeCutouts()
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
-		opt := fpdf.ImageOptions{ImageType: "jpg"}
-		pdf.RegisterImageOptionsReader(badge, opt, f)
-		pdf.SetAlpha(1, "Multiply") // the badge's white surround takes the artwork's colour
+		opt := fpdf.ImageOptions{ImageType: "png"}
+		pdf.RegisterImageOptionsReader(badge, opt, bytes.NewReader(cut[badge]))
 		pdf.ImageOptions(badge, certBadgeX, certBadgeY, certBadgeW, certBadgeH, false, opt, 0, "")
-		pdf.SetAlpha(1, "Normal")
 	}
 	pdf.SetFont("Helvetica", "", 6.5)
 	pdf.Text(certIssuedX, certIssuedY, "Issued on: "+c.IssuedIn("en"))

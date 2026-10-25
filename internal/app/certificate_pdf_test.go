@@ -169,14 +169,45 @@ func TestCertificatesWithoutAnOrganisationRecordAndPrintNoLogo(t *testing.T) {
 		t.Fatal("a Live Course without an Organisation recorded a logo")
 	}
 	admin.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)}) // so every image is known
-	if n := strings.Count(ada.pdfBody("/certificates/"+certID+"/pdf"), "/Subtype /Image"); n != 4 {
-		t.Fatalf("Certificate PDF has %d images, want the background and its transparency mask, the QR code and the badge", n)
+	if n := strings.Count(ada.pdfBody("/certificates/"+certID+"/pdf"), "/Subtype /Image"); n != 5 {
+		t.Fatalf("Certificate PDF has %d images, want the background and the badge, each with its transparency mask, and the QR code", n)
 	}
 
 	s := newSite(t)
 	_, certID = s.adaEarns()
 	if hasLogo(t, s, certID) {
 		t.Fatal("a self-paced Certificate recorded a logo")
+	}
+}
+
+// nameOnPDF finds name printed in pdf and returns its font size in points and its left edge in mm.
+func nameOnPDF(t *testing.T, pdf, name string) (size, left float64) {
+	t.Helper()
+	at := strings.Index(pdf, " Td ("+name+") Tj")
+	tf := strings.LastIndex(pdf[:at], " Tf ET")
+	if at < 0 || tf < 0 {
+		t.Fatalf("the PDF does not print %q", name)
+	}
+	fmt.Sscan(pdf[strings.LastIndex(pdf[:tf], " ")+1:tf], &size)
+	fmt.Sscan(pdf[strings.LastIndex(pdf[:at], "BT ")+3:], &left)
+	return size, left / 72 * 25.4
+}
+
+func TestTheLearnersNameIsTheCertificatesLargestLineAndShrinksToFitItsRule(t *testing.T) {
+	admin, ada, _, certID := orgCertificate(t, nil)
+	if size, _ := nameOnPDF(t, ada.pdfBody("/certificates/"+certID+"/pdf"), "Ada"); size != 28 {
+		t.Fatalf("a short name prints at %v pt, want 28", size)
+	}
+
+	long := "Puteri Nur Aisyah Humaira binti Mohd Shahrizal Abdul Wahhabi" // 60 characters
+	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
+	res, body := admin.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {long}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = ada.get("/my-certificates")
+	ids := certificateIDs(body)
+	size, left := nameOnPDF(t, ada.pdfBody("/certificates/"+ids[len(ids)-1]+"/pdf"), long)
+	if size >= 28 || left < 19 { // the rule under the name runs from 19 mm to 191 mm, centred on the page
+		t.Fatalf("a 60-character name prints at %v pt from %.1f mm, want it shrunk to start on the rule", size, left)
 	}
 }
 

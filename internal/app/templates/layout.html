@@ -240,6 +240,7 @@ says in words what it shows. */}}
   <defs>
     <linearGradient id="cert-art-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
     <linearGradient id="cert-art-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
+    <clipPath id="cert-art-badge-edge"><rect x="99.95" y="206.75" width="39.2" height="55.9"/></clipPath>
   </defs>
   <rect class="cert-art-paper" width="210" height="297"/>
   <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".07" transform="rotate(-90 160 150)"/>
@@ -265,22 +266,22 @@ says in words what it shows. */}}
   <text x="105" y="63.6" font-size="14.11" letter-spacing="1.6" text-anchor="middle">CERTIFICATE</text>
   <text class="cert-art-gold" x="105" y="72.7" font-size="7.06" letter-spacing=".9" text-anchor="middle">OF COMPETENCY</text>
   <path class="cert-art-rule" d="M45 70.4H65.5M144.5 70.4H165" stroke-width=".5"/>
-  <text class="cert-art-muted" x="105" y="85.2" font-size="3.88" letter-spacing=".6" text-anchor="middle">THIS IS TO CERTIFY THAT</text>
-  <text class="cert-art-name" x="105" y="97.7" font-size="4.59" text-anchor="middle">{{.Name}}</text>
-  <path class="cert-art-rule" d="M19 106.1H191M30.5 165.5H99M111 165.5H179.5" stroke-width=".3"/>
-  <text class="cert-art-muted" x="105" y="111.5" font-size="3.88" text-anchor="middle">has successfully completed the competency requirements of</text>
+  <text class="cert-art-muted" x="105" y="88" font-size="3.88" letter-spacing=".6" text-anchor="middle">THIS IS TO CERTIFY THAT</text>
+  <text class="cert-art-name" x="105" y="103" font-size="{{printf "%.2f" .NameSize}}" text-anchor="middle">{{.Name}}</text>
+  <path class="cert-art-rule" d="M19 112.5H191M30.5 157H99M111 157H179.5" stroke-width=".3"/>
+  <text class="cert-art-muted" x="105" y="119.5" font-size="3.88" text-anchor="middle">has successfully completed the competency requirements of</text>
   {{- range .Title}}
   <text class="cert-art-title" x="105" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" $.TitleSize}}" text-anchor="middle">{{.Text}}</text>{{end}}
-  <path class="cert-art-ornament" d="M105 163.7 107.6 165.5 105 167.3 102.4 165.5Z"/>
-  <circle class="cert-art-ornament" cx="100.6" cy="165.5" r=".55"/><circle class="cert-art-ornament" cx="109.4" cy="165.5" r=".55"/>
-  <text class="cert-art-award" x="105" y="173.2" font-size="4.59" text-anchor="middle">This achievement is awarded under the</text>
-  <text class="cert-art-award" x="105" y="178.85" font-size="4.59" text-anchor="middle">Professional Competency Credential (PCC)</text>
-  <text class="cert-art-award" x="105" y="184.5" font-size="4.59" text-anchor="middle">in recognition of the knowledge, skills, and ability to apply</text>
-  <text class="cert-art-award" x="105" y="190.15" font-size="4.59" text-anchor="middle">the competencies demonstrated throughout the programme</text>
+  <path class="cert-art-ornament" d="M105 155.2 107.6 157 105 158.8 102.4 157Z"/>
+  <circle class="cert-art-ornament" cx="100.6" cy="157" r=".55"/><circle class="cert-art-ornament" cx="109.4" cy="157" r=".55"/>
+  <text class="cert-art-award" x="105" y="165.5" font-size="4.59" text-anchor="middle">This achievement is awarded under the</text>
+  <text class="cert-art-award" x="105" y="171.15" font-size="4.59" text-anchor="middle">Professional Competency Credential (PCC)</text>
+  <text class="cert-art-award" x="105" y="176.8" font-size="4.59" text-anchor="middle">in recognition of the knowledge, skills, and ability to apply</text>
+  <text class="cert-art-award" x="105" y="182.45" font-size="4.59" text-anchor="middle">the competencies demonstrated throughout the programme</text>
   <image href="{{static "cert-seal.png"}}" x="10.5" y="221" width="51" height="50.4"/>
   <image href="{{static "cert-hrd-corp.png"}}" x="69.6" y="227.5" width="31" height="30.1"/>
   {{- with .Badge}}
-  <image class="cert-art-badge" href="{{static .}}" x="99.6" y="206.4" width="39.9" height="56.6"/>{{end}}
+  <image class="cert-art-badge" href="{{static .}}" clip-path="url(#cert-art-badge-edge)" x="99.6" y="206.4" width="39.9" height="56.6"/>{{end}}
   <image href="{{static "cert-signature-1.png"}}" x="62.8" y="260" width="48.2" height="12.9"/>
   <image href="{{static "cert-signature-2.png"}}" x="128.6" y="259.6" width="24.8" height="15.3"/>
   <text x="85.7" font-size="3.35" text-anchor="middle"><tspan x="85.7" y="276.7" font-size="3.88">ADAM BIN YUSUF</tspan><tspan x="85.7" y="280.5">HRD Corp Accredited Trainer ID: 41123</tspan><tspan x="85.7" y="284.3">FOUNDER &amp; CHIEF CONSULTANT</tspan><tspan x="85.7" y="288.1" font-size="3.88">THE CAVE CONSULT</tspan></text>

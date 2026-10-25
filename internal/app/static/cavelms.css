@@ -1446,7 +1446,9 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .cert-art-qr rect { fill: color-mix(in srgb, var(--brand-ink) 6%, transparent); }
 .cert-art-qr path { fill: none; stroke: var(--brand-ink); }
 .cert-art-qr .cert-art-qr-core { fill: var(--brand-ink); stroke: none; }
-.cert-art-badge { mix-blend-mode: multiply; }
+/* The badge JPEG's grey surround (252) lifted to white and multiplied takes the paper's colour, so no box shows; its
+   clip trims the frame line some badge files have. The PDF prints a cut-out instead (badgeCutouts). */
+.cert-art-badge { mix-blend-mode: multiply; filter: brightness(1.012); }
 
 /* The Course page's side card: the sheet, centred, above its caption. */
 .cp-cert .cert-art { max-width: 18rem; margin-inline: auto; }

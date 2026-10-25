@@ -3,6 +3,11 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/draw"
+	"image/jpeg"
+	"image/png"
+	"io/fs"
 	"strings"
 	"sync"
 
@@ -143,23 +148,25 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	pdf.Line(45, 70.4, pageW/2-w/2-4, 70.4)
 	pdf.Line(pageW/2+w/2+4, 70.4, pageW-45, 70.4)
 	ink(artInk2)
-	spaced(pageW/2, 85.2, .6, "Times", "", 11, "THIS IS TO CERTIFY THAT")
+	spaced(pageW/2, 88, .6, "Times", "", 11, "THIS IS TO CERTIFY THAT")
 
+	// The rule the name and IC stand on.
 	pdf.SetLineWidth(.3)
-	pdf.Line(19, 106.1, pageW-19, 106.1)
-	spaced(pageW/2, 111.5, 0, "Times", "", 11, "has successfully completed the competency requirements of")
+	pdf.Line(19, 112.5, pageW-19, 112.5)
+	spaced(pageW/2, 119.5, 0, "Times", "", 11, "has successfully completed the competency requirements of")
 
 	// The ornament under the Course title: two rules and a diamond between them.
-	pdf.Line(30.5, 165.5, pageW/2-6, 165.5)
-	pdf.Line(pageW/2+6, 165.5, pageW-30.5, 165.5)
+	const orn = 157
+	pdf.Line(30.5, orn, pageW/2-6, orn)
+	pdf.Line(pageW/2+6, orn, pageW-30.5, orn)
 	fill(artGold)
-	pdf.Polygon([]fpdf.PointType{{X: pageW / 2, Y: 163.7}, {X: pageW/2 + 2.6, Y: 165.5}, {X: pageW / 2, Y: 167.3}, {X: pageW/2 - 2.6, Y: 165.5}}, "F")
-	pdf.Circle(pageW/2-4.4, 165.5, .55, "F")
-	pdf.Circle(pageW/2+4.4, 165.5, .55, "F")
+	pdf.Polygon([]fpdf.PointType{{X: pageW / 2, Y: orn - 1.8}, {X: pageW/2 + 2.6, Y: orn}, {X: pageW / 2, Y: orn + 1.8}, {X: pageW/2 - 2.6, Y: orn}}, "F")
+	pdf.Circle(pageW/2-4.4, orn, .55, "F")
+	pdf.Circle(pageW/2+4.4, orn, .55, "F")
 
 	ink(artInk)
 	for i, l := range artAward {
-		spaced(pageW/2, 173.2+float64(i)*5.65, 0, "Times", "I", 13, l)
+		spaced(pageW/2, orn+8.5+float64(i)*5.65, 0, "Times", "I", 13, l)
 	}
 
 	for _, im := range []struct {
@@ -185,6 +192,92 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 		}
 	}
 	return pdf.Error()
+}
+
+// certNameSize is the size in points the Learner's name prints at: 28, or smaller so a long name fits its line.
+func certNameSize(pdf *fpdf.Fpdf, name string) float64 {
+	pdf.SetFont("Times", "B", 28)
+	return min(28, 28*certNameW/pdf.GetStringWidth(pdf.UnicodeTranslatorFromDescriptor("")(name)))
+}
+
+// badgeCutouts are the PCC badges as the Certificate prints them, PNGs keyed by static file name: each JPEG with the
+// flat grey it was shot on made transparent, so the badge sits on the paper with no box round it.
+var badgeCutouts = sync.OnceValues(func() (map[string][]byte, error) {
+	names, err := fs.Glob(staticFiles, "static/pcc-*.jpg")
+	if err != nil {
+		return nil, err
+	}
+	cut := map[string][]byte{}
+	for _, name := range names {
+		f, err := staticFiles.Open(name)
+		if err != nil {
+			return nil, err
+		}
+		img, err := jpeg.Decode(f)
+		f.Close()
+		if err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, cutout(img)); err != nil {
+			return nil, err
+		}
+		cut[strings.TrimPrefix(name, "static/")] = buf.Bytes()
+	}
+	return cut, nil
+})
+
+// cutout makes a badge's grey surround transparent: the light, colourless pixels reachable from its edges, so the
+// white panel inside the shield's gold rim stays. Each is unmixed from the grey (GIMP's colour to alpha), so the
+// shield's soft shadow and the anti-aliased edges of the label keep their shading.
+func cutout(img image.Image) *image.NRGBA {
+	const grey = 252
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	out := image.NewNRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(out, out.Rect, img, b.Min, draw.Src)
+	seen := make([]bool, w*h)
+	var stack []int
+	for x := range w {
+		stack = append(stack, x, (h-1)*w+x)
+	}
+	for y := range h {
+		stack = append(stack, y*w, y*w+w-1)
+	}
+	for len(stack) > 0 {
+		i := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		p := out.Pix[i*4 : i*4+4]
+		lo, hi := min(p[0], p[1], p[2]), max(p[0], p[1], p[2])
+		if seen[i] || lo < 120 || hi-lo > 40 {
+			continue
+		}
+		seen[i] = true
+		x, y := i%w, i/w
+		a := float64(grey-min(int(lo), grey)) / grey
+		if min(x, y, w-1-x, h-1-y) < 4 {
+			a = 0 // the grey frame line round the edge of some badge files
+		}
+		for c := range 3 {
+			if a > 0 {
+				p[c] = uint8(max(0, min(255, (float64(p[c])-grey*(1-a))/a)))
+			}
+		}
+		p[3] = uint8(a * 255)
+		if x > 0 {
+			stack = append(stack, i-1)
+		}
+		if x < w-1 {
+			stack = append(stack, i+1)
+		}
+		if i >= w {
+			stack = append(stack, i-w)
+		}
+		if i < (h-1)*w {
+			stack = append(stack, i+w)
+		}
+	}
+	return out
 }
 
 // certLine is one line of a Course title as the Certificate prints it: its text and baseline, in mm.
@@ -226,6 +319,7 @@ func certTitleLines(pdf *fpdf.Fpdf, title string) (size float64, lines []certLin
 type certPreview struct {
 	Name, Badge    string
 	Title          []certLine
+	NameSize       float64 // in mm
 	TitleSize      float64 // in mm
 	Number, Issued string
 }
@@ -233,8 +327,10 @@ type certPreview struct {
 // newCertPreview is the template function certPreview: the preview of a Certificate for name on the Course titled title
 // with the PCC badge static file badge ("" for none).
 func newCertPreview(name, title, badge string) certPreview {
-	size, lines := certTitleLines(fpdf.New("P", "mm", "A4", ""), title)
-	return certPreview{Name: name, Badge: badge, Title: lines, TitleSize: size * 25.4 / 72}
+	pdf := fpdf.New("P", "mm", "A4", "")
+	size, lines := certTitleLines(pdf, title)
+	return certPreview{Name: name, Badge: badge, Title: lines, NameSize: certNameSize(pdf, name) * 25.4 / 72,
+		TitleSize: size * 25.4 / 72}
 }
 
 // Preview is the Certificate's preview, as issued.
