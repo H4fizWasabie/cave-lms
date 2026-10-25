@@ -432,7 +432,7 @@ func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 	id, qids := s.examCourse("50", "", "", "What is a slice?")
 	res, _ := s.startExam(id)
 	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"}) // failed, so no Certificate
-	s.post("/courses/"+id+"/leave", nil)
+	s.leaveCourse(id)
 	s.loginAdmin()
 	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", nil)
 

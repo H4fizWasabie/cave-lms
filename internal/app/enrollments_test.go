@@ -20,6 +20,11 @@ func (s *site) courseIDByTitle(title string) string {
 	return m[1]
 }
 
+// leaveCourse is the logged-in Learner leaving a Course through its confirmation page.
+func (s *site) leaveCourse(courseID string) (*http.Response, string) {
+	return s.post("/courses/"+courseID+"/leave", url.Values{"confirm": {"yes"}})
+}
+
 // enrollmentCount counts the Enrollments of a Learner in a Course, read straight from the database.
 func (s *site) enrollmentCount(learnerEmail, courseID string) int {
 	s.t.Helper()
@@ -131,9 +136,25 @@ func TestLearnerLeavesACourse(t *testing.T) {
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.post("/courses/"+id+"/join", nil)
 	res, body := s.get("/courses/" + id)
-	expectStatus(t, res, body, http.StatusOK, `action="/courses/`+id+`/leave"`)
+	expectStatus(t, res, body, http.StatusOK, `href="/courses/`+id+`/leave"`)
 
-	res, body = s.post("/courses/"+id+"/leave", nil)
+	res, body = s.get("/courses/" + id + "/leave")
+	expectStatus(t, res, body, http.StatusOK, "Leave “Go Basics”?")
+	expectAll(t, body, `action="/courses/`+id+`/leave"`, "Stay in this Course")
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("the confirmation page alone left the Course: %d Enrollments", n)
+	}
+
+	res, body = s.post("/courses/"+id+"/leave", nil) // not confirmed, as from an old Course page
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/courses/"+id+"/leave" {
+		t.Fatalf("unconfirmed leave went to %q, want the confirmation page", loc)
+	}
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("an unconfirmed leave left the Course: %d Enrollments", n)
+	}
+
+	res, body = s.post("/courses/"+id+"/leave", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := s.enrollmentCount("ada@example.com", id); n != 0 {
 		t.Fatalf("Enrollments after leaving = %d, want 0", n)
@@ -167,7 +188,7 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 		t.Fatalf("My Courses shows the empty message to a Learner with Courses: %s", body)
 	}
 
-	s.post("/courses/"+goID+"/leave", nil)
+	s.leaveCourse(goID)
 	res, body = s.get("/my-courses")
 	if strings.Contains(content(body), "Go Basics") {
 		t.Fatalf("My Courses still lists a Course Ada left: %s", body)

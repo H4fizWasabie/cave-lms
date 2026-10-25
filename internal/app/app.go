@@ -99,7 +99,8 @@ type page struct {
 	Courses       []course
 	Course        *course
 	Exam          *exam
-	WrittenExam   *exam       // the Course's on its page, when the Learner has joined and it is usable
+	Exams         []exam      // the Course's usable Exams, Multiple-choice first, on its page
+	Step          *nextStep   // the enrolled Learner's next step, on the Course page
 	Status        *examStatus // the Learner's Exam
 	Attempt       *examAttempt
 	Question      *examQuestion
@@ -216,6 +217,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses", a.courses)
 	mux.HandleFunc("GET /courses/{id}", a.showCourse)
 	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
+	mux.HandleFunc("GET /courses/{id}/leave", a.requireLearner(a.confirmLeaveCourse))
 	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
 	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
 	mux.HandleFunc("GET /courses/{id}/chat", a.requireLearner(a.chat))
@@ -567,11 +569,12 @@ type courseCard struct {
 // card is the template function behind {{template "course-card" (card . $.Lang)}}.
 func card(c course, lang string) courseCard { return courseCard{c, lang} }
 
-// parsePages pairs each page template with layout.html, keyed by file name without extension.
+// parsePages pairs each page template with layout.html and the partials in _*.html, keyed by file name without
+// extension.
 func parsePages() (map[string]*template.Template, error) {
 	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
-		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html")
+		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
@@ -582,7 +585,7 @@ func parsePages() (map[string]*template.Template, error) {
 	pages := map[string]*template.Template{}
 	for _, file := range files {
 		name := strings.TrimSuffix(path.Base(file), ".html")
-		if name == "layout" {
+		if name == "layout" || strings.HasPrefix(name, "_") { // _name.html holds partials, parsed with the layout
 			continue
 		}
 		t, err := template.Must(layout.Clone()).ParseFS(appFiles, file)

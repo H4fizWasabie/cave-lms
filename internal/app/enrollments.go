@@ -211,6 +211,31 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
+// confirmLeaveCourse asks the Learner to confirm leaving a Course they have joined.
+func (a *App) confirmLeaveCourse(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if !enrolled {
+		http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
+		return
+	}
+	a.render(w, r, http.StatusOK, "leave_course", page{Course: &c, Learner: learner})
+}
+
+// leaveCourse leaves a Course once the Learner has confirmed it on the confirmation page; a post without that
+// confirmation, such as from an old Course page, goes to the confirmation page instead.
 func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -219,6 +244,10 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	c, ok := a.courseFor(w, r)
 	if !ok {
+		return
+	}
+	if r.PostFormValue("confirm") != "yes" {
+		http.Redirect(w, r, "/courses/"+r.PathValue("id")+"/leave", http.StatusSeeOther)
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(),

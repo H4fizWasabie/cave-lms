@@ -1,0 +1,15 @@
+{{define "title"}}{{t .Lang "course.leave"}} · {{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></p>
+      <div class="page-head"><h1>{{t .Lang "course.leave"}}</h1></div>
+      <div class="card confirm">
+        <p>{{t .Lang "course.leave-question" .Course.Title}}</p>
+        {{if not .Course.Joinable}}<p>{{t .Lang "course.leave-closed"}}</p>{{end}}
+        <div class="form-foot">
+          <a class="btn btn-quiet" href="/courses/{{.Course.ID}}">{{t .Lang "course.stay"}}</a>
+          <form method="post" action="/courses/{{.Course.ID}}/leave"><input type="hidden" name="confirm" value="yes"><button class="btn btn-danger-solid">{{t .Lang "course.leave"}}</button></form>
+        </div>
+      </div>
+    </div>
+{{end}}
