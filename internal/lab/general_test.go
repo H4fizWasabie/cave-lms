@@ -143,6 +143,18 @@ func TestGeneralAddsUpThePriceOfEachSaleOnAListOfSales(t *testing.T) {
 	}
 }
 
+func TestGeneralStillAveragesThePriceOnAPriceListWithADate(t *testing.T) {
+	var rows [][]any
+	for i := range 30 {
+		rows = append(rows, []any{fmt.Sprintf("%02d/09/2026", 1+i%2), fmt.Sprintf("Item %d", i), float64(10 + i),
+			[]string{"Checked by the store keeper on the morning shift.", "Price agreed with the supplier for the whole year."}[i%2]})
+	}
+	cfg := general(t, []string{"Tarikh Kemaskini", "Product", "Price", "Remarks"}, rows...)
+	if got := valueOf(cfg, "Average Price"); got == nil {
+		t.Errorf("a price list adds up Price; blocks %+v", cfg.Blocks)
+	}
+}
+
 func TestGeneralChartsARosterWithNoNumbersByRowCounts(t *testing.T) {
 	var rows [][]any
 	for i := range 24 {

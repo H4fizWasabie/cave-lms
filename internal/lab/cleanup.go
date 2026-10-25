@@ -355,6 +355,9 @@ func sameColumns(a, b []Column) bool {
 	return slices.Equal(keys(a), keys(b))
 }
 
+// sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.
+const sheetColumn = "Sheet"
+
 // addSheetColumn puts each row's sheet in a new first column of combined d: a Date column when every sheet's
 // name reads as a date, else a Sheet column of names. It gives the change to list.
 func addSheetColumn(d *Dataset, used []*table) Change {
@@ -363,7 +366,7 @@ func addSheetColumn(d *Dataset, used []*table) Change {
 	for i, tb := range used {
 		day, ok := sheetDate(tb.name)
 		if !ok {
-			col, change = Column{"Sheet", Text}, Change{Key: "lab.clean.combined", Args: []int{len(used)}}
+			col, change = Column{sheetColumn, Text}, Change{Key: "lab.clean.combined", Args: []int{len(used)}}
 			break
 		}
 		values[i] = day
