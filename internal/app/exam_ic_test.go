@@ -119,3 +119,30 @@ func TestAWrittenExamSendsALearnerWithoutAnICToItsOwnICStepAndBack(t *testing.T)
 	res, body = s.setExamIC(step, "A1234567", "a123 4567")
 	expectRedirect(t, res, body, "/courses/"+id+"/exam?format=written")
 }
+
+func TestTheExamICStepSendsALearnerWhoCannotStartTheExamBackToTheCourseSavingNothing(t *testing.T) {
+	s := newSite(t)
+	id := s.examCourseForBea()
+	admin := s.adminSite()
+	admin.createCourse("No Exam", "Just reading.", "")
+	var noExam string
+	if err := admin.db.QueryRow(`SELECT id FROM courses WHERE title = 'No Exam'`).Scan(&noExam); err != nil {
+		t.Fatal(err)
+	}
+	s.post("/courses/"+noExam+"/join", nil)
+	cat := s.second()
+	cat.loginAsNewLearner("Cat", "cat@example.com", examPassword) // not joined
+
+	for _, c := range []struct {
+		who    *site
+		course string
+	}{{s, noExam}, {cat, id}} {
+		step := "/courses/" + c.course + "/exam/ic"
+		res, body := c.who.get(step)
+		expectRedirect(t, res, body, "/courses/"+c.course)
+		res, body = c.who.setExamIC(step, "951206085555", "951206085555")
+		expectRedirect(t, res, body, "/courses/"+c.course)
+		_, body = c.who.get("/my-profile")
+		expectInOrder(t, content(body), `action="/my-profile/ic"`) // still unset
+	}
+}
