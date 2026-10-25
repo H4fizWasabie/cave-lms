@@ -1120,3 +1120,32 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .file-list form { margin-left: auto; }
 .folder-course { margin-bottom: var(--space-5); }
 .folder-assignment + .folder-assignment { border-top: 1px solid var(--line); padding-top: var(--space-4); }
+
+/* === Page: Course cards (#309) === */
+/* The course-card template (one Course in a ul.catalogue) and the course-cover template (a Course's picture or drawn
+   cover), shared by every list of Courses and the Course page. */
+.catalogue { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: var(--space-5); }
+.catalogue-card { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; transition: border-color var(--duration-quick) ease, box-shadow var(--duration-fast) var(--ease-smooth-out); }
+.catalogue-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-lift); }
+.catalogue-card-body { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); }
+.catalogue-card h2 { font-size: var(--fs-lede); line-height: 1.25; overflow-wrap: anywhere; }
+.catalogue-card h2 a { text-decoration: none; text-underline-offset: 0.2em; }
+.catalogue-card h2 a::after { content: ""; position: absolute; inset: 0; } /* the whole card opens the Course */
+.catalogue-card:hover h2 a { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.catalogue-card .badge { position: absolute; top: var(--space-4); left: var(--space-4); max-width: calc(100% - 2 * var(--space-4)); overflow: hidden; text-overflow: ellipsis; } /* on the cover */
+.catalogue-card-desc { color: var(--ink-2); font-size: var(--fs-ui); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.catalogue-card .meta { margin: 0; }
+.catalogue-flags { list-style: none; margin: auto 0 0; padding: var(--space-3) 0 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); }
+.catalogue-flags li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.catalogue-flags .i { color: var(--brand-gold-deep); }
+.catalogue-badge { width: auto; height: 1.75rem; }
+
+.course-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--brand-ink); }
+/* Without a picture: the title on charcoal over a faint gold peak, framed like the Certificate; gold for a Live Course. */
+.course-cover-drawn { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-2); padding: var(--space-5); color: var(--on-dark); outline: 1px solid var(--on-dark-line); outline-offset: calc(-1 * var(--space-2)); }
+.course-cover-drawn.is-live { outline-color: color-mix(in srgb, var(--brand-gold) 45%, transparent); }
+.course-cover-mark { position: absolute; right: calc(-1 * var(--space-5)); bottom: calc(-1 * var(--space-6)); height: 120%; width: auto; color: color-mix(in srgb, var(--brand-gold) 12%, transparent); }
+.course-cover-title, .course-cover-level { position: relative; max-width: 26ch; }
+.course-cover-title { font-family: var(--font-display); font-size: var(--fs-title); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.course-cover-level { font-size: var(--fs-meta); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-dark-muted); }
+.course-cover-drawn.is-live .course-cover-level { color: var(--brand-gold); }
