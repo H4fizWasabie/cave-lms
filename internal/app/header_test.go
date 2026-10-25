@@ -97,11 +97,11 @@ func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
 	expectInOrder(t, header(t, body), ">Certification<", `href="/certificates"`, `href="/my-certificates"`)
 }
 
-func TestTheHomeMenuReachesTheHomePageSectionsAndTheLabMenuSaysWhatTheLabDoes(t *testing.T) {
+func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPageAndTheLabMenuSaysWhatTheLabDoes(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/lab", "en")
 	head := header(t, body)
-	expectInOrder(t, head, `href="/#welcome"`, `href="/#background"`, `href="/#coach"`, `href="/#about"`, `href="/gallery"`)
+	expectInOrder(t, head, `href="/#welcome"`, `href="/about"`, `href="/#coach"`, `href="/#about"`, `href="/gallery"`)
 	expectAll(t, head, ">Company background<")
 	expectInOrder(t, head, ">Lab<", "From static dashboard to hosted dashboard", `href="/lab"`)
 	expectAll(t, content(body), "<h1>From static dashboard to hosted dashboard</h1>")
@@ -109,8 +109,7 @@ func TestTheHomeMenuReachesTheHomePageSectionsAndTheLabMenuSaysWhatTheLabDoes(t 
 	expectAll(t, body, "<h1>Daripada dashboard statik kepada dashboard yang dihoskan</h1>")
 
 	_, body = s.getAsking("/", "en")
-	expectAll(t, body, `id="welcome"`, `id="background"`, `id="coach"`, `id="about"`)
-	expectAll(t, content(body), "<h2>Company background</h2>", "Coach Adam Daniel", "Capt Dinor Sabudin", "ISDeT", `href="https://www.thecaveconsult.com/company-profile/"`)
+	expectAll(t, body, `id="welcome"`, `id="coach"`, `id="about"`)
 	_, body = s.getAsking("/", "ms")
-	expectAll(t, body, ">Latar belakang syarikat<", "<h2>Latar belakang syarikat</h2>", "Kapten Dinor Sabudin")
+	expectAll(t, header(t, body), ">Latar belakang syarikat<")
 }

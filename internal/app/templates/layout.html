@@ -73,6 +73,7 @@
         <h2>{{t .Lang "footer.contact"}}</h2>
         <a href="tel:+60123947200">012-394 7200</a>
         <a href="mailto:adam.caveconsult@gmail.com">adam.caveconsult@gmail.com</a>
+        <a href="/about">{{t .Lang "about.link"}}</a>
         <a href="/privacy">{{t .Lang "privacy.link"}}</a>
         <address>11B Bazar Enggang Keramat, Lorong Enggang 4, Taman Keramat, 54200 Kuala Lumpur</address>
       </div>
@@ -88,7 +89,7 @@
 {{define "nav-links"}}
         <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.home"}}</summary><div class="hdr-panel">
           <a href="/#welcome">{{t .Lang "nav.welcome"}}</a>
-          <a href="/#background">{{t .Lang "home.background.title"}}</a>
+          <a href="/about">{{t .Lang "about.menu"}}</a>
           <a href="/#coach">Coach Adam</a>
           <a href="/#about">{{t .Lang "nav.about"}}</a>
           <a href="/gallery">{{t .Lang "nav.gallery"}}</a>
