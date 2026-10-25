@@ -622,7 +622,7 @@ input[type=file]::file-selector-button { font: 600 var(--fs-meta) var(--font-bod
 input[type=file]::file-selector-button:hover { background: var(--bg); }
 .empty-state { text-align: center; display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-7) var(--space-5); background: var(--surface); border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); }
 .empty-state > .i { width: 2.6rem; height: 2.6rem; color: var(--brand-gold-deep); }
-.empty-state h3 { font-size: var(--fs-title); }
+.empty-state :is(h2, h3) { font-size: var(--fs-title); }
 .empty-state p { color: var(--muted); max-width: 30rem; }
 
 /* Pickers and segmented control */
