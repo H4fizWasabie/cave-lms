@@ -648,7 +648,7 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 		}
 		if n := serials(raw, ci); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
 			d.Columns[ci].Type = Date
-			res.Changes = append(res.Changes, Change{"lab.clean.serial-dates", []int{n}, col.Name})
+			res.Changes = append(res.Changes, Change{Key: "lab.clean.serial-dates", Args: []int{n}, Column: col.Name})
 		}
 	}
 	for _, vals := range raw {
@@ -668,8 +668,8 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 				others++
 				continue
 			}
-			v, problem := parse(c, typ)
-			if problem != "" {
+			v, ok := parse(c, typ)
+			if !ok {
 				misfits[ci]++
 				continue
 			}
@@ -686,7 +686,7 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	}
 	for ci, n := range misfits {
 		if n > 0 {
-			res.Changes = append(res.Changes, Change{"lab.clean.not-" + string(d.Columns[ci].Type) + "s", []int{n}, d.Columns[ci].Name})
+			res.Changes = append(res.Changes, Change{Key: "lab.clean.not-" + string(d.Columns[ci].Type) + "s", Args: []int{n}, Column: d.Columns[ci].Name})
 		}
 	}
 	return d
@@ -741,13 +741,6 @@ func serials(raw [][]cell, ci int) int {
 		}
 	}
 	return n
-}
-
-// dateNamed reports whether a column's name holds one of the words for a date that Finance's date blank is
-// guessed by, such as tarikh or created.
-func dateNamed(name string) bool {
-	i := slices.IndexFunc(Finance.Blanks, func(b Blank) bool { return b.Key == "date" })
-	return slices.ContainsFunc(Finance.Blanks[i].Loose, func(w string) bool { return strings.Contains(columnKey(name), w) })
 }
 
 var (

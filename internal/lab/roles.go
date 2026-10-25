@@ -51,6 +51,7 @@ var (
 	// sumWords keep a column added up though it names a price or stock: a total cost, stock in, a stock value.
 	sumWords  = []string{"total", "jumlah", "amount", "amaun", "value", "nilai", "in", "out", "masuk", "keluar", "sold", "jual", "received", "issued", "purchase", "belian"}
 	yearWords = []string{"year", "tahun", "yr"}
+	dateWords = []string{"tarikh", "date", "created"}
 )
 
 // mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for,
@@ -88,6 +89,9 @@ func isYear(s string) bool {
 
 // yearNamed reports whether a column's name says it holds years: tahun, year.
 func yearNamed(name string) bool { return anyWord(words(name), yearWords) }
+
+// dateNamed reports whether a column's name says it holds dates: tarikh, date, created.
+func dateNamed(name string) bool { return anyWord(words(name), dateWords) }
 
 // idName is whether the column is named like an ID: an ID word, or No not followed by "of".
 func idName(name string) bool {
@@ -137,7 +141,7 @@ func profiles(d *Dataset) []profile {
 			p.rank = rankOf(col.Name, blank(Finance, "date").Loose)
 		case col.Type != Date && yearNamed(col.Name) && years: // Clean-up types them as Text, so they group
 			role(Dimension, "lab.note.year")
-		case col.Type == Number && anyWord(ws, []string{"tarikh", "date"}): // a day of the month, or Excel's days since 1900
+		case col.Type == Number && dateNamed(col.Name): // a day of the month, or Excel's days since 1900
 			role(Identifier, "lab.note.serial-date")
 		case col.Type == Number && idName(col.Name):
 			role(Identifier, "lab.note.id")

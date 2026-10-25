@@ -807,8 +807,6 @@ var catalog = map[string]entry{
 		en: "Combined, the sheets have %d columns, counting the %s column Cave adds. The Lab reads up to %d columns. Delete a column, or pick one sheet alone, and upload again.",
 		ms: "Apabila digabung, helaian ini ada %d lajur, termasuk lajur %s yang ditambah oleh Cave. Lab membaca sehingga %d lajur. Padam satu lajur, atau pilih satu helaian sahaja, dan muat naik semula.",
 	},
-	"lab.err.not-date":   {en: "Row %d, %s: not a date (%q). Type it as day/month/year, like 05/11/2026.", ms: "Baris %d, %s: bukan tarikh (%q). Taip sebagai hari/bulan/tahun, seperti 05/11/2026."},
-	"lab.err.not-number": {en: "Row %d, %s: not a number (%q). Type it as a plain number, like 200 or RM1,200.00.", ms: "Baris %d, %s: bukan nombor (%q). Taip sebagai nombor biasa, seperti 200 atau RM1,200.00."},
 
 	// Clean-up's changes, listed in an upload's preview
 	"lab.clean.title-row":  {en: "Skipped row 1 above the header in row %d.", ms: "Baris 1 di atas tajuk lajur di baris %d dilangkau."},
