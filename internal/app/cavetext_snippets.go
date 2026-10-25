@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -147,7 +149,7 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(l.Lang, s, clashList(reserved, others, 0)); problem != "" {
+	if problem := snippetProblem(l.Lang, s, clashList(reserved, others)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -205,7 +207,7 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		fail(err)
 		return
 	}
-	if problem := snippetProblem(l.Lang, s, clashList(reserved, others, 0)); problem != "" {
+	if problem := snippetProblem(l.Lang, s, clashList(reserved, others)); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -258,17 +260,25 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	}
 	skipped := len(in.Snippets) - c.Keep(len(in.Snippets))
 	list := make([]caveTextSnippet, len(in.Snippets)-skipped)
-	before := clashList(reserved, nil, len(list)) // grows by each kept Snippet once it passes
+	bad, problem := len(list), "" // the first kept Snippet refused on its own or beside the master prompts
 	for i := range list {
 		if r.Context().Err() != nil {
-			return // the request is gone; stop the clash check, and the deferred Rollback frees the lock
+			return // the request is gone; stop the check, and the deferred Rollback frees the lock
 		}
 		list[i] = in.Snippets[i].snippet()
-		if problem := snippetProblem(l.Lang, list[i], before); problem != "" {
-			writeJSONError(w, http.StatusUnprocessableEntity, problem)
-			return
+		if problem == "" {
+			if problem = snippetProblem(l.Lang, list[i], reserved); problem != "" {
+				bad = i
+			}
 		}
-		before = append(before, list[i])
+	}
+	// A clash between two kept Snippets before bad is refused first, as checking them one by one would.
+	if i := firstClash(list[:bad]); i >= 0 {
+		problem = shortcutProblem(l.Lang, list[i].Shortcut, clashList(reserved, list[:i]))
+	}
+	if problem != "" {
+		writeJSONError(w, http.StatusUnprocessableEntity, problem)
+		return
 	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM cavetext_snippets WHERE learner_id = $1`, l.ID); err != nil {
 		fail(err)
@@ -318,6 +328,33 @@ func shortcutProblem(lang, shortcut string, others []caveTextSnippet) string {
 		}
 	}
 	return ""
+}
+
+// firstClash is the index of the first Snippet whose shortcut clashes with an earlier one's, or -1. It searches for the
+// shortest leading run that clashes, so an import checks its shortcuts in O(n log² n), not pair by pair.
+func firstClash(list []caveTextSnippet) int {
+	k := sort.Search(len(list)+1, func(k int) bool { return shortcutsClash(list[:k]) })
+	if k > len(list) {
+		return -1
+	}
+	return k - 1
+}
+
+// shortcutsClash reports whether any two of list's shortcuts are equal or one a prefix of another, ignoring case.
+// It is shortcutProblem's clash rule, so keep the two in step. Sorted, whatever lies between a shortcut and one it is a
+// prefix of starts with it too, so comparing neighbours is enough.
+func shortcutsClash(list []caveTextSnippet) bool {
+	s := make([]string, len(list))
+	for i := range list {
+		s[i] = strings.ToLower(list[i].Shortcut)
+	}
+	slices.Sort(s)
+	for i := 1; i < len(s); i++ {
+		if strings.HasPrefix(s[i], s[i-1]) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) deleteCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *caveTextLearner) {

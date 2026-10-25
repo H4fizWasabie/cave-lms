@@ -64,7 +64,7 @@ func near(t *testing.T, what string, got, want time.Time) {
 	}
 }
 
-func TestProGivenByTheAdminLastsTwelveMonthsWithUnlimitedSnippets(t *testing.T) {
+func TestProGivenByTheAdminLastsTwelveMonthsWithUpToTwoThousandSnippets(t *testing.T) {
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -80,7 +80,7 @@ func TestProGivenByTheAdminLastsTwelveMonthsWithUnlimitedSnippets(t *testing.T) 
 	}
 	near(t, "Pro until", *me.ProUntil, time.Now().AddDate(1, 0, 0))
 	res, body := ada.caveText(http.MethodGet, "me", token)
-	expectStatus(t, res, body, http.StatusOK, `"cap":null`)
+	expectStatus(t, res, body, http.StatusOK, `"cap":2000`)
 
 	for _, c := range "abcdefg" {
 		ada.createSnippet(token, snippet{Folder: "Work", Name: "Extra " + string(c), Shortcut: "/extra-" + string(c), Body: "x"})
@@ -310,7 +310,7 @@ func TestTheCaveTextPageShowsAVisitorWhatProGivesAndAsksThemToLogIn(t *testing.T
 	visitor := s.second()
 	res, body := visitor.get("/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "<h1>CaveText</h1>")
-	for _, want := range []string{"Unlimited Snippets", "RM25 a year", `href="/login?next=%2Fcavetext"`, `href="/register"`, `href="https://cavetext.cavelms.com"`} {
+	for _, want := range []string{"Up to 2,000 Snippets", "Save up to 2,000 Snippets.", "RM25 a year", `href="/login?next=%2Fcavetext"`, `href="/register"`, `href="https://cavetext.cavelms.com"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the Visitor's CaveText page lacks %s", want)
 		}
@@ -357,11 +357,11 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 		t.Errorf("the page still says Contact us with a payment link set")
 	}
 
-	// Pro: unlimited, with the expiry.
+	// Pro: up to 2,000, with the expiry.
 	s.givePro("ada@example.com")
 	until := text.Date("en", ada.me(token).ProUntil.UTC())
 	_, body = ada.get("/cavetext")
-	for _, want := range []string{"CaveText Pro until " + until, "3 Snippets, unlimited"} {
+	for _, want := range []string{"CaveText Pro until " + until, "3 Snippets, up to 2,000"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the Pro Learner's CaveText page lacks %q", want)
 		}

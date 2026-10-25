@@ -305,7 +305,7 @@ A named group a Learner puts their Snippets in.
 _Malay_: Folder
 
 **Snippet cap**:
-How many Snippets a free Learner may keep: the early cap for an Early place, otherwise the late cap. Over it a Learner can still edit and delete, but not add. The Owner sets both caps and the number of early places.
+How many Snippets a Learner may keep: for a free Learner the early cap for an Early place, otherwise the late cap; with CaveText Pro, 2,000. Over it a Learner can still edit and delete, but not add. The Owner sets both caps and the number of early places.
 _Malay_: Had Snippet
 _Avoid_: Limit, quota
 
@@ -314,7 +314,7 @@ A place within the first early places, a number the Owner sets. A Learner's plac
 _Malay_: Tempat awal
 
 **CaveText Pro**:
-A paid year of CaveText's extras, one level only, at a price the Admin sets. It lifts the Snippet cap and opens the Master prompts. It does not include the Lab: that is the Lab Plan, or both together as the Pro Plan. Buying it again starts a new year when the current one ends. Courses stay free.
+A paid year of CaveText's extras, one level only, at a price the Admin sets. It raises the Snippet cap to 2,000 and opens the Master prompts. It does not include the Lab: that is the Lab Plan, or both together as the Pro Plan. Buying it again starts a new year when the current one ends. Courses stay free.
 _Malay_: CaveText Pro (kept in English)
 _Avoid_: Subscription, storage service
 

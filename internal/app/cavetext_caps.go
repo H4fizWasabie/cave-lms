@@ -23,10 +23,11 @@ type snippetCap struct {
 
 // proSnippetCap bounds a CaveText Pro Learner's Snippets, so an import's shortcut clash check, run under the
 // account's row lock, stays short.
+// ponytail: the Pro copy in internal/text/catalog.go and GLOSSARY.md says "2,000" as written; change them with it.
 const proSnippetCap = 2000
 
-// limit is how many Snippets the Learner may keep now.
-func (c snippetCap) limit() int {
+// most is how many Snippets the Learner may keep now.
+func (c snippetCap) most() int {
 	if c.Pro {
 		return proSnippetCap
 	}
@@ -34,10 +35,10 @@ func (c snippetCap) limit() int {
 }
 
 // Full reports whether a Learner with have Snippets may not add another.
-func (c snippetCap) Full(have int) bool { return have >= c.limit() }
+func (c snippetCap) Full(have int) bool { return have >= c.most() }
 
 // Keep is how many of n Snippets an import keeps.
-func (c snippetCap) Keep(n int) int { return min(n, c.limit()) }
+func (c snippetCap) Keep(n int) int { return min(n, c.most()) }
 
 type rowQueryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row

@@ -38,7 +38,7 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 	expectStatus(t, res, body, http.StatusOK, "<h1>Pricing</h1>")
 	main := content(body)
 	expectInOrder(t, main,
-		`src="/static/logo-cavetext-pro.svg`, "CaveText Pro", "Text expansion with no limits", "RM25 a year", `<ul class="offer-benefits">`, "Unlimited Snippets", "Image and Dashboard master prompts",
+		`src="/static/logo-cavetext-pro.svg`, "CaveText Pro", "Text expansion for up to 2,000 Snippets", "RM25 a year", `<ul class="offer-benefits">`, "Up to 2,000 Snippets", "Image and Dashboard master prompts",
 		`src="/static/logo-lab-plan.svg`, "Lab Plan", "Live Dashboards, hosted for you", "RM89 a year", `<ul class="offer-benefits">`, "Deploy it online at a link you can share",
 		`src="/static/logo-pro-plan.svg`, "Pro Plan", "Everything, one payment", "RM99 a year", `<s><span class="sr">Normal price </span>RM119</s>`, `<ul class="offer-benefits">`, "Everything in CaveText Pro", "Everything in the Lab Plan", "Ebooks", "Your own Dashboard deployment", "1 GB of storage", "One payment a year for both")
 	if n := strings.Count(main, "<s>"); n != 1 {
@@ -63,7 +63,7 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 	expectNone(t, main, "<s>", "Contact us to buy")
 
 	_, body = ada.getAsking("/pricing", "ms")
-	expectInOrder(t, content(body), "<h1>Harga</h1>", "Pengembangan teks tanpa had", "RM25 setahun", "Snippet tanpa had", "Beli CaveText Pro",
+	expectInOrder(t, content(body), "<h1>Harga</h1>", "Pengembangan teks untuk sehingga 2,000 Snippet", "RM25 setahun", "Sehingga 2,000 Snippet", "Beli CaveText Pro",
 		"Dashboard langsung", "Semua sekali, satu bayaran", "Semua dalam CaveText Pro")
 }
 

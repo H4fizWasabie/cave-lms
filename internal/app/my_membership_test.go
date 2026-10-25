@@ -61,7 +61,7 @@ func TestMyMembershipShowsCaveTextProAndTheSnippetCapButNoPlanFromCaveTextProAlo
 	s.givePro("ada@example.com")
 	until := expectProForAYear(t, ada, token)
 	_, body = ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "No Plan", `href="/pricing"`, "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "Unlimited")
+	expectInOrder(t, content(body), "No Plan", `href="/pricing"`, "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "2,000 Snippets")
 	_, body = ada.getAsking("/my-membership", "ms")
-	expectInOrder(t, content(body), "CaveText Pro", "Hingga "+text.Date("ms", until.UTC()), "Had Snippet", "Tanpa had")
+	expectInOrder(t, content(body), "CaveText Pro", "Hingga "+text.Date("ms", until.UTC()), "Had Snippet", "2,000 Snippet")
 }
