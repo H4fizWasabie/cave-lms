@@ -199,7 +199,7 @@ Visitors see the cards without buttons. */}}
           </ul>
           {{- if $.Learner}}
           {{- if .PaymentLink}}
-          <a class="btn btn-gold" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
           {{- else}}
           <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang (print "offers.contact-" (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
           {{- end}}

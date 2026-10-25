@@ -1,51 +1,56 @@
 {{define "title"}}CaveText · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
-      <section class="lab-hero">
-        <div>
-          <p class="lab-kicker">{{t .Lang "cavetext.kicker"}}</p>
-          <h1>CaveText</h1>
-          <p class="lede">{{t .Lang "cavetext.lede.before"}} <code>/review</code> {{t .Lang "cavetext.lede.after"}}</p>
-          {{- if not .Learner}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{t .Lang "cavetext.visitor"}}</span></p>
-          <div class="cta-row">
-            <a class="btn btn-solid btn-lg" href="/login?next=%2Fcavetext">{{t .Lang "header.log-in"}}</a>
-            <a class="btn btn-ghost btn-lg" href="/register">{{t .Lang "header.register"}}</a>
-          </div>
-          {{- else if not .Account}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{t .Lang "cavetext.new" .EarlyPlaces (tn .Lang "cavetext.snippet-count" .EarlyCap) (tn .Lang "cavetext.snippet-count" .LateCap)}}</span></p>
-          <div class="cta-row"><a class="btn btn-solid btn-lg" href="{{.Extension}}">{{t .Lang "cavetext.get-extension"}}</a></div>
-          {{- end}}
-        </div>
-      </section>
-      {{- if .Account}}
-      <div class="lab-plan">
-        {{- if .Cap.Pro}}
-        <div><span class="panel-k">{{t .Lang "cavetext.yours"}}</span><strong>{{t .Lang "cavetext.pro-until" .ProUntil}}</strong><span class="muted">{{t .Lang "cavetext.renew-note"}}</span></div>
-        <div><span class="panel-k">{{t .Lang "cavetext.snippets"}}</span><strong>{{t .Lang "cavetext.unlimited" (tn .Lang "cavetext.snippet-count" .Count)}}</strong></div>
-        {{- else}}
-        <div><span class="panel-k">{{t .Lang "cavetext.yours"}}</span><strong>{{t .Lang "cavetext.free"}}</strong><span class="muted">{{if .Cap.Early}}{{t .Lang "cavetext.early-free" (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}{{else}}{{t .Lang "cavetext.cap-free" (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}{{end}}</span></div>
-        <div><span class="panel-k">{{t .Lang "cavetext.snippets"}}</span><strong>{{t .Lang "cavetext.of-cap" .Count (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}</strong></div>
-        {{- end}}
+      <div class="page-head pub-head ct-head">
+        <h1>CaveText</h1>
+        <p>{{t .Lang "cavetext.lede.before"}} <code>/review</code> {{t .Lang "cavetext.lede.after"}}</p>
       </div>
+      {{- if not .Learner}}
+      <div class="ct-start">
+        <p class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{t .Lang "cavetext.visitor"}}</span></p>
+        <div class="cta-row">
+          <a class="btn btn-solid btn-lg" href="/login?next=%2Fcavetext">{{t .Lang "header.log-in"}}</a>
+          <a class="btn btn-ghost btn-lg" href="/register">{{t .Lang "header.register"}}</a>
+        </div>
+      </div>
+      {{- else if not .Account}}
+      <div class="ct-start">
+        <p class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{t .Lang "cavetext.new" .EarlyPlaces (tn .Lang "cavetext.snippet-count" .EarlyCap) (tn .Lang "cavetext.snippet-count" .LateCap)}}</span></p>
+        <div class="cta-row"><a class="btn btn-solid btn-lg" href="{{.Extension}}">{{t .Lang "cavetext.get-extension"}}</a></div>
+      </div>
+      {{- end}}
+      {{- if .Account}}
+      <dl class="ct-status">
+        {{- if .Cap.Pro}}
+        <div><dt>{{t .Lang "cavetext.yours"}}</dt><dd><strong>{{t .Lang "cavetext.pro-until" .ProUntil}}</strong><span class="muted">{{t .Lang "cavetext.renew-note"}}</span></dd></div>
+        <div><dt>{{t .Lang "cavetext.snippets"}}</dt><dd><strong>{{t .Lang "cavetext.unlimited" (tn .Lang "cavetext.snippet-count" .Count)}}</strong></dd></div>
+        {{- else}}
+        <div><dt>{{t .Lang "cavetext.yours"}}</dt><dd><strong>{{t .Lang "cavetext.free"}}</strong><span class="muted">{{if .Cap.Early}}{{t .Lang "cavetext.early-free" (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}{{else}}{{t .Lang "cavetext.cap-free" (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}{{end}}</span></dd></div>
+        <div><dt>{{t .Lang "cavetext.snippets"}}</dt><dd><strong class="num">{{t .Lang "cavetext.of-cap" .Count (tn .Lang "cavetext.snippet-count" .Cap.Cap)}}</strong></dd></div>
+        {{- end}}
+      </dl>
       {{- if .OverCap}}
       <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><div><p>{{t .Lang "cavetext.over-cap" .Cap.Cap .Count}}</p></div></div>
       {{- end}}
       {{- end}}
-      <h2 class="h-md">{{t .Lang "cavetext.pro-what"}}</h2>
-      <ol class="lab-steps">
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.unlimited"}}</strong><span>{{t .Lang "cavetext.pro.unlimited-body"}}</span></li>
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.user"}}</strong><span>{{t .Lang "cavetext.pro.user-body"}}</span></li>
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.ready"}}</strong><span>{{t .Lang "cavetext.pro.ready-body"}}</span></li>
-        <li><span class="step-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg></span><strong>{{t .Lang "cavetext.pro.year"}}</strong><span>{{t .Lang "cavetext.pro.year-body"}}</span></li>
-      </ol>
-      <h2 class="h-md">{{t .Lang "offers.heading"}}</h2>
-      {{- template "offers" .}}
-      {{- if and .Learner (not .Account)}}
-      <p class="muted">{{t .Lang "cavetext.sign-in-first"}}</p>
-      {{- end}}
-      {{- if or (not .Learner) .Account}}
-      <p><a href="{{.Extension}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t .Lang "cavetext.get-extension-chrome"}}</a></p>
-      {{- end}}
+      <section class="ct-section">
+        <h2>{{t .Lang "cavetext.pro-what"}}</h2>
+        <ul class="ct-gives">
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><strong>{{t .Lang "cavetext.pro.unlimited"}}</strong><span>{{t .Lang "cavetext.pro.unlimited-body"}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><strong>{{t .Lang "cavetext.pro.user"}}</strong><span>{{t .Lang "cavetext.pro.user-body"}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><strong>{{t .Lang "cavetext.pro.ready"}}</strong><span>{{t .Lang "cavetext.pro.ready-body"}}</span></li>
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg><strong>{{t .Lang "cavetext.pro.year"}}</strong><span>{{t .Lang "cavetext.pro.year-body"}}</span></li>
+        </ul>
+      </section>
+      <section class="ct-section">
+        <h2>{{t .Lang "offers.heading"}}</h2>
+        {{- template "offers" .}}
+        {{- if and .Learner (not .Account)}}
+        <p class="muted">{{t .Lang "cavetext.sign-in-first"}}</p>
+        {{- end}}
+        {{- if or (not .Learner) .Account}}
+        <p><a class="ct-chrome" href="{{.Extension}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t .Lang "cavetext.get-extension-chrome"}}</a></p>
+        {{- end}}
+      </section>
     </div>
 {{end}}

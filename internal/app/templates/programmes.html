@@ -1,19 +1,19 @@
 {{define "title"}}{{t .Lang "programmes.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
-      <div class="page-head">
+      <div class="page-head pub-head">
         <h1>{{t .Lang "programmes.title"}}</h1>
         <p>{{t .Lang "programmes.intro"}}</p>
       </div>
-      <ul class="course-grid">
+      <ul class="prog-list">
         {{range .Programmes}}
-        <li class="course-card course-card-plain">
-          {{with .PictureKey}}<img class="programme-pic" src="/programmes/pictures/{{.}}" alt="" loading="lazy">{{end}}
-          <div class="course-card-body">
-            <div class="course-card-top"><h3>{{.Title}}</h3></div>
-            <ul class="meta"><li>{{t $.Lang "programmes.starts" (.Starts $.Lang)}}</li></ul>
-            {{with .Blurb}}<p class="course-card-desc">{{.}}</p>{{end}}
-            {{with .Link}}<div class="course-card-foot"><a class="link-more" href="{{.}}">{{t $.Lang "programmes.more"}}</a></div>{{end}}
+        <li class="prog{{if .PictureKey}} has-pic{{end}}">
+          {{with .PictureKey}}<img class="prog-pic" src="/programmes/pictures/{{.}}" alt="" loading="lazy">{{end}}
+          <div class="prog-main">
+            <h2>{{.Title}}</h2>
+            <p class="prog-date">{{t $.Lang "programmes.starts" (.Starts $.Lang)}}</p>
+            {{with .Blurb}}<p class="prog-blurb">{{.}}</p>{{end}}
+            {{with .Link}}<p><a class="link-more" href="{{.}}">{{t $.Lang "programmes.more"}}</a></p>{{end}}
           </div>
         </li>
         {{else}}

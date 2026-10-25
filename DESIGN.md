@@ -204,7 +204,7 @@ Flat by default. Depth comes from paper versus surface, hairline borders and cha
 
 Gently squared: `--radius` (4px) on controls, badges and small cards; `--radius-lg` (8px) on cards, panels and menus; `--radius-xl` (12px) on Chat shells and bubbles; `--radius-pill` for counters, chips and avatars; `50%` for circles. `--radius-phone` (26px) is the Lab's phone-preview bezel only. Nested corners are concentric: an inner corner is the outer radius minus the padding, never the same radius.
 
-**The No Accent Stripe Rule.** No coloured `border-left`/`border-top` thicker than 1px on rounded cards, list items or callouts. (The Lab's `.lab-hero`, `.lab-steps`, `.lab-plan`, `.offer` and `.tp-card.is-picked` still carry them; they are Lab legacy, not a pattern to copy.)
+**The No Accent Stripe Rule.** No coloured `border-left`/`border-top` thicker than 1px on rounded cards, list items or callouts. (The Lab's `.lab-hero`, `.lab-steps`, `.lab-plan` and `.tp-card.is-picked` still carry them; they are Lab legacy, not a pattern to copy.)
 
 ## Components
 

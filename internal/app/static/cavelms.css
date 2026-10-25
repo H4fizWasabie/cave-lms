@@ -258,29 +258,6 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .verify-band input { padding: var(--space-3) var(--space-3); border: 1px solid var(--on-dark-line); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 6%, var(--brand-ink)); color: var(--surface); min-width: 17rem; }
 .verify-band input::placeholder { color: var(--on-dark-muted); }
 
-/* ============================ About (TCC) ============================ */
-.about-hero { background: var(--brand-ink); color: var(--line-strong); position: relative; overflow: hidden; }
-.about-hero::before { content: ""; position: absolute; right: -20%; bottom: -60%; width: 70vw; height: 70vw; max-width: 40rem; max-height: 40rem; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--brand-gold) 18%, transparent), transparent); }
-.about-hero-in { position: relative; padding-block: var(--space-7) var(--space-7); }
-.about-eyebrow, .about-label { font-size: var(--fs-meta); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; line-height: 1.7; margin: 0 0 var(--space-4); }
-.about-eyebrow { color: var(--brand-gold); }
-.about-label { color: var(--brand-gold-deep); margin-bottom: var(--space-3); }
-.about-hero h1 { color: var(--surface); font-size: var(--fs-display); line-height: 1.06; letter-spacing: -0.02em; max-width: 18ch; margin-bottom: var(--space-4); }
-.about-hero h1 em { font-style: normal; color: var(--brand-gold); }
-.about-lede { font-size: var(--fs-lede); line-height: 1.6; max-width: 34rem; margin: 0; }
-.about-hero ::selection { background: var(--brand-gold); color: var(--brand-ink); }
-.about-creds { background: var(--brand-gold-soft); border-bottom: 1px solid var(--line); }
-.about-creds-in { display: grid; gap: var(--space-4); padding-block: var(--space-5); }
-.about-badge { display: grid; grid-template-columns: 3.4rem 1fr; gap: var(--space-4); align-items: center; margin: 0; font-size: var(--fs-body); line-height: 1.3; }
-.about-seal { width: 3.4rem; height: 3.4rem; border-radius: 50%; border: 2px solid var(--brand-gold-deep); outline: 1px solid var(--brand-gold-deep); outline-offset: 3px; display: grid; place-items: center; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-meta); line-height: 1.05; color: var(--brand-gold-deep); }
-.about-company { margin: 0; font-size: var(--fs-meta); color: var(--muted); border-top: 1px solid color-mix(in srgb, var(--brand-gold) 35%, var(--surface)); padding-top: var(--space-4); }
-.about-body { padding-block: var(--space-7) var(--space-7); }
-.about-body h2 { font-size: var(--fs-page); max-width: 22ch; margin-bottom: var(--space-4); }
-@media not all and (max-width: 720px) {
-  .about-creds-in { grid-template-columns: 1fr 1fr auto; align-items: center; gap: var(--space-6); }
-  .about-company { border: 0; padding: 0; text-align: right; }
-}
-
 /* ============================ Inner pages ============================ */
 .page-pad { padding-block: var(--space-7) var(--space-8); }
 .page-head { margin-bottom: var(--space-6); }
@@ -805,7 +782,7 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .lab-plan strong { font-family: var(--font-display); font-size: var(--fs-title); }
 .lab-plan .muted { font-size: var(--fs-meta); }
 .offers { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: var(--space-4); }
-.offer { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--brand-gold); border-radius: var(--radius); padding: var(--space-5); display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.offer { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-5); display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .offer > * { margin: 0; }
 .offer-logo { margin-bottom: var(--space-1); }
 .offer h3 { font-size: var(--fs-title); }
@@ -1120,3 +1097,105 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .file-list form { margin-left: auto; }
 .folder-course { margin-bottom: var(--space-5); }
 .folder-assignment + .folder-assignment { border-top: 1px solid var(--line); padding-top: var(--space-4); }
+
+/* === Page: Public pages (#311) === */
+/* About, Pricing, Programmes, Gallery, CaveText, Certificate check, Privacy, and the Members-only and message notices. */
+
+/* A public page's title speaks in the editorial voice: light Source Serif over a lede. */
+.pub-head h1 { font-weight: 400; letter-spacing: -0.02em; }
+.pub-head p { font-size: var(--fs-lede); color: var(--ink-2); }
+
+/* About: a charcoal hero, a trust strip of the registrations, then the story beside its heading. */
+.about-hero { background: var(--brand-ink); color: var(--on-dark); }
+.about-hero-in { padding-block: var(--space-8); }
+.about-hero h1 { font-size: var(--fs-display); font-weight: 400; line-height: 1.04; letter-spacing: -0.03em; color: var(--surface); max-width: 20ch; margin-bottom: var(--space-5); }
+.about-hero h1 em { font-style: normal; color: var(--brand-gold); }
+.about-lede { font-size: var(--fs-lede); max-width: 36rem; }
+.about-hero ::selection { background: var(--brand-gold); color: var(--brand-ink); }
+.about-trust { background: var(--surface); border-bottom: 1px solid var(--line); }
+.about-trust-in { list-style: none; margin-block: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.about-trust li { display: grid; gap: var(--space-1); align-content: start; padding-block: var(--space-5); }
+.about-trust li + li { border-left: 1px solid var(--line); padding-left: var(--space-5); }
+.about-trust strong { font-family: var(--font-display); font-size: var(--fs-title); }
+.about-trust span { font-size: var(--fs-ui); color: var(--muted); }
+.about-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 42rem); gap: var(--space-7); padding-block: var(--space-8); align-items: start; }
+.about-body h2 { font-size: var(--fs-heading); font-weight: 400; max-width: 16ch; position: sticky; top: 6rem; }
+
+.pricing-cta { margin-top: var(--space-7); }
+
+/* Programmes: a ruled list, each with its start date and an optional picture. */
+.prog-list { list-style: none; margin: 0; padding: 0; max-width: 64rem; border-top: 1px solid var(--line-strong); }
+.prog { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5) var(--space-7); padding-block: var(--space-6); border-bottom: 1px solid var(--line); }
+.prog.has-pic { grid-template-columns: minmax(0, 1fr) 18rem; align-items: start; }
+.prog h2 { font-size: var(--fs-heading); font-weight: 400; }
+.prog-date { margin-top: var(--space-2); font-size: var(--fs-ui); font-weight: 600; color: var(--brand-gold-deep); }
+.prog-main > p + p { margin-top: var(--space-3); }
+.prog-blurb { color: var(--ink-2); max-width: 42rem; }
+.prog-pic { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); }
+.prog.has-pic .prog-pic { grid-column: 2; grid-row: 1; }
+
+/* Gallery: the filters sit in a ruled bar under the title. */
+.g-toolbar { justify-content: flex-start; padding-block: var(--space-3); border-block: 1px solid var(--line); margin-bottom: var(--space-6); }
+.g-toolbar .select-label { margin-left: 0; }
+.g-note { color: var(--ink-2); font-size: var(--fs-lede); max-width: 42rem; }
+
+/* CaveText */
+.ct-head code { font-family: var(--font-mono); font-size: var(--fs-ui); padding: 0 var(--space-1); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--brand-ink); }
+.ct-start { max-width: 44rem; margin-bottom: var(--space-7); }
+.ct-start .callout { margin-top: 0; }
+.ct-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 0 var(--space-7); max-width: 52rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.ct-status > div { display: grid; gap: var(--space-1); align-content: start; padding: var(--space-5); }
+.ct-status > div + div { border-left: 1px solid var(--line); }
+.ct-status dt { font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
+.ct-status dd { margin: 0; display: grid; gap: var(--space-1); }
+.ct-status strong { font-family: var(--font-display); font-size: var(--fs-title); }
+.ct-status .muted { font-size: var(--fs-meta); }
+.ct-section + .ct-section { margin-top: var(--space-8); }
+.ct-section h2 { font-size: var(--fs-heading); font-weight: 400; margin-bottom: var(--space-5); }
+.ct-section > p { margin-top: var(--space-4); }
+.ct-gives { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5) var(--space-6); }
+.ct-gives li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-2); align-content: start; padding-top: var(--space-4); border-top: 1px solid var(--line-strong); }
+.ct-gives .i { color: var(--brand-gold-deep); margin-top: 2px; }
+.ct-gives span { grid-column: 2; color: var(--ink-2); font-size: var(--fs-ui); }
+.ct-chrome { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 600; font-size: var(--fs-ui); text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; }
+.ct-chrome:hover { text-decoration-color: var(--brand-ink); }
+
+/* Certificate check: both ways in, one card; the verdict under it. */
+.check-forms { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.check-forms .verify-card { background: none; border: 0; border-radius: 0; padding: var(--space-5); }
+.check-forms .verify-card + .verify-card { border-top: 1px solid var(--line); }
+.check-forms label { font-size: var(--fs-ui); }
+
+/* Privacy: each part under a hairline, like a printed notice. */
+.legal h2 { margin: var(--space-7) 0 var(--space-3); padding-top: var(--space-5); border-top: 1px solid var(--line); }
+
+/* Members-only and message pages: one centred notice with its next step. */
+.notice-page { padding-block: var(--space-8); }
+.notice { max-width: 32rem; margin: 0 auto; padding: var(--space-6); display: grid; gap: var(--space-4); justify-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.notice h1 { font-size: var(--fs-heading); font-weight: 400; }
+.notice-msg { color: var(--ink-2); }
+.notice .form { justify-self: stretch; }
+.notice .link-more { white-space: normal; }
+.notice-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: var(--radius-pill); background: var(--brand-gold-soft); color: var(--brand-gold-deep); }
+.notice-icon .i { width: 1.5rem; height: 1.5rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .notice > h1, .notice-msg { animation: rise var(--duration-fast) var(--ease-smooth-out) both; }
+  .notice-msg { animation-delay: var(--duration-stagger); }
+}
+
+@media (max-width: 999px) {
+  .about-body { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .about-body h2 { position: static; max-width: none; }
+  .ct-gives { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .about-trust-in { grid-template-columns: minmax(0, 1fr); }
+  .about-trust li { padding-block: var(--space-4); }
+  .about-trust li + li { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
+  .prog.has-pic { grid-template-columns: minmax(0, 1fr); }
+  .prog.has-pic .prog-pic { grid-column: auto; grid-row: auto; }
+  .ct-status { grid-template-columns: minmax(0, 1fr); }
+  .ct-status > div + div { border-left: 0; border-top: 1px solid var(--line); }
+  .ct-gives { grid-template-columns: minmax(0, 1fr); }
+  .notice { padding: var(--space-5) var(--space-4); }
+}

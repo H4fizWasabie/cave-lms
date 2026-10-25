@@ -47,14 +47,12 @@ var catalog = map[string]entry{
 	// The About page: the client's company background, in its own words; the Malay was approved by Abah.
 	"about.link":       {en: "About TCC", ms: "Tentang TCC"},
 	"about.menu":       {en: "Company background", ms: "Latar belakang syarikat"},
-	"about.eyebrow":    {en: "HRD Corp Training Provider · MOF Registered · Kuala Lumpur", ms: "Penyedia Latihan HRD Corp · Berdaftar MOF · Kuala Lumpur"},
 	"about.title":      {en: "Lifelong Learning for", ms: "Pembelajaran Sepanjang Hayat untuk"},
 	"about.title-mark": {en: "Efficiency & Career Development", ms: "Kecekapan & Pembangunan Kerjaya"},
 	"about.lede":       {en: "Practical, industry-focused training and consultancy for government agencies, GLCs, educational institutions and private organisations.", ms: "Latihan dan perundingan praktikal berfokuskan industri untuk agensi kerajaan, GLC, institusi pendidikan dan organisasi swasta."},
 	"about.creds":      {en: "Registrations", ms: "Pendaftaran"},
 	"about.hrd":        {en: "HRD Corp Registered Training Provider", ms: "Penyedia Latihan Berdaftar HRD Corp"},
 	"about.mof":        {en: "Registered with the Ministry of Finance (MOF)", ms: "Berdaftar dengan Kementerian Kewangan (MOF)"},
-	"about.label":      {en: "About us", ms: "Tentang kami"},
 	"about.heading":    {en: "A Malaysian professional training and consultancy company", ms: "Syarikat latihan dan perundingan profesional Malaysia"},
 	"about.coach-link": {en: "Coach Adam's profile", ms: "Profil Coach Adam"},
 	"about.more":       {en: "Read the full company profile", ms: "Baca profil penuh syarikat"},
@@ -1238,7 +1236,6 @@ var catalog = map[string]entry{
 	// ---- CaveText: the /cavetext page and the CaveText API's messages (#84) ----
 	"cavetext.snippet-count.one":   {en: "%d Snippet", ms: "%d Snippet"},
 	"cavetext.snippet-count.other": {en: "%d Snippets", ms: "%d Snippet"},
-	"cavetext.kicker":              {en: "Part of CAVELMS", ms: "Sebahagian daripada CAVELMS"},
 	"cavetext.lede.before":         {en: "Prompt shortcuts for every AI chat. Type a shortcut like", ms: "Pintasan prompt untuk setiap sembang AI. Taip pintasan seperti"},
 	"cavetext.lede.after": {
 		en: "in ChatGPT, Claude or Gemini and CaveText turns it into your full saved prompt. Sign in to the Chrome extension with your CAVELMS account and your Snippets follow you to every browser.",
