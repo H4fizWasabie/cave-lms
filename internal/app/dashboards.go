@@ -236,52 +236,21 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 	return acc, acc.Open()
 }
 
-// newDashboardPage is /lab/new: pick a Template, see its blanks, download its Sample, name the Dashboard.
+// newDashboardPage is /lab/new: name the Dashboard, then upload its Dataset. Cave builds the blocks from the data
+// and offers the Templates that fit it at the preview (ADR 0014).
 type newDashboardPage struct {
 	pageBase
-	Work      bool // making a Work Dashboard; else a Practice Dashboard
-	Templates []*lab.Template
-	Picked    string
-	Name      string
-	Sample    *lab.Dataset // the picked Template's Sample, as Cave reads it
-	Guess     lab.Choices  // Cave's guesses on that Sample
-}
-
-// offers reports whether this kind of Dashboard offers the Template with key: Sales and Roster are Work only.
-func (p *newDashboardPage) offers(key string) bool {
-	return slices.ContainsFunc(p.Templates, func(t *lab.Template) bool { return t.Key == key })
-}
-
-// renderNewDashboard shows /lab/new with the picked Template's Sample read (a Work Dashboard's cleaned once at
-// start-up), so the page can name its columns.
-func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
-	t := lab.TemplateByKey(p.Picked)
-	var err error
-	if p.Work { // read and guessed as a Work Dashboard's upload is
-		res := a.samples[t.Key]
-		p.Sample, p.Guess = res.Dataset, res.Guess
-	} else if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err == nil {
-		p.Guess = t.Guess(p.Sample)
-	}
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	a.render(w, r, status, "lab_new", p)
+	Name string
 }
 
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	work := r.URL.Query().Get("kind") == "work"
-	p := &newDashboardPage{Templates: lab.TemplatesFor(work), Picked: r.URL.Query().Get("t"), Work: work}
-	if !p.offers(p.Picked) {
-		p.Picked = p.Templates[0].Key
-	}
-	a.renderNewDashboard(w, r, http.StatusOK, p)
+	a.render(w, r, http.StatusOK, "lab_new", &newDashboardPage{})
 }
 
+// createDashboard makes a Dashboard with General's blocks to come; no route makes a Practice Dashboard (ADR 0015).
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -291,17 +260,9 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	work := r.FormValue("kind") == "work"
-	p := &newDashboardPage{Templates: lab.TemplatesFor(work), Picked: r.FormValue("template"), Name: strings.TrimSpace(r.FormValue("name")),
-		Work: work}
-	switch {
-	case !p.offers(p.Picked):
-		p.Error, p.Picked = text.T(lang, "lab.err.template"), p.Templates[0].Key
-	default:
-		p.Error = dashboardNameError(lang, p.Name)
-	}
-	if p.Error != "" {
-		a.renderNewDashboard(w, r, http.StatusUnprocessableEntity, p)
+	p := &newDashboardPage{Name: strings.TrimSpace(r.FormValue("name"))}
+	if p.Error = dashboardNameError(lang, p.Name); p.Error != "" {
+		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
 		return
 	}
 	learner, err := a.currentLearner(r)
@@ -310,12 +271,8 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var id string
-	kind := "practice"
-	if p.Work {
-		kind = "work"
-	}
-	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, $2, $3, $4)
-		RETURNING id`, learner.ID, kind, p.Picked, p.Name).Scan(&id); err != nil {
+	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', $2, $3)
+		RETURNING id`, learner.ID, lab.General.Key, p.Name).Scan(&id); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -424,6 +381,9 @@ type dashboardPage struct {
 	Drops     []keptDataset   // the earlier Datasets confirming Pending deletes
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
+	Offers    []string        // before the first confirm: the keys of General and the Templates the pending Dataset fits
+	Picked    *lab.Template   // before the first confirm: the one of Offers the preview opens
+	Building  []string        // the labels of the blocks Picked opens to
 	Earlier   []keptDataset   // a Work Dashboard's earlier Datasets, newest first
 	Open      int             // Blocks tab: the block whose form is open; -1 for none
 	Saved     bool            // Blocks tab: an edit was just saved
@@ -465,6 +425,30 @@ func blankChoices(t *lab.Template, d *lab.Dataset, chosen, guess lab.Choices) []
 		out = append(out, bc)
 	}
 	return out
+}
+
+// pickOffer fills the first confirm's preview: General, the Dashboard's own Template and the Templates Clean-up
+// offered, with the one keyed want picked, else the Dashboard's own; then the picked one's blanks and blocks.
+func (p *dashboardPage) pickOffer(d *dashboard, want string) {
+	pd := p.Pending
+	p.Offers = []string{lab.General.Key}
+	for _, t := range lab.TemplatesFor(true) {
+		if _, ok := pd.Offers[t.Key]; (ok || t == d.Template) && t != lab.General {
+			p.Offers = append(p.Offers, t.Key)
+		}
+	}
+	p.Picked = d.Template
+	if slices.Contains(p.Offers, want) {
+		p.Picked = lab.TemplateByKey(want)
+	}
+	guess := pd.Offers[p.Picked.Key]
+	if p.Picked == d.Template {
+		guess = pd.Guess
+	}
+	p.Blanks = blankChoices(p.Picked, pd.Dataset, guess, guess)
+	for _, b := range p.Picked.Open(guess, pd.Dataset).Blocks {
+		p.Building = append(p.Building, b.Label)
+	}
 }
 
 func (a *App) dashboardTab(tab string) http.HandlerFunc {
@@ -515,8 +499,8 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			return
 		}
 	}
-	if p.Pending != nil && d.Config == nil { // the first confirm opens the Template with these choices
-		p.Blanks = blankChoices(d.Template, p.Pending.Dataset, p.Pending.Chosen, p.Pending.Guess)
+	if p.Pending != nil && d.Config == nil { // the first confirm opens the picked Template with these choices
+		p.pickOffer(d, r.URL.Query().Get("template"))
 	}
 	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
 		p.Uses = columnUses(d.Config, p.Pending.Dataset)

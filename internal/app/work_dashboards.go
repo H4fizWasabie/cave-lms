@@ -26,15 +26,16 @@ const previewRows = 20
 // cleaned is what Clean-up found on an upload besides its data, kept with the Dataset as datasets.cleanup: the
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
-	Changes   []lab.Change `json:"changes"`
-	Notes     []lab.Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
-	Guess     lab.Choices  `json:"guess"`
-	Sheets    []lab.Sheet  `json:"sheets"`          // every sheet of the upload
-	Used      []string     `json:"used"`            // the sheets that went into the Dataset
-	HeaderRow int          `json:"headerRow"`       // the Excel row the column names came from
-	Settings  lab.Settings `json:"settings"`        // the remembered part of the settings Clean-up read with
-	Month     int          `json:"month,omitempty"` // the month the days-across grids were dated in; 0 when no grid was used
-	Year      int          `json:"year,omitempty"`
+	Changes   []lab.Change           `json:"changes"`
+	Guess     lab.Choices            `json:"guess"`
+	Notes     []lab.Note             `json:"notes,omitempty"`  // the columns General leaves out of charts or averages, and why
+	Offers    map[string]lab.Choices `json:"offers,omitempty"` // the Templates offered beside General, each with its guesses
+	Sheets    []lab.Sheet            `json:"sheets"`           // every sheet of the upload
+	Used      []string               `json:"used"`             // the sheets that went into the Dataset
+	HeaderRow int                    `json:"headerRow"`        // the Excel row the column names came from
+	Settings  lab.Settings           `json:"settings"`         // the remembered part of the settings Clean-up read with
+	Month     int                    `json:"month,omitempty"`  // the month the days-across grids were dated in; 0 when no grid was used
+	Year      int                    `json:"year,omitempty"`
 }
 
 // pendingDataset is a Work Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
@@ -45,7 +46,6 @@ type pendingDataset struct {
 	File    string
 	Size    int64 // saved size, which counts against the Storage allowance once confirmed
 	Dataset *lab.Dataset
-	Chosen  lab.Choices // the Learner's choices on a refused confirm; else Guess
 }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
@@ -245,7 +245,6 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 	if err != nil {
 		return nil, fmt.Errorf("get Dataset %s: %w", key, err)
 	}
-	p.Chosen = p.Guess
 	return &p, json.Unmarshal(data, &p.Dataset)
 }
 
@@ -334,7 +333,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	found := cleaned{Changes: res.Changes, Notes: res.Notes, Guess: res.Guess, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
+	found := cleaned{Changes: res.Changes, Notes: res.Notes, Guess: res.Guess, Offers: res.Offers, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
 	c, err := json.Marshal(found)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -383,8 +382,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 }
 
 // confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and roomFor's earlier
-// Datasets are deleted. On the first confirm the Learner's column choice for each blank opens the Template onto
-// the Dashboard as its blocks; the Learner may switch to General instead. Later confirms keep the blocks,
+// Datasets are deleted. On the first confirm the Template the Learner picked (General, or one offered) opens onto
+// the Dashboard as its blocks with their column choice for each blank; a blank with no column is never refused,
+// its blocks are left out (ADR 0014). Later confirms keep the blocks,
 // swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
 // pauses its blocks. A confirm that would take the Learner over their Storage allowance even with every earlier
 // Dataset of this Dashboard gone is refused and the Dataset stays pending.
@@ -409,8 +409,8 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	t, c, cfg := d.Template, d.Choices, d.Config
 	if cfg == nil {
-		if r.FormValue("template") == lab.General.Key {
-			t = lab.General
+		if picked := lab.TemplateByKey(r.FormValue("template")); picked != nil {
+			t = picked
 		}
 		c = lab.Choices{}
 		for _, b := range t.Blanks {
@@ -418,15 +418,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 				c[b.Key] = v
 			}
 		}
-		var problem lab.Problem
-		if err := t.Check(c, p.Dataset); errors.As(err, &problem) {
-			p.Chosen = c
-			page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Pending: p}
-			page.Error = problem.In(lang)
-			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
-			return
-		}
-		cfg = t.Open(c, p.Dataset)
+		cfg = t.Open(c, p.Dataset) // a blank left empty, or naming no column, leaves out the blocks that need it
 	} else {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
