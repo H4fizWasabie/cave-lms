@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -12,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
@@ -247,6 +249,46 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 	return &p, json.Unmarshal(data, &p.Dataset)
 }
 
+// maxCleanUps is how many uploads Clean-up reads at once: a 1.5 MB workbook peaks near 300 MB.
+const maxCleanUps = 4
+
+// cleanUpWaitLog is how long an upload may wait for its turn before the wait goes in the System log, so we know
+// when reading in the Learner's browser becomes worth building.
+const cleanUpWaitLog = 3 * time.Second
+
+// clean runs Clean-up on an upload once one of the maxCleanUps turns is free; until then it waits, unless the
+// Learner gives up.
+func (a *App) clean(r *http.Request, file io.Reader, t *lab.Template, s lab.Settings) (*lab.CleanUp, error) {
+	start := time.Now()
+	select {
+	case a.cleaning <- struct{}{}:
+	case <-r.Context().Done():
+		return nil, r.Context().Err()
+	}
+	defer func() { <-a.cleaning }()
+	if waited := time.Since(start); waited > a.cleanUpWaitLog {
+		a.logInfo("An upload waited %s for its turn to be read", waited.Round(time.Millisecond))
+	}
+	return lab.Clean(file, t, s)
+}
+
+// cleanedSamples is each Template's Sample cleaned, by Template key: once per process, so the New Dashboard page
+// cleans none.
+var cleanedSamples = sync.OnceValues(cleanSamples)
+
+// cleanSamples runs Clean-up on each Template's Sample.
+func cleanSamples() (map[string]*lab.CleanUp, error) {
+	samples := map[string]*lab.CleanUp{}
+	for _, t := range lab.TemplatesFor(true) {
+		res, err := lab.Clean(bytes.NewReader(t.Sample), t, lab.Settings{})
+		if err != nil {
+			return nil, fmt.Errorf("clean the %s Sample: %w", t.Name, err)
+		}
+		samples[t.Key] = res
+	}
+	return samples, nil
+}
+
 // uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
@@ -277,7 +319,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	if settings.Year, _ = strconv.Atoi(r.FormValue("year")); settings.Year < 1900 || settings.Year > 2100 {
 		settings.Year = 0 // this year
 	}
-	res, err := lab.Clean(file, d.Template, settings)
+	res, err := a.clean(r, file, d.Template, settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem.In(lang), Upload: name})

@@ -99,3 +99,18 @@ func (a *App) Uploading() int {
 	a.uploading.Range(func(_, _ any) bool { n++; return true })
 	return n
 }
+
+// HoldCleanUps takes n of the Clean-up turns until release is called, as if n uploads were being read, for tests.
+func (a *App) HoldCleanUps(n int) (release func()) {
+	for range n {
+		a.cleaning <- struct{}{}
+	}
+	return func() {
+		for range n {
+			<-a.cleaning
+		}
+	}
+}
+
+// SetCleanUpWaitLog sets how long an upload may wait for its turn before the wait is logged, for tests.
+func (a *App) SetCleanUpWaitLog(d time.Duration) { a.cleanUpWaitLog = d }

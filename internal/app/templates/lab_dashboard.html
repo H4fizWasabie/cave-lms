@@ -161,7 +161,7 @@
           </div>
           {{- end}}
           {{- end}}
-          <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
+          <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data" data-busy>
             {{- with .Pending}}{{if gt (len .Sheets) 1}}
             {{- $p := .}}{{$picked := .Picked}}
             <fieldset class="field">
@@ -199,7 +199,9 @@
             <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
             {{- end}}
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
+            {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
           </form>
+          <script src="{{static "forms.js"}}" defer></script>
           {{- with .Earlier}}
           <h2 class="h-md">{{t $.Lang "lab.w.earlier"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.earlier-body"}}</p>

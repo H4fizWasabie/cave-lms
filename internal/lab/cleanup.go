@@ -40,18 +40,22 @@ const (
 	MaxColumns   = 100
 )
 
-// Change is one thing Clean-up changed, as a text catalog key and the numbers it fills in,
-// so the preview can word it in the Learner's language.
+// Change is one thing Clean-up changed, as a text catalog key and the numbers it fills in, then the column it
+// was in, if one, so the preview can word it in the Learner's language.
 type Change struct {
-	Key  string `json:"key"`
-	Args []int  `json:"args,omitempty"`
+	Key    string `json:"key"`
+	Args   []int  `json:"args,omitempty"`
+	Column string `json:"column,omitempty"`
 }
 
 // In words c in lang.
 func (c Change) In(lang string) string {
-	args := make([]any, len(c.Args))
-	for i, a := range c.Args {
-		args[i] = a
+	var args []any
+	for _, a := range c.Args {
+		args = append(args, a)
+	}
+	if c.Column != "" {
+		args = append(args, c.Column)
 	}
 	return text.T(lang, c.Key, args...)
 }
@@ -179,7 +183,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	res.Dataset = typed(d, raw, d.RowNumbers, res)
 	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
 		res.Month, res.Year = int(month), year
-		res.Changes = append(res.Changes, Change{"lab.clean.unpivoted", []int{len(raw), res.Month, year}})
+		res.Changes = append(res.Changes, Change{Key: "lab.clean.unpivoted", Args: []int{len(raw), res.Month, year}})
 	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
@@ -340,12 +344,12 @@ func sameColumns(a, b []Column) bool {
 // addSheetColumn puts each row's sheet in a new first column of combined d: a Date column when every sheet's
 // name reads as a date, else a Sheet column of names. It gives the change to list.
 func addSheetColumn(d *Dataset, used []*table) Change {
-	col, change := Column{"Date", Date}, Change{"lab.clean.combined-dates", []int{len(used)}}
+	col, change := Column{"Date", Date}, Change{Key: "lab.clean.combined-dates", Args: []int{len(used)}}
 	values := make([]any, len(used))
 	for i, tb := range used {
 		day, ok := sheetDate(tb.name)
 		if !ok {
-			col, change = Column{"Sheet", Text}, Change{"lab.clean.combined", []int{len(used)}}
+			col, change = Column{"Sheet", Text}, Change{Key: "lab.clean.combined", Args: []int{len(used)}}
 			break
 		}
 		values[i] = day
@@ -398,7 +402,7 @@ func (res *CleanUp) addChanges(changes []Change) {
 				if res.Changes[i].Key == "lab.clean.bottom-sheets" {
 					sheets = res.Changes[i].Args[0] + 1
 				}
-				res.Changes[i] = Change{"lab.clean.bottom-sheets", []int{sheets}}
+				res.Changes[i] = Change{Key: "lab.clean.bottom-sheets", Args: []int{sheets}}
 				continue
 			}
 		}
@@ -407,7 +411,7 @@ func (res *CleanUp) addChanges(changes []Change) {
 		})
 		switch {
 		case i < 0:
-			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args)})
+			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args), c.Column})
 		case slices.Contains(counted, c.Key):
 			res.Changes[i].Args[0] += c.Args[0]
 		}
@@ -416,7 +420,7 @@ func (res *CleanUp) addChanges(changes []Change) {
 
 // change lists one thing Clean-up changed.
 func (res *CleanUp) change(key string, args ...int) {
-	res.Changes = append(res.Changes, Change{key, args})
+	res.Changes = append(res.Changes, Change{Key: key, Args: args})
 }
 
 // merged is each merged range of the sheet as 0-based [top row, left column, bottom row, right column].
@@ -617,11 +621,16 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 }
 
 // typed fills d's rows from raw, each column typed by its cells. Unlike Read, a lone - in a Number column reads
-// as 0, and dates may be written in more ways (see otherDate); both are listed as changes.
+// as 0, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
+// left empty; each is listed as a change, the last once per column.
 func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
-	dashes, others := 0, 0
-	for ci := range d.Columns {
+	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
+	for ci, col := range d.Columns {
 		d.Columns[ci].Type = workType(raw, ci)
+		if n := serials(raw, ci); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
+			d.Columns[ci].Type = Date
+			res.Changes = append(res.Changes, Change{"lab.clean.serial-dates", []int{n}, col.Name})
+		}
 	}
 	for _, vals := range raw {
 		row := make([]any, len(d.Columns))
@@ -640,7 +649,12 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 				others++
 				continue
 			}
-			row[ci], _ = parse(c, typ)
+			v, problem := parse(c, typ)
+			if problem != "" {
+				misfits[ci]++
+				continue
+			}
+			row[ci] = v
 		}
 		d.Rows = append(d.Rows, row)
 	}
@@ -651,39 +665,70 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	if others > 0 {
 		res.change("lab.clean.other-dates", others)
 	}
+	for ci, n := range misfits {
+		if n > 0 {
+			res.Changes = append(res.Changes, Change{"lab.clean.not-" + string(d.Columns[ci].Type) + "s", []int{n}, d.Columns[ci].Name})
+		}
+	}
 	return d
 }
 
-// workType is a column's type as Clean-up reads it: as columnType, but a lone - fits a Number column that has
-// at least one real number, and otherDate's forms are dates.
+// workType is a column's type as Clean-up reads it: Date or Number when at least 90% of its filled cells are
+// (ADR 0014), else Text. A lone - fits a Number column that has at least one real number, and otherDate's
+// forms are dates.
 func workType(raw [][]cell, ci int) Type {
-	allDates, allNumbers, numbers, filled := true, true, false, false
+	dates, numbers, dashes, filled := 0, 0, 0, 0
 	for _, vals := range raw {
 		c := vals[ci]
 		if c.v == "" {
 			continue
 		}
-		filled = true
+		filled++
 		if c.v == "-" {
-			allDates = false
+			dashes++
 			continue
 		}
 		_, isNumber := number(c.v)
 		_, isDate := textDate(c.v)
 		_, isOther := otherDate(c.v)
-		numbers = numbers || isNumber
-		allNumbers = allNumbers && isNumber
-		allDates = allDates && (isDate || isOther || c.date && isNumber)
+		if isNumber {
+			numbers++
+		}
+		if isDate || isOther || c.date && isNumber {
+			dates++
+		}
 	}
+	most := func(n int) bool { return n > 0 && n*10 >= filled*9 }
 	switch {
-	case !filled:
-		return Text
-	case allDates:
+	case most(dates):
 		return Date
-	case allNumbers && numbers:
+	case numbers > 0 && most(numbers+dashes):
 		return Number
 	}
 	return Text
+}
+
+// serials counts column ci's numbers when every one of them is an Excel date serial from 1950 to 2100; 0 if not.
+// ponytail: day numbers 1 to 31 are not read as serials, which would date them in January 1900.
+func serials(raw [][]cell, ci int) int {
+	n := 0
+	for _, vals := range raw {
+		v, ok := number(vals[ci].v)
+		switch {
+		case vals[ci].v == "-" || ok && (v < 18264 || v > 73415):
+			return 0
+		case ok:
+			n++
+		}
+	}
+	return n
+}
+
+// dateNamed reports whether a column's name holds one of the words for a date that Finance's date blank is
+// guessed by, such as tarikh or created.
+func dateNamed(name string) bool {
+	i := slices.IndexFunc(Finance.Blanks, func(b Blank) bool { return b.Key == "date" })
+	return slices.ContainsFunc(Finance.Blanks[i].Loose, func(w string) bool { return strings.Contains(columnKey(name), w) })
 }
 
 var (

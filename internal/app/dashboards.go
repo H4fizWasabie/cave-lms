@@ -252,15 +252,14 @@ func (p *newDashboardPage) offers(key string) bool {
 	return slices.ContainsFunc(p.Templates, func(t *lab.Template) bool { return t.Key == key })
 }
 
-// renderNewDashboard shows /lab/new with the picked Template's Sample read, so the page can name its columns.
+// renderNewDashboard shows /lab/new with the picked Template's Sample read (a Work Dashboard's cleaned once at
+// start-up), so the page can name its columns.
 func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
 	t := lab.TemplateByKey(p.Picked)
 	var err error
 	if p.Work { // read and guessed as a Work Dashboard's upload is
-		var res *lab.CleanUp
-		if res, err = lab.Clean(bytes.NewReader(t.Sample), t, lab.Settings{}); err == nil {
-			p.Sample, p.Guess = res.Dataset, res.Guess
-		}
+		res := a.samples[t.Key]
+		p.Sample, p.Guess = res.Dataset, res.Guess
 	} else if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err == nil {
 		p.Guess = t.Guess(p.Sample)
 	}
@@ -595,6 +594,9 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	defer file.Close()
 	name = header.Filename
 	switch {
+	case strings.EqualFold(filepath.Ext(name), ".xls"):
+		refuse(text.T(lang, "lab.err.xls"))
+		return
 	case !strings.EqualFold(filepath.Ext(name), ".xlsx"):
 		refuse(text.T(lang, "lab.err.not-xlsx", name))
 		return
