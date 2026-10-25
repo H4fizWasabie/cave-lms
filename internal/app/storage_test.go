@@ -1,11 +1,9 @@
 package app_test
 
 import (
-	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -73,12 +71,10 @@ func TestTheLabShowsStorageUsedAndPeriodsKeepTheirAllowance(t *testing.T) {
 	admin, ada, planID := storageSite(t, "1024")
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "0 KB of 1 GB")
-	path := ada.createDashboard("finance", "Kewangan")
-	file := bigFinance(t, 1)
-	res, body = ada.postFile(path+"/dataset", "mine.xlsx", file)
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	path := ada.createWork("finance", "Kewangan")
+	ada.confirmFile(path, "mine.xlsx", bigFinance(t, 1))
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, fmt.Sprintf("%d KB of 1 GB", (len(file)+1023)>>10))
+	expectStatus(t, res, body, http.StatusOK, ada.storedKB())
 
 	res, body = admin.post("/admin/plans/"+planID, url.Values{"name": {"Lab Small"}, "days": {"30"}, "deployments": {"3"}, "storage": {"2"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -97,82 +93,56 @@ func TestALabPlanPeriodGetsTheLabPlansStorageAllowance(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "0 KB of 3 MB")
 }
 
-func TestAnUploadOverTheStorageAllowanceIsRefusedAndReplacingOrDeletingFreesSpace(t *testing.T) {
+func TestAConfirmOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
-	first := ada.createDashboard("finance", "One")
-	second := ada.createDashboard("finance", "Two")
-	file := bigFinance(t, 1)
-	res, body := ada.postFile(first+"/dataset", "one.xlsx", file)
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	used := fmt.Sprintf("%d KB of your 1 MB", (len(file)+1023)>>10)
+	first := ada.createWork("finance", "One")
+	second := ada.createWork("finance", "Two")
+	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
+	used := strings.TrimSuffix(ada.storedKB(), " of 1 GB") + " of your 1 MB"
 
-	res, body = ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
-	for _, want := range []string{"Storage allowance", used, "Nothing changed."} {
+	res, body := ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.post(second+"/dataset/confirm", financeGuess)
+	for _, want := range []string{"Storage allowance", used} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
 	}
-	if n := ada.storedFiles(); n != 1 {
-		t.Fatalf("%d stored files after a refused upload, want 1", n)
-	}
-	res, body = ada.get(second + "/columns")
-	expectStatus(t, res, body, http.StatusOK, "Upload a Dataset first")
+	res, body = ada.get(second + "/view/")
+	expectStatus(t, res, body, http.StatusNotFound, "")
 
-	res, body = ada.postFile(first+"/dataset", "again.xlsx", bigFinance(t, 3))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.post(first+"/delete", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(second, financeGuess)
 }
 
-func TestAnUploadOverTheStorageAllowanceIsRefusedEvenWhenTheStoreIsDown(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root writes into a read-only directory")
-	}
-	admin, ada, _ := storageSite(t, "1")
-	first := ada.createDashboard("finance", "One")
-	second := ada.createDashboard("finance", "Two")
-	res, body := ada.postFile(first+"/dataset", "one.xlsx", bigFinance(t, 1))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-
-	// A read-only storage directory stands in for R2 refusing the write.
-	if err := os.Chmod(admin.storageDir, 0o500); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(admin.storageDir, 0o700) })
-	res, body = ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
-}
-
-func TestTwoUploadsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
+func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
-	paths := []string{ada.createDashboard("finance", "One"), ada.createDashboard("finance", "Two")}
-	files := [][]byte{bigFinance(t, 1), bigFinance(t, 2)}
+	paths := []string{ada.createWork("finance", "One"), ada.createWork("finance", "Two")}
+	for i, p := range paths {
+		res, body := ada.postFile(p+"/dataset", "data.xlsx", bigFinance(t, int64(i+1)))
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
 	codes := make([]int, 2)
 	var wg sync.WaitGroup
 	for i := range paths {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, _ := ada.postFile(paths[i]+"/dataset", "data.xlsx", files[i])
+			res, _ := ada.post(paths[i]+"/dataset/confirm", financeGuess)
 			codes[i] = res.StatusCode
 		}()
 	}
 	wg.Wait()
 	if !(codes[0] == http.StatusSeeOther) != (codes[1] == http.StatusSeeOther) {
-		t.Fatalf("two uploads at once answered %v, want one accepted and one refused", codes)
-	}
-	if n := ada.storedFiles(); n != 1 {
-		t.Fatalf("%d stored files, want 1", n)
+		t.Fatalf("two confirms at once answered %v, want one accepted and one refused", codes)
 	}
 }
 
 func TestTheAdminHasNoStorageAllowance(t *testing.T) {
 	admin, _, planID := storageSite(t, "0")
 	admin.assignPlan("admin@example.com", planID)
-	path := admin.createDashboard("finance", "Kewangan")
-	res, body := admin.postFile(path+"/dataset", "mine.xlsx", admin.financeSample())
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = admin.get("/lab")
+	path := admin.createWork("finance", "Kewangan")
+	admin.confirmFile(path, "mine.xlsx", admin.financeSample())
+	_, body := admin.get("/lab")
 	if strings.Contains(body, "of 0 KB") {
 		t.Fatalf("the Admin's Lab shows a Storage allowance: %s", body)
 	}

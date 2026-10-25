@@ -20,7 +20,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// previewRows is how many cleaned rows a Work Dashboard's upload preview shows.
+// previewRows is how many cleaned rows a Dashboard's upload preview shows.
 const previewRows = 20
 
 // cleaned is what Clean-up found on an upload besides its data, kept with the Dataset as datasets.cleanup: the
@@ -38,7 +38,7 @@ type cleaned struct {
 	Year      int                    `json:"year,omitempty"`
 }
 
-// pendingDataset is a Work Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
+// pendingDataset is a Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
 // Until then the Dashboard and its Deployment keep the current Dataset.
 type pendingDataset struct {
 	cleaned
@@ -97,10 +97,10 @@ func (p *pendingDataset) Rows() [][]string {
 	return out
 }
 
-// keepEarlier is how many earlier Datasets a Work Dashboard keeps beside its current one.
+// keepEarlier is how many earlier Datasets a Dashboard keeps beside its current one.
 const keepEarlier = 3
 
-// keptDataset is a Work Dashboard's Dataset that is not pending: an earlier one the Learner may restore or delete,
+// keptDataset is a Dashboard's Dataset that is not pending: an earlier one the Learner may restore or delete,
 // or the current one.
 type keptDataset struct {
 	ID        int64
@@ -118,7 +118,7 @@ type queryer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-// keptDatasets lists the Work Dashboard's earlier Datasets, oldest confirmed first, then its current one, if any.
+// keptDatasets lists the Dashboard's earlier Datasets, oldest confirmed first, then its current one, if any.
 func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]keptDataset, error) {
 	rows, err := q.QueryContext(ctx, `SELECT id, file_name, saved_size, row_count, confirmed_at FROM datasets
 		WHERE dashboard_id = $1 AND state <> 'pending' ORDER BY state = 'current', confirmed_at, id`, dashboardID)
@@ -139,7 +139,7 @@ func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]keptData
 	return out, rows.Err()
 }
 
-// earlierOf lists the Work Dashboard's earlier Datasets, newest first, as the Dataset tab shows them.
+// earlierOf lists the Dashboard's earlier Datasets, newest first, as the Dataset tab shows them.
 func (a *App) earlierOf(ctx context.Context, d *dashboard) ([]keptDataset, error) {
 	kept, err := keptDatasets(ctx, a.db, d.ID)
 	if err != nil || d.Key == "" { // no current Dataset, so no earlier ones
@@ -278,7 +278,7 @@ var cleanedSamples = sync.OnceValues(cleanSamples)
 // cleanSamples runs Clean-up on each Template's Sample.
 func cleanSamples() (map[string]*lab.CleanUp, error) {
 	samples := map[string]*lab.CleanUp{}
-	for _, t := range lab.TemplatesFor(true) {
+	for _, t := range lab.Templates {
 		res, err := lab.Clean(bytes.NewReader(t.Sample), t, lab.Settings{})
 		if err != nil {
 			return nil, fmt.Errorf("clean the %s Sample: %w", t.Name, err)
@@ -327,7 +327,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, res *lab.CleanUp, setti
 	return int64(len(data)), nil
 }
 
-// uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
+// uploadWork runs Clean-up on a Dashboard's upload and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
 // the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made on the
@@ -416,7 +416,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.serverError(w, r, err)
 		return
 	}
-	if !d.Work || p == nil {
+	if p == nil {
 		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 		return
 	}
@@ -457,7 +457,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	var room storageRoom
 	overAllowance, replaced := errors.New("over the Storage allowance"), errors.New("pending Dataset replaced")
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		// Locking the Learner makes two confirms or uploads take turns, as in replaceDataset.
+		// Locking the Learner makes two confirms take turns, so both cannot slip under the allowance.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
 			return err
 		}

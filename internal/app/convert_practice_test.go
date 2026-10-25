@@ -45,16 +45,31 @@ func (s *site) dashboardState() string {
 	return state
 }
 
+// asPractice turns the Dashboard at path back into a Practice Dashboard as one was stored before ADR 0015: its
+// Dataset on its own row, out of datasets, its kind practice and no blocks of its own. No route makes one any more.
+func (s *site) asPractice(path string) {
+	s.t.Helper()
+	id := path[strings.LastIndex(path, "/")+1:]
+	if _, err := s.db.Exec(`WITH cur AS (DELETE FROM datasets WHERE dashboard_id = $1 RETURNING storage_key, file_name, saved_size)
+		UPDATE dashboards d SET kind = 'practice', config = NULL, dataset_key = cur.storage_key, dataset_file = cur.file_name, dataset_size = cur.saved_size
+		FROM cur WHERE d.id = $1`, id); err != nil {
+		s.t.Fatal(err)
+	}
+	// Its Dataset never was in datasets, so nothing queued it for deletion.
+	if _, err := s.db.Exec(`DELETE FROM stored_file_deletions WHERE storage_key = (SELECT dataset_key FROM dashboards WHERE id = $1)`, id); err != nil {
+		s.t.Fatal(err)
+	}
+}
+
 // Practice Dashboards made before ADR 0015 become Dashboards at the next start: their Template's blocks, now
 // editable, their Dataset as the current one, their Theme, and their Deployment at the same link drawing the
 // same blocks and data. Starting again changes nothing.
 func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAndDeployment(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
-	empty := ada.createDashboard("finance", "Kosong")
-	general := ada.createDashboard("general", "Umum")
-	res, body := ada.postFile(general+"/dataset", "finance-sample.xlsx", ada.financeSample())
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	empty := ada.createWork("finance", "Kosong")
+	general := ada.createWork("general", "Umum")
+	ada.confirmFile(general, "finance-sample.xlsx", ada.financeSample())
 	_, generalBlocks := ada.drawn(general + "/view/")
 	if _, err := ada.db.Exec(`UPDATE dashboards SET theme = 'midnight' WHERE id = $1`, path[strings.LastIndex(path, "/")+1:]); err != nil {
 		t.Fatal(err)
@@ -68,6 +83,12 @@ func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAnd
 	}
 	dataAt := visitor.dataOf(link)
 	_, data := visitor.get(link + dataAt)
+	for _, p := range []string{path, empty, general} {
+		ada.asPractice(p)
+	}
+	if _, err := ada.db.Exec(`UPDATE dashboards SET kind = 'practice' WHERE id = $1`, empty[strings.LastIndex(empty, "/")+1:]); err != nil {
+		t.Fatal(err)
+	}
 	files := ada.storedFiles()
 
 	ada.restart()
@@ -99,7 +120,7 @@ func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAnd
 	if _, got := ada.drawn(general + "/view/"); len(generalBlocks) == 0 || !slices.Equal(got, generalBlocks) {
 		t.Fatalf("after: General draws\n%q\nwant\n%q", got, generalBlocks)
 	}
-	res, body = ada.get(path + "/blocks")
+	res, body := ada.get(path + "/blocks")
 	for _, want := range []string{"Edit blocks", blocks[0][strings.Index(blocks[0], ": ")+2:]} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}

@@ -58,70 +58,10 @@ type chosenColumn struct {
 	Money bool   `json:"money,omitempty"`
 }
 
-// Check gives a Problem for the first choice that does not fit the Dataset: a required blank with no column, or a
-// column missing from the Dataset or of the wrong type.
-func (t *Template) Check(c Choices, d *Dataset) error {
-	types := map[string]Type{}
-	for _, col := range d.Columns {
-		types[col.Name] = col.Type
-	}
-	for _, b := range t.Blanks {
-		col, ok := c[b.Key]
-		switch {
-		case !ok && b.Required:
-			return Problem{"lab.err.choose-column", []any{b.Label}}
-		case !ok:
-		case types[col] == "":
-			return Problem{"lab.err.no-such-column", []any{b.Label, col}}
-		case types[col] != b.Type:
-			return Problem{"lab.err.wrong-type", []any{b.Label, typeWord(b.Type), col, typeWord(types[col])}}
-		}
-	}
-	return nil
-}
-
 // Generate writes a Dashboard: index.html, which loads charts.js beside it and its data from dataURL and draws
-// in theme (a Theme's key), and data.json, the Dataset as one object per row. Blocks that need a skipped blank are left out.
-// Choices that do not fit the Dataset give a Problem, as does a blank cell in a column chosen for a
-// required blank: the first such cell, by its Excel row.
-func Generate(t *Template, name, theme string, c Choices, d *Dataset, dataURL string) (index, data []byte, err error) {
-	if t.Build != nil {
-		t, c = t.Build(d)
-	}
-	if err := t.Check(c, d); err != nil {
-		return nil, nil, err
-	}
-	columns, required := map[string]chosenColumn{}, map[string]bool{}
-	for _, b := range t.Blanks {
-		col, ok := c[b.Key]
-		if !ok {
-			continue
-		}
-		columns[b.Key] = chosenColumn{Name: col, Type: b.Type, Money: b.Money}
-		required[col] = required[col] || b.Required
-	}
-	for ri, row := range d.Rows {
-		for ci, v := range row {
-			if v == nil && required[d.Columns[ci].Name] {
-				return nil, nil, emptyCell(d.rowNumber(ri), d.Columns[ci].Name)
-			}
-		}
-	}
-
-	blocks := t.included(c)
-	var filters []string
-	for _, k := range t.Filters {
-		if c[k] != "" {
-			filters = append(filters, k)
-		}
-	}
-
-	return page(name, t.Question, map[string]any{"theme": theme, "columns": columns, "blocks": blocks, "filters": filters}, d, dataURL)
-}
-
-// GenerateWork writes a Work Dashboard as Generate writes a Practice one, drawing its own blocks and filter bar.
-// Every column of the Dataset is offered to the blocks by its name.
-func GenerateWork(t *Template, name, theme string, cfg *Config, d *Dataset, dataURL string) (index, data []byte, err error) {
+// its blocks and filter bar in theme (a Theme's key), and data.json, the Dataset as one object per row. Every
+// column of the Dataset is offered to the blocks by its name.
+func Generate(t *Template, name, theme string, cfg *Config, d *Dataset, dataURL string) (index, data []byte, err error) {
 	money := map[string]bool{}
 	for _, col := range cfg.Money {
 		money[col] = true
@@ -130,7 +70,7 @@ func GenerateWork(t *Template, name, theme string, cfg *Config, d *Dataset, data
 	for _, col := range d.Columns {
 		columns[col.Name] = chosenColumn{Name: col.Name, Type: col.Type, Money: money[col.Name] && col.Type == Number}
 	}
-	return page(name, t.Question, map[string]any{"work": true, "theme": theme, "columns": columns, "blocks": cfg.Blocks, "filters": cfg.FilterBar}, d, dataURL)
+	return page(name, t.Question, map[string]any{"theme": theme, "columns": columns, "blocks": cfg.Blocks, "filters": cfg.FilterBar}, d, dataURL)
 }
 
 // page writes index.html with config as the chart script's settings, and data.json.

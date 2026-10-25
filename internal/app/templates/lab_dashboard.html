@@ -15,18 +15,12 @@
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
         {{- if .Dashboard.Dataset}}
-        {{- if .Dashboard.Work}}
         <a class="lab-tab" href="{{$url}}/blocks"{{if eq .Tab "blocks"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.blocks"}}</a>
-        {{- else if .ReadOnly}}
-        <span class="lab-tab is-off" title="{{t .Lang "lab.d.needs-access"}}">{{t .Lang "lab.d.tab.columns"}}</span>
-        {{- else}}
-        <a class="lab-tab" href="{{$url}}/columns"{{if eq .Tab "columns"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.columns"}}</a>
-        {{- end}}
         <a class="lab-tab" href="{{$url}}/preview"{{if eq .Tab "preview"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.preview"}}</a>
         <a class="lab-tab" href="{{$url}}/hood"{{if eq .Tab "hood"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.hood"}}</a>
         <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
-        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{if .Dashboard.Work}}{{t .Lang "lab.d.tab.blocks"}}{{else}}{{t .Lang "lab.d.tab.columns"}}{{end}}</span>
+        <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.blocks"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.preview"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.hood"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.deploy"}}</span>
@@ -47,7 +41,7 @@
           {{- with .Dashboard.Dataset}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
-          <p class="muted">{{if $.Dashboard.Work}}{{t $.Lang "lab.w.upload-body"}}{{else}}{{t $.Lang "lab.d.upload-new-body"}}{{end}}</p>
+          <p class="muted">{{t $.Lang "lab.w.upload-body"}}</p>
           {{- else}}
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
           <p class="muted">{{t .Lang "lab.d.upload-yours-body" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
@@ -196,12 +190,10 @@
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
-            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{if .Dashboard.Work}}{{t .Lang "lab.w.file-limits"}}{{else}}{{t .Lang "lab.d.file-limits"}}{{end}}</small></div>
-            {{- if .Dashboard.Work}}
+            <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
             <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
             {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
             <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
-            {{- end}}
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
             {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
           </form>
@@ -361,51 +353,6 @@
       </div>
       <script src="{{static "blocks.js"}}" defer></script>
       {{- end}}
-
-      {{- else if and .ReadOnly (eq .Tab "columns")}}
-      <p class="empty">{{t .Lang "lab.d.columns-need-access"}} <a href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a>.</p>
-      {{- else if and (eq .Tab "columns") (not .Dashboard.Template.Blanks)}}
-      <section class="lab-narrow">
-        <h2 class="h-md">{{t .Lang "lab.d.no-blanks" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</h2>
-        <p class="muted">{{t .Lang "lab.d.no-blanks-body"}}</p>
-        <div class="table-wrap"><table class="table">
-          <thead><tr><th>{{t .Lang "lab.d.column"}}</th><th>{{t .Lang "lab.d.read-as"}}</th></tr></thead>
-          <tbody>{{range .Dashboard.Dataset.Columns}}<tr><td><code>{{.Name}}</code></td><td>{{t $.Lang (print "lab.type." .Type)}}</td></tr>{{end}}</tbody>
-        </table></div>
-        <p><a class="btn btn-solid" href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a></p>
-      </section>
-
-      {{- else if eq .Tab "columns"}}
-      <form class="form lab-narrow" method="post" action="{{$url}}/columns">
-        <div>
-          <h2 class="h-md">{{t .Lang "lab.d.which-column"}}</h2>
-          <p class="muted">{{tn .Lang "lab.d.cave-read" (len .Dashboard.Dataset.Rows) .Dashboard.File}}</p>
-        </div>
-        {{if .Again}}<p class="up-err" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{t .Lang "lab.d.again"}}</p>{{end}}
-        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-        {{- with .Problem}}
-        <div class="ds-err" role="alert"><p>{{.}}</p><p>{{t $.Lang "lab.d.pick-another"}}</p></div>
-        {{- end}}
-        {{- range .Blanks}}
-        <div class="field map-row">
-          <label for="m-{{.Key}}">{{.Label}}</label>
-          <select id="m-{{.Key}}" name="{{.Key}}">
-            {{- if not .Required}}
-            <option value=""{{if not .Chosen}} selected{{end}}>{{t $.Lang "lab.d.skip"}}</option>
-            {{- end}}
-            {{- $chosen := .Chosen}}
-            {{- range .Options}}
-            <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
-            {{- end}}
-          </select>
-          <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{if .Help}}{{t $.Lang (print "lab.tpl." $.Dashboard.Template.Key "." .Key ".help")}}{{end}}{{with .Guess}} · {{t $.Lang "lab.d.guess" .}}{{end}}</small>
-          {{- if .Renamed}}
-          <small class="field-err">{{t $.Lang "lab.d.renamed" .Renamed .Guess .Label}}</small>
-          {{- end}}
-        </div>
-        {{- end}}
-        <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.save-preview"}}</button></div>
-      </form>
 
       {{- else if eq .Tab "preview"}}
       <div class="pv-bar">

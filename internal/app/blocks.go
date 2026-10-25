@@ -68,7 +68,7 @@ type blocksView struct {
 	Saved     bool
 }
 
-// newBlocksView lays out the Work Dashboard's blocks for the Blocks tab in lang, block open (if any) with its form.
+// newBlocksView lays out the Dashboard's blocks for the Blocks tab in lang, block open (if any) with its form.
 func newBlocksView(d *dashboard, lang string, open int, saved bool) *blocksView {
 	cfg, ds := d.Config, d.Dataset
 	v := &blocksView{Saved: saved, Full: len(cfg.Blocks) >= lab.MaxBlocks, CardsFull: cfg.Cards() >= lab.MaxCards,
@@ -342,7 +342,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if !ok {
 		return
 	}
-	if !d.Work || d.Config == nil || d.Dataset == nil {
+	if d.Config == nil || d.Dataset == nil {
 		a.notFound(w, r)
 		return
 	}

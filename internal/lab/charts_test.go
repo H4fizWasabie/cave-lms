@@ -60,7 +60,7 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 			lab.WorkBlock{Kind: "table", Label: "Jadual B", Cols: []string{"Kos"}, Limit: 10},
 		),
 	}
-	index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Klinik", "", cfg, d, "data.json")
+	index, data, err := lab.Generate(lab.TemplateByKey("general"), "Klinik", "", cfg, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestADashboardDrawsInItsTheme(t *testing.T) {
 		{"", "--bg:#F6F8FB", "#C89B3C", "#0E2A47"},
 		{"neon", "--bg:#F6F8FB", "#C89B3C", "#0E2A47"},
 	} {
-		index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Staf", c.theme, cfg, d, "data.json")
+		index, data, err := lab.Generate(lab.TemplateByKey("general"), "Staf", c.theme, cfg, d, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,7 +145,7 @@ func TestAHeatmapShadesItsCellsInItsThemesScale(t *testing.T) {
 	heat := lab.WorkBlock{Kind: "heatmap", Label: "Jabatan ikut status", Value: &lab.Value{Agg: "count"}, Group: "Jabatan", Split: "Status", Top: 8, Wide: true}
 	draw := func(theme string, money []string, blocks ...lab.WorkBlock) string {
 		t.Helper()
-		index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Staf", theme, &lab.Config{Blocks: blocks, Money: money}, d, "data.json")
+		index, data, err := lab.Generate(lab.TemplateByKey("general"), "Staf", theme, &lab.Config{Blocks: blocks, Money: money}, d, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}

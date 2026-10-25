@@ -199,16 +199,9 @@
 
   function dayName(iso) { return +iso.slice(8) + ' ' + MONTHS[+iso.slice(5, 7) - 1]; }
 
-  // The computing functions: pure, so charts_test.js checks them in node. A block is in the shape a Work
-  // Dashboard stores (value, split, filter, top); a Practice block is read into it first. rows are objects
-  // keyed as cols is: by column name in a Work Dashboard, by blank key in a Practice one.
+  // The computing functions: pure, so charts_test.js checks them in node. A block is in the shape a Dashboard
+  // stores (value, split, filter, top); rows are objects keyed by column name.
 
-  // fromPractice reads a Template's block, naming blanks, as the same block naming columns would be.
-  function fromPractice(b) {
-    return { kind: b.kind, label: b.label, icon: b.icon, wide: b.wide, x: b.x, by: b.kind === 'line' ? 'month' : undefined, split: b.series,
-      group: b.group, top: b.kind === 'bar' ? 8 : undefined, other: b.kind === 'donut' ? 5 : undefined, cols: b.cols, sort: b.sort, limit: b.limit, where: b.where, minus: b.minus, low: b.low,
-      value: b.kind === 'table' ? undefined : b.agg === 'count' || !b.of ? { agg: 'count' } : b.times ? { agg: 'calc', a: b.of, op: 'x', b: b.times, then: 'sum' } : { agg: 'sum', col: b.of } };
-  }
   function num(x) { var n = +x; return x == null || x === '' || isNaN(n) ? null : n; }
   function blank(x) { return x == null || x === '' ? '(blank)' : x; }
   // valueOf is one number from rows: empty cells count as rows and are skipped in sums, averages and distinct counts.
@@ -281,9 +274,9 @@
       return at.map(function (rs) { return rs.length ? valueOf(b.value, rs) : null; });
     }) };
   }
-  // slices is a donut's groups, past the top 6 folded into one Other (a Practice donut's, past the top 5, as it always was).
+  // slices is a donut's groups, past the top 6 folded into one Other.
   function slices(b, rows, cols) {
-    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; }), n = b.other || 6;
+    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; }), n = 6;
     if (g.length > n + 1) { var rest = g.slice(n).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, n).concat([['Other', rest]]); }
     return g;
   }
@@ -333,13 +326,11 @@
     document.head.appendChild(style);
 
     var cols = dash.columns, blocks = dash.blocks || [], filters = dash.filters || [], state = {};
-    // A Work Dashboard's blocks and filter bar name columns, so one whose column the Dataset lacks is left off.
-    if (dash.work) {
-      // Copied, as the layout below sets wide on them.
-      blocks = blocks.filter(function (b) { return !paused(b, cols); }).map(function (b) { return Object.assign({}, b); });
-      filters = filters.filter(function (k) { return cols[k]; });
-    } else blocks = blocks.map(fromPractice);
-    // Each row by blank key: r.amount is the cell in the column chosen for Amount. A Work column is its own key.
+    // Blocks and the filter bar name columns, so one whose column the Dataset lacks is left off. The blocks are
+    // copied, as the layout below sets wide on them.
+    blocks = blocks.filter(function (b) { return !paused(b, cols); }).map(function (b) { return Object.assign({}, b); });
+    filters = filters.filter(function (k) { return cols[k]; });
+    // Each row by column name, its own key.
     var all = data.map(function (o) { var r = {}; Object.keys(cols).forEach(function (k) { r[k] = o[cols[k].name]; }); return r; });
     var dateKey = filters.filter(function (k) { return cols[k].type === 'date'; })[0];
     var months = [];
@@ -369,14 +360,14 @@
     var cardsEl = document.getElementById('cards'), chartsEl = document.getElementById('charts');
     // One row of up to four cards, the first twice as wide, so the row ends flush with the charts below.
     // ponytail: a fifth card and on (General, one per Number column) wraps to a second row; cap or regrid if that shows up.
-    // A Work Dashboard's five to eight cards sit in two even rows instead.
+    // Five to eight cards sit in two even rows instead.
     var allCards = blocks.filter(function (b) { return b.kind === 'card'; }).length, cardCount = Math.min(4, allCards);
-    if (dash.work && allCards > 4) cardsEl.style.setProperty('--cols', 'repeat(' + Math.ceil(allCards / 2) + ',minmax(0,1fr))');
+    if (allCards > 4) cardsEl.style.setProperty('--cols', 'repeat(' + Math.ceil(allCards / 2) + ',minmax(0,1fr))');
     else if (cardCount > 1) cardsEl.style.setProperty('--cols', 'minmax(0,2fr) repeat(' + (cardCount - 1) + ',minmax(0,1fr))');
     // Panels sit two to a row; a half-width panel with no half-width neighbour spans the row, so no gap is left.
-    // A Practice table always spans it; a Work table is as wide as the Learner set it.
+    // A table is as wide as the Learner set it.
     var panels = blocks.filter(function (b) { return b.kind !== 'card'; });
-    var full = function (b) { return b.wide || (!dash.work && b.kind === 'table'); };
+    var full = function (b) { return b.wide; };
     for (var i = 0; i < panels.length; i++) {
       if (full(panels[i])) { panels[i].wide = true; continue; }
       if (panels[i + 1] && !full(panels[i + 1])) i++;
@@ -545,7 +536,7 @@
     addEventListener('resize', function () { if (innerWidth !== width) { width = innerWidth; draw(); } });
   }
 
-  drawDashboard.compute = { fromPractice: fromPractice, cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
+  drawDashboard.compute = { cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
     heat: heat, slices: slices, tableRows: tableRows, csv: csv, paused: paused, iconOf: iconOf };
   drawDashboard.themes = Object.keys(THEMES);
   drawDashboard.icons = Object.keys(ICONS);

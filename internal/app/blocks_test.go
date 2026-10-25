@@ -85,10 +85,6 @@ func TestTheBlocksTabListsTheBlocksBesideTheDashboard(t *testing.T) {
 		expectStatus(t, res, body, http.StatusOK, `name="close" value="1"`) // Done
 	}
 
-	practice := ada.readyDashboard("Latihan")
-	res, body = ada.get(practice + "/blocks")
-	expectStatus(t, res, body, http.StatusNotFound, "")
-
 	ada.switchLanguage("ms", path+"/blocks")
 	res, body = ada.get(path + "/blocks")
 	for _, want := range []string{"2. Blok", "Ubah blok", "Kad 4/8", "Bar penapis"} {

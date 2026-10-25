@@ -179,7 +179,9 @@ curl -s "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'
 curl -s "$base/d/$n/data/$key" | sha256sum
 ```
 
-A Dashboard never uploaded to has no blocks until its first confirm, as for a new one. Once production has converted, a later migration drops `dashboards.kind` and this step with it.
+A Dashboard never uploaded to has no blocks until its first confirm, as for a new one.
+
+**Dropped in a later release.** This release (#283) removes every Practice path from the code but keeps the conversion step (`convertPracticeDashboards`) and the columns it reads: `dashboards.kind` and the old `dashboards.dataset_key`, `dataset_file` and `dataset_size`. Migrations run before the conversion at start-up, so dropping them in the same release would lose the Practice Dashboards before they convert. Nothing else reads them now, except new Dashboards being inserted with `kind = 'work'` (the column defaults to `'practice'`). Once production has started on this release and the checks above show no `practice` row, a later release adds a migration dropping those four columns, removes `convertPracticeDashboards` with its test, the `kind` in `createDashboard`'s insert, and `copyDatasetsToStore`, whose old `dashboards.dataset` column 00069 already dropped.
 
 ## Changing the domain
 
