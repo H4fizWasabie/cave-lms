@@ -1,6 +1,7 @@
 package lab_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
+	"github.com/xuri/excelize/v2"
 )
 
 func clean(t *testing.T, file []byte, tpl *lab.Template) *lab.CleanUp {
@@ -729,5 +731,107 @@ func TestCleanUpReadsExcelDateSerialsInADateNamedColumnAsDates(t *testing.T) {
 	}
 	if got, want := changesIn(res, "ms"), []string{"Nombor dalam Created Date dibaca sebagai tarikh Excel, kerana namanya menunjukkan ia tarikh: 2."}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
+
+// handMade is a workbook of one sheet, Sheet1, whose XML is rows (the inside of sheetData) then tail, kept at
+// part in the archive, as a workbook may keep a sheet anywhere its relationships point.
+func handMade(t *testing.T, part, rows, tail string) []byte {
+	t.Helper()
+	parts := map[string]string{
+		"[Content_Types].xml":        `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/` + part + `" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+		"_rels/.rels":                `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+		"xl/workbook.xml":            `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+		"xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="/` + part + `"/></Relationships>`,
+		part:                         `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>` + rows + `</sheetData>` + tail + `</worksheet>`,
+	}
+	var buf bytes.Buffer
+	z := zip.NewWriter(&buf)
+	for name, body := range parts {
+		w, err := z.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.Write([]byte(body))
+	}
+	if err := z.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// groupedRows is a Kategori and Jumlah table whose Kategori is merged down rows 2 to 3.
+const groupedRows = `<row r="1"><c r="A1" t="inlineStr"><is><t>Kategori</t></is></c><c r="B1" t="inlineStr"><is><t>Jumlah</t></is></c></row>` +
+	`<row r="2"><c r="A2" t="inlineStr"><is><t>Minuman</t></is></c><c r="B2"><v>5</v></c></row>` +
+	`<row r="3"><c r="B3"><v>4</v></c></row>`
+
+func TestCleanUpFillsMergedCellsDownOnASheetKeptOutsideTheWorksheetsFolder(t *testing.T) {
+	file := handMade(t, "xl/elsewhere/data.xml", groupedRows, `<mergeCells count="1"><mergeCell ref="A2:A3"/></mergeCells>`)
+	res := clean(t, file, lab.General)
+	if want := [][]any{{"Minuman", 5.0}, {"Minuman", 4.0}}; !reflect.DeepEqual(res.Dataset.Rows, want) {
+		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, want)
+	}
+}
+
+func TestAWorkbookOfOver10000MergedRangesIsRefusedQuickly(t *testing.T) {
+	for _, form := range []string{`<mergeCell ref="E%d:F%d"/>`, "<mergeCell\nref=\"E%d:F%d\"/>", `<x:mergeCell ref="E%d:F%d"/>`} {
+		var merges strings.Builder
+		for i := range 10001 {
+			fmt.Fprintf(&merges, form, 10+2*i, 11+2*i)
+		}
+		file := handMade(t, "xl/elsewhere/data.xml", groupedRows, `<mergeCells count="10001">`+merges.String()+`</mergeCells>`)
+		start := time.Now()
+		_, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{})
+		if took := time.Since(start); took > time.Second {
+			t.Errorf("%s: Clean took %v", form, took)
+		}
+		var p lab.Problem
+		if !errors.As(err, &p) || p.In("en") != "This workbook has too many merged cells: the Lab reads up to 10,000 merged ranges. Unmerge the cells you do not need (Home, Merge & Center), and upload again." {
+			t.Fatalf("%s: got %v, want the too many merged cells Problem", form, err)
+		}
+	}
+}
+
+// A sheet whose data rows each have one more cell far out at column XFD is a few KB. Its rows as read, padded to
+// 1.6 million cells within maxSheetCells, cost about 100 MB; excelize's own padded copy of the sheet, for merges or
+// date styles, would cost 300 MB more.
+func TestCleanUpReadsASheetWithACellFarOutOnEachRowCheaply(t *testing.T) {
+	var rows strings.Builder
+	rows.WriteString(`<row r="1"><c r="A1" t="inlineStr"><is><t>Nama</t></is></c></row>`)
+	for r := 2; r <= 101; r++ {
+		fmt.Fprintf(&rows, `<row r="%d"><c r="A%d" t="inlineStr"><is><t>x</t></is></c><c r="XFD%d" t="inlineStr"><is><t>y</t></is></c></row>`, r, r, r)
+	}
+	file := handMade(t, "xl/worksheets/sheet1.xml", rows.String(), "")
+	var err error
+	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{}) }); n > 160<<20 {
+		t.Errorf("Clean allocated %d MB for a %d-byte file", n>>20, len(file))
+	}
+	if err != nil {
+		t.Fatalf("Clean: %v", err)
+	}
+}
+
+func TestASheetPaddedPast5MillionCellsByAWideHeaderIsRefused(t *testing.T) {
+	f := excelize.NewFile()
+	defer f.Close()
+	header := make([]any, 16384)
+	for i := range header {
+		header[i] = fmt.Sprintf("c%d", i)
+	}
+	f.SetSheetRow("Sheet1", "A1", &header)
+	for r := 2; r <= 401; r++ { // 401 rows as wide as the header: 6.5 million cells
+		f.SetCellInt("Sheet1", fmt.Sprintf("A%d", r), int64(r))
+	}
+	var b bytes.Buffer
+	if err := f.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(b.Bytes()), lab.General, lab.Settings{}) }); n > 160<<20 {
+		t.Errorf("Clean allocated %d MB", n>>20)
+	}
+	var p lab.Problem
+	if !errors.As(err, &p) || p.Key != "lab.err.too-many-cells" {
+		t.Fatalf("got %v, want lab.err.too-many-cells", err)
 	}
 }

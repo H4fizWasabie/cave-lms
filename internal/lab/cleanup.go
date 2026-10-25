@@ -1,10 +1,14 @@
 package lab
 
 import (
+	"bytes"
 	"cmp"
+	"encoding/xml"
 	"io"
+	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +43,10 @@ const (
 	MaxCleanRows = 50000
 	MaxColumns   = 100
 )
+
+// MaxMerges is the most merged ranges a workbook may have. A real export has a few hundred; each range is work for
+// every header and filled-down cell it spans.
+const MaxMerges = 10000
 
 // Change is one thing Clean-up changed, as a text catalog key and the numbers it fills in, then the column it
 // was in, if one, so the preview can word it in the Learner's language.
@@ -91,8 +99,13 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	names := f.GetSheetList()
 	tables, problems := make([]*table, len(names)), make([]error, len(names))
 	res := &CleanUp{}
+	merges := 0
 	for i, name := range names {
-		tables[i], problems[i] = readTable(f, name, s)
+		l := readLayout(f, name)
+		if merges += len(l.merges); merges > MaxMerges {
+			return nil, Problem{"lab.err.too-many-merges", []any{thousands(MaxMerges)}}
+		}
+		tables[i], problems[i] = readTable(f, name, l, s)
 	}
 	year, month := gridMonth(tables, time.Now())
 	if s.Month >= 1 && s.Month <= 12 {
@@ -232,7 +245,7 @@ type table struct {
 // readTable reads one sheet as a table, or gives the Problem that stops it. Its rules run in order: find the
 // header row below any title rows (or take the Learner's, of one or two rows), fill merged data cells down,
 // stop at the first fully blank row and column, then drop totals and labels at the bottom and columns with no data.
-func readTable(f *excelize.File, name string, s Settings) (*table, error) {
+func readTable(f *excelize.File, name string, l layout, s Settings) (*table, error) {
 	cells, err := sheetRows(f, name, excelize.Options{RawCellValue: true})
 	if p, ok := err.(Problem); ok {
 		return nil, p
@@ -241,7 +254,7 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 	}
 	h := s.HeaderRow - 1
 	if h < 0 {
-		if h = headerRow(cells); s.TwoRowHeader && groupsAbove(f, name, cells, h) {
+		if h = headerRow(cells); s.TwoRowHeader && groupsAbove(l.merges, cells, h) {
 			h--
 		}
 	}
@@ -274,13 +287,17 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 		return tb, err
 	}
 
-	cells = fillDown(f, name, cells, first, res)
-	cells = cutOff(cells, h, first, res)
+	if cells, err = fillDown(l.merges, cells, first, res); err != nil {
+		return nil, err
+	}
+	if cells, err = cutOff(cells, h, first, res); err != nil {
+		return nil, err
+	}
 	header := cells[h]
 	if s.TwoRowHeader {
-		header = joinHeader(f, name, cells, h, res)
+		header = joinHeader(l.merges, cells, h, res)
 	}
-	raw, rowNo := rawRows(f, name, cells, first-1, len(header))
+	raw, rowNo := rawRows(l, cells, first-1, len(header))
 	if len(raw) == 0 {
 		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
@@ -304,7 +321,7 @@ func readTable(f *excelize.File, name string, s Settings) (*table, error) {
 // groupsAbove reports whether header row h, found by headerRow, is the bottom row of a two-row header whose
 // top row holds only a few group names: data starts right below h, and the row above has two names or more, or
 // a name merged across columns other than from the first (a title merged across the sheet starts at A).
-func groupsAbove(f *excelize.File, sheet string, cells [][]string, h int) bool {
+func groupsAbove(merges [][4]int, cells [][]string, h int) bool {
 	if h < 1 || h+1 >= len(cells) || !slices.ContainsFunc(cells[h+1], func(v string) bool { _, ok := number(strings.TrimSpace(v)); return ok }) {
 		return false
 	}
@@ -314,7 +331,7 @@ func groupsAbove(f *excelize.File, sheet string, cells [][]string, h int) bool {
 			names++
 		}
 	}
-	return names >= 2 || slices.ContainsFunc(merged(f, sheet), func(m [4]int) bool { return m[0] == h-1 && m[1] > 0 && m[3] > m[1] })
+	return names >= 2 || slices.ContainsFunc(merges, func(m [4]int) bool { return m[0] == h-1 && m[1] > 0 && m[3] > m[1] })
 }
 
 // likeliest is the index of the sheet whose Problem to give when no sheet reads: the one the Learner picked,
@@ -440,18 +457,129 @@ func (res *CleanUp) change(key string, args ...int) {
 	res.Changes = append(res.Changes, Change{Key: key, Args: args})
 }
 
-// merged is each merged range of the sheet as 0-based [top row, left column, bottom row, right column].
-func merged(f *excelize.File, sheet string) [][4]int {
-	ranges, _ := f.GetMergeCells(sheet)
-	var out [][4]int
-	for _, m := range ranges {
-		c1, r1, err1 := excelize.CellNameToCoordinates(m.GetStartAxis())
-		c2, r2, err2 := excelize.CellNameToCoordinates(m.GetEndAxis())
-		if err1 == nil && err2 == nil {
-			out = append(out, [4]int{r1 - 1, c1 - 1, r2 - 1, c2 - 1})
+// layout is what Clean-up reads of a sheet besides its values, read straight from the sheet's XML: excelize's own
+// readers of merges and styles first pad every row out to its last cell, so a few-KB sheet with a cell far out on
+// each row would take gigabytes, and excelize joins overlapping merges pairwise, in time the square of their count.
+type layout struct {
+	merges [][4]int // each merged range as 0-based [top row, left column, bottom row, right column]
+	dates  []int    // the cells whose number format shows a date, as 0-based row<<14 | column, sorted
+}
+
+// date reports whether the cell at 0-based row and col shows a date.
+func (l layout) date(row, col int) bool {
+	_, ok := slices.BinarySearch(l.dates, row<<14|col)
+	return ok
+}
+
+// readLayout reads sheet's layout, stopping once it has more than MaxMerges merges. A sheet it cannot find or read
+// has none, as excelize then reads no cells from it either.
+func readLayout(f *excelize.File, sheet string) layout {
+	var l layout
+	b := sheetPart(f, sheet)
+	if b == nil {
+		return l
+	}
+	d := xml.NewDecoder(bytes.NewReader(b))
+	d.CharsetReader = f.CharsetReader
+	isDate := map[int]bool{} // by style
+	row, col := 0, 0         // the cell's, 1-based, counted as excelize counts them
+	for len(l.merges) <= MaxMerges {
+		tok, err := d.Token()
+		if err != nil {
+			break
+		}
+		el, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		attr := func(name string) string {
+			for _, a := range el.Attr {
+				if a.Name.Local == name {
+					return a.Value
+				}
+			}
+			return ""
+		}
+		switch el.Name.Local {
+		case "row":
+			if row, col = row+1, 0; attr("r") != "" {
+				row, _ = strconv.Atoi(attr("r"))
+			}
+		case "c":
+			if col++; attr("r") != "" {
+				col, _, _ = excelize.CellNameToCoordinates(attr("r"))
+			}
+			style, err := strconv.Atoi(attr("s"))
+			if err != nil || style == 0 || row < 1 || col < 1 {
+				continue
+			}
+			if _, ok := isDate[style]; !ok {
+				isDate[style] = dateFormat(f, style)
+			}
+			if isDate[style] {
+				l.dates = append(l.dates, (row-1)<<14|(col-1))
+			}
+		case "mergeCell":
+			from, to, _ := strings.Cut(attr("ref"), ":")
+			c1, r1, err1 := excelize.CellNameToCoordinates(from)
+			c2, r2, err2 := excelize.CellNameToCoordinates(to)
+			if err1 == nil && err2 == nil {
+				l.merges = append(l.merges, [4]int{min(r1, r2) - 1, min(c1, c2) - 1, max(r1, r2) - 1, max(c1, c2) - 1})
+			}
 		}
 	}
-	return out
+	slices.Sort(l.dates)
+	return l
+}
+
+// sheetPart is sheet's XML as the file holds it, found the way excelize finds it: the workbook's relationship
+// for the sheet points at its part. nil if there is none.
+func sheetPart(f *excelize.File, sheet string) []byte {
+	part := func(name string) []byte {
+		b, _ := f.Pkg.Load(name)
+		v, _ := b.([]byte)
+		return v
+	}
+	type relationships struct {
+		Rel []struct {
+			ID     string `xml:"Id,attr"`
+			Type   string `xml:"Type,attr"`
+			Target string `xml:"Target,attr"`
+		} `xml:"Relationship"`
+	}
+	target := func(rels []byte, match func(id, typ string) bool) string {
+		var r relationships
+		xml.Unmarshal(rels, &r)
+		for _, rel := range r.Rel {
+			if match(rel.ID, rel.Type) {
+				return rel.Target
+			}
+		}
+		return ""
+	}
+	book := strings.TrimPrefix(target(part("_rels/.rels"), func(_, typ string) bool {
+		return typ == excelize.SourceRelationshipOfficeDocument
+	}), "/")
+	id := ""
+	if f.WorkBook != nil {
+		for _, s := range f.WorkBook.Sheets.Sheet {
+			if strings.EqualFold(s.Name, sheet) {
+				id = s.ID
+				break
+			}
+		}
+	}
+	if book == "" || id == "" {
+		return nil
+	}
+	to := target(part(path.Join(path.Dir(book), "_rels", path.Base(book)+".rels")), func(rid, _ string) bool { return rid == id })
+	if to == "" {
+		return nil
+	}
+	if strings.HasPrefix(to, "/") {
+		return part(strings.TrimPrefix(path.Clean(to), "/"))
+	}
+	return part(strings.TrimPrefix(path.Join(path.Dir(book), to), "/"))
 }
 
 // set puts v at cells[r][c], widening the row as needed.
@@ -465,17 +593,21 @@ func set(cells [][]string, r, c int, v string) {
 // fillDown gives every cell of a merged range spanning rows, from data row first down, its top-left value, so
 // grouped rows keep their group on every row. Ranges within one row are left as Excel stores them.
 // ponytail: a filled cell keeps its own number format, so a merged Excel date filled down may read as a number.
-func fillDown(f *excelize.File, sheet string, cells [][]string, first int, res *CleanUp) [][]string {
-	n := 0
-	for _, m := range merged(f, sheet) {
+// Filled and widened cells count against maxSheetCells, so ranges reaching far out are refused before they are held.
+func fillDown(merges [][4]int, cells [][]string, first int, res *CleanUp) ([][]string, error) {
+	n, widened := 0, 0
+	for _, m := range merges {
 		top, left, bottom, right := m[0], m[1], m[2], m[3]
 		if top < first || bottom == top || top >= len(cells) || left >= len(cells[top]) {
 			continue
 		}
 		v := cells[top][left]
-		for r := top; r <= bottom; r++ {
+		for r := top; r <= bottom && r < len(cells); r++ {
+			if widened += max(right+1-len(cells[r]), 0); n+widened > maxSheetCells {
+				return nil, Problem{"lab.err.too-many-cells", nil}
+			}
 			for c := left; c <= right; c++ {
-				if (r != top || c != left) && r < len(cells) {
+				if r != top || c != left {
 					set(cells, r, c, v)
 					n++
 				}
@@ -485,15 +617,15 @@ func fillDown(f *excelize.File, sheet string, cells [][]string, first int, res *
 	if n > 0 {
 		res.change("lab.clean.merged-down", n)
 	}
-	return cells
+	return cells, nil
 }
 
 // joinHeader names each column from header rows h and h+1 joined, as "Jualan Tunai". A merged cell in either
 // row is filled across first, so a group name over several columns starts each of their names; a name merged
 // down both rows is used once.
-func joinHeader(f *excelize.File, sheet string, cells [][]string, h int, res *CleanUp) []string {
+func joinHeader(merges [][4]int, cells [][]string, h int, res *CleanUp) []string {
 	top, bottom := slices.Clone(cells[h]), slices.Clone(cells[h+1])
-	for _, m := range merged(f, sheet) {
+	for _, m := range merges {
 		for i, row := range [][]string{top, bottom} {
 			if m[0] == h+i && m[1] < len(row) {
 				for c := m[1] + 1; c <= m[3] && c < len(row); c++ {
@@ -517,11 +649,11 @@ func joinHeader(f *excelize.File, sheet string, cells [][]string, h int, res *Cl
 // cutOff keeps only the table whose header is at cells[h] and whose data starts at cells[first]: it stops at
 // the first fully blank row below the data's start and at the first fully blank column (header included) right
 // of where the header starts, so notes, legends and side tables past them are not read. Every row it keeps
-// from h on is as wide as the table.
-func cutOff(cells [][]string, h, first int, res *CleanUp) [][]string {
+// from h on is as wide as the table; a table of more than maxSheetCells cells that wide is refused before it is.
+func cutOff(cells [][]string, h, first int, res *CleanUp) ([][]string, error) {
 	filled := func(r, c int) bool { return c < len(cells[r]) && strings.TrimSpace(cells[r][c]) != "" }
 	blankRow := func(r, from, to int) bool {
-		for c := from; c < to; c++ {
+		for c := from; c < min(to, len(cells[r])); c++ {
 			if filled(r, c) {
 				return false
 			}
@@ -552,6 +684,9 @@ func cutOff(cells [][]string, h, first int, res *CleanUp) [][]string {
 		}
 	}
 	rows = end(width)
+	if (rows-h)*width > maxSheetCells {
+		return nil, Problem{"lab.err.too-many-cells", nil}
+	}
 
 	for r := h; r < rows; r++ {
 		if !blankRow(r, width, widest) {
@@ -569,7 +704,7 @@ func cutOff(cells [][]string, h, first int, res *CleanUp) [][]string {
 	for r := h; r < rows; r++ {
 		cells[r] = append(cells[r], make([]string, max(width-len(cells[r]), 0))...)[:width]
 	}
-	return cells
+	return cells, nil
 }
 
 // dropEmpty drops the columns with no data below the header; those with a name are listed as a change.
