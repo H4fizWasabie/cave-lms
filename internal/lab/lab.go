@@ -221,6 +221,9 @@ func (t *Template) headerBelow(cells [][]string) (Problem, bool) {
 	return Problem{}, false
 }
 
+// oldExcel is how an .xls file starts: the signature of the compound file Excel 97-2003 saved.
+var oldExcel = []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}
+
 // openWorkbook opens an .xlsx file within the size limits; a file that is not one gives a Problem.
 func openWorkbook(r io.Reader) (*excelize.File, error) {
 	file, err := io.ReadAll(r)
@@ -228,7 +231,10 @@ func openWorkbook(r io.Reader) (*excelize.File, error) {
 		return nil, err
 	}
 	z, err := zip.NewReader(bytes.NewReader(file), int64(len(file)))
-	if err != nil {
+	switch {
+	case err != nil && bytes.HasPrefix(file, oldExcel):
+		return nil, Problem{"lab.err.xls", nil}
+	case err != nil:
 		return nil, Problem{"lab.err.not-workbook", nil}
 	}
 	var unzipped uint64
