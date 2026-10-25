@@ -1,27 +1,29 @@
 {{define "title"}}{{t .Lang "check.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
-      <div class="page-head">
+      <div class="page-head pub-head">
         <h1>{{t .Lang "check.title"}}</h1>
         <p>{{t .Lang "check.intro"}}</p>
       </div>
-      <form class="verify-card" method="get" action="/certificates">
-        <label for="cert-id">{{t .Lang "check.id"}}</label>
-        <div class="verify-row">
-          <input id="cert-id" type="text" name="id" required>
-          <button class="btn btn-solid">{{t .Lang "check.button"}}</button>
-        </div>
-      </form>
-      <form class="verify-card" method="post" action="/certificates">
-        <label for="cert-q">{{t .Lang "check.search"}}</label>
-        <div class="verify-row">
-          <input id="cert-q" type="text" name="q" required>
-          <button class="btn btn-solid">{{t .Lang "check.search-button"}}</button>
-        </div>
-      </form>
+      <div class="check-forms">
+        <form class="verify-card" method="get" action="/certificates">
+          <label for="cert-id">{{t .Lang "check.id"}}</label>
+          <div class="verify-row">
+            <input id="cert-id" type="text" name="id" required>
+            <button class="btn btn-solid">{{t .Lang "check.button"}}</button>
+          </div>
+        </form>
+        <form class="verify-card" method="post" action="/certificates">
+          <label for="cert-q">{{t .Lang "check.search"}}</label>
+          <div class="verify-row">
+            <input id="cert-q" type="text" name="q" required>
+            <button class="btn btn-ghost">{{t .Lang "check.search-button"}}</button>
+          </div>
+        </form>
+      </div>
       {{range $c := .Certificates}}
       <div class="result {{if .Revoked}}result-revoked{{else}}result-valid{{end}}">
-        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if .Revoked}}x-circle{{else}}seal-check{{end}}"/></svg>
+        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if .Revoked}}x-circle{{else}}check-circle{{end}}"/></svg>
         <div>
           <p class="result-k">{{if .Revoked}}{{t $.Lang "check.status" (t $.Lang "certificate.revoked")}}{{else}}{{t $.Lang "check.status" (t $.Lang "check.valid")}}{{end}}</p>
           <p>{{t $.Lang "certificate.certifies"}} <strong>{{.LearnerName}}</strong></p>

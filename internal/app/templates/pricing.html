@@ -1,17 +1,18 @@
 {{define "title"}}{{t .Lang "nav.pricing"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
-      <div class="page-head">
+      <div class="page-head pub-head">
         <h1>{{t .Lang "nav.pricing"}}</h1>
         <p>{{t .Lang "offers.intro"}}</p>
       </div>
+      <h2 class="sr">{{t .Lang "offers.heading"}}</h2>
       {{- template "offers" .}}
       <figure class="comparison">
         <img src="/static/cost-comparison.webp" width="1280" height="1169" loading="lazy" alt="{{t .Lang "plans.comparison-alt"}}">
         <figcaption>{{t .Lang "plans.comparison-caption"}}</figcaption>
       </figure>
       {{- if not .Learner}}
-      <div class="cta-row">
+      <div class="cta-row pricing-cta">
         <a class="btn btn-solid btn-lg" href="/login?next=%2Fpricing">{{t .Lang "header.log-in"}}</a>
         <a class="btn btn-ghost btn-lg" href="/register">{{t .Lang "header.register"}}</a>
       </div>

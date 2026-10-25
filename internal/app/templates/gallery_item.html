@@ -3,11 +3,11 @@
     <div class="wrap wrap-narrow page-pad">
       <p class="crumbs"><a href="/gallery">{{t $.Lang "gallery.title"}}</a></p>
       {{with .Item}}
-      <div class="page-head">
+      <div class="page-head pub-head">
         <h1>{{.Title}}</h1>
         <p><span class="badge badge-joined">{{t $.Lang (print "gallery.format." .Format)}}</span>{{if .Category}} {{.Category}}{{end}}</p>
       </div>
-      {{if .Description}}<p class="l-note">{{.Description}}</p>{{end}}
+      {{if .Description}}<p class="g-note">{{.Description}}</p>{{end}}
       <div class="g-media">
         {{if eq .Format "video"}}
         <video controls preload="metadata" src="/gallery/{{.ID}}/file" style="view-transition-name: g-{{.ID}}"></video>
