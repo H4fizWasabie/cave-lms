@@ -419,9 +419,9 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	}
 }
 
-// best is the name of the best-ranked column of type t other than skip, as General ranks them (ADR 0014): a Text
-// column only when it is a dimension, never an identifier or constant; a Number or Date column by its role first,
-// else the first of its type; any other column the first. Empty if there is none.
+// best is the name of the best-ranked column of type t other than skip, as General ranks them (ADR 0014): by its
+// role first, a dimension, measure or date, else the first of its type, so a block is never refused while the
+// Dataset has a column it can use; any type the first column. Empty if there is none.
 func best(ps []profile, t Type, skip ...string) string {
 	role := map[Type]Role{Text: Dimension, Number: Measure, Date: DateRole}[t]
 	for _, p := range ranked(ps, role, t) {
@@ -430,7 +430,7 @@ func best(ps []profile, t Type, skip ...string) string {
 		}
 	}
 	for _, p := range ps {
-		if t != Text && (t == "" || p.Type == t) && !slices.Contains(skip, p.Name) {
+		if (t == "" || p.Type == t) && !slices.Contains(skip, p.Name) {
 			return p.Name
 		}
 	}

@@ -288,3 +288,21 @@ func TestANewCardAveragesAPriceAndANewBarCountsAsGeneralDoes(t *testing.T) {
 		}
 	}
 }
+
+func TestABarDonutOrHeatmapIsAddedEvenWhenNoTextColumnIsAGrouping(t *testing.T) {
+	var rows [][]any
+	for i := range 12 {
+		rows = append(rows, []any{fmt.Sprintf("SKU-%02d", i), "Ipoh", float64(i)})
+	}
+	d := clean(t, testutil.XLSX(t, []string{"SKU", "Branch", "Jumlah"}, rows...), lab.General).Dataset
+	cfg := lab.General.Open(nil, d)
+	for _, kind := range []string{"bar", "donut", "heatmap"} {
+		at, err := cfg.Add(kind, d, "en")
+		if err != nil {
+			t.Fatalf("adding a %s: %v", kind, err)
+		}
+		if b := cfg.Blocks[at]; b.Group != "SKU" || (kind == "heatmap" && b.Split != "Branch") {
+			t.Errorf("a new %s groups by %q split by %q, want SKU (and Branch across)", kind, b.Group, b.Split)
+		}
+	}
+}
