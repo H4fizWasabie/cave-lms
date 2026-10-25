@@ -1255,10 +1255,11 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .cost-matrix th, .cost-matrix td { text-align: center; }
 .cost-matrix thead th { white-space: normal; vertical-align: bottom; color: var(--brand-ink); }
 .cost-matrix th small { display: block; font-weight: 400; color: var(--muted); }
-.cost-matrix th[scope="row"], .cost-matrix .cost-group th { position: sticky; left: 0; z-index: 1; min-width: min(11rem, 40vw); text-align: left; white-space: normal; background: var(--surface); }
+.cost-matrix th[scope="row"], .cost-matrix thead th:first-child, .cost-matrix .cost-group th { position: sticky; left: 0; z-index: 1; min-width: min(11rem, 40vw); text-align: left; white-space: normal; background: var(--surface); }
 .cost-matrix th[scope="row"] { font-size: var(--fs-ui); color: var(--brand-ink); }
 .cost-matrix :is(th, td):nth-child(2) { background: var(--brand-gold-soft); }
-.cost-matrix .cost-group th { background: var(--bg); text-transform: uppercase; letter-spacing: .06em; }
+.cost-matrix .cost-group th { background: var(--bg); }
+.cost-matrix .cost-group span { position: sticky; left: var(--space-4); }
 .cost-matrix tfoot :is(th, td) { border-top: 1px solid var(--brand-ink); font-weight: 700; color: var(--brand-ink); }
 .cost-matrix .i { display: inline-block; vertical-align: middle; }
 .cost-y { color: var(--ok); }
