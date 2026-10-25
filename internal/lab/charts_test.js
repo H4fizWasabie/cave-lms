@@ -82,6 +82,22 @@ eq(C.bars(bar, rows, cols).map(function (g) { return g[0]; }), ['Ali', '(blank)'
 bar.split = 'Kategori';
 eq(C.bars(bar, rows, cols)[0], ['Ali', 158, [['Servis', 58], ['Ubat', 100]]], 'bar split');
 
+// Heatmap: Group down, Split across, both largest first; a cell with no rows is null.
+var heat = { kind: 'heatmap', value: { agg: 'count' }, group: 'Staf', split: 'Kategori', top: 8 };
+eq(C.heat(heat, rows, cols), { rows: ['Ali', 'Siti', '(blank)'], cols: ['Ubat', 'Servis'], cells: [[1, 2], [1, 1], [1, null]] }, 'heatmap count');
+heat.value = { agg: 'sum', col: 'Jumlah' };
+eq(C.heat(heat, rows, cols), { rows: ['Ali', '(blank)', 'Siti'], cols: ['Ubat', 'Servis'], cells: [[100, 58], [30, null], [0, 20]] }, 'heatmap sum');
+heat.top = 1;
+eq(C.heat(heat, rows, cols), { rows: ['Ali'], cols: ['Ubat', 'Servis'], cells: [[100, 58]] }, 'heatmap top keeps rows; columns from the rows kept');
+heat.top = 8; heat.filter = { col: 'Kategori', vals: ['Servis'] };
+eq(C.heat(heat, rows, cols), { rows: ['Ali', 'Siti'], cols: ['Servis'], cells: [[58], [20]] }, 'heatmap filter');
+// Past the 10 largest columns, the rest fold into one Other.
+var wide = 'ABCDEFGHIJKL'.split('').reduce(function (a, k, i) { for (var n = 0; n < 12 - i; n++) a.push({ R: n % 2 ? 'x' : 'y', S: k }); return a; }, []);
+var h = C.heat({ value: { agg: 'count' }, group: 'R', split: 'S' }, wide, { R: { type: 'text' }, S: { type: 'text' } });
+eq(h.cols, 'ABCDEFGHIJ'.split('').concat(['Other']), 'heatmap columns past 10 fold into Other');
+eq(h.rows, ['y', 'x'], 'heatmap rows');
+eq([h.cells[0][10], h.cells[1][10]], [2, 1], 'heatmap Other cells');
+
 // Donut: a Work donut folds everything past the top 6 into one Other slice; a Practice donut, past the top 5, as before.
 var many = 'ABCDEFGH'.split('').reduce(function (a, k, i) { for (var n = 0; n < 8 - i; n++) a.push({ G: k }); return a; }, []);
 eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many, { G: { type: 'text' } }),

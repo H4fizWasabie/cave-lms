@@ -138,6 +138,9 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		field("x", "lab.b.date", columns(ds, lab.Date, b.X, ""))
 	case "bar", "donut":
 		field("group", "lab.b.group", columns(ds, lab.Text, b.Group, ""))
+	case "heatmap":
+		field("group", "lab.b.heat-rows", columns(ds, lab.Text, b.Group, ""))
+		field("split", "lab.b.heat-cols", columns(ds, lab.Text, b.Split, ""))
 	}
 	if v := b.Value; v != nil {
 		var aggs []option
@@ -166,8 +169,10 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	case "line":
 		field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
 		row.Radios = append(row.Radios, buttons(lang, "by", "lab.b.by-word", b.By, "day", "lab.b.by-day", "month", "lab.b.by-month"))
-	case "bar":
-		field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
+	case "bar", "heatmap":
+		if b.Kind == "bar" {
+			field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
+		}
 		top := choice{Name: "top", Label: text.T(lang, "lab.b.top")}
 		for _, n := range lab.Tops {
 			o := option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n}
@@ -279,6 +284,8 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		switch kind {
 		case "bar":
 			b.Top = 8
+		case "heatmap":
+			b.Top, b.Wide = 8, true
 		case "line", "table":
 			b.Wide = true
 		}

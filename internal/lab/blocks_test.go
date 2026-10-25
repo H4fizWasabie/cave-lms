@@ -2,6 +2,7 @@ package lab_test
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"regexp"
 	"strings"
@@ -136,5 +137,48 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(data), "[\n  {\"Tarikh\": ") {
 		t.Fatalf("data.json = %.80s", data)
+	}
+}
+
+func TestAHeatmapCrossesTwoDifferentTextColumns(t *testing.T) {
+	d := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Text}}}
+	var cfg lab.Config
+	at, err := cfg.Add("heatmap", d, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := json.Marshal(cfg.Blocks[at]); string(got) != `{"kind":"heatmap","label":"Rows by Jabatan × Status","value":{"agg":"count"},"split":"Status","group":"Jabatan","top":8,"wide":true}` {
+		t.Fatalf("a new heatmap = %s", got)
+	}
+	for _, c := range []struct {
+		group, split string
+		want         string
+	}{
+		{"Jabatan", "Jabatan", "lab.err.block-heat-cols"},
+		{"Jabatan", "", "lab.err.block-heat-cols"},
+		{"Jabatan", "Gaji", "lab.err.block-type"},
+		{"Jabatan", "Cawangan", "lab.err.block-column"},
+		{"Gaji", "Status", "lab.err.block-type"},
+	} {
+		b := lab.WorkBlock{Kind: "heatmap", Value: &lab.Value{Agg: "count"}, Group: c.group, Split: c.split, Top: 8}
+		var p lab.Problem
+		if err := b.Check(d); !errors.As(err, &p) || p.Key != c.want {
+			t.Errorf("heatmap %s × %s: %v, want %s", c.group, c.split, err, c.want)
+		}
+	}
+	// Its columns pause it when gone or retyped, and follow a rename.
+	retyped := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Status", Type: lab.Number}}}
+	if got := cfg.Blocks[at].Missing(retyped); !reflect.DeepEqual(got, []string{"Status"}) {
+		t.Errorf("missing = %v", got)
+	}
+	cfg.Rename(map[string]string{"Status": "Keadaan", "Jabatan": "Unit"})
+	if b := cfg.Blocks[at]; b.Group != "Unit" || b.Split != "Keadaan" {
+		t.Errorf("renamed heatmap = %+v", b)
+	}
+	// With one Text column, the Dataset cannot give it a column across.
+	one := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}}}
+	var p lab.Problem
+	if _, err := cfg.Add("heatmap", one, "en"); !errors.As(err, &p) || p.Key != "lab.err.block-heat-cols" {
+		t.Errorf("a heatmap on one Text column: %v", err)
 	}
 }

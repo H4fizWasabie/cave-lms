@@ -127,6 +127,67 @@ func TestADashboardDrawsInItsTheme(t *testing.T) {
 	}
 }
 
+func TestAHeatmapShadesItsCellsInItsThemesScale(t *testing.T) {
+	d := &lab.Dataset{
+		Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Status", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}},
+		Rows:    [][]any{{"IT", "Aktif", 3000.0}, {"IT", "Aktif", 1000.0}, {"IT", "Cuti", 2000.0}, {"Jualan", "Aktif", 0.0}},
+	}
+	heat := lab.WorkBlock{Kind: "heatmap", Label: "Jabatan ikut status", Value: &lab.Value{Agg: "count"}, Group: "Jabatan", Split: "Status", Top: 8, Wide: true}
+	draw := func(theme string, money []string, blocks ...lab.WorkBlock) string {
+		t.Helper()
+		index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Staf", theme, &lab.Config{Blocks: blocks, Money: money}, d, "data.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		for name, b := range map[string][]byte{"index.html": index, "data.json": data} {
+			if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var got struct{ Charts string }
+		if err := json.Unmarshal([]byte(node(t, filepath.Join(dir, "index.html"), filepath.Join(dir, "data.json"))), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got.Charts
+	}
+	// The largest cell, IT and Aktif with 2 rows, in the Theme's dark or bright stop, its label readable on it.
+	for _, c := range []struct{ theme, top string }{
+		{"corporate", "background:#0E2A47;color:#FFFFFF"},
+		{"midnight", "background:#1B7F77;color:#FFFFFF"},
+		{"minimal", "background:#3569A8;color:#FFFFFF"},
+		{"glass", "background:#57C8E8;color:#13263B"},
+		{"storytelling", "background:#3478C0;color:#FFFFFF"},
+	} {
+		got := draw(c.theme, nil, heat)
+		for _, want := range []string{`<p class="dfind">Highest: IT, Aktif, 2</p>`, c.top + `">2</td>`, "<td></td></tr>", `<th title="Cuti">Cuti</th>`, `<th title="Jualan">Jualan</th>`} {
+			if !strings.Contains(got, want) {
+				t.Errorf("Theme %s: heatmap lacks %q:\n%s", c.theme, want, got)
+			}
+		}
+	}
+	// Midnight's half-way cells are white on its scale; Corporate's, dark on a light grey.
+	if got := draw("midnight", nil, heat); strings.Count(got, "color:#FFFFFF") != 3 {
+		t.Errorf("Midnight's labels are not all white:\n%s", got)
+	}
+	if got := draw("corporate", nil, heat); strings.Count(got, "color:#13263B\">1</td>") != 2 {
+		t.Errorf("Corporate's light cells lack dark labels:\n%s", got)
+	}
+	// A sum of an RM column shows RM; the finding is absent when the highest is 0 or there is one cell.
+	heat.Value = &lab.Value{Agg: "sum", Col: "Gaji"}
+	if got := draw("", []string{"Gaji"}, heat); !strings.Contains(got, `Highest: IT, Aktif, RM4.0k`) || !strings.Contains(got, `">RM2.0k</td>`) {
+		t.Errorf("an RM heatmap:\n%s", got)
+	}
+	heat.Value = &lab.Value{Agg: "calc", A: "Gaji", Op: "-", B: "Gaji", Then: "sum"}
+	if got := draw("", nil, heat); strings.Contains(got, "dfind") || strings.Count(got, `">0</td>`) != 3 {
+		t.Errorf("a heatmap whose highest is 0 states a finding:\n%s", got)
+	}
+	heat.Value, heat.Filter = &lab.Value{Agg: "count"}, &lab.Filter{Col: "Status", Vals: []string{"Cuti"}}
+	if got := draw("", nil, heat); strings.Contains(got, "dfind") {
+		t.Errorf("a heatmap of one cell states a finding:\n%s", got)
+	}
+}
+
 func TestChartsDrawsEveryThemeCaveOffersAndNoOther(t *testing.T) {
 	var keys []string
 	for _, th := range lab.Themes {
