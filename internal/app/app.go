@@ -91,6 +91,8 @@ type page struct {
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
+	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set
+	Retry         string
 	Items         []galleryItem
 	Item          *galleryItem
 	Format        string // Gallery filters

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -32,7 +33,7 @@ func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	lang := requestLanguage(saved, r)
 	c, _ := a.newChrome(r, lang) // no Courses menu if they fail too
-	p := &page{chrome: c, Learner: l, Title: text.T(lang, "error.title"), Message: text.T(lang, "error")}
+	p := &page{chrome: c, Learner: l, Title: text.T(lang, "error.title"), Message: text.T(lang, "error"), Retry: retryPath(r), OfferHome: true}
 	var buf bytes.Buffer
 	if err := a.pages["message"].ExecuteTemplate(&buf, "layout", p); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -41,6 +42,19 @@ func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
 	_, _ = buf.WriteTo(w)
+}
+
+// retryPath is where the error page's Try again goes: the same address for a GET, the page a POST's form was on when
+// that is on this site, else "" (no link; Go to the home page stays).
+func retryPath(r *http.Request) string {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return r.URL.RequestURI()
+	}
+	u, err := url.Parse(r.Referer())
+	if err != nil || u.Host != r.Host {
+		return ""
+	}
+	return localPath(u.RequestURI())
 }
 
 // notFound answers 404 with the not-found page in the request's language.

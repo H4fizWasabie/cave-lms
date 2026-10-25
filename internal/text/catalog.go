@@ -627,6 +627,8 @@ var catalog = map[string]entry{
 		ms: "Tiada apa-apa di alamat ini. Mungkin ia telah dipindahkan, atau pautan itu tersalah salin.",
 	},
 	"error.title": {en: "Something went wrong", ms: "Berlaku masalah"},
+	"error.retry": {en: "Try again", ms: "Cuba lagi"},
+	"error.home":  {en: "Go to the home page", ms: "Pergi ke laman utama"},
 	"error": {
 		en: "CAVELMS had a problem and could not show this page. Try again in a few minutes.",
 		ms: "CAVELMS menghadapi masalah dan tidak dapat memaparkan halaman ini. Cuba lagi dalam beberapa minit.",
