@@ -651,3 +651,26 @@ func TestCleanUpKeepsAColumnHalfNumbersHalfTextAsText(t *testing.T) {
 		t.Fatalf("changes = %q, want none", changesIn(res, "en"))
 	}
 }
+
+func TestCleanUpReadsAMostlyDateColumnAsDates(t *testing.T) {
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	rows := [][]any{{"belum", 1}}
+	for range 9 {
+		rows = append(rows, []any{day, 1})
+	}
+	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows...)
+	res := clean(t, file, finance(t))
+
+	if got := res.Dataset.Columns[0].Type; got != lab.Date {
+		t.Fatalf("Tarikh is %s, want date", got)
+	}
+	if got := []any{res.Dataset.Rows[0][0], res.Dataset.Rows[1][0]}; !reflect.DeepEqual(got, []any{nil, "2026-10-05"}) {
+		t.Fatalf("dates = %v, want empty then 2026-10-05", got)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Sel dalam Tarikh yang bukan tarikh, dibiarkan kosong: 1."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "en"), []string{"Cells in Tarikh that were not dates, left empty: 1."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
