@@ -165,6 +165,7 @@ func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
 	// Ada finishes every Lesson and fails the Exam: 2 of 2, best 0%, no Certificate.
 	ada := s.second()
 	ada.loginAsNewLearner("Ada Lovelace", "ada@example.com", pw)
+	ada.setICFor("ada@example.com")
 	ada.post("/courses/"+id+"/join", nil)
 	ada.markLesson(id, variables, true)
 	ada.markLesson(id, functions, true)

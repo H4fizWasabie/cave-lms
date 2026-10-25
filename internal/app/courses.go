@@ -162,6 +162,14 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		p.Step = &step
+		if len(p.Exams) > 0 { // the IC is asked for before the first Exam attempt; remind until it is set
+			ic, err := a.learnerIC(r.Context(), learner.ID)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			p.NeedsIC = ic == ""
+		}
 	}
 	a.render(w, r, http.StatusOK, "course", p)
 }

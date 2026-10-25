@@ -15,7 +15,6 @@ func TestACertificateNeedsEveryExamPassedAndNeverComesBeforeTheResult(t *testing
 	id, qids := s.examCourse("50", "", "", "Which is right?")
 	admin := s.adminSite()
 	admin.saveWrittenQuestion("/admin/courses/"+id+"/exam/questions?format=written", "Explain :=", "It declares and assigns.")
-	s.setIC("951206085555")
 	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})
 
 	res, _ := s.startExam(id)

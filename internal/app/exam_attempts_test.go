@@ -31,7 +31,7 @@ func (s *site) examQuestionIDs(courseID string) []string {
 }
 
 // examCourse makes a Course with one text Lesson, an Exam with the given settings and one published question per
-// prompt, then logs in as a Learner who has joined and completed the Lesson. It returns the Course ID and the
+// prompt, then logs in as a Learner who has set her IC, joined and completed the Lesson. It returns the Course ID and the
 // question IDs. Each question's correct option is "Right answer" (slot 0), its wrong option "Wrong answer" (slot 1).
 func (s *site) examCourse(passMark, timeLimit, maxAttempts string, prompts ...string) (string, []string) {
 	s.t.Helper()
@@ -46,6 +46,7 @@ func (s *site) examCourse(passMark, timeLimit, maxAttempts string, prompts ...st
 	qids := s.examQuestionIDs(id)
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", examPassword)
+	s.setICFor("ada@example.com")
 	s.post("/courses/"+id+"/join", nil)
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	return id, qids

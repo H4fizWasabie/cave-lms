@@ -1439,3 +1439,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .danger-row { margin-top: var(--space-6); }
 /* Multiple-choice options: "Option 1" names each field. */
 .nq-n { font-size: var(--fs-ui); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+
+/* === Page: IC before the first Exam attempt (#316) === */
+.cp-card .callout { margin: 0; }

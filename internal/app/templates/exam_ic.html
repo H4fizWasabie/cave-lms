@@ -1,0 +1,25 @@
+{{define "title"}}{{t .Lang "exam-ic.title"}} · {{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    {{- $f := .ErrorField}}
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a> / <a href="{{.Exam.Path ""}}">{{if .Exam.Written}}{{t .Lang "adm.exam.written"}}{{else}}{{t .Lang "exam.name"}}{{end}}</a></p>
+      <div class="page-head">
+        <h1>{{t .Lang "exam-ic.title"}}</h1>
+        <p>{{t .Lang "exam-ic.intro"}}</p>
+      </div>
+      <form class="card form acct-form" method="post" action="{{.Exam.Path "/ic"}}">
+        <div class="field">
+          <label for="ic">{{t .Lang "my-profile.ic"}}</label>
+          <input id="ic" name="ic" value="{{.IC}}" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="{{if eq $f "ic"}}ic-err {{end}}ic-hint"{{if eq $f "ic"}} aria-invalid="true"{{end}}>
+          {{if eq $f "ic"}}<p class="field-err" id="ic-err" role="alert">{{.Error}}</p>{{end}}
+          <small id="ic-hint">{{t .Lang "my-profile.ic-once"}}</small>
+        </div>
+        <div class="field">
+          <label for="ic-confirm">{{t .Lang "exam-ic.again"}}</label>
+          <input id="ic-confirm" name="ic-confirm" value="{{.Again}}" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" required{{if eq $f "ic-confirm"}} aria-invalid="true" aria-describedby="ic-confirm-err"{{end}}>
+          {{if eq $f "ic-confirm"}}<p class="field-err" id="ic-confirm-err" role="alert">{{.Error}}</p>{{end}}
+        </div>
+        <div><button class="btn btn-solid">{{t .Lang "exam-ic.save"}}</button></div>
+      </form>
+    </div>
+{{end}}

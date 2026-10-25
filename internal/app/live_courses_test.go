@@ -278,6 +278,7 @@ func TestALiveCoursesExamOpensFromItsStartDateToTheEndOfItsEndDateWithoutTheLess
 	qid := s.examQuestionIDs(copyID)[0]
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	s.setICFor("ada@example.com")
 	s.post("/courses/"+copyID+"/join", nil)
 
 	now = time.Date(2027, 1, 31, 15, 59, 0, 0, time.UTC) // 23:59 the day before the start date in Malaysia
