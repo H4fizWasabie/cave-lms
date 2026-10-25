@@ -15,14 +15,19 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// createWork creates a Work Dashboard from a Template and returns its path.
+// createWork creates a Dashboard with template pre-chosen, as a Sample's Template is, and returns its path.
+// The New Dashboard form makes it on General; any other Template is set in the database.
 func (s *site) createWork(template, name string) string {
 	s.t.Helper()
-	res, body := s.post("/lab/dashboards", url.Values{"kind": {"work"}, "template": {template}, "name": {name}})
+	res, body := s.post("/lab/dashboards", url.Values{"name": {name}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	loc := res.Header.Get("Location")
-	if !dashboardPath.MatchString(loc) {
+	m := dashboardPath.FindStringSubmatch(loc)
+	if m == nil {
 		s.t.Fatalf("created Work Dashboard redirects to %q", loc)
+	}
+	if _, err := s.db.Exec(`UPDATE dashboards SET template = $2 WHERE id = $1`, m[1], template); err != nil {
+		s.t.Fatal(err)
 	}
 	return loc
 }
@@ -66,12 +71,13 @@ func (s *site) rowsOf(page string) string {
 
 var financeGuess = url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Kategori"}, "type": {"Jenis"}, "description": {"Perkara"}}
 
-func TestTheLabOffersBothKindsAndLabelsEachDashboard(t *testing.T) {
+func TestTheLabOffersOneNewDashboardAndLabelsEachDashboard(t *testing.T) {
 	_, ada := labLearner(t)
 	practice := ada.readyDashboard("Latihan")
 	res, body := ada.get("/lab")
-	for _, want := range []string{`href="/lab/new"`, `href="/lab/new?kind=work"`, "Practice Dashboard", "Work Dashboard"} {
-		expectStatus(t, res, body, http.StatusOK, want)
+	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
+	if strings.Contains(body, "kind=work") {
+		t.Fatalf("the Lab still offers a kind of Dashboard:\n%s", body)
 	}
 	work := ada.createWork("hr", "Staf")
 	_, body = ada.get("/lab")
@@ -81,11 +87,6 @@ func TestTheLabOffersBothKindsAndLabelsEachDashboard(t *testing.T) {
 		if !strings.Contains(row, `<li>`+kind+`</li>`) {
 			t.Fatalf("%s is not labelled %s: %s", path, kind, row)
 		}
-	}
-
-	res, body = ada.get("/lab/new?kind=work")
-	for _, want := range []string{`name="kind" value="work"`, "Finance", "Inventory", "HR", "General"} {
-		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }
 
@@ -112,10 +113,6 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "Baris 1 hingga 3 di atas tajuk lajur di baris 4 dilangkau.")
 	ada.switchLanguage("en", path)
-
-	res, body = ada.post(path+"/dataset/confirm", url.Values{"date": {""}, "amount": {"Jumlah"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose a column for Date.")
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, `value="general"`)
 
 	ada.confirmWork(path, financeGuess)
 	page := ada.rowsOf(path + "/view/")
@@ -452,19 +449,8 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	}
 }
 
-func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
+func TestTheSalesAndRosterTemplatesOpenAsTheirSamplesShow(t *testing.T) {
 	_, ada := labLearner(t)
-	res, body := ada.get("/lab/new?kind=work&t=roster")
-	for _, want := range []string{`href="/lab/new?kind=work&amp;t=sales"`, "<code>Kod</code>", `href="/lab/samples/roster.xlsx"`, `src="/lab/demo/roster/"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	_, body = ada.get("/lab/new")
-	if strings.Contains(body, "t=sales") || strings.Contains(body, "t=roster") {
-		t.Fatalf("New Practice Dashboard offers Sales or Roster:\n%s", body)
-	}
-	res, body = ada.post("/lab/dashboards", url.Values{"template": {"sales"}, "name": {"Jualan"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-
 	_, demo := ada.get("/lab/demo/roster/")
 	if !strings.Contains(demo, `"work": true`) || !strings.Contains(demo, `"by": "day"`) {
 		t.Fatalf("the Roster demo is not drawn as a Work Dashboard:\n%s", demo)
@@ -472,7 +458,7 @@ func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
 
 	path := ada.createWork("sales", "Kafe")
 	_, sample := ada.get("/lab/samples/sales.xlsx")
-	res, body = ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
+	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "item": {"Produk"}, "category": {"Kategori"},
 		"staff": {"Staf"}, "payment": {"Kaedah bayaran"}, "quantity": {"Kuantiti"}})

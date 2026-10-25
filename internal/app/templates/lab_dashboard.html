@@ -103,8 +103,19 @@
             </div>
             {{- end}}
             <form class="form" method="post" action="{{$url}}/dataset/confirm">
+              {{- with $.Picked}}
+              <h3 class="h-sm">{{t $.Lang "lab.w.start-from"}}</h3>
+              <p class="muted">{{t $.Lang "lab.w.offered"}}</p>
+              <ul class="tp-pick">
+                {{- range $.Offers}}
+                <li><a class="tp-card{{if eq . $.Picked.Key}} is-picked{{end}}" href="{{$url}}?template={{.}}"{{if eq . $.Picked.Key}} aria-current="true"{{end}}><strong>{{t $.Lang (print "lab.tpl." . ".name")}}</strong></a></li>
+                {{- end}}
+              </ul>
+              <input type="hidden" name="template" value="{{.Key}}">
+              <p>{{t $.Lang "lab.w.blocks"}}{{range $.Building}} <span class="badge">{{.}}</span>{{end}}</p>
               {{- if $.Blanks}}
-              <p class="muted">{{t $.Lang "lab.w.which-column" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
+              <p class="muted">{{t $.Lang "lab.w.which-column" (t $.Lang (print "lab.tpl." .Key ".name"))}}</p>
+              {{- end}}
               {{- end}}
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
               {{- if $.Uses}}
@@ -131,23 +142,16 @@
               <div class="field map-row">
                 <label for="m-{{.Key}}">{{.Label}}</label>
                 <select id="m-{{.Key}}" name="{{.Key}}">
-                  {{- if not .Chosen}}
-                  <option value="" selected>{{if .Required}}{{t $.Lang "lab.w.choose"}}{{else}}{{t $.Lang "lab.d.skip"}}{{end}}</option>
-                  {{- else if not .Required}}
-                  <option value="">{{t $.Lang "lab.d.skip"}}</option>
-                  {{- end}}
+                  <option value=""{{if not .Chosen}} selected{{end}}>{{t $.Lang "lab.d.skip"}}</option>
                   {{- $chosen := .Chosen}}
                   {{- range .Options}}
                   <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
                   {{- end}}
                 </select>
-                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{if .Help}}{{t $.Lang (print "lab.tpl." $.Dashboard.Template.Key "." .Key ".help")}}{{end}}</small>
+                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{if .Help}}{{t $.Lang (print "lab.tpl." $.Picked.Key "." .Key ".help")}}{{end}}</small>
               </div>
               {{- end}}
               <div class="form-foot">
-                {{- if $.Blanks}}
-                <button class="btn btn-quiet" name="template" value="general">{{t $.Lang "lab.w.use-general"}}</button>
-                {{- end}}
                 <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
               </div>
             </form>

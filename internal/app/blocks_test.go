@@ -376,12 +376,8 @@ func TestABlankFilterValueReadsInTheLearnersLanguage(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `name="fval" value="(blank)">(kosong)</label>`)
 }
 
-func TestTheTemplatePickerShowsEachDashboardQuestion(t *testing.T) {
+func TestTheLabShowsEachTemplatesDashboardQuestion(t *testing.T) {
 	_, ada := labLearner(t)
-	for _, page := range []string{"/lab/new", "/lab/new?kind=work"} {
-		res, body := ada.get(page)
-		expectStatus(t, res, body, http.StatusOK, "Am I spending more than I earn?")
-	}
 	res, body := ada.second().get("/lab") // a visitor sees the Templates
 	expectStatus(t, res, body, http.StatusOK, "Am I spending more than I earn?")
 }

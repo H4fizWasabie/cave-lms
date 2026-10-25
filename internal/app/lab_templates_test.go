@@ -56,16 +56,6 @@ func TestUnknownDemoIsNotFound(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "")
 }
 
-func TestTemplatePickerShowsBlanksAndSampleColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	res, body := ada.get("/lab/new?t=inventory")
-	for _, want := range []string{`href="/lab/samples/inventory.xlsx"`, "Reorder level", "Unit price", "<code>Nama Item</code>", "22 rows", `src="/lab/demo/hr/"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	res, body = ada.get("/lab/new?t=general")
-	expectStatus(t, res, body, http.StatusOK, "No blanks")
-}
-
 // buildFromSample creates a Dashboard from a Template, uploads its Sample and returns the Dashboard's path
 // and its Columns page.
 func buildFromSample(t *testing.T, s *site, key string) (path, columns string) {
