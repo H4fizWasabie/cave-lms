@@ -45,6 +45,18 @@ func TestLoginPageLinksToPasswordReset(t *testing.T) {
 	}
 }
 
+// The keyboard goes email, password, Log in, and only then to "Forgot your password?", so it never sits between the two fields.
+func TestTheLoginPageTabsFromEmailToPasswordToLogInThenForgotPassword(t *testing.T) {
+	s := newSite(t)
+	_, body := s.get("/login")
+	form, rest, _ := strings.Cut(mainOf(body), "</button>")
+	if strings.Contains(form, "/forgot-password") || strings.Contains(body, "tabindex") {
+		t.Fatalf("forgot password comes before the Log in button; body:\n%s", mainOf(body))
+	}
+	expectInOrder(t, form, `id="email"`, `id="password"`, `<button`)
+	expectInOrder(t, rest, `href="/forgot-password"`)
+}
+
 // resetToken returns the token from a reset link path such as /reset-password?token=abc.
 func resetToken(t *testing.T, link string) string {
 	t.Helper()
@@ -71,6 +83,7 @@ func TestResetLinkSetsANewPasswordOnce(t *testing.T) {
 
 	res, body = s.resetPassword(resetToken(t, link), "short")
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "at least 8 characters")
+	expectFieldError(t, body, "password", "at least 8 characters", "</button>")
 
 	res, body = s.resetPassword(resetToken(t, link), newPassword)
 	expectStatus(t, res, body, http.StatusOK, "Your password has been changed")

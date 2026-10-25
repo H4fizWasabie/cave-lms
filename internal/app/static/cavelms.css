@@ -386,8 +386,6 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); border: 0; padding: 0; margin: 0; min-width: 0; }
 .field label, .field legend { font-weight: 600; font-size: var(--fs-ui); padding: 0; }
 .field small { color: var(--muted); font-size: var(--fs-meta); }
-.field-row { display: flex; justify-content: space-between; align-items: baseline; }
-.small-link { font-size: var(--fs-meta); color: var(--muted); }
 .field-err { color: var(--bad); font-size: var(--fs-meta); font-weight: 600; }
 .field-ok { color: var(--ok); font-size: var(--fs-meta); font-weight: 600; }
 [aria-invalid="true"] { border-color: var(--bad) !important; }
@@ -1120,3 +1118,37 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .file-list form { margin-left: auto; }
 .folder-course { margin-bottom: var(--space-5); }
 .folder-assignment + .folder-assignment { border-top: 1px solid var(--line); padding-top: var(--space-4); }
+
+/* === Page: Account pages (#312) === */
+/* Log in, Register, the password pages and the message page: one card on paper, its title in the light editorial voice.
+   "Forgot your password?" sits after the Log in button, so the keyboard goes email, password, Log in. */
+.auth-box h1 { font-weight: 400; letter-spacing: -0.02em; }
+.auth-forgot { justify-self: center; font-size: var(--fs-ui); color: var(--ink-2); }
+.auth-forgot:hover { color: var(--brand-ink); }
+
+/* My profile and My membership: the account's facts as a ruled list, label left and value right (stacked on phones). */
+.acct-list { margin: 0; border-top: 1px solid var(--line-strong); }
+.acct-list > div { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: var(--space-1) var(--space-5); padding: var(--space-4) 0; border-bottom: 1px solid var(--line); }
+.acct-list dt { font-size: var(--fs-ui); font-weight: 600; color: var(--muted); padding-top: var(--space-1); }
+.acct-list dd { margin: 0; display: grid; gap: var(--space-1); justify-items: start; min-width: 0; }
+.acct-list strong { font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; }
+.acct-list dd > span { color: var(--muted); font-size: var(--fs-ui); }
+.field-err + .acct-list { margin-top: var(--space-4); }
+.acct-form { margin: 0; }
+.acct-form input { max-width: 24rem; }
+
+/* My exams and My folder */
+.mc-main h2 { font-size: var(--fs-lede); margin-bottom: var(--space-2); }
+.mc-main h2 a, .folder-course h2 a { text-decoration: none; }
+.mc-main h2 a:hover, .folder-course h2 a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.folder-course h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); font-size: var(--fs-title); margin-bottom: var(--space-4); overflow-wrap: anywhere; }
+.folder-assignment h3 { font-size: var(--fs-lede); margin-bottom: var(--space-2); }
+
+/* Community and Course Chat: the page title on the shared scale. */
+.chat-page h1 { font-size: var(--fs-page); }
+.chat-page .crumbs + h1 { margin-bottom: var(--space-2); }
+
+@media (max-width: 720px) {
+  .acct-list > div { grid-template-columns: minmax(0, 1fr); }
+  .exam-list .mc-row-plain { grid-template-columns: minmax(0, 1fr); } /* no picture column: the text takes the row */
+}

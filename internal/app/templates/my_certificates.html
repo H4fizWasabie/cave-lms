@@ -5,7 +5,8 @@
         <h1>{{t .Lang "my-certificates.title"}}</h1>
         <p>{{t .Lang "my-certificates.intro"}}</p>
       </div>
-      {{if .NeedsIC}}<p class="callout">{{t .Lang "my-certificates.needs-ic"}} <a href="/my-profile">{{t .Lang "my-profile.title"}}</a></p>{{end}}
+      {{if .NeedsIC}}<div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t .Lang "my-certificates.needs-ic"}} <a class="link-more" href="/my-profile">{{t .Lang "my-profile.title"}}</a></p></div>{{end}}
+      {{- if .Certificates}}
       <ul class="cert-list">
         {{range .Certificates}}
         <li class="cert-chip">
@@ -17,10 +18,15 @@
           </div>
           <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
         </li>
-        {{else}}
-        <li class="empty">{{t .Lang "my-certificates.none"}}</li>
         {{end}}
       </ul>
       <p class="mc-more"><a class="link-more" href="/my-courses">{{t .Lang "my-courses.title"}}</a></p>
+      {{- else}}
+      <div class="empty-state">
+        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
+        <p>{{t .Lang "my-certificates.none"}}</p>
+        <a class="btn btn-solid" href="/my-courses">{{t .Lang "my-courses.title"}}</a>
+      </div>
+      {{- end}}
     </div>
 {{end}}

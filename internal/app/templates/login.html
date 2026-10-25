@@ -4,15 +4,16 @@
       <div class="auth-box">
         <h1>{{t .Lang "header.log-in"}}</h1>
         <p class="auth-sub">{{t .Lang "login.sub"}}</p>
-        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         <form class="form" method="post" action="/login">
           {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
           <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
           <div class="field">
-            <div class="field-row"><label for="password">{{t .Lang "account.password"}}</label><a class="small-link" href="/forgot-password">{{t .Lang "account.forgot"}}</a></div>
-            <input id="password" type="password" name="password" autocomplete="current-password" required>
+            <label for="password">{{t .Lang "account.password"}}</label>
+            <input id="password" type="password" name="password" autocomplete="current-password" required{{if .Error}} aria-invalid="true" aria-describedby="password-err"{{end}}>
+            {{with .Error}}<p class="field-err" id="password-err" role="alert">{{.}}</p>{{end}}
           </div>
           <button class="btn btn-solid btn-block">{{t .Lang "header.log-in"}}</button>
+          <a class="auth-forgot" href="/forgot-password">{{t .Lang "account.forgot"}}</a>
         </form>
         <p class="auth-alt">{{t .Lang "login.new"}} <a href="/register">{{t .Lang "header.register"}}</a>.</p>
       </div>

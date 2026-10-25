@@ -1,19 +1,24 @@
 {{define "title"}}{{t .Lang "my-profile.title"}} · CAVELMS{{end}}
 {{define "content"}}
-    <div class="wrap page-pad">
+    <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "my-profile.title"}}</h1>
         <p>{{t .Lang "my-profile.intro"}}</p>
       </div>
-      {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
       {{- if .IC}}
-      <div class="lab-plan">
-        <div><span class="panel-k">{{t .Lang "my-profile.ic"}}</span><strong>{{.IC}}</strong><span class="muted">{{t .Lang "my-profile.ic-locked"}}</span></div>
-      </div>
+      {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+      <dl class="acct-list">
+        <div><dt>{{t .Lang "my-profile.ic"}}</dt><dd><strong class="num">{{.IC}}</strong><span>{{t .Lang "my-profile.ic-locked"}}</span></dd></div>
+      </dl>
       {{- else}}
-      <form class="form" method="post" action="/my-profile/ic">
-        <div class="field"><label for="ic">{{t .Lang "my-profile.ic"}}</label><input id="ic" name="ic" maxlength="40" autocomplete="off" required><p class="muted">{{t .Lang "my-profile.ic-once"}}</p></div>
-        <button class="btn btn-solid">{{t .Lang "my-profile.save"}}</button>
+      <form class="card form acct-form" method="post" action="/my-profile/ic">
+        <div class="field">
+          <label for="ic">{{t .Lang "my-profile.ic"}}</label>
+          <input id="ic" name="ic" value="{{.Typed}}" maxlength="40" autocomplete="off" required{{if .Error}} aria-invalid="true" aria-describedby="ic-err"{{end}}>
+          {{with .Error}}<p class="field-err" id="ic-err" role="alert">{{.}}</p>{{end}}
+          <small>{{t .Lang "my-profile.ic-once"}}</small>
+        </div>
+        <div><button class="btn btn-solid">{{t .Lang "my-profile.save"}}</button></div>
       </form>
       {{- end}}
     </div>
