@@ -16,13 +16,18 @@ type Template struct {
 	Name     string
 	Blurb    string
 	Question string // the Dashboard question, shown under its name; General has none
-	Blanks   []Blank
-	Blocks   []Block
-	Filters  []string // blank keys: a Date blank filters by month range, a Text blank by value
-	Sample   []byte   // the .xlsx Learners download
+	// Ms is Name, Blurb and Question in Malay, for the Lab's pages; the Dashboard itself stays in English.
+	Ms      struct{ Name, Blurb, Question string }
+	Blanks  []Blank
+	Blocks  []Block
+	Filters []string // blank keys: a Date blank filters by month range, a Text blank by value
+	Sample  []byte   // the .xlsx Learners download
 	// Build, when set, makes the blanks, blocks and choices from the Dataset itself (General has no blanks).
 	Build func(*Dataset) (*Template, Choices)
 }
+
+// Malay is a Template's Name, Blurb and Question in Malay.
+type Malay struct{ Name, Blurb, Question string }
 
 // Blank is a hole in a Template that one column fills.
 type Blank struct {
@@ -32,6 +37,7 @@ type Blank struct {
 	Required bool
 	Money    bool     // a Number shown as RM
 	Help     string   // what goes in it, for the Learner
+	HelpMs   string   // Help in Malay
 	Guess    []string // column names Cave tries first, lower case, Malay and English
 	// Loose, when set, are the names a Work Dashboard's guessing looks for in column names instead of Guess,
 	// lower case, best first.
@@ -70,16 +76,17 @@ var Finance = &Template{
 	Name:     "Finance",
 	Blurb:    "Money in and out: totals, balance, spending by month and category.",
 	Question: "Am I spending more than I earn?",
+	Ms:       Malay{"Kewangan", "Wang masuk dan keluar: jumlah, baki, perbelanjaan mengikut bulan dan kategori.", "Adakah saya berbelanja lebih daripada pendapatan saya?"},
 	Blanks: []Blank{
-		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each transaction", Guess: []string{"tarikh", "date"},
+		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each transaction", HelpMs: "Hari setiap transaksi", Guess: []string{"tarikh", "date"},
 			Loose: []string{"tarikh", "date", "created", "hari", "day"}},
-		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "How much, in RM", Guess: []string{"jumlah", "amaun", "amount", "total"},
+		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "How much, in RM", HelpMs: "Berapa banyak, dalam RM", Guess: []string{"jumlah", "amaun", "amount", "total"},
 			Loose: []string{"jumlah", "amaun", "amount", "total", "nilai", "value", "harga", "price"}},
-		{Key: "category", Label: "Category", Type: Text, Help: "What the money was for", Guess: []string{"kategori", "category"},
+		{Key: "category", Label: "Category", Type: Text, Help: "What the money was for", HelpMs: "Untuk apa wang itu", Guess: []string{"kategori", "category"},
 			Loose: []string{"kategori", "category", "kumpulan", "group"}},
-		{Key: "type", Label: "Type", Type: Text, Help: "Masuk (money in) or Keluar (money out)", Guess: []string{"jenis", "type", "masuk/keluar"},
+		{Key: "type", Label: "Type", Type: Text, Help: "Masuk (money in) or Keluar (money out)", HelpMs: "Masuk (wang masuk) atau Keluar (wang keluar)", Guess: []string{"jenis", "type", "masuk/keluar"},
 			Loose: []string{"jenis", "type", "masuk/keluar", "in/out"}},
-		{Key: "description", Label: "Description", Type: Text, Help: "A short note on each transaction", Guess: []string{"perkara", "butiran", "keterangan", "description", "item"},
+		{Key: "description", Label: "Description", Type: Text, Help: "A short note on each transaction", HelpMs: "Catatan ringkas bagi setiap transaksi", Guess: []string{"perkara", "butiran", "keterangan", "description", "item"},
 			Loose: []string{"perkara", "butiran", "keterangan", "description", "details", "item", "catatan", "nota", "note", "remark"}},
 	},
 	Blocks: []Block{
@@ -105,18 +112,19 @@ var Inventory = &Template{
 	Name:     "Inventory",
 	Blurb:    "Stock on hand: items, value, and what is running low.",
 	Question: "What do I need to reorder?",
+	Ms:       Malay{"Inventori", "Stok sedia ada: barang, nilai, dan apa yang semakin berkurangan.", "Apa yang perlu saya pesan semula?"},
 	Blanks: []Blank{
-		{Key: "item", Label: "Item", Type: Text, Required: true, Help: "The name of each item", Guess: []string{"nama item", "nama barang", "item", "barang", "nama"},
+		{Key: "item", Label: "Item", Type: Text, Required: true, Help: "The name of each item", HelpMs: "Nama setiap barang", Guess: []string{"nama item", "nama barang", "item", "barang", "nama"},
 			Loose: []string{"nama barang", "nama item", "item", "barang", "produk", "product", "nama", "name"}},
 		// Stock on hand: a closing or actual count beats purchases, opening stock and movements.
-		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"},
+		{Key: "quantity", Label: "Quantity", Type: Number, Required: true, Help: "How many are in stock", HelpMs: "Berapa banyak dalam stok", Guess: []string{"kuantiti", "quantity", "qty", "stok", "baki"},
 			Loose: []string{"closing", "actual", "baki akhir", "on hand", "in stock", "kuantiti", "quantity", "qty", "stok", "stock", "baki", "balance"},
 			Not:   []string{"opening", "awal", "purchase", "belian", "movement", "pergerakan", "alert", "amaran"}},
-		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"},
+		{Key: "reorder", Label: "Reorder level", Type: Number, Help: "Order more when stock falls to this", HelpMs: "Pesan lagi apabila stok jatuh ke paras ini", Guess: []string{"paras pesanan semula", "paras minimum", "reorder level", "reorder", "minimum"},
 			Loose: []string{"paras pesanan semula", "paras minimum", "reorder", "minimum", "par level", "safety stock", "stock alert", "amaran stok"}},
-		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"},
+		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", HelpMs: "Jenis barang", Guess: []string{"kategori", "category"},
 			Loose: []string{"kategori", "category", "kumpulan", "group"}},
-		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", Guess: []string{"harga seunit", "harga", "unit price", "price"},
+		{Key: "price", Label: "Unit price", Type: Number, Money: true, Help: "What one costs, in RM", HelpMs: "Harga seunit, dalam RM", Guess: []string{"harga seunit", "harga", "unit price", "price"},
 			Loose: []string{"harga seunit", "unit price", "harga", "price", "cost", "kos"}},
 	},
 	Blocks: []Block{
@@ -139,15 +147,16 @@ var HR = &Template{
 	Name:     "HR",
 	Blurb:    "Staff: headcount, departments, who joined when.",
 	Question: "Is the team growing, and where?",
+	Ms:       Malay{"HR", "Kakitangan: bilangan, jabatan, siapa menyertai bila.", "Adakah pasukan berkembang, dan di mana?"},
 	Blanks: []Blank{
-		{Key: "name", Label: "Name", Type: Text, Required: true, Help: "Each staff member's name", Guess: []string{"nama", "nama pekerja", "name"},
+		{Key: "name", Label: "Name", Type: Text, Required: true, Help: "Each staff member's name", HelpMs: "Nama setiap kakitangan", Guess: []string{"nama", "nama pekerja", "name"},
 			Loose: []string{"nama pekerja", "nama", "name", "pekerja", "employee", "staf", "staff"}},
-		{Key: "department", Label: "Department", Type: Text, Required: true, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department"},
+		{Key: "department", Label: "Department", Type: Text, Required: true, Help: "Where they work", HelpMs: "Tempat mereka bertugas", Guess: []string{"jabatan", "bahagian", "department"},
 			Loose: []string{"jabatan", "bahagian", "department", "dept", "unit", "section"}},
-		{Key: "joined", Label: "Join date", Type: Date, Help: "The day they started", Guess: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "tarikh"},
+		{Key: "joined", Label: "Join date", Type: Date, Help: "The day they started", HelpMs: "Hari mereka mula bekerja", Guess: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "tarikh"},
 			Loose: []string{"tarikh mula", "tarikh masuk", "tarikh lantikan", "join date", "start date", "joined", "hired", "lantikan", "tarikh", "date"}},
-		{Key: "status", Label: "Status", Type: Text, Help: "Aktif for staff still working", Guess: []string{"status"}},
-		{Key: "gender", Label: "Gender", Type: Text, Help: "Lelaki or Perempuan", Guess: []string{"jantina", "gender"},
+		{Key: "status", Label: "Status", Type: Text, Help: "Aktif for staff still working", HelpMs: "Aktif bagi kakitangan yang masih bekerja", Guess: []string{"status"}},
+		{Key: "gender", Label: "Gender", Type: Text, Help: "Lelaki or Perempuan", HelpMs: "Lelaki atau Perempuan", Guess: []string{"jantina", "gender"},
 			Loose: []string{"jantina", "gender", "sex"}},
 	},
 	Blocks: []Block{
@@ -169,6 +178,7 @@ var General = &Template{
 	Key:    "general",
 	Name:   "General",
 	Blurb:  "Any table. No blanks to fill: Cave builds the charts from your column types.",
+	Ms:     Malay{"Umum", "Mana-mana jadual. Tiada ruang untuk diisi: Cave membina carta daripada jenis lajur anda.", ""},
 	Build:  buildGeneral,
 	Sample: generalSample,
 }
@@ -217,19 +227,20 @@ var Sales = &Template{
 	Name:     "Sales",
 	Blurb:    "Takings: revenue by month, top items, staff and payment methods.",
 	Question: "What sells, and when?",
+	Ms:       Malay{"Jualan", "Kutipan: hasil mengikut bulan, barang teratas, kakitangan dan kaedah pembayaran.", "Apa yang laku, dan bila?"},
 	Blanks: []Blank{
-		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each sale", Guess: []string{"tarikh", "date", "tarikh jualan", "sale date"},
+		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of each sale", HelpMs: "Hari setiap jualan", Guess: []string{"tarikh", "date", "tarikh jualan", "sale date"},
 			Loose: []string{"tarikh jualan", "sale date", "tarikh", "date", "created", "masa", "time", "hari", "day"}},
-		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "What the sale took, in RM", Guess: []string{"jumlah", "amaun", "amount", "total", "jualan", "sales", "hasil", "revenue", "harga", "price"},
+		{Key: "amount", Label: "Amount", Type: Number, Required: true, Money: true, Help: "What the sale took, in RM", HelpMs: "Nilai jualan, dalam RM", Guess: []string{"jumlah", "amaun", "amount", "total", "jualan", "sales", "hasil", "revenue", "harga", "price"},
 			Loose: []string{"jumlah", "amaun", "amount", "total", "jualan", "sales", "hasil", "revenue", "nilai", "value", "harga", "price"}},
-		{Key: "item", Label: "Item", Type: Text, Help: "What was sold", Guess: []string{"produk", "product", "item", "barang", "nama item", "nama barang", "perkhidmatan", "service"},
+		{Key: "item", Label: "Item", Type: Text, Help: "What was sold", HelpMs: "Apa yang dijual", Guess: []string{"produk", "product", "item", "barang", "nama item", "nama barang", "perkhidmatan", "service"},
 			Loose: []string{"nama produk", "nama item", "nama barang", "produk", "product", "item", "barang", "perkhidmatan", "service"}},
-		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", Guess: []string{"kategori", "category"}},
-		{Key: "staff", Label: "Staff", Type: Text, Help: "Who made the sale", Guess: []string{"staf", "staff", "pekerja", "juruwang", "cashier", "doktor", "doctor"},
+		{Key: "category", Label: "Category", Type: Text, Help: "The kind of item", HelpMs: "Jenis barang", Guess: []string{"kategori", "category"}},
+		{Key: "staff", Label: "Staff", Type: Text, Help: "Who made the sale", HelpMs: "Siapa yang membuat jualan", Guess: []string{"staf", "staff", "pekerja", "juruwang", "cashier", "doktor", "doctor"},
 			Loose: []string{"nama staf", "staf", "staff", "pekerja", "juruwang", "cashier", "jurujual", "served by", "doktor", "doctor"}},
-		{Key: "payment", Label: "Payment method", Type: Text, Help: "Tunai, Kad, DuitNow QR and so on", Guess: []string{"kaedah bayaran", "bayaran", "payment method", "payment mode", "payment"},
+		{Key: "payment", Label: "Payment method", Type: Text, Help: "Tunai, Kad, DuitNow QR and so on", HelpMs: "Tunai, Kad, DuitNow QR dan sebagainya", Guess: []string{"kaedah bayaran", "bayaran", "payment method", "payment mode", "payment"},
 			Loose: []string{"kaedah bayaran", "cara bayar", "payment method", "payment mode", "bayaran", "bayar", "payment", "paid by"}},
-		{Key: "quantity", Label: "Quantity", Type: Number, Help: "How many were sold", Guess: []string{"kuantiti", "quantity", "qty", "unit"},
+		{Key: "quantity", Label: "Quantity", Type: Number, Help: "How many were sold", HelpMs: "Berapa banyak yang dijual", Guess: []string{"kuantiti", "quantity", "qty", "unit"},
 			Loose: []string{"kuantiti", "quantity", "qty", "bil. unit", "bilangan unit", "units sold"}},
 	},
 	Blocks: []Block{
@@ -254,14 +265,15 @@ var Roster = &Template{
 	Name:     "Roster",
 	Blurb:    "Shifts: who works, which shift codes, and how many each day.",
 	Question: "Who works when?",
+	Ms:       Malay{"Jadual Tugas", "Syif: siapa bertugas, kod syif mana, dan berapa ramai setiap hari.", "Siapa bertugas bila?"},
 	Blanks: []Blank{
-		{Key: "staff", Label: "Staff", Type: Text, Required: true, Help: "Who works the shift", Guess: []string{"staf", "staff", "nama", "name", "pekerja", "nama staf"},
+		{Key: "staff", Label: "Staff", Type: Text, Required: true, Help: "Who works the shift", HelpMs: "Siapa yang bertugas pada syif itu", Guess: []string{"staf", "staff", "nama", "name", "pekerja", "nama staf"},
 			Loose: []string{"nama staf", "staf", "staff", "nama", "name", "pekerja", "employee"}},
-		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of the shift", Guess: []string{"tarikh", "date", "hari", "day"},
+		{Key: "date", Label: "Date", Type: Date, Required: true, Help: "The day of the shift", HelpMs: "Hari syif itu", Guess: []string{"tarikh", "date", "hari", "day"},
 			Loose: []string{"tarikh", "date", "hari", "day"}},
-		{Key: "code", Label: "Code", Type: Text, Required: true, Help: "The shift code, such as P, M or C", Guess: []string{"kod", "code", "syif", "shift", "kod syif", "shift code"},
+		{Key: "code", Label: "Code", Type: Text, Required: true, Help: "The shift code, such as P, M or C", HelpMs: "Kod syif, seperti P, M atau C", Guess: []string{"kod", "code", "syif", "shift", "kod syif", "shift code"},
 			Loose: []string{"kod syif", "shift code", "kod", "code", "syif", "shift"}},
-		{Key: "department", Label: "Department", Type: Text, Help: "Where they work", Guess: []string{"jabatan", "bahagian", "department", "unit"},
+		{Key: "department", Label: "Department", Type: Text, Help: "Where they work", HelpMs: "Tempat mereka bertugas", Guess: []string{"jabatan", "bahagian", "department", "unit"},
 			Loose: []string{"jabatan", "bahagian", "department", "dept", "ward", "wad", "section"}},
 	},
 	Blocks: []Block{
@@ -390,6 +402,21 @@ func (b Blank) Named(col string) bool {
 		}
 	}
 	return false
+}
+
+// HelpIn is the Blank's Help in lang, "ms" or "en".
+func (b Blank) HelpIn(lang string) string { return pick(lang, b.Help, b.HelpMs) }
+
+// NameIn, BlurbIn and QuestionIn are the Template's words in lang, "ms" or "en".
+func (t *Template) NameIn(lang string) string     { return pick(lang, t.Name, t.Ms.Name) }
+func (t *Template) BlurbIn(lang string) string    { return pick(lang, t.Blurb, t.Ms.Blurb) }
+func (t *Template) QuestionIn(lang string) string { return pick(lang, t.Question, t.Ms.Question) }
+
+func pick(lang, en, ms string) string {
+	if lang == "ms" && ms != "" {
+		return ms
+	}
+	return en
 }
 
 // SampleName is the blank's column name in the Sample: its first guess, capitalised.

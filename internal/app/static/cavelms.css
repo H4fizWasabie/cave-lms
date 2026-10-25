@@ -366,14 +366,8 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 
 /* ============================ Home (CAVELMS) ============================ */
 .home-kicker { font-size: .86rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-gold-deep); margin-bottom: .9rem; }
-.coach { margin: 0; display: grid; grid-template-columns: minmax(9rem, 13rem) 1fr; gap: 1.6rem; align-items: end; background: var(--brand-gold-soft); border-radius: var(--radius-lg); padding: 1.6rem 1.6rem 0; position: relative; overflow: hidden; }
-.coach-photo img { width: 100%; height: auto; }
-.coach figcaption { padding-bottom: 1.8rem; display: grid; gap: .3rem; }
-.coach figcaption > strong { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.15; }
-.coach figcaption > span { color: var(--muted); font-size: .94rem; }
-.coach-creds { list-style: none; margin: .8rem 0 0; padding: 0; display: grid; gap: .45rem; font-size: .92rem; font-weight: 600; }
-.coach-creds li { display: flex; gap: .5rem; align-items: flex-start; }
-.coach-creds .i { color: var(--brand-gold-deep); margin-top: .15rem; }
+.coach { margin: 0; }
+.coach img { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); }
 .home-intro { display: grid; grid-template-columns: 1.4fr 1fr; gap: 3rem; align-items: center; }
 .home-pull { margin: 0; padding: 0; font-family: var(--font-display); font-size: 1.6rem; line-height: 1.35; }
 .learn-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.2rem 2.5rem; }
@@ -505,8 +499,6 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
   .home-hero h1 br { display: none; }
   
   .home-intro, .learn-grid, .learn-pair, .programmes, .course-grid, .footer-in { grid-template-columns: 1fr; }
-  .coach { grid-template-columns: 7.5rem 1fr; padding: 1.1rem 1.1rem 0; gap: 1rem; }
-  .coach figcaption > strong { font-size: 1.3rem; }
   
   
   .section { padding: 2.75rem 0; }

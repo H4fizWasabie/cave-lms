@@ -84,8 +84,8 @@
       <ul class="tp-grid">
         {{- range .Templates}}
         <li class="tp-show">
-          <div class="tp-frame"><iframe src="/lab/demo/{{.Key}}/" title="{{t $.Lang "lab.template-preview" .Name}}" loading="lazy" tabindex="-1" scrolling="no"></iframe></div>
-          <div class="tp-body"><h3>{{.Name}}</h3>{{with .Question}}<p class="tp-q">{{.}}</p>{{end}}<p>{{.Blurb}}</p><a href="/lab/demo/{{.Key}}/" target="_blank"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.full-preview"}}</a></div>
+          <div class="tp-frame"><iframe src="/lab/demo/{{.Key}}/" title="{{t $.Lang "lab.template-preview" (.NameIn $.Lang)}}" loading="lazy" tabindex="-1" scrolling="no"></iframe></div>
+          <div class="tp-body"><h3>{{.NameIn $.Lang}}</h3>{{with .QuestionIn $.Lang}}<p class="tp-q">{{.}}</p>{{end}}<p>{{.BlurbIn $.Lang}}</p><a href="/lab/demo/{{.Key}}/" target="_blank"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.full-preview"}}</a></div>
         </li>
         {{- end}}
       </ul>

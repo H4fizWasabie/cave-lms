@@ -52,7 +52,7 @@ type offer struct {
 var offerBenefits = map[string][]string{
 	caveTextProProduct: {"offers.cavetext-pro.unlimited", "offers.cavetext-pro.user", "offers.cavetext-pro.ready", "offers.cavetext-pro.keep"},
 	labPlanProduct:     {"offers.lab-plan.build", "offers.lab-plan.deploy", "offers.lab-plan.hosting", "offers.lab-plan.code"},
-	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.both"},
+	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.ebooks", "offers.pro-plan.deploy", "offers.pro-plan.storage", "offers.pro-plan.both"},
 }
 
 func (o offer) Benefits() []string { return offerBenefits[o.Product] }

@@ -80,7 +80,7 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
 	_, body = ada.get("/lab/new?t=finance")
 	expectLanguage(t, body, "ms", "Apa yang diperlukan oleh hamparan kerja anda")
-	expectAll(t, body, "Cipta Dashboard", `value="Dashboard Finance saya"`)
+	expectAll(t, body, "Cipta Dashboard", `value="Dashboard Kewangan saya"`)
 	res, body := ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan nama kepada Dashboard.")
 
@@ -139,4 +139,17 @@ func TestTheLabsFileAndColumnErrorsAreInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Pilih lajur untuk Date.")
 	res, body = ada.post(path+"/columns", url.Values{"date": {"Jumlah"}, "amount": {"Jumlah"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Date memerlukan lajur tarikh, tetapi Jumlah mengandungi nombor.")
+}
+
+func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T) {
+	visitor := newSite(t)
+	_, body := visitor.getAsking("/lab", "ms")
+	expectAll(t, body, "<h3>Kewangan</h3>", "Adakah saya berbelanja lebih daripada pendapatan saya?", "Wang masuk dan keluar: jumlah, baki, perbelanjaan mengikut bulan dan kategori.")
+	_, body = visitor.getAsking("/lab", "en")
+	expectAll(t, body, "<h3>Finance</h3>", "Am I spending more than I earn?", "Money in and out: totals, balance, spending by month and category.")
+
+	_, ada := labLearner(t)
+	ada.switchLanguage("ms", "/")
+	_, body = ada.get("/lab/new?t=finance")
+	expectAll(t, body, "Templat Kewangan", "Hari setiap transaksi")
 }

@@ -1744,6 +1744,9 @@ var catalog = map[string]entry{
 	"offers.lab-plan.code":          {en: "Look under the hood at the code", ms: "Lihat kodnya di sebalik tabir"},
 	"offers.pro-plan.cavetext":      {en: "Everything in CaveText Pro", ms: "Semua dalam CaveText Pro"},
 	"offers.pro-plan.lab":           {en: "Everything in the Lab Plan", ms: "Semua dalam Pelan Lab"},
+	"offers.pro-plan.ebooks":        {en: "Ebooks", ms: "Ebook"},
+	"offers.pro-plan.deploy":        {en: "Your own Dashboard deployment", ms: "Deployment Dashboard anda sendiri"},
+	"offers.pro-plan.storage":       {en: "1 GB of storage", ms: "Storan 1 GB"},
 	"offers.pro-plan.both":          {en: "One payment a year for both", ms: "Satu bayaran setahun untuk kedua-duanya"},
 
 	"offers.fee": {
@@ -1751,8 +1754,8 @@ var catalog = map[string]entry{
 		ms: "Caj pemprosesan pembayaran, bergantung pada kaedah pembayaran yang anda pilih, ditambah semasa pembayaran.",
 	},
 	"plans.comparison-alt": {
-		en: "Yearly cost: CAVELMS RM99 a year, with text expansion, the KPM prompt library, AI prompt templates, a personal subdomain, web hosting, SSL, static to dynamic dashboards without code, Excel uploads, 0.5 GB of storage and app maintenance all included. Compared with TextExpander Pro RM258, Hostinger Premium RM119.88, Cloudflare Paid RM258, Render Starter RM361.20, Netlify Personal RM464.40, Vercel Pro RM1,000 and Supabase Pro RM1,300, each covering only part of this.",
-		ms: "Kos setahun: CAVELMS RM99 setahun, termasuk pengembangan teks, pustaka prompt KPM, templat prompt AI, subdomain peribadi, hosting web, SSL, dashboard statik kepada dinamik tanpa kod, muat naik Excel, storan 0.5 GB dan penyelenggaraan aplikasi. Berbanding TextExpander Pro RM258, Hostinger Premium RM119.88, Cloudflare Paid RM258, Render Starter RM361.20, Netlify Personal RM464.40, Vercel Pro RM1,000 dan Supabase Pro RM1,300, yang setiap satunya hanya meliputi sebahagian.",
+		en: "Yearly cost: CAVELMS RM99 a year, with text expansion, the KPM prompt library, AI prompt templates, a personal subdomain, web hosting, SSL, static to dynamic dashboards without code, Excel uploads, 1 GB of storage and app maintenance all included. Compared with TextExpander Pro RM258, Hostinger Premium RM119.88, Cloudflare Paid RM258, Render Starter RM361.20, Netlify Personal RM464.40, Vercel Pro RM1,000 and Supabase Pro RM1,300, each covering only part of this.",
+		ms: "Kos setahun: CAVELMS RM99 setahun, termasuk pengembangan teks, pustaka prompt KPM, templat prompt AI, subdomain peribadi, hosting web, SSL, dashboard statik kepada dinamik tanpa kod, muat naik Excel, storan 1 GB dan penyelenggaraan aplikasi. Berbanding TextExpander Pro RM258, Hostinger Premium RM119.88, Cloudflare Paid RM258, Render Starter RM361.20, Netlify Personal RM464.40, Vercel Pro RM1,000 dan Supabase Pro RM1,300, yang setiap satunya hanya meliputi sebahagian.",
 	},
 	"plans.comparison-caption": {
 		en: "What the Pro Plan replaces, with its promo price, compared with paying for a text expander and hosting separately.",
@@ -1942,7 +1945,7 @@ var catalog = map[string]entry{
 		ms: "The Cave Consult (TCC) melatih individu dan organisasi untuk dunia kerja yang dibentuk oleh AI. Ia diterajui oleh Coach Adam Daniel, jurulatih bertauliah HRD Corp dan JPK dengan lebih 25 tahun pengalaman dalam keusahawanan dan kepimpinan, bersama COO Kapten Dinor Sabudin yang berkhidmat 22 tahun dalam Tentera Darat Malaysia. Melalui sayap latihannya ISDeT, dan bersama UTM CAIRO, TCC menjalankan program boleh tuntut HRDC dalam AI dan robotik, kepimpinan, NLP dan komunikasi, selaras dengan matlamat Negara Dipacu AI 2030.",
 	},
 	"home.background.more": {en: "Read the full company profile", ms: "Baca profil penuh syarikat"},
-	"home.coach-alt":       {en: "Coach Adam, CEO of The Cave Consult", ms: "Coach Adam, CEO The Cave Consult"},
+	"home.coach-alt":       {en: "Coach Adam Daniel, Founder and Chief Consultant of The Cave Consult, with his academic and professional credentials", ms: "Coach Adam Daniel, Pengasas dan Ketua Perunding The Cave Consult, bersama kelayakan akademik dan profesionalnya"},
 	"home.intro.1": {
 		en: "CAVELMS is a digital learning platform built by The Cave Consult (TCC) to help educators, civil servants, professionals and organisations master Generative Artificial Intelligence (Generative AI) in a way that is practical, systematic and easy to understand.",
 		ms: "CAVELMS ialah platform pembelajaran digital yang dibangunkan oleh The Cave Consult (TCC) untuk membantu pendidik, penjawat awam, profesional dan organisasi menguasai teknologi Generative Artificial Intelligence (Generative AI) secara praktikal, sistematik dan mudah difahami.",
