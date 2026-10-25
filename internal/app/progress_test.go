@@ -181,7 +181,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotOpenLessons(t *testing.T) {
 	if m == nil {
 		t.Fatalf("Course page has no remove button for Ada: %s", body)
 	}
-	admin.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", nil)
+	admin.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", confirming)
 	res, body = ada.get(lessonPath)
 	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to open its Lessons.")
 }

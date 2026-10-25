@@ -83,10 +83,35 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
 }
 
-// removeLearner is the Admin removing a Learner from a Course. Access ends on the next request.
-func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
+// confirmRemoveLearner asks the Admin to confirm removing a Learner who joined the Course.
+func (a *App) confirmRemoveLearner(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
+		return
+	}
+	var name string
+	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
+	if err == nil {
+		err = a.db.QueryRowContext(r.Context(), `SELECT l.name FROM enrollments e JOIN learners l ON l.id = e.learner_id
+			WHERE e.learner_id = $1 AND e.course_id = $2`, learnerID, c.ID).Scan(&name)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.confirm(w, r, http.StatusOK, confirmation{Side: "courses", Heading: "adm.course.remove-learner", Question: "adm.course.remove-learner-ask",
+		Cancel: "/admin/courses/" + r.PathValue("id"), Action: r.URL.Path}, name, c.Title)
+}
+
+// removeLearner is the Admin removing a Learner from a Course once its confirmation page is posted. Access ends on
+// the next request.
+func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
