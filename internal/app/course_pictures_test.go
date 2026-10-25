@@ -126,28 +126,13 @@ func TestDeletingACourseRemovesItsPicture(t *testing.T) {
 	}
 }
 
-var headingTag = regexp.MustCompile(`<h([1-6])[ >]`)
-
-// expectNoHeadingSkip fails when a heading in body is more than one level below the heading before it (h1 then h3).
-func expectNoHeadingSkip(t *testing.T, body string) {
-	t.Helper()
-	prev := 0
-	for _, m := range headingTag.FindAllStringSubmatch(body, -1) {
-		level := int(m[1][0] - '0')
-		if level > prev+1 {
-			t.Fatalf("an h%d follows an h%d; body:\n%s", level, prev, body)
-		}
-		prev = level
-	}
-}
-
 func TestTheCourseListHasNoHeadingSkip(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.courseWithContent()
 	s.logOut()
 	_, body := s.get("/courses")
-	expectNoHeadingSkip(t, content(body))
+	expectHeadingsInOrder(t, "/courses", body)
 }
 
 // courseCard is the card of the Course titled title on the page body, or fails the test.
