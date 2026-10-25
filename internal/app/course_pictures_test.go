@@ -35,7 +35,20 @@ func TestAdminAddsACoursePictureThatTheCourseListShows(t *testing.T) {
 	}
 }
 
-func TestACourseWithoutAPictureShowsADrawnCoverWithItsTitleAndLevel(t *testing.T) {
+var drawnCover = regexp.MustCompile(`(?s)<div class="course-cover course-cover-drawn.*?</div>`)
+
+// drawnCoverIn returns the first drawn cover in html, failing when there is none.
+func drawnCoverIn(t *testing.T, html string) string {
+	t.Helper()
+	c := drawnCover.FindString(html)
+	if c == "" {
+		t.Fatalf("no drawn cover: %s", html)
+	}
+	return c
+}
+
+// The title sits right under the cover, so a drawn cover carries only the Level or format and the mark.
+func TestACourseWithoutAPictureShowsADrawnCoverWithItsLevelButNotItsTitle(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -45,11 +58,18 @@ func TestACourseWithoutAPictureShowsADrawnCoverWithItsTitleAndLevel(t *testing.T
 	s.logOut()
 	_, body := s.get("/courses")
 	expectNone(t, body, "/course-pictures/")
-	expectInOrder(t, courseCard(t, body, "Go Basics"), `class="course-cover course-cover-drawn`, "Go Basics", "Self-paced online", "</div>", ">Go Basics</a>")
-	expectInOrder(t, courseCard(t, body, "Go for Acme"), `class="course-cover course-cover-drawn`, "Go for Acme", "PCC Practitioner", "</div>", ">Go for Acme</a>")
+	for _, c := range []struct{ title, level string }{{"Go Basics", "Self-paced online"}, {"Go for Acme", "PCC Practitioner"}} {
+		card := courseCard(t, body, c.title)
+		cover := drawnCoverIn(t, card)
+		expectInOrder(t, cover, "course-cover-mark", c.level)
+		expectNone(t, cover, c.title)
+		expectInOrder(t, card, cover, ">"+c.title+"</a>")
+	}
 
 	_, body = s.getAsking("/courses", "ms")
-	expectInOrder(t, courseCard(t, body, "Go Basics"), "course-cover-drawn", "Dalam talian, kendiri")
+	expectInOrder(t, drawnCoverIn(t, courseCard(t, body, "Go Basics")), "Dalam talian, kendiri")
+	_, body = s.get("/courses/" + id)
+	expectNone(t, drawnCoverIn(t, body), "Go Basics")
 }
 
 func TestTheCoursePageHeroShowsTheCoursePictureOrItsDrawnCover(t *testing.T) {
@@ -65,7 +85,7 @@ func TestTheCoursePageHeroShowsTheCoursePictureOrItsDrawnCover(t *testing.T) {
 	_, body = s.get("/courses/" + pictured)
 	expectInOrder(t, body, `class="cp-hero-text"`, "<h1>Go Basics</h1>", `class="cp-hero-media"`, `<img class="course-cover" src="/course-pictures/`, "</section>")
 	_, body = s.get("/courses/" + drawn)
-	expectInOrder(t, body, `class="cp-hero-text"`, "<h1>Rust Basics</h1>", `class="cp-hero-media"`, "course-cover-drawn", "Rust Basics", "</section>")
+	expectInOrder(t, body, `class="cp-hero-text"`, "<h1>Rust Basics</h1>", `class="cp-hero-media"`, "course-cover-drawn", "</section>")
 }
 
 func TestAdminReplacesThenRemovesACoursePictureFromTheCourseForm(t *testing.T) {

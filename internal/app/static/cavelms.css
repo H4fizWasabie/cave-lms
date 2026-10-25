@@ -1136,13 +1136,12 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .catalogue-badge { width: auto; height: 1.75rem; }
 
 .course-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--brand-ink); }
-/* Without a picture: the title on charcoal over a faint gold peak, framed like the Certificate; gold for a Live Course. */
+/* Without a picture: the Level or format on charcoal over a faint gold peak, framed like the Certificate; gold for a
+   Live Course. The title is left to the card or page under it, so it is not said twice. */
 .course-cover-drawn { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-2); padding: var(--space-5); color: var(--on-dark); outline: 1px solid var(--on-dark-line); outline-offset: calc(-1 * var(--space-2)); }
 .course-cover-drawn.is-live { outline-color: color-mix(in srgb, var(--brand-gold) 45%, transparent); }
 .course-cover-mark { position: absolute; right: calc(-1 * var(--space-5)); bottom: calc(-1 * var(--space-6)); height: 120%; width: auto; color: color-mix(in srgb, var(--brand-gold) 12%, transparent); }
-.course-cover-title, .course-cover-level { position: relative; max-width: 26ch; }
-.course-cover-title { font-family: var(--font-display); font-size: var(--fs-title); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
-.course-cover-level { font-size: var(--fs-meta); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-dark-muted); }
+.course-cover-level { position: relative; max-width: 26ch; font-size: var(--fs-meta); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-dark-muted); }
 .course-cover-drawn.is-live .course-cover-level { color: var(--brand-gold); }
 
 /* === Page: Home (#314) === */
@@ -1494,8 +1493,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .mc-course { display: grid; grid-template-columns: 13rem minmax(0, 1fr) auto; gap: var(--space-5); align-items: center; padding: var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .mc-cover { align-self: start; border-radius: var(--radius); overflow: hidden; }
 .mc-cover .course-cover-drawn { padding: var(--space-3); outline-offset: calc(-1 * var(--space-1)); }
-.mc-cover .course-cover-title { font-size: var(--fs-ui); line-height: 1.3; }
-.mc-cover .course-cover-level { display: none; }
 .mc-body { display: grid; gap: var(--space-3); justify-items: start; min-width: 0; }
 .mc-body > * { margin: 0; }
 .mc-body h2 { font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; }
