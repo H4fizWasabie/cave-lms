@@ -428,8 +428,13 @@ func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusForbidden, "message", page{Title: text.T(v.lang, "chat.not-yours.title"), Message: text.T(v.lang, "chat.not-yours")})
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE chat_messages SET deleted = true, body = '' WHERE id = $1`, m.ID); err != nil {
+	res, err := a.db.ExecContext(r.Context(), `UPDATE chat_messages SET deleted = true, body = '' WHERE id = $1 AND NOT deleted`, m.ID)
+	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if n, err := res.RowsAffected(); err == nil && n == 0 { // deleted already: nothing changed, so nothing is republished
+		a.answer(w, r, v, m)
 		return
 	}
 	if err := a.closeReports(r.Context(), m.ID); err != nil { // nothing left to act on

@@ -189,3 +189,25 @@ func TestTheChatsScriptGetsAMessagesFragmentInPlaceOfARedirect(t *testing.T) {
 	_, body = ada.get("/courses/" + id + "/chat")
 	expectInOrder(t, body, `data-stream="/courses/`+id+`/chat/events"`, `<script src="/static/chat.js`)
 }
+
+func TestDeletingAnAlreadyDeletedMessageSendsNothingToOpenStreams(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	stream := ada.openStream(id)
+	mid := ben.say(id, "Oops")
+	ada.reply(id, mid, "Hi Ben")
+	stream.next() // the Message, then the reply
+	stream.next()
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	stream.next() // the Message, and the reply quoting it
+	stream.next()
+
+	res, body := ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
+		t.Fatalf("a second delete redirected to %q, want the Chat at the Message", loc)
+	}
+	ben.say(id, "Later")
+	if e := stream.next(); !strings.Contains(e, "Later") {
+		t.Fatalf("a second delete sent the stream an event: %s", e)
+	}
+}
