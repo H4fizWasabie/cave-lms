@@ -75,7 +75,7 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 		t.Fatalf("%v in %s", err, out)
 	}
 	for _, want := range []string{`<article class="dpanel"><h2>Jadual A`, `<article class="dpanel"><h2>Jadual B`, "<span>C6</span>", "<span>Untung</span><strong>RM70.00</strong>", "<span>Purata</span><strong>RM60.00</strong>",
-		"Ikut hari", "6 Jan", "Ikut staf", "(blank)", "Dr Farah sahaja</h2><p class=\"dnone\">No rows match</p>", "Terkini"} {
+		"Ikut hari", "6 Jan", "Ikut staf", "(blank)", "Dr Farah sahaja</h2><p class=\"dnone\">No rows match</p>", "Terkini</h2><button type=\"button\" class=\"dcsv\" data-csv=\"11\">Download CSV</button>"} {
 		if !strings.Contains(got.Cards+got.Charts, want) {
 			t.Errorf("drawn Dashboard lacks %q:\n%s\n%s", want, got.Cards, got.Charts)
 		}

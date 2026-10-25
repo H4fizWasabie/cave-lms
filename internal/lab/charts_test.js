@@ -97,6 +97,16 @@ eq(C.tableRows({ sort: 'Jumlah', limit: 3 }, rows, cols).map(function (r) { retu
 eq(C.tableRows({ sort: 'Tarikh', limit: 10 }, rows, cols).map(function (r) { return r.Tarikh; }),
   ['2026-02-10', '2026-02-03', '2026-01-20', '2026-01-05', '2026-01-05', null], 'newest first, blanks last');
 
+// Download CSV: the table's columns by name, its filter and sort but not its limit, numbers raw, dates as
+// YYYY-MM-DD, empty cells empty, quoted per RFC 4180, with a BOM so Excel reads it as UTF-8.
+var named = { Tarikh: { name: 'Tarikh', type: 'date' }, Kategori: { name: 'Kategori', type: 'text' }, Staf: { name: 'Nama staf', type: 'text' }, Jumlah: { name: 'Jumlah', type: 'number', money: true } };
+var odd = rows.concat([{ Tarikh: '2026-03-01T00:00:00Z', Staf: 'Wan "Abu", Jr\nKL', Jumlah: 1234.5 }]);
+eq(C.csv({ cols: ['Staf', 'Jumlah', 'Tarikh', 'Gone'], sort: 'Jumlah', limit: 2, filter: { col: 'Kategori', vals: ['Ubat'] } }, odd, named),
+  '﻿Nama staf,Jumlah,Tarikh\r\nAli,100,2026-01-05\r\n,30,2026-02-03\r\nSiti,,2026-01-20\r\n', 'csv: filter, sort, no limit, raw, empty');
+eq(C.csv({ cols: ['Staf', 'Jumlah', 'Tarikh'], sort: 'Jumlah', limit: 1 }, odd, named).split('\r\n')[1],
+  '"Wan ""Abu"", Jr\nKL",1234.5,2026-03-01', 'csv quoting, raw number, date');
+eq(C.csv({ cols: ['Staf'] }, [], named), '﻿Nama staf\r\n', 'csv of no rows is its header');
+
 // A block naming a column the Dataset lacks is paused.
 eq(C.paused({ kind: 'bar', value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf' }, cols), false, 'not paused');
 eq(C.paused({ kind: 'card', value: { agg: 'calc', a: 'Jumlah', op: 'x', b: 'Harga', then: 'sum' } }, cols), true, 'paused by value');

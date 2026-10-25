@@ -46,6 +46,7 @@
     '.ddonut .dtot{font-size:19px;font-weight:600;fill:var(--num)}',
     '.ddonut ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem;font-size:.86rem;flex:1}',
     '.ddonut li span{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}',
+    '.dcsv{display:block;margin:-.3rem 0 .6rem auto;font:inherit;font-size:.78rem;color:var(--muted);background:none;border:1px solid var(--line);border-radius:6px;padding:.2rem .6rem;cursor:pointer}',
     '.dtable{overflow-x:auto}.dtable table{width:100%;border-collapse:collapse;font-size:.86rem}',
     '.dtable th{text-align:left;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.45rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}',
     '.dtable td{padding:.5rem .6rem;border-bottom:1px solid var(--soft);white-space:nowrap}',
@@ -57,7 +58,7 @@
       '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}',
     // Printed on white whatever the Theme, without the filter bar: a dark Theme's text, lines and tracks turn dark.
     '@media print{:root{--bg:#fff;--card:#fff;--head:#fff;--ink:#111;--num:#111;--muted:#444;--axis:#555;--line:#ccc;--soft:#e6e6e6;--grid:#e6e6e6;--track:#ececec;--shadow:none}' +
-      'main{max-width:none;padding:0}.df{display:none}.dh,.dcard,.dpanel{background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;break-inside:avoid}}'
+      'main{max-width:none;padding:0}.df,.dcsv{display:none}.dh,.dcard,.dpanel{background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;break-inside:avoid}}'
   ].join('\n');
 
   // The five Themes, from the client's specs: CSS variables, an extra rule or two, and the colours charts are
@@ -238,6 +239,15 @@
     if (k && cols[k]) rs.sort(function (a, c) { var x = a[k], y = c[k]; return x == null ? (y == null ? 0 : 1) : y == null ? -1 : x < y ? 1 : x > y ? -1 : 0; });
     return b.limit ? rs.slice(0, b.limit) : rs;
   }
+  // csv is a table's Download CSV file: its columns by name, every row it scopes in its sort, not cut to its limit;
+  // numbers raw, dates as YYYY-MM-DD, quoted per RFC 4180, with a BOM so Excel reads Malay text as UTF-8.
+  function csv(b, rows, cols) {
+    var keys = (b.cols || []).filter(function (k) { return cols[k]; });
+    var cell = function (v) { v = String(v == null ? '' : v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var line = function (r) { return keys.map(function (k) { var v = r[k]; return cell(v != null && cols[k].type === 'date' ? String(v).slice(0, 10) : v); }).join(',') + '\r\n'; };
+    return '﻿' + keys.map(function (k) { return cell(cols[k].name); }).join(',') + '\r\n' +
+      tableRows(Object.assign({}, b, { limit: 0 }), rows, cols).map(line).join('');
+  }
   // paused is whether the block names a column the Dataset lacks, or has of another type than the block needs
   // (as lab's WorkBlock.Missing); it is then left off the Dashboard.
   function paused(b, cols) {
@@ -410,7 +420,7 @@
           return t === 'number' ? '<td class="num">' + fmt(+v, cols[k].money) + '</td>' : '<td>' + esc(t === 'date' ? dmy(v) : v) + '</td>';
         }).join('') + '</tr>';
       }).join('') || '<tr><td colspan="' + keys.length + '" class="dnone">No rows match the filters</td></tr>';
-      return panel(b, '<div class="dtable"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>');
+      return panel(b, '<button type="button" class="dcsv" data-csv="' + blocks.indexOf(b) + '">Download CSV</button><div class="dtable"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>');
     }
 
     var DRAW = { line: line, bar: bar, donut: donut, table: table };
@@ -422,12 +432,22 @@
       }).join('');
     }
     draw();
+    // Download CSV saves the table's rows under the filters now set, named after its label.
+    chartsEl.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-csv]'), b = btn && blocks[btn.getAttribute('data-csv')];
+      if (!b) return;
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv(b, rowsNow(), cols)], { type: 'text/csv;charset=utf-8' }));
+      a.download = (b.label || 'table').replace(/[\\/:*?"<>|]/g, '-') + '.csv';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); });
+    });
     var width = innerWidth;
     addEventListener('resize', function () { if (innerWidth !== width) { width = innerWidth; draw(); } });
   }
 
   drawDashboard.compute = { fromPractice: fromPractice, cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
-    slices: slices, tableRows: tableRows, paused: paused };
+    slices: slices, tableRows: tableRows, csv: csv, paused: paused };
   drawDashboard.themes = Object.keys(THEMES);
   window.drawDashboard = drawDashboard;
 })();
