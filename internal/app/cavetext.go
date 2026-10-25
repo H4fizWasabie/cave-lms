@@ -120,12 +120,12 @@ func (a *App) caveTextMe(w http.ResponseWriter, r *http.Request, l *caveTextLear
 		fail(fmt.Errorf("count Snippets: %w", err))
 		return
 	}
-	// A Pro Learner's cap is unlimited: null. proUntil is null without Pro. The Image and Dashboard master prompts go
+	// A Pro Learner's cap is proSnippetCap. proUntil is null without Pro. The Image and Dashboard master prompts go
 	// in full to Pro only; a free Learner gets their names, to show them locked.
-	me := map[string]any{"name": l.Name, "place": l.Place, "cap": c.Cap, "snippetCount": n, "early": c.Early, "pro": c.Pro, "proUntil": nil,
+	me := map[string]any{"name": l.Name, "place": l.Place, "cap": c.most(), "snippetCount": n, "early": c.Early, "pro": c.Pro, "proUntil": nil,
 		"userMasterPrompt": prompt, "masterPromptQuestion": question, "masterPrompts": prompts.forLearner(c.Pro)}
 	if c.Pro {
-		me["cap"], me["proUntil"] = nil, c.ProUntil
+		me["proUntil"] = c.ProUntil
 	}
 	writeJSON(w, http.StatusOK, me)
 }

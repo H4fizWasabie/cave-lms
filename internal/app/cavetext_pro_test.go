@@ -64,7 +64,7 @@ func near(t *testing.T, what string, got, want time.Time) {
 	}
 }
 
-func TestProGivenByTheAdminLastsTwelveMonthsWithUnlimitedSnippets(t *testing.T) {
+func TestProGivenByTheAdminLastsTwelveMonthsWithUpToTwoThousandSnippets(t *testing.T) {
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -80,7 +80,7 @@ func TestProGivenByTheAdminLastsTwelveMonthsWithUnlimitedSnippets(t *testing.T) 
 	}
 	near(t, "Pro until", *me.ProUntil, time.Now().AddDate(1, 0, 0))
 	res, body := ada.caveText(http.MethodGet, "me", token)
-	expectStatus(t, res, body, http.StatusOK, `"cap":null`)
+	expectStatus(t, res, body, http.StatusOK, `"cap":2000`)
 
 	for _, c := range "abcdefg" {
 		ada.createSnippet(token, snippet{Folder: "Work", Name: "Extra " + string(c), Shortcut: "/extra-" + string(c), Body: "x"})
@@ -310,7 +310,7 @@ func TestTheCaveTextPageShowsAVisitorWhatProGivesAndAsksThemToLogIn(t *testing.T
 	visitor := s.second()
 	res, body := visitor.get("/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "<h1>CaveText</h1>")
-	for _, want := range []string{"Unlimited Snippets", "RM25 a year", `href="/login?next=%2Fcavetext"`, `href="/register"`, `href="https://cavetext.cavelms.com"`} {
+	for _, want := range []string{"Up to 2,000 Snippets", "Save up to 2,000 Snippets.", "RM25 a year", `href="/login?next=%2Fcavetext"`, `href="/register"`, `href="https://cavetext.cavelms.com"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the Visitor's CaveText page lacks %s", want)
 		}
@@ -357,11 +357,11 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 		t.Errorf("the page still says Contact us with a payment link set")
 	}
 
-	// Pro: unlimited, with the expiry.
+	// Pro: up to 2,000, with the expiry.
 	s.givePro("ada@example.com")
 	until := text.Date("en", ada.me(token).ProUntil.UTC())
 	_, body = ada.get("/cavetext")
-	for _, want := range []string{"CaveText Pro until " + until, "3 Snippets, unlimited"} {
+	for _, want := range []string{"CaveText Pro until " + until, "3 Snippets, up to 2,000"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the Pro Learner's CaveText page lacks %q", want)
 		}
@@ -394,4 +394,24 @@ func TestTheCaveTextPageAsksALearnerNewToCaveTextToSignIn(t *testing.T) {
 	if n := strings.Count(body, "Get the CaveText extension"); n != 1 {
 		t.Errorf("the new Learner's CaveText page links the extension %d times, want once", n)
 	}
+}
+
+func TestAProImportStopsAtTwoThousandSnippetsAndAFullProLearnerCannotAddAnother(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.givePro("ada@example.com")
+	set := make([]snippet, 2001)
+	for i := range set {
+		set[i] = snippet{Folder: "Kept", Name: fmt.Sprintf("I%d", i), Shortcut: fmt.Sprintf("/i%04d", i), Body: "x"}
+	}
+	res, body := ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": set})
+	expectStatus(t, res, body, http.StatusOK, `"skipped":1`)
+	if want := "Imported 2000 Snippets, the most CaveText Pro keeps; the other one was skipped."; !strings.Contains(body, want) {
+		t.Fatalf("answer %s, want message %q", body, want)
+	}
+	if n := len(ada.snippets(token)); n != 2000 {
+		t.Fatalf("Snippets = %d, want 2000", n)
+	}
+	res, body = ada.caveTextSend(http.MethodPost, "snippets", token, snippet{Folder: "Work", Name: "More", Shortcut: "/more", Body: "x"})
+	expectStatus(t, res, body, http.StatusForbidden, "You have 2000 Snippets, the most CaveText Pro keeps. Delete one to add another.")
 }

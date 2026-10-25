@@ -25,10 +25,10 @@ func TestTheCaveTextPageIsInMalayAndEnglish(t *testing.T) {
 
 	visitor := s.second()
 	_, body := visitor.getAsking("/cavetext", "ms")
-	expectLanguage(t, body, "ms", "Snippet tanpa had")
+	expectLanguage(t, body, "ms", "Sehingga 2,000 Snippet")
 	expectAll(t, body, "RM25 setahun", "RM99 setahun", "Pilih apa yang hendak dibeli", "Log masuk untuk melihat Snippet anda", `href="/login?next=%2Fcavetext">Log masuk</a>`, "Dapatkan sambungan CaveText untuk Chrome")
 	_, body = visitor.getAsking("/cavetext", "en")
-	expectLanguage(t, body, "en", "Unlimited Snippets")
+	expectLanguage(t, body, "en", "Up to 2,000 Snippets")
 	expectAll(t, body, "RM25 a year", "Log in to see your Snippets")
 
 	cy := s.second()
@@ -50,10 +50,10 @@ func TestTheCaveTextPageIsInMalayAndEnglish(t *testing.T) {
 	until := ada.me(token).ProUntil.UTC()
 	_, body = ada.getAsking("/cavetext", "ms")
 	expectLanguage(t, body, "ms", "CaveText Pro hingga "+text.Date("ms", until))
-	expectAll(t, body, "3 Snippet, tanpa had", "Perbaharui CaveText Pro</a>")
+	expectAll(t, body, "3 Snippet, sehingga 2,000", "Perbaharui CaveText Pro</a>")
 	_, body = ada.getAsking("/cavetext", "en")
 	expectLanguage(t, body, "en", "CaveText Pro until "+text.Date("en", until))
-	expectAll(t, body, "3 Snippets, unlimited", "Renew CaveText Pro</a>")
+	expectAll(t, body, "3 Snippets, up to 2,000", "Renew CaveText Pro</a>")
 }
 
 // createSnippetAsking creates a Snippet from a browser asking for acceptLanguage, and returns the error shown.
@@ -86,7 +86,7 @@ func TestCaveTextMessagesComeInTheSavedLanguageElseTheBrowsers(t *testing.T) {
 		t.Errorf("saved Malay, browser English: %q", got)
 	}
 	ada.fillSnippets(adaToken, 5)
-	want := "Anda mempunyai 5 daripada 5 Snippet percuma anda. Padam satu untuk menambah yang lain, atau dapatkan CaveText Pro untuk Snippet tanpa had."
+	want := "Anda mempunyai 5 daripada 5 Snippet percuma anda. Padam satu untuk menambah yang lain, atau dapatkan CaveText Pro untuk sehingga 2,000 Snippet."
 	if got := ada.createSnippetAsking(adaToken, "en", snippet{Folder: "Work", Name: "More", Shortcut: "/more", Body: "x"}); got != want {
 		t.Errorf("cap reached in Malay = %q", got)
 	}

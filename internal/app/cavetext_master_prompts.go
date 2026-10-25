@@ -63,9 +63,9 @@ func readMasterPrompts(ctx context.Context, q rowQueryer) (masterPrompts, error)
 }
 
 // clashList is what a Snippet's shortcut is checked against: the master prompts' shortcuts, then others, in a new
-// slice (never reserved's backing array) with room for `room` more, so a caller checking a set one by one can grow it.
-func clashList(reserved, others []caveTextSnippet, room int) []caveTextSnippet {
-	list := make([]caveTextSnippet, 0, len(reserved)+len(others)+room)
+// slice (never reserved's backing array).
+func clashList(reserved, others []caveTextSnippet) []caveTextSnippet {
+	list := make([]caveTextSnippet, 0, len(reserved)+len(others))
 	return append(append(list, reserved...), others...)
 }
 

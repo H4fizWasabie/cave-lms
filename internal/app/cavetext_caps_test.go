@@ -144,7 +144,7 @@ func TestAnImportOverTheCapStopsAtTheCapAndSaysHowManyWereSkipped(t *testing.T) 
 	if err := json.Unmarshal([]byte(body), &got); err != nil {
 		t.Fatal(err)
 	}
-	if want := "Imported 5 Snippets, your free cap; the other 2 were skipped. CaveText Pro gives unlimited Snippets."; got.Message != want {
+	if want := "Imported 5 Snippets, your free cap; the other 2 were skipped. CaveText Pro gives up to 2,000 Snippets."; got.Message != want {
 		t.Fatalf("message = %q, want %q", got.Message, want)
 	}
 	want := `[Kept/I0 /i0 "x" master=true][Kept/I1 /i1 "x" master=true][Kept/I2 /i2 "x" master=true][Kept/I3 /i3 "x" master=true][Kept/I4 /i4 "x" master=true]`

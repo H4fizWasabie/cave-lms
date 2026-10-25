@@ -13,7 +13,7 @@ import (
 )
 
 // snippetCap is how many Snippets a Learner may keep, and whether their place is early. With an active CaveText Pro
-// period the cap is unlimited; Cap stays the free cap their place gives, the one they return to when Pro lapses.
+// period the cap is proSnippetCap; Cap stays the free cap their place gives, the one they return to when Pro lapses.
 type snippetCap struct {
 	Cap      int
 	Early    bool
@@ -21,16 +21,24 @@ type snippetCap struct {
 	ProUntil time.Time // when Pro, the end of the last period in the unbroken run of Pro periods
 }
 
+// proSnippetCap bounds a CaveText Pro Learner's Snippets, so an import's shortcut clash check, run under the
+// account's row lock, stays short.
+// ponytail: the Pro copy in internal/text/catalog.go and GLOSSARY.md says "2,000" as written; change them with it.
+const proSnippetCap = 2000
+
+// most is how many Snippets the Learner may keep now.
+func (c snippetCap) most() int {
+	if c.Pro {
+		return proSnippetCap
+	}
+	return c.Cap
+}
+
 // Full reports whether a Learner with have Snippets may not add another.
-func (c snippetCap) Full(have int) bool { return !c.Pro && have >= c.Cap }
+func (c snippetCap) Full(have int) bool { return have >= c.most() }
 
 // Keep is how many of n Snippets an import keeps.
-func (c snippetCap) Keep(n int) int {
-	if c.Pro {
-		return n
-	}
-	return min(n, c.Cap)
-}
+func (c snippetCap) Keep(n int) int { return min(n, c.most()) }
 
 type rowQueryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
@@ -41,7 +49,7 @@ type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
-// learnerSnippetCap resolves a Learner's Snippet cap: an active CaveText Pro period gives unlimited Snippets; otherwise
+// learnerSnippetCap resolves a Learner's Snippet cap: an active CaveText Pro period gives proSnippetCap; otherwise
 // a place within the early places gets the early cap, any later one the late cap. Every write and every page showing
 // the cap goes through here, so a changed setting or a lapsed Pro applies at once.
 func learnerSnippetCap(ctx context.Context, q rowQueryer, learnerID int64) (snippetCap, error) {
@@ -81,16 +89,23 @@ func countSnippets(ctx context.Context, q rowQueryer, learnerID int64) (int, err
 
 // overCapMessage refuses a new Snippet to a Learner with have Snippets against a cap.
 func overCapMessage(lang string, have int, c snippetCap) string {
+	if c.Pro {
+		return text.T(lang, "cavetext.api.pro-cap-reached", have)
+	}
 	return text.T(lang, "cavetext.api.cap-reached", have, c.Cap)
 }
 
 // skippedMessage says an import stopped at the cap.
-func skippedMessage(lang string, kept, skipped int) string {
+func skippedMessage(lang string, kept, skipped int, c snippetCap) string {
 	rest := text.T(lang, "cavetext.api.skipped-many", skipped)
 	if skipped == 1 {
 		rest = text.T(lang, "cavetext.api.skipped-one")
 	}
-	return text.T(lang, "cavetext.api.imported", text.N(lang, "cavetext.snippet-count", kept), rest)
+	key := "cavetext.api.imported"
+	if c.Pro {
+		key = "cavetext.api.pro-imported"
+	}
+	return text.T(lang, key, text.N(lang, "cavetext.snippet-count", kept), rest)
 }
 
 type caveTextCapsView struct {

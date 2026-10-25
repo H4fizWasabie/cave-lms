@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 )
 
 type snippet struct {
@@ -218,6 +220,9 @@ func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
 		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: "Two", Shortcut: "/o", Body: "2"}}, `/o would always fire before /one (\"One\") finished typing.`},
 		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: " ", Shortcut: "/two", Body: "2"}}, "A name is needed."},
 		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: "Two", Shortcut: "/t wo", Body: "2"}}, "Shortcuts cannot contain spaces."},
+		// The first Snippet refused, in the set's order, is the one named, and it names the first it clashes with.
+		{[]snippet{{Folder: "A", Name: "Oa", Shortcut: "/oa", Body: "1"}, {Folder: "A", Name: "Ob", Shortcut: "/ob", Body: "2"}, {Folder: "A", Name: "O", Shortcut: "/O", Body: "3"}, {Folder: "A", Name: " ", Shortcut: "/x", Body: "4"}}, `/O would always fire before /oa (\"Oa\") finished typing.`},
+		{[]snippet{{Folder: "A", Name: "One", Shortcut: "/one", Body: "1"}, {Folder: "A", Name: " ", Shortcut: "/x", Body: "2"}, {Folder: "A", Name: "Two", Shortcut: "/one", Body: "3"}}, "A name is needed."},
 	} {
 		res, body := s.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": c.set})
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.message)
@@ -249,5 +254,48 @@ func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `"snippets":[]`)
 	if got := s.snippets(token); len(got) != 0 {
 		t.Fatalf("Snippets after importing none = %s", describe(got))
+	}
+}
+
+func TestASnippetWithAFieldTooLongIsRefused(t *testing.T) {
+	s := newCaveTextSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	const tooLong = "A Snippet's name, folder and shortcut can each have up to 100 characters, and its body up to 20,000. Shorten it, then save."
+	// Characters, not bytes: 100 accented letters fit.
+	kept := ada.createSnippet(token, snippet{Folder: strings.Repeat("é", 100), Name: strings.Repeat("é", 100), Shortcut: "/" + strings.Repeat("é", 99), Body: strings.Repeat("é", 20000)})
+	for _, sn := range []snippet{
+		{Folder: strings.Repeat("f", 101), Name: "N", Shortcut: "/a", Body: "x"},
+		{Folder: "F", Name: strings.Repeat("n", 101), Shortcut: "/a", Body: "x"},
+		{Folder: "F", Name: "N", Shortcut: "/" + strings.Repeat("a", 100), Body: "x"},
+		{Folder: "F", Name: "N", Shortcut: "/a", Body: strings.Repeat("b", 20001)},
+	} {
+		res, body := ada.caveTextSend(http.MethodPost, "snippets", token, sn)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+		res, body = ada.caveTextSend(http.MethodPut, fmt.Sprintf("snippets/%d", kept.ID), token, sn)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+		res, body = ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": []snippet{sn}})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+	}
+	if n := len(ada.snippets(token)); n != 1 {
+		t.Fatalf("Snippets = %d, want only the one that fits", n)
+	}
+}
+
+// The clash check runs under the account's row lock, so a full Pro import must not check its shortcuts pair by pair.
+func TestAProImportOfTwoThousandSnippetsChecksTheirShortcutsQuickly(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.givePro("ada@example.com")
+	set := make([]snippet, 2000)
+	for i := range set {
+		set[i] = snippet{Folder: "F", Name: fmt.Sprintf("I%d", i), Shortcut: fmt.Sprintf("/i%04d", i), Body: "x"}
+	}
+	set[len(set)-1].Shortcut = "/I0000" // the last clashes with the first, so every shortcut is checked
+	start := time.Now()
+	res, body := ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": set})
+	took := time.Since(start)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `"I0\" already uses /i0000."`)
+	if took > time.Second {
+		t.Fatalf("the import took %v, want under a second", took)
 	}
 }
