@@ -75,7 +75,7 @@
                 <span class="ls-n">{{if $l.Completed}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{end}}</span>
                 <span class="ls-t">{{if $member}}<a href="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}">{{$l.Title}}</a>{{else}}{{$l.Title}}{{end}}{{if not $l.Published}} <span class="badge badge-closed">{{t $.Lang "course.lesson-draft"}}</span>{{end}}{{if $l.Completed}} <span class="sr">{{t $.Lang "course.lesson-complete"}}</span>{{end}}</span>
                 {{if and $.Enrolled $l.Published}}
-                <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}/{{if $l.Completed}}incomplete{{else}}complete{{end}}"><button class="btn btn-quiet btn-sm btn-done{{if $l.Completed}} is-done{{end}}">{{if $l.Completed}}{{t $.Lang "course.mark-incomplete"}}{{else}}{{t $.Lang "course.mark-complete"}}{{end}}</button></form>
+                <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{$l.ID}}/{{if $l.Completed}}incomplete{{else}}complete{{end}}"><button class="btn btn-quiet btn-sm btn-done{{if $l.Completed}} is-done{{end}}">{{if $l.Completed}}{{t $.Lang "course.mark-incomplete"}}{{else}}{{t $.Lang "course.mark-complete"}}{{end}}<span class="sr">: {{$l.Title}}</span></button></form>
                 {{else}}<span></span>{{end}}
               </div>
             </li>
