@@ -753,7 +753,7 @@ var catalog = map[string]entry{
 	},
 	"lab.err.too-many-merges": {
 		en: "This workbook has too many merged cells: the Lab reads up to %s merged ranges. Unmerge the cells you do not need (Home, Merge & Center), and upload again.",
-		ms: "Buku kerja ini mempunyai terlalu banyak sel bercantum: Lab membaca sehingga %s julat bercantum. Nyahcantum sel yang tidak diperlukan (Home, Merge & Center), dan muat naik semula.",
+		ms: "Buku kerja ini mempunyai terlalu banyak sel bergabung: Lab membaca sehingga %s julat bergabung. Nyahgabung sel yang tidak diperlukan (Home, Merge & Center), dan muat naik semula.",
 	},
 	"lab.err.storage-full": {
 		en: "This %s file would take you over your Storage allowance: your Datasets use %s of your %s. Delete a Dashboard you no longer need, or upload a smaller file.",

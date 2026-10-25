@@ -462,19 +462,38 @@ func (res *CleanUp) change(key string, args ...int) {
 // each row would take gigabytes, and excelize joins overlapping merges pairwise, in time the square of their count.
 type layout struct {
 	merges [][4]int // each merged range as 0-based [top row, left column, bottom row, right column]
-	dates  []int    // the cells whose number format shows a date, as 0-based row<<14 | column, sorted
+	// A cell's style is its own, else its row's, else its column's, as excelize gives it. Each is kept as whether
+	// its number format shows a date.
+	cells []int        // the cells with a style of their own, as (0-based row*excelize.MaxColumns + column)<<1 | date, sorted
+	rows  map[int]bool // by 0-based row
+	cols  []styledCols
+}
+
+// styledCols are the columns from min to max, 1-based, that have a style.
+type styledCols struct {
+	min, max int
+	date     bool
 }
 
 // date reports whether the cell at 0-based row and col shows a date.
 func (l layout) date(row, col int) bool {
-	_, ok := slices.BinarySearch(l.dates, row<<14|col)
-	return ok
+	key := row*excelize.MaxColumns + col
+	if i, ok := slices.BinarySearchFunc(l.cells, key, func(e, k int) int { return cmp.Compare(e>>1, k) }); ok {
+		return l.cells[i]&1 == 1
+	}
+	if date, ok := l.rows[row]; ok {
+		return date
+	}
+	if i := slices.IndexFunc(l.cols, func(c styledCols) bool { return c.min <= col+1 && col+1 <= c.max }); i >= 0 {
+		return l.cols[i].date
+	}
+	return false
 }
 
-// readLayout reads sheet's layout, stopping once it has more than MaxMerges merges. A sheet it cannot find or read
-// has none, as excelize then reads no cells from it either.
+// readLayout reads sheet's layout, stopping once it has more than MaxMerges merges. A sheet whose part it cannot
+// find or read has none.
 func readLayout(f *excelize.File, sheet string) layout {
-	var l layout
+	l := layout{rows: map[int]bool{}}
 	b := sheetPart(f, sheet)
 	if b == nil {
 		return l
@@ -482,45 +501,56 @@ func readLayout(f *excelize.File, sheet string) layout {
 	d := xml.NewDecoder(bytes.NewReader(b))
 	d.CharsetReader = f.CharsetReader
 	isDate := map[int]bool{} // by style
-	row, col := 0, 0         // the cell's, 1-based, counted as excelize counts them
+	date := func(style int) bool {
+		if _, ok := isDate[style]; !ok {
+			isDate[style] = dateFormat(f, style)
+		}
+		return isDate[style]
+	}
+	row, col := 0, 0 // the cell's, 1-based, counted as excelize counts them
 	for len(l.merges) <= MaxMerges {
 		tok, err := d.Token()
 		if err != nil {
-			break
+			break // as excelize stops reading a sheet at its first bad token
 		}
 		el, ok := tok.(xml.StartElement)
 		if !ok {
 			continue
 		}
-		attr := func(name string) string {
-			for _, a := range el.Attr {
-				if a.Name.Local == name {
-					return a.Value
-				}
-			}
-			return ""
+		attrs := map[string]string{}
+		for _, a := range el.Attr {
+			attrs[a.Name.Local] = a.Value
 		}
+		style, _ := strconv.Atoi(attrs["s"])
 		switch el.Name.Local {
 		case "row":
-			if row, col = row+1, 0; attr("r") != "" {
-				row, _ = strconv.Atoi(attr("r"))
+			if row, col = row+1, 0; attrs["r"] != "" {
+				if r, err := strconv.Atoi(attrs["r"]); err == nil && r > 0 {
+					row = r
+				}
+			}
+			if style != 0 && row <= excelize.TotalRows {
+				l.rows[row-1] = date(style)
 			}
 		case "c":
-			if col++; attr("r") != "" {
-				col, _, _ = excelize.CellNameToCoordinates(attr("r"))
+			if col++; attrs["r"] != "" {
+				col, _, _ = excelize.CellNameToCoordinates(attrs["r"])
 			}
-			style, err := strconv.Atoi(attr("s"))
-			if err != nil || style == 0 || row < 1 || col < 1 {
-				continue
+			if style != 0 && row >= 1 && col >= 1 && col <= excelize.MaxColumns {
+				key := ((row-1)*excelize.MaxColumns + col - 1) << 1
+				if date(style) {
+					key |= 1
+				}
+				l.cells = append(l.cells, key)
 			}
-			if _, ok := isDate[style]; !ok {
-				isDate[style] = dateFormat(f, style)
-			}
-			if isDate[style] {
-				l.dates = append(l.dates, (row-1)<<14|(col-1))
+		case "col":
+			lo, _ := strconv.Atoi(attrs["min"])
+			hi, _ := strconv.Atoi(attrs["max"])
+			if style, _ := strconv.Atoi(attrs["style"]); style != 0 {
+				l.cols = append(l.cols, styledCols{lo, hi, date(style)})
 			}
 		case "mergeCell":
-			from, to, _ := strings.Cut(attr("ref"), ":")
+			from, to, _ := strings.Cut(attrs["ref"], ":")
 			c1, r1, err1 := excelize.CellNameToCoordinates(from)
 			c2, r2, err2 := excelize.CellNameToCoordinates(to)
 			if err1 == nil && err2 == nil {
@@ -528,7 +558,7 @@ func readLayout(f *excelize.File, sheet string) layout {
 			}
 		}
 	}
-	slices.Sort(l.dates)
+	slices.Sort(l.cells)
 	return l
 }
 
@@ -558,7 +588,7 @@ func sheetPart(f *excelize.File, sheet string) []byte {
 		return ""
 	}
 	book := strings.TrimPrefix(target(part("_rels/.rels"), func(_, typ string) bool {
-		return typ == excelize.SourceRelationshipOfficeDocument
+		return typ == excelize.SourceRelationshipOfficeDocument || typ == excelize.StrictSourceRelationshipOfficeDocument
 	}), "/")
 	id := ""
 	if f.WorkBook != nil {
@@ -572,7 +602,7 @@ func sheetPart(f *excelize.File, sheet string) []byte {
 	if book == "" || id == "" {
 		return nil
 	}
-	to := target(part(path.Join(path.Dir(book), "_rels", path.Base(book)+".rels")), func(rid, _ string) bool { return rid == id })
+	to := strings.ReplaceAll(target(part(path.Join(path.Dir(book), "_rels", path.Base(book)+".rels")), func(rid, _ string) bool { return rid == id }), "\\", "/")
 	if to == "" {
 		return nil
 	}
@@ -677,8 +707,14 @@ func cutOff(cells [][]string, h, first int, res *CleanUp) ([][]string, error) {
 	}
 	rows := end(widest)
 	width := widest
+	used := make([]bool, widest) // whether each column has a filled cell from the header down, read in one pass
+	for _, row := range cells[h:rows] {
+		for c, v := range row {
+			used[c] = used[c] || strings.TrimSpace(v) != ""
+		}
+	}
 	for c := max(slices.IndexFunc(cells[h], func(v string) bool { return strings.TrimSpace(v) != "" }), 0); c < widest; c++ {
-		if !slices.ContainsFunc(cells[h:rows], func(row []string) bool { return c < len(row) && strings.TrimSpace(row[c]) != "" }) {
+		if !used[c] {
 			width = c
 			break
 		}
