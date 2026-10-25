@@ -522,7 +522,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotDownloadACourseMembersFile(t *testing.T
 	ada.post("/courses/"+id+"/join", nil)
 	res, body := ada.get(file)
 	expectStatus(t, res, body, http.StatusOK, "")
-	ada.post("/courses/"+id+"/leave", nil)
+	ada.leaveCourse(id)
 	res, body = ada.get(file)
 	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
 

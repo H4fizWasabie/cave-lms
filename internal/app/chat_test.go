@@ -108,7 +108,7 @@ func TestOthersAreRefusedACoursesChat(t *testing.T) {
 
 	// Leaving ends access, but the Learner's Messages stay with their name.
 	ada.say(id, "Bye all")
-	expectStatus(t, must(ada.post("/courses/"+id+"/leave", nil)), "", http.StatusSeeOther, "")
+	expectStatus(t, must(ada.leaveCourse(id)), "", http.StatusSeeOther, "")
 	res, body = ada.get("/courses/" + id + "/chat")
 	expectStatus(t, res, body, http.StatusForbidden, "")
 	_, body = admin.get("/courses/" + id + "/chat")

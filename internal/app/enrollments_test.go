@@ -20,6 +20,11 @@ func (s *site) courseIDByTitle(title string) string {
 	return m[1]
 }
 
+// leaveCourse is the logged-in Learner leaving a Course through its confirmation page.
+func (s *site) leaveCourse(courseID string) (*http.Response, string) {
+	return s.post("/courses/"+courseID+"/leave", url.Values{"confirm": {"yes"}})
+}
+
 // enrollmentCount counts the Enrollments of a Learner in a Course, read straight from the database.
 func (s *site) enrollmentCount(learnerEmail, courseID string) int {
 	s.t.Helper()
@@ -183,7 +188,7 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 		t.Fatalf("My Courses shows the empty message to a Learner with Courses: %s", body)
 	}
 
-	s.post("/courses/"+goID+"/leave", nil)
+	s.leaveCourse(goID)
 	res, body = s.get("/my-courses")
 	if strings.Contains(content(body), "Go Basics") {
 		t.Fatalf("My Courses still lists a Course Ada left: %s", body)

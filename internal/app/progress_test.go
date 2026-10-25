@@ -148,7 +148,7 @@ func TestLeavingAndRejoiningKeepsCompletions(t *testing.T) {
 	s.post("/courses/"+id+"/join", nil)
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 
-	s.post("/courses/"+id+"/leave", nil)
+	s.leaveCourse(id)
 	res, body := s.markLesson(id, s.lessonIDByTitle("Functions"), true)
 	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to mark its Lessons complete.")
 	s.post("/courses/"+id+"/join", nil)
@@ -169,7 +169,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotOpenLessons(t *testing.T) {
 	res, body := ada.get(lessonPath)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Variables</h1>")
 
-	ada.post("/courses/"+id+"/leave", nil)
+	ada.leaveCourse(id)
 	res, body = ada.get(lessonPath)
 	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to open its Lessons.")
 

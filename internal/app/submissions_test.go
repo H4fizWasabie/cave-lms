@@ -240,7 +240,7 @@ func TestALearnerWhoLeftTheCourseKeepsTheirFilesReadOnly(t *testing.T) {
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	link := ada.fileLinks(path)[0]
 	courseID := strings.Split(path, "/")[2]
-	ada.post("/courses/"+courseID+"/leave", nil)
+	ada.leaveCourse(courseID)
 
 	res, body := ada.get(link)
 	expectStatus(t, res, body, http.StatusOK, string(pdfHandIn))
@@ -300,7 +300,7 @@ func TestTheAdminSeesWhoHandedInAndDownloadsTheirFiles(t *testing.T) {
 	cy.loginAsNewLearner("Cy Young", "cy@example.com", "correct horse battery")
 	cy.post("/courses/"+courseID+"/join", nil)
 	cy.postFiles(path+"/files", upload{"cy.png", pngHandIn})
-	cy.post("/courses/"+courseID+"/leave", nil)
+	cy.leaveCourse(courseID)
 	dan := admin.second()
 	dan.loginAsNewLearner("Dan Brown", "dan@example.com", "correct horse battery")
 
