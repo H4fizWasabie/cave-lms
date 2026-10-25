@@ -109,7 +109,7 @@ func (s *site) sitWritten(courseID, answer string) (string, []string) {
 	attempt := res.Header.Get("Location")
 	_, body = s.get(attempt)
 	qids := attemptQuestionIDs(body)
-	form := url.Values{}
+	form := url.Values{"confirm": {"yes"}} // a blank answer is submitted without asking
 	for _, qid := range qids {
 		form.Set("answer-"+qid, answer)
 	}

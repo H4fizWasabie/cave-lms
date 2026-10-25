@@ -36,6 +36,9 @@ type attemptQuestion struct {
 	Reason      string `json:",omitempty"` // the AI's one-line reason for Mark, empty once an Admin sets it
 }
 
+// Blank reports whether the Learner left the question unanswered.
+func (q attemptQuestion) Blank() bool { return q.Chosen < 0 && q.Answer == "" }
+
 // Marked reports whether the Written question has a mark.
 func (q attemptQuestion) Marked() bool { return q.Mark != nil }
 
@@ -69,6 +72,17 @@ type examAttempt struct {
 	Released    bool
 	Score       int // percent, set when Released
 	Passed      bool
+	Blank       int // questions left unanswered, set only while asking the Learner to confirm submitting them
+}
+
+// FirstBlank is the number, from 1, of the first question left unanswered, 0 when none is.
+func (att examAttempt) FirstBlank() int {
+	for i, q := range att.Questions {
+		if q.Blank() {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 // attemptColumns must be scanned by scanAttempt.
@@ -104,6 +118,7 @@ type examStatus struct {
 	Pending  *examAttempt // submitted, its Result not yet released
 	Best     int
 	HasBest  bool
+	Asked    int // questions an attempt asks: the first attempt's, or the draw count of the published pool before one
 }
 
 // maxAttempts is the Learner's attempt limit, the Exam's plus any the Admin gave, 0 for unlimited.
@@ -126,6 +141,25 @@ func (s examStatus) AttemptsLeft(lang string) string {
 		return text.T(lang, "exam.unlimited")
 	}
 	return strconv.Itoa(max(s.maxAttempts()-s.Used, 0))
+}
+
+// StartNote says, in lang, how many attempts the Learner has used and what starting one more uses, empty for a first
+// attempt at an Exam with unlimited attempts.
+func (s examStatus) StartNote(lang string) string {
+	limit := s.maxAttempts()
+	switch {
+	case limit == 0 && s.Used == 1:
+		return text.T(lang, "exam.used-one")
+	case limit == 0 && s.Used > 1:
+		return text.T(lang, "exam.used-many", s.Used)
+	case limit == 0:
+		return ""
+	case s.Used == 0:
+		return text.T(lang, "exam.starting-uses", limit)
+	case limit-s.Used == 1:
+		return text.T(lang, "exam.used-last", s.Used, limit)
+	}
+	return text.T(lang, "exam.used-of", s.Used, limit, limit-s.Used)
 }
 
 // Blocker is the first reason, in lang, the Learner may not start an attempt, empty when they may.
@@ -171,6 +205,22 @@ func (a *App) examStatusFor(ctx context.Context, l *learner, c course, e exam) (
 	err = a.db.QueryRowContext(ctx,
 		`SELECT max(score) FROM exam_attempts WHERE learner_id = $1 AND exam_id = $2`, l.ID, e.ID).Scan(&best)
 	s.Best, s.HasBest = int(best.Int64), best.Valid
+	if err != nil {
+		return s, err
+	}
+	err = a.db.QueryRowContext(ctx, `SELECT jsonb_array_length(questions) FROM exam_attempts
+		WHERE learner_id = $1 AND exam_id = $2 ORDER BY id LIMIT 1`, l.ID, e.ID).Scan(&s.Asked)
+	if errors.Is(err, sql.ErrNoRows) {
+		for _, q := range e.Questions {
+			if !q.Draft {
+				s.Asked++
+			}
+		}
+		if n, _ := strconv.Atoi(e.DrawCount); n < s.Asked {
+			s.Asked = n
+		}
+		err = nil
+	}
 	return s, err
 }
 
@@ -422,6 +472,19 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 			q.Chosen = slot
 		}
 	}
+	// Blank answers are asked about first, the answers given shown again. Once time is up (the timer submits at zero)
+	// the attempt is submitted as it is.
+	if !confirmed(r) && (att.TimeLimit == 0 || att.SecondsLeft > 0) {
+		for _, q := range att.Questions {
+			if q.Blank() {
+				att.Blank++
+			}
+		}
+		if att.Blank > 0 {
+			a.render(w, r, http.StatusOK, "exam_attempt", page{Course: &c, Exam: &e, Learner: learner, Attempt: &att})
+			return
+		}
+	}
 	raw, err := json.Marshal(att.Questions)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -480,6 +543,7 @@ type myExam struct {
 	Attempted   bool // a finished attempt exists, so Best is meaningful
 	Best        int
 	Passed      bool
+	Awaiting    bool // an attempt is submitted and its Result not yet released
 }
 
 // myExamsPage lists the Exams of the Learner's Courses.
@@ -497,14 +561,16 @@ func (a *App) myExams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := a.db.QueryContext(r.Context(), `
-		SELECT c.id, x.format, c.title, x.pass_mark, max(t.score) IS NOT NULL, COALESCE(max(t.score), 0), COALESCE(bool_or(t.passed), false)
+		SELECT c.id, x.format, c.title, x.pass_mark, max(t.score) IS NOT NULL, COALESCE(max(t.score), 0), COALESCE(bool_or(t.passed), false),
+			EXISTS (SELECT 1 FROM exam_attempts WHERE exam_id = x.id AND learner_id = e.learner_id
+				AND released_at IS NULL AND `+submittedAtSQL+` IS NOT NULL)
 		FROM enrollments e
 		JOIN courses c ON c.id = e.course_id
 		JOIN exams x ON x.course_id = c.id
 		LEFT JOIN exam_attempts t ON t.exam_id = x.id AND t.learner_id = e.learner_id
 		WHERE e.learner_id = $1
 		  AND EXISTS (SELECT 1 FROM exam_questions q WHERE q.exam_id = x.id AND NOT q.is_draft)
-		GROUP BY c.id, c.title, x.id
+		GROUP BY c.id, c.title, x.id, e.learner_id
 		ORDER BY c.title, c.id, x.format`, learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -515,7 +581,7 @@ func (a *App) myExams(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var e myExam
 		var x exam
-		if err := rows.Scan(&x.CourseID, &x.Format, &e.CourseTitle, &e.PassMark, &e.Attempted, &e.Best, &e.Passed); err != nil {
+		if err := rows.Scan(&x.CourseID, &x.Format, &e.CourseTitle, &e.PassMark, &e.Attempted, &e.Best, &e.Passed, &e.Awaiting); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

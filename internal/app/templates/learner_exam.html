@@ -8,6 +8,7 @@
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{with .Status}}
         <ul class="x-facts">
+          <li><strong class="num">{{.Asked}}</strong>{{t $.Lang "exam.questions" .Asked}}</li>
           <li><strong>{{.Exam.PassMark}}%</strong>{{t $.Lang "exam.pass-mark" .Exam.PassMark}}</li>
           <li><strong>{{with .Exam.TimeLimit}}{{t $.Lang "exam.minutes-short" .}}{{else}}{{t $.Lang "exam.none"}}{{end}}</strong>{{with .Exam.TimeLimit}}{{t $.Lang "exam.time-limit" .}}{{else}}{{t $.Lang "exam.no-time-limit"}}{{end}}</li>
           <li><strong>{{.AttemptsLeft $.Lang}}</strong>{{t $.Lang "exam.attempts-left" (.AttemptsLeft $.Lang)}}</li>
@@ -17,6 +18,7 @@
         <a class="btn btn-solid btn-lg" href="{{.Exam.Path (printf "/attempts/%d" .Open.ID)}}">{{t $.Lang "exam.continue"}}</a>
         {{else}}
         {{with .Blocker $.Lang}}<p class="x-help">{{.}}</p>{{else}}
+        {{with .StartNote $.Lang}}<p class="x-help">{{.}}</p>{{end}}
         <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}

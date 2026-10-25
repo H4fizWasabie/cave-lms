@@ -1442,3 +1442,24 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 /* === Page: IC before the first Exam attempt (#316) === */
 .cp-card .callout { margin: 0; }
+
+/* === Page: Exam safeguards (#319) === */
+.x-top { flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.x-count { font-variant-numeric: tabular-nums; }
+.x-warn { flex-basis: 100%; margin: 0; padding-top: var(--space-2); border-top: 1px solid var(--on-dark-line); color: var(--on-dark); }
+.x-warn:empty { display: none; }
+.x-q { scroll-margin-top: 4rem; }
+.x-qn { display: block; margin-bottom: var(--space-1); font-family: var(--font-body); font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
+.x-q.is-blank { border-color: var(--bad); }
+.x-unanswered { margin: 0; font-size: var(--fs-meta); font-weight: 600; color: var(--bad); }
+.x-blank { margin: 0; }
+.x-blank .i { flex-shrink: 0; }
+.x-blank .x-blank-title { font-size: var(--fs-body); font-weight: 700; }
+.x-blank .x-blank-go { margin-top: var(--space-2); }
+.x-blank .link-more { white-space: normal; }
+.x-submit-btns { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.x-facts { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  .x-facts { grid-template-columns: 1fr 1fr; }
+  .x-facts li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}

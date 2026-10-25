@@ -57,9 +57,10 @@ func (s *site) startExam(courseID string) (*http.Response, string) {
 	return s.post("/courses/"+courseID+"/exam/attempts", nil)
 }
 
-// submitExam posts answers keyed by question ID; the value is the option slot picked.
+// submitExam posts answers keyed by question ID; the value is the option slot picked. Any question left out is
+// submitted blank, confirmed (submitting blanks is otherwise asked about first).
 func (s *site) submitExam(attemptPath string, answers map[string]string) (*http.Response, string) {
-	form := url.Values{}
+	form := url.Values{"confirm": {"yes"}}
 	for qid, slot := range answers {
 		form.Set("answer-"+qid, slot)
 	}
