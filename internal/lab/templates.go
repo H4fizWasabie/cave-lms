@@ -2,7 +2,6 @@ package lab
 
 import (
 	_ "embed"
-	"fmt"
 	"slices"
 	"strings"
 )
@@ -45,7 +44,7 @@ type Block struct {
 	Kind   string   `json:"kind"` // card, line, bar, donut, table
 	Label  string   `json:"label"`
 	Icon   string   `json:"icon,omitempty"`   // card: one of Icons
-	Agg    string   `json:"agg,omitempty"`    // card: count or sum; distinct counts Of's values (Work Templates only)
+	Agg    string   `json:"agg,omitempty"`    // card: count or sum; distinct counts Of's values, avg averages them (Work Templates only)
 	Of     string   `json:"of,omitempty"`     // the Number blank summed; counts rows when empty
 	X      string   `json:"x,omitempty"`      // line: the Date blank, by month
 	By     string   `json:"by,omitempty"`     // line: day, else month (Work Templates only)
@@ -169,45 +168,9 @@ var generalSample []byte
 var General = &Template{
 	Key:    "general",
 	Name:   "General",
-	Blurb:  "Any table. No blanks to fill: Cave builds the charts from your column types.",
+	Blurb:  "Any table. No blanks to fill: Cave builds the charts from your columns and their values.",
 	Build:  buildGeneral,
 	Sample: generalSample,
-}
-
-// buildGeneral makes one blank per column, filled by that column: a card per Number column, a bar
-// chart for the first Text column, a line chart by month for the first Date column, and a table.
-func buildGeneral(d *Dataset) (*Template, Choices) {
-	t, c := &Template{}, Choices{}
-	first := map[Type]string{}
-	var cols []string
-	for i, col := range d.Columns {
-		key := fmt.Sprintf("c%d", i+1)
-		t.Blanks = append(t.Blanks, Blank{Key: key, Label: col.Name, Type: col.Type})
-		c[key] = col.Name
-		cols = append(cols, key)
-		if first[col.Type] == "" {
-			first[col.Type] = key
-		}
-		if col.Type == Number {
-			t.Blocks = append(t.Blocks, Block{Kind: "card", Label: col.Name, Icon: "chart-up", Agg: "sum", Of: key})
-		}
-	}
-	measure := "Rows"
-	if k := first[Number]; k != "" {
-		measure = c[k]
-	}
-	if k := first[Text]; k != "" {
-		t.Blocks = append(t.Blocks, Block{Kind: "bar", Label: measure + " by " + c[k], Group: k, Of: first[Number]})
-		t.Filters = append(t.Filters, k)
-	}
-	table := Block{Kind: "table", Label: "Rows", Cols: cols, Limit: 10}
-	if k := first[Date]; k != "" {
-		t.Blocks = append(t.Blocks, Block{Kind: "line", Label: measure + " by month", X: k, Of: first[Number], Wide: true})
-		t.Filters = append(t.Filters, k)
-		table.Label, table.Sort = "Latest rows", k
-	}
-	t.Blocks = append(t.Blocks, table)
-	return t, c
 }
 
 //go:embed samples/sales.xlsx

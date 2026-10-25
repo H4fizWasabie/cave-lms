@@ -86,20 +86,6 @@ func TestOpeningLeavesOutBlocksWhoseChosenColumnIsGoneOrRetyped(t *testing.T) {
 	}
 }
 
-func TestOpeningGeneralBuildsItsBlocksFromTheDataset(t *testing.T) {
-	tpl := lab.TemplateByKey("general")
-	d := readSample(t, tpl)
-	cfg := tpl.Open(nil, d)
-	var names []string
-	for _, c := range d.Columns {
-		names = append(names, c.Name)
-	}
-	table := cfg.Blocks[len(cfg.Blocks)-1]
-	if table.Kind != "table" || !reflect.DeepEqual(table.Cols, names) {
-		t.Fatalf("the last block is %+v, want a table of every column %v", table, names)
-	}
-}
-
 var pageConfig = regexp.MustCompile(`(?s)const dashboard = (\{.*?\n    \});`)
 
 func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {

@@ -122,7 +122,7 @@ func TestGeneralNeedsNoColumnChoices(t *testing.T) {
 		}
 	}
 	res, body := ada.get(path + "/view/")
-	for _, want := range []string{`"Unit by Cawangan"`, `"Unit by month"`, `"Latest rows"`} {
+	for _, want := range []string{`"Jualan by Cawangan"`, `"Jualan by month"`, `"Latest rows"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }

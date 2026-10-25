@@ -483,3 +483,30 @@ func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
 		}
 	}
 }
+
+// stockFile is a stock list General reads by column roles: a unique SKU, a category, a unit price and a quantity.
+func stockFile(t *testing.T) []byte {
+	t.Helper()
+	var rows [][]any
+	for i := range 12 {
+		rows = append(rows, []any{fmt.Sprintf("SKU-%02d", i), []string{"Makanan", "Minuman", "Snek"}[i%3], float64(2 + i%4), float64(10 + i)})
+	}
+	return testutil.XLSX(t, []string{"SKU", "Kategori", "Unit Price", "Kuantiti"}, rows...)
+}
+
+func TestThePreviewSaysWhichColumnsGeneralLeavesOutOfChartsOrAverages(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("general", "Stor")
+	res, body := ada.postFile(path+"/dataset", "stok.xlsx", stockFile(t))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path)
+	for _, want := range []string{"How Cave reads your columns", "SKU: an ID or code, so it&#39;s only in the table.",
+		"Unit Price: a price, rate, balance or level, so it&#39;s averaged, not added up."} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	res, body = ada.getAsking(path, "ms")
+	for _, want := range []string{"Cara Cave membaca lajur anda", "SKU: ID atau kod, jadi ia hanya dalam jadual.",
+		"Unit Price: harga, kadar, baki atau paras, jadi puratanya diambil, bukan dijumlahkan."} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
