@@ -232,8 +232,9 @@ func openWorkbook(r io.Reader) (*excelize.File, error) {
 	if unzipped > MaxUnzipped {
 		return nil, Problem{"lab.err.too-big-unzipped", nil}
 	}
-	// The limit holds while excelize unpacks too: archive/zip refuses an entry longer than its header claims.
-	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped})
+	// The limit holds while excelize unpacks too: archive/zip refuses an entry longer than its header claims. Every
+	// part stays in memory, in f.Pkg, so readLayout can read a sheet's XML however big.
+	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped, UnzipXMLSizeLimit: MaxUnzipped})
 	if err != nil {
 		return nil, Problem{"lab.err.not-workbook", nil}
 	}
@@ -264,8 +265,7 @@ func columnsOf(header []string) ([]Column, error) {
 
 // rawRows is every row with data below the header at cells[h], as wide as the widest row and at least width,
 // with its row number in Excel. Fully blank rows are skipped.
-func rawRows(f *excelize.File, sheet string, cells [][]string, h, width int) (raw [][]cell, rowNo []int) {
-	dates := dateStyles{f: f, sheet: sheet, known: map[int]bool{}}
+func rawRows(l layout, cells [][]string, h, width int) (raw [][]cell, rowNo []int) {
 	for ri := h + 1; ri < len(cells); ri++ {
 		row := cells[ri]
 		if strings.TrimSpace(strings.Join(row, "")) == "" {
@@ -274,7 +274,7 @@ func rawRows(f *excelize.File, sheet string, cells [][]string, h, width int) (ra
 		vals := make([]cell, max(len(row), width))
 		for ci, v := range row {
 			v = strings.TrimSpace(v)
-			vals[ci] = cell{v, v != "" && dates.at(ci, ri+1)}
+			vals[ci] = cell{v, v != "" && l.date(ri, ci)}
 		}
 		raw, rowNo = append(raw, vals), append(rowNo, ri+1)
 	}
@@ -351,36 +351,19 @@ func colLetter(i int) string {
 	return name
 }
 
-// dateStyles tells whether a cell's number format shows a date, caching the answer per style.
-type dateStyles struct {
-	f     *excelize.File
-	sheet string
-	known map[int]bool
-}
-
 var quotedOrBracketed = regexp.MustCompile(`"[^"]*"|\[[^\]]*\]`)
 
-func (s dateStyles) at(col, row int) bool {
-	cell, _ := excelize.CoordinatesToCellName(col+1, row)
-	idx, err := s.f.GetCellStyle(s.sheet, cell)
-	if err != nil {
+// dateFormat reports whether style idx's number format shows a date.
+func dateFormat(f *excelize.File, idx int) bool {
+	style, err := f.GetStyle(idx)
+	switch {
+	case err != nil:
 		return false
+	case style.CustomNumFmt != nil:
+		// ponytail: a custom format with a y or d outside quotes and brackets is a date; minutes-only formats are not.
+		code := strings.ToLower(quotedOrBracketed.ReplaceAllString(*style.CustomNumFmt, ""))
+		return strings.ContainsAny(code, "yd")
 	}
-	if is, ok := s.known[idx]; ok {
-		return is
-	}
-	is := false
-	if style, err := s.f.GetStyle(idx); err == nil {
-		switch {
-		case style.CustomNumFmt != nil:
-			// ponytail: a custom format with a y or d outside quotes and brackets is a date; minutes-only formats are not.
-			code := strings.ToLower(quotedOrBracketed.ReplaceAllString(*style.CustomNumFmt, ""))
-			is = strings.ContainsAny(code, "yd")
-		default:
-			n := style.NumFmt
-			is = (n >= 14 && n <= 17) || n == 22 || (n >= 27 && n <= 36) || (n >= 50 && n <= 58)
-		}
-	}
-	s.known[idx] = is
-	return is
+	n := style.NumFmt
+	return (n >= 14 && n <= 17) || n == 22 || (n >= 27 && n <= 36) || (n >= 50 && n <= 58)
 }
