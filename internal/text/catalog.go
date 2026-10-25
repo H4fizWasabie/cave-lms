@@ -2078,6 +2078,92 @@ var catalog = map[string]entry{
 		en: "Learning AI is not just knowing how to use it. Learning AI means being able to create something truly useful.",
 		ms: "Belajar AI bukan sekadar tahu menggunakannya. Belajar AI bermaksud mampu menghasilkan sesuatu yang benar-benar berguna.",
 	},
+	"home.learn.title":   {en: "What Can You Learn at CAVELMS?", ms: "Apa Yang Boleh Dipelajari di CAVELMS?"},
+	"home.learn.1.title": {en: "Generative AI & Workplace Productivity", ms: "Generative AI & Workplace Productivity"},
+	"home.learn.1.p1": {
+		en: "Learn how to use ChatGPT, Google Gemini and other Generative AI tools to make daily tasks easier, produce documents, prepare reports, analyse information and work more efficiently.",
+		ms: "Pelajari cara menggunakan ChatGPT, Google Gemini dan pelbagai teknologi Generative AI untuk memudahkan tugasan harian, menghasilkan dokumen, menyediakan laporan, menganalisis maklumat dan meningkatkan kecekapan kerja.",
+	},
+	"home.learn.1.p2": {
+		en: "The learning is built around real work situations, so users can put what they learn to use straight away.",
+		ms: "Pembelajaran disusun berdasarkan situasi pekerjaan sebenar supaya pengguna dapat terus mengaplikasikan kemahiran yang dipelajari.",
+	},
+	"home.learn.2.title": {en: "Digital eBooks & Practical Learning Resources", ms: "eBook Digital & Practical Learning Resources"},
+	"home.learn.2.p1": {
+		en: "Explore a collection of digital eBooks that combine explanations of concepts, step-by-step guides, infographics, worked examples and practical exercises.",
+		ms: "Terokai koleksi eBook digital yang menggabungkan penerangan konsep, panduan langkah demi langkah, infografik, contoh aplikasi dan latihan praktikal.",
+	},
+	"home.learn.2.p2": {
+		en: "Every learning resource is designed to help users understand a skill at their own level and their own pace.",
+		ms: "Setiap bahan pembelajaran direka untuk membantu pengguna memahami sesuatu kemahiran mengikut kemampuan dan masa masing-masing.",
+	},
+	"home.learn.3.title": {en: "Online Classes & AI Masterclass", ms: "Online Classes & AI Masterclass"},
+	"home.learn.3.p1": {
+		en: "Build your competence through online classes, structured tutorials, live learning sessions and masterclass programmes.",
+		ms: "Tingkatkan kompetensi melalui kelas online, tutorial berstruktur, sesi pembelajaran langsung dan program masterclass.",
+	},
+	"home.learn.3.p2": {
+		en: "The programmes cover the basics of Generative AI, Prompt Engineering, AI Productivity, Data Analytics, Dashboard Development and the use of AI across many fields of work.",
+		ms: "Program merangkumi asas Generative AI, Prompt Engineering, AI Productivity, Data Analytics, Dashboard Development dan aplikasi AI dalam pelbagai bidang pekerjaan.",
+	},
+	"home.learn.4.title": {en: "AI Dashboard Development & Data Analytics", ms: "AI Dashboard Development & Data Analytics"},
+	"home.learn.4.p1": {
+		en: "Learn to build dashboards with ChatGPT and Gemini Canvas, without needing deep programming experience.",
+		ms: "Belajar membina dashboard menggunakan ChatGPT dan Gemini Canvas tanpa perlu mempunyai pengalaman pengaturcaraan yang mendalam.",
+	},
+	"home.learn.4.p2": {
+		en: "Users are introduced to two main approaches to building dashboards.",
+		ms: "Pengguna akan diperkenalkan kepada dua pendekatan utama pembangunan dashboard.",
+	},
+	"home.static.title": {en: "Static Dashboard — Data Visualization & Reporting", ms: "Static Dashboard — Data Visualization & Reporting"},
+	"home.static.p1": {
+		en: "A Static Dashboard suits reports, visualisations and analysis based on a dataset that has already been prepared.",
+		ms: "Static Dashboard sesuai untuk menghasilkan laporan, visualisasi dan analisis berdasarkan set data yang telah disediakan.",
+	},
+	"home.static.p2": {
+		en: "Participants learn how to turn Excel or CSV data into a dashboard with KPIs, charts, tables and analytic summaries.",
+		ms: "Peserta mempelajari cara menukar data Excel atau CSV kepada dashboard yang mengandungi KPI, graf, jadual dan ringkasan analitik.",
+	},
+	"home.static.p3": {
+		en: "This approach suits periodic reports, management presentations and analysis that does not need data to be stored or updated continuously.",
+		ms: "Pendekatan ini sesuai untuk laporan berkala, pembentangan pengurusan dan analisis yang tidak memerlukan penyimpanan atau kemas kini data secara berterusan.",
+	},
+	"home.dynamic.title": {en: "Dynamic Dashboard — Live Data & Sustainable Applications", ms: "Dynamic Dashboard — Live Data & Sustainable Applications"},
+	"home.dynamic.p1": {
+		en: "A Dynamic Dashboard takes the learning to the next level.",
+		ms: "Dynamic Dashboard membawa pembelajaran ke tahap seterusnya.",
+	},
+	"home.dynamic.p2": {
+		en: "Participants learn how to build dashboards that take in new data, update records, store information in a database and show the latest analytics.",
+		ms: "Peserta mempelajari cara membangunkan dashboard yang boleh menerima data baharu, mengemas kini rekod, menyimpan maklumat dalam database dan memaparkan analitik terkini.",
+	},
+	"home.dynamic.p3": {
+		en: "The learning also introduces GitHub for managing code, Vercel for publishing web applications, and database integration such as Supabase.",
+		ms: "Pembelajaran turut memperkenalkan penggunaan GitHub untuk pengurusan kod, Vercel untuk penerbitan aplikasi web serta integrasi database seperti Supabase.",
+	},
+	"home.dynamic.p4": {
+		en: "The aim is to help users build dashboards that not only work when they are made, but can also be used, managed and maintained after the training.",
+		ms: "Matlamatnya adalah untuk membantu pengguna membangunkan dashboard yang bukan sahaja berfungsi ketika dihasilkan, tetapi juga boleh digunakan, diurus dan diselenggara selepas latihan.",
+	},
+	"home.learn.5.title": {en: "AI Skills for Educators & Professionals", ms: "AI Skills for Educators & Professionals"},
+	"home.learn.5.p1": {
+		en: "CAVELMS also focuses on the use of AI in education, organisational management, administration, human resource development and leadership.",
+		ms: "CAVELMS turut memberi tumpuan kepada aplikasi AI dalam pendidikan, pengurusan organisasi, pentadbiran, pembangunan sumber manusia dan kepimpinan.",
+	},
+	"home.learn.5.p2": {
+		en: "Learning grounded in real needs helps users build the confidence to use AI responsibly, effectively and in ways that fit their own roles.",
+		ms: "Pembelajaran berasaskan keperluan sebenar membantu pengguna membina keyakinan menggunakan AI secara bertanggungjawab, berkesan dan relevan dengan peranan masing-masing.",
+	},
+	"home.apply.title": {en: "From Learning to Real Application", ms: "Daripada Pembelajaran kepada Aplikasi Sebenar"},
+	"home.apply.p1": {
+		en: "At CAVELMS, learning does not end when a tutorial has been watched or an eBook has been read.",
+		ms: "Di CAVELMS, pembelajaran tidak berakhir apabila sesuatu tutorial selesai ditonton atau eBook selesai dibaca.",
+	},
+	"home.apply.p2": {
+		en: "We encourage users to try, build, test and use what they have learned to create solutions that bring value to their work and their organisations.",
+		ms: "Kami menggalakkan pengguna untuk mencuba, membina, menguji dan menggunakan pengetahuan yang diperoleh bagi menghasilkan penyelesaian yang memberi nilai kepada pekerjaan dan organisasi.",
+	},
+	"home.apply.note":       {en: "This is the CAVELMS approach to learning.", ms: "Inilah pendekatan pembelajaran CAVELMS."},
 	"home.programmes.title": {en: "Past programmes", ms: "Program terdahulu"},
 	"home.programmes.lede": {
 		en: "Programmes The Cave Consult has run for organisations and the public.",

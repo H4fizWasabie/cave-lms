@@ -1,10 +1,13 @@
 package app_test
 
 import (
+	"html"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/H4fizWasabie/cave-lms/internal/config"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 func TestTheHomePagesTrustStripShowsPlaceholdersForMissingNumbersOnlyOutsideProduction(t *testing.T) {
@@ -80,4 +83,58 @@ func TestTheMalayHomePagesButtonsAreInMalay(t *testing.T) {
 	expectNone(t, main, "Join Online Classes", "Explore eBooks", "Learn AI Dashboard Development")
 	_, body = s.getAsking("/", "en")
 	expectAll(t, content(body), "Join Online Classes", "Explore eBooks", "Learn AI Dashboard Development")
+}
+
+var homeAnchor = regexp.MustCompile(`href="/#([a-z-]+)"`)
+
+// The header's Home menu jumps to Welcome, Coach Adam and About CAVELMS on the home page: each lands on its section.
+func TestEveryHomeMenuLinkLandsOnItsSectionInBothLanguages(t *testing.T) {
+	s := newSite(t)
+	lands := map[string]map[string]string{
+		"en": {"welcome": "Welcome to CAVELMS", "coach": "Coach Adam Daniel", "about": "CAVELMS is a digital learning platform"},
+		"ms": {"welcome": "Selamat Datang ke CAVELMS", "coach": "Coach Adam Daniel", "about": "CAVELMS ialah platform pembelajaran digital"},
+	}
+	for lang, want := range lands {
+		_, body := s.getAsking("/", lang)
+		links := homeAnchor.FindAllStringSubmatch(header(t, body), -1)
+		if len(links) < len(want) {
+			t.Fatalf("%s header links to %d home sections, want %d", lang, len(links), len(want))
+		}
+		for _, m := range links {
+			id := m[1]
+			_, after, ok := strings.Cut(content(body), `id="`+id+`"`)
+			if !ok {
+				t.Errorf("%s home page has no section with id %q for the header's /#%s", lang, id, id)
+				continue
+			}
+			section, _, _ := strings.Cut(after, "<section")
+			if !strings.Contains(section, want[id]) {
+				t.Errorf("%s /#%s lands on a section without %q:\n%s", lang, id, want[id], section)
+			}
+		}
+	}
+}
+
+// Coach Adam's write-up is the client's marketing copy: the home page carries all of it, word for word, in both languages.
+func TestTheHomePageCarriesCoachAdamsWriteUpInBothLanguages(t *testing.T) {
+	s := newSite(t)
+	keys := []string{"home.learn.title"}
+	for _, n := range []string{"1", "2", "3", "4"} {
+		keys = append(keys, "home.learn."+n+".title", "home.learn."+n+".p1", "home.learn."+n+".p2")
+	}
+	keys = append(keys, "home.static.title", "home.static.p1", "home.static.p2", "home.static.p3",
+		"home.dynamic.title", "home.dynamic.p1", "home.dynamic.p2", "home.dynamic.p3", "home.dynamic.p4",
+		"home.learn.5.title", "home.learn.5.p1", "home.learn.5.p2",
+		"home.apply.title", "home.apply.p1", "home.apply.p2")
+	for lang, title := range map[string]string{"en": "What Can You Learn at CAVELMS?", "ms": "Apa Yang Boleh Dipelajari di CAVELMS?"} {
+		_, body := s.getAsking("/", lang)
+		main := content(body)
+		expectAll(t, main, title)
+		var wants []string
+		for _, k := range keys {
+			wants = append(wants, html.EscapeString(text.T(lang, k)))
+		}
+		wants = append(wants, "LEARN → APPLY → BUILD → SUSTAIN", html.EscapeString(text.T(lang, "home.apply.note")))
+		expectInOrder(t, main, wants...)
+	}
 }

@@ -88,7 +88,61 @@
       </div>
     </section>
 
+    <section class="section section-alt">
+      <div class="wrap">
+        <div class="home-head">
+          <h2>{{t .Lang "home.learn.title"}}</h2>
+        </div>
+        <ul class="home-learn">
+          <li>
+            <h3>{{t .Lang "home.learn.1.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.1.p1"}}</p><p>{{t .Lang "home.learn.1.p2"}}</p></div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.2.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.2.p1"}}</p><p>{{t .Lang "home.learn.2.p2"}}</p></div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.3.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.3.p1"}}</p><p>{{t .Lang "home.learn.3.p2"}}</p></div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.4.title"}}</h3>
+            <div>
+              <p>{{t .Lang "home.learn.4.p1"}}</p><p>{{t .Lang "home.learn.4.p2"}}</p>
+              <div class="home-learn-pair">
+                <div>
+                  <h4>{{t .Lang "home.static.title"}}</h4>
+                  <p>{{t .Lang "home.static.p1"}}</p><p>{{t .Lang "home.static.p2"}}</p><p>{{t .Lang "home.static.p3"}}</p>
+                </div>
+                <div>
+                  <h4>{{t .Lang "home.dynamic.title"}}</h4>
+                  <p>{{t .Lang "home.dynamic.p1"}}</p><p>{{t .Lang "home.dynamic.p2"}}</p><p>{{t .Lang "home.dynamic.p3"}}</p><p>{{t .Lang "home.dynamic.p4"}}</p>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.5.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.5.p1"}}</p><p>{{t .Lang "home.learn.5.p2"}}</p></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
     <section class="section">
+      <div class="wrap home-essay">
+        <h2>{{t .Lang "home.apply.title"}}</h2>
+        <div class="prose">
+          <p>{{t .Lang "home.apply.p1"}}</p>
+          <p>{{t .Lang "home.apply.p2"}}</p>
+          <p class="home-path" lang="en">LEARN → APPLY → BUILD → SUSTAIN</p>
+          <p class="home-path-note">{{t .Lang "home.apply.note"}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
       <div class="wrap">
         <div class="home-head">
           <h2>{{t .Lang "home.programmes.title"}}</h2>
@@ -108,7 +162,7 @@
       </div>
     </section>
 
-    <section class="section section-alt">
+    <section class="section">
       <div class="wrap home-cost">
         <div class="home-head">
           <h2>{{t .Lang "home.cost.title"}}</h2>
@@ -134,7 +188,7 @@
     </section>
 
     {{- if .Items}}
-    <section class="section">
+    <section class="section section-alt">
       <div class="wrap">
         <div class="home-head home-head-row">
           <div>

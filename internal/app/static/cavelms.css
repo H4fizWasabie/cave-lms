@@ -1091,7 +1091,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 /* === Page: Home (#314) === */
 /* Credentials first (variant B) in the editorial voice (variant A): a charcoal hero with the Certificate beside the
-   headline, a trust strip, the PCC pathway, Course cards, the Coach, the essay, past programmes, the cost comparison. */
+   headline, a trust strip, the PCC pathway, Course cards, the Coach, the essay, Coach Adam's write-up, past programmes,
+   the cost comparison. */
 .home-hero { background: var(--brand-ink); color: var(--on-dark); }
 .home-hero-in { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-8); align-items: center; padding-block: var(--space-8); }
 .home-hero h1 { color: var(--surface); }
@@ -1149,6 +1150,17 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .home-pull { margin: var(--space-5) 0 0; padding-top: var(--space-5); border-top: 1px solid var(--brand-gold); font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.35; color: var(--ink-2); }
 .home-essay .prose { font-size: var(--fs-lede); color: var(--ink-2); }
 
+/* Coach Adam's write-up, word for word: a ruled list with each topic's title beside its text, then the approach. */
+.home-learn { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--brand-ink); }
+.home-learn > li { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-3) var(--space-8); padding-block: var(--space-6); border-bottom: 1px solid var(--line); }
+.home-learn h3 { font-size: var(--fs-title); font-weight: 400; }
+.home-learn p { max-width: 44rem; color: var(--ink-2); }
+.home-learn p + p { margin-top: var(--space-3); }
+.home-learn-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); margin-top: var(--space-6); }
+.home-learn-pair h4 { margin: 0 0 var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line-strong); font-family: var(--font-display); font-size: var(--fs-lede); line-height: 1.3; color: var(--brand-ink); text-wrap: balance; }
+.home-essay .home-path { margin: var(--space-6) 0 var(--space-3); padding-block: var(--space-4); border-block: 1px solid var(--brand-ink); font-family: var(--font-display); font-size: var(--fs-heading); line-height: 1.3; letter-spacing: .04em; color: var(--brand-ink); text-wrap: balance; }
+.home-path-note { font-size: var(--fs-ui); color: var(--muted); }
+
 .past-programmes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); column-gap: var(--space-6); border-top: 1px solid var(--brand-ink); }
 .past-programmes li { padding-block: var(--space-3); border-bottom: 1px solid var(--line); font-weight: 600; }
 
@@ -1190,6 +1202,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .trust-in li:nth-child(-n+2) { border-top: 0; }
   .trust-in .trust-ph { padding-inline: var(--space-3); }
   .coach-photo { width: min(100%, 22rem); }
+  .home-learn > li { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 720px) {
@@ -1198,6 +1211,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .pcc-path { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-6); }
   .pcc-path::before { display: none; }
   .cert-preview { width: min(100%, 18rem); }
+  .home-learn-pair { grid-template-columns: minmax(0, 1fr); }
+  .home-essay .home-path { font-size: var(--fs-title); }
 }
 
 /* === Page: Public pages (#311) === */

@@ -25,7 +25,7 @@ func TestHomePage(t *testing.T) {
 	if !strings.Contains(body, "https://cave.example.invalid") {
 		t.Fatalf("home page did not render configured content: %s", body)
 	}
-	for _, want := range []string{"Selamat Datang ke CAVELMS", "Coach Adam", "Dikuasakan oleh The Cave Consult (TCC)", "Program terdahulu", "Certified Professional in Generative AI (CPGAI)"} {
+	for _, want := range []string{"Selamat Datang ke CAVELMS", "LEARN → APPLY → BUILD → SUSTAIN", "Coach Adam", "Dikuasakan oleh The Cave Consult (TCC)", "Program terdahulu", "Certified Professional in Generative AI (CPGAI)"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("home page is missing %q", want)
 		}
