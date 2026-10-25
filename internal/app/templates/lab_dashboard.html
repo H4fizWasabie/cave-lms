@@ -44,7 +44,7 @@
           <p class="muted">{{t $.Lang "lab.w.upload-body"}}</p>
           {{- else}}
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
-          <p class="muted">{{t .Lang "lab.d.upload-yours-body" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
+          <p class="muted">{{t .Lang "lab.d.upload-yours-body"}}</p>
           {{- end}}
           {{- with .Problem}}
           <div class="ds-err" role="alert">
@@ -214,7 +214,7 @@
         <aside class="panel">
           <span class="panel-k">{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</span>
           <h2 class="h-sm">{{t .Lang "lab.d.start-sample"}}</h2>
-          <p class="panel-msg">{{t .Lang "lab.d.start-sample-body"}}{{range $i, $b := .Dashboard.Template.Blanks}}{{if $b.Required}} {{$b.Label}}{{end}}{{end}}.</p>
+          <p class="panel-msg">{{t .Lang "lab.d.start-sample-body"}}</p>
           <a class="btn btn-ghost btn-block" href="/lab/samples/{{.Dashboard.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "lab.d.download-sample"}}</a>
           <p class="muted">{{t .Lang "lab.d.dates-amounts"}}</p>
         </aside>

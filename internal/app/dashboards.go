@@ -914,7 +914,7 @@ var hoodNotes = []struct{ marker, key string }{
 	{"", "lab.hood.head"},
 	{"<body>", "lab.hood.layout"},
 	{`  <script src="charts.js">`, "lab.hood.library"},
-	{"  <script>\n", "lab.hood.choices"},
+	{"  <script>\n", "lab.hood.blocks"},
 	{"    fetch(", "lab.hood.fetch"},
 }
 
