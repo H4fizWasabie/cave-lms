@@ -32,14 +32,20 @@ func labLearner(t *testing.T, opts ...func(*config.Config)) (admin, ada *site) {
 
 var dashboardPath = regexp.MustCompile(`^/lab/dashboards/(\d+)$`)
 
-// createDashboard creates a Dashboard from a Template and returns its path, /lab/dashboards/{id}.
+// createDashboard gives the Learner a Practice Dashboard on a Template and returns its path, /lab/dashboards/{id}.
+// No route makes one any more (ADR 0015), so it is a Dashboard made over HTTP, then turned Practice in the
+// database: a Practice Dashboard made before they closed.
 func (s *site) createDashboard(template, name string) string {
 	s.t.Helper()
-	res, body := s.post("/lab/dashboards", url.Values{"template": {template}, "name": {name}})
+	res, body := s.post("/lab/dashboards", url.Values{"name": {name}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	loc := res.Header.Get("Location")
-	if !dashboardPath.MatchString(loc) {
+	m := dashboardPath.FindStringSubmatch(loc)
+	if m == nil {
 		s.t.Fatalf("created Dashboard redirects to %q", loc)
+	}
+	if _, err := s.db.Exec(`UPDATE dashboards SET kind = 'practice', template = $2 WHERE id = $1`, m[1], template); err != nil {
+		s.t.Fatal(err)
 	}
 	return loc
 }
@@ -78,18 +84,16 @@ func (s *site) financeSample() []byte {
 	return []byte(body)
 }
 
-func TestLearnerWithAccessCreatesAFinanceDashboard(t *testing.T) {
+func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
 	_, ada := labLearner(t)
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
 	expectStatus(t, res, body, http.StatusOK, "No Dashboards yet.")
 
 	res, body = ada.get("/lab/new")
-	for _, want := range []string{"Finance", `href="/lab/samples/finance.xlsx"`, "Date", "Amount", "Category", "Type", `name="name"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
+	expectStatus(t, res, body, http.StatusOK, `name="name"`)
 
-	path := ada.createDashboard("finance", "Kewangan <Kedai>")
+	path := ada.createWork("general", "Kewangan <Kedai>")
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "Kewangan &lt;Kedai&gt;")
 	expectStatus(t, res, body, http.StatusOK, "Upload your Dataset")
@@ -101,12 +105,10 @@ func TestLearnerWithAccessCreatesAFinanceDashboard(t *testing.T) {
 	}
 }
 
-func TestCreatingADashboardNeedsANameAndAKnownTemplate(t *testing.T) {
+func TestCreatingADashboardNeedsAName(t *testing.T) {
 	_, ada := labLearner(t)
-	res, body := ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"  "}})
+	res, body := ada.post("/lab/dashboards", url.Values{"name": {"  "}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Give the Dashboard a name")
-	res, body = ada.post("/lab/dashboards", url.Values{"template": {"astrology"}, "name": {"Stars"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose a Template")
 }
 
 func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
