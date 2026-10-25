@@ -182,29 +182,13 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		if b.Kind == "bar" {
 			field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
 		}
-		top := choice{Name: "top", Label: text.T(lang, "lab.b.top")}
-		for _, n := range lab.Tops {
-			o := option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n}
-			if n == 0 {
-				o.Text = text.T(lang, "lab.b.top-all")
-			}
-			top.Options = append(top.Options, o)
-		}
-		row.Radios = append(row.Radios, top)
+		row.Radios = append(row.Radios, counts(lang, "top", "lab.b.top", lab.Tops, b.Top, func(n int) string { return text.T(lang, "lab.b.top-n", n) }))
 		if b.Kind == "bar" {
 			row.Radios = append(row.Radios, buttons(lang, "direction", "lab.b.direction", cmp.Or(b.Dir, "horizontal"),
 				"horizontal", "lab.b.horizontal", "vertical", "lab.b.vertical"))
 		}
 	case "donut":
-		slices := choice{Name: "slices", Label: text.T(lang, "lab.b.slices")}
-		for _, n := range lab.Slices {
-			o := option{Value: strconv.Itoa(n), Text: strconv.Itoa(n), On: n == 6 && b.Slices == nil || b.Slices != nil && *b.Slices == n}
-			if n == 0 {
-				o.Text = text.T(lang, "lab.b.top-all")
-			}
-			slices.Options = append(slices.Options, o)
-		}
-		row.Radios = append(row.Radios, slices)
+		row.Radios = append(row.Radios, counts(lang, "slices", "lab.b.slices", lab.Slices, b.SliceCount(), strconv.Itoa))
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
 		for _, c := range ds.Columns {
@@ -276,6 +260,20 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	}
 }
 
+// counts is a choice among how many groups a block shows, ns in order with on ticked: each worded by word, and 0
+// as All.
+func counts(lang, name, label string, ns []int, on int, word func(int) string) choice {
+	c := choice{Name: name, Label: text.T(lang, label)}
+	for _, n := range ns {
+		o := option{Value: strconv.Itoa(n), Text: word(n), On: n == on}
+		if n == 0 {
+			o.Text = text.T(lang, "lab.b.top-all")
+		}
+		c.Options = append(c.Options, o)
+	}
+	return c
+}
+
 // blockFromForm is block old as the open block's form f changes it. A new kind starts from that kind's defaults,
 // keeping the label, value, filter and width; otherwise each option is as posted. The label follows the choices
 // until the Learner types one: a typed label stays, an emptied one follows again.
@@ -320,7 +318,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		b.X, b.By, b.Split, b.Group, b.Sort, b.Icon = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort"), f.Get("icon")
 		b.Top, _ = strconv.Atoi(f.Get("top"))
 		b.Slices = nil
-		if n, err := strconv.Atoi(f.Get("slices")); err == nil && n != 6 { // 6 is the default, left unstored
+		if n, err := strconv.Atoi(f.Get("slices")); err == nil && n != lab.DefaultSlices { // the default is left unstored
 			b.Slices = &n
 		}
 		b.Dir = f.Get("direction")

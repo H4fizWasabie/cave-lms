@@ -161,6 +161,17 @@ const (
 	MaxCards  = 8
 )
 
+// DefaultSlices is how many groups a donut shows when the Learner has not picked its Slices.
+const DefaultSlices = 6
+
+// SliceCount is how many groups a donut shows: its Slices, else DefaultSlices; 0 shows all.
+func (b *WorkBlock) SliceCount() int {
+	if b.Slices == nil {
+		return DefaultSlices
+	}
+	return *b.Slices
+}
+
 // The options the editor offers, in its order.
 var (
 	Kinds  = []string{"card", "line", "bar", "heatmap", "donut", "table"}
@@ -168,7 +179,7 @@ var (
 	Ops    = [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} // a calculation's operators, as posted and as written
 	Tops   = []int{5, 8, 15, 0}                                          // a bar's largest groups; 0 shows all
 	Limits = []int{10, 25, 50}                                           // a table's rows
-	Slices = []int{5, 6, 8, 0}                                           // a donut's largest groups; 0 shows all
+	Slices = []int{5, DefaultSlices, 8, 0}                               // a donut's largest groups; 0 shows all
 	// Icons are the outline icons charts.js draws on a card; a card's Icon is one of them, or "none".
 	Icons = []string{"people", "money", "box", "calendar", "check", "alert", "chart-up", "tag", "clock", "building", "cart", "star"}
 )

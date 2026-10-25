@@ -280,6 +280,12 @@
     if (n && g.length > n + 1) { var rest = g.slice(n).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, n).concat([['Other', rest]]); }
     return g;
   }
+  // donutColour is the colour of a donut's slice i of n from palette: as the palette goes while it lasts, and Other,
+  // the last slice when folded, keeps its last, neutral colour; past it, groups take its other colours again.
+  function donutColour(palette, i, n, folded) {
+    if (folded && i === n - 1) return palette[palette.length - 1];
+    return n <= palette.length ? palette[i] : palette[i % (palette.length - 1)];
+  }
   // timeline is a line's values by month or day, one series per split value; empty dates are left off the axis.
   function timeline(b, rows, cols) {
     var keys = [], buckets = {}, series = {};
@@ -489,13 +495,15 @@
       if (!tot) return empty(b);
       // Named before the tail folds into Other, which can outweigh the largest group.
       var finding = g.length > 1 ? 'Largest: ' + g[0][0] + ', ' + Math.round(g[0][1] / tot * 100) + '%' : '';
+      var all = g.length;
       g = slices(b, rows, cols);
+      var hue = function (i) { return donutColour(theme.donut, i, g.length, g.length < all); };
       var acc = 0, r = 60, C = 2 * Math.PI * r, segs = g.map(function (x, i) {
-        var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + theme.donut[i % theme.donut.length] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
+        var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + hue(i) + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
         acc += len; return s;
       }).join('');
       return panel(b, '<div class="ddonut"><svg viewBox="0 0 160 160" role="img" aria-label="' + esc(b.label) + '">' + segs + '<text x="80" y="86" text-anchor="middle" class="dtot">' + short(tot, m) + '</text></svg><ul>' +
-        g.map(function (x, i) { return '<li><i style="background:' + theme.donut[i % theme.donut.length] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
+        g.map(function (x, i) { return '<li><i style="background:' + hue(i) + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
         finding);
     }
 
@@ -536,7 +544,7 @@
   }
 
   drawDashboard.compute = { cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
-    heat: heat, slices: slices, tableRows: tableRows, csv: csv, paused: paused, iconOf: iconOf };
+    heat: heat, slices: slices, donutColour: donutColour, tableRows: tableRows, csv: csv, paused: paused, iconOf: iconOf };
   drawDashboard.themes = Object.keys(THEMES);
   drawDashboard.icons = Object.keys(ICONS);
   window.drawDashboard = drawDashboard;

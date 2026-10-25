@@ -115,6 +115,12 @@ eq(donut(5), [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['Other', 6]], '
 eq(donut(8).length, 8, 'donut of 8 slices shows all 8 groups');
 eq(donut(0).length, 8, 'donut of all slices folds nothing');
 eq(donut(undefined), JSON.parse(JSON.stringify(donut(6))), 'a donut with no slices chosen shows 6');
+// Donut colours: Other keeps the palette's last, neutral colour; past the palette, groups take its others again.
+var pal = ['a', 'b', 'c', 'd', 'e', 'f', 'grey'];
+eq([0, 1, 5, 6].map(function (i) { return C.donutColour(pal, i, 7, true); }), ['a', 'b', 'f', 'grey'], 'donut of 6 and Other as before');
+eq(C.donutColour(pal, 6, 7, false), 'grey', 'donut of 7 groups as before');
+eq([5, 6, 8].map(function (i) { return C.donutColour(pal, i, 9, true); }), ['f', 'a', 'grey'], 'donut of 8 and Other: Other stays grey');
+eq([6, 7].map(function (i) { return C.donutColour(pal, i, 8, false); }), ['a', 'b'], 'donut of all groups never greys a group');
 eq(C.slices({ value: { agg: 'count' }, group: 'Staf' }, rows, cols), [['Ali', 3], ['Siti', 2], ['(blank)', 1]], 'donut (blank)');
 
 // Table: newest or largest first, empty cells last, 10, 25 or 50 rows.
