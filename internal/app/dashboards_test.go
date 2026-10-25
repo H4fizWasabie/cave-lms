@@ -253,6 +253,8 @@ func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	for _, want := range []string{"data.csv is not an .xlsx file.", "A CSV file stores everything as plain text", "Fix this in Excel, save, and upload again. Nothing changed."} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
 	}
+	res, body = ada.postFile(path+"/dataset", "old.XLS", []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This is an old Excel file (Excel 97-2003, .xls).")
 	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This is not an .xlsx file.")
 	res, body = ada.postFile(path+"/dataset", "under.xlsx", bytes.Repeat([]byte("x"), 10<<20))

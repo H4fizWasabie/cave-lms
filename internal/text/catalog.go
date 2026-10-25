@@ -780,6 +780,10 @@ var catalog = map[string]entry{
 		en: "%s is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
 		ms: "%s bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
 	},
+	"lab.err.xls": {
+		en: "This is an old Excel file (Excel 97-2003, .xls). The Lab reads .xlsx files only. Open it in Excel, choose File, Save As, Excel Workbook (.xlsx) and upload that.",
+		ms: "Ini fail Excel lama (Excel 97-2003, .xls). Lab membaca fail .xlsx sahaja. Buka fail ini dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
+	},
 	"lab.err.not-workbook": {
 		en: "This is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
 		ms: "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
@@ -883,6 +887,12 @@ var catalog = map[string]entry{
 	"lab.clean.two-row-header": {en: "Joined header rows %d and %d into one name per column.", ms: "Baris tajuk %d dan %d digabung menjadi satu nama bagi setiap lajur."},
 	"lab.clean.merged-down":    {en: "Merged cells filled down: %d.", ms: "Sel bergabung diisi ke bawah: %d."},
 	"lab.clean.dash-zero":      {en: "Cells holding - read as 0: %d.", ms: "Sel berisi - dibaca sebagai 0: %d."},
+	"lab.clean.not-numbers":    {en: "Cells in %[2]s that were not numbers, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan nombor, dibiarkan kosong: %[1]d."},
+	"lab.clean.serial-dates": {
+		en: "Numbers in %[2]s read as Excel dates, as its name says it holds dates: %[1]d.",
+		ms: "Nombor dalam %[2]s dibaca sebagai tarikh Excel, kerana namanya menunjukkan ia tarikh: %[1]d.",
+	},
+	"lab.clean.not-dates": {en: "Cells in %[2]s that were not dates, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan tarikh, dibiarkan kosong: %[1]d."},
 	"lab.clean.other-dates": {
 		en: "Dates written another way (with a time, as 2026-11-05 or as 05.11.26) read as dates, times left out: %d.",
 		ms: "Tarikh yang ditulis cara lain (dengan masa, sebagai 2026-11-05 atau 05.11.26) dibaca sebagai tarikh, tanpa masa: %d.",
