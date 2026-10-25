@@ -1380,6 +1380,9 @@ var catalog = map[string]entry{
 	"next.awaiting":     {en: "Awaiting Result", ms: "Menunggu Keputusan"},
 	"next.certificate":  {en: "View your Certificate", ms: "Lihat Sijil anda"},
 	"next.complete":     {en: "Course complete", ms: "Kursus selesai"},
+	"next.starts":       {en: "Starts %s", ms: "Bermula %s"},
+	"next.runs":         {en: "Runs %s–%s", ms: "Berlangsung %s–%s"},
+	"next.runs-day":     {en: "Runs %s", ms: "Berlangsung %s"},
 	// The Course page.
 	"course.self-paced":         {en: "Self-paced", ms: "Ikut kadar sendiri"},
 	"course.lesson-count.one":   {en: "%d Lesson", ms: "%d Pelajaran"},

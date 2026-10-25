@@ -29,7 +29,7 @@
         {{if and .Enrolled .Lesson.Published}}
         <div class="lp-act">
           {{if .Lesson.Completed}}
-          {{with .Step}}{{if .URL}}<a id="next-step" href="{{.URL}}" class="btn btn-solid btn-lg">{{.Label $.Lang}}</a>{{end}}{{end}}
+          {{with .Step}}{{if .URL}}<a id="next-step" href="{{.URL}}" class="btn btn-solid btn-lg">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="mc-done step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
           <div class="lp-done">
             <p><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg>{{t .Lang "lesson.is-done"}}</p>
             <form method="post" action="/courses/{{.Course.ID}}/lessons/{{.Lesson.ID}}/incomplete"><input type="hidden" name="then" value="lesson"><button class="btn btn-quiet btn-sm">{{t .Lang "course.mark-incomplete"}}<span class="sr">: {{.Lesson.Title}}</span></button></form>

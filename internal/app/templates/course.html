@@ -38,7 +38,7 @@
             {{- with .Step}}{{if .URL}}
             <a class="btn btn-solid btn-lg btn-block" id="next-step" href="{{.URL}}">{{.Label $.Lang}}</a>
             {{- else}}
-            <p class="cp-complete" id="next-step">{{.Label $.Lang}}</p>
+            <p class="cp-complete{{if eq .Kind "upcoming"}} step-upcoming{{end}}" id="next-step">{{.Label $.Lang}}</p>
             {{- end}}{{end}}
             {{- if .NeedsIC}}
             <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t .Lang "course.needs-ic"}} <a class="link-more" href="/my-profile">{{t .Lang "my-profile.title"}}</a></p></div>

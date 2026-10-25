@@ -1540,3 +1540,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .mc-cover { display: none; }
   .mc-step { grid-column: auto; justify-self: stretch; }
 }
+
+/* === Next step: upcoming Live Course (#318) === */
+.step-upcoming { background: var(--brand-gold-soft); color: var(--brand-gold-deep); }

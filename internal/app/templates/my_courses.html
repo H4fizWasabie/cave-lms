@@ -39,7 +39,7 @@
             {{- with .Step}}{{if .URL}}
             <a class="btn btn-ghost mc-step" data-next-step href="{{.URL}}">{{.Label $.Lang}}</a>
             {{- else}}
-            <p class="mc-step mc-done" data-next-step>{{.Label $.Lang}}</p>
+            <p class="mc-step mc-done{{if eq .Kind "upcoming"}} step-upcoming{{end}}" data-next-step>{{.Label $.Lang}}</p>
             {{- end}}{{end}}
           </article>
         </li>
