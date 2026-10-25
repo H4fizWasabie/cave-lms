@@ -16,7 +16,8 @@ func (a *App) forgotPasswordForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "forgot_password", page{})
 }
 
-// forgotPassword answers the same way whether or not the email belongs to a Learner.
+// forgotPassword answers the same way whether or not the email belongs to a Learner, and whether or not it sent: past
+// resetEmailsPerAddress it neither sends nor replaces the link, so the link already sent keeps working.
 func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	tx, err := a.db.BeginTx(r.Context(), nil)
@@ -35,7 +36,7 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if err == nil {
+	if err == nil && a.limiter.allow("reset email "+strings.ToLower(to), resetEmailsPerAddress, verificationWindow, a.now()) {
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeResetPassword, resetLinkLifetime)
 		if err != nil {
 			a.serverError(w, r, err)
