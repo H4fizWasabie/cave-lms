@@ -1503,7 +1503,7 @@ var catalog = map[string]entry{
 	"exam-ic.title":        {en: "Add your IC or passport number", ms: "Tambah No. KP atau pasport anda"},
 	"exam-ic.intro":        {en: "Your Certificate is issued in this number, so it is needed before your first Exam attempt.", ms: "Sijil anda dikeluarkan atas nombor ini, jadi ia diperlukan sebelum cubaan Peperiksaan pertama anda."},
 	"exam-ic.again":        {en: "Type it again", ms: "Taip sekali lagi"},
-	"exam-ic.save":         {en: "Save and continue to the Exam", ms: "Simpan dan teruskan ke Peperiksaan"},
+	"exam-ic.save":         {en: "Save and go to the Exam", ms: "Simpan dan pergi ke Peperiksaan"},
 	"course.needs-ic":      {en: "Set your IC or passport number before your first Exam attempt, so your Certificate can be issued when you pass.", ms: "Tetapkan No. KP atau pasport anda sebelum cubaan Peperiksaan pertama anda, supaya Sijil anda dapat dikeluarkan apabila anda lulus."},
 
 	"lesson.draft":          {en: "Draft: Learners cannot see this Lesson.", ms: "Draf: Pelajar tidak dapat melihat Pelajaran ini."},
