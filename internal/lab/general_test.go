@@ -121,6 +121,28 @@ func TestGeneralAveragesPricesAndBalancesAndAddsAPriceTimesQuantityCard(t *testi
 	}
 }
 
+// salesList is a list of sales: a date, an item sold again and again, a payment method and the price of each sale.
+func salesList(n int) (header []string, rows [][]any) {
+	header = []string{"Tarikh", "Item", "Bayaran", "Price"}
+	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	for i := range n {
+		rows = append(rows, []any{day.AddDate(0, 0, i%28).Format("02/01/2006"), []string{"Vaksin", "Grooming", "Ubat"}[i%3],
+			[]string{"Tunai", "Kad"}[i%2], float64(30 + i%4*10)})
+	}
+	return header, rows
+}
+
+func TestGeneralAddsUpThePriceOfEachSaleOnAListOfSales(t *testing.T) {
+	h, rows := salesList(30)
+	cfg := general(t, h, rows...)
+	if got := valueOf(cfg, "Price"); got == nil || *got != (lab.Value{Agg: "sum", Col: "Price"}) {
+		t.Errorf("Price card = %+v, want the sum of Price; blocks %+v", got, cfg.Blocks)
+	}
+	if got := valueOf(cfg, "Average Price"); got != nil {
+		t.Errorf("a list of sales averages Price: %+v", got)
+	}
+}
+
 func TestGeneralChartsARosterWithNoNumbersByRowCounts(t *testing.T) {
 	var rows [][]any
 	for i := range 24 {

@@ -49,9 +49,11 @@ var (
 	avgWords = []string{"price", "harga", "cost", "kos", "rate", "kadar", "percent", "percentage", "peratus", "balance", "baki",
 		"stock", "stok", "age", "umur", "score", "skor", "markah", "average", "avg", "purata"}
 	// sumWords keep a column added up though it names a price or stock: a total cost, stock in, a stock value.
-	sumWords  = []string{"total", "jumlah", "amount", "amaun", "value", "nilai", "in", "out", "masuk", "keluar", "sold", "jual", "received", "issued", "purchase", "belian"}
-	yearWords = []string{"year", "tahun", "yr"}
-	dateWords = []string{"tarikh", "date", "created"}
+	sumWords = []string{"total", "jumlah", "amount", "amaun", "value", "nilai", "in", "out", "masuk", "keluar", "sold", "jual", "received", "issued", "purchase", "belian"}
+	// priceWords name a price, which a list of sales adds up: each row's price is what that sale took.
+	priceWords = []string{"price", "harga", "cost", "kos"}
+	yearWords  = []string{"year", "tahun", "yr"}
+	dateWords  = []string{"tarikh", "date", "created"}
 )
 
 // mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for,
@@ -107,6 +109,7 @@ func idName(name string) bool {
 // phone numbers; add rules when real files need them.
 func profiles(d *Dataset) []profile {
 	out := make([]profile, len(d.Columns))
+	dated, repeats := false, false
 	for ci, col := range d.Columns {
 		p := profile{Column: col}
 		counts := map[any]int{}
@@ -162,6 +165,8 @@ func profiles(d *Dataset) []profile {
 		default:
 			role(Dimension, "")
 		}
+		dated = dated || p.Role == DateRole
+		repeats = repeats || col.Type == Text && p.Values > 1 && p.Values < filled
 		if p.Role == Dimension {
 			mean, sq := float64(filled)/float64(p.Values), 0.0
 			for _, n := range counts {
@@ -170,6 +175,17 @@ func profiles(d *Dataset) []profile {
 			p.spread = math.Sqrt(sq/float64(p.Values)) / mean
 		}
 		out[ci] = p
+	}
+	// A list of sales, rows with a date and items that come again, adds up a price, unless a quantity says it is
+	// the price of one unit (then the price times quantity card adds it up).
+	if q, _ := priceAndQuantity(d, out); dated && repeats && q == "" {
+		for i, p := range out {
+			if ws := words(p.Name); p.Avg && anyWord(ws, priceWords) && !slices.ContainsFunc(avgWords, func(w string) bool {
+				return !slices.Contains(priceWords, w) && slices.Contains(ws, w)
+			}) {
+				out[i].Avg, out[i].note = false, ""
+			}
+		}
 	}
 	return out
 }
