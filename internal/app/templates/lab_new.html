@@ -7,7 +7,18 @@
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
         <form class="form lab-create" method="post" action="/lab/dashboards">
           <div class="field"><label for="name">{{t .Lang "lab.new.name"}}</label><input id="name" type="text" name="name" value="{{.Name}}" required maxlength="80"></div>
+          <h2 class="h-sm">{{t .Lang "lab.new.upload"}}</h2>
+          <p class="muted">{{t .Lang "lab.new.upload-body"}}</p>
           <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.new.create"}}</button></div>
+          <h2 class="h-sm">{{t .Lang "lab.new.sample"}}</h2>
+          <p class="muted">{{t .Lang "lab.new.sample-body"}}</p>
+          <ul class="tp-pick">
+            {{- range .Samples}}
+            <li><div class="tp-card"><strong>{{t $.Lang (print "lab.tpl." .Key ".name")}}</strong><span>{{t $.Lang (print "lab.tpl." .Key ".blurb")}}</span>
+              <button class="btn btn-ghost" name="sample" value="{{.Key}}">{{t $.Lang "lab.new.try" (t $.Lang (print "lab.tpl." .Key ".name"))}}</button>
+              <a href="/lab/samples/{{.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.d.download-sample"}}</a></div></li>
+            {{- end}}
+          </ul>
         </form>
       </section>
     </div>

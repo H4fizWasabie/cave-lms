@@ -236,21 +236,34 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 	return acc, acc.Open()
 }
 
-// newDashboardPage is /lab/new: name the Dashboard, then upload its Dataset. Cave builds the blocks from the data
-// and offers the Templates that fit it at the preview (ADR 0014).
+// newDashboardPage is /lab/new: name the Dashboard, then upload its Dataset or try a Sample. Cave builds the blocks
+// from the data and offers the Templates that fit it at the preview (ADR 0014).
 type newDashboardPage struct {
 	pageBase
-	Name string
+	Name    string
+	Samples []*lab.Template // the Templates whose Sample the Learner may try
+}
+
+func newDashboard(name string) *newDashboardPage {
+	p := &newDashboardPage{Name: name}
+	for _, t := range lab.TemplatesFor(true) {
+		if t != lab.General {
+			p.Samples = append(p.Samples, t)
+		}
+	}
+	return p
 }
 
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "lab_new", &newDashboardPage{})
+	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
 }
 
 // createDashboard makes a Dashboard with General's blocks to come; no route makes a Practice Dashboard (ADR 0015).
+// With sample, a Template's key, the Dashboard starts on that Template with its Sample, cleaned at start-up, as
+// its pending Dataset.
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -260,7 +273,14 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	p := &newDashboardPage{Name: strings.TrimSpace(r.FormValue("name"))}
+	t, sample := lab.General, a.samples[r.FormValue("sample")]
+	if key := r.FormValue("sample"); key != "" {
+		if t = lab.TemplateByKey(key); t == nil || t == lab.General || sample == nil {
+			a.notFound(w, r)
+			return
+		}
+	}
+	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
 	if p.Error = dashboardNameError(lang, p.Name); p.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
 		return
@@ -270,13 +290,19 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	var id string
+	d := &dashboard{}
 	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', $2, $3)
-		RETURNING id`, learner.ID, lab.General.Key, p.Name).Scan(&id); err != nil {
+		RETURNING id`, learner.ID, t.Key, p.Name).Scan(&d.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/lab/dashboards/"+id, http.StatusSeeOther)
+	if t != lab.General {
+		if _, err := a.keepPending(r, d, sample, lab.Settings{}, t.Key+"-sample.xlsx"); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
 
 func dashboardNameError(lang, name string) string {
