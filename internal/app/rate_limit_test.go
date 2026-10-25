@@ -115,8 +115,12 @@ func (s *site) loginFrom(forwardedFor string) (*http.Response, string) {
 
 // loginVia posts a login through the TLS server (a loopback proxy) with the given X-Forwarded-For.
 func (s *site) loginVia(forwardedFor, email, password string) (*http.Response, string) {
-	form := url.Values{"email": {email}, "password": {password}}
-	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/login", strings.NewReader(form.Encode()))
+	return s.postVia(forwardedFor, "/login", url.Values{"email": {email}, "password": {password}})
+}
+
+// postVia posts form to path through the TLS server (a loopback proxy) with the given X-Forwarded-For.
+func (s *site) postVia(forwardedFor, path string, form url.Values) (*http.Response, string) {
+	req, err := http.NewRequest(http.MethodPost, s.server.URL+path, strings.NewReader(form.Encode()))
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -196,17 +200,69 @@ func TestForwardedForFromANonLocalAddressIsIgnored(t *testing.T) {
 	}
 }
 
-// Each reset try hashes a password with bcrypt, so without a limit anyone could keep the server's CPUs busy.
+// One address gets 100 tries at each account-recovery form in 15 minutes; at reset-password only bad links count.
 func TestForgotPasswordResendAndResetAreRateLimited(t *testing.T) {
 	for _, path := range []string{"/forgot-password", "/verify/resend", "/reset-password"} {
 		s := newSite(t)
 		form := url.Values{"email": {"ada@example.com"}, "token": {"not-a-token"}, "password": {"correct horse battery"}}
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 100; i++ {
 			s.post(path, form)
 		}
 		res, body := s.post(path, form)
 		expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
 	}
+}
+
+// Learners who signed up together on one network can each resend a verification email, ask for a reset and use it,
+// and their good reset links leave the address's budget for bad ones untouched.
+func TestLearnersOnOneAddressCanEachRecoverTheirAccount(t *testing.T) {
+	s := newSite(t)
+	const learners = 30
+	email := func(i int) string { return fmt.Sprintf("learner%d@example.com", i) }
+	for i := range learners {
+		res, body := s.register("Learner", email(i), "correct horse battery")
+		expectStatus(t, res, body, http.StatusOK, "Check your email")
+	}
+	for i := range learners {
+		res, body := s.post("/verify/resend", url.Values{"email": {email(i)}})
+		expectStatus(t, res, body, http.StatusOK, "Check your email")
+	}
+	for i := range learners {
+		res, body := s.forgotPassword(email(i))
+		expectStatus(t, res, body, http.StatusOK, "Check your email")
+	}
+	for i := range learners {
+		res, body := s.resetPassword(resetToken(t, s.lastEmailLinkPath(email(i), "/reset-password")), "new horse staple")
+		expectStatus(t, res, body, http.StatusOK, "Your password has been changed")
+	}
+	// Each Learner got a verification email, its resend and a reset email.
+	if n := len(s.mail.Messages()); n != 3*learners {
+		t.Fatalf("sent %d emails, want %d", n, 3*learners)
+	}
+	for range 100 {
+		res, body := s.resetPassword("not-a-token", "new horse staple")
+		expectStatus(t, res, body, http.StatusBadRequest, "")
+	}
+	res, body := s.resetPassword("not-a-token", "new horse staple")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+}
+
+// Asking for resets to one email from many addresses stops sending past resetEmailsPerAddress, answers as if it had
+// sent, and leaves the last link working.
+func TestResetEmailsToOneEmailAreCappedFromAllAddresses(t *testing.T) {
+	s := newSite(t)
+	const email = "ada@example.com"
+	s.second().loginAsNewLearner("Ada", email, "correct horse battery")
+	before := len(s.mail.Messages())
+	for i := range 10 {
+		res, body := s.postVia(fmt.Sprintf("198.51.100.%d", i), "/forgot-password", url.Values{"email": {"ADA@example.com"}})
+		expectStatus(t, res, body, http.StatusOK, "Check your email")
+	}
+	if n := len(s.mail.Messages()) - before; n != 3 {
+		t.Fatalf("sent %d reset emails, want 3", n)
+	}
+	res, body := s.resetPassword(resetToken(t, s.lastEmailLinkPath(email, "/reset-password")), "new horse staple")
+	expectStatus(t, res, body, http.StatusOK, "Your password has been changed")
 }
 
 func TestFailedLoginsDoNotBlockAPasswordReset(t *testing.T) {

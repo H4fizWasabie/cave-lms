@@ -134,7 +134,7 @@ func TestTheTooManyAttemptsPageIsInMalay(t *testing.T) {
 	s := newSite(t)
 	var res *http.Response
 	var body string
-	for range 11 {
+	for range 101 {
 		res, body = s.postAsking("/forgot-password", "ms", url.Values{"email": {"ada@example.com"}})
 	}
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak cubaan")
