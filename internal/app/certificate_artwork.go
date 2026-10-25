@@ -365,6 +365,7 @@ type certPreview struct {
 	TitleSize      float64 // in mm
 	Number, Issued string
 	Background     string
+	ID             string // prefixes the SVG's own ids, so several previews on one page keep theirs apart
 }
 
 // newCertPreview is the template function certPreview: the preview of a Certificate for name on the Course titled title
@@ -374,13 +375,14 @@ func newCertPreview(name, title, badge, background string) certPreview {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	size, lines := certTitleLines(pdf, title)
 	return certPreview{Name: name, Badge: badge, Title: lines, NameSize: ptMM(certNameSize(pdf, name)),
-		TitleSize: ptMM(size), Background: background}
+		TitleSize: ptMM(size), Background: background, ID: "cert-art"}
 }
 
 // Preview is the Certificate's preview, as issued, over the background at the address background.
 func (c certificate) Preview(background string) certPreview {
 	p := newCertPreview(c.LearnerName, c.CourseTitle, c.Badge(), background)
 	p.Number, p.Issued = c.Number(), certIssuedOn+c.IssuedIn("en")
+	p.ID = "cert-art-" + c.ID
 	return p
 }
 

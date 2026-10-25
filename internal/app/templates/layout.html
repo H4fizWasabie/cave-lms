@@ -240,9 +240,9 @@ background it draws that in place of the built-in artwork, as the PDF does. It s
 code is only sketched. It is decorative: the page says in words what it shows. */}}
 {{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
   <defs>
-    <linearGradient id="cert-art-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
-    <linearGradient id="cert-art-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
-    <clipPath id="cert-art-badge-edge" clipPathUnits="objectBoundingBox"><rect x=".0088" y=".0062" width=".9825" height=".9876"/></clipPath>
+    <linearGradient id="{{.ID}}-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
+    <linearGradient id="{{.ID}}-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
+    <clipPath id="{{.ID}}-badge-edge" clipPathUnits="objectBoundingBox"><rect x=".0088" y=".0062" width=".9825" height=".9876"/></clipPath>
   </defs>
   <rect class="cert-art-paper" width="210" height="297"/>
   {{- if .Background}}
@@ -251,12 +251,12 @@ code is only sketched. It is decorative: the page says in words what it shows. *
   <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".07" transform="rotate(-90 160 150)"/>
   <rect class="cert-art-rule" x="5" y="5" width="200" height="287" stroke-width=".35"/>
   <rect class="cert-art-rule" x="6.4" y="6.4" width="197.2" height="284.2" stroke-width=".15"/>
-  <path fill="url(#cert-art-g1)" d="M0 0V82C3.5 36.9 31.5 3.28 70 0Z"/>
-  <path fill="url(#cert-art-g2)" d="M0 0V67C2.85 30.15 25.65 2.68 57 0Z"/>
+  <path fill="url(#{{$.ID}}-g1)" d="M0 0V82C3.5 36.9 31.5 3.28 70 0Z"/>
+  <path fill="url(#{{$.ID}}-g2)" d="M0 0V67C2.85 30.15 25.65 2.68 57 0Z"/>
   <path class="cert-art-shine" d="M0 67C2.85 30.15 25.65 2.68 57 0" stroke-width=".6"/>
   <g transform="rotate(180 105 148.5)">
-    <path fill="url(#cert-art-g1)" d="M0 0V112C3.1 50.4 27.9 4.48 62 0Z"/>
-    <path fill="url(#cert-art-g2)" d="M0 0V96C2.5 43.2 22.5 3.84 50 0Z"/>
+    <path fill="url(#{{$.ID}}-g1)" d="M0 0V112C3.1 50.4 27.9 4.48 62 0Z"/>
+    <path fill="url(#{{$.ID}}-g2)" d="M0 0V96C2.5 43.2 22.5 3.84 50 0Z"/>
     <path class="cert-art-shine" d="M0 96C2.5 43.2 22.5 3.84 50 0" stroke-width=".6"/>
   </g>
   <image href="{{static "logo-dark.svg"}}" x="79" y="17" width="52" height="23.37"/>
@@ -280,7 +280,7 @@ code is only sketched. It is decorative: the page says in words what it shows. *
   {{- range .Title}}
   <text class="cert-art-title" x="{{$at.TitleX}}" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" $.TitleSize}}" text-anchor="middle">{{.Text}}</text>{{end}}
   {{- with .Badge}}
-  <image class="cert-art-badge" href="{{static .}}" clip-path="url(#cert-art-badge-edge)" x="{{$at.BadgeX}}" y="{{$at.BadgeY}}" width="{{$at.BadgeW}}" height="{{$at.BadgeH}}"/>{{end}}
+  <image class="cert-art-badge" href="{{static .}}" clip-path="url(#{{$.ID}}-badge-edge)" x="{{$at.BadgeX}}" y="{{$at.BadgeY}}" width="{{$at.BadgeW}}" height="{{$at.BadgeH}}"/>{{end}}
   {{- with .Issued}}
   <text class="cert-art-sans cert-art-issued" x="{{$at.IssuedX}}" y="{{$at.IssuedY}}" font-size="{{printf "%.2f" $at.IssuedSize}}">{{.}}</text>{{end}}
 </svg>{{end}}

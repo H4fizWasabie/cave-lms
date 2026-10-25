@@ -72,3 +72,34 @@ func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBu
 		t.Fatalf("GET %s after the background was replaced = %d, want 404", src, res.StatusCode)
 	}
 }
+
+func TestEveryCertificatePreviewOnMyCertificatesHasItsOwnIDs(t *testing.T) {
+	s := newSite(t)
+	s.adaEarns() // "Go Basics"
+	s.logOut()
+	s.loginAdmin()
+	s.createCourse("Go Testing", "Learn it.", "")
+	second := s.courseIDByTitle("Go Testing")
+	s.addTextLesson(second, "Tables", "", "Body.", false)
+	s.logOut()
+	s.login("ada@example.com", certPassword)
+	s.post("/courses/"+second+"/join", nil)
+	s.markLesson(second, s.lessonIDByTitle("Tables"), true)
+
+	_, body := s.get("/my-certificates")
+	if n := strings.Count(body, `<svg class="cert-art"`); n != 2 {
+		t.Fatalf("My certificates shows %d previews, want 2: %s", n, body)
+	}
+	seen := map[string]bool{}
+	for _, m := range regexp.MustCompile(`\sid="([^"]+)"`).FindAllStringSubmatch(body, -1) {
+		if seen[m[1]] {
+			t.Errorf("id %q appears more than once on My certificates", m[1])
+		}
+		seen[m[1]] = true
+	}
+	for _, m := range regexp.MustCompile(`url\(#([^)]+)\)`).FindAllStringSubmatch(body, -1) {
+		if !seen[m[1]] {
+			t.Errorf("url(#%s) points at no id on the page", m[1])
+		}
+	}
+}
