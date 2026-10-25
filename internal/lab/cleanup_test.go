@@ -333,6 +333,21 @@ func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 	}
 }
 
+// An old Excel file renamed .xlsx is told to save it as .xlsx, not that it is no workbook.
+func TestCleanUpOfAnOldXLSFileSaysSaveItAsXLSX(t *testing.T) {
+	ole := append([]byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}, make([]byte, 504)...)
+	_, err := lab.Clean(bytes.NewReader(ole), finance(t), lab.Settings{})
+	var p lab.Problem
+	if !errors.As(err, &p) || p.Key != "lab.err.xls" {
+		t.Fatalf("err = %v, want lab.err.xls", err)
+	}
+	for _, want := range []string{"Excel Workbook (.xlsx)", "Excel 97-2003"} {
+		if !strings.Contains(p.In("en"), want) || !strings.Contains(p.In("ms"), want) {
+			t.Fatalf("%q / %q, want %q", p.In("en"), p.In("ms"), want)
+		}
+	}
+}
+
 // A file Clean-up cannot read gives the likely cause, the row in Excel and, with several sheets, the sheet: the
 // one most like a table, not a cover sheet before it.
 func TestCleanUpSaysWhyAFileCannotBeReadAndWhere(t *testing.T) {
@@ -626,5 +641,93 @@ func TestCleanUpOffersOnlyTheTemplatesWhoseRequiredColumnsItFoundByName(t *testi
 	file = testutil.XLSX(t, []string{"Bila", "Siapa", "Berapa"}, []any{day, "Ali", 12.5})
 	if got := clean(t, file, lab.General).Offers; len(got) != 0 {
 		t.Fatalf("offers = %v, want none", got)
+	}
+}
+
+// A column counts as numbers when at least 90% of its filled cells are; the others are left empty and counted,
+// one change per column.
+func TestCleanUpReadsAMostlyNumberColumnAsNumbersLeavingTheOthersEmpty(t *testing.T) {
+	rows := [][]any{{"Sewa", "N/A", 5}, {"Gaji", "TBA", 5}}
+	for i := range 18 {
+		rows = append(rows, []any{"Gaji", 100 + i, 5})
+	}
+	file := testutil.XLSX(t, []string{"Perkara", "Amount", "Kos"}, rows...)
+	res := clean(t, file, finance(t))
+
+	if got := res.Dataset.Columns[1].Type; got != lab.Number {
+		t.Fatalf("Amount is %s, want number", got)
+	}
+	if got := res.Dataset.Rows[0][1]; got != nil {
+		t.Fatalf("N/A read as %v, want empty", got)
+	}
+	if got := res.Dataset.Rows[2][1]; got != 100.0 {
+		t.Fatalf("100 read as %v", got)
+	}
+	if got, want := changesIn(res, "en"), []string{"Cells in Amount that were not numbers, left empty: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Sel dalam Amount yang bukan nombor, dibiarkan kosong: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
+
+func TestCleanUpKeepsAColumnHalfNumbersHalfTextAsText(t *testing.T) {
+	file := testutil.XLSX(t, []string{"Perkara", "Kod"},
+		[]any{"Sewa", 101}, []any{"Gaji", "A12"}, []any{"Air", 102}, []any{"Api", "B7"},
+	)
+	res := clean(t, file, finance(t))
+
+	if got := res.Dataset.Columns[1].Type; got != lab.Text {
+		t.Fatalf("Kod is %s, want text", got)
+	}
+	if len(res.Changes) != 0 {
+		t.Fatalf("changes = %q, want none", changesIn(res, "en"))
+	}
+}
+
+func TestCleanUpReadsAMostlyDateColumnAsDates(t *testing.T) {
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	rows := [][]any{{"belum", 1}}
+	for range 9 {
+		rows = append(rows, []any{day, 1})
+	}
+	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows...)
+	res := clean(t, file, finance(t))
+
+	if got := res.Dataset.Columns[0].Type; got != lab.Date {
+		t.Fatalf("Tarikh is %s, want date", got)
+	}
+	if got := []any{res.Dataset.Rows[0][0], res.Dataset.Rows[1][0]}; !reflect.DeepEqual(got, []any{nil, "2026-10-05"}) {
+		t.Fatalf("dates = %v, want empty then 2026-10-05", got)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Sel dalam Tarikh yang bukan tarikh, dibiarkan kosong: 1."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "en"), []string{"Cells in Tarikh that were not dates, left empty: 1."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
+
+// Excel can store a date as a plain number, its date serial, with no date style; a column whose name says it
+// holds dates reads them as dates, so they are not added up. Other numbers stay numbers.
+func TestCleanUpReadsExcelDateSerialsInADateNamedColumnAsDates(t *testing.T) {
+	file := testutil.XLSX(t, []string{"Created Date", "Hari", "Jumlah"},
+		[]any{46300, 3, 46300}, // 46300 is 5 October 2026
+		[]any{46301, 4, 46301},
+	)
+	res := clean(t, file, finance(t))
+
+	want := []lab.Column{{"Created Date", lab.Date}, {"Hari", lab.Number}, {"Jumlah", lab.Number}}
+	if !reflect.DeepEqual(res.Dataset.Columns, want) {
+		t.Fatalf("columns = %v, want %v", res.Dataset.Columns, want)
+	}
+	if got := []any{res.Dataset.Rows[0][0], res.Dataset.Rows[1][0]}; !reflect.DeepEqual(got, []any{"2026-10-05", "2026-10-06"}) {
+		t.Fatalf("dates = %v", got)
+	}
+	if got, want := changesIn(res, "en"), []string{"Numbers in Created Date read as Excel dates, as its name says it holds dates: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Nombor dalam Created Date dibaca sebagai tarikh Excel, kerana namanya menunjukkan ia tarikh: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
 	}
 }

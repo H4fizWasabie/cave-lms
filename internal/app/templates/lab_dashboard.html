@@ -159,7 +159,7 @@
           </div>
           {{- end}}
           {{- end}}
-          <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data">
+          <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data" data-busy>
             {{- with .Pending}}{{if gt (len .Sheets) 1}}
             {{- $p := .}}{{$picked := .Picked}}
             <fieldset class="field">
@@ -197,7 +197,9 @@
             <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
             {{- end}}
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
+            {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
           </form>
+          <script src="{{static "forms.js"}}" defer></script>
           {{- with .Earlier}}
           <h2 class="h-md">{{t $.Lang "lab.w.earlier"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.earlier-body"}}</p>
@@ -298,6 +300,7 @@
                 <div class="field"><label for="b-{{.Name}}">{{.Label}}</label><select id="b-{{.Name}}" name="{{.Name}}"{{if .Off}} disabled{{end}}>{{range .Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
                 {{- end}}
                 {{- if eq .Kind "donut"}}<small class="muted">{{t $.Lang "lab.b.donut-other"}}</small>{{end}}
+                {{- if eq .Kind "heatmap"}}<small class="muted">{{t $.Lang "lab.b.heat-other"}}</small>{{end}}
                 {{- with .ColTicks}}
                 <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="cols" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
                 {{- end}}

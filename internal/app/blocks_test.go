@@ -187,6 +187,109 @@ func TestAChangedBlockUsesAnyColumnAndItsLabelFollowsUntilTyped(t *testing.T) {
 	}
 }
 
+func TestACardShowsTheIconPickedInTheEditor(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.get(path + "/blocks?open=3")
+	expectStatus(t, res, body, http.StatusOK, `<option value="check" selected>Tick</option>`) // the Template's icon
+	expectStatus(t, res, body, http.StatusOK, `<option value="none">None</option>`)
+
+	card := url.Values{"do": {"save"}, "block": {"3"}, "kind": {"card"}, "label": {"Transactions"}, "agg": {"count"}, "icon": {"star"}}
+	ada.editBlocks(path, card)
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[3].Icon != "star" {
+		t.Fatalf("the card's icon is %q, want star", blocks[3].Icon)
+	}
+	card.Set("icon", "none")
+	ada.editBlocks(path, card)
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[3].Icon != "none" {
+		t.Fatalf("the card's icon is %q, want none", blocks[3].Icon)
+	}
+	card.Set("icon", "rocket")
+	res, body = ada.post(path+"/blocks", card)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+
+	// A new card starts with the icon its value suggests, and follows the value until the Learner picks one.
+	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "people" {
+		t.Fatalf("a new card's icon is %q, want people", blocks[4].Icon)
+	}
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"sum"}, "col": {"Jumlah"}, "icon": {"people"}})
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "money" {
+		t.Fatalf("a new card summing the RM column Jumlah shows %q, want money", blocks[4].Icon)
+	}
+
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=4")
+	for _, want := range []string{`<label for="b-icon">Ikon</label>`, `<option value="none">Tiada</option>`, `<option value="money" selected>Wang</option>`, "Bintang"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
+
+func TestABarTurnsVertical(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.get(path + "/blocks?open=5")
+	expectStatus(t, res, body, http.StatusOK, `name="direction" value="horizontal" checked`)
+	ada.editBlocks(path, barForm(url.Values{"direction": {"vertical"}, "split": {"Jenis"}}))
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[5].Dir != "vertical" || blocks[5].Split != "Jenis" {
+		t.Fatalf("the vertical bar is %+v", blocks[5])
+	}
+	res, body = ada.post(path+"/blocks", barForm(url.Values{"direction": {"diagonal"}}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	ada.editBlocks(path, barForm(url.Values{"direction": {"horizontal"}}))
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[5].Dir != "" {
+		t.Fatalf("a horizontal bar stores direction %q", blocks[5].Dir)
+	}
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=5")
+	for _, want := range []string{">Arah<", ">Mendatar<", ">Menegak<"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
+
+func TestTheEditorAddsAHeatmapAcrossTwoTextColumns(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"heatmap"}})
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	if b := blocks[8]; b.Kind != "heatmap" || !b.Wide || b.Top != 8 || b.Group == "" || b.Split == "" || b.Group == b.Split {
+		t.Fatalf("a new heatmap is %+v", b)
+	}
+	res, body := ada.get(path + "/blocks?open=8")
+	for _, want := range []string{"Rows down", "Columns across", `name="split"`, `name="top" value="8" checked`, "Past the 10 largest columns", `name="fcol"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	if strings.Contains(body, `name="direction"`) {
+		t.Error("a heatmap offers a Direction, which only a bar has")
+	}
+	if strings.Contains(body, `<option value="" selected>None</option>`) {
+		t.Errorf("a heatmap offers no column across:\n%s", body)
+	}
+
+	heat := url.Values{"do": {"save"}, "block": {"8"}, "kind": {"heatmap"}, "agg": {"sum"}, "col": {"Jumlah"}, "group": {"Kategori"}, "split": {"Kategori"}, "top": {"5"}}
+	res, body = ada.post(path+"/blocks", heat)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "A heatmap needs two different Text columns")
+	heat.Set("split", "Jenis")
+	ada.editBlocks(path, heat)
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if b := blocks[8]; b.Group != "Kategori" || b.Split != "Jenis" || b.Top != 5 || b.Value.Agg != "sum" || b.Label != "Jumlah by Kategori × Jenis" {
+		t.Fatalf("the saved heatmap is %+v", b)
+	}
+
+	// A bar turned heatmap spans the row and gets a column across.
+	ada.editBlocks(path, barForm(url.Values{"kind": {"heatmap"}}))
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if b := blocks[5]; b.Kind != "heatmap" || !b.Wide || b.Top != 8 || b.Split == "" || b.Split == b.Group {
+		t.Fatalf("the bar turned heatmap is %+v", b)
+	}
+
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=8")
+	for _, want := range []string{"Peta haba", "Baris ke bawah", "Lajur melintang"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
+
 func TestBlocksMoveAmongTheirOwnSortAndGo(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
