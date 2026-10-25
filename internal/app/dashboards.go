@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
@@ -772,7 +773,7 @@ func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id in
 func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.FormatInt(d.ID, 10) }
 
 // dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, charts.js and
-// the data at data/<key> under it, so the page loads the others by relative path. Generated on each request.
+// the data at data/<key> under it, so the page loads the others by relative path.
 // A Deployment serves the same files under /<prefix>/<name>/ (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboardRow(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
@@ -806,8 +807,9 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 func dataPath(d *dashboard) string { return "data/" + d.Key }
 
 // serveDashboardFile writes one of a Dashboard's files: index.html, charts.js, data.json (the demo's data,
-// at a fixed address) or data (data/<key>, under cache; any other key is not found). The Dataset is read from the
-// store only for index.html, generated from its columns, and the data: never for charts.js.
+// at a fixed address) or data (data/<key>, under cache; any other key is not found). index.html needs only the
+// Dataset's columns and the data its data.json: both are kept by key (datasetFilesCache), so the Dataset is read
+// from the store once, not on each request, and never for charts.js.
 // csp is the index page's Content-Security-Policy; cache is the data's Cache-Control.
 func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp, cache string) {
 	if name == "charts.js" {
@@ -819,35 +821,117 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		a.notFound(w, r)
 		return
 	}
-	if err := a.readDataset(r.Context(), d); err != nil {
-		a.serverError(w, r, err)
-		return
+	wantData := name == "data.json" || name == "data"
+	f, ok := a.datasetFiles.get(d.Key)
+	if !ok || wantData && f.data == nil {
+		if err := a.readDataset(r.Context(), d); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if d.Dataset == nil {
+			a.notFound(w, r)
+			return
+		}
+		data, err := lab.DataJSON(d.Dataset)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		f = datasetFiles{columns: d.Dataset.Columns, data: data}
+		if !ok {
+			a.datasetFiles.put(d.Key, f)
+		}
 	}
-	if d.Dataset == nil {
-		a.notFound(w, r)
+	w.Header().Set("Cache-Control", "no-store")
+	if wantData {
+		if name == "data" {
+			w.Header().Set("Cache-Control", cache)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(f.data)
 		return
 	}
 	dataURL := "data.json"
 	if d.Key != "" {
 		dataURL = dataPath(d)
 	}
-	index, data, err := d.generate(dataURL)
+	index, err := lab.Page(d.Template, d.Name, d.Theme, d.Config, f.columns, dataURL)
 	if err != nil {
 		a.serverError(w, r, err)
-		return
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	if name == "data" {
-		w.Header().Set("Cache-Control", cache)
-	}
-	if name == "data.json" || name == "data" {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(data)
 		return
 	}
 	w.Header().Set("Content-Security-Policy", csp)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write(index)
+}
+
+// datasetFiles is what a Dashboard's files need of its Dataset: its columns for index.html and its data.json.
+type datasetFiles struct {
+	columns []lab.Column
+	data    []byte // nil when too big to keep
+}
+
+// maxKeptBytes is how many bytes datasetFilesCache keeps in all; one Dataset's data.json is kept within half of it.
+const maxKeptBytes = 128 << 20
+
+// datasetFilesCache keeps datasetFiles by Dataset key. A Dataset never changes under its key (each upload gets a
+// new key; a restore points back to an earlier one, unchanged), so nothing goes stale. The demo's Dataset has no
+// key and is never kept.
+// ponytail: FIFO within maxKeptBytes and no single-flight, so a data.json over 64 MB is built on each data request
+// (its columns are still kept) and a burst of first visits each reads the Dataset; make it an LRU, or store
+// data.json beside the Dataset, if that shows up.
+type datasetFilesCache struct {
+	mu    sync.Mutex
+	items map[string]datasetFiles
+	order []string // keys, oldest first
+	size  int
+}
+
+func (c *datasetFilesCache) get(key string) (datasetFiles, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	f, ok := c.items[key]
+	return f, ok
+}
+
+func (c *datasetFilesCache) put(key string, f datasetFiles) {
+	if key == "" {
+		return
+	}
+	if len(f.data) > maxKeptBytes/2 {
+		f.data = nil
+	}
+	n := keptSize(f)
+	if n > maxKeptBytes/2 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.items == nil {
+		c.items = map[string]datasetFiles{}
+	}
+	if old, ok := c.items[key]; ok {
+		c.size -= keptSize(old)
+	} else {
+		c.order = append(c.order, key)
+	}
+	c.items[key] = f
+	c.size += n
+	for c.size > maxKeptBytes {
+		oldest := c.order[0]
+		c.order = c.order[1:]
+		c.size -= keptSize(c.items[oldest])
+		delete(c.items, oldest)
+	}
+}
+
+// keptSize is about how many bytes f holds: its data, and each column's name plus its slice header and Type.
+func keptSize(f datasetFiles) int {
+	n := len(f.data)
+	for _, col := range f.columns {
+		n += len(col.Name) + 32
+	}
+	return n
 }
 
 // downloadDashboard is the Dashboard as a zip that opens offline: index.html, data.json, charts.js and
