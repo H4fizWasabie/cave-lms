@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -78,6 +79,15 @@ func rankOf(name string, names []string) int {
 	return len(names)
 }
 
+// isYear reports whether s is a whole year from 1900 to 2100, as a column named like a year holds.
+func isYear(s string) bool {
+	n, err := strconv.Atoi(s)
+	return err == nil && n >= 1900 && n <= 2100
+}
+
+// yearNamed reports whether a column's name says it holds years: tahun, year.
+func yearNamed(name string) bool { return anyWord(words(name), yearWords) }
+
 // idName is whether the column is named like an ID: an ID word, or No not followed by "of".
 func idName(name string) bool {
 	ws, key := words(name), columnKey(name)
@@ -95,7 +105,7 @@ func profiles(d *Dataset) []profile {
 	for ci, col := range d.Columns {
 		p := profile{Column: col}
 		counts := map[any]int{}
-		filled, runes, lo, hi := 0, 0, math.Inf(1), math.Inf(-1)
+		filled, runes, years := 0, 0, true
 		for _, r := range d.Rows {
 			v := r[ci]
 			if v == nil {
@@ -110,8 +120,9 @@ func profiles(d *Dataset) []profile {
 					p.from = x
 				}
 				p.to = max(p.to, x)
+				years = years && isYear(x)
 			case float64:
-				lo, hi = min(lo, x), max(hi, x)
+				years = years && isYear(strconv.FormatFloat(x, 'f', -1, 64))
 			}
 		}
 		p.Values = len(counts)
@@ -123,7 +134,7 @@ func profiles(d *Dataset) []profile {
 		case col.Type == Date:
 			role(DateRole, "")
 			p.rank = rankOf(col.Name, blank(Finance, "date").Loose)
-		case col.Type == Number && anyWord(ws, yearWords) && lo >= 1900 && hi <= 2100:
+		case col.Type != Date && yearNamed(col.Name) && years: // Clean-up types them as Text, so they group
 			role(Dimension, "lab.note.year")
 		case col.Type == Number && anyWord(ws, []string{"tarikh", "date"}): // a day of the month, or Excel's days since 1900
 			role(Identifier, "lab.note.serial-date")
@@ -145,6 +156,8 @@ func profiles(d *Dataset) []profile {
 			role(Identifier, "lab.note.many")
 		default:
 			role(Dimension, "")
+		}
+		if p.Role == Dimension {
 			mean, sq := float64(filled)/float64(p.Values), 0.0
 			for _, n := range counts {
 				sq += (float64(n) - mean) * (float64(n) - mean)

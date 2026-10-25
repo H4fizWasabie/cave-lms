@@ -641,6 +641,11 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
 	for ci, col := range d.Columns {
 		d.Columns[ci].Type = workType(raw, ci)
+		// Years are groups, not amounts: typed as Text, they can be grouped and filtered by, and never added up.
+		if d.Columns[ci].Type == Number && yearNamed(col.Name) &&
+			!slices.ContainsFunc(raw, func(vals []cell) bool { return vals[ci].v != "" && !isYear(vals[ci].v) }) {
+			d.Columns[ci].Type = Text
+		}
 		if n := serials(raw, ci); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
 			d.Columns[ci].Type = Date
 			res.Changes = append(res.Changes, Change{"lab.clean.serial-dates", []int{n}, col.Name})

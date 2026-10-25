@@ -192,11 +192,29 @@ func TestGeneralKeepsADonutForTwoToSixValues(t *testing.T) {
 }
 
 func TestGeneralReadsAYearColumnAsAGroupingNotAnAmount(t *testing.T) {
-	cfg := general(t, []string{"Tahun", "Jumlah"}, []any{2024.0, 5.0}, []any{2025.0, 7.0}, []any{2025.0, 1.0})
+	var rows [][]any
+	for i := range 12 { // a different year on every row is still a grouping, not an ID
+		rows = append(rows, []any{float64(2014 + i), float64(5 + i)})
+	}
+	res := clean(t, testutil.XLSX(t, []string{"Tahun", "Jumlah"}, rows...), lab.General)
+	d := res.Dataset
+	if d.Columns[0].Type != lab.Text {
+		t.Fatalf("Tahun is %s, want text so it can be grouped", d.Columns[0].Type)
+	}
+	cfg := lab.General.Open(nil, d)
 	for _, b := range cfg.Blocks {
 		if v := b.Value; v != nil && v.Col == "Tahun" {
 			t.Errorf("%s adds up the years", b.Label)
 		}
+	}
+	if !slices.Contains(grouped(cfg), "Tahun") || !slices.Contains(cfg.FilterBar, "Tahun") {
+		t.Errorf("no chart or filter by Tahun: blocks %+v, filter bar %v", cfg.Blocks, cfg.FilterBar)
+	}
+	if at, err := cfg.Add("bar", d, "en"); err != nil || cfg.Blocks[at].Group != "Tahun" {
+		t.Errorf("a new bar: %v, groups by %q, want Tahun", err, cfg.Blocks[at].Group)
+	}
+	if !slices.Contains(res.Notes, lab.Note{Key: "lab.note.year", Col: "Tahun"}) {
+		t.Errorf("notes %v, want Tahun's years note", res.Notes)
 	}
 }
 
