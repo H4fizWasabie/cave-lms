@@ -884,7 +884,11 @@ var catalog = map[string]entry{
 	"lab.clean.merged-down":    {en: "Merged cells filled down: %d.", ms: "Sel bergabung diisi ke bawah: %d."},
 	"lab.clean.dash-zero":      {en: "Cells holding - read as 0: %d.", ms: "Sel berisi - dibaca sebagai 0: %d."},
 	"lab.clean.not-numbers":    {en: "Cells in %[2]s that were not numbers, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan nombor, dibiarkan kosong: %[1]d."},
-	"lab.clean.not-dates":      {en: "Cells in %[2]s that were not dates, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan tarikh, dibiarkan kosong: %[1]d."},
+	"lab.clean.serial-dates": {
+		en: "Numbers in %[2]s read as Excel dates, as its name says it holds dates: %[1]d.",
+		ms: "Nombor dalam %[2]s dibaca sebagai tarikh Excel, kerana namanya menunjukkan ia tarikh: %[1]d.",
+	},
+	"lab.clean.not-dates": {en: "Cells in %[2]s that were not dates, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan tarikh, dibiarkan kosong: %[1]d."},
 	"lab.clean.other-dates": {
 		en: "Dates written another way (with a time, as 2026-11-05 or as 05.11.26) read as dates, times left out: %d.",
 		ms: "Tarikh yang ditulis cara lain (dengan masa, sebagai 2026-11-05 atau 05.11.26) dibaca sebagai tarikh, tanpa masa: %d.",

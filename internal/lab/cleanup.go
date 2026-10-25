@@ -623,8 +623,12 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 // left empty; each is listed as a change, the last once per column.
 func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
-	for ci := range d.Columns {
+	for ci, col := range d.Columns {
 		d.Columns[ci].Type = workType(raw, ci)
+		if n := serials(raw, ci); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
+			d.Columns[ci].Type = Date
+			res.Changes = append(res.Changes, Change{"lab.clean.serial-dates", []int{n}, col.Name})
+		}
 	}
 	for _, vals := range raw {
 		row := make([]any, len(d.Columns))
@@ -700,6 +704,29 @@ func workType(raw [][]cell, ci int) Type {
 		return Number
 	}
 	return Text
+}
+
+// serials counts column ci's numbers when every one of them is an Excel date serial from 1950 to 2100; 0 if not.
+// ponytail: day numbers 1 to 31 are not read as serials, which would date them in January 1900.
+func serials(raw [][]cell, ci int) int {
+	n := 0
+	for _, vals := range raw {
+		v, ok := number(vals[ci].v)
+		switch {
+		case vals[ci].v == "-" || ok && (v < 18264 || v > 73415):
+			return 0
+		case ok:
+			n++
+		}
+	}
+	return n
+}
+
+// dateNamed reports whether a column's name holds one of the words for a date that Finance's date blank is
+// guessed by, such as tarikh or created.
+func dateNamed(name string) bool {
+	i := slices.IndexFunc(Finance.Blanks, func(b Blank) bool { return b.Key == "date" })
+	return slices.ContainsFunc(Finance.Blanks[i].Loose, func(w string) bool { return strings.Contains(columnKey(name), w) })
 }
 
 var (

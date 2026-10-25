@@ -674,3 +674,27 @@ func TestCleanUpReadsAMostlyDateColumnAsDates(t *testing.T) {
 		t.Fatalf("changes = %q, want %q", got, want)
 	}
 }
+
+// Excel can store a date as a plain number, its date serial, with no date style; a column whose name says it
+// holds dates reads them as dates, so they are not added up. Other numbers stay numbers.
+func TestCleanUpReadsExcelDateSerialsInADateNamedColumnAsDates(t *testing.T) {
+	file := testutil.XLSX(t, []string{"Created Date", "Hari", "Jumlah"},
+		[]any{46300, 3, 46300}, // 46300 is 5 October 2026
+		[]any{46301, 4, 46301},
+	)
+	res := clean(t, file, finance(t))
+
+	want := []lab.Column{{"Created Date", lab.Date}, {"Hari", lab.Number}, {"Jumlah", lab.Number}}
+	if !reflect.DeepEqual(res.Dataset.Columns, want) {
+		t.Fatalf("columns = %v, want %v", res.Dataset.Columns, want)
+	}
+	if got := []any{res.Dataset.Rows[0][0], res.Dataset.Rows[1][0]}; !reflect.DeepEqual(got, []any{"2026-10-05", "2026-10-06"}) {
+		t.Fatalf("dates = %v", got)
+	}
+	if got, want := changesIn(res, "en"), []string{"Numbers in Created Date read as Excel dates, as its name says it holds dates: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Nombor dalam Created Date dibaca sebagai tarikh Excel, kerana namanya menunjukkan ia tarikh: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
