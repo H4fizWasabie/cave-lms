@@ -358,7 +358,8 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
-// saveTheme sets the Theme the Dashboard draws in, and its Deployment with it; a Theme Cave does not offer is refused.
+// saveTheme sets the Theme the Dashboard draws in, and its Deployment with it, then shows the preview at the
+// width it was picked at; a Theme Cave does not offer is refused.
 func (a *App) saveTheme(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -372,7 +373,11 @@ func (a *App) saveTheme(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, dashboardURL(d)+"/preview", http.StatusSeeOther)
+	to := dashboardURL(d) + "/preview"
+	if r.FormValue("phone") != "" {
+		to += "?phone"
+	}
+	http.Redirect(w, r, to, http.StatusSeeOther)
 }
 
 // deleteDashboard deletes a Dashboard and its Dataset, from the store too; the delete tab asks first. Its Deployment's link

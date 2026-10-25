@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  // The look every Theme shares; a Theme sets the colours, corners and shadows through these variables.
+  // The rules every Theme shares; a Theme sets the colours, corners and shadows through these variables.
   var CSS = [
     '*,*::before,*::after{box-sizing:border-box}',
     'body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}',
@@ -55,20 +55,21 @@
     '@media (max-width:640px){main{padding:1.1rem .9rem .6rem}.dh h1{font-size:1.3rem}.df{width:100%}.df label{flex:1 1 8rem}' +
       '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard:first-child,.dcard:last-child:nth-child(even){grid-column:span 2}.dcard strong{font-size:1.25rem}.dcard:first-child strong{font-size:1.7rem}' +
       '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}',
-    // Printed on white whatever the Theme, without the filter bar.
-    '@media print{body{background:#fff!important;color:#111}main{max-width:none;padding:0}.df{display:none}.dh,.dcard,.dpanel{background:#fff!important;border-color:#ccc!important;box-shadow:none!important;color:#111;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;break-inside:avoid}' +
-      '.dh h1,.dh .dq,.dcard strong,.dpanel h2,.dbar-v,.ddonut .dtot{color:#111!important;fill:#111!important}.dh p,.dcard span,.dfind,.dlegend,.dtable th,.dchart text{color:#444!important;fill:#444!important}}'
+    // Printed on white whatever the Theme, without the filter bar: a dark Theme's text, lines and tracks turn dark.
+    '@media print{:root{--bg:#fff;--card:#fff;--head:#fff;--ink:#111;--num:#111;--muted:#444;--axis:#555;--line:#ccc;--soft:#e6e6e6;--grid:#e6e6e6;--track:#ececec;--shadow:none}' +
+      'main{max-width:none;padding:0}.df{display:none}.dh,.dcard,.dpanel{background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;break-inside:avoid}}'
   ].join('\n');
 
-  // The five Themes (the client's specs, kept in .scratch/dashboard-themes): CSS variables, an extra rule or two,
-  // and the colours charts are drawn in. bar and top colour a bar chart, top marking its largest group; stack
-  // colours the parts of a split bar; line and point a line of one series; series a line split into several.
+  // The five Themes, from the client's specs: CSS variables, an extra rule or two, and the colours charts are
+  // drawn in. bar and top colour a bar chart, top marking its largest group; stack colours the parts of a split
+  // bar; line and point a line of one series, area the shade under it, stroke and dot its width and its points'
+  // radius; series a line split into several.
   var THEMES = {
     corporate: {
       vars: { bg: '#F6F8FB', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#13263B', num: '#0E2A47', muted: '#5E6E80', axis: '#7A8899',
         line: '#E3E8EF', soft: '#EEF1F5', grid: '#EDF0F4', track: '#EEF1F5', r: '12px', kpi: '#C89B3C', pos: '#2E8B6F', neg: '#C2553F',
         shadow: '0 1px 2px rgba(14,42,71,.05),0 6px 16px -8px rgba(14,42,71,.10)' },
-      bar: '#0E2A47', top: '#C89B3C', line: '#0E2A47', point: '#C89B3C', area: 0.08,
+      bar: '#0E2A47', top: '#C89B3C', line: '#0E2A47', point: '#C89B3C', area: 0.08, stroke: 2.5, dot: 3.5,
       donut: ['#0E2A47', '#C89B3C', '#5B7FA6', '#E2C88F', '#9AA9BA', '#2E8B6F', '#C7CED8'],
       stack: ['#2E8B6F', '#C89B3C', '#D9725B', '#5B7FA6', '#9AA9BA'],
       series: ['#0E2A47', '#C89B3C', '#2E8B6F', '#D9725B', '#5B7FA6', '#9AA9BA']
@@ -78,7 +79,7 @@
         line: 'rgba(255,255,255,.09)', soft: 'rgba(255,255,255,.05)', grid: 'rgba(255,255,255,.07)', track: 'rgba(255,255,255,.07)', r: '12px',
         kpi: '#D4AA55', pos: '#48A98A', neg: '#D97979', shadow: 'inset 0 1px 0 rgba(255,255,255,.04),0 12px 28px -14px rgba(0,0,0,.6)' },
       css: ':root{color-scheme:dark}',
-      bar: '#3D7CC9', top: '#D4AA55', line: '#56B4E3', point: '#D4AA55', area: 0.12,
+      bar: '#3D7CC9', top: '#D4AA55', line: '#56B4E3', point: '#D4AA55', area: 0.12, stroke: 2.5, dot: 3.5,
       donut: ['#D4AA55', '#3D7CC9', '#56B4E3', '#48A98A', '#8FA3B8', '#D97979', '#5A6B80'],
       stack: ['#48A98A', '#D4AA55', '#D97979', '#56B4E3', '#8FA3B8'],
       series: ['#56B4E3', '#D4AA55', '#48A98A', '#D97979', '#8FA3B8', '#3D7CC9']
@@ -88,7 +89,7 @@
         line: '#E5E9ED', soft: '#F0F2F4', grid: '#F0F2F4', track: '#F1F3F5', r: '6px', kpi: 'transparent', pos: '#2F7D5B', neg: '#B5473A', shadow: 'none' },
       css: '.dh{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0 0 1.1rem;margin-bottom:1.2rem}' +
         '.dcard span{text-transform:uppercase;letter-spacing:.06em;font-size:.72rem}.dcard:first-child strong{color:#3569A8}.dgrid,.dcards{gap:1rem}',
-      bar: '#3569A8', top: '#3569A8', line: '#3569A8', point: '#3569A8', area: 0, thin: true,
+      bar: '#3569A8', top: '#3569A8', line: '#3569A8', point: '#3569A8', area: 0, stroke: 1.75, dot: 3,
       donut: ['#3569A8', '#A9C0DD', '#68737D', '#C9D0D7', '#2A9D8F', '#D9A03F', '#E5E9ED'],
       stack: ['#3569A8', '#2A9D8F', '#D9A03F', '#9AA5B1', '#C9D0D7'],
       series: ['#3569A8', '#2A9D8F', '#D9A03F', '#68737D', '#9AA5B1', '#B5473A']
@@ -101,10 +102,10 @@
       // Blur where the browser has it; elsewhere solid panels, so text never sits on the bare gradient.
       css: ':root{color-scheme:dark}.dh,.dcard,.dpanel{-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%)}' +
         '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.dh,.dcard,.dpanel{background:rgba(26,50,98,.94)}}',
-      bar: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', top: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', line: '#57C8E8', point: '#D8F5FF', area: 0.14,
-      donut: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#E6E9F5', '#8FA8E8', '#6C7AA8'],
-      stack: ['#3CC6B5', '#A69DF2', '#D4AA55', '#57C8E8', '#E6E9F5'],
-      series: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#E6E9F5', '#FFA3A3']
+      bar: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', top: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', line: '#57C8E8', point: '#D8F5FF', area: 0.14, stroke: 2.5, dot: 3.5,
+      donut: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#F2A7C9', '#8FA8E8', '#6C7AA8'],
+      stack: ['#3CC6B5', '#A69DF2', '#D4AA55', '#57C8E8', '#F2A7C9'],
+      series: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#F2A7C9', '#FFA3A3']
     },
     storytelling: {
       vars: { bg: '#FAFBFC', card: '#FFFFFF', solid: '#FFFFFF', head: '#FAFBFC', ink: '#18324A', num: '#18324A', muted: '#5A6E82', axis: '#7D8E9F',
@@ -114,7 +115,7 @@
       css: '.dh{border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:0 0 1.1rem}' +
         '.dcard:nth-child(4n+2){--kpi:#18A999}.dcard:nth-child(4n+3){--kpi:#E89A45}.dcard:nth-child(4n+4){--kpi:#8267C7}.dcard::before{top:0;bottom:auto;left:0;right:0;width:auto;height:3px;border-radius:0}' +
         '.dpanel .dfind{margin:-.3rem 0 .8rem;padding:.45rem .7rem;border-left:3px solid #3478C0;border-radius:0 6px 6px 0;background:#EEF4FB;color:#18324A;font-weight:500}',
-      bar: '#3478C0', top: '#3478C0', line: '#3478C0', point: '#E89A45', area: 0.08,
+      bar: '#3478C0', top: '#3478C0', line: '#3478C0', point: '#E89A45', area: 0.08, stroke: 2.5, dot: 3.5,
       donut: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9D3DD', '#5A6E82'],
       stack: ['#18A999', '#E89A45', '#8267C7', '#3478C0', '#A8B6C4'],
       series: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9562F']
@@ -357,8 +358,8 @@
         var c = by ? seriesColour(theme, theme.series, s, si) : theme.line, dot = by ? c : theme.point;
         var pts = keys.map(function (k, i) { return X(i) + ',' + Y(series[s][k] || 0); }).join(' ');
         if (!by && theme.area) svg += '<polygon points="' + L + ',' + Y(0) + ' ' + pts + ' ' + X(keys.length - 1) + ',' + Y(0) + '" fill="' + c + '" opacity="' + theme.area + '"/>';
-        svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="' + (theme.thin ? 1.75 : 2.5) + '" stroke-linejoin="round"/>';
-        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="' + (theme.thin ? 3 : 3.5) + '" fill="' + dot + '"><title>' + esc(s) + ', ' + esc(when(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
+        svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="' + theme.stroke + '" stroke-linejoin="round"/>';
+        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="' + theme.dot + '" fill="' + dot + '"><title>' + esc(s) + ', ' + esc(when(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
       });
       var legend = by ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + seriesColour(theme, theme.series, s, si) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
       var finding = keys.length > 1 && peak[2] > 0 ? 'Peak: ' + (by ? peak[0] + ', ' : '') + when(peak[1]) + ', ' + short(peak[2], m) : '';

@@ -401,6 +401,7 @@
         <form class="pv-theme" method="post" action="{{$url}}/theme">
           <label for="theme">{{t .Lang "lab.d.theme"}}</label>
           <select id="theme" name="theme">{{range .Themes}}<option value="{{.Key}}"{{if eq .Key $.Dashboard.Theme}} selected{{end}}>{{.Name}}</option>{{end}}</select>
+          {{- if .Phone}}<input type="hidden" name="phone" value="1">{{end}}
           <button class="btn btn-ghost">{{t .Lang "lab.d.theme-apply"}}</button>
         </form>
         {{- end}}

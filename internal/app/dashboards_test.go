@@ -685,6 +685,14 @@ func TestALearnerPicksAThemeAndTheDashboardDrawsInIt(t *testing.T) {
 	res, page = ada.get(path + "/view/")
 	expectStatus(t, res, page, http.StatusOK, `"theme": "midnight"`)
 
+	// Picked at phone width, the preview stays at phone width.
+	res, body = ada.post(path+"/theme", url.Values{"theme": {"glass"}, "phone": {"1"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview?phone" {
+		t.Fatalf("picking a Theme at phone width redirects to %q, want the phone preview", loc)
+	}
+	ada.post(path+"/theme", url.Values{"theme": {"midnight"}})
+
 	// A Theme Cave does not offer changes nothing.
 	res, body = ada.post(path+"/theme", url.Values{"theme": {"neon"}})
 	expectStatus(t, res, body, http.StatusBadRequest, "")
