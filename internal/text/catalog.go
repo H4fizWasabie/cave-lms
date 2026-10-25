@@ -1069,7 +1069,7 @@ var catalog = map[string]entry{
 	"lab.note.free-text":   {en: "%s: notes or long text, so it's only in the table.", ms: "%s: catatan atau teks panjang, jadi ia hanya dalam jadual."},
 	"lab.note.average":     {en: "%s: a price, rate, balance or level, so it's averaged, not added up.", ms: "%s: harga, kadar, baki atau paras, jadi puratanya diambil, bukan dijumlahkan."},
 	"lab.note.year":        {en: "%s: years, so it isn't added up.", ms: "%s: tahun, jadi ia tidak dijumlahkan."},
-	"lab.note.serial-date": {en: "%s: dates kept as numbers, so it isn't added up.", ms: "%s: tarikh yang disimpan sebagai nombor, jadi ia tidak dijumlahkan."},
+	"lab.note.serial-date": {en: "%s: a date or day kept as a number, so it isn't added up.", ms: "%s: tarikh atau hari yang disimpan sebagai nombor, jadi ia tidak dijumlahkan."},
 	"lab.w.changes":        {en: "What Cave changed", ms: "Apa yang Cave ubah"},
 	"lab.w.no-changes":     {en: "Cave changed nothing: the file read as it is.", ms: "Cave tidak mengubah apa-apa: fail dibaca seadanya."},
 	"lab.w.which-column":   {en: "Which column fills each blank of the %s Template? Cave guessed from the column names.", ms: "Lajur mana yang mengisi setiap ruang Templat %s? Cave meneka berdasarkan nama lajur."},

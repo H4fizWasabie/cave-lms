@@ -239,3 +239,34 @@ func TestCleanUpNotesEachColumnLeftOutOfChartsOrAveragedInBothLanguages(t *testi
 		t.Errorf("Malay notes = %v", ms)
 	}
 }
+
+func TestGeneralNeverAddsUpADateKeptAsNumbers(t *testing.T) {
+	var rows [][]any
+	for i := range 20 {
+		rows = append(rows, []any{float64(i + 1), float64(45900 + i), float64(100 * i)})
+	}
+	cfg := general(t, []string{"Date", "Tarikh Bayar", "Total Amount"}, rows...)
+	for _, b := range cfg.Blocks {
+		if v := b.Value; v != nil && (v.Col == "Date" || v.Col == "Tarikh Bayar") {
+			t.Errorf("%s adds up %s", b.Label, v.Col)
+		}
+	}
+}
+
+func TestGeneralNeverGroupsByANumberedColumnEvenWithFewValues(t *testing.T) {
+	var rows [][]any
+	for i := range 30 {
+		rows = append(rows, []any{fmt.Sprintf("B%d", i%4), []string{"P", "M", "C"}[i%3], []string{"Wad 1", "Wad 2"}[i%2]})
+	}
+	cfg := general(t, []string{"Batch No.", "Kod Syif", "Wad"}, rows...)
+	if g := grouped(cfg); slices.Contains(g, "Batch No.") || !slices.Contains(g, "Kod Syif") {
+		t.Errorf("charts group by %v, want Kod Syif and never Batch No.", g)
+	}
+}
+
+func TestWithNothingAddedUpThePriceTimesQuantityCardComesFirst(t *testing.T) {
+	cfg := general(t, []string{"Cost Price", "Actual Stock"}, []any{2.0, 3.0}, []any{4.0, 5.0})
+	if first := cfg.Blocks[0]; first.Value == nil || first.Value.Agg != "calc" {
+		t.Errorf("first card %+v, want the calculation", first)
+	}
+}

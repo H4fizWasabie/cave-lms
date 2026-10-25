@@ -125,7 +125,7 @@ func profiles(d *Dataset) []profile {
 			p.rank = rankOf(col.Name, blank(Finance, "date").Loose)
 		case col.Type == Number && anyWord(ws, yearWords) && lo >= 1900 && hi <= 2100:
 			role(Dimension, "lab.note.year")
-		case col.Type == Number && (anyWord(ws, []string{"tarikh", "date"})) && lo >= 20000 && hi <= 80000: // Excel's days since 1900
+		case col.Type == Number && anyWord(ws, []string{"tarikh", "date"}): // a day of the month, or Excel's days since 1900
 			role(Identifier, "lab.note.serial-date")
 		case col.Type == Number && idName(col.Name):
 			role(Identifier, "lab.note.id")
@@ -137,7 +137,7 @@ func profiles(d *Dataset) []profile {
 			}
 		case anyWord(ws, freeWords) || runes > 40*filled:
 			role(FreeText, "lab.note.free-text")
-		case idName(col.Name) && p.Values > 15:
+		case idName(col.Name) && !(anyWord(ws, []string{"kod", "code"}) && p.Values <= 15): // a handful of codes is a category
 			role(Identifier, "lab.note.id")
 		case p.Values == filled && filled >= 10: // ponytail: fewer rows can't tell an ID from a category
 			role(Identifier, "lab.note.unique")
@@ -249,7 +249,11 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 	}
 	if q, p := priceAndQuantity(d, ps); q != "" {
 		calc := Block{Kind: "card", Label: q + " × " + p, Agg: "sum", Of: key[q], Times: key[p]}
-		cards = slices.Insert(cards, min(1, len(cards)), calc)
+		at := 1 // after the main measure; first when nothing is added up
+		if of == "" {
+			at = 0
+		}
+		cards = slices.Insert(cards, min(at, len(cards)), calc)
 	}
 	cards = append(cards, Block{Kind: "card", Label: "Rows", Agg: "count"})
 	t.Blocks = cards[:min(generalCards, len(cards))]
