@@ -332,16 +332,25 @@ type certLine struct {
 func certTitleLines(pdf *fpdf.Fpdf, title string) (size float64, lines []certLine) {
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
 	words := strings.Fields(title)
+	fits := func(s string) bool { return pdf.GetStringWidth(tr(s)) <= certTitleW }
 	var texts []string
 	for size = 16; ; size-- {
 		pdf.SetFont("Times", "B", size)
 		texts = texts[:0]
 		for _, w := range words {
-			if n := len(texts); n > 0 && pdf.GetStringWidth(tr(texts[n-1]+" "+w)) <= certTitleW {
+			if n := len(texts); n > 0 && fits(texts[n-1]+" "+w) {
 				texts[n-1] += " " + w
-			} else {
-				texts = append(texts, w)
+				continue
 			}
+			for !fits(w) { // a word wider than the box breaks where it reaches the box's edge
+				r := []rune(w)
+				i := 1
+				for i < len(r) && fits(string(r[:i+1])) {
+					i++
+				}
+				texts, w = append(texts, string(r[:i])), string(r[i:])
+			}
+			texts = append(texts, w)
 		}
 		if size <= 8 || float64(len(texts))*size*0.45 <= certTitleH {
 			break
