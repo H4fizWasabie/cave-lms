@@ -353,3 +353,12 @@ func TestANewTableAndLineChooseAsGeneralDoes(t *testing.T) {
 		}
 	}
 }
+
+func TestTheActualCountLeadsInMalayAsInEnglish(t *testing.T) {
+	for _, actual := range []string{"Actual Count", "Kiraan Sebenar"} {
+		cfg := general(t, []string{"Bilangan", actual}, []any{1.0, 2.0}, []any{3.0, 4.0})
+		if first := cfg.Blocks[0]; first.Label != actual {
+			t.Errorf("first card %q, want %q", first.Label, actual)
+		}
+	}
+}

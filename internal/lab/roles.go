@@ -53,8 +53,9 @@ var (
 	yearWords = []string{"year", "tahun", "yr"}
 )
 
-// mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for.
-var mainNames = append(slices.Clone(blank(Sales, "amount").Loose), "closing", "actual", "akhir")
+// mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for,
+// in English and Malay.
+var mainNames = append(slices.Clone(blank(Sales, "amount").Loose), "closing", "actual", "sebenar", "akhir")
 
 // blank is the Template's blank of key.
 func blank(t *Template, key string) Blank {
