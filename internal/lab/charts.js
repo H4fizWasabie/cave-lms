@@ -26,6 +26,7 @@
     '.dcard strong{overflow-wrap:anywhere;font-size:1.6rem;font-weight:600;color:var(--num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}',
     '.dcard:first-child strong{font-size:2.2rem}',
     '.dcard.is-pos strong{color:var(--pos)}.dcard.is-neg strong{color:var(--neg)}',
+    '.dicon{position:absolute;top:.85rem;right:.95rem;width:1.25rem;height:1.25rem;color:var(--icon);fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.dicon+span{padding-right:1.7rem}',
     '.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}',
     '.dpanel{padding:1rem 1.15rem}',
     '.dpanel.wide{grid-column:1/-1}',
@@ -56,7 +57,7 @@
       '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard:first-child,.dcard:last-child:nth-child(even){grid-column:span 2}.dcard strong{font-size:1.25rem}.dcard:first-child strong{font-size:1.7rem}' +
       '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}',
     // Printed on white whatever the Theme, without the filter bar: a dark Theme's text, lines and tracks turn dark.
-    '@media print{:root{--bg:#fff;--card:#fff;--head:#fff;--ink:#111;--num:#111;--muted:#444;--axis:#555;--line:#ccc;--soft:#e6e6e6;--grid:#e6e6e6;--track:#ececec;--shadow:none}' +
+    '@media print{:root{--bg:#fff;--card:#fff;--head:#fff;--ink:#111;--num:#111;--muted:#444;--axis:#555;--line:#ccc;--soft:#e6e6e6;--grid:#e6e6e6;--track:#ececec;--icon:#555;--shadow:none}' +
       'main{max-width:none;padding:0}.df{display:none}.dh,.dcard,.dpanel{background:#fff!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;break-inside:avoid}}'
   ].join('\n');
 
@@ -67,7 +68,7 @@
   var THEMES = {
     corporate: {
       vars: { bg: '#F6F8FB', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#13263B', num: '#0E2A47', muted: '#5E6E80', axis: '#7A8899',
-        line: '#E3E8EF', soft: '#EEF1F5', grid: '#EDF0F4', track: '#EEF1F5', r: '12px', kpi: '#C89B3C', pos: '#2E8B6F', neg: '#C2553F',
+        line: '#E3E8EF', soft: '#EEF1F5', grid: '#EDF0F4', track: '#EEF1F5', r: '12px', kpi: '#C89B3C', pos: '#2E8B6F', neg: '#C2553F', icon: '#5B7FA6',
         shadow: '0 1px 2px rgba(14,42,71,.05),0 6px 16px -8px rgba(14,42,71,.10)' },
       bar: '#0E2A47', top: '#C89B3C', line: '#0E2A47', point: '#C89B3C', area: 0.08, stroke: 2.5, dot: 3.5,
       donut: ['#0E2A47', '#C89B3C', '#5B7FA6', '#E2C88F', '#9AA9BA', '#2E8B6F', '#C7CED8'],
@@ -77,7 +78,7 @@
     midnight: {
       vars: { bg: '#081726', card: '#10263B', solid: '#10263B', head: '#06111E', ink: '#F5F7FA', num: '#F5F7FA', muted: '#A8BACB', axis: '#8DA2B6',
         line: 'rgba(255,255,255,.09)', soft: 'rgba(255,255,255,.05)', grid: 'rgba(255,255,255,.07)', track: 'rgba(255,255,255,.07)', r: '12px',
-        kpi: '#D4AA55', pos: '#48A98A', neg: '#D97979', shadow: 'inset 0 1px 0 rgba(255,255,255,.04),0 12px 28px -14px rgba(0,0,0,.6)' },
+        kpi: '#D4AA55', pos: '#48A98A', neg: '#D97979', icon: '#D4AA55', shadow: 'inset 0 1px 0 rgba(255,255,255,.04),0 12px 28px -14px rgba(0,0,0,.6)' },
       css: ':root{color-scheme:dark}',
       bar: '#3D7CC9', top: '#D4AA55', line: '#56B4E3', point: '#D4AA55', area: 0.12, stroke: 2.5, dot: 3.5,
       donut: ['#D4AA55', '#3D7CC9', '#56B4E3', '#48A98A', '#8FA3B8', '#D97979', '#5A6B80'],
@@ -86,7 +87,7 @@
     },
     minimal: {
       vars: { bg: '#FFFFFF', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#20252B', num: '#20252B', muted: '#68737D', axis: '#8A939C',
-        line: '#E5E9ED', soft: '#F0F2F4', grid: '#F0F2F4', track: '#F1F3F5', r: '6px', kpi: 'transparent', pos: '#2F7D5B', neg: '#B5473A', shadow: 'none' },
+        line: '#E5E9ED', soft: '#F0F2F4', grid: '#F0F2F4', track: '#F1F3F5', r: '6px', kpi: 'transparent', pos: '#2F7D5B', neg: '#B5473A', icon: '#8A939C', shadow: 'none' },
       css: '.dh{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0 0 1.1rem;margin-bottom:1.2rem}' +
         '.dcard span{text-transform:uppercase;letter-spacing:.06em;font-size:.72rem}.dcard:first-child strong{color:#3569A8}.dgrid,.dcards{gap:1rem}',
       bar: '#3569A8', top: '#3569A8', line: '#3569A8', point: '#3569A8', area: 0, stroke: 1.75, dot: 3,
@@ -97,7 +98,7 @@
     glass: {
       vars: { bg: 'linear-gradient(140deg,#132B54 0%,#3859A6 55%,#6C5AA8 100%) fixed', card: 'rgba(255,255,255,.09)', solid: '#22417A', head: 'rgba(255,255,255,.07)',
         ink: '#FFFFFF', num: '#FFFFFF', muted: 'rgba(255,255,255,.76)', axis: 'rgba(255,255,255,.68)', line: 'rgba(255,255,255,.18)', soft: 'rgba(255,255,255,.10)',
-        grid: 'rgba(255,255,255,.12)', track: 'rgba(255,255,255,.12)', r: '16px', kpi: '#57C8E8', pos: '#7FE0C0', neg: '#FFA3A3',
+        grid: 'rgba(255,255,255,.12)', track: 'rgba(255,255,255,.12)', r: '16px', kpi: '#57C8E8', pos: '#7FE0C0', neg: '#FFA3A3', icon: '#57C8E8',
         shadow: 'inset 0 1px 0 rgba(255,255,255,.12),0 14px 34px -14px rgba(10,18,48,.5)' },
       // Blur where the browser has it; elsewhere solid panels, so text never sits on the bare gradient.
       css: ':root{color-scheme:dark}.dh,.dcard,.dpanel{-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%)}' +
@@ -109,7 +110,7 @@
     },
     storytelling: {
       vars: { bg: '#FAFBFC', card: '#FFFFFF', solid: '#FFFFFF', head: '#FAFBFC', ink: '#18324A', num: '#18324A', muted: '#5A6E82', axis: '#7D8E9F',
-        line: '#E4E9EF', soft: '#EEF2F6', grid: '#EEF2F6', track: '#EEF2F6', r: '14px', kpi: '#3478C0', pos: '#14907F', neg: '#C9562F',
+        line: '#E4E9EF', soft: '#EEF2F6', grid: '#EEF2F6', track: '#EEF2F6', r: '14px', kpi: '#3478C0', pos: '#14907F', neg: '#C9562F', icon: '#3478C0',
         shadow: '0 1px 2px rgba(24,50,74,.04)' },
       // Each card in its own colour, and the finding a chart's computed one-line insight, set off under its name.
       css: '.dh{border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:0 0 1.1rem}' +
@@ -129,6 +130,22 @@
   function themeCSS(t) {
     return FONTS + ':root{' + Object.keys(t.vars).map(function (k) { return '--' + k + ':' + t.vars[k]; }).join(';') + '}\n' + CSS + '\n' + (t.css || '');
   }
+
+  // The outline icons a card may show, as paths on a 24 by 24 grid, stroked in the Theme's icon colour.
+  var ICONS = {
+    people: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14a6.5 6.5 0 0 1 3.5 6',
+    money: 'M3 6h18v12H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM6.5 9.5v.01M17.5 14.5v.01',
+    box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
+    calendar: 'M4 6h16v14H4zM4 10h16M8 3v5M16 3v5',
+    check: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.5l2.5 2.5L16 9.5',
+    alert: 'M12 3.5L2.5 20h19zM12 10v4.5M12 17.5v.01',
+    'chart-up': 'M3 3v18h18M7 15l4-4 3 3 6-6M15 8h5v5',
+    tag: 'M3 12V4h8l10 10-8 8zM7.5 8v.01',
+    clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+    building: 'M5 21V4h10v17M15 9h4v12M3 21h18M8 8h4M8 12h4M8 16h4',
+    cart: 'M3 4h2l2.5 11h11L21 7H6.5M9 20v.01M18 20v.01',
+    star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z'
+  };
 
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -160,7 +177,7 @@
 
   // fromPractice reads a Template's block, naming blanks, as the same block naming columns would be.
   function fromPractice(b) {
-    return { kind: b.kind, label: b.label, wide: b.wide, x: b.x, by: b.kind === 'line' ? 'month' : undefined, split: b.series,
+    return { kind: b.kind, label: b.label, icon: b.icon, wide: b.wide, x: b.x, by: b.kind === 'line' ? 'month' : undefined, split: b.series,
       group: b.group, top: b.kind === 'bar' ? 8 : undefined, other: b.kind === 'donut' ? 5 : undefined, cols: b.cols, sort: b.sort, limit: b.limit, where: b.where, minus: b.minus, low: b.low,
       value: b.kind === 'table' ? undefined : b.agg === 'count' || !b.of ? { agg: 'count' } : b.times ? { agg: 'calc', a: b.of, op: 'x', b: b.times, then: 'sum' } : { agg: 'sum', col: b.of } };
   }
@@ -198,6 +215,16 @@
   function noMatch(b, all, cols) { return !!b.filter && !scope(b, all, cols).length; }
   function cardValue(b, rows, cols) {
     return valueOf(b.value, scope(b, rows, cols)) - (b.minus ? valueOf(b.value, where(rows, b.minus, cols)) : 0);
+  }
+  // iconOf is the icon a card draws: the one it names, none for "none", and with none named (a card saved before
+  // icons) the one its value suggests, as lab's WorkBlock.DefaultIcon: people for a count, money for a sum or
+  // average of an RM column, tag for a distinct count, otherwise chart-up.
+  function iconOf(b, cols) {
+    if (b.icon === 'none') return '';
+    if (ICONS[b.icon]) return b.icon;
+    var v = b.value || {};
+    return !v.agg || v.agg === 'count' ? 'people' : (v.agg === 'sum' || v.agg === 'avg') && cols[v.col] && cols[v.col].money ? 'money'
+      : v.agg === 'distinct' ? 'tag' : 'chart-up';
   }
   // groups is [[key, value, rows]] by the column k, largest first; empty cells group as (blank).
   function groups(v, rows, k) {
@@ -330,10 +357,11 @@
     function empty(b) { return panel(b, '<p class="dnone">No rows match the filters</p>'); }
 
     function card(b, rows) {
-      if (noMatch(b, all, cols)) return '<div class="dcard"><span>' + esc(b.label) + '</span><strong class="dnone">No rows match</strong></div>';
+      var k = iconOf(b, cols), icon = k ? '<svg class="dicon" data-icon="' + k + '" viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICONS[k] + '"/></svg>' : '';
+      if (noMatch(b, all, cols)) return '<div class="dcard">' + icon + '<span>' + esc(b.label) + '</span><strong class="dnone">No rows match</strong></div>';
       var v = cardValue(b, rows, cols);
       var cls = b.minus ? (v < 0 ? ' is-neg' : ' is-pos') : b.low && v > 0 ? ' is-neg' : '';
-      return '<div class="dcard' + cls + '"><span>' + esc(b.label) + '</span><strong>' + fmt(v, money(b.value)) + '</strong></div>';
+      return '<div class="dcard' + cls + '">' + icon + '<span>' + esc(b.label) + '</span><strong>' + fmt(v, money(b.value)) + '</strong></div>';
     }
 
     function line(b, rows) {
@@ -427,7 +455,8 @@
   }
 
   drawDashboard.compute = { fromPractice: fromPractice, cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
-    slices: slices, tableRows: tableRows, paused: paused };
+    slices: slices, tableRows: tableRows, paused: paused, iconOf: iconOf };
   drawDashboard.themes = Object.keys(THEMES);
+  drawDashboard.icons = Object.keys(ICONS);
   window.drawDashboard = drawDashboard;
 })();

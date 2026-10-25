@@ -21,6 +21,10 @@ if (process.argv[2] === 'themes') {
   console.log(window.drawDashboard.themes.join(' '));
   return;
 }
+if (process.argv[2] === 'icons') {
+  console.log(window.drawDashboard.icons.join(' '));
+  return;
+}
 if (process.argv[2]) {
   var page = fs.readFileSync(process.argv[2], 'utf8');
   var dash = JSON.parse(page.match(/const dashboard = (\{[\s\S]*?\n    \});/)[1]);
@@ -112,9 +116,21 @@ eq(C.paused({ kind: 'card', value: { agg: 'count' }, where: ['Kos', 'Masuk'] }, 
 eq(C.paused({ kind: 'card', value: { agg: 'distinct', col: 'Jumlah' } }, cols), false, 'distinct counts any type');
 eq(C.paused({ kind: 'table', cols: ['Jumlah', 'Staf'], sort: 'Kos' }, cols), false, 'a table shows any type');
 
+// A card's icon: the one it names, none, or with no icon (a card saved before icons) the one its value suggests.
+var money = { Jumlah: { type: 'number', money: true }, Kos: { type: 'number' }, Staf: { type: 'text' } };
+eq(C.iconOf({ icon: 'star', value: { agg: 'count' } }, money), 'star', 'named icon');
+eq(C.iconOf({ icon: 'none', value: { agg: 'count' } }, money), '', 'no icon');
+eq(C.iconOf({ value: { agg: 'count' } }, money), 'people', 'count: people');
+eq(C.iconOf({ value: { agg: 'sum', col: 'Jumlah' } }, money), 'money', 'sum of RM: money');
+eq(C.iconOf({ value: { agg: 'avg', col: 'Jumlah' } }, money), 'money', 'average of RM: money');
+eq(C.iconOf({ value: { agg: 'sum', col: 'Kos' } }, money), 'chart-up', 'sum of a plain number: chart-up');
+eq(C.iconOf({ value: { agg: 'distinct', col: 'Staf' } }, money), 'tag', 'distinct: tag');
+eq(C.iconOf({ value: { agg: 'calc', a: 'Jumlah', op: '-', b: 'Kos', then: 'sum' } }, money), 'chart-up', 'calculation: chart-up');
+
 // A Practice block reads as the same Work block.
 eq(C.fromPractice({ kind: 'card', label: 'Stock value', agg: 'sum', of: 'q', times: 'p' }).value,
   { agg: 'calc', a: 'q', op: 'x', b: 'p', then: 'sum' }, 'practice times');
+eq(C.fromPractice({ kind: 'card', label: 'Low stock', icon: 'alert', agg: 'count' }).icon, 'alert', 'practice icon');
 eq(C.fromPractice({ kind: 'bar', group: 'c', of: 'a', where: ['t', 'Keluar'] }),
   { kind: 'bar', value: { agg: 'sum', col: 'a' }, group: 'c', top: 8, where: ['t', 'Keluar'] }, 'practice bar');
 
