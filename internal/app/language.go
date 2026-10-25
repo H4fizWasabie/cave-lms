@@ -19,6 +19,7 @@ type chrome struct {
 	Lang   string
 	Here   string   // path and query of this page for the language switch to come back to, or "" for home
 	Latest []course // the 3 newest open Courses
+	Proto  string   // PROTOTYPE: the design variant shown ("0", "a", "b" or "c"), "" when the switcher is off
 }
 
 func (c *chrome) chromeField() *chrome { return c }

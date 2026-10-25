@@ -561,7 +561,14 @@ func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, 
 func parsePages() (map[string]*template.Template, error) {
 	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
-		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html")
+		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason },
+		// PROTOTYPE (prototype/premium-refresh): p is prototype-only copy, English then Malay, kept out of the catalog.
+		"p": func(lang, en, ms string) string {
+			if lang == "en" {
+				return en
+			}
+			return ms
+		}}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
@@ -613,6 +620,18 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			a.serverError(w, r, err)
 			return
 		}
+	}
+	// PROTOTYPE (prototype/premium-refresh): on a localhost PUBLIC_BASE_URL only, ?variant=a|b|c swaps the home
+	// and Course pages for a design variant; anything else is variant 0, the page as it is.
+	if c, ok := data.(interface{ chromeField() *chrome }); ok && (name == "home" || name == "course") &&
+		(strings.HasPrefix(a.publicBaseURL, "http://localhost") || strings.HasPrefix(a.publicBaseURL, "http://127.0.0.1")) {
+		v := r.URL.Query().Get("variant")
+		if v == "a" || v == "b" || v == "c" {
+			name += "_proto_" + v
+		} else {
+			v = "0"
+		}
+		c.chromeField().Proto = v
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

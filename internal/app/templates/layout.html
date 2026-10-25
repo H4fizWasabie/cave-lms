@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="{{static "favicon.png"}}">
   <link rel="stylesheet" href="{{static "cavelms.css"}}">
+  {{- if .Proto}}<link rel="stylesheet" href="{{static "cavelms-proto.css"}}">{{end}}
   {{- block "head" .}}{{end}}
   <title>{{block "title" .}}CAVELMS{{end}}</title>
 </head>
-<body>
+<body{{if .Proto}} class="proto proto-{{.Proto}}"{{end}}>
   <header class="site-header">
     <div class="wrap site-header-in">
       <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
-      <nav class="site-nav hdr-wide" aria-label="{{t .Lang "header.main-nav"}}">{{template "nav-links" .}}</nav>
+      <nav class="site-nav hdr-wide" aria-label="{{t .Lang "header.main-nav"}}">{{if or (eq .Proto "") (eq .Proto "0")}}{{template "nav-links" .}}{{else}}{{template "proto-nav" .}}{{end}}</nav>
       <div class="site-header-right">
         <form class="lang-switch" method="post" action="/language" aria-label="{{t .Lang "header.language"}}">
           <input type="hidden" name="next" value="{{.Here}}">
@@ -33,7 +34,7 @@
         <details class="hdr-drop hdr-narrow">
           <summary class="hdr-link"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "header.menu"}}</span></summary>
           <div class="hdr-panel">
-            <nav aria-label="{{t .Lang "header.main-nav"}}">{{template "nav-links" .}}</nav>
+            <nav aria-label="{{t .Lang "header.main-nav"}}">{{if or (eq .Proto "") (eq .Proto "0")}}{{template "nav-links" .}}{{else}}{{template "proto-nav" .}}{{end}}</nav>
             {{template "account-links" .}}
           </div>
         </details>
@@ -81,6 +82,7 @@
     <div class="wrap footer-base">© 2026 The Cave Consult</div>
   </footer>
   <script src="{{static "header.js"}}"></script>
+  {{- if .Proto}}{{template "proto-switcher" .}}{{end}}
 </body>
 </html>
 {{end}}
@@ -245,3 +247,53 @@ Visitors see the cards without buttons. */}}
               <div><p class="cave-loader-label" data-label="{{.Label}}"></p><p class="cave-loader-line" aria-hidden="true" data-lines="{{.Lines}}"></p></div>
             </div>
 {{end}}
+
+{{/* PROTOTYPE (prototype/premium-refresh): the flatter menu the variants share, and the variant switcher.
+   Not for main: see the implementation issue. */}}
+{{define "proto-nav"}}
+        <a class="hdr-link" href="/courses">{{t .Lang "nav.courses"}}</a>
+        <a class="hdr-link" href="/programmes">{{p .Lang "Programmes" "Program"}}</a>
+        <a class="hdr-link" href="/lab">{{t .Lang "nav.lab"}}</a>
+        <a class="hdr-link" href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
+        <a class="hdr-link" href="/pricing">{{t .Lang "nav.pricing"}}</a>
+        <a class="hdr-link" href="/about">{{p .Lang "About" "Tentang kami"}}</a>
+{{- end}}
+{{define "proto-switcher"}}
+  <nav class="proto-bar" aria-label="Prototype variants" data-variants="0 a b c" data-current="{{.Proto}}">
+    <button type="button" data-step="-1" aria-label="Previous variant">&larr;</button>
+    <span>{{if eq .Proto "0"}}0 &middot; Current{{else if eq .Proto "a"}}A &middot; Editorial{{else if eq .Proto "b"}}B &middot; Accredited academy{{else}}C &middot; Guided journey{{end}}</span>
+    <button type="button" data-step="1" aria-label="Next variant">&rarr;</button>
+  </nav>
+  <script src="{{static "proto.js"}}"></script>
+{{- end}}
+{{/* PROTOTYPE: a sample Certificate drawn in HTML, for the page's Course (or the newest one) and Learner. */}}
+{{define "proto-cert"}}
+      <figure class="pcert">
+        <div class="pcert-sheet">
+          <img class="pcert-logo" src="{{static "cavelms.svg"}}" alt="">
+          <p class="pcert-type">{{p .Lang "Certificate of completion" "Sijil penyempurnaan"}}</p>
+          <p class="pcert-name">{{with .Learner}}{{.Name}}{{else}}{{p $.Lang "Your name here" "Nama anda di sini"}}{{end}}</p>
+          <p class="pcert-for">{{p .Lang "has successfully completed" "telah berjaya menamatkan"}}</p>
+          <p class="pcert-course">{{with .Course}}{{.Title}}{{else}}{{range $i, $c := .Latest}}{{if eq $i 0}}{{$c.Title}}{{end}}{{end}}{{end}}</p>
+          <div class="pcert-foot">
+            <p><span class="pcert-sign">Adam Daniel</span>Coach Adam Daniel<br>The Cave Consult</p>
+            <svg class="pcert-seal" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="32" cy="32" r="25" fill="none" stroke="currentColor" stroke-width=".75"/><path d="M20 44 32 18l12 26h-6l-6-13-6 13z" fill="currentColor"/></svg>
+            <p class="pcert-no">No. CAVE-2026-0001<br>cavelms.com/certificates</p>
+          </div>
+        </div>
+        <figcaption>{{p .Lang "Sample. Every certificate carries a number anyone can check at cavelms.com/certificates." "Contoh. Setiap sijil mempunyai nombor yang boleh disemak sesiapa di cavelms.com/certificates."}}</figcaption>
+      </figure>
+{{- end}}
+{{/* PROTOTYPE: Coach Adam's portrait, cropped from the profile card so its baked-in text stays out. */}}
+{{define "proto-portrait"}}
+        <div class="pportrait"><img src="{{static "coach-adam-daniel.webp"}}" alt="Coach Adam Daniel" width="1280" height="1008"></div>
+{{- end}}
+{{define "proto-creds"}}
+          <ul class="pcreds" lang="en">
+            <li><strong>HRDC Accredited Trainer</strong><span>Human Resource Development Corporation (HRD Corp)</span></li>
+            <li><strong>JPK Certified Trainer</strong><span>Jabatan Pembangunan Kemahiran, Malaysia</span></li>
+            <li><strong>Certified Generative AI, with Distinction</strong><span>International Council for Technology Certifications (ICTC)</span></li>
+            <li><strong>Executive Master in Business Management (Hons)</strong><span>UMPSA</span></li>
+            <li><strong>Sustainability &amp; ESG Reporting Professional</strong><span>Exemplar Global RTP certified programme</span></li>
+          </ul>
+{{- end}}

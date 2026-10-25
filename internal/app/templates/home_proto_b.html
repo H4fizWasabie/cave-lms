@@ -1,0 +1,91 @@
+{{/* PROTOTYPE (prototype/premium-refresh), variant B "Accredited academy": credentials first. Throwaway. */}}
+{{define "content"}}
+    <section class="pb-hero" id="welcome">
+      <div class="wrap pb-hero-in">
+        <div class="pb-hero-copy">
+          <h1>{{p .Lang "Accredited Generative AI training for Malaysia's workforce." "Latihan AI generatif bertauliah untuk tenaga kerja Malaysia."}}</h1>
+          <p class="pb-lede">{{t .Lang "home.lede"}}</p>
+          <div class="pb-ctas">
+            <a class="btn btn-gold btn-lg" href="/courses">{{p .Lang "Browse courses" "Lihat kursus"}}</a>
+            <a class="btn pb-btn-line btn-lg" href="/certificates">{{t .Lang "nav.check-cert"}}</a>
+          </div>
+        </div>
+        {{template "proto-cert" .}}
+      </div>
+    </section>
+
+    <section class="pb-trust" aria-label="{{t .Lang "about.creds"}}">
+      <div class="wrap pb-trust-in">
+        <p><strong>HRD Corp</strong>{{t .Lang "about.hrd"}}</p>
+        <p><strong>MOF</strong>{{t .Lang "about.mof"}}</p>
+        <p><strong>JPK</strong>{{p .Lang "Certified trainer, Department of Skills Development" "Pelatih bertauliah, Jabatan Pembangunan Kemahiran"}}</p>
+        <p class="pb-ph"><strong>[N]</strong>{{p .Lang "learners trained (Abah to supply)" "peserta dilatih (Abah sediakan)"}}</p>
+        <p class="pb-ph"><strong>[N]</strong>{{p .Lang "agencies and companies (Abah to supply)" "agensi dan syarikat (Abah sediakan)"}}</p>
+      </div>
+    </section>
+
+    <section class="wrap pb-path">
+      <div class="pb-head">
+        <h2>{{p .Lang "The PCC certification pathway" "Laluan pensijilan PCC"}}</h2>
+        <p>{{p .Lang "Professional Competency Credentials, earned in live programmes. Each level builds on the one before." "Professional Competency Credential, diperoleh melalui program secara langsung. Setiap tahap dibina atas tahap sebelumnya."}}</p>
+      </div>
+      <ol class="pb-levels">
+        <li><img src="{{static "pcc-basic.jpg"}}" alt="" width="113" height="160"><strong>Basic</strong><span>{{p .Lang "1 day" "1 hari"}}</span></li>
+        <li><img src="{{static "pcc-foundation.jpg"}}" alt="" width="113" height="160"><strong>Foundation</strong><span>{{p .Lang "2 days" "2 hari"}}</span></li>
+        <li><img src="{{static "pcc-practitioner.jpg"}}" alt="" width="113" height="160"><strong>Practitioner</strong><span>{{p .Lang "3 days" "3 hari"}}</span></li>
+        <li><img src="{{static "pcc-professional.jpg"}}" alt="" width="113" height="160"><strong>Professional</strong><span>{{p .Lang "4 days or more" "4 hari atau lebih"}}</span></li>
+      </ol>
+    </section>
+
+    <section class="pb-catalog">
+      <div class="wrap">
+        <div class="pb-head pb-head-row">
+          <h2>{{p .Lang "Courses open for enrolment" "Kursus dibuka untuk penyertaan"}}</h2>
+          <a class="link-more" href="/courses">{{t .Lang "footer.all-courses"}}</a>
+        </div>
+        <ul class="pb-cards">
+          {{- range .Latest}}
+          <li>
+            <a class="pb-card" href="/courses/{{.ID}}?variant=b">
+              <div class="pb-cover{{if .Live}} is-live{{end}}">
+                {{- if .Badge}}<img src="{{static .Badge}}" alt="" width="113" height="160">{{else}}<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 52 32 12l18 40h-9l-9-20-9 20z" fill="currentColor"/></svg>{{end}}
+                <span>{{if .Live}}{{p $.Lang "Live programme" "Program secara langsung"}}{{else}}{{p $.Lang "Self-paced online" "Dalam talian, kendiri"}}{{end}}</span>
+              </div>
+              <div class="pb-card-body">
+                <h3>{{.Title}}</h3>
+                <p>{{.Description}}</p>
+                <ul class="pb-flags">
+                  <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg>{{t $.Lang "course.lessons"}}</li>
+                  <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>{{p $.Lang "Final exam" "Peperiksaan"}}</li>
+                  <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{with .Level}}PCC {{.}}{{else}}{{p $.Lang "Certificate" "Sijil"}}{{end}}</li>
+                </ul>
+              </div>
+            </a>
+          </li>
+          {{- end}}
+        </ul>
+      </div>
+    </section>
+
+    <section class="wrap pb-coach" id="coach">
+      {{template "proto-portrait" .}}
+      <div>
+        <h2>Coach Adam Daniel</h2>
+        <p class="pb-coach-role" lang="en">Strategic Intelligence Architect. Founder &amp; Chief Consultant, The Cave Consult.</p>
+        {{template "proto-creds" .}}
+      </div>
+    </section>
+
+    <section class="pb-close">
+      <div class="wrap pb-close-in">
+        <div>
+          <h2>{{p .Lang "Train your team with The Cave Consult." "Latih pasukan anda bersama The Cave Consult."}}</h2>
+          <p>{{p .Lang "In-house programmes for government agencies, GLCs and companies, from an HRD Corp registered training provider." "Program dalaman untuk agensi kerajaan, GLC dan syarikat, oleh penyedia latihan berdaftar HRD Corp."}}</p>
+        </div>
+        <div class="pb-ctas">
+          <a class="btn btn-gold btn-lg" href="/courses">{{p .Lang "Browse courses" "Lihat kursus"}}</a>
+          <a class="btn pb-btn-line btn-lg" href="mailto:adam.caveconsult@gmail.com">{{p .Lang "Ask about in-house training" "Tanya tentang latihan dalaman"}}</a>
+        </div>
+      </div>
+    </section>
+{{end}}

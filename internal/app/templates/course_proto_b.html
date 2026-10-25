@@ -1,0 +1,84 @@
+{{/* PROTOTYPE (prototype/premium-refresh), variant B "Accredited academy": two columns, sticky enrolment card. Throwaway. */}}
+{{define "title"}}{{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    {{- $next := 0}}{{$nextTitle := ""}}
+    {{- range .Lessons}}{{if and .Published (not .Completed) (eq $next 0)}}{{$next = .ID}}{{$nextTitle = .Title}}{{end}}{{end}}
+    {{- $member := or .Enrolled (and .Learner .Learner.IsAdmin)}}
+    <section class="pb-c-head">
+      <div class="wrap">
+        <p class="crumbs"><a href="/courses">{{t .Lang "nav.courses"}}</a></p>
+        <h1>{{.Course.Title}}</h1>
+        <p class="pb-c-lede">{{.Course.Description}}</p>
+        <ul class="pb-chips">
+          <li>{{if .Course.Live}}{{p .Lang "Live programme" "Program secara langsung"}}{{else}}{{p .Lang "Self-paced online" "Dalam talian, kendiri"}}{{end}}</li>
+          {{if .Course.Live}}<li>{{t .Lang "course.dates" (.Course.StartOn .Lang) (.Course.EndOn .Lang)}}</li>{{end}}
+          <li>{{len .Lessons}} {{t .Lang "course.lessons"}}</li>
+          <li>{{p .Lang "Final exam" "Peperiksaan akhir"}}</li>
+          <li>{{with .Course.Level}}PCC {{.}}{{else}}{{p $.Lang "Verifiable certificate" "Sijil boleh disahkan"}}{{end}}</li>
+          <li class="pb-chip-state">{{if .Course.Ended}}{{p .Lang "Ended" "Tamat"}}{{else if .Course.Open}}{{p .Lang "Open for enrolment" "Dibuka untuk penyertaan"}}{{else}}{{p .Lang "Closed" "Ditutup"}}{{end}}</li>
+        </ul>
+      </div>
+    </section>
+    {{if $member}}<div class="wrap c-tabs">{{template "course-tabs" (courseTab .Course.ID "course" .Lang)}}</div>{{end}}
+
+    <div class="wrap pb-c-body">
+      <div class="pb-c-main">
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        <section>
+          <h2>{{p .Lang "What you will be able to do" "Apa yang anda akan mampu lakukan"}}</h2>
+          <ul class="pb-outcomes">
+            {{- range .Lessons}}{{with .Objective}}
+            <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{.}}</li>
+            {{- end}}{{end}}
+          </ul>
+        </section>
+        <section>
+          <h2>{{p .Lang "Course content" "Kandungan kursus"}}</h2>
+          <ol class="pb-syllabus">
+            {{- range .Lessons}}
+            <li class="{{if .Completed}}is-done{{else if and $.Enrolled (eq .ID $next)}}is-next{{end}}">
+              <span class="pb-n">{{if .Completed}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{else}}{{.Position}}{{end}}</span>
+              <span class="pb-l-t">{{if $member}}<a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}{{if .Completed}} <span class="sr">{{t $.Lang "course.lesson-complete"}}</span>{{end}}</span>
+              {{- if and $.Enrolled .Published}}
+              <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{.ID}}/{{if .Completed}}incomplete{{else}}complete{{end}}"><button class="pb-mark">{{if .Completed}}{{p $.Lang "Undo" "Batal"}}{{else}}{{t $.Lang "course.mark-complete"}}{{end}}<span class="sr">: {{.Title}}</span></button></form>
+              {{- end}}
+            </li>
+            {{- end}}
+          </ol>
+        </section>
+        <section class="pb-assess">
+          <h2>{{p .Lang "Assessment and certification" "Penilaian dan pensijilan"}}</h2>
+          <p>{{p .Lang "The final exam opens once every lesson is done. Pass it and your certificate is issued in your name, with a number anyone can verify at cavelms.com/certificates." "Peperiksaan akhir dibuka selepas semua pelajaran selesai. Lulus dan sijil dikeluarkan atas nama anda, dengan nombor yang boleh disahkan sesiapa di cavelms.com/certificates."}}</p>
+          {{with .Course.Level}}<p class="pb-pcc"><img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160">{{t $.Lang "course.pcc-level" .}}</p>{{end}}
+        </section>
+      </div>
+
+      <aside class="pb-side">
+        <div class="pb-enrol">
+          {{template "proto-cert" .}}
+          {{- if not .Learner}}
+          <a class="btn btn-solid btn-block btn-lg" href="/register">{{p .Lang "Register to join" "Daftar untuk menyertai"}}</a>
+          <p class="pb-enrol-note">{{p .Lang "Already registered?" "Sudah mendaftar?"}} <a href="/login">{{t .Lang "header.log-in"}}</a></p>
+          {{- else if .Enrolled}}
+          <p class="pb-progress-l"><span>{{p .Lang "Your progress" "Kemajuan anda"}}</span><strong>{{t .Lang "course.done-of" .Done .Total}}</strong></p>
+          <progress class="pb-progress" max="{{.Total}}" value="{{.Done}}">{{.Done}}/{{.Total}}</progress>
+          {{- if $next}}
+          <a class="btn btn-solid btn-block btn-lg" href="/courses/{{.Course.ID}}/lessons/{{$next}}">{{p .Lang "Continue" "Teruskan"}}</a>
+          <p class="pb-enrol-note">{{p .Lang "Up next" "Seterusnya"}}: {{$nextTitle}}</p>
+          <p class="pb-locked"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>{{p .Lang "Final exam opens after the last lesson" "Peperiksaan akhir dibuka selepas pelajaran terakhir"}}</p>
+          {{- else}}
+          <a class="btn btn-solid btn-block btn-lg" href="/courses/{{.Course.ID}}/exam">{{p .Lang "Take the final exam" "Ambil peperiksaan akhir"}}</a>
+          {{- end}}
+          {{- else if .Course.Joinable}}
+          <form method="post" action="/courses/{{.Course.ID}}/join"><button class="btn btn-solid btn-block btn-lg">{{t .Lang "course.join"}}</button></form>
+          <p class="pb-enrol-note">{{t .Lang "course.join-intro"}}</p>
+          {{- else}}
+          <p class="pb-enrol-note">{{t .Lang "course.closed"}}</p>
+          {{- end}}
+        </div>
+        {{- if .Enrolled}}
+        <form class="pb-leave" method="post" action="/courses/{{.Course.ID}}/leave"><button>{{t .Lang "course.leave"}}</button></form>
+        {{- end}}
+      </aside>
+    </div>
+{{end}}

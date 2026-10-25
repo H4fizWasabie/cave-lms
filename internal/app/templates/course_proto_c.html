@@ -1,0 +1,79 @@
+{{/* PROTOTYPE (prototype/premium-refresh), variant C "Guided journey": one rail, one next step. Throwaway. */}}
+{{define "title"}}{{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    {{- $next := 0}}{{$nextTitle := ""}}{{$nextObj := ""}}
+    {{- range .Lessons}}{{if and .Published (not .Completed) (eq $next 0)}}{{$next = .ID}}{{$nextTitle = .Title}}{{$nextObj = .Objective}}{{end}}{{end}}
+    {{- $member := or .Enrolled (and .Learner .Learner.IsAdmin)}}
+    {{- $examOpen := and .Enrolled (not $next)}}
+    <section class="wrap pc-c-head">
+      <p class="crumbs"><a href="/courses">{{t .Lang "nav.courses"}}</a></p>
+      <h1>{{.Course.Title}}</h1>
+      <p class="pc-c-lede">{{.Course.Description}}</p>
+      {{if .Course.Live}}<p class="pc-c-when">{{t .Lang "course.dates" (.Course.StartOn .Lang) (.Course.EndOn .Lang)}}</p>{{end}}
+    </section>
+    {{if $member}}<div class="wrap c-tabs">{{template "course-tabs" (courseTab .Course.ID "course" .Lang)}}</div>{{end}}
+
+    <div class="wrap">
+      <ol class="pc-rail" aria-label="{{p .Lang "Your path through this course" "Laluan anda dalam kursus ini"}}">
+        <li class="{{if and .Enrolled $next}}is-now{{else if $examOpen}}is-done{{end}}">
+          <span class="pc-dot">{{if $examOpen}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{else}}1{{end}}</span>
+          <div><strong>{{t .Lang "course.lessons"}}</strong><span>{{if .Enrolled}}{{t .Lang "course.done-of" .Done .Total}}{{else}}{{len .Lessons}} {{p .Lang "lessons" "pelajaran"}}{{end}}</span>
+          {{if .Enrolled}}<progress max="{{.Total}}" value="{{.Done}}">{{.Done}}/{{.Total}}</progress>{{end}}</div>
+        </li>
+        <li class="{{if $examOpen}}is-now{{end}}">
+          <span class="pc-dot">{{if $examOpen}}2{{else}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>{{end}}</span>
+          <div><strong>{{p .Lang "Final exam" "Peperiksaan akhir"}}</strong><span>{{if $examOpen}}{{p .Lang "Open now" "Dibuka sekarang"}}{{else}}{{p .Lang "After the last lesson" "Selepas pelajaran terakhir"}}{{end}}</span></div>
+        </li>
+        <li>
+          <span class="pc-dot"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg></span>
+          <div><strong>{{with .Course.Level}}PCC {{.}}{{else}}{{p $.Lang "Certificate" "Sijil"}}{{end}}</strong><span>{{p .Lang "When you pass" "Apabila anda lulus"}}</span></div>
+        </li>
+      </ol>
+
+      {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+      <div class="pc-next">
+        {{- if not .Learner}}
+        <div><h2>{{p .Lang "Start this course" "Mulakan kursus ini"}}</h2><p>{{p .Lang "Free account, one click to join, learn at your own pace." "Akaun percuma, satu klik untuk menyertai, belajar ikut rentak anda."}}</p></div>
+        <div class="pc-next-act"><a class="btn btn-gold btn-lg" href="/register">{{p .Lang "Register to join" "Daftar untuk menyertai"}}</a><a href="/login">{{t .Lang "header.log-in"}}</a></div>
+        {{- else if not .Enrolled}}
+        {{- if .Course.Joinable}}
+        <div><h2>{{p .Lang "Start this course" "Mulakan kursus ini"}}</h2><p>{{t .Lang "course.join-intro"}}</p></div>
+        <form class="pc-next-act" method="post" action="/courses/{{.Course.ID}}/join"><button class="btn btn-gold btn-lg">{{t .Lang "course.join"}}</button></form>
+        {{- else}}<div><p>{{t .Lang "course.closed"}}</p></div>{{end}}
+        {{- else if $next}}
+        <div><h2>{{$nextTitle}}</h2><p>{{p .Lang "Next in your path." "Seterusnya dalam laluan anda."}}{{with $nextObj}} {{.}}{{end}}</p></div>
+        <div class="pc-next-act"><a class="btn btn-gold btn-lg" href="/courses/{{.Course.ID}}/lessons/{{$next}}">{{p .Lang "Continue" "Teruskan"}}</a></div>
+        {{- else}}
+        <div><h2>{{p .Lang "Final exam" "Peperiksaan akhir"}}</h2><p>{{p .Lang "Every lesson is done. Take the exam when you are ready." "Semua pelajaran selesai. Ambil peperiksaan apabila anda bersedia."}}</p></div>
+        <div class="pc-next-act"><a class="btn btn-gold btn-lg" href="/courses/{{.Course.ID}}/exam">{{p .Lang "Start the exam" "Mulakan peperiksaan"}}</a></div>
+        {{- end}}
+      </div>
+
+      <div class="pc-c-body">
+        <section>
+          <h2>{{p .Lang "The path" "Laluan"}}</h2>
+          <ol class="pc-timeline">
+            {{- range .Lessons}}
+            <li class="{{if .Completed}}is-done{{else if and $.Enrolled (eq .ID $next)}}is-now{{end}}">
+              <div>
+                <p class="pc-t-t">{{if $member}}<a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}{{if .Completed}} <span class="sr">{{t $.Lang "course.lesson-complete"}}</span>{{end}}</p>
+                {{with .Objective}}<p class="pc-t-o">{{.}}</p>{{end}}
+              </div>
+              {{- if and $.Enrolled .Published}}
+              <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{.ID}}/{{if .Completed}}incomplete{{else}}complete{{end}}"><button class="pc-mark">{{if .Completed}}{{p $.Lang "Undo" "Batal"}}{{else}}{{t $.Lang "course.mark-complete"}}{{end}}<span class="sr">: {{.Title}}</span></button></form>
+              {{- end}}
+            </li>
+            {{- end}}
+            <li class="pc-t-exam{{if $examOpen}} is-now{{end}}"><div><p class="pc-t-t">{{p .Lang "Final exam" "Peperiksaan akhir"}}</p><p class="pc-t-o">{{p .Lang "Opens when every lesson is done." "Dibuka apabila semua pelajaran selesai."}}</p></div></li>
+            <li class="pc-t-cert"><div><p class="pc-t-t">{{with .Course.Level}}PCC {{.}}{{else}}{{p $.Lang "Certificate" "Sijil"}}{{end}}</p><p class="pc-t-o">{{p .Lang "Issued in your name the moment you pass." "Dikeluarkan atas nama anda sebaik sahaja anda lulus."}}</p></div></li>
+          </ol>
+        </section>
+        <aside class="pc-c-side">
+          {{template "proto-cert" .}}
+          {{- if .Enrolled}}
+          <form class="pc-leave" method="post" action="/courses/{{.Course.ID}}/leave"><button>{{t .Lang "course.leave"}}</button></form>
+          {{- end}}
+        </aside>
+      </div>
+    </div>
+{{end}}

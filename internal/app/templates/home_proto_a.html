@@ -1,0 +1,77 @@
+{{/* PROTOTYPE (prototype/premium-refresh), variant A "Editorial": the home page set like a journal. Throwaway. */}}
+{{define "content"}}
+    <section class="pa-hero" id="welcome">
+      <div class="wrap pa-hero-in">
+        <h1>{{p .Lang "Generative AI, taught for the work you actually do." "AI generatif, diajar untuk kerja yang anda lakukan setiap hari."}}</h1>
+        <div class="pa-hero-side">
+          <p class="pa-lede">{{t .Lang "home.lede"}}</p>
+          <div class="pa-ctas">
+            <a class="btn btn-solid btn-lg" href="/courses">{{p .Lang "Browse courses" "Lihat kursus"}}</a>
+            <a class="pa-textlink" href="/about">{{p .Lang "About The Cave Consult" "Tentang The Cave Consult"}}</a>
+          </div>
+        </div>
+      </div>
+      <div class="wrap">
+        <p class="pa-creds-line">{{t .Lang "about.hrd"}}<span aria-hidden="true">/</span>{{t .Lang "about.mof"}}<span aria-hidden="true">/</span>{{p .Lang "JPK certified trainer" "Pelatih bertauliah JPK"}}</p>
+      </div>
+    </section>
+
+    <section class="wrap pa-courses">
+      <div class="pa-head">
+        <h2>{{p .Lang "Open for enrolment" "Dibuka untuk penyertaan"}}</h2>
+        <a class="link-more" href="/courses">{{t .Lang "footer.all-courses"}}</a>
+      </div>
+      <ul class="pa-rows">
+        {{- range .Latest}}
+        <li><a href="/courses/{{.ID}}?variant=a">
+          <span class="pa-row-t">{{.Title}}</span>
+          <span class="pa-row-d">{{.Description}}</span>
+          <span class="pa-row-m">{{if .Live}}{{p $.Lang "Live" "Secara langsung"}}{{with .Level}} · PCC {{.}}{{end}}{{else}}{{p $.Lang "Self-paced" "Kendiri"}}{{end}}</span>
+          <svg class="i pa-row-go" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg>
+        </a></li>
+        {{- end}}
+      </ul>
+    </section>
+
+    <section class="pa-essay" id="about">
+      <div class="wrap pa-essay-in">
+        <blockquote class="pa-pull"><p>{{t .Lang "home.pull"}}</p></blockquote>
+        <div class="pa-essay-body">
+          <p>{{t .Lang "home.intro.1"}}</p>
+          <p>{{t .Lang "home.intro.2"}} {{t .Lang "home.intro.3"}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap pa-cert">
+      <div class="pa-cert-copy">
+        <h2>{{p .Lang "Finish with a certificate anyone can check." "Tamat dengan sijil yang boleh disemak sesiapa."}}</h2>
+        <p>{{p .Lang "Complete the lessons, pass the final exam and your certificate is issued in your name, with a number your employer can verify online." "Tamatkan pelajaran, lulus peperiksaan akhir dan sijil dikeluarkan atas nama anda, dengan nombor yang boleh disahkan majikan secara dalam talian."}}</p>
+        <a class="pa-textlink" href="/certificates">{{t .Lang "nav.check-cert"}}</a>
+      </div>
+      {{template "proto-cert" .}}
+    </section>
+
+    <section class="pa-coach" id="coach">
+      <div class="wrap pa-coach-in">
+        {{template "proto-portrait" .}}
+        <div>
+          <h2>{{p .Lang "Taught by Coach Adam Daniel" "Diajar oleh Coach Adam Daniel"}}</h2>
+          <p class="pa-coach-role" lang="en">Strategic Intelligence Architect. Founder &amp; Chief Consultant, The Cave Consult.</p>
+          {{template "proto-creds" .}}
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap pa-past">
+      <h2>{{t .Lang "home.programmes.title"}}</h2>
+      <p lang="en">Accreditation Slot for HRD Corp Trainer<span aria-hidden="true"> / </span>Content Marketing With AI Secret Weapon<span aria-hidden="true"> / </span>Website in Minutes With AI + Ecommerce<span aria-hidden="true"> / </span>Leveraging Generative AI for Business<span aria-hidden="true"> / </span>Boosting Workplace Productivity With Gen-AI<span aria-hidden="true"> / </span><span lang="ms">Generatif AI Untuk Bakal Pesara ATM (VORTEX)</span><span aria-hidden="true"> / </span>Customized Gen-AI Modules for In House Programme<span aria-hidden="true"> / </span>Certified Professional in Generative AI (CPGAI)</p>
+    </section>
+
+    <section class="pa-close">
+      <div class="wrap pa-close-in">
+        <h2>{{p .Lang "Start with one course." "Mulakan dengan satu kursus."}}</h2>
+        <a class="btn btn-gold btn-lg" href="/courses">{{p .Lang "Browse courses" "Lihat kursus"}}</a>
+      </div>
+    </section>
+{{end}}

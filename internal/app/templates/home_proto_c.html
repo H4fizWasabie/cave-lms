@@ -1,0 +1,81 @@
+{{/* PROTOTYPE (prototype/premium-refresh), variant C "Guided journey": the product shows its own path. Throwaway. */}}
+{{define "content"}}
+    <section class="pc-hero" id="welcome">
+      <div class="wrap">
+        <h1>{{p .Lang "Learn it. Prove it. Get certified." "Belajar. Buktikan. Dapatkan sijil."}}</h1>
+        <p class="pc-lede">{{t .Lang "home.lede"}}</p>
+        <div class="pc-ctas">
+          <a class="btn btn-solid btn-lg" href="/courses">{{p .Lang "Find your course" "Cari kursus anda"}}</a>
+          <a class="pc-textlink" href="/register">{{p .Lang "Create a free account" "Buka akaun percuma"}}</a>
+        </div>
+      </div>
+      <div class="wrap">
+        <ol class="pc-journey">
+          <li>
+            <h2><span>1</span>{{p .Lang "Learn at your pace" "Belajar ikut rentak anda"}}</h2>
+            <p>{{p .Lang "Short lessons built around real public-sector and office work." "Pelajaran ringkas berasaskan kerja sebenar sektor awam dan pejabat."}}</p>
+            <div class="pc-mock" aria-hidden="true">
+              <p class="pc-mock-h">{{p .Lang "Lessons" "Pelajaran"}} <b>2 / 5</b></p>
+              <span class="pc-mock-bar"><span></span></span>
+              <p class="is-done">{{p .Lang "What is generative AI?" "Apa itu AI generatif?"}}</p>
+              <p class="is-done">{{p .Lang "Prompts for meeting minutes" "Prompt untuk minit mesyuarat"}}</p>
+              <p class="is-now">{{p .Lang "Fact-checking AI answers" "Menyemak fakta jawapan AI"}}</p>
+            </div>
+          </li>
+          <li>
+            <h2><span>2</span>{{p .Lang "Prove it in the final exam" "Buktikan dalam peperiksaan akhir"}}</h2>
+            <p>{{p .Lang "Timed, fair, and marked against what the course taught." "Bermasa, adil, dan dinilai berdasarkan apa yang diajar."}}</p>
+            <div class="pc-mock" aria-hidden="true">
+              <p class="pc-mock-h">{{p .Lang "Question 3 of 10" "Soalan 3 daripada 10"}} <b>08:42</b></p>
+              <p class="pc-mock-q">{{p .Lang "Which document is safe to paste into a public AI tool?" "Dokumen manakah selamat ditampal ke alat AI awam?"}}</p>
+              <p class="pc-opt">{{p .Lang "A Sulit memo" "Memo Sulit"}}</p>
+              <p class="pc-opt is-picked">{{p .Lang "A published press release" "Kenyataan media yang telah diterbitkan"}}</p>
+            </div>
+          </li>
+          <li>
+            <h2><span>3</span>{{p .Lang "Get a certificate employers can check" "Dapatkan sijil yang boleh disemak majikan"}}</h2>
+            <p>{{p .Lang "Numbered, in your name, verifiable online." "Bernombor, atas nama anda, boleh disahkan dalam talian."}}</p>
+            <div class="pc-mock pc-mock-cert" aria-hidden="true">
+              <p class="pc-mock-h">CAVE-2026-0001 <b class="pc-ok">{{p .Lang "Verified" "Disahkan"}}</b></p>
+              <p class="pc-mock-name">{{with .Learner}}{{.Name}}{{else}}Nur Aisyah binti Ahmad{{end}}</p>
+              <p class="pc-mock-small">{{range $i, $c := .Latest}}{{if eq $i 0}}{{$c.Title}}{{end}}{{end}}</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="wrap pc-courses">
+      <div class="pc-head">
+        <h2>{{p .Lang "Choose where to start" "Pilih di mana untuk bermula"}}</h2>
+        <a class="link-more" href="/courses">{{t .Lang "footer.all-courses"}}</a>
+      </div>
+      <ul class="pc-list">
+        {{- range .Latest}}
+        <li><a href="/courses/{{.ID}}?variant=c">
+          <div>
+            <h3>{{.Title}}</h3>
+            <p>{{.Description}}</p>
+          </div>
+          <p class="pc-route"><span>{{if .Live}}{{p $.Lang "Live" "Langsung"}}{{else}}{{p $.Lang "Self-paced" "Kendiri"}}{{end}}</span><span>{{t $.Lang "course.lessons"}}</span><span>{{p $.Lang "Exam" "Peperiksaan"}}</span><span>{{with .Level}}PCC {{.}}{{else}}{{p $.Lang "Certificate" "Sijil"}}{{end}}</span></p>
+        </a></li>
+        {{- end}}
+      </ul>
+    </section>
+
+    <section class="pc-coach" id="coach">
+      <div class="wrap pc-coach-in">
+        {{template "proto-portrait" .}}
+        <div>
+          <blockquote><p>{{t .Lang "home.pull"}}</p></blockquote>
+          <p class="pc-coach-by"><strong>Coach Adam Daniel</strong> <span lang="en">HRDC Accredited Trainer · JPK Certified Trainer · Founder, The Cave Consult</span></p>
+          <p class="pc-coach-more"><a href="/about">{{p .Lang "About The Cave Consult" "Tentang The Cave Consult"}}</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap pc-close">
+      <h2>{{p .Lang "Your first lesson is a click away." "Pelajaran pertama anda hanya satu klik."}}</h2>
+      <a class="btn btn-solid btn-lg" href="/courses">{{p .Lang "Find your course" "Cari kursus anda"}}</a>
+    </section>
+{{end}}

@@ -1,0 +1,92 @@
+{{/* PROTOTYPE (prototype/premium-refresh), variant A "Editorial": the Course as a printed prospectus. Throwaway. */}}
+{{define "title"}}{{.Course.Title}} · CAVELMS{{end}}
+{{define "content"}}
+    {{- $next := 0}}{{$nextTitle := ""}}
+    {{- range .Lessons}}{{if and .Published (not .Completed) (eq $next 0)}}{{$next = .ID}}{{$nextTitle = .Title}}{{end}}{{end}}
+    {{- $member := or .Enrolled (and .Learner .Learner.IsAdmin)}}
+    <section class="wrap pa-mast">
+      <p class="crumbs"><a href="/courses">{{t .Lang "nav.courses"}}</a></p>
+      <h1>{{.Course.Title}}</h1>
+      <dl class="pa-facts">
+        <div><dt>{{p .Lang "Format" "Format"}}</dt><dd>{{if .Course.Live}}{{p .Lang "Live" "Secara langsung"}}{{else}}{{p .Lang "Self-paced" "Kendiri"}}{{end}}</dd></div>
+        <div><dt>{{t .Lang "course.lessons"}}</dt><dd>{{len .Lessons}}</dd></div>
+        <div><dt>{{p .Lang "Assessment" "Penilaian"}}</dt><dd>{{p .Lang "Final exam" "Peperiksaan akhir"}}</dd></div>
+        <div><dt>{{p .Lang "Award" "Anugerah"}}</dt><dd>{{with .Course.Level}}PCC {{.}}{{else}}{{p $.Lang "Certificate" "Sijil"}}{{end}}</dd></div>
+        <div><dt>{{p .Lang "Enrolment" "Penyertaan"}}</dt><dd>{{if .Course.Ended}}{{p .Lang "Ended" "Tamat"}}{{else if .Course.Open}}{{p .Lang "Open" "Dibuka"}}{{else}}{{p .Lang "Closed" "Ditutup"}}{{end}}</dd></div>
+      </dl>
+    </section>
+    {{if or .Enrolled (and .Learner .Learner.IsAdmin)}}<div class="wrap c-tabs">{{template "course-tabs" (courseTab .Course.ID "course" .Lang)}}</div>{{end}}
+
+    {{- if .Enrolled}}
+    <section class="wrap">
+      <div class="pa-resume">
+        {{- if $next}}
+        <p><span>{{t .Lang "course.done-of" .Done .Total}}</span>{{p .Lang "Up next" "Seterusnya"}}: <strong>{{$nextTitle}}</strong></p>
+        <a class="btn btn-solid btn-lg" href="/courses/{{.Course.ID}}/lessons/{{$next}}">{{p .Lang "Continue" "Teruskan"}}</a>
+        {{- else}}
+        <p><span>{{t .Lang "course.done-of" .Done .Total}}</span>{{p .Lang "Every lesson is done. The final exam is open." "Semua pelajaran selesai. Peperiksaan akhir dibuka."}}</p>
+        <a class="btn btn-solid btn-lg" href="/courses/{{.Course.ID}}/exam">{{p .Lang "Take the final exam" "Ambil peperiksaan akhir"}}</a>
+        {{- end}}
+      </div>
+    </section>
+    {{- end}}
+
+    <div class="wrap pa-c-body">
+      <div class="pa-c-intro">
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        <p class="pa-c-lede">{{.Course.Description}}</p>
+        {{if .Course.Live}}<p class="pa-c-when">{{t .Lang "course.dates" (.Course.StartOn .Lang) (.Course.EndOn .Lang)}}</p>{{end}}
+        {{- if not .Learner}}
+        <div class="pa-join">
+          <a class="btn btn-solid btn-lg" href="/register">{{p .Lang "Register to join" "Daftar untuk menyertai"}}</a>
+          <p>{{p .Lang "Already registered?" "Sudah mendaftar?"}} <a href="/login">{{t .Lang "header.log-in"}}</a></p>
+        </div>
+        {{- else if and (not .Enrolled) .Course.Joinable}}
+        <form class="pa-join" method="post" action="/courses/{{.Course.ID}}/join">
+          <button class="btn btn-solid btn-lg">{{t .Lang "course.join"}}</button>
+          <p>{{t .Lang "course.join-intro"}}</p>
+        </form>
+        {{- else if not .Enrolled}}<p class="pa-c-when">{{t .Lang "course.closed"}}</p>{{end}}
+      </div>
+
+      <div class="pa-syllabus">
+        <h2>{{p .Lang "Syllabus" "Silibus"}}</h2>
+        <ol>
+          {{- range .Lessons}}
+          <li class="{{if .Completed}}is-done{{else if and $.Enrolled (eq .ID $next)}}is-next{{end}}">
+            <span class="pa-n">{{if .Completed}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{else}}{{.Position}}{{end}}</span>
+            <div>
+              <p class="pa-l-t">{{if $member}}<a href="/courses/{{$.Course.ID}}/lessons/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}{{if .Completed}} <span class="sr">{{t $.Lang "course.lesson-complete"}}</span>{{end}}</p>
+              {{with .Objective}}<p class="pa-l-o">{{.}}</p>{{end}}
+            </div>
+            {{- if and $.Enrolled .Published}}
+            <form method="post" action="/courses/{{$.Course.ID}}/lessons/{{.ID}}/{{if .Completed}}incomplete{{else}}complete{{end}}"><button class="pa-mark">{{if .Completed}}{{p $.Lang "Undo" "Batal"}}{{else}}{{t $.Lang "course.mark-complete"}}{{end}}<span class="sr">: {{.Title}}</span></button></form>
+            {{- end}}
+          </li>
+          {{- end}}
+          <li class="pa-final{{if and .Enrolled (not $next)}} is-next{{end}}">
+            <span class="pa-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-{{if and .Enrolled (not $next)}}exam{{else}}lock-simple{{end}}"/></svg></span>
+            <div>
+              <p class="pa-l-t">{{if and .Enrolled (not $next)}}<a href="/courses/{{.Course.ID}}/exam">{{p .Lang "Final exam" "Peperiksaan akhir"}}</a>{{else}}{{p .Lang "Final exam" "Peperiksaan akhir"}}{{end}}</p>
+              <p class="pa-l-o">{{p .Lang "Opens when every lesson is done." "Dibuka apabila semua pelajaran selesai."}}</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <section class="pa-earn">
+      <div class="wrap pa-cert">
+        <div class="pa-cert-copy">
+          <h2>{{p .Lang "What you take away" "Apa yang anda bawa pulang"}}</h2>
+          <p>{{p .Lang "Pass the final exam and a numbered certificate is issued in your name. Your employer can verify it online in seconds." "Lulus peperiksaan akhir dan sijil bernombor dikeluarkan atas nama anda. Majikan boleh mengesahkannya dalam talian dalam beberapa saat."}}</p>
+          {{with .Course.Level}}<p class="pa-pcc"><img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160">{{t $.Lang "course.pcc-level" .}}</p>{{end}}
+        </div>
+        {{template "proto-cert" .}}
+      </div>
+    </section>
+
+    {{- if .Enrolled}}
+    <form class="wrap pa-leave" method="post" action="/courses/{{.Course.ID}}/leave"><button>{{t .Lang "course.leave"}}</button></form>
+    {{- end}}
+{{end}}
