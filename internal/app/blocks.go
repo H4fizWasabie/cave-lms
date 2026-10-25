@@ -177,6 +177,8 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			top.Options = append(top.Options, o)
 		}
 		row.Radios = append(row.Radios, top)
+		row.Radios = append(row.Radios, buttons(lang, "direction", "lab.b.direction", cmp.Or(b.Dir, "horizontal"),
+			"horizontal", "lab.b.horizontal", "vertical", "lab.b.vertical"))
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
 		for _, c := range ds.Columns {
@@ -289,6 +291,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		}
 		b.X, b.By, b.Split, b.Group, b.Sort = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort")
 		b.Top, _ = strconv.Atoi(f.Get("top"))
+		b.Dir = f.Get("direction")
 		b.Limit, _ = strconv.Atoi(f.Get("limit"))
 		b.Cols = append([]string{}, f["cols"]...) // none ticked stays empty, so Check asks for one
 		b.Wide = f.Get("width") == "full"

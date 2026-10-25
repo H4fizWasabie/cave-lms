@@ -138,3 +138,23 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 		t.Fatalf("data.json = %.80s", data)
 	}
 }
+
+func TestABarStandsHorizontalUnlessSetVertical(t *testing.T) {
+	d := &lab.Dataset{Columns: []lab.Column{{Name: "Staf", Type: lab.Text}}}
+	for dir, want := range map[string]string{"": "", "horizontal": "", "vertical": "vertical"} {
+		b := lab.WorkBlock{Kind: "bar", Value: &lab.Value{Agg: "count"}, Group: "Staf", Top: 8, Dir: dir}
+		b.Fill(d)
+		if err := b.Check(d); err != nil || b.Dir != want {
+			t.Errorf("direction %q is stored as %q (%v), want %q", dir, b.Dir, err, want)
+		}
+	}
+	b := lab.WorkBlock{Kind: "bar", Value: &lab.Value{Agg: "count"}, Group: "Staf", Top: 8, Dir: "diagonal"}
+	b.Fill(d)
+	if err := b.Check(d); err == nil {
+		t.Error("a diagonal bar is accepted")
+	}
+	b = lab.WorkBlock{Kind: "donut", Value: &lab.Value{Agg: "count"}, Group: "Staf", Dir: "vertical"}
+	if b.Fill(d); b.Dir != "" {
+		t.Errorf("a donut keeps direction %q", b.Dir)
+	}
+}
