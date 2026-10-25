@@ -1318,10 +1318,17 @@ var catalog = map[string]entry{
 	"cavetext.api.prompt-exists": {en: "You already have a User master prompt. Delete it first to save a new one.", ms: "Anda sudah mempunyai User master prompt. Padamkannya dahulu untuk menyimpan yang baharu."},
 	// ---- end CaveText (#84) ----
 
+	// ---- The Course card and Course picture (#309) ----
+	"courses.card.lessons.one":    {en: "%d Lesson", ms: "%d Pelajaran"},
+	"courses.card.lessons.other":  {en: "%d Lessons", ms: "%d Pelajaran"},
+	"courses.card.exam":           {en: "Exam", ms: "Peperiksaan"},
+	"courses.card.certificate":    {en: "Certificate", ms: "Sijil"},
+	"courses.card.self-paced":     {en: "Self-paced online", ms: "Dalam talian, kendiri"},
+	"courses.form.remove-picture": {en: "Remove the picture", ms: "Buang gambar"},
+
 	// ---- Courses, Lessons, Exams and Certificates (#89) ----
 	// Course titles, Lessons and Exam questions are Admin-typed and shown as written.
 	"courses.intro":          {en: "Start any time and join in one click. No approval needed.", ms: "Mula bila-bila masa dan sertai dengan satu klik. Tiada kelulusan diperlukan."},
-	"courses.view":           {en: "View course", ms: "Lihat Kursus"},
 	"courses.none":           {en: "No Courses yet.", ms: "Belum ada Kursus."},
 	"course.open":            {en: "Open to new joins", ms: "Dibuka untuk penyertaan baharu"},
 	"course.closed-badge":    {en: "Closed to new joins", ms: "Ditutup untuk penyertaan baharu"},
