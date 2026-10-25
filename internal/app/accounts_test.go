@@ -242,8 +242,12 @@ func TestRegisteringAnUnverifiedEmailAgainMailsALinkToSetItsPassword(t *testing.
 func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *testing.T) {
 	s := newSite(t)
 	s.register("Mallory", "ada@example.com", "mallory's password")
+	mallorysLink := s.lastVerifyPath("ada@example.com")
 	s.register("Ada", "ada@example.com", "ada's password")
-	res, body := s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "ada's password")
+	// The verify link Mallory caused would confirm her password if Ada clicked it, so it stops working.
+	res, body := s.get(mallorysLink)
+	expectStatus(t, res, body, http.StatusBadRequest, "")
+	res, body = s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "ada's password")
 	expectStatus(t, res, body, http.StatusOK, "")
 
 	res, body = s.login("ada@example.com", "mallory's password")

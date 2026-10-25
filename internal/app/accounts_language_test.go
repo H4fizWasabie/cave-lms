@@ -66,7 +66,10 @@ func TestAccountFormErrorsAndAnswersAreInMalay(t *testing.T) {
 	}
 	res, body = login(password)
 	expectStatus(t, res, body, http.StatusForbidden, "Sahkan e-mel anda dahulu")
-	res, body = s.getAsking(verify, "ms")
+	res, body = s.getAsking(verify, "ms") // registering again ended the first verification link
+	expectStatus(t, res, body, http.StatusBadRequest, "Pautan tidak sah")
+	s.postAsking("/verify/resend", "ms", url.Values{"email": {email}})
+	res, body = s.getAsking(s.lastVerifyPath(email), "ms")
 	expectStatus(t, res, body, http.StatusOK, "E-mel disahkan")
 	res, body = s.getAsking("/verify?token=nope", "ms")
 	expectStatus(t, res, body, http.StatusBadRequest, "Pautan tidak sah")

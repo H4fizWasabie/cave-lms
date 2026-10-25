@@ -156,7 +156,11 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) er
 	}
 	if !verified {
 		// An unverified account's password proves nothing about who chose it, so whoever holds the inbox sets it with a
-		// reset link, which also confirms the email. A verification link would confirm the first registrant's password.
+		// reset link, which also confirms the email. A verification link would confirm the first registrant's password,
+		// so the ones already sent stop working.
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM one_time_tokens WHERE learner_id = $1 AND purpose = $2`, id, purposeVerifyEmail); err != nil {
+			return fmt.Errorf("delete verification links: %w", err)
+		}
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeResetPassword, resetLinkLifetime)
 		if err != nil {
 			return err
