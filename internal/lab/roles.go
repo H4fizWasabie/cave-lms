@@ -231,11 +231,54 @@ func boolCmp(a, b bool) int {
 	return -1
 }
 
-// General's budget: the most blocks of each kind it starts with.
-const generalCards = 4
+// General's budget (ADR 0014): at most 4 cards and 2 bars; a donut only for a dimension of up to 6 values, a line
+// split only by one of up to 5; a table of up to 6 columns.
+const (
+	generalCards       = 4
+	generalBars        = 2
+	generalDonutValues = 6
+	generalLineSeries  = 5
+	generalTableCols   = 6
+)
 
-// buildGeneral makes one blank per column, filled by that column, and fills a fixed budget of blocks with the
-// best-ranked columns by role (ADR 0014): at most 4 cards, 1 line, 2 bars, 1 donut and 1 table.
+// mainMeasure is the measure blocks add up: the best-ranked of measures when it is added up, not averaged; empty
+// when there is none, and blocks count rows.
+func mainMeasure(measures []profile) string {
+	if len(measures) > 0 && !measures[0].Avg {
+		return measures[0].Name
+	}
+	return ""
+}
+
+// tableCols are the columns of General's table: the date, an identifier, then the top dimensions and measures; a
+// short table fills up with the rest, in column order.
+func tableCols(d *Dataset, ps []profile) []string {
+	measures, dims, dates := ranked(ps, Measure, Number), ranked(ps, Dimension, Text), ranked(ps, DateRole, Date)
+	var cols []string
+	add := func(name string) {
+		if len(cols) < generalTableCols && !slices.Contains(cols, name) {
+			cols = append(cols, name)
+		}
+	}
+	if len(dates) > 0 {
+		add(dates[0].Name)
+	}
+	if i := slices.IndexFunc(ps, func(p profile) bool { return p.Role == Identifier }); i >= 0 {
+		add(ps[i].Name)
+	}
+	for _, p := range slices.Concat(dims[:min(generalBars, len(dims))], measures[:min(2, len(measures))]) {
+		add(p.Name)
+	}
+	if len(cols) < 4 {
+		for _, col := range d.Columns {
+			add(col.Name)
+		}
+	}
+	return cols
+}
+
+// buildGeneral makes one blank per column, filled by that column, and fills General's budget of blocks with the
+// best-ranked columns by role (ADR 0014): cards, a line, bars, a donut and a table.
 func buildGeneral(d *Dataset) (*Template, Choices) {
 	t, c := &Template{}, Choices{}
 	key := map[string]string{}
@@ -247,10 +290,9 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 	ps := profiles(d)
 	measures, dims, dates := ranked(ps, Measure, Number), ranked(ps, Dimension, Text), ranked(ps, DateRole, Date)
 
-	// The main measure is the best one added up; without one, blocks count rows.
 	of, what := "", "Rows"
-	if len(measures) > 0 && !measures[0].Avg {
-		of, what = key[measures[0].Name], measures[0].Name
+	if m := mainMeasure(measures); m != "" {
+		of, what = key[m], m
 	}
 	var cards []Block
 	for _, m := range measures {
@@ -275,7 +317,7 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 		dt := dates[0]
 		if by, ok := lineBy(dt); ok {
 			line := Block{Kind: "line", Label: what + " by " + by, X: key[dt.Name], By: by, Of: of, Wide: true}
-			if s := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= 5 }); s >= 0 {
+			if s := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= generalLineSeries }); s >= 0 {
 				line.Series = key[dims[s].Name]
 			}
 			t.Blocks = append(t.Blocks, line)
@@ -283,39 +325,22 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 		t.Filters = append(t.Filters, key[dt.Name])
 	}
 	var bars []string
-	for _, g := range dims[:min(2, len(dims))] {
+	for _, g := range dims[:min(generalBars, len(dims))] {
 		t.Blocks = append(t.Blocks, Block{Kind: "bar", Label: what + " by " + g.Name, Group: key[g.Name], Of: of})
 		bars = append(bars, g.Name)
 		t.Filters = append(t.Filters, key[g.Name])
 	}
-	if i := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= 6 && !slices.Contains(bars, p.Name) }); i >= 0 {
+	if i := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= generalDonutValues && !slices.Contains(bars, p.Name) }); i >= 0 {
 		t.Blocks = append(t.Blocks, Block{Kind: "donut", Label: what + " by " + dims[i].Name, Group: key[dims[i].Name], Of: of})
 	}
 
-	// The table: the date, an identifier, then the main columns; a short table fills up with the rest.
-	var cols []string
-	add := func(name string) {
-		if name != "" && len(cols) < 6 && !slices.Contains(cols, key[name]) {
-			cols = append(cols, key[name])
-		}
-	}
 	table := Block{Kind: "table", Label: "Rows", Limit: 10}
 	if len(dates) > 0 {
-		add(dates[0].Name)
 		table.Label, table.Sort = "Latest rows", key[dates[0].Name]
 	}
-	if i := slices.IndexFunc(ps, func(p profile) bool { return p.Role == Identifier }); i >= 0 {
-		add(ps[i].Name)
+	for _, col := range tableCols(d, ps) {
+		table.Cols = append(table.Cols, key[col])
 	}
-	for _, p := range append(dims[:min(2, len(dims))], measures[:min(2, len(measures))]...) {
-		add(p.Name)
-	}
-	if len(cols) < 4 {
-		for _, col := range d.Columns {
-			add(col.Name)
-		}
-	}
-	table.Cols = cols
 	t.Blocks = append(t.Blocks, table)
 	return t, c
 }

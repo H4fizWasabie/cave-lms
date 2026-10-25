@@ -341,9 +341,7 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	if b.Kind == "table" {
 		b.Value, b.X, b.By, b.Split, b.Group, b.Top = nil, "", "", "", "", 0
 		if len(b.Cols) == 0 {
-			for _, c := range d.Columns[:min(3, len(d.Columns))] {
-				b.Cols = append(b.Cols, c.Name)
-			}
+			b.Cols = tableCols(d, ps)
 		}
 		if b.Sort == "" {
 			b.Sort = best(ps, Date)
@@ -356,11 +354,11 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	b.Cols, b.Sort, b.Limit = nil, "", 0
 	if b.Value == nil {
 		b.Value = &Value{Agg: "count"}
-		if m := ranked(ps, Measure, Number); len(m) > 0 && (b.IsCard() || !m[0].Avg) { // as General: only cards average
-			b.Value = &Value{Agg: "sum", Col: m[0].Name}
-			if m[0].Avg {
-				b.Value.Agg = "avg"
-			}
+		switch m := ranked(ps, Measure, Number); {
+		case mainMeasure(m) != "":
+			b.Value = &Value{Agg: "sum", Col: mainMeasure(m)}
+		case b.IsCard() && len(m) > 0: // as General, only a card averages
+			b.Value = &Value{Agg: "avg", Col: m[0].Name}
 		}
 	}
 	v := b.Value
@@ -405,8 +403,13 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		b.Wide = false
 	case "line":
 		b.X = fit(b.X, Date)
-		if b.By == "" {
+		if b.By == "" { // as General: by day over 62 days or less, else by month
 			b.By = "month"
+			if i := slices.IndexFunc(ps, func(p profile) bool { return p.Name == b.X }); i >= 0 {
+				if by, _ := lineBy(ps[i]); by != "" {
+					b.By = by
+				}
+			}
 		}
 	case "bar", "donut", "heatmap":
 		b.Group = fit(b.Group, Text)

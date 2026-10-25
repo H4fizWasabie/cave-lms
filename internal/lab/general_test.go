@@ -324,3 +324,32 @@ func TestABarDonutOrHeatmapIsAddedEvenWhenNoTextColumnIsAGrouping(t *testing.T) 
 		}
 	}
 }
+
+func TestANewTableAndLineChooseAsGeneralDoes(t *testing.T) {
+	h, rows := stockList(30)
+	day := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	for i := range rows {
+		rows[i] = append(rows[i], day.AddDate(0, 0, i))
+	}
+	d := clean(t, testutil.XLSX(t, append(h, "Tarikh"), rows...), lab.General).Dataset
+	cfg := &lab.Config{}
+	at, err := cfg.Add("table", d, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Tarikh", "SKU", "Category", "Quantity", "Unit Price"}; !slices.Equal(cfg.Blocks[at].Cols, want) {
+		t.Errorf("a new table shows %v, want %v", cfg.Blocks[at].Cols, want)
+	}
+	for step, want := range map[time.Duration]string{24 * time.Hour: "day", 7 * 24 * time.Hour: "month"} {
+		h, rows := dated(20, step)
+		d := clean(t, testutil.XLSX(t, h, rows...), lab.General).Dataset
+		cfg := &lab.Config{}
+		at, err := cfg.Add("line", d, "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if by := cfg.Blocks[at].By; by != want {
+			t.Errorf("a new line over 20 rows %s apart goes by %s, want %s", step, by, want)
+		}
+	}
+}
