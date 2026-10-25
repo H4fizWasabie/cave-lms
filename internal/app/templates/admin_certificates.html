@@ -9,6 +9,7 @@
             <p>{{t .Lang "adm.certs.lede"}}</p>
           </div>
         </div>
+        {{with .Message}}<p class="callout" role="status"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><span>{{.}}</span></p>{{end}}
         <form class="toolbar" method="get" action="/admin/certificates">
           <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "adm.certs.search-by"}}</span><input type="search" name="q" value="{{.Query}}" placeholder="{{t .Lang "adm.certs.search-by"}}"></label>
           <button class="btn btn-ghost">{{t .Lang "adm.certs.search"}}</button>

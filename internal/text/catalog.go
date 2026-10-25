@@ -565,6 +565,7 @@ var catalog = map[string]entry{
 	"adm.certs.none":                 {en: "No Certificates yet.", ms: "Belum ada Sijil."},
 	"adm.certs.not-found.title":      {en: "Certificate not found", ms: "Sijil tidak ditemui"},
 	"adm.certs.not-found":            {en: "No Certificate has this ID.", ms: "Tiada Sijil dengan ID ini."},
+	"adm.certs.already-revoked":      {en: "This Certificate is already revoked.", ms: "Sijil ini sudah ditarik balik."},
 	"adm.certs.not-reissued":         {en: "Certificate not reissued", ms: "Sijil tidak dikeluarkan semula"},
 	"adm.certs.err.revoke-first":     {en: "Revoke the Certificate before issuing a corrected one.", ms: "Batalkan Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan."},
 	"adm.certs.err.name":             {en: "Enter a name for the Certificate (up to 200 characters).", ms: "Masukkan nama untuk Sijil (sehingga 200 aksara)."},

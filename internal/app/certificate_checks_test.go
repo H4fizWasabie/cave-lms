@@ -114,6 +114,30 @@ func TestAdminRevokesACertificateOnlyAfterConfirming(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "")
 }
 
+func TestTheRevokeConfirmationOfARevokedCertificateGoesBackToTheListSayingSo(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	confirmPage := "/admin/certificates/" + certID + "/revoke"
+	s.post(confirmPage, confirming)
+
+	for lang, notice := range map[string]string{
+		"en": "This Certificate is already revoked.",
+		"ms": "Sijil ini sudah ditarik balik.",
+	} {
+		s.switchLanguage(lang, "/")
+		res, body := s.get(confirmPage)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+		loc := res.Header.Get("Location")
+		if !strings.HasPrefix(loc, "/admin/certificates?") {
+			t.Fatalf("%s: the confirmation of a revoked Certificate went to %q, want the Certificates list", lang, loc)
+		}
+		_, body = s.get(loc)
+		expectAll(t, content(body), notice)
+		expectNone(t, content(body), `action="`+confirmPage+`"`)
+	}
+}
+
 func TestRevokedCertificateShowsRevokedOnTheCheckPageTheListAndThePDF(t *testing.T) {
 	s := newSite(t)
 	certID := s.earnedCertificate()

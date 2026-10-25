@@ -81,7 +81,16 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "admin_certificates", page{Certificates: list, Query: q})
+	p := page{Certificates: list, Query: q}
+	if r.URL.Query().Has("already-revoked") {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Message = text.T(lang, "adm.certs.already-revoked")
+	}
+	a.render(w, r, http.StatusOK, "admin_certificates", p)
 }
 
 // confirmRevokeCertificate asks the Admin to confirm revoking a Certificate.
@@ -98,6 +107,10 @@ func (a *App) confirmRevokeCertificate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "adm.certs.not-found.title"), Message: text.T(lang, "adm.certs.not-found")})
+		return
+	}
+	if list[0].Revoked {
+		http.Redirect(w, r, "/admin/certificates?already-revoked", http.StatusSeeOther)
 		return
 	}
 	a.render(w, r, http.StatusOK, "revoke_certificate", page{Certificate: &list[0]})
