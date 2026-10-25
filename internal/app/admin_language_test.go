@@ -196,6 +196,11 @@ func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
 	courseID := s.onlyCourseID()
 	s.addAssignment(courseID, "Esei", "Tulis satu perenggan.")
 	item := s.uploadAs("Rajah Go", "everyone", pngFile)
+	s.saveQuestion("/admin/courses/"+courseID+"/exam/questions", "Apakah Go?", [5]string{"Bahasa", "Minuman", "", "", ""}, "0", false)
+	org := s.addOrganisation("PDRM", pngFile)
+	s.addProgramme("Kem AI", "2099-03-01", "Dua hari.", "", nil)
+	_, body := s.get("/admin/courses/" + courseID)
+	ada := removeLearnerLink.FindStringSubmatch(body)[1]
 	s.switchLanguage("ms", "/")
 
 	for _, path := range []string{
@@ -204,6 +209,11 @@ func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
 		"/admin/lessons/" + s.lessonIDByTitle("Variables") + "/delete",
 		"/admin/assignments/" + s.assignmentIDByTitle("Esei") + "/delete",
 		"/admin" + item + "/delete",
+		"/admin/courses/" + courseID + "/exam/questions/" + s.examQuestionIDs(courseID)[0] + "/delete",
+		"/admin/courses/" + courseID + "/learners/" + ada + "/remove",
+		"/admin/question-bank/" + s.bankQuestionIDs("/admin/question-bank")[0] + "/delete",
+		"/admin/organisations/" + org + "/delete",
+		"/admin/programmes/" + s.onlyProgrammeID() + "/delete",
 	} {
 		res, body := s.get(path)
 		expectStatus(t, res, body, http.StatusOK, ">Batal</a>")
@@ -211,8 +221,19 @@ func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
 			t.Errorf("%s says batal %d times, want once (the Cancel link):\n%s", path, n, mainOf(body))
 		}
 	}
-	_, body := s.get("/admin/certificates/" + certID + "/revoke")
+	_, body = s.get("/admin/certificates/" + certID + "/revoke")
 	expectAll(t, mainOf(body), "<h1>Tarik balik Sijil</h1>", ">Tarik balik Sijil</button>")
+
+	// The Learner's own confirmation keeps their file rather than cancelling.
+	s.post("/admin/assignments/"+s.assignmentIDByTitle("Esei")+"/publish", nil)
+	learner := s.second()
+	learner.login("ada@example.com", certPassword)
+	learner.switchLanguage("ms", "/")
+	path := "/courses/" + courseID + "/assignments/" + s.assignmentIDByTitle("Esei")
+	learner.postFiles(path+"/files", upload{"esei.pdf", pdfHandIn})
+	res, body := learner.get(learner.fileLinks(path)[0] + "/delete")
+	expectStatus(t, res, body, http.StatusOK, ">Simpan fail</a>")
+	expectNone(t, strings.ToLower(mainOf(body)), "batal")
 }
 
 func TestTheAdminOnlyAndQuestionNotFoundPagesAreInMalay(t *testing.T) {
