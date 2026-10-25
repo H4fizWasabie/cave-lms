@@ -100,6 +100,7 @@ It ships only the staging binary, unit and Caddy site, and leaves production and
 
 - **Email** goes only to the addresses in `EMAIL_ALLOWLIST` (comma-separated; `@example.com` allows a whole domain). Any other message is not sent: it goes to the System log (and journald) in full, link included, so the Owner can read it at `staging.cavelms.com/admin/log`. Production leaves `EMAIL_ALLOWLIST` unset and emails everyone.
 - **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Each is confirmed with BCL's API when `BCL_API_TOKEN` is set, as on production, though BCL gives nothing for a Test Mode order but its amount, payer and status, so the form is checked only by amount and price, and the CAVELMS account email on the form must be the payer's email (see step 2 below). Testers pay with the email of their staging account, or an Admin gives the product by hand. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
+- **Placeholders**: the staging unit sets `CAVE_ENV=staging`, so the home page shows its marked placeholders for numbers the client has not supplied yet. Production leaves `CAVE_ENV` unset (production) and never shows them. Run locally with `CAVE_ENV=development` to see them.
 - **Data** starts empty. Set up Courses, Exams and prices by hand in staging's Admin.
 - **CaveText** can't sign in to staging: `CAVETEXT_EXTENSION_IDS` is unset and the extension would trip over the login. A Test Mode payment still gives Pro, and the System log says so.
 

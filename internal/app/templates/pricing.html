@@ -7,10 +7,35 @@
       </div>
       <h2 class="sr">{{t .Lang "offers.heading"}}</h2>
       {{- template "offers" .}}
-      <figure class="comparison">
-        <img src="/static/cost-comparison.webp" width="1280" height="1169" loading="lazy" alt="{{t .Lang "plans.comparison-alt"}}">
-        <figcaption>{{t .Lang "plans.comparison-caption"}}</figcaption>
-      </figure>
+      <section class="cost-compare" id="comparison">
+        <h2>{{t .Lang "cost.title"}}</h2>
+        <p>{{t .Lang "plans.comparison-caption"}}</p>
+        <div class="table-wrap">
+          <table class="table cost-matrix">
+            <thead><tr><th scope="col">{{t .Lang "cost.feature"}}</th><th scope="col">CAVELMS<small>{{t $.Lang "offers.price" "RM99"}}</small></th><th scope="col">TextExpander Pro<small>{{t $.Lang "offers.price" "RM258"}}</small></th><th scope="col">Hostinger Premium<small>{{t $.Lang "offers.price" "RM119.88"}}</small></th><th scope="col">Cloudflare Paid<small>{{t $.Lang "offers.price" "RM258"}}</small></th><th scope="col">Render Starter<small>{{t $.Lang "offers.price" "RM361.20"}}</small></th><th scope="col">Netlify Personal<small>{{t $.Lang "offers.price" "RM464.40"}}</small></th><th scope="col">Vercel Pro<small>{{t $.Lang "offers.price" "RM1,000"}}</small></th><th scope="col">Supabase Pro<small>{{t $.Lang "offers.price" "RM1,300"}}</small></th></tr></thead>
+            <tbody>
+              <tr><th scope="row">{{t $.Lang "cost.text-expansion"}}</th><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.prompt-library"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.prompt-templates"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.subdomain"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}<td>{{template "cost-yes" $.Lang}} <small>{{t $.Lang "cost.promo-domain"}}</small></td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.hosting"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}<td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.ssl"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}<td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td><td>{{template "cost-yes" $.Lang}}</td></tr>
+              <tr><th scope="row">{{t $.Lang "cost.dashboards"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.excel"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.storage"}}</th><td>1 GB</td>{{template "cost-none" $.Lang}}<td>~10 GB</td><td>{{t $.Lang "cost.plan"}}</td><td>{{t $.Lang "cost.plan"}}</td><td>{{t $.Lang "cost.plan"}}</td><td>{{t $.Lang "cost.plan"}}</td><td>{{t $.Lang "cost.plan"}}</td></tr>
+              <tr><th scope="row">{{t $.Lang "cost.maintenance"}}</th><td>{{template "cost-yes" $.Lang}}</td>{{template "cost-none" $.Lang}}{{template "cost-no" $.Lang}}{{template "cost-no" $.Lang}}{{template "cost-no" $.Lang}}{{template "cost-no" $.Lang}}{{template "cost-no" $.Lang}}{{template "cost-no" $.Lang}}</tr>
+            </tbody>
+            <tbody>
+              <tr class="cost-group"><th scope="rowgroup" colspan="9">{{t .Lang "cost.addons"}}</th></tr>
+              <tr><th scope="row">{{t $.Lang "cost.domain"}}</th><td>{{t $.Lang "cost.not-needed"}}</td>{{template "cost-none" $.Lang}}<td>{{t $.Lang "offers.price" "~RM50"}}</td>{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}{{template "cost-none" $.Lang}}</tr>
+              <tr><th scope="row">{{t $.Lang "cost.extra-storage"}}</th><td>{{t $.Lang "cost.yes"}}</td>{{template "cost-none" $.Lang}}<td>{{t $.Lang "offers.price" "~RM80"}} (20 GB)</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "offers.price" "~RM91"}} (100 GB)</td></tr>
+              <tr><th scope="row">{{t $.Lang "cost.backup"}}</th><td>{{t $.Lang "cost.yes"}}</td>{{template "cost-none" $.Lang}}<td>{{t $.Lang "offers.price" "~RM40"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td><td>{{t $.Lang "cost.usage"}}</td></tr>
+              <tr><th scope="row">{{t $.Lang "cost.support"}}</th><td>{{t $.Lang "cost.yes"}}</td>{{template "cost-none" $.Lang}}<td>{{template "cost-yes" $.Lang}}</td><td>{{t $.Lang "cost.paid"}}</td><td>{{t $.Lang "cost.paid"}}</td><td>{{t $.Lang "cost.paid"}}</td><td>{{t $.Lang "cost.paid"}}</td><td>{{t $.Lang "cost.paid"}}</td></tr>
+            </tbody>
+            <tfoot><tr><th scope="row">{{t .Lang "cost.sum"}}<small>{{t .Lang "cost.sum-note"}}</small></th><td>RM99</td><td>RM258</td><td>RM269.88</td><td>RM258+</td><td>RM361.20+</td><td>RM464.40+</td><td>RM1,000+</td><td>RM1,300+</td></tr></tfoot>
+          </table>
+        </div>
+      </section>
       {{- if not .Learner}}
       <div class="cta-row pricing-cta">
         <a class="btn btn-solid btn-lg" href="/login?next=%2Fpricing">{{t .Lang "header.log-in"}}</a>
@@ -19,3 +44,6 @@
       {{- end}}
     </div>
 {{end}}
+{{define "cost-yes"}}<svg class="i cost-y" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><span class="sr">{{t . "cost.yes"}}</span>{{end}}
+{{define "cost-no"}}<td><svg class="i cost-n" aria-hidden="true"><use href="/static/icons.svg#i-x-circle"/></svg><span class="sr">{{t . "cost.no"}}</span></td>{{end}}
+{{define "cost-none"}}<td><span class="cost-dash" aria-hidden="true">&ndash;</span><span class="sr">{{t . "cost.none"}}</span></td>{{end}}

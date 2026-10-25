@@ -30,7 +30,7 @@ func TestHomePage(t *testing.T) {
 			t.Errorf("home page is missing %q", want)
 		}
 	}
-	for text, href := range map[string]string{"Explore eBooks": `/gallery\?format=ebook`, "Join Online Classes": "/courses", "Learn AI Dashboard Development": "/courses"} {
+	for text, href := range map[string]string{"Terokai eBook": `/gallery\?format=ebook`, "Sertai Kelas Dalam Talian": "/courses", "Belajar Membina Dashboard AI": "/courses"} {
 		if !regexp.MustCompile(`href="` + href + `"[^>]*>` + text + `</a>`).MatchString(body) {
 			t.Errorf("home page has no %q link to %s", text, href)
 		}

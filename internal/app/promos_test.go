@@ -184,17 +184,6 @@ func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	expectNone(t, content(body), "with a promo code")
 }
 
-func TestThePricingPageShowsTheCostComparisonWithATextAlternative(t *testing.T) {
-	s := newSite(t)
-	_, body := s.getAsking("/pricing", "en")
-	main := content(body)
-	expectAll(t, main, `<img src="/static/cost-comparison.webp"`, `alt="Yearly cost: CAVELMS RM99`, "Supabase Pro RM1,300", "<figcaption>")
-	res, img := s.get("/static/cost-comparison.webp")
-	expectStatus(t, res, img, http.StatusOK, "")
-	_, body = s.getAsking("/pricing", "ms")
-	expectAll(t, content(body), `alt="Kos setahun: CAVELMS RM99`)
-}
-
 // couponProPlan is a paid Pro Plan order as BCL sends one with a coupon: the subtotal before it, the discount apart.
 func couponProPlan(order, email, subtotal, discount string) bclPayment {
 	p := paidProPlan(order, email)

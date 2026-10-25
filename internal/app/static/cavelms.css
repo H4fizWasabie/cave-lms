@@ -210,9 +210,6 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .footer-base { background: linear-gradient(var(--on-dark-line), var(--on-dark-line)) no-repeat 50% 0 / calc(100% - 2 * var(--gutter)) 1px; padding-top: var(--space-4); font-size: var(--fs-meta); color: var(--on-dark-muted); }
 
 /* ============================ Home (Look A) ============================ */
-.home-hero { background: var(--surface); border-bottom: 1px solid var(--line); }
-.home-hero-in { display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--space-7); align-items: center; padding-top: var(--space-7); padding-bottom: var(--space-7); }
-.home-hero h1 { font-size: var(--fs-page); line-height: 1.08; margin-bottom: var(--space-4); }
 .lede { font-size: var(--fs-lede); color: var(--ink-2); max-width: 34rem; margin-bottom: var(--space-6); }
 .cta-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 
@@ -248,15 +245,8 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .g-cap strong { font-weight: 600; }
 .g-cap span { color: var(--muted); font-size: var(--fs-meta); white-space: nowrap; }
 
-.verify-band { background: var(--brand-ink); color: var(--on-dark); padding: var(--space-7) 0; }
-.verify-band-in { display: flex; gap: var(--space-7); align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
-.verify-band h2 { color: var(--surface); font-size: var(--fs-heading); margin-bottom: var(--space-2); }
-.verify-band p { max-width: 34rem; }
 .verify-card label { display: block; font-size: var(--fs-meta); font-weight: 600; margin-bottom: var(--space-2); }
 .verify-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.verify-band .verify-row { flex-wrap: nowrap; }
-.verify-band input { padding: var(--space-3) var(--space-3); border: 1px solid var(--on-dark-line); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 6%, var(--brand-ink)); color: var(--surface); min-width: 17rem; }
-.verify-band input::placeholder { color: var(--on-dark-muted); }
 
 /* ============================ Inner pages ============================ */
 .page-pad { padding-block: var(--space-7) var(--space-8); }
@@ -423,27 +413,6 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 
 /* Tall dialogs (phones): the body scrolls, the head and foot stay on screen */
 
-/* ============================ Home (CAVELMS) ============================ */
-.home-kicker { font-size: var(--fs-meta); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-gold-deep); margin-bottom: var(--space-4); }
-.coach { margin: 0; }
-.coach img { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); }
-.home-intro { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-7); align-items: center; }
-.home-pull { margin: 0; padding: 0; font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.35; }
-.learn-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6) var(--space-7); }
-.learn-grid li { border-top: 1px solid var(--line-strong); padding-top: var(--space-4); display: grid; gap: var(--space-2); align-content: start; }
-.learn-grid h3 { font-size: var(--fs-title); }
-.learn-grid p { color: var(--ink-2); }
-.learn-wide, .learn-grid li:last-child { grid-column: 1 / -1; }
-.learn-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin-top: var(--space-2); }
-.learn-pair > div { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-4) var(--space-5); display: grid; gap: var(--space-2); align-content: start; }
-.learn-pair h4 { margin: 0; font-size: var(--fs-body); }
-.path { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-page); color: var(--brand-gold-deep); letter-spacing: .02em; }
-.path-note { margin-top: var(--space-2); color: var(--muted); }
-
-.verify-band .cta-row { flex-wrap: wrap; }
-.programmes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
-.programmes li { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-4) var(--space-4); font-weight: 600; }
-
 .auth-page { padding-top: var(--space-7); padding-bottom: var(--space-8); }
 .auth-page .auth-box { margin: 0 auto; padding: var(--space-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .auth-box .form + p, .auth-box p + p { margin-top: var(--space-4); }
@@ -540,22 +509,18 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
   
   
   
-  .learn-grid, .programmes { grid-template-columns: 1fr 1fr; }
-  .home-intro { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
   .site-header-in { gap: var(--space-3); min-height: 3.6rem; }
   .brand-logo { height: 1.9rem; }
   .site-header-right { gap: var(--space-3); }
-  .home-hero-in { grid-template-columns: 1fr; gap: var(--space-6); padding-top: var(--space-6); padding-bottom: var(--space-6); }
-  .home-hero h1 br { display: none; }
   
-  .home-intro, .learn-grid, .learn-pair, .programmes, .course-grid, .footer-in { grid-template-columns: 1fr; }
+  .course-grid, .footer-in { grid-template-columns: 1fr; }
   
   
   .section { padding: var(--space-7) 0; }
-  .verify-band input, .verify-row input { min-width: 0; flex: 1 1 12rem; }
+  .verify-row input { min-width: 0; flex: 1 1 12rem; }
   
   .select-label { margin-left: 0; }
   
@@ -894,10 +859,6 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 /* A Programme's picture, on the Program page and its Admin form */
 .programme-pic { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .form .programme-pic { max-width: 20rem; border-radius: var(--radius-lg); }
-/* Plans: the cost comparison picture */
-.comparison { margin: var(--space-6) 0 0; max-width: 56rem; }
-.comparison img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-.comparison figcaption { color: var(--muted); font-size: var(--fs-ui); margin-top: var(--space-2); }
 
 /* A Live Course's PCC Level, with its badge. */
 .pcc-level { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
@@ -1197,6 +1158,133 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .course-cover-title { font-family: var(--font-display); font-size: var(--fs-title); font-weight: 400; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .course-cover-level { font-size: var(--fs-meta); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-dark-muted); }
 .course-cover-drawn.is-live .course-cover-level { color: var(--brand-gold); }
+
+/* === Page: Home (#314) === */
+/* Credentials first (variant B) in the editorial voice (variant A): a charcoal hero with the Certificate beside the
+   headline, a trust strip, the PCC pathway, Course cards, the Coach, the essay, Coach Adam's write-up, past programmes,
+   the cost comparison. */
+.home-hero { background: var(--brand-ink); color: var(--on-dark); }
+.home-hero-in { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-8); align-items: center; padding-block: var(--space-8); }
+.home-hero h1 { color: var(--surface); }
+.home-hero-lede { font-size: var(--fs-lede); max-width: 34rem; margin: var(--space-5) 0 var(--space-6); }
+.home-hero .btn-ghost, .home-close .btn-ghost { border-color: color-mix(in srgb, var(--surface) 45%, transparent); color: var(--surface); }
+.home-hero .btn-ghost:hover, .home-close .btn-ghost:hover { background: color-mix(in srgb, var(--surface) 8%, transparent); }
+.home-hero :focus-visible, .home-close :focus-visible { outline-color: var(--brand-gold); }
+.home-hero-more { display: inline-block; margin-top: var(--space-5); font-size: var(--fs-ui); font-weight: 600; color: var(--surface); text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; }
+
+/* The Certificate beside the headline: A4 portrait, gold double rule. #317 draws the real artwork in its place. */
+.cert-preview { margin: 0; justify-self: center; width: min(100%, 22rem); }
+.cert-preview-sheet { aspect-ratio: 210 / 297; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-7) var(--space-5); text-align: center; background: var(--surface); color: var(--brand-ink); border: 1px solid var(--brand-gold); outline: 1px solid var(--brand-gold); outline-offset: calc(-1 * var(--space-2)); }
+.cert-preview-logo { width: 72%; height: auto; margin-bottom: var(--space-5); }
+.cert-preview-title { font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.15; }
+.cert-preview-for { margin-top: auto; font-size: var(--fs-meta); color: var(--muted); }
+.cert-preview-name { width: 100%; padding-bottom: var(--space-2); margin-bottom: var(--space-7); border-bottom: 1px solid var(--line-strong); font-family: var(--font-display); font-size: var(--fs-heading); line-height: 1.15; overflow-wrap: anywhere; }
+.cert-preview figcaption { margin-top: var(--space-3); font-size: var(--fs-meta); color: var(--on-dark-muted); }
+.cert-preview figcaption a { color: var(--on-dark); text-decoration-color: var(--brand-gold); }
+
+.trust { background: var(--bg); }
+.trust-in { list-style: none; margin-block: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.trust-in li { padding: var(--space-5) var(--space-5) var(--space-5) 0; font-size: var(--fs-ui); color: var(--muted); }
+.trust-in li + li { padding-left: var(--space-5); border-left: 1px solid var(--line); }
+.trust-in strong { display: block; margin-bottom: var(--space-1); font-family: var(--font-display); font-size: var(--fs-title); color: var(--brand-ink); }
+/* A number the client has not supplied: dashed and labelled, and never rendered in production. */
+.trust-in .trust-ph { color: var(--brand-gold-deep); background: color-mix(in srgb, var(--brand-gold) 8%, transparent); outline: 1px dashed var(--brand-gold-deep); outline-offset: calc(-1 * var(--space-1)); }
+.trust-ph strong { color: var(--brand-gold-deep); }
+.trust-ph-tag { display: block; margin-bottom: var(--space-1); font-size: var(--fs-meta); font-weight: 600; }
+
+.home-head { display: grid; justify-items: start; gap: var(--space-2); margin-bottom: var(--space-6); }
+.home-head h2, .home-coach h2, .home-essay h2, .home-close h2 { font-size: var(--fs-page); font-weight: 400; line-height: 1.1; letter-spacing: -0.01em; }
+.home-head p { max-width: 44rem; color: var(--muted); }
+.home-head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-4); padding-bottom: var(--space-3); border-bottom: 1px solid var(--brand-ink); }
+
+/* The four PCC Levels on one gold line, each badge masking the line behind it. */
+.pcc-path { position: relative; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); }
+.pcc-path::before { content: ""; position: absolute; left: 12.5%; right: 12.5%; top: 5rem; border-top: 1px solid var(--brand-gold); }
+.pcc-path li { position: relative; display: grid; justify-items: center; gap: var(--space-1); text-align: center; }
+.pcc-path img { width: auto; height: 10rem; padding-inline: var(--space-3); margin-bottom: var(--space-3); background: var(--surface); }
+.pcc-path strong { font-family: var(--font-display); font-size: var(--fs-title); font-weight: 400; }
+.pcc-path span { font-size: var(--fs-ui); color: var(--muted); }
+
+.home-coach, .home-essay, .home-cost { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-8); }
+.home-coach { align-items: center; }
+.home-essay, .home-cost { align-items: start; }
+/* The photo is the Coach's profile card: crop to his portrait so none of its printed text shows. */
+.coach-photo { position: relative; aspect-ratio: 4 / 5; overflow: hidden; border-radius: var(--radius-lg); background: var(--line); }
+.coach-photo img { position: absolute; left: -17.6%; top: -18.8%; width: 301.2%; max-width: none; height: auto; }
+.home-coach-role { margin-top: var(--space-2); color: var(--muted); }
+.coach-creds { list-style: none; margin: var(--space-6) 0 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.coach-creds li { display: grid; gap: var(--space-1); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
+.coach-creds strong { font-weight: 600; color: var(--brand-ink); }
+.coach-creds span { font-size: var(--fs-ui); color: var(--muted); }
+
+.home-pull { margin: var(--space-5) 0 0; padding-top: var(--space-5); border-top: 1px solid var(--brand-gold); font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.35; color: var(--ink-2); }
+.home-essay .prose { font-size: var(--fs-lede); color: var(--ink-2); }
+
+/* Coach Adam's write-up, word for word: a ruled list with each topic's title beside its text, then the approach. */
+.home-learn { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--brand-ink); }
+.home-learn > li { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-3) var(--space-8); padding-block: var(--space-6); border-bottom: 1px solid var(--line); }
+.home-learn h3 { font-size: var(--fs-title); font-weight: 400; }
+.home-learn p { max-width: 44rem; color: var(--ink-2); }
+.home-learn p + p { margin-top: var(--space-3); }
+.home-learn-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); margin-top: var(--space-6); }
+.home-learn-pair h4 { margin: 0 0 var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line-strong); font-family: var(--font-display); font-size: var(--fs-lede); line-height: 1.3; color: var(--brand-ink); text-wrap: balance; }
+.home-essay .home-path { margin: var(--space-6) 0 var(--space-3); padding-block: var(--space-4); border-block: 1px solid var(--brand-ink); font-family: var(--font-display); font-size: var(--fs-heading); line-height: 1.3; letter-spacing: .04em; color: var(--brand-ink); text-wrap: balance; }
+.home-path-note { font-size: var(--fs-ui); color: var(--muted); }
+
+.past-programmes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); column-gap: var(--space-6); border-top: 1px solid var(--brand-ink); }
+.past-programmes li { padding-block: var(--space-3); border-bottom: 1px solid var(--line); font-weight: 600; }
+
+.home-cost .table-wrap, .cost-compare .table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.cost-table th { white-space: normal; }
+.cost-table td { white-space: nowrap; }
+.cost-table th[scope="row"] { font-size: var(--fs-ui); font-weight: 600; color: var(--brand-ink); background: none; }
+.cost-table tr:last-child th { border-bottom: 0; }
+.cost-table th:last-child, .cost-table td { text-align: right; }
+.cost-table .is-ours th, .cost-table .is-ours td { background: var(--brand-gold-soft); font-weight: 700; }
+
+.home-close { padding-block: var(--space-8); background: var(--brand-ink); color: var(--on-dark); border-bottom: 1px solid var(--on-dark-line); }
+.home-close-in { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-6); }
+.home-close h2 { color: var(--surface); }
+.home-close p { max-width: 38rem; margin-top: var(--space-3); }
+
+/* /pricing: the full comparison, from the client's picture. Wide, so it scrolls in its box with the features held. */
+.cost-compare { margin-block: var(--space-8) var(--space-6); }
+.cost-compare h2 { font-size: var(--fs-heading); font-weight: 400; }
+.cost-compare > p { max-width: 44rem; margin: var(--space-2) 0 var(--space-5); color: var(--muted); }
+.cost-matrix { min-width: 62rem; }
+.cost-matrix th, .cost-matrix td { text-align: center; }
+.cost-matrix thead th { white-space: normal; vertical-align: bottom; color: var(--brand-ink); }
+.cost-matrix th small { display: block; font-weight: 400; color: var(--muted); }
+.cost-matrix th[scope="row"], .cost-matrix .cost-group th { position: sticky; left: 0; z-index: 1; min-width: min(11rem, 40vw); text-align: left; white-space: normal; background: var(--surface); }
+.cost-matrix th[scope="row"] { font-size: var(--fs-ui); color: var(--brand-ink); }
+.cost-matrix :is(th, td):nth-child(2) { background: var(--brand-gold-soft); }
+.cost-matrix .cost-group th { background: var(--bg); text-transform: uppercase; letter-spacing: .06em; }
+.cost-matrix tfoot :is(th, td) { border-top: 1px solid var(--brand-ink); font-weight: 700; color: var(--brand-ink); }
+.cost-matrix .i { display: inline-block; vertical-align: middle; }
+.cost-y { color: var(--ok); }
+.cost-n { color: var(--bad); }
+.cost-dash { color: var(--muted); }
+
+@media (max-width: 999px) {
+  .home-hero-in, .home-coach, .home-essay, .home-cost { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  .trust-in { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-5); }
+  .trust-in li, .trust-in li + li { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .trust-in li:nth-child(-n+2) { border-top: 0; }
+  .trust-in .trust-ph { padding-inline: var(--space-3); }
+  .coach-photo { width: min(100%, 22rem); }
+  .home-learn > li { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .trust-in { grid-template-columns: minmax(0, 1fr); }
+  .trust-in li:nth-child(2) { border-top: 1px solid var(--line); }
+  .pcc-path { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-6); }
+  .pcc-path::before { display: none; }
+  .cert-preview { width: min(100%, 18rem); }
+  .home-learn-pair { grid-template-columns: minmax(0, 1fr); }
+  .home-essay .home-path { font-size: var(--fs-title); }
+}
+
 /* === Page: Public pages (#311) === */
 /* About, Pricing, Programmes, Gallery, CaveText, Certificate check, Privacy, and the Members-only and message notices. */
 

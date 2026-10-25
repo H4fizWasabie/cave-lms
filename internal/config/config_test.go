@@ -22,6 +22,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("BCL_API_TOKEN", "")
 	t.Setenv("BCL_API_URL", "")
 	t.Setenv("EMAIL_ALLOWLIST", "")
+	t.Setenv("CAVE_ENV", "")
 	for _, name := range r2Env {
 		t.Setenv(name, "")
 	}
@@ -210,5 +211,25 @@ func TestLoadReadsTheEmailAllowList(t *testing.T) {
 	}
 	if got := strings.Join(cfg.EmailAllowlist, "|"); got != "abah@example.com|@client.example" {
 		t.Fatalf("EmailAllowlist = %q", got)
+	}
+}
+
+func TestTheSiteIsProductionUnlessCaveEnvSaysStagingOrDevelopment(t *testing.T) {
+	for env, production := range map[string]bool{"": true, "production": true, "staging": false, " Development ": false} {
+		setValidEnvironment(t)
+		t.Setenv("CAVE_ENV", env)
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("CAVE_ENV=%q: %v", env, err)
+		}
+		if cfg.Production != production {
+			t.Errorf("CAVE_ENV=%q: Production = %t, want %t", env, cfg.Production, production)
+		}
+	}
+
+	setValidEnvironment(t)
+	t.Setenv("CAVE_ENV", "prod")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CAVE_ENV") {
+		t.Fatalf("Load() error = %v, want CAVE_ENV error", err)
 	}
 }
