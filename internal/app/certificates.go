@@ -384,18 +384,20 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
 	}
 	// The largest size whose wrapped lines fit the box, down to 8 pt, below which a title overflows it.
-	var lines []string
+	// SplitLines, not SplitText: the title is now Windows-1252 bytes, which SplitText would misread as UTF-8 and panic on.
+	var lines [][]byte
 	size := 16.0
 	for ; ; size-- {
 		pdf.SetFont("Times", "B", size)
-		lines = pdf.SplitText(tr(c.CourseTitle), certTitleW)
+		lines = pdf.SplitLines([]byte(tr(c.CourseTitle)), certTitleW)
 		if size <= 8 || float64(len(lines))*size*0.45 <= certTitleH {
 			break
 		}
 	}
 	lineH := size * 0.45 // 1.27 times the font size, in mm
 	top := certTitleY + (certTitleH-float64(len(lines))*lineH)/2
-	for i, l := range lines {
+	for i, b := range lines {
+		l := string(b)
 		pdf.Text(certTitleX+(certTitleW-pdf.GetStringWidth(l))/2, top+float64(i)*lineH+size*0.3, l)
 	}
 

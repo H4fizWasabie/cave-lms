@@ -123,3 +123,12 @@ func TestTheSystemLogKeepsThirtyDays(t *testing.T) {
 		t.Errorf("want only the line from 29 days ago kept:\n%s", body)
 	}
 }
+
+func TestAPanicInABackgroundJobIsLoggedAndTheServerKeepsRunning(t *testing.T) {
+	s := newSite(t)
+	s.application.Survive("Result release", func() { panic("bad record") })
+
+	expectAll(t, s.lastLogLine("panicked"), "Result release panicked: bad record")
+	res, body := s.get("/")
+	expectStatus(t, res, body, http.StatusOK, "")
+}

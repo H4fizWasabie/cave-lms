@@ -118,9 +118,20 @@ func (a *App) pruneDaily(done <-chan struct{}) {
 		case <-done:
 			return
 		case <-tick.C:
-			a.dailyPrune(context.Background())
+			a.survive("daily prune", func() { a.dailyPrune(context.Background()) })
 		}
 	}
+}
+
+// survive runs one turn of a background loop and logs a panic instead of letting it end the server: net/http recovers
+// requests, but nothing recovers these goroutines.
+func (a *App) survive(job string, run func()) {
+	defer func() {
+		if p := recover(); p != nil {
+			a.logError(nil, fmt.Errorf("%s panicked: %v", job, p))
+		}
+	}()
+	run()
 }
 
 // Started records a start-up, which marks each deploy, when the server begins listening on addr.

@@ -175,3 +175,28 @@ func TestAnSVGLogoPrintsOnTheCertificate(t *testing.T) {
 	_, ada, _, certID := orgCertificate(t, svgLogo)
 	expectAll(t, ada.pdfBody("/certificates/"+certID+"/pdf"), imageSize(1200, 600))
 }
+
+func TestACourseTitleWithAccentsAndDashesPrintsOnTheCertificate(t *testing.T) {
+	s := newSite(t)
+	id := s.learnerEnrolledIn("Café — “Basics”", "Variables")
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	_, body := s.get("/my-certificates")
+
+	// The PDF's core fonts store text as Windows-1252 bytes: é is \xe9, the em dash \x97, curly quotes \x93 and \x94.
+	expectAll(t, s.pdfBody("/certificates/"+certificateIDs(body)[0]+"/pdf"), "Caf\xe9 \x97 \x93Basics\x94")
+}
+
+// The minutely release job issues Live Course Certificates outside any request, where a panic would end the server.
+func TestTheReleaseJobIssuesACertificateForACourseTitleWithAnEmDash(t *testing.T) {
+	admin, ada, id, qids := liveCourse(t, "1")
+	start, end := liveDates()
+	res, body := admin.post("/admin/courses/"+id, url.Values{"title": {"Go — for Acme"}, "description": {"For Acme."},
+		"start_date": {start}, "end_date": {end}, "days": {"1"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, _ = ada.startExam(id)
+	ada.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	ada.releaseResults()
+
+	_, body = ada.get("/my-certificates")
+	expectAll(t, ada.pdfBody("/certificates/"+certificateIDs(body)[0]+"/pdf"), "Go \x97 for Acme")
+}
