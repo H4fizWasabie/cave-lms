@@ -1505,3 +1505,38 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 /* === Page: IC before the first Exam attempt (#316) === */
 .cp-card .callout { margin: 0; }
+
+/* === Page: My courses (#318) === */
+/* The Learner's home: each joined Course as a card (cover, title, progress, Exam status, next step), then the
+   Certificates earned as the shared .cert-chip rows. The progress bar is the Course page's .cp-progress. */
+.mc-courses { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); }
+.mc-course { display: grid; grid-template-columns: 13rem minmax(0, 1fr) auto; gap: var(--space-5); align-items: center; padding: var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.mc-cover { align-self: start; border-radius: var(--radius); overflow: hidden; }
+.mc-cover .course-cover-drawn { padding: var(--space-3); outline-offset: calc(-1 * var(--space-1)); }
+.mc-cover .course-cover-title { font-size: var(--fs-ui); }
+.mc-cover .course-cover-level { display: none; }
+.mc-body { display: grid; gap: var(--space-3); justify-items: start; min-width: 0; }
+.mc-body > * { margin: 0; }
+.mc-body h2 { font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; }
+.mc-body h2 a { text-decoration: none; text-underline-offset: 0.2em; }
+.mc-body h2 a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.mc-when { margin-top: calc(-1 * var(--space-2)); font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
+.mc-desc { color: var(--ink-2); font-size: var(--fs-ui); max-width: 44rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.mc-body .cp-progress { width: 100%; max-width: 28rem; }
+.mc-exams { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); font-size: var(--fs-ui); color: var(--ink-2); }
+.mc-exams li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.mc-step { justify-self: end; }
+.mc-done { margin: 0; display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--space-4); border-radius: var(--radius); background: var(--ok-soft); color: var(--ok); font-size: var(--fs-ui); font-weight: 600; }
+.mc-empty h2 { font-size: var(--fs-title); }
+.mc-certs { margin-top: var(--space-8); }
+.mc-certs h2 { margin-bottom: var(--space-4); }
+
+@media (max-width: 999px) {
+  .mc-course { grid-template-columns: 9rem minmax(0, 1fr); }
+  .mc-step { grid-column: 2; justify-self: start; }
+}
+@media (max-width: 720px) {
+  .mc-course { grid-template-columns: minmax(0, 1fr); }
+  .mc-cover { display: none; }
+  .mc-step { grid-column: auto; justify-self: stretch; }
+}

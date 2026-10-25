@@ -258,7 +258,23 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
-// myCourses lists the Courses the logged-in Learner has joined.
+// myCourse is one joined Course on My courses: the Learner's progress, next step and standing on each Exam.
+type myCourse struct {
+	Course      course
+	Done, Total int
+	Step        nextStep
+	Exams       []courseExam
+}
+
+// myCoursesPage is the Learner's home: their Courses and the Certificates they have earned.
+type myCoursesPage struct {
+	pageBase
+	Courses      []myCourse
+	Certificates []certificate
+}
+
+// myCourses lists the Courses the logged-in Learner has joined, each with its progress, next step and Exam status,
+// then their valid Certificates.
 func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -272,5 +288,25 @@ func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "my_courses", page{Learner: learner, Courses: list})
+	p := myCoursesPage{pageBase: pageBase{Learner: learner}}
+	ctx := r.Context()
+	for _, c := range list {
+		mc := myCourse{Course: c}
+		if mc.Done, mc.Total, err = a.courseProgress(ctx, learner.ID, c.ID); err == nil {
+			if mc.Step, err = a.nextStep(ctx, learner, c); err == nil {
+				mc.Exams, err = a.courseExams(ctx, learner, c, mc.Done, mc.Total)
+			}
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Courses = append(p.Courses, mc)
+	}
+	if p.Certificates, err = a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates
+		WHERE learner_id = $1 AND revoked_at IS NULL ORDER BY issued_at, year, number`, learner.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "my_courses", &p)
 }
