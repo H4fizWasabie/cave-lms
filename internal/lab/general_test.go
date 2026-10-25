@@ -270,3 +270,21 @@ func TestWithNothingAddedUpThePriceTimesQuantityCardComesFirst(t *testing.T) {
 		t.Errorf("first card %+v, want the calculation", first)
 	}
 }
+
+func TestANewCardAveragesAPriceAndANewBarCountsAsGeneralDoes(t *testing.T) {
+	var rows [][]any
+	for i := range 12 {
+		rows = append(rows, []any{fmt.Sprintf("SKU-%02d", i), []string{"Food", "Drink", "Snack"}[i%3], float64(2 + i%4)})
+	}
+	d := clean(t, testutil.XLSX(t, []string{"SKU", "Category", "Unit Price"}, rows...), lab.General).Dataset
+	cfg := lab.General.Open(nil, d)
+	for kind, want := range map[string]lab.Value{"card": {Agg: "avg", Col: "Unit Price"}, "bar": {Agg: "count"}} {
+		at, err := cfg.Add(kind, d, "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b := cfg.Blocks[at]; *b.Value != want || (kind == "bar" && b.Group != "Category") {
+			t.Errorf("a new %s is %+v by %q, want %+v", kind, *b.Value, b.Group, want)
+		}
+	}
+}

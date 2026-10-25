@@ -97,19 +97,32 @@ func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
 	expectInOrder(t, header(t, body), ">Certification<", `href="/certificates"`, `href="/my-certificates"`)
 }
 
-func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPageAndTheLabMenuSaysWhatTheLabDoes(t *testing.T) {
+func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPage(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/lab", "en")
 	head := header(t, body)
 	expectInOrder(t, head, `href="/#welcome"`, `href="/about"`, `href="/#coach"`, `href="/#about"`, `href="/gallery"`)
 	expectAll(t, head, ">Company background<")
-	expectInOrder(t, head, ">Lab<", "From static dashboard to hosted dashboard", `href="/lab"`)
-	expectAll(t, content(body), "<h1>From static dashboard to hosted dashboard</h1>")
-	_, body = s.getAsking("/lab", "ms")
-	expectAll(t, body, "<h1>Daripada dashboard statik kepada dashboard yang dihoskan</h1>")
 
 	_, body = s.getAsking("/", "en")
 	expectAll(t, body, `id="welcome"`, `id="coach"`, `id="about"`)
 	_, body = s.getAsking("/", "ms")
 	expectAll(t, header(t, body), ">Latar belakang syarikat<")
+}
+
+// The header holds the nav twice: once for wide screens and once in the narrow-screen Menu.
+func TestLabIsAPlainLinkInTheHeaderAndItsHeroLineStaysOnTheLabPage(t *testing.T) {
+	s := newSite(t)
+	for lang, hero := range map[string]string{
+		"en": "From static dashboard to hosted dashboard",
+		"ms": "Daripada dashboard statik kepada dashboard yang dihoskan",
+	} {
+		_, body := s.getAsking("/lab", lang)
+		head := header(t, body)
+		if n := strings.Count(head, `<a class="hdr-link" href="/lab">Lab</a>`); n != 2 {
+			t.Errorf("%s: header has %d plain Lab links, want 2 (wide and Menu); header:\n%s", lang, n, head)
+		}
+		expectNone(t, head, `<summary class="hdr-link">Lab</summary>`, hero)
+		expectAll(t, content(body), "<h1>"+hero+"</h1>")
+	}
 }

@@ -135,8 +135,8 @@ func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.Blocks[at].Icon; got != "people" {
-		t.Fatalf("a new card counting rows shows %q, want people", got)
+	if b := cfg.Blocks[at]; b.Icon != "money" || b.Value.Col != "Jumlah" {
+		t.Fatalf("a new card of %+v shows %q, want the sum of the RM column Jumlah, money", b.Value, b.Icon)
 	}
 	// While the Learner has not picked one, the icon follows the value.
 	b := cfg.Blocks[at]
@@ -144,7 +144,7 @@ func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 		v    lab.Value
 		want string
 	}{
-		{lab.Value{Agg: "sum", Col: "Jumlah"}, "money"},
+		{lab.Value{Agg: "count"}, "people"},
 		{lab.Value{Agg: "avg", Col: "Jumlah"}, "money"},
 		{lab.Value{Agg: "distinct", Col: "Perkara"}, "tag"},
 		{lab.Value{Agg: "calc", A: "Jumlah", Op: "/", B: "Jumlah", Then: "sum"}, "chart-up"},
@@ -205,13 +205,14 @@ func TestABarStandsHorizontalUnlessSetVertical(t *testing.T) {
 }
 
 func TestAHeatmapCrossesTwoDifferentTextColumns(t *testing.T) {
-	d := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Text}}}
+	d := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Text}},
+		Rows: [][]any{{"HR", 3000.0, "Tetap"}, {"IT", 4000.0, "Kontrak"}}}
 	var cfg lab.Config
 	at, err := cfg.Add("heatmap", d, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := json.Marshal(cfg.Blocks[at]); string(got) != `{"kind":"heatmap","label":"Rows by Jabatan × Status","value":{"agg":"count"},"split":"Status","group":"Jabatan","top":8,"wide":true}` {
+	if got, _ := json.Marshal(cfg.Blocks[at]); string(got) != `{"kind":"heatmap","label":"Gaji by Jabatan × Status","value":{"agg":"sum","col":"Gaji"},"split":"Status","group":"Jabatan","top":8,"wide":true}` {
 		t.Fatalf("a new heatmap = %s", got)
 	}
 	for _, c := range []struct {
@@ -231,7 +232,7 @@ func TestAHeatmapCrossesTwoDifferentTextColumns(t *testing.T) {
 		}
 	}
 	// Its columns pause it when gone or retyped, and follow a rename.
-	retyped := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Status", Type: lab.Number}}}
+	retyped := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Number}}}
 	if got := cfg.Blocks[at].Missing(retyped); !reflect.DeepEqual(got, []string{"Status"}) {
 		t.Errorf("missing = %v", got)
 	}
