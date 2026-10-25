@@ -2,16 +2,34 @@ package lab
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"html/template"
 )
 
+//go:embed charts.js
+var chartsJS []byte
+
+// fonts is Inter at the two weights the Themes use (fonts/OFL.txt has its licence).
+//
+//go:embed fonts/inter-400.woff2 fonts/inter-600.woff2
+var fonts embed.FS
+
 // ChartScript is charts.js, Cave's own chart library: it draws and styles every Dashboard.
 // It is served beside each generated index.html, which loads it by relative path.
-//
-//go:embed charts.js
-var ChartScript []byte
+// Inter is written into it as data URLs, so a Dashboard loads no font from anywhere, a Deployment's sandbox included.
+var ChartScript = func() []byte {
+	css := ""
+	for _, w := range []string{"400", "600"} {
+		b, err := fonts.ReadFile("fonts/inter-" + w + ".woff2")
+		if err != nil {
+			panic(err)
+		}
+		css += "@font-face{font-family:Inter;font-weight:" + w + ";font-display:swap;src:url(data:font/woff2;base64," + base64.StdEncoding.EncodeToString(b) + ") format(\"woff2\")}"
+	}
+	return bytes.Replace(chartsJS, []byte("var FONTS = '';"), []byte("var FONTS = '"+css+"';"), 1)
+}()
 
 // Theme is how a Dashboard looks; charts.js holds each one's colours under its Key.
 type Theme struct {

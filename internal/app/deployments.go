@@ -211,7 +211,7 @@ func (a *App) deploymentCSP() string {
 	u, _ := url.Parse(a.publicBaseURL) // config.Load has checked it
 	origin := u.Scheme + "://" + u.Host
 	return "sandbox allow-scripts; default-src 'none'; script-src 'self' " + origin + " 'unsafe-inline'; " +
-		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' " + origin + "; frame-ancestors 'none'"
+		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' " + origin + "; frame-ancestors 'none'"
 }
 
 // deploymentFile serves a Deployment's files at /<prefix>/<name>/ to anyone while it is awake. The page is

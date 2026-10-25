@@ -139,3 +139,23 @@ func TestChartsDrawsEveryThemeCaveOffersAndNoOther(t *testing.T) {
 		t.Fatalf("the first Theme, every Dashboard's until its Learner picks another, is %q", lab.Themes[0].Key)
 	}
 }
+
+func TestChartScriptCarriesInterSoADashboardLoadsNoFontFromAnotherSite(t *testing.T) {
+	s := string(lab.ChartScript)
+	for _, w := range []string{"400", "600"} {
+		if !strings.Contains(s, "@font-face{font-family:Inter;font-weight:"+w+";font-display:swap;src:url(data:font/woff2;base64,d09GMg") {
+			t.Errorf("charts.js lacks Inter at weight %s as a data URL", w)
+		}
+	}
+	// The script as served, with the fonts written in, still parses.
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is not installed")
+	}
+	f := filepath.Join(t.TempDir(), "charts.js")
+	if err := os.WriteFile(f, lab.ChartScript, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("node", "--check", f).CombinedOutput(); err != nil {
+		t.Fatalf("charts.js as served does not parse: %v\n%.300s", err, out)
+	}
+}

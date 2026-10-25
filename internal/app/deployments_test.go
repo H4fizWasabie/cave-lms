@@ -61,7 +61,7 @@ func TestADeploymentsCSPNamesOnlyCavesOrigin(t *testing.T) {
 
 	res, _ = ada.second().get("/d/kedai-ada/")
 	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid:8443 'unsafe-inline'; " +
-		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' https://cave.example.invalid:8443; frame-ancestors 'none'"
+		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' https://cave.example.invalid:8443; frame-ancestors 'none'"
 	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
 		t.Fatalf("Dashboard page CSP = %q", csp)
 	}
@@ -106,7 +106,7 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	expectStatus(t, res, page, http.StatusOK, `fetch("data/dataset-`)
 	// Sandboxed to an opaque origin, where some browsers match nothing to 'self', so Cave's address is named too.
 	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid 'unsafe-inline'; " +
-		"style-src 'unsafe-inline'; img-src data:; connect-src 'self' https://cave.example.invalid; frame-ancestors 'none'"
+		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' https://cave.example.invalid; frame-ancestors 'none'"
 	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
 		t.Fatalf("Dashboard page CSP = %q", csp)
 	}

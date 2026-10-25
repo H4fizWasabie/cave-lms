@@ -10,7 +10,7 @@
     '*,*::before,*::after{box-sizing:border-box}',
     'body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}',
     'main{max-width:76rem;margin:0 auto;padding:1.6rem 1.4rem 1rem}',
-    'h1,h2{margin:0;line-height:1.2}',
+    'h1,h2{margin:0;line-height:1.2;font-weight:600}',
     'select{font:inherit;padding:.35rem .5rem;border:1px solid var(--line);border-radius:6px;background:var(--solid);color:inherit;max-width:11rem}',
     '.dh{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;padding:1.1rem 1.3rem;background:var(--head);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}',
     '.dh h1{font-size:1.6rem;letter-spacing:-.015em;color:var(--num)}',
@@ -23,7 +23,7 @@
     '.dcard{position:relative;padding:.95rem 1.1rem;display:grid;gap:.2rem;overflow:hidden}',
     '.dcard::before{content:"";position:absolute;left:0;top:.9rem;bottom:.9rem;width:3px;border-radius:0 3px 3px 0;background:var(--kpi)}',
     '.dcard span{font-size:.8rem;color:var(--muted);font-weight:600}',
-    '.dcard strong{overflow-wrap:anywhere;font-size:1.6rem;font-weight:700;color:var(--num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}',
+    '.dcard strong{overflow-wrap:anywhere;font-size:1.6rem;font-weight:600;color:var(--num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}',
     '.dcard:first-child strong{font-size:2.2rem}',
     '.dcard.is-pos strong{color:var(--pos)}.dcard.is-neg strong{color:var(--neg)}',
     '.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}',
@@ -43,7 +43,7 @@
     '.dbar-t.split{display:flex}.dbar-t.split span{border-radius:0}',
     '.dbar-v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}',
     '.ddonut{display:flex;gap:1.2rem;align-items:center}.ddonut svg{width:9.5rem;flex-shrink:0}',
-    '.ddonut .dtot{font-size:19px;font-weight:700;fill:var(--num)}',
+    '.ddonut .dtot{font-size:19px;font-weight:600;fill:var(--num)}',
     '.ddonut ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem;font-size:.86rem;flex:1}',
     '.ddonut li span{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}',
     '.dtable{overflow-x:auto}.dtable table{width:100%;border-collapse:collapse;font-size:.86rem}',
@@ -120,11 +120,13 @@
       series: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9562F']
     }
   };
+  // FONTS is Inter's @font-face rules, which Cave writes in when it serves this file (lab.ChartScript).
+  var FONTS = '';
   // themeOf is the Dashboard's Theme, Corporate Executive when it names none Cave knows.
   function themeOf(key) { return THEMES[key] || THEMES.corporate; }
   // themeCSS is the stylesheet for a Theme: its variables, the shared rules, then its own.
   function themeCSS(t) {
-    return ':root{' + Object.keys(t.vars).map(function (k) { return '--' + k + ':' + t.vars[k]; }).join(';') + '}\n' + CSS + '\n' + (t.css || '');
+    return FONTS + ':root{' + Object.keys(t.vars).map(function (k) { return '--' + k + ':' + t.vars[k]; }).join(';') + '}\n' + CSS + '\n' + (t.css || '');
   }
 
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

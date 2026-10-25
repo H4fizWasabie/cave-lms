@@ -397,6 +397,13 @@
       {{- else if eq .Tab "preview"}}
       <div class="pv-bar">
         <p class="muted">{{t .Lang "lab.d.preview-note"}}</p>
+        {{- if not .ReadOnly}}
+        <form class="pv-theme" method="post" action="{{$url}}/theme">
+          <label for="theme">{{t .Lang "lab.d.theme"}}</label>
+          <select id="theme" name="theme">{{range .Themes}}<option value="{{.Key}}"{{if eq .Key $.Dashboard.Theme}} selected{{end}}>{{.Name}}</option>{{end}}</select>
+          <button class="btn btn-ghost">{{t .Lang "lab.d.theme-apply"}}</button>
+        </form>
+        {{- end}}
         <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.preview-width"}}">
           <a class="lab-tab" href="{{$url}}/preview"{{if not .Phone}} aria-current="page"{{end}}>{{t .Lang "lab.d.desktop"}}</a>
           <a class="lab-tab" href="{{$url}}/preview?phone"{{if .Phone}} aria-current="page"{{end}}>{{t .Lang "lab.d.phone"}}</a>

@@ -777,6 +777,8 @@ input[type=file]::file-selector-button:hover { background: #f1f0ea; }
 .ds-err ul { margin: 0; padding-left: 1.2rem; display: grid; gap: .45rem; }
 .pv-bar { display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .pv-bar .lab-tabs { margin-bottom: 0; border-bottom: 0; }
+.pv-theme { display: flex; gap: .5rem; align-items: center; }
+.pv-theme label { font-weight: 600; }
 .pv-stage { background: #e4e4de; border-radius: var(--radius-lg); padding: 1rem; display: flex; justify-content: center; }
 .pv-frame { display: block; width: 100%; height: 1150px; border: 0; background: #f3f4f6; border-radius: 6px; box-shadow: 0 2px 10px rgba(0, 0, 0, .08); }
 .pv-stage.is-phone .pv-frame { width: 390px; max-width: 100%; height: 760px; border-radius: 26px; border: 10px solid var(--brand-ink); }
