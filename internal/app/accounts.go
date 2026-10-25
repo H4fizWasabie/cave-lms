@@ -135,8 +135,8 @@ func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, lea
 	return a.mailVerification(ctx, lang, email, token)
 }
 
-// mailOwnerOfUsedEmail answers a registration with email, which already has an account: an unverified account gets a new
-// verification link, a verified one a notice that someone tried to register with its address.
+// mailOwnerOfUsedEmail answers a registration with email, which already has an account: an unverified account gets a link
+// to set its password, a verified one a notice that someone tried to register with its address.
 func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) error {
 	var (
 		id        int64
@@ -151,11 +151,25 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) er
 	if err != nil {
 		return err
 	}
-	if !verified {
-		return a.sendVerification(r.Context(), tx, lang, id, to)
-	}
 	if !a.verificationAllowed(to) {
 		return nil
+	}
+	if !verified {
+		// An unverified account's password proves nothing about who chose it, so whoever holds the inbox sets it with a
+		// reset link, which also confirms the email. A verification link would confirm the first registrant's password,
+		// so the ones already sent stop working.
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM one_time_tokens WHERE learner_id = $1 AND purpose = $2`, id, purposeVerifyEmail); err != nil {
+			return fmt.Errorf("delete verification links: %w", err)
+		}
+		token, err := issueOneTimeToken(r.Context(), tx, id, purposeResetPassword, resetLinkLifetime)
+		if err != nil {
+			return err
+		}
+		return a.mailer.Send(r.Context(), mailer.Message{
+			To:      to,
+			Subject: text.T(lang, "email.unverified-again.subject"),
+			Body:    text.T(lang, "email.unverified-again.body", a.publicBaseURL+"/reset-password?token="+token),
+		})
 	}
 	return a.mailer.Send(r.Context(), mailer.Message{
 		To:      to,
@@ -164,9 +178,9 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) er
 	})
 }
 
-// verificationAllowed counts an email to email, a verification or a used-email notice, and reports whether it is within
-// verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the link, and answer as if
-// they had, so the requester learns nothing and the link already sent keeps working.
+// verificationAllowed counts an email to email, a verification, a set-password link or a used-email notice, and reports
+// whether it is within verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the
+// link, and answer as if they had, so the requester learns nothing and the link already sent keeps working.
 func (a *App) verificationAllowed(email string) bool {
 	return a.limiter.allow("verification email "+strings.ToLower(email), verificationsPerAddress, verificationWindow, a.now())
 }
