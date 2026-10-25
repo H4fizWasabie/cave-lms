@@ -1460,7 +1460,7 @@ var catalog = map[string]entry{
 	"reports.reason":           {en: "Reason: %s", ms: "Sebab: %s"},
 	"reports.dismiss":          {en: "Dismiss", ms: "Tolak"},
 	"reports.none":             {en: "No open Reports.", ms: "Tiada Laporan terbuka."},
-	"my-courses.title":         {en: "My Courses", ms: "Kursus Saya"},
+	"my-courses.title":         {en: "My courses", ms: "Kursus saya"},
 	"my-courses.intro":         {en: "Courses you have joined. Continue any time.", ms: "Kursus yang telah anda sertai. Teruskan bila-bila masa."},
 	"my-courses.open":          {en: "Open", ms: "Buka"},
 	"my-courses.none":          {en: "You have not joined any Courses yet.", ms: "Anda belum menyertai mana-mana Kursus."},
@@ -1625,7 +1625,7 @@ var catalog = map[string]entry{
 	"answer-sheet.reason":         {en: "Reason: %s", ms: "Sebab: %s"},
 	"answer-sheet.correct-answer": {en: "Correct answer: %s", ms: "Jawapan betul: %s"},
 
-	"my-certificates.title":       {en: "My Certificates", ms: "Sijil Saya"},
+	"my-certificates.title":       {en: "My certificates", ms: "Sijil saya"},
 	"my-certificates.intro":       {en: "Each certificate has an ID that anyone can check on this site.", ms: "Setiap sijil mempunyai ID yang boleh disemak oleh sesiapa sahaja di laman ini."},
 	"my-certificates.revoked":     {en: "this Certificate is no longer valid.", ms: "Sijil ini tidak lagi sah."},
 	"my-certificates.download":    {en: "Download PDF", ms: "Muat turun PDF"},

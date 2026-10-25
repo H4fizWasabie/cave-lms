@@ -40,7 +40,7 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 	expectAll(t, body, "Kekal dalam Kursus ini")
 	_, body = s.getAsking("/my-courses", "en")
 	expectLanguage(t, body, "ms", "Kursus yang telah anda sertai.")
-	expectAll(t, body, "Go Basics", "Sijil Saya", "Tarikh mula: 3 November 2026")
+	expectAll(t, body, "Go Basics", "Sijil saya", "Tarikh mula: 3 November 2026")
 
 	s.switchLanguage("en", "/")
 	_, body = s.getAsking("/courses/"+id, "ms")
@@ -153,7 +153,7 @@ func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
 	issuedMS, issuedEN := text.Date("ms", issued.In(time.FixedZone("MYT", 8*3600))), text.Date("en", issued.In(time.FixedZone("MYT", 8*3600)))
 
 	_, body := s.getAsking("/my-certificates", "ms")
-	expectLanguage(t, body, "ms", "Sijil Saya")
+	expectLanguage(t, body, "ms", "Sijil saya")
 	expectAll(t, body, "Go Basics", "Dikeluarkan "+issuedMS, "Muat turun PDF", "Setiap sijil mempunyai ID")
 
 	s.switchLanguage("ms", "/")

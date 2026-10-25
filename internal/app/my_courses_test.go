@@ -132,3 +132,25 @@ func TestMyCoursesWithoutCoursesPointsToTheCatalogue(t *testing.T) {
 	_, body := s.getAsking("/my-courses", "ms")
 	expectAll(t, mainOf(body), "Anda belum menyertai mana-mana Kursus.", "Sertai Kursus")
 }
+
+// The Learner's own pages are named in sentence case everywhere, as the header and footer already name them.
+func TestTheLearnersOwnPagesAreNamedInSentenceCase(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	for _, c := range []struct{ path, en, ms string }{
+		{"/my-courses", "My courses", "Kursus saya"},
+		{"/my-certificates", "My certificates", "Sijil saya"},
+		{"/my-exams", "My exams", "Peperiksaan saya"},
+	} {
+		for lang, name := range map[string]string{"en": c.en, "ms": c.ms} {
+			_, body := s.getAsking(c.path, lang)
+			expectAll(t, body, "<title>"+name+" · CAVELMS</title>", "<h1>"+name+"</h1>")
+		}
+	}
+	for lang, banned := range map[string][]string{"en": {"My Courses", "My Certificates"}, "ms": {"Kursus Saya", "Sijil Saya"}} {
+		for _, path := range []string{"/my-courses", "/my-certificates"} {
+			_, body := s.getAsking(path, lang)
+			expectNone(t, body, banned...)
+		}
+	}
+}
