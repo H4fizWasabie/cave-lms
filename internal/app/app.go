@@ -237,6 +237,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /lab/dashboards/{id}/columns", a.withDashboard(a.saveColumns))
 	mux.HandleFunc("GET /lab/dashboards/{id}/blocks", a.dashboardTab("blocks"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/blocks", a.withDashboard(a.editBlocks))
+	mux.HandleFunc("POST /lab/dashboards/{id}/theme", a.withDashboard(a.saveTheme))
 	mux.HandleFunc("GET /lab/dashboards/{id}/hood", a.dashboardTab("hood"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/download", a.withDashboard(a.downloadDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.dashboardFile("index.html"))

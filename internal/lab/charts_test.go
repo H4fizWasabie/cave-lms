@@ -59,7 +59,7 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 			lab.WorkBlock{Kind: "table", Label: "Jadual B", Cols: []string{"Kos"}, Limit: 10},
 		),
 	}
-	index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Klinik", cfg, d, "data.json")
+	index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Klinik", "", cfg, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,5 +85,77 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 	}
 	if got.CardCols != "repeat(4,minmax(0,1fr))" {
 		t.Errorf("8 cards sit in %q, want two rows of 4", got.CardCols)
+	}
+}
+
+func TestADashboardDrawsInItsTheme(t *testing.T) {
+	d := &lab.Dataset{
+		Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}},
+		Rows:    [][]any{{"IT"}, {"IT"}, {"Jualan"}},
+	}
+	cfg := &lab.Config{Blocks: []lab.WorkBlock{{Kind: "bar", Label: "Ikut jabatan", Value: &lab.Value{Agg: "count"}, Group: "Jabatan"}}}
+	for _, c := range []struct{ theme, bg, top, rest string }{
+		{"midnight", "--bg:#081726", "#D4AA55", "#3D7CC9"},
+		{"minimal", "--bg:#FFFFFF", "#3569A8", "#3569A8"},
+		// No Theme, or one Cave does not know, draws in Corporate Executive.
+		{"", "--bg:#F6F8FB", "#C89B3C", "#0E2A47"},
+		{"neon", "--bg:#F6F8FB", "#C89B3C", "#0E2A47"},
+	} {
+		index, data, err := lab.GenerateWork(lab.TemplateByKey("general"), "Staf", c.theme, cfg, d, "data.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		for name, b := range map[string][]byte{"index.html": index, "data.json": data} {
+			if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var got struct{ Style, Charts string }
+		out := node(t, filepath.Join(dir, "index.html"), filepath.Join(dir, "data.json"))
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatalf("%v in %s", err, out)
+		}
+		if !strings.Contains(got.Style, c.bg) {
+			t.Errorf("Theme %q: style lacks %s", c.theme, c.bg)
+		}
+		// The largest group, IT, is in the Theme's highlight colour; the rest in its bar colour.
+		if !strings.Contains(got.Charts, "background:"+c.top+`"></span></span><span class="dbar-v">2`) ||
+			!strings.Contains(got.Charts, "background:"+c.rest+`"></span></span><span class="dbar-v">1`) {
+			t.Errorf("Theme %q: bars not in %s and %s:\n%s", c.theme, c.top, c.rest, got.Charts)
+		}
+	}
+}
+
+func TestChartsDrawsEveryThemeCaveOffersAndNoOther(t *testing.T) {
+	var keys []string
+	for _, th := range lab.Themes {
+		keys = append(keys, th.Key)
+	}
+	if out := strings.TrimSpace(node(t, "themes")); out != strings.Join(keys, " ") {
+		t.Fatalf("charts.js draws Themes %q, Cave offers %q", out, keys)
+	}
+	if lab.Themes[0].Key != "corporate" {
+		t.Fatalf("the first Theme, every Dashboard's until its Learner picks another, is %q", lab.Themes[0].Key)
+	}
+}
+
+func TestChartScriptCarriesInterSoADashboardLoadsNoFontFromAnotherSite(t *testing.T) {
+	s := string(lab.ChartScript)
+	for _, w := range []string{"400", "600"} {
+		if !strings.Contains(s, "@font-face{font-family:Inter;font-weight:"+w+";font-display:swap;src:url(data:font/woff2;base64,d09GMg") {
+			t.Errorf("charts.js lacks Inter at weight %s as a data URL", w)
+		}
+	}
+	// The script as served, with the fonts written in, still parses.
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is not installed")
+	}
+	f := filepath.Join(t.TempDir(), "charts.js")
+	if err := os.WriteFile(f, lab.ChartScript, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("node", "--check", f).CombinedOutput(); err != nil {
+		t.Fatalf("charts.js as served does not parse: %v\n%.300s", err, out)
 	}
 }

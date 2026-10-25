@@ -50,6 +50,7 @@ type dashboard struct {
 	Work     bool // a Work Dashboard; else a Practice Dashboard
 	Template *lab.Template
 	Name     string
+	Theme    string // the key of the Theme it draws in
 	Choices  lab.Choices
 	Config   *lab.Config  // a Work Dashboard's blocks and filter bar; nil until its first confirm
 	Settings lab.Settings // what a Work Dashboard remembers for its next upload
@@ -63,9 +64,9 @@ type dashboard struct {
 // generate writes the Dashboard's index.html and data.json, its data fetched from dataURL.
 func (d *dashboard) generate(dataURL string) (index, data []byte, err error) {
 	if d.Work {
-		return lab.GenerateWork(d.Template, d.Name, d.Config, d.Dataset, dataURL)
+		return lab.GenerateWork(d.Template, d.Name, d.Theme, d.Config, d.Dataset, dataURL)
 	}
-	return lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, dataURL)
+	return lab.Generate(d.Template, d.Name, d.Theme, d.Choices, d.Dataset, dataURL)
 }
 
 // dashboardRow is a Dashboard in the Lab list.
@@ -141,11 +142,11 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	var choices, config, settings []byte
 	var updated time.Time
 	// A Work Dashboard's current Dataset is in datasets; a Practice Dashboard's is on its own row.
-	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.kind = 'work', d.template, d.name, d.choices, d.config, d.upload_settings,
+	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.kind = 'work', d.template, d.name, d.theme, d.choices, d.config, d.upload_settings,
 			COALESCE(ds.storage_key, d.dataset_key, ''), COALESCE(ds.file_name, d.dataset_file), COALESCE(ds.saved_size, d.dataset_size), d.updated_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
 		LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'`, args...).
-		Scan(&d.ID, &d.Work, &key, &d.Name, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated)
+		Scan(&d.ID, &d.Work, &key, &d.Name, &d.Theme, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -357,6 +358,28 @@ func (a *App) renameDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
+// saveTheme sets the Theme the Dashboard draws in, and its Deployment with it, then shows the preview at the
+// width it was picked at; a Theme Cave does not offer is refused.
+func (a *App) saveTheme(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, ok := a.labOpen(w, r); !ok {
+		return
+	}
+	theme := r.FormValue("theme")
+	if !slices.ContainsFunc(lab.Themes, func(t lab.Theme) bool { return t.Key == theme }) {
+		http.Error(w, "unknown theme", http.StatusBadRequest)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET theme = $2, updated_at = now() WHERE id = $1`, d.ID, theme); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	to := dashboardURL(d) + "/preview"
+	if r.FormValue("phone") != "" {
+		to += "?phone"
+	}
+	http.Redirect(w, r, to, http.StatusSeeOther)
+}
+
 // deleteDashboard deletes a Dashboard and its Dataset, from the store too; the delete tab asks first. Its Deployment's link
 // then answers "not found"; the Deployment is never awake again, so it frees a slot, and its name stays taken.
 func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
@@ -409,7 +432,8 @@ type dashboardPage struct {
 	Phone     bool            // preview at phone width
 	ReadOnly  bool            // no Lab access: view and download only
 	Hood      []hoodPart
-	Data      hoodPart // the start of data.json, on the Under the hood tab
+	Data      hoodPart    // the start of data.json, on the Under the hood tab
+	Themes    []lab.Theme // Preview tab: the Themes to pick from
 
 	Access labAccess // the caller looks it up; read-only follows from it
 
@@ -468,7 +492,7 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
-	p.Title, p.ReadOnly = d.Name, !p.Access.Open()
+	p.Title, p.ReadOnly, p.Themes = d.Name, !p.Access.Open(), lab.Themes
 	if p.Tab == "columns" && d.Dataset != nil {
 		p.Blanks = blankChoices(d.Template, d.Dataset, d.Choices, d.Template.Guess(d.Dataset))
 		for i, bc := range p.Blanks {
@@ -604,7 +628,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds, ""); errors.As(err, &problem) && problem.Key == "lab.err.empty-cell" {
+	if _, _, err := lab.Generate(d.Template, d.Name, "", choices, ds, ""); errors.As(err, &problem) && problem.Key == "lab.err.empty-cell" {
 		refuse(problem.In(lang)) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
@@ -818,7 +842,7 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			c[b.Key] = v
 		}
 	}
-	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset, ""); err != nil {
+	if _, _, err := lab.Generate(d.Template, d.Name, "", c, d.Dataset, ""); err != nil {
 		lang, langErr := a.language(r)
 		if langErr != nil {
 			a.serverError(w, r, langErr)
@@ -864,8 +888,9 @@ func (a *App) dashboardFile(name string) http.HandlerFunc {
 }
 
 // previewCSP keeps a Dashboard served same-origin (the preview and the demo) to Cave's own scripts and
-// connections, and to framing by Cave. The preview needs the session cookie for data.json, so no sandbox.
-const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'self'"
+// connections, to the fonts written into charts.js, and to framing by Cave. The preview needs the session
+// cookie for data.json, so no sandbox.
+const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src data:; frame-ancestors 'self'"
 
 // demoFile serves a Template's demo, /lab/demo/{key}/: the Template drawn from its Sample with Cave's
 // guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.

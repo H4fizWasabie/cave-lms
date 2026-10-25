@@ -1144,6 +1144,8 @@ var catalog = map[string]entry{
 	"lab.d.save-preview":  {en: "Save and preview", ms: "Simpan dan pratonton"},
 	"lab.d.preview-note":  {en: "This is what people with the link will see. Try the filters.", ms: "Inilah yang akan dilihat oleh orang yang mempunyai pautan. Cuba penapisnya."},
 	"lab.d.preview-width": {en: "Preview width", ms: "Lebar pratonton"},
+	"lab.d.theme":         {en: "Theme", ms: "Tema"},
+	"lab.d.theme-apply":   {en: "Apply", ms: "Guna"},
 	"lab.d.desktop":       {en: "Desktop", ms: "Desktop"},
 	"lab.d.phone":         {en: "Phone", ms: "Telefon"},
 	"lab.d.preview-title": {en: "Dashboard preview", ms: "Pratonton Dashboard"},

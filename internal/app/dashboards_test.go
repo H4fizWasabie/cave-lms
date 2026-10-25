@@ -662,3 +662,40 @@ func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T
 		t.Fatalf("the System log does not record the failed write:\n%s", log)
 	}
 }
+
+func TestALearnerPicksAThemeAndTheDashboardDrawsInIt(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createDashboard("finance", "Kewangan")
+	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+
+	// Every Dashboard starts in Corporate Executive.
+	res, body := ada.get(path + "/preview")
+	expectStatus(t, res, body, http.StatusOK, `<option value="corporate" selected>Corporate Executive</option>`)
+	expectStatus(t, res, body, http.StatusOK, `<option value="storytelling">Data Storytelling</option>`)
+	res, page := ada.get(path + "/view/")
+	expectStatus(t, res, page, http.StatusOK, `"theme": "corporate"`)
+
+	res, body = ada.post(path+"/theme", url.Values{"theme": {"midnight"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview" {
+		t.Fatalf("picking a Theme redirects to %q, want the preview", loc)
+	}
+	res, body = ada.get(path + "/preview")
+	expectStatus(t, res, body, http.StatusOK, `<option value="midnight" selected>Midnight Intelligence</option>`)
+	res, page = ada.get(path + "/view/")
+	expectStatus(t, res, page, http.StatusOK, `"theme": "midnight"`)
+
+	// Picked at phone width, the preview stays at phone width.
+	res, body = ada.post(path+"/theme", url.Values{"theme": {"glass"}, "phone": {"1"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != path+"/preview?phone" {
+		t.Fatalf("picking a Theme at phone width redirects to %q, want the phone preview", loc)
+	}
+	ada.post(path+"/theme", url.Values{"theme": {"midnight"}})
+
+	// A Theme Cave does not offer changes nothing.
+	res, body = ada.post(path+"/theme", url.Values{"theme": {"neon"}})
+	expectStatus(t, res, body, http.StatusBadRequest, "")
+	res, page = ada.get(path + "/view/")
+	expectStatus(t, res, page, http.StatusOK, `"theme": "midnight"`)
+}

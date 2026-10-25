@@ -104,7 +104,7 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	tpl := finance(t)
 	d := readSample(t, tpl)
 	cfg := tpl.Open(tpl.Guess(d), d)
-	index, data, err := lab.GenerateWork(tpl, "Kedai <Ali>", cfg, d, "data/x")
+	index, data, err := lab.GenerateWork(tpl, "Kedai <Ali>", "", cfg, d, "data/x")
 	if err != nil {
 		t.Fatal(err)
 	}

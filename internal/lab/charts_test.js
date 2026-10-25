@@ -1,6 +1,7 @@
 // The check of charts.js's computing functions, run by charts_test.go when node is installed.
 //   node charts_test.js                       checks every block option on made-up rows
-//   node charts_test.js index.html data.json  draws that Dashboard and prints its cards and charts as JSON
+//   node charts_test.js themes                prints the keys of the Themes it draws
+//   node charts_test.js index.html data.json  draws that Dashboard and prints its style, cards and charts as JSON
 'use strict';
 var fs = require('fs'), vm = require('vm'), assert = require('assert');
 
@@ -9,17 +10,22 @@ function el() {
   return { style: { setProperty: function (k, v) { this[k] = v; } }, addEventListener: function () {},
     querySelector: function () { return null; }, querySelectorAll: function () { return []; }, clientWidth: 800 };
 }
-var document = { head: { appendChild: function () {} }, createElement: el,
+var style = '';
+var document = { head: { appendChild: function (e) { style += e.textContent || ''; } }, createElement: el,
   getElementById: function (id) { return els[id] = els[id] || el(); } };
 var window = {};
 vm.runInNewContext(fs.readFileSync(__dirname + '/charts.js', 'utf8'),
   { window: window, document: document, addEventListener: function () {}, innerWidth: 1000 });
 
+if (process.argv[2] === 'themes') {
+  console.log(window.drawDashboard.themes.join(' '));
+  return;
+}
 if (process.argv[2]) {
   var page = fs.readFileSync(process.argv[2], 'utf8');
   var dash = JSON.parse(page.match(/const dashboard = (\{[\s\S]*?\n    \});/)[1]);
   window.drawDashboard(dash, JSON.parse(fs.readFileSync(process.argv[3], 'utf8')));
-  console.log(JSON.stringify({ cards: els.cards.innerHTML, cardCols: els.cards.style['--cols'] || '', charts: els.charts.innerHTML }));
+  console.log(JSON.stringify({ style: style, cards: els.cards.innerHTML, cardCols: els.cards.style['--cols'] || '', charts: els.charts.innerHTML }));
   return;
 }
 

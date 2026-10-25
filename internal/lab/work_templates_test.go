@@ -207,7 +207,7 @@ func TestSalesAndRosterDrawFromTheirSamples(t *testing.T) {
 	} {
 		tpl := template(t, key)
 		res := clean(t, tpl.Sample, tpl)
-		index, data, err := lab.GenerateWork(tpl, tpl.Name, tpl.Open(res.Guess, res.Dataset), res.Dataset, "data.json")
+		index, data, err := lab.GenerateWork(tpl, tpl.Name, "", tpl.Open(res.Guess, res.Dataset), res.Dataset, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}
