@@ -718,8 +718,8 @@ var catalog = map[string]entry{
 	"lab.type.text":                    {en: "text", ms: "teks"},
 
 	"lab.new.sub": {
-		en: "Name your Dashboard, then upload your Excel file. Cave cleans it, builds the charts from your data and shows you a preview before your Dashboard uses it.",
-		ms: "Namakan Dashboard anda, kemudian muat naik fail Excel anda. Cave membersihkannya, membina carta daripada data anda dan menunjukkan pratonton sebelum Dashboard anda menggunakannya.",
+		en: "Name your Dashboard, then upload your Excel file or try a Sample. Cave cleans it, builds the charts from your data and shows you a preview before your Dashboard uses it.",
+		ms: "Namakan Dashboard anda, kemudian muat naik fail Excel anda atau cuba Sampel. Cave membersihkannya, membina carta daripada data anda dan menunjukkan pratonton sebelum Dashboard anda menggunakannya.",
 	},
 	"lab.new.name":   {en: "Dashboard name", ms: "Nama Dashboard"},
 	"lab.new.create": {en: "Create Dashboard", ms: "Cipta Dashboard"},
