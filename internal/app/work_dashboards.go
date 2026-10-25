@@ -284,27 +284,53 @@ func cleanSamples() (map[string]*lab.CleanUp, error) {
 var errDatasetStore = errors.New("the store refused the Dataset")
 
 // keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Dataset, replacing any
-// earlier pending one, and returns its saved size.
-func (a *App) keepPending(r *http.Request, d *dashboard, res *lab.CleanUp, settings lab.Settings, name string) (int64, error) {
+// earlier pending one, and returns its saved size. With acc's counted period, the Learner's other pending Datasets
+// count against the Storage allowance too. A Dataset that would not fit, even with every Dataset of this Dashboard
+// that roomFor may delete on confirm gone, is dropped with errStorageFull; used is then the bytes the Learner's
+// Datasets take, pending ones included.
+func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res *lab.CleanUp, settings lab.Settings, name string) (size, used int64, err error) {
 	data, err := json.Marshal(res.Dataset)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	c, err := json.Marshal(cleaned{CleanUp: *res, Settings: settings})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	key, err := newDatasetKey()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	if err := a.datasets.Put(r.Context(), key, data); err != nil {
 		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
-		return 0, errDatasetStore
+		return 0, 0, errDatasetStore
 	}
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+		if acc.CountedPeriod() != nil {
+			// Locking the Learner makes uploads and confirms take turns, so none slips under the allowance.
+			if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
 			return err
+		}
+		if acc.CountedPeriod() != nil {
+			var pending int64
+			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds
+				JOIN dashboards owner ON owner.id = ds.dashboard_id JOIN dashboards this ON this.learner_id = owner.learner_id
+				WHERE this.id = $1 AND ds.state = 'pending'`, d.ID).Scan(&pending); err != nil {
+				return err
+			}
+			// ponytail: what confirm may delete for room counts as free before it is, so the store can hold up to about
+			// twice the allowance until the Learner confirms; refusing those uploads would refuse ones that fit today.
+			room, err := roomFor(r.Context(), tx, d, pending+int64(len(data)), acc)
+			if err != nil {
+				return err
+			}
+			if used = room.Used + pending; !room.Fits {
+				return errStorageFull
+			}
 		}
 		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup)
 			VALUES ($1, $2, $3, $4, $5, 'pending', $6)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c)
@@ -312,10 +338,10 @@ func (a *App) keepPending(r *http.Request, d *dashboard, res *lab.CleanUp, setti
 	})
 	if err != nil {
 		a.dropDataset(r.Context(), r, key)
-		return 0, err
+		return int64(len(data)), used, err
 	}
 	a.dropDeletedFiles(r.Context(), r)
-	return int64(len(data)), nil
+	return int64(len(data)), used, nil
 }
 
 // uploadWork runs Clean-up on a Dashboard's upload and keeps the result as its pending Dataset, replacing
@@ -358,7 +384,13 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	size, err := a.keepPending(r, d, res, settings, name)
+	size, used, err := a.keepPending(r, d, acc, res, settings, name)
+	if errors.Is(err, errStorageFull) {
+		page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name}
+		page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
+		return
+	}
 	if errors.Is(err, errDatasetStore) {
 		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
 		return
@@ -446,9 +478,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	var room storageRoom
-	overAllowance, replaced := errors.New("over the Storage allowance"), errors.New("pending Dataset replaced")
+	replaced := errors.New("pending Dataset replaced")
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		// Locking the Learner makes two confirms take turns, so both cannot slip under the allowance.
+		// Locking the Learner makes confirms and uploads take turns, so none slips under the allowance.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
 			return err
 		}
@@ -462,7 +494,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			return err
 		}
 		if room, err = roomFor(r.Context(), tx, d, p.Size, acc); err != nil || !room.Fits {
-			return cmp.Or(err, overAllowance)
+			return cmp.Or(err, errStorageFull)
 		}
 		for _, e := range room.Drop {
 			if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1`, e.ID); err != nil {
@@ -479,7 +511,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			WHERE id = $1`, d.ID, t.Key, choices, config, settings)
 		return err
 	})
-	if errors.Is(err, overAllowance) {
+	if errors.Is(err, errStorageFull) {
 		page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Pending: p, Upload: p.File}
 		page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(room.Used), sizeText(acc.Period.Storage()))
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)

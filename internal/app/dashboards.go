@@ -29,7 +29,8 @@ const (
 	maxDatasetUpload = maxDatasetFile + 64<<10
 )
 
-// errStorageFull is replaceDataset's answer when the upload would take the Learner over their Storage allowance.
+// errStorageFull is keepPending's and confirmWork's answer when a Dataset would take the Learner over their Storage
+// allowance.
 var errStorageFull = errors.New("over the Storage allowance")
 
 // sizeText writes a number of bytes as people read it: 12 KB, 980 MB, 1.5 GB.
@@ -292,7 +293,9 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if t != lab.General {
-		if _, err := a.keepPending(r, d, sample, lab.Settings{}, t.Key+"-sample.xlsx"); err != nil {
+		// ponytail: the Sample is kept unchecked, as refusing a new Dashboard would need its own message; it is one
+		// small fixed Dataset per Dashboard, and it counts against the allowance for every other upload.
+		if _, _, err := a.keepPending(r, d, labAccess{}, sample, lab.Settings{}, t.Key+"-sample.xlsx"); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

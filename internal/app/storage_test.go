@@ -93,7 +93,7 @@ func TestALabPlanPeriodGetsTheLabPlansStorageAllowance(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "0 KB of 3 MB")
 }
 
-func TestAConfirmOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testing.T) {
+func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
 	first := ada.createWork("finance", "One")
 	second := ada.createWork("finance", "Two")
@@ -101,8 +101,6 @@ func TestAConfirmOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 	used := strings.TrimSuffix(ada.storedKB(), " of 1 GB") + " of your 1 MB"
 
 	res, body := ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.post(second+"/dataset/confirm", financeGuess)
 	for _, want := range []string{"Storage allowance", used} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
 	}
@@ -111,15 +109,18 @@ func TestAConfirmOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 
 	res, body = ada.post(first+"/delete", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(second, financeGuess)
+	ada.confirmFile(second, "two.xlsx", bigFinance(t, 2))
 }
 
 func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
-	_, ada, _ := storageSite(t, "1")
+	_, ada, _ := storageSite(t, "2")
 	paths := []string{ada.createWork("finance", "One"), ada.createWork("finance", "Two")}
 	for i, p := range paths {
 		res, body := ada.postFile(p+"/dataset", "data.xlsx", bigFinance(t, int64(i+1)))
 		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 1`); err != nil { // both uploads fitted; the allowance shrinks
+		t.Fatal(err)
 	}
 	codes := make([]int, 2)
 	var wg sync.WaitGroup

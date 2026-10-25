@@ -51,7 +51,8 @@ func (p *activePeriod) DeploymentsLeft() int { return max(p.Deployments-p.Awake,
 func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
 
 // storageUsedSQL is an SQL expression for the bytes a Learner's Datasets take against the Storage allowance, learner
-// being an SQL expression for their id: their Dashboards' confirmed Datasets by saved size. Pending ones do not count.
+// being an SQL expression for their id: their Dashboards' confirmed Datasets by saved size. Pending ones count only
+// when keepPending checks an upload.
 func storageUsedSQL(learner string) string {
 	return `(SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds JOIN dashboards owner ON owner.id = ds.dashboard_id
 			WHERE owner.learner_id = ` + learner + ` AND ds.state <> 'pending')`

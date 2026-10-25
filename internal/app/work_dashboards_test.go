@@ -160,42 +160,63 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 	}
 }
 
-func TestAReUploadDuringAConfirmNeverLeavesNoCurrentDataset(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", dashReport(t, "Gula"))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+func TestAReUploadDuringAConfirmTakesItsTurnAndLeavesACurrentDataset(t *testing.T) {
+	for _, uploadFirst := range []bool{false, true} {
+		t.Run(fmt.Sprint("upload first ", uploadFirst), func(t *testing.T) {
+			_, ada := labLearner(t)
+			path := ada.workReady()
+			res, body := ada.postFile(path+"/dataset", "oktober.xlsx", dashReport(t, "Gula"))
+			expectStatus(t, res, body, http.StatusSeeOther, "")
 
-	// Holding the Learner's lock stops the confirm inside its transaction, after it read the pending Dataset.
-	ctx := context.Background()
-	tx, err := ada.db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `SELECT 1 FROM learners FOR UPDATE`); err != nil {
-		t.Fatal(err)
-	}
-	confirmed := make(chan *http.Response)
-	go func() {
-		res, _ := ada.post(path+"/dataset/confirm", nil)
-		confirmed <- res
-	}()
-	for waiting := 0; waiting == 0; {
-		if err := ada.db.QueryRowContext(ctx, `SELECT count(*) FROM pg_stat_activity
-			WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting); err != nil {
-			t.Fatal(err)
-		}
-	}
-	res, body = ada.postFile(path+"/dataset", "november.xlsx", dashReport(t, "Garam"))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	tx.Rollback()
+			// Holding the Learner's lock queues the confirm and the re-upload behind it: uploads and confirms take
+			// turns, so neither can slip in under the Storage allowance or leave the Dashboard with no current Dataset.
+			ctx := context.Background()
+			tx, err := ada.db.BeginTx(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback()
+			if _, err := tx.ExecContext(ctx, `SELECT 1 FROM learners FOR UPDATE`); err != nil {
+				t.Fatal(err)
+			}
+			waitForLockWaiters := func(n int) {
+				for waiting := 0; waiting < n; {
+					if err := ada.db.QueryRowContext(ctx, `SELECT count(*) FROM pg_stat_activity
+						WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			confirmed, uploaded := make(chan *http.Response), make(chan *http.Response)
+			confirm := func() {
+				res, _ := ada.post(path+"/dataset/confirm", nil)
+				confirmed <- res
+			}
+			upload := func() {
+				res, _ := ada.postFile(path+"/dataset", "november.xlsx", dashReport(t, "Garam"))
+				uploaded <- res
+			}
+			if uploadFirst { // the confirm then finds the Dataset it read replaced
+				confirm, upload = upload, confirm
+			}
+			go confirm()
+			waitForLockWaiters(1)
+			go upload()
+			waitForLockWaiters(2)
+			tx.Rollback()
 
-	if res := <-confirmed; res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != path {
-		t.Fatalf("the confirm of a replaced upload = %d to %q, want back to the new preview", res.StatusCode, res.Header.Get("Location"))
-	}
-	if page := ada.rowsOf(path + "/view/"); !strings.Contains(page, "Beras") {
-		t.Fatalf("the current Dataset = %s", page)
+			// Each lands back on the Dashboard: a confirm on its preview, or on the new upload's preview when the
+			// re-upload replaced the Dataset it was confirming.
+			for what, done := range map[string]chan *http.Response{"confirm": confirmed, "re-upload": uploaded} {
+				if res := <-done; res.StatusCode != http.StatusSeeOther || !strings.HasPrefix(res.Header.Get("Location"), path) {
+					t.Fatalf("the %s = %d to %q, want back to the Dashboard", what, res.StatusCode, res.Header.Get("Location"))
+				}
+			}
+			// The routine re-upload goes live on its own in its turn, so any of the three may be current; none is not.
+			if page := ada.rowsOf(path + "/view/"); !strings.Contains(page, "Gula") && !strings.Contains(page, "Garam") && !strings.Contains(page, "Beras") {
+				t.Fatalf("the current Dataset = %s", page)
+			}
+		})
 	}
 }
 
@@ -404,14 +425,35 @@ func TestTheStorageAllowanceCountsConfirmedWorkDatasetsBySavedSize(t *testing.T)
 }
 
 func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
-	_, ada, _ := storageSite(t, "1")
+	_, ada, _ := storageSite(t, "2")
 	first := ada.createWork("finance", "Satu")
 	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
 	path := ada.createWork("finance", "Kedai")
 	res, body := ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 1`); err != nil { // the upload fitted; the allowance shrinks
+		t.Fatal(err)
+	}
 	res, body = ada.post(path+"/dataset/confirm", financeGuess)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
+}
+
+func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
+	_, ada, _ := storageSite(t, "1") // 1 MB, and each upload saves as about 600 KB
+	first := ada.createWork("finance", "Satu")
+	res, body := ada.postFile(first+"/dataset", "one.xlsx", bigFinance(t, 1))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	path := ada.createWork("finance", "Kedai")
+	res, body = ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
+	if n := ada.storedFiles(); n != 1 {
+		t.Fatalf("%d stored files, want only the first pending Dataset", n)
+	}
+	// A re-upload replaces the Dashboard's own pending Dataset, so that one does not count.
+	res, body = ada.postFile(first+"/dataset", "again.xlsx", bigFinance(t, 3))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, "0 KB of 1 MB") // the Storage figure still counts confirmed Datasets only
 }
 
 func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
