@@ -61,20 +61,20 @@ func (c Change) In(lang string) string {
 }
 
 // CleanUp is what Clean-up made of an upload: the Dataset, every change it made to get there, and Cave's
-// guess for each Template blank.
+// guess for each Template blank. Its JSON leaves out the Dataset, which is kept on its own.
 type CleanUp struct {
-	Sheets    []Sheet  // every sheet in the workbook, in order
-	Used      []string // the sheets that went into the Dataset, in workbook order
-	HeaderRow int      // the picked sheet's header row number in Excel
-	Month     int      // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
-	Year      int      // the grids' year, with Month
-	Dataset   *Dataset
-	Changes   []Change
-	Notes     []Note // the columns General leaves out of charts or averages, and why
-	Guess     Choices
+	Sheets    []Sheet  `json:"sheets"`          // every sheet in the workbook, in order
+	Used      []string `json:"used"`            // the sheets that went into the Dataset, in workbook order
+	HeaderRow int      `json:"headerRow"`       // the picked sheet's header row number in Excel
+	Month     int      `json:"month,omitempty"` // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year      int      `json:"year,omitempty"`  // the grids' year, with Month
+	Dataset   *Dataset `json:"-"`
+	Changes   []Change `json:"changes"`
+	Notes     []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
+	Guess     Choices  `json:"guess"`
 	// Offers are the Templates offered beside General, by key, each with its guesses: those whose required
 	// blanks all found a column by name.
-	Offers map[string]Choices
+	Offers map[string]Choices `json:"offers,omitempty"`
 }
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every

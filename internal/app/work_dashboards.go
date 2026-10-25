@@ -26,16 +26,8 @@ const previewRows = 20
 // cleaned is what Clean-up found on an upload besides its data, kept with the Dataset as datasets.cleanup: the
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
-	Changes   []lab.Change           `json:"changes"`
-	Guess     lab.Choices            `json:"guess"`
-	Notes     []lab.Note             `json:"notes,omitempty"`  // the columns General leaves out of charts or averages, and why
-	Offers    map[string]lab.Choices `json:"offers,omitempty"` // the Templates offered beside General, each with its guesses
-	Sheets    []lab.Sheet            `json:"sheets"`           // every sheet of the upload
-	Used      []string               `json:"used"`             // the sheets that went into the Dataset
-	HeaderRow int                    `json:"headerRow"`        // the Excel row the column names came from
-	Settings  lab.Settings           `json:"settings"`         // the remembered part of the settings Clean-up read with
-	Month     int                    `json:"month,omitempty"`  // the month the days-across grids were dated in; 0 when no grid was used
-	Year      int                    `json:"year,omitempty"`
+	lab.CleanUp              // without its Dataset
+	Settings    lab.Settings `json:"settings"` // the remembered part of the settings Clean-up read with
 }
 
 // pendingDataset is a Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
@@ -298,8 +290,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, res *lab.CleanUp, setti
 	if err != nil {
 		return 0, err
 	}
-	found := cleaned{Changes: res.Changes, Notes: res.Notes, Guess: res.Guess, Offers: res.Offers, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
-	c, err := json.Marshal(found)
+	c, err := json.Marshal(cleaned{CleanUp: *res, Settings: settings})
 	if err != nil {
 		return 0, err
 	}
