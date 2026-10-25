@@ -197,7 +197,7 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .hdr-narrow > .hdr-panel > a:not(.btn), .hdr-narrow > .hdr-panel > .hdr-who { padding-inline: var(--space-1); }
 .hdr-narrow nav > a:not(.btn), .hdr-narrow nav > .hdr-drop > summary { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 3rem; padding: 0 var(--space-1); border-bottom: 1px solid var(--line); border-radius: 0; background: none; font-weight: 600; color: var(--text); }
 .hdr-narrow nav > :last-child, .hdr-narrow nav > :last-child > summary { border-bottom: 0; }
-.hdr-narrow .hdr-caret { display: block; width: 1rem; height: 1rem; color: var(--muted); transition: transform var(--duration-quick) var(--ease-smooth-out); }
+.hdr-narrow .hdr-caret { display: block; width: 1rem; height: 1rem; color: var(--muted); }
 .hdr-narrow .hdr-drop[open] > summary .hdr-caret { transform: rotate(90deg); }
 .hdr-panel .hdr-panel { position: static; min-width: 0; max-width: none; padding: 0 0 var(--space-3) var(--space-3); border: 0; border-radius: 0; box-shadow: none; background: none; }
 .hdr-panel .hdr-panel > a[href="/courses"]:last-child:not(:first-child) { border-top: 0; margin-top: 0; border-radius: var(--radius); }
@@ -438,7 +438,7 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
   .site-header { view-transition-name: site-header; }
   .adm-side { view-transition-name: adm-side; }
   .lab-tabs:not(.pv-bar .lab-tabs) { view-transition-name: lab-tabs; }
-  ::view-transition-old(root) { animation: fade-out var(--duration-quick) ease-in both; }
+  ::view-transition-old(root) { animation: fade-out var(--duration-quick) var(--ease-smooth-out) both; } /* the old page gets out of the way at once */
   ::view-transition-new(root) { animation: fade-in var(--duration-fast) var(--ease-smooth-out) both; }
   /* A Gallery picture grows from its tile into its page, and back. */
   ::view-transition-group(*) { animation-duration: var(--duration-slow); animation-timing-function: var(--ease-smooth-out); }
@@ -447,6 +447,7 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
 
   .site-nav a, .hdr-link, .footer-col a { transition: color var(--duration-quick) ease, background-size var(--duration-fast) var(--ease-smooth-out); }
   .btn:active { transform: scale(.96); }
+  .hdr-narrow .hdr-caret { transition: transform var(--duration-quick) var(--ease-smooth-out); } /* turns as its group opens; under reduced motion it just snaps */
   .g-plate img { transition: transform var(--duration-very-slow) var(--ease-smooth-out); }
   .g-tile:hover .g-plate img { transform: scale(1.04); }
   .home-hero-copy { --rise: var(--distance-medium); animation: rise var(--duration-very-slow) var(--ease-smooth-out) both; }
