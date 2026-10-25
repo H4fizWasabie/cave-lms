@@ -59,7 +59,7 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 	main = content(body)
 	expectInOrder(t, main, "Image and Dashboard master prompts", `href="https://pay.example.com/cavetext">Buy CaveText Pro</a>`,
 		"Deploy it online at a link you can share", `href="https://pay.example.com/lab">Buy Lab Plan</a>`,
-		"Everything in the Lab Plan", `href="https://pay.example.com/pro">Buy Pro Plan</a>`, "processing fee", `<img src="/static/cost-comparison.webp"`)
+		"Everything in the Lab Plan", `href="https://pay.example.com/pro">Buy Pro Plan</a>`, "processing fee", `id="comparison"`)
 	expectNone(t, main, "<s>", "Contact us to buy")
 
 	_, body = ada.getAsking("/pricing", "ms")

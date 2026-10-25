@@ -25,12 +25,12 @@ func TestHomePage(t *testing.T) {
 	if !strings.Contains(body, "https://cave.example.invalid") {
 		t.Fatalf("home page did not render configured content: %s", body)
 	}
-	for _, want := range []string{"Selamat Datang ke CAVELMS", "LEARN → APPLY → BUILD → SUSTAIN", "Coach Adam", "Dikuasakan oleh The Cave Consult (TCC)", "Program terdahulu", "Certified Professional in Generative AI (CPGAI)"} {
+	for _, want := range []string{"Selamat Datang ke CAVELMS", "Coach Adam", "Dikuasakan oleh The Cave Consult (TCC)", "Program terdahulu", "Certified Professional in Generative AI (CPGAI)"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("home page is missing %q", want)
 		}
 	}
-	for text, href := range map[string]string{"Explore eBooks": `/gallery\?format=ebook`, "Join Online Classes": "/courses", "Learn AI Dashboard Development": "/courses"} {
+	for text, href := range map[string]string{"Terokai eBook": `/gallery\?format=ebook`, "Sertai Kelas Dalam Talian": "/courses", "Belajar Membina Dashboard AI": "/courses"} {
 		if !regexp.MustCompile(`href="` + href + `"[^>]*>` + text + `</a>`).MatchString(body) {
 			t.Errorf("home page has no %q link to %s", text, href)
 		}

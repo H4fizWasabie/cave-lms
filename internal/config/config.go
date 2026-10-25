@@ -52,6 +52,9 @@ type Config struct {
 	OpenRouterModel  string
 	// OpenRouterWebSearch, from OPENROUTER_WEB_SEARCH (true or false, true when unset), turns on OpenRouter's web search.
 	OpenRouterWebSearch bool
+	// Production, from CAVE_ENV (production when unset, or staging or development), hides what is not ready for the
+	// public, such as the home page's placeholders for numbers the client has not supplied yet.
+	Production bool
 	// MaxUploadBytes caps one upload. Not read from the environment: about 2 GB.
 	MaxUploadBytes int64
 }
@@ -134,6 +137,13 @@ func Load() (Config, error) {
 	// The key is the webhook's only proof of origin, so a short one is refused.
 	if k := cfg.BCLWebhookKey; k != "" && len(k) < 32 {
 		return Config{}, fmt.Errorf("BCL_WEBHOOK_KEY must be at least 32 characters")
+	}
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CAVE_ENV"))) {
+	case "", "production":
+		cfg.Production = true
+	case "staging", "development":
+	default:
+		return Config{}, fmt.Errorf("CAVE_ENV must be production, staging or development")
 	}
 	if cfg.BCLAPIURL == "" {
 		cfg.BCLAPIURL = "https://bcl.my/api"

@@ -208,6 +208,20 @@ Pass (card .Course .Lang); it fills its container's width at 16:9. */}}
             <span class="course-cover-level">{{with .Level}}PCC {{.}}{{else}}{{t $.Lang "courses.card.self-paced"}}{{end}}</span>
           </div>{{end}}{{end}}
 
+{{/* certificate-preview is the Certificate shown beside the home page's headline, with the Learner's name or a
+placeholder for a Visitor, and never an IC. For now a plain framed sheet: #317 draws the real artwork here. */}}
+{{define "certificate-preview"}}
+        <figure class="cert-preview">
+          <div class="cert-preview-sheet" aria-hidden="true">
+            <img class="cert-preview-logo" src="{{static "cavelms.svg"}}" alt="" width="975" height="186">
+            <span class="cert-preview-title">Certificate of Competency</span>
+            <span class="cert-preview-for">This is to certify that</span>
+            <span class="cert-preview-name">{{with .Learner}}{{.Name}}{{else}}{{t $.Lang "cert-preview.name"}}{{end}}</span>
+          </div>
+          <figcaption>{{t .Lang "cert-preview.caption"}} <a href="/certificates">{{t .Lang "nav.check-cert"}}</a></figcaption>
+        </figure>
+{{- end}}
+
 {{/* offers lists a Learner page's .Offers side by side as pricing cards: each product's logo, name, tagline, price, its Normal
 price crossed out when set, its benefits, and at the bottom Buy to its payment link, or Contact us without one.
 Visitors see the cards without buttons. */}}

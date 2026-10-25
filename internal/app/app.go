@@ -57,6 +57,7 @@ type App struct {
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
 	bclAPIToken          string        // a BCL API Read token to confirm orders with; empty confirms none
 	bclAPIURL            string        // BCL's API, without a trailing slash
+	production           bool          // the live site: hides the home page's placeholders (CAVE_ENV)
 	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
 	// releasing is held by a run of releaseResults, so two runs never release at once.
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
@@ -183,7 +184,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, err
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now,
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
 	if a.samples, err = cleanedSamples(); err != nil {
 		return nil, err
@@ -465,7 +466,15 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
+	a.render(w, r, http.StatusOK, "home", &homePage{pageBase: pageBase{Learner: learner}, PublicBaseURL: a.publicBaseURL, Items: promo, Placeholders: !a.production})
+}
+
+// homePage is the home page's data; its Course cards are the header's Latest Courses.
+type homePage struct {
+	pageBase
+	PublicBaseURL string
+	Items         []galleryItem // promotional Gallery items the viewer may see
+	Placeholders  bool          // show marked placeholders for numbers the client has not supplied (never in production)
 }
 
 // about is The Cave Consult's company background, in the client's words.
