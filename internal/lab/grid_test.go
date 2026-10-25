@@ -1,13 +1,16 @@
 package lab_test
 
 import (
+	"bytes"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
+	"github.com/xuri/excelize/v2"
 )
 
 // roster is a days-across grid sheet: a title, a header of Staff and days 1 to 31, then a blank column and side
@@ -140,5 +143,31 @@ func TestAGridGivesStaffDateCodeAndLeavesOutCountRowsUnderIt(t *testing.T) {
 	wantRows := [][]any{{"Ali", "2026-10-01", "P"}, {"Siti", "2026-10-02", "M"}}
 	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) || !reflect.DeepEqual(res.Dataset.Rows, wantRows) {
 		t.Fatalf("dataset = %v %v, want %v %v", res.Dataset.Columns, res.Dataset.Rows, wantCols, wantRows)
+	}
+}
+
+// A grid far down a sheet, under a title and 200,000 blank rows, still takes its month from the title and cleans
+// in well under a second; reading the title rows once took seconds, growing with the square of the rows.
+func TestAGridUnderManyBlankRowsCleansQuicklyAndKeepsItsTitleMonth(t *testing.T) {
+	const blank = 200000
+	f := excelize.NewFile()
+	header, codes := []any{"Staff"}, []any{"Ali"}
+	for d := 1; d <= 31; d++ {
+		header, codes = append(header, d), append(codes, "M")
+	}
+	f.SetCellValue("Sheet1", "A1", "Jadual Tugas Oktober 2026")
+	f.SetSheetRow("Sheet1", "A"+strconv.Itoa(blank+2), &header)
+	f.SetSheetRow("Sheet1", "A"+strconv.Itoa(blank+3), &codes)
+	var b bytes.Buffer
+	if err := f.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	res := clean(t, b.Bytes(), lab.General)
+	if took := time.Since(start); took > time.Second {
+		t.Fatalf("Clean took %v, want under 1s", took)
+	}
+	if res.Month != 10 || res.Year != 2026 || len(res.Dataset.Rows) != 31 {
+		t.Fatalf("month %d/%d and %d rows, want 10/2026 and 31", res.Month, res.Year, len(res.Dataset.Rows))
 	}
 }
