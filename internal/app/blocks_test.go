@@ -345,6 +345,29 @@ func TestTheServerKeepsBlocksWithinLimitsAndTheDataset(t *testing.T) {
 	}
 }
 
+// A saved block keeps no more than the editor offers: the Config is copied into every Deployment page.
+func TestASavedBlockKeepsNoMoreFilterValuesOrColumnsThanTheEditorOffers(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	many := make([]string, lab.MaxFilterValues+1)
+	for i := range many {
+		many[i] = fmt.Sprint("v", i)
+	}
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"table"}})
+	for _, f := range []url.Values{
+		barForm(url.Values{"fval": many}),
+		barForm(url.Values{"fval": {strings.Repeat("a", 201)}}),
+		{"do": {"save"}, "block": {"4"}, "kind": {"table"}, "cols": {"Jumlah", "Jumlah"}, "limit": {"10"}},
+		{"do": {"filter-bar"}, "bar": {"Perkara", "Perkara"}},
+		barForm(url.Values{"pad": {strings.Repeat("a", 64<<10)}}),
+	} {
+		if res, body := ada.post(path+"/blocks", f); res.StatusCode < 400 {
+			t.Errorf("%.200v = %d, want refused:\n%.300s", f, res.StatusCode, body)
+		}
+	}
+	ada.editBlocks(path, barForm(url.Values{"fval": many[:lab.MaxFilterValues]}))
+}
+
 func TestTheFilterBarIsTheTickedColumns(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()

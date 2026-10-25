@@ -286,10 +286,13 @@ func (c *Config) Move(i, step int) int {
 }
 
 // CheckFilterBar refuses a filter bar naming anything but the Dataset's Text and Date columns, or more than one
-// Date column: the Dashboard draws one From and To.
+// Date column: the Dashboard draws one From and To. A column named twice is refused like a wrong one.
 func CheckFilterBar(names []string, d *Dataset) error {
 	dates := 0
-	for _, n := range names {
+	for i, n := range names {
+		if slices.Contains(names[:i], n) {
+			return Problem{"lab.err.filter-bar", []any{n}}
+		}
 		switch d.typeOf(n) {
 		case Date:
 			if dates++; dates > 1 {
@@ -440,9 +443,13 @@ func best(ps []profile, t Type, skip ...string) string {
 	return ""
 }
 
+// MaxFilterValues is how many of a column's values a block's filter offers to tick, and so keeps ticked.
+const MaxFilterValues = 100
+
 // Check refuses a block the editor cannot save on d: an option Cave does not offer, a label over 80
-// characters, or a column the Dataset lacks or of the wrong type, a Locked block's own columns included. A paused
-// block may keep naming the columns it was paused for.
+// characters, more than MaxFilterValues filter values or one over 200 characters, a table column twice, or a
+// column the Dataset lacks or of the wrong type, a Locked block's own columns included. A paused block may keep
+// naming the columns it was paused for.
 func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	bad := Problem{"lab.err.block-option", nil}
 	col := func(name string, t Type) error {
@@ -479,7 +486,10 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		if len(b.Cols) == 0 {
 			return Problem{"lab.err.block-cols", nil}
 		}
-		for _, c := range b.Cols {
+		for i, c := range b.Cols {
+			if slices.Contains(b.Cols[:i], c) {
+				return bad
+			}
 			errs = append(errs, col(c, ""))
 		}
 		errs = append(errs, maybe(b.Sort, ""))
@@ -531,6 +541,14 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		errs = append(errs, col(b.Group, Text))
 	}
 	if b.Filter != nil {
+		if len(b.Filter.Vals) > MaxFilterValues {
+			return bad
+		}
+		for _, v := range b.Filter.Vals {
+			if utf8.RuneCountInString(v) > 200 {
+				return bad
+			}
+		}
 		errs = append(errs, col(b.Filter.Col, Text))
 	}
 	for _, p := range [][]string{b.Where, b.Minus} {
