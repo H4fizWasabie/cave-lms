@@ -156,7 +156,7 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if enrolled {
-		step, err := a.nextStep(r.Context(), learner, c)
+		step, err := a.nextStep(r.Context(), learner, c, nil)
 		if err != nil {
 			a.serverError(w, r, err)
 			return

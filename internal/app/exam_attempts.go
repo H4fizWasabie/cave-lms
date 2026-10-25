@@ -85,6 +85,16 @@ func (att examAttempt) FirstBlank() int {
 	return 0
 }
 
+// blanks counts the questions left unanswered.
+func (att examAttempt) blanks() (n int) {
+	for _, q := range att.Questions {
+		if q.Blank() {
+			n++
+		}
+	}
+	return n
+}
+
 // attemptColumns must be scanned by scanAttempt.
 var attemptColumns = `id, exam_id, COALESCE(time_limit_minutes, 0), pass_mark, questions,
 	finished_at IS NOT NULL, COALESCE(score, 0), COALESCE(passed, false),
@@ -162,6 +172,9 @@ func (s examStatus) StartNote(lang string) string {
 	return text.T(lang, "exam.used-of", s.Used, limit, limit-s.Used)
 }
 
+// CanStart reports whether the Learner may start an attempt now: Blocker has no reason against it.
+func (s examStatus) CanStart() bool { return s.Blocker(text.Languages[0]) == "" }
+
 // Blocker is the first reason, in lang, the Learner may not start an attempt, empty when they may.
 func (s examStatus) Blocker(lang string) string {
 	switch {
@@ -211,15 +224,7 @@ func (a *App) examStatusFor(ctx context.Context, l *learner, c course, e exam) (
 	err = a.db.QueryRowContext(ctx, `SELECT jsonb_array_length(questions) FROM exam_attempts
 		WHERE learner_id = $1 AND exam_id = $2 ORDER BY id LIMIT 1`, l.ID, e.ID).Scan(&s.Asked)
 	if errors.Is(err, sql.ErrNoRows) {
-		for _, q := range e.Questions {
-			if !q.Draft {
-				s.Asked++
-			}
-		}
-		if n, _ := strconv.Atoi(e.DrawCount); n < s.Asked {
-			s.Asked = n
-		}
-		err = nil
+		s.Asked, err = e.drawSize(), nil
 	}
 	return s, err
 }
@@ -371,9 +376,7 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 			}
 		}
 		rand.Shuffle(len(questions), func(i, j int) { questions[i], questions[j] = questions[j], questions[i] })
-		if n, _ := strconv.Atoi(e.DrawCount); n < len(questions) {
-			questions = questions[:n]
-		}
+		questions = questions[:e.drawSize()]
 	}
 	raw, err := json.Marshal(questions)
 	if err != nil {
@@ -385,6 +388,19 @@ func insertAttempt(ctx context.Context, tx *sql.Tx, learnerID int64, e exam) (in
 		SELECT $1, id, time_limit_minutes, pass_mark, $3::jsonb FROM exams WHERE id = $2
 		RETURNING id`, learnerID, e.ID, string(raw)).Scan(&id)
 	return id, err
+}
+
+// drawSize is how many questions a first attempt at the Exam draws: its draw count of the published questions, or
+// all of them when there are fewer.
+func (e exam) drawSize() int {
+	published := 0
+	for _, q := range e.Questions {
+		if !q.Draft {
+			published++
+		}
+	}
+	n, _ := strconv.Atoi(e.DrawCount)
+	return min(n, published)
 }
 
 // firstDraw returns the questions of the Learner's first attempt at the Exam, unanswered and unmarked, or nil when
@@ -475,12 +491,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	// Blank answers are asked about first, the answers given shown again. Once time is up (the timer submits at zero)
 	// the attempt is submitted as it is.
 	if !confirmed(r) && (att.TimeLimit == 0 || att.SecondsLeft > 0) {
-		for _, q := range att.Questions {
-			if q.Blank() {
-				att.Blank++
-			}
-		}
-		if att.Blank > 0 {
+		if att.Blank = att.blanks(); att.Blank > 0 {
 			a.render(w, r, http.StatusOK, "exam_attempt", page{Course: &c, Exam: &e, Learner: learner, Attempt: &att})
 			return
 		}

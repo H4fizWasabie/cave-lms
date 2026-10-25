@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strconv"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -54,8 +53,9 @@ func (s nextStep) Label(lang string) string {
 //  6. else Complete.
 //
 // An Exam with no published question can't be sat, so it is skipped, as the Certificate rule skips it.
+// exams are the Course's from courseExams when the caller has them already, nil to have them read here.
 // ponytail: a few queries per Course; batch them if My courses grows past a few dozen Courses per Learner.
-func (a *App) nextStep(ctx context.Context, l *learner, c course) (nextStep, error) {
+func (a *App) nextStep(ctx context.Context, l *learner, c course, exams []courseExam) (nextStep, error) {
 	lessons, err := a.lessonsOf(ctx, c.ID, false)
 	if err != nil {
 		return nextStep{}, err
@@ -75,12 +75,13 @@ func (a *App) nextStep(ctx context.Context, l *learner, c course) (nextStep, err
 				key = "next.lesson-start"
 			}
 			return nextStep{Kind: stepLesson, Key: key, N: i + 1,
-				URL: "/courses/" + strconv.FormatInt(c.ID, 10) + "/lessons/" + strconv.FormatInt(ls.ID, 10)}, nil
+				URL: lessonPath(c.ID, ls.ID)}, nil
 		}
 	}
-	exams, err := a.courseExams(ctx, l, c, len(lessons), len(lessons))
-	if err != nil {
-		return nextStep{}, err
+	if exams == nil {
+		if exams, err = a.courseExams(ctx, l, c, len(lessons), len(lessons)); err != nil {
+			return nextStep{}, err
+		}
 	}
 	var awaiting *nextStep
 	for _, x := range exams {
@@ -99,7 +100,7 @@ func (a *App) nextStep(ctx context.Context, l *learner, c course) (nextStep, err
 			step.Key = "next.exam-resume"
 		case c.Live() && c.Upcoming: // can't be taken before the start date, so the start date is the step
 			continue
-		case st.Blocker(text.Languages[0]) != "": // out of attempts, or a Live Course's Exam not open: its page says why
+		case !st.CanStart(): // out of attempts, or a Live Course's Exam not open: its page says why
 			step.Key = "next.exam-view"
 		case st.Used > 0:
 			step.Key = "next.exam-retake"
@@ -160,8 +161,9 @@ func (x courseExam) Badge() badge {
 
 // courseExams reads where the Learner stands on each usable Exam of a Course they have joined, Multiple-choice
 // first; done and total count their Lessons. An Exam with no published question isn't usable, so it isn't listed.
+// The list is never nil, so nextStep can tell it was read.
 func (a *App) courseExams(ctx context.Context, l *learner, c course, done, total int) ([]courseExam, error) {
-	var list []courseExam
+	list := []courseExam{}
 	for _, format := range []string{multipleChoice, written} {
 		e, err := a.loadExam(ctx, c.ID, format)
 		if err != nil {

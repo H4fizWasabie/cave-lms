@@ -118,57 +118,50 @@ type examICPage struct {
 	IC, Again  string // what the Learner typed, kept when it is refused
 }
 
-// examICStep loads the IC step's Course and Exam for the Learner. When the Learner already has an IC it sends them
-// on to the Exam and returns false: the IC is set once, so the step only ever leads to the Exam.
-func (a *App) examICStep(w http.ResponseWriter, r *http.Request) (*learner, course, exam, bool) {
+// examICStep loads the IC step's page, with its Learner, Course and Exam. When the Learner already has an IC it sends
+// them on to the Exam and returns false: the IC is set once, so the step only ever leads to the Exam.
+func (a *App) examICStep(w http.ResponseWriter, r *http.Request) (*examICPage, bool) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
 		a.serverError(w, r, err)
-		return nil, course{}, exam{}, false
+		return nil, false
 	}
 	c, e, ok := a.publishedExamFor(w, r, learner)
 	if !ok {
-		return nil, course{}, exam{}, false
+		return nil, false
 	}
 	// Only a Learner who could start the Exam reaches the step: anyone else goes back to the Course, saving nothing.
 	st, err := a.examStatusFor(r.Context(), learner, c, e)
 	if err != nil {
 		a.serverError(w, r, err)
-		return nil, course{}, exam{}, false
+		return nil, false
 	}
-	lang, err := a.language(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return nil, course{}, exam{}, false
-	}
-	if st.Blocker(lang) != "" {
+	if !st.CanStart() {
 		http.Redirect(w, r, "/courses/"+strconv.FormatInt(c.ID, 10), http.StatusSeeOther)
-		return nil, course{}, exam{}, false
+		return nil, false
 	}
 	ic, err := a.learnerIC(r.Context(), learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
-		return nil, course{}, exam{}, false
+		return nil, false
 	}
 	if ic != "" {
 		http.Redirect(w, r, e.Path(""), http.StatusSeeOther)
-		return nil, course{}, exam{}, false
+		return nil, false
 	}
-	return learner, c, e, true
+	return &examICPage{pageBase: pageBase{Learner: learner}, Course: &c, Exam: &e}, true
 }
 
 func (a *App) examIC(w http.ResponseWriter, r *http.Request) {
-	learner, c, e, ok := a.examICStep(w, r)
-	if !ok {
-		return
+	if p, ok := a.examICStep(w, r); ok {
+		a.render(w, r, http.StatusOK, "exam_ic", p)
 	}
-	a.render(w, r, http.StatusOK, "exam_ic", &examICPage{pageBase: pageBase{Learner: learner}, Course: &c, Exam: &e})
 }
 
 // setExamIC sets the IC from the IC step, with the same checks as My profile and the two entries matching, then
 // goes on to the Exam the Learner was starting.
 func (a *App) setExamIC(w http.ResponseWriter, r *http.Request) {
-	learner, c, e, ok := a.examICStep(w, r)
+	p, ok := a.examICStep(w, r)
 	if !ok {
 		return
 	}
@@ -181,13 +174,13 @@ func (a *App) setExamIC(w http.ResponseWriter, r *http.Request) {
 	case normaliseIC(typed) != normaliseIC(again):
 		field, refusal = "ic-confirm", "ic.mismatch"
 	default:
-		if status, refusal, err = a.storeIC(r, learner.ID, typed); err != nil {
+		if status, refusal, err = a.storeIC(r, p.Learner.ID, typed); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 	}
 	if refusal == "" || refusal == "ic.set-once" { // set once, here or in another tab
-		http.Redirect(w, r, e.Path(""), http.StatusSeeOther)
+		http.Redirect(w, r, p.Exam.Path(""), http.StatusSeeOther)
 		return
 	}
 	lang, err := a.language(r)
@@ -195,8 +188,8 @@ func (a *App) setExamIC(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, status, "exam_ic", &examICPage{pageBase: pageBase{Learner: learner, Error: text.T(lang, refusal)},
-		ErrorField: field, Course: &c, Exam: &e, IC: typed, Again: again})
+	p.Error, p.ErrorField, p.IC, p.Again = text.T(lang, refusal), field, typed, again
+	a.render(w, r, status, "exam_ic", p)
 }
 
 // learnerIC returns a Learner's stored IC or passport number, or "" when unset.
