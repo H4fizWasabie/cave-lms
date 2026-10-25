@@ -138,15 +138,24 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if enrolled {
-		e, err := a.loadExam(r.Context(), c.ID, written)
+	// Everyone sees the Exams the Course leads to; only members open them.
+	for _, format := range []string{multipleChoice, written} {
+		e, err := a.loadExam(r.Context(), c.ID, format)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 		if e.Usable {
-			p.WrittenExam = &e
+			p.Exams = append(p.Exams, e)
 		}
+	}
+	if enrolled {
+		step, err := a.nextStep(r.Context(), learner, c)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Step = &step
 	}
 	a.render(w, r, http.StatusOK, "course", p)
 }

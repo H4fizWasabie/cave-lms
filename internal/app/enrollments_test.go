@@ -131,9 +131,25 @@ func TestLearnerLeavesACourse(t *testing.T) {
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.post("/courses/"+id+"/join", nil)
 	res, body := s.get("/courses/" + id)
-	expectStatus(t, res, body, http.StatusOK, `action="/courses/`+id+`/leave"`)
+	expectStatus(t, res, body, http.StatusOK, `href="/courses/`+id+`/leave"`)
 
-	res, body = s.post("/courses/"+id+"/leave", nil)
+	res, body = s.get("/courses/" + id + "/leave")
+	expectStatus(t, res, body, http.StatusOK, "Leave “Go Basics”?")
+	expectAll(t, body, `action="/courses/`+id+`/leave"`, "Stay in this Course")
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("the confirmation page alone left the Course: %d Enrollments", n)
+	}
+
+	res, body = s.post("/courses/"+id+"/leave", nil) // not confirmed, as from an old Course page
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/courses/"+id+"/leave" {
+		t.Fatalf("unconfirmed leave went to %q, want the confirmation page", loc)
+	}
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("an unconfirmed leave left the Course: %d Enrollments", n)
+	}
+
+	res, body = s.post("/courses/"+id+"/leave", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := s.enrollmentCount("ada@example.com", id); n != 0 {
 		t.Fatalf("Enrollments after leaving = %d, want 0", n)
