@@ -186,7 +186,7 @@ func TestAdminRemovesALessonOnlyAfterConfirming(t *testing.T) {
 	_, body := s.get("/admin/courses/" + id + "/lessons")
 	expectAll(t, body, `href="`+confirmPage+`"`)
 	res, body := s.get(confirmPage)
-	expectStatus(t, res, body, http.StatusOK, "Remove &ldquo;Variables&rdquo; from &ldquo;Go Basics&rdquo;? This cannot be undone.")
+	expectStatus(t, res, body, http.StatusOK, "Remove “Variables” from “Go Basics”? This cannot be undone.")
 
 	res, body = s.post(confirmPage, nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")

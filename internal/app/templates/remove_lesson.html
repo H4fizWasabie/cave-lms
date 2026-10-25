@@ -5,7 +5,7 @@
       <div class="adm-main">
         <div class="adm-head"><h1>{{t .Lang "adm.lessons.remove"}}</h1></div>
         <div class="card confirm">
-          <p>{{t .Lang "adm.remove"}} &ldquo;{{.Lesson.Title}}&rdquo; {{t .Lang "adm.from"}} &ldquo;{{.Course.Title}}&rdquo;? {{t .Lang "adm.not-undone"}}</p>
+          <p>{{t .Lang "adm.lessons.remove-q" .Lesson.Title .Course.Title}}</p>
           <div class="form-foot">
             <a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.cancel"}}</a>
             <form method="post" action="/admin/lessons/{{.Lesson.ID}}/delete"><input type="hidden" name="confirm" value="yes"><button class="btn btn-danger-solid">{{t .Lang "adm.lessons.remove"}}</button></form>

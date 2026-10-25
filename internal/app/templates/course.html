@@ -13,7 +13,7 @@
             {{if .Course.Live}}<li>{{t .Lang "course.dates" (.Course.StartOn .Lang) (.Course.EndOn .Lang)}}</li>
             {{else}}<li>{{t .Lang "course.self-paced"}}</li>{{with .Course.StartOn .Lang}}<li>{{t $.Lang "course.start-date" .}}</li>{{end}}{{end}}
             {{with .Lessons}}<li>{{tn $.Lang "course.lesson-count" (len .)}}</li>{{end}}
-            {{range .Exams}}<li>{{if .Written}}{{t $.Lang "adm.exam.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}</li>{{end}}
+            {{range .Exams}}<li>{{if .Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}</li>{{end}}
             {{with .Course.Level}}<li>{{t $.Lang "course.pcc-level" .}}</li>{{end}}
             <li class="cp-state{{if .Course.Joinable}} is-open{{end}}">{{if .Course.Ended}}{{t .Lang "course.ended"}}{{else if .Course.Open}}{{t .Lang "course.open"}}{{else}}{{t .Lang "course.closed-badge"}}{{end}}</li>
           </ul>
@@ -87,7 +87,7 @@
             <li class="cp-exam">
               <div>
                 <span class="ls-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg></span>
-                <span class="ls-t">{{if $member}}<a href="{{$e.Path ""}}">{{if $e.Written}}{{t $.Lang "adm.exam.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}</a>{{else}}{{if $e.Written}}{{t $.Lang "adm.exam.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}{{end}}{{if $locked}} <small>{{t $.Lang "course.exam-opens"}}</small>{{end}}</span>
+                <span class="ls-t">{{if $member}}<a href="{{$e.Path ""}}">{{if $e.Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}</a>{{else}}{{if $e.Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}{{end}}{{if $locked}} <small>{{t $.Lang "course.exam-opens"}}</small>{{end}}</span>
                 <span></span>
               </div>
             </li>

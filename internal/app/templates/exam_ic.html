@@ -2,7 +2,7 @@
 {{define "content"}}
     {{- $f := .ErrorField}}
     <div class="wrap wrap-narrow page-pad">
-      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a> / <a href="{{.Exam.Path ""}}">{{if .Exam.Written}}{{t .Lang "adm.exam.written"}}{{else}}{{t .Lang "exam.name"}}{{end}}</a></p>
+      <p class="crumbs"><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a> / <a href="{{.Exam.Path ""}}">{{if .Exam.Written}}{{t .Lang "exam.name.written"}}{{else}}{{t .Lang "exam.name"}}{{end}}</a></p>
       <div class="page-head">
         <h1>{{t .Lang "exam-ic.title"}}</h1>
         <p>{{t .Lang "exam-ic.intro"}}</p>

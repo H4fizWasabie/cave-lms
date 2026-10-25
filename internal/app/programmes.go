@@ -173,7 +173,7 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 		return
 	}
 	if bad {
-		fail(http.StatusUnprocessableEntity, "programmes.err.picture")
+		fail(http.StatusUnprocessableEntity, "picture.err.type")
 		return
 	}
 	if newKey != "" {

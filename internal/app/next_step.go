@@ -173,7 +173,7 @@ func (a *App) courseExams(ctx context.Context, l *learner, c course, done, total
 		x := courseExam{Name: "exam.name", URL: e.Path(""),
 			Status: examStatus{Enrolled: true, Course: c, Exam: e, Done: done, Total: total}}
 		if e.Written() {
-			x.Name = "adm.exam.written"
+			x.Name = "exam.name.written"
 		}
 		if err := x.Status.readAttempts(ctx, a.db, l.ID, e.ID); err != nil {
 			return nil, err

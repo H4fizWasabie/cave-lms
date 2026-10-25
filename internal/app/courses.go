@@ -358,7 +358,7 @@ func (a *App) takePicture(r *http.Request, lang string, c *course) (msg string, 
 	case err != nil:
 		return "", err
 	case bad:
-		return text.T(lang, "programmes.err.picture"), nil
+		return text.T(lang, "picture.err.type"), nil
 	case key != "":
 		c.PictureKey, c.pictureType = key, mimeType
 	}

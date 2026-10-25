@@ -21,7 +21,7 @@ func readPictureForm(w http.ResponseWriter, r *http.Request) (status int, msgKey
 	case err == nil, errors.Is(err, http.ErrNotMultipart):
 		return 0, ""
 	case errors.As(err, &tooLarge):
-		return http.StatusRequestEntityTooLarge, "programmes.err.too-large"
+		return http.StatusRequestEntityTooLarge, "picture.err.too-large"
 	default:
 		return http.StatusBadRequest, "adm.gallery.unread"
 	}

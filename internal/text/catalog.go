@@ -209,7 +209,7 @@ var catalog = map[string]entry{
 	// ---- Privacy notice and the Register consent line: end ----
 
 	// ---- Premium refresh: admin tidy-up (#313) ----
-	"adm.from":               {en: "from", ms: "daripada"},
+	"adm.lessons.remove-q":   {en: "Remove “%s” from “%s”? This cannot be undone.", ms: "Buang “%s” daripada “%s”? Tindakan ini tidak boleh dibuat asal."},
 	"adm.lessons.remove":     {en: "Remove Lesson", ms: "Buang Pelajaran"},
 	"adm.certs.revoke-title": {en: "Revoke Certificate", ms: "Tarik balik Sijil"},
 	"adm.certs.revoke-q":     {en: "Revoke %s’s Certificate for “%s” (%s)?", ms: "Tarik balik Sijil %s untuk “%s” (%s)?"},
@@ -1353,7 +1353,6 @@ var catalog = map[string]entry{
 	"course.pcc-badge":       {en: "PCC %s badge", ms: "Lencana PCC %s"},
 	"course.pcc-level":       {en: "PCC Level: %s", ms: "Tahap PCC: %s"},
 	"course.ended":           {en: "Closed: the Course has ended", ms: "Ditutup: Kursus telah tamat"},
-	"course.lessons":         {en: "Lessons", ms: "Pelajaran"},
 	"course.assignments":     {en: "Assignments", ms: "Tugasan"},
 	"course.lesson-draft":    {en: "(Draft, hidden from Learners)", ms: "(Draf, tersembunyi daripada Pelajar)"},
 	"course.lesson-complete": {en: "(complete)", ms: "(selesai)"},
@@ -1546,6 +1545,7 @@ var catalog = map[string]entry{
 	"members-only.join-to-see":       {en: "Join %s to see it.", ms: "Sertai %s untuk melihatnya."},
 
 	"exam.name":                    {en: "Exam", ms: "Peperiksaan"},
+	"exam.name.written":            {en: "Written Exam", ms: "Peperiksaan Subjektif"},
 	"exam.attempt":                 {en: "Exam attempt", ms: "Percubaan Peperiksaan"},
 	"exam.written-for":             {en: "Written Exam for %s", ms: "Peperiksaan Subjektif untuk %s"},
 	"exam.for":                     {en: "Exam for %s", ms: "Peperiksaan untuk %s"},
@@ -2044,19 +2044,21 @@ var catalog = map[string]entry{
 	"programmes.form.picture-hint": {en: "JPEG, PNG or WebP, up to 20 MB. A new picture replaces the current one.", ms: "JPEG, PNG atau WebP, sehingga 20 MB. Gambar baharu menggantikan gambar semasa."},
 	"programmes.err.title":         {en: "Enter a title.", ms: "Masukkan tajuk."},
 	"programmes.err.date":          {en: "Enter a start date.", ms: "Masukkan tarikh mula."},
-	"programmes.err.picture":       {en: "Upload a JPEG, PNG or WebP picture.", ms: "Muat naik gambar JPEG, PNG atau WebP."},
 	"programmes.err.blurb":         {en: "Enter a blurb.", ms: "Masukkan ringkasan."},
 	"programmes.err.link": {
 		en: "Enter the link as a full web address starting with http:// or https://, or leave it empty.",
 		ms: "Masukkan pautan sebagai alamat web penuh yang bermula dengan http:// atau https://, atau biarkan kosong.",
 	},
-	"programmes.err.too-large": {
-		en: "This picture is too large. Pictures are limited to 20 MB, and nothing was stored.",
-		ms: "Gambar ini terlalu besar. Gambar terhad kepada 20 MB, dan tiada apa-apa disimpan.",
-	},
 	"programmes.not-found.title": {en: "Programme not found", ms: "Program tidak dijumpai"},
 	"programmes.not-found":       {en: "This Programme does not exist or was deleted.", ms: "Program ini tidak wujud atau telah dipadam."},
 	// ---- end Programmes (#123) ----
+
+	// ---- Pictures: a Programme's or a Course's picture upload ----
+	"picture.err.type": {en: "Upload a JPEG, PNG or WebP picture.", ms: "Muat naik gambar JPEG, PNG atau WebP."},
+	"picture.err.too-large": {
+		en: "This picture is too large. Pictures are limited to 20 MB, and nothing was stored.",
+		ms: "Gambar ini terlalu besar. Gambar terhad kepada 20 MB, dan tiada apa-apa disimpan.",
+	},
 
 	// ---- Organisations: the bodies Live Courses are run for, and their logos (#198) ----
 	"orgs.title":           {en: "Organisations", ms: "Organisasi"},
@@ -2088,7 +2090,7 @@ var catalog = map[string]entry{
 	"home.coach-alt":     {en: "Portrait of Coach Adam Daniel", ms: "Potret Coach Adam Daniel"},
 	// ---- Premium refresh: home page (#314) ----
 	"home.trust":             {en: "Accreditations", ms: "Pentauliahan"},
-	"home.trust.jpk":         {en: "JPK certified trainer, Department of Skills Development", ms: "Pelatih bertauliah JPK, Jabatan Pembangunan Kemahiran"},
+	"home.trust.jpk":         {en: "JPK certified trainer, Department of Skills Development", ms: "Jurulatih Bertauliah JPK, Jabatan Pembangunan Kemahiran"},
 	"home.trust.placeholder": {en: "Placeholder, hidden on the live site", ms: "Pemegang tempat, tersembunyi di laman sebenar"},
 	"home.trust.learners":    {en: "learners trained", ms: "peserta dilatih"},
 	"home.trust.clients":     {en: "agencies and companies trained", ms: "agensi dan syarikat dilatih"},
