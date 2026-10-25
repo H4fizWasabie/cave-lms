@@ -223,23 +223,31 @@ func TestRegisteringAUsedEmailAnswersAsANewOneAndTellsItsOwner(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
-func TestRegisteringAnUnverifiedEmailAgainResendsItsVerification(t *testing.T) {
+func TestRegisteringAnUnverifiedEmailAgainMailsALinkToSetItsPassword(t *testing.T) {
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
-	first := s.lastVerifyPath("ada@example.com")
 
 	res, body := s.register("Someone Else", "ada@example.com", "password two")
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
 	if n := len(s.mail.Messages()); n != 2 {
-		t.Fatalf("sent %d emails, want 2 verifications", n)
+		t.Fatalf("sent %d emails, want a verification and a set-password link", n)
 	}
-	second := s.lastVerifyPath("ada@example.com")
-	if second == first {
-		t.Fatal("registering again reused the first link")
-	}
-	res, body = s.get(second)
-	expectStatus(t, res, body, http.StatusOK, "Email verified")
-	res, body = s.login("ada@example.com", "password one")
+	res, body = s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "password three")
+	expectStatus(t, res, body, http.StatusOK, "")
+	res, body = s.login("ada@example.com", "password three")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
+
+// Registering someone else's email first must not leave that registrant's password on the account its owner confirms.
+func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *testing.T) {
+	s := newSite(t)
+	s.register("Mallory", "ada@example.com", "mallory's password")
+	s.register("Ada", "ada@example.com", "ada's password")
+	s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "ada's password")
+
+	res, body := s.login("ada@example.com", "mallory's password")
+	expectStatus(t, res, body, http.StatusUnauthorized, "")
+	res, body = s.login("ada@example.com", "ada's password")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 

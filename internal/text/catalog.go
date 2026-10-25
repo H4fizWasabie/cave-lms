@@ -1625,6 +1625,11 @@ var catalog = map[string]entry{
 		en: "Hi,\n\nOpen this link within an hour to choose a new password:\n\n%[1]s\n\nIf you didn't ask for this, you can ignore this email.\n",
 		ms: "Hai,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[1]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
 	},
+	"email.unverified-again.subject": {en: "Set your CAVELMS password", ms: "Tetapkan kata laluan CAVELMS anda"},
+	"email.unverified-again.body": {
+		en: "Hi,\n\nThis email was registered on CAVELMS but not yet confirmed. Open this link within an hour to choose your password and confirm your account:\n\n%[1]s\n\nIf you didn't register, you can ignore this email.\n",
+		ms: "Hai,\n\nE-mel ini telah didaftarkan di CAVELMS tetapi belum disahkan. Buka pautan ini dalam masa sejam untuk memilih kata laluan anda dan mengesahkan akaun anda:\n\n%[1]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
+	},
 	"email.used.subject": {en: "Someone tried to register with your CAVELMS email", ms: "Seseorang cuba mendaftar dengan e-mel CAVELMS anda"},
 	// The login link, then the reset link.
 	"email.used.body": {

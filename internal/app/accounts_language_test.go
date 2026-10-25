@@ -54,15 +54,19 @@ func TestAccountFormErrorsAndAnswersAreInMalay(t *testing.T) {
 	}
 	res, body := register("Ada", email, password)
 	expectStatus(t, res, body, http.StatusOK, "Semak e-mel anda")
+	verify := s.lastVerifyPath(email)
 	res, body = register("Ada", email, password)
 	expectStatus(t, res, body, http.StatusOK, "Semak e-mel anda")
+	if got := s.lastEmailTo(email).Subject; got != "Tetapkan kata laluan CAVELMS anda" {
+		t.Fatalf("registering again mailed %q, want the Malay set-password email", got)
+	}
 
 	login := func(password string) (*http.Response, string) {
 		return s.postAsking("/login", "ms", url.Values{"email": {email}, "password": {password}})
 	}
 	res, body = login(password)
 	expectStatus(t, res, body, http.StatusForbidden, "Sahkan e-mel anda dahulu")
-	res, body = s.getAsking(s.lastVerifyPath(email), "ms")
+	res, body = s.getAsking(verify, "ms")
 	expectStatus(t, res, body, http.StatusOK, "E-mel disahkan")
 	res, body = s.getAsking("/verify?token=nope", "ms")
 	expectStatus(t, res, body, http.StatusBadRequest, "Pautan tidak sah")
