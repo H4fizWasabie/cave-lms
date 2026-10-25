@@ -95,8 +95,8 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			switch {
 			case b.Times != "":
 				w.Value = &Value{Agg: "calc", A: c[b.Of], Op: "x", B: c[b.Times], Then: "sum"}
-			case b.Agg == "distinct":
-				w.Value = &Value{Agg: "distinct", Col: c[b.Of]}
+			case b.Agg == "distinct" || b.Agg == "avg":
+				w.Value = &Value{Agg: b.Agg, Col: c[b.Of]}
 			case b.Of != "":
 				w.Value = &Value{Agg: "sum", Col: c[b.Of]}
 			default:

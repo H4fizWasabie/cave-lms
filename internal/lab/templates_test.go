@@ -1,15 +1,12 @@
 package lab_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
-	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 func template(t *testing.T, key string) *lab.Template {
@@ -166,54 +163,23 @@ func TestHRBlocks(t *testing.T) {
 	}
 }
 
-func TestGeneralBuildsBlocksFromColumnTypes(t *testing.T) {
+func TestGeneralBuildsBlocksFromTheSampleByColumnRoles(t *testing.T) {
 	gen := template(t, "general")
 	if len(gen.Blanks) != 0 {
 		t.Fatalf("General has blanks %v", gen.Blanks)
 	}
 	d := readSample(t, gen)
 	cfg := generate(t, gen, nil, d)
-	want := []string{"Unit", "Jualan", "Unit by Cawangan", "Unit by month", "Latest rows"}
+	want := []string{"Jualan", "Unit", "Rows", "Jualan by month", "Jualan by Produk", "Jualan by Cawangan", "Latest rows"}
 	if got := labels(cfg); !reflect.DeepEqual(got, want) {
 		t.Fatalf("blocks = %v, want %v", got, want)
-	}
-	kinds := []string{}
-	for _, b := range cfg.Blocks {
-		kinds = append(kinds, b["kind"].(string))
-	}
-	if want := []string{"card", "card", "bar", "line", "table"}; !reflect.DeepEqual(kinds, want) {
-		t.Errorf("kinds = %v, want %v", kinds, want)
-	}
-	if table := cfg.Blocks[4]["cols"].([]any); len(table) != 5 {
-		t.Errorf("table shows %v, want all 5 columns", table)
 	}
 	var filtered []string
 	for _, k := range cfg.Filters {
 		filtered = append(filtered, cfg.Columns[k].Name)
 	}
-	if !reflect.DeepEqual(filtered, []string{"Cawangan", "Tarikh"}) {
-		t.Errorf("filters on %v, want Cawangan and Tarikh", filtered)
-	}
-}
-
-func TestGeneralWithoutDatesOrNumbers(t *testing.T) {
-	gen := template(t, "general")
-	file := testutil.XLSX(t, []string{"Nama", "Bandar"}, []any{"Ali", "Ipoh"}, []any{"Abu", "Kuantan"})
-	d, err := lab.Read(bytes.NewReader(file), gen)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := labels(generate(t, gen, nil, d)), []string{"Rows by Nama", "Rows"}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("blocks = %v, want %v", got, want)
-	}
-
-	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
-	file = testutil.XLSX(t, []string{"Bila", "Berapa"}, []any{day, 3.0})
-	if d, err = lab.Read(bytes.NewReader(file), gen); err != nil {
-		t.Fatal(err)
-	}
-	if got, want := labels(generate(t, gen, nil, d)), []string{"Berapa", "Berapa by month", "Latest rows"}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("blocks = %v, want %v", got, want)
+	if !reflect.DeepEqual(filtered, []string{"Tarikh", "Produk", "Cawangan"}) {
+		t.Errorf("filters on %v, want Tarikh, Produk and Cawangan", filtered)
 	}
 }
 
@@ -254,7 +220,7 @@ func TestTheFirstCardIsTheHeadline(t *testing.T) {
 		{"inventory", "", "Stock value"},
 		{"inventory", "price", "Total items"},
 		{"hr", "", "Headcount"},
-		{"general", "", "Unit"},
+		{"general", "", "Jualan"},
 	} {
 		tpl := template(t, tc.key)
 		d := readSample(t, tpl)

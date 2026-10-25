@@ -66,6 +66,7 @@ type CleanUp struct {
 	Year      int      // the grids' year, with Month
 	Dataset   *Dataset
 	Changes   []Change
+	Notes     []Note // the columns General leaves out of charts or averages, and why
 	Guess     Choices
 }
 
@@ -192,6 +193,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	if t.Build == nil {
 		res.Guess = t.guessWork(d)
 	}
+	res.Notes = notes(d)
 	return res, nil
 }
 
