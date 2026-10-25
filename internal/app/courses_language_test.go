@@ -180,5 +180,5 @@ func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
 	s.loginAdmin()
 	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body = other.getAsking("/certificates/"+certID, "ms")
-	expectLanguage(t, body, "ms", "Status: Dibatalkan")
+	expectLanguage(t, body, "ms", "Status: Ditarik balik")
 }
