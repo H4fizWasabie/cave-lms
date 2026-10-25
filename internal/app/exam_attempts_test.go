@@ -226,7 +226,7 @@ func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.
 	drawn := attemptQuestionIDs(body)
 	s.submitExam(first, nil)
 	s.releaseResults()
-	deletedPrompt := "<legend>Q" + strconv.Itoa(slices.Index(qids, drawn[1])+1) + "</legend>"
+	deletedPrompt := "</span>Q" + strconv.Itoa(slices.Index(qids, drawn[1])+1) + "</legend>" // after its "Question n of N"
 
 	s.logOut()
 	s.login("admin@example.com", examPassword)
@@ -239,7 +239,7 @@ func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.
 	res, _ = s.startExam(id)
 	retry := res.Header.Get("Location")
 	res, body = s.get(retry)
-	expectStatus(t, res, body, http.StatusOK, "<legend>Edited prompt</legend>")
+	expectStatus(t, res, body, http.StatusOK, "</span>Edited prompt</legend>")
 	expectStatus(t, res, body, http.StatusOK, deletedPrompt)
 	if got := attemptQuestionIDs(body); strings.Join(got, ",") != strings.Join(drawn, ",") {
 		t.Fatalf("retry asks %v, want the first attempt's %v", got, drawn)
