@@ -3,11 +3,11 @@ Course page's data (.Course, .Learner, .Lang). This is a placeholder until #317 
 its English lines follow the artwork, which is English-only. */}}
 {{define "course-certificate"}}
           <figure class="cp-cert">
-            <div class="cp-cert-sheet" aria-hidden="true">
+            <div class="cp-cert-sheet">
               <p class="cp-cert-k">Certificate of Competency</p>
               <p class="cp-cert-name">{{if .Learner}}{{.Learner.Name}}{{else}}{{t .Lang "course.cert-name"}}{{end}}</p>
               <p class="cp-cert-course">{{.Course.Title}}</p>
-              {{with .Course.Level}}<img src="{{static $.Course.Badge}}" alt="" width="113" height="160">{{end}}
+              {{with .Course.Level}}<img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160">{{end}}
             </div>
             <figcaption>{{t .Lang "course.cert-caption"}}</figcaption>
           </figure>
