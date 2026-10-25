@@ -175,27 +175,27 @@ type cell struct {
 	date bool
 }
 
-// parse reads a filled cell as typ, or gives the catalog key that says why it cannot.
-func parse(c cell, typ Type) (any, string) {
+// parse reads a filled cell as typ; false when it does not fit.
+func parse(c cell, typ Type) (any, bool) {
 	switch typ {
 	case Date:
 		if day, ok := textDate(c.v); ok {
-			return day, ""
+			return day, true
 		}
 		// A real Excel date and a date serial number are both a count of days.
 		if n, err := strconv.ParseFloat(c.v, 64); err == nil && n >= 1 && n < 2958466 {
 			if day, err := excelize.ExcelDateToTime(n, false); err == nil {
-				return day.Format("2006-01-02"), ""
+				return day.Format("2006-01-02"), true
 			}
 		}
-		return nil, "lab.err.not-date"
+		return nil, false
 	case Number:
 		if n, ok := number(c.v); ok {
-			return n, ""
+			return n, true
 		}
-		return nil, "lab.err.not-number"
+		return nil, false
 	}
-	return c.v, ""
+	return c.v, true
 }
 
 var (

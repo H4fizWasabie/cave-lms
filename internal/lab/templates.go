@@ -167,7 +167,7 @@ var generalSample []byte
 var General = &Template{
 	Key:    "general",
 	Name:   "General",
-	Blurb:  "Any table. No blanks to fill: Cave builds the charts from your columns and their values.",
+	Blurb:  "Any table. No blanks to fill: Cave builds the blocks from your columns and their values.",
 	Build:  buildGeneral,
 	Sample: generalSample,
 }

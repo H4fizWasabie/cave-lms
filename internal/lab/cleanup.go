@@ -61,20 +61,20 @@ func (c Change) In(lang string) string {
 }
 
 // CleanUp is what Clean-up made of an upload: the Dataset, every change it made to get there, and Cave's
-// guess for each Template blank.
+// guess for each Template blank. Its JSON leaves out the Dataset, which is kept on its own.
 type CleanUp struct {
-	Sheets    []Sheet  // every sheet in the workbook, in order
-	Used      []string // the sheets that went into the Dataset, in workbook order
-	HeaderRow int      // the picked sheet's header row number in Excel
-	Month     int      // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
-	Year      int      // the grids' year, with Month
-	Dataset   *Dataset
-	Changes   []Change
-	Notes     []Note // the columns General leaves out of charts or averages, and why
-	Guess     Choices
+	Sheets    []Sheet  `json:"sheets"`          // every sheet in the workbook, in order
+	Used      []string `json:"used"`            // the sheets that went into the Dataset, in workbook order
+	HeaderRow int      `json:"headerRow"`       // the picked sheet's header row number in Excel
+	Month     int      `json:"month,omitempty"` // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year      int      `json:"year,omitempty"`  // the grids' year, with Month
+	Dataset   *Dataset `json:"-"`
+	Changes   []Change `json:"changes"`
+	Notes     []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
+	Guess     Choices  `json:"guess"`
 	// Offers are the Templates offered beside General, by key, each with its guesses: those whose required
 	// blanks all found a column by name.
-	Offers map[string]Choices
+	Offers map[string]Choices `json:"offers,omitempty"`
 }
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
@@ -425,7 +425,7 @@ func (res *CleanUp) addChanges(changes []Change) {
 		})
 		switch {
 		case i < 0:
-			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args), c.Column})
+			res.Changes = append(res.Changes, Change{Key: c.Key, Args: slices.Clone(c.Args), Column: c.Column})
 		case slices.Contains(counted, c.Key):
 			res.Changes[i].Args[0] += c.Args[0]
 		}
@@ -641,9 +641,14 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
 	for ci, col := range d.Columns {
 		d.Columns[ci].Type = workType(raw, ci)
+		// Years are groups, not amounts: typed as Text, they can be grouped and filtered by, and never added up.
+		if d.Columns[ci].Type == Number && yearNamed(col.Name) &&
+			!slices.ContainsFunc(raw, func(vals []cell) bool { return vals[ci].v != "" && !isYear(vals[ci].v) }) {
+			d.Columns[ci].Type = Text
+		}
 		if n := serials(raw, ci); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
 			d.Columns[ci].Type = Date
-			res.Changes = append(res.Changes, Change{"lab.clean.serial-dates", []int{n}, col.Name})
+			res.Changes = append(res.Changes, Change{Key: "lab.clean.serial-dates", Args: []int{n}, Column: col.Name})
 		}
 	}
 	for _, vals := range raw {
@@ -663,8 +668,8 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 				others++
 				continue
 			}
-			v, problem := parse(c, typ)
-			if problem != "" {
+			v, ok := parse(c, typ)
+			if !ok {
 				misfits[ci]++
 				continue
 			}
@@ -681,7 +686,7 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	}
 	for ci, n := range misfits {
 		if n > 0 {
-			res.Changes = append(res.Changes, Change{"lab.clean.not-" + string(d.Columns[ci].Type) + "s", []int{n}, d.Columns[ci].Name})
+			res.Changes = append(res.Changes, Change{Key: "lab.clean.not-" + string(d.Columns[ci].Type) + "s", Args: []int{n}, Column: d.Columns[ci].Name})
 		}
 	}
 	return d
@@ -736,13 +741,6 @@ func serials(raw [][]cell, ci int) int {
 		}
 	}
 	return n
-}
-
-// dateNamed reports whether a column's name holds one of the words for a date that Finance's date blank is
-// guessed by, such as tarikh or created.
-func dateNamed(name string) bool {
-	i := slices.IndexFunc(Finance.Blanks, func(b Blank) bool { return b.Key == "date" })
-	return slices.ContainsFunc(Finance.Blanks[i].Loose, func(w string) bool { return strings.Contains(columnKey(name), w) })
 }
 
 var (

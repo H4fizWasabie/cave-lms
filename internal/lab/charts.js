@@ -367,10 +367,9 @@
     // Panels sit two to a row; a half-width panel with no half-width neighbour spans the row, so no gap is left.
     // A table is as wide as the Learner set it.
     var panels = blocks.filter(function (b) { return b.kind !== 'card'; });
-    var full = function (b) { return b.wide; };
     for (var i = 0; i < panels.length; i++) {
-      if (full(panels[i])) { panels[i].wide = true; continue; }
-      if (panels[i + 1] && !full(panels[i + 1])) i++;
+      if (panels[i].wide) continue;
+      if (panels[i + 1] && !panels[i + 1].wide) i++;
       else panels[i].wide = true;
     }
 
