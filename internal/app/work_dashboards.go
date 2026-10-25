@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
@@ -270,7 +271,11 @@ func (a *App) clean(r *http.Request, file io.Reader, t *lab.Template, s lab.Sett
 	return lab.Clean(file, t, s)
 }
 
-// cleanSamples runs Clean-up on each Template's Sample, once, so the New Dashboard page reads none.
+// cleanedSamples is each Template's Sample cleaned, by Template key: once per process, so the New Dashboard page
+// cleans none.
+var cleanedSamples = sync.OnceValues(cleanSamples)
+
+// cleanSamples runs Clean-up on each Template's Sample.
 func cleanSamples() (map[string]*lab.CleanUp, error) {
 	samples := map[string]*lab.CleanUp{}
 	for _, t := range lab.TemplatesFor(true) {

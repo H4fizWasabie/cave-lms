@@ -181,7 +181,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 
 	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
-	if a.samples, err = cleanSamples(); err != nil {
+	if a.samples, err = cleanedSamples(); err != nil {
 		return nil, err
 	}
 	if len(cfg.EmailAllowlist) > 0 {
