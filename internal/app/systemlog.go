@@ -118,7 +118,7 @@ func (a *App) pruneDaily(done <-chan struct{}) {
 		case <-done:
 			return
 		case <-tick.C:
-			a.survive("daily prune", func() { a.dailyPrune(context.Background()) })
+			a.survive("Daily prune", func() { a.dailyPrune(context.Background()) })
 		}
 	}
 }
@@ -127,7 +127,7 @@ func (a *App) pruneDaily(done <-chan struct{}) {
 // requests, but nothing recovers these goroutines.
 func (a *App) survive(job string, run func()) {
 	defer func() {
-		if p := recover(); p != nil {
+		if p := recover(); p != nil { // ponytail: no stack trace; add debug.Stack() if a logged panic cannot be traced
 			a.logError(nil, fmt.Errorf("%s panicked: %v", job, p))
 		}
 	}()

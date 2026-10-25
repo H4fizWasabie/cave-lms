@@ -384,7 +384,7 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
 	}
 	// The largest size whose wrapped lines fit the box, down to 8 pt, below which a title overflows it.
-	// SplitLines, not SplitText: the title is now Windows-1252 bytes, which SplitText would misread as UTF-8 and panic on.
+	// SplitLines, not SplitText: tr turns the title into Windows-1252 bytes, which SplitText would misread as UTF-8 and panic on.
 	var lines [][]byte
 	size := 16.0
 	for ; ; size-- {

@@ -198,5 +198,15 @@ func TestTheReleaseJobIssuesACertificateForACourseTitleWithAnEmDash(t *testing.T
 	ada.releaseResults()
 
 	_, body = ada.get("/my-certificates")
-	expectAll(t, ada.pdfBody("/certificates/"+certificateIDs(body)[0]+"/pdf"), "Go \x97 for Acme")
+	certID := certificateIDs(body)[0]
+	expectAll(t, ada.pdfBody("/certificates/"+certID+"/pdf"), "Go \x97 for Acme")
+	emails := ada.emailsTo("ada@example.com") // Malay, the default language
+	certEmails := withSubject(emails, "Sijil anda untuk Go — for Acme")
+	if len(certEmails) != 1 || len(certEmails[0].Attachments) != 1 {
+		t.Fatalf("%d Certificate emails, want one with the PDF", len(certEmails))
+	}
+	expectAll(t, string(certEmails[0].Attachments[0].Content), "Go \x97 for Acme")
+	if len(withSubject(emails, "Keputusan Peperiksaan Objektif anda untuk Go — for Acme")) != 1 {
+		t.Fatal("the Result email was not sent")
+	}
 }
