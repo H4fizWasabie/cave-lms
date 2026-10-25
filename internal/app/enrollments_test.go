@@ -22,7 +22,7 @@ func (s *site) courseIDByTitle(title string) string {
 
 // leaveCourse is the logged-in Learner leaving a Course through its confirmation page.
 func (s *site) leaveCourse(courseID string) (*http.Response, string) {
-	return s.post("/courses/"+courseID+"/leave", url.Values{"confirm": {"yes"}})
+	return s.post("/courses/"+courseID+"/leave", confirming)
 }
 
 // enrollmentCount counts the Enrollments of a Learner in a Course, read straight from the database.
@@ -154,7 +154,7 @@ func TestLearnerLeavesACourse(t *testing.T) {
 		t.Fatalf("an unconfirmed leave left the Course: %d Enrollments", n)
 	}
 
-	res, body = s.post("/courses/"+id+"/leave", url.Values{"confirm": {"yes"}})
+	res, body = s.post("/courses/"+id+"/leave", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := s.enrollmentCount("ada@example.com", id); n != 0 {
 		t.Fatalf("Enrollments after leaving = %d, want 0", n)

@@ -84,9 +84,32 @@ func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_certificates", page{Certificates: list, Query: q})
 }
 
-// revokeCertificate stops a Certificate counting as valid. From then on its check page, the Learner's list and its PDF
-// show it as revoked.
+// confirmRevokeCertificate asks the Admin to confirm revoking a Certificate.
+func (a *App) confirmRevokeCertificate(w http.ResponseWriter, r *http.Request) {
+	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates WHERE id = $1`, r.PathValue("id"))
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if len(list) == 0 {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "adm.certs.not-found.title"), Message: text.T(lang, "adm.certs.not-found")})
+		return
+	}
+	a.render(w, r, http.StatusOK, "revoke_certificate", page{Certificate: &list[0]})
+}
+
+// revokeCertificate stops a Certificate counting as valid, once its confirmation page is posted; a post without it goes
+// to that page instead. From then on its check page, the Learner's list and its PDF show it as revoked.
 func (a *App) revokeCertificate(w http.ResponseWriter, r *http.Request) {
+	if !confirmed(r) {
+		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
+		return
+	}
 	_, err := a.db.ExecContext(r.Context(), `UPDATE certificates SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, r.PathValue("id"))
 	if err != nil {
 		a.serverError(w, r, err)

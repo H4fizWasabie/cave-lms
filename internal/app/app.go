@@ -322,6 +322,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/down", a.admin(a.moveLesson(1)))
 	mux.HandleFunc("GET /admin/lessons/{lessonID}/edit", a.admin(a.editLessonForm))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}", a.admin(a.updateLesson))
+	mux.HandleFunc("GET /admin/lessons/{lessonID}/delete", a.admin(a.confirmDeleteLesson))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/delete", a.admin(a.deleteLesson))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/publish", a.admin(a.setLessonPublished(true)))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/unpublish", a.admin(a.setLessonPublished(false)))
@@ -387,6 +388,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /certificates", a.searchCertificates)
 	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
 	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
+	mux.HandleFunc("GET /admin/certificates/{id}/revoke", a.admin(a.confirmRevokeCertificate))
 	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))
 	mux.HandleFunc("POST /admin/certificates/{id}/reissue", a.admin(a.reissueCertificate))
 	mux.HandleFunc("POST /admin/certificate-settings", a.admin(a.saveCertificateSettings))
@@ -535,6 +537,17 @@ func adminSide(section string, l *learner, lang string) adminSidebar {
 	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
 }
 
+// SectionKey is the catalog key of the current section's sidebar label, which the phone menu's button shows.
+func (s adminSidebar) SectionKey() string {
+	switch s.Section {
+	case "design":
+		return "admin.side.cert-details"
+	case "cavetext-settings":
+		return "admin.side.cavetext-set"
+	}
+	return "admin.side." + s.Section
+}
+
 // busyLoader is what the cave-loader template reads: what it says to screen readers, and the lines it rotates,
 // separated by "|".
 type busyLoader struct{ Label, Lines string }
@@ -572,7 +585,7 @@ func card(c course, lang string) courseCard { return courseCard{c, lang} }
 // parsePages pairs each page template with layout.html and the partials in _*.html, keyed by file name without
 // extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "inc": func(i int) int { return i + 1 },
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
 		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {

@@ -178,7 +178,7 @@ func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "Sijil tidak dijumpai")
 
 	s.loginAdmin()
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body = other.getAsking("/certificates/"+certID, "ms")
 	expectLanguage(t, body, "ms", "Status: Dibatalkan")
 }

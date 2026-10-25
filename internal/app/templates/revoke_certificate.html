@@ -1,0 +1,18 @@
+{{define "title"}}{{t .Lang "adm.certs.revoke-title"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "certificates" $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head"><h1>{{t .Lang "adm.certs.revoke-title"}}</h1></div>
+        <div class="card confirm">
+          {{with .Certificate}}
+          <p>{{t $.Lang "adm.certs.revoke-q" .LearnerName .CourseTitle .Number}} {{t $.Lang "adm.certs.revoke-means"}}</p>
+          <div class="form-foot">
+            <a class="btn btn-quiet" href="/admin/certificates">{{t $.Lang "adm.cancel"}}</a>
+            <form method="post" action="/admin/certificates/{{.ID}}/revoke"><input type="hidden" name="confirm" value="yes"><button class="btn btn-danger-solid">{{t $.Lang "adm.certs.revoke-title"}}</button></form>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+{{end}}

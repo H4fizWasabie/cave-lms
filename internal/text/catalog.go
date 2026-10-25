@@ -208,6 +208,32 @@ var catalog = map[string]entry{
 	},
 	// ---- Privacy notice and the Register consent line: end ----
 
+	// ---- Premium refresh: admin tidy-up (#313) ----
+	"adm.from":               {en: "from", ms: "daripada"},
+	"adm.lessons.remove":     {en: "Remove Lesson", ms: "Buang Pelajaran"},
+	"adm.certs.revoke-title": {en: "Revoke Certificate", ms: "Batalkan Sijil"},
+	"adm.certs.revoke-q":     {en: "Revoke %s’s Certificate for “%s” (%s)?", ms: "Batalkan Sijil %s untuk “%s” (%s)?"},
+	"adm.certs.revoke-means": {
+		en: "Its check page, the Learner’s list and its PDF will show it as revoked. You can then reissue a corrected one.",
+		ms: "Halaman semakan, senarai Pelajar dan PDF Sijil ini akan menunjukkannya sebagai dibatalkan. Selepas itu anda boleh mengeluarkan semula Sijil yang dibetulkan.",
+	},
+	"adm.home.marking":        {en: "Needs marking", ms: "Perlu disemak"},
+	"adm.home.nothing":        {en: "Nothing needs marking.", ms: "Tiada yang perlu disemak."},
+	"adm.home.to-mark.one":    {en: "%d Submission to mark", ms: "%d Serahan untuk disemak"},
+	"adm.home.to-mark.other":  {en: "%d Submissions to mark", ms: "%d Serahan untuk disemak"},
+	"adm.home.unmarked.one":   {en: "%d Written answer awaiting marking", ms: "%d jawapan Subjektif menunggu markah"},
+	"adm.home.unmarked.other": {en: "%d Written answers awaiting marking", ms: "%d jawapan Subjektif menunggu markah"},
+	"admin.menu":              {en: "Admin menu", ms: "Menu Pentadbir"},
+	"admin.group.teach":       {en: "Teach", ms: "Mengajar"},
+	"admin.group.certify":     {en: "Certify", ms: "Pensijilan"},
+	"admin.group.sell":        {en: "Sell", ms: "Jualan"},
+	"admin.group.cavetext":    {en: "CaveText", ms: "CaveText"},
+	"admin.group.system":      {en: "System", ms: "Sistem"},
+	"adm.home.recent":         {en: "Recent Results", ms: "Keputusan terkini"},
+	"adm.home.all-results":    {en: "All Results", ms: "Semua Keputusan"},
+	"adm.home.no-results":     {en: "No Results released yet.", ms: "Belum ada Keputusan dikeluarkan."},
+	// ---- Premium refresh: admin tidy-up (#313): end ----
+
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----
 	// Shared by these Admin screens
 	"adm.title-suffix": {en: "Admin", ms: "Pentadbir"},
@@ -274,15 +300,6 @@ var catalog = map[string]entry{
 	"adm.gallery.picture":         {en: "picture", ms: "gambar"},
 	"adm.home.title":              {en: "Admin area", ms: "Ruang Pentadbir"},
 	"adm.home.lede":               {en: "Build Courses, upload to the Gallery, look after Certificates and sell Lab access.", ms: "Bina Kursus, muat naik ke Galeri, uruskan Sijil dan jual akses Lab."},
-	"adm.home.courses":            {en: "Lessons, Exams and enrolled Learners", ms: "Pelajaran, Peperiksaan dan Pelajar yang menyertai"},
-	"adm.home.gallery":            {en: "Manage the Gallery", ms: "Urus Galeri"},
-	"adm.home.gallery-sub":        {en: "Videos, ebooks and pictures", ms: "Video, eBook dan gambar"},
-	"adm.home.certs-sub":          {en: "Search, revoke and reissue", ms: "Cari, batalkan dan keluarkan semula"},
-	"adm.home.details-sub":        {en: "Organisation, logo and signature", ms: "Organisasi, logo dan tandatangan"},
-	"adm.home.plans-sub":          {en: "Sell Lab access and assign it to Learners", ms: "Jual akses Lab dan berikan kepada Pelajar"},
-	"adm.home.deploys-sub":        {en: "Dashboards online, and Takedowns", ms: "Dashboard dalam talian, dan Penurunan"},
-	"adm.home.log-sub":            {en: "Errors and start-ups, for the Owner only", ms: "Ralat dan permulaan, untuk Pemilik sahaja"},
-	"adm.home.home":               {en: "Home", ms: "Laman utama"},
 
 	// Courses
 	"adm.courses.title":      {en: "Admin: Courses", ms: "Pentadbir: Kursus"},

@@ -224,7 +224,7 @@ func TestAdminCoursePageShowsIssuedOnceARevokedCertificateIsReplaced(t *testing.
 	certID := s.earnedCertificate()
 	s.loginAdmin()
 	id := s.onlyCourseID()
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	res, body := s.get("/admin/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<td>Revoked</td>")
 

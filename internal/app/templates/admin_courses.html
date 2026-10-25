@@ -31,7 +31,6 @@
                   {{else}}
                   <form method="post" action="/admin/courses/{{.ID}}/open"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.courses.do-open"}}</button></form>
                   {{end}}
-                  <a class="btn btn-danger btn-sm" href="/admin/courses/{{.ID}}/delete">{{t $.Lang "adm.delete"}}</a>
                 </td>
               </tr>
               {{else}}

@@ -22,8 +22,9 @@
               <div class="nq-list">
                 {{range $i, $o := .Question.Options}}
                 <div class="nq-row">
-                  <label class="check"><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> {{t $.Lang "adm.exam.correct"}}</label>
-                  <input type="text" name="option" value="{{$o.Text}}" maxlength="500" aria-label="{{t $.Lang "adm.exam.option-n" $i}}">
+                  <label class="nq-n" for="option-{{$i}}">{{t $.Lang "adm.exam.option-n" (inc $i)}}</label>
+                  <input id="option-{{$i}}" type="text" name="option" value="{{$o.Text}}" maxlength="500">
+                  <label class="check"><input type="radio" name="correct" value="{{$i}}" {{if $o.Correct}}checked{{end}}> {{t $.Lang "adm.exam.correct"}}<span class="sr"> ({{t $.Lang "adm.exam.option-n" (inc $i)}})</span></label>
                 </div>
                 {{end}}
               </div>

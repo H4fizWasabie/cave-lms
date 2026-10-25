@@ -79,7 +79,3 @@ func (a *App) admin(h http.HandlerFunc) http.HandlerFunc {
 		h(w, r)
 	}
 }
-
-func (a *App) adminHome(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "admin", page{})
-}

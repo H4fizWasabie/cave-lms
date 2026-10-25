@@ -110,7 +110,7 @@ func TestAddingOrPublishingLessonsLowersProgressAndRemovingOneStopsCounting(t *t
 	res, body = ada.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "Progress: 1 of 3 Lessons complete")
 
-	admin.post("/admin/lessons/"+admin.lessonIDByTitle("Variables")+"/delete", nil)
+	admin.post("/admin/lessons/"+admin.lessonIDByTitle("Variables")+"/delete", confirming)
 	res, body = ada.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "Progress: 0 of 2 Lessons complete")
 }

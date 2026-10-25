@@ -145,7 +145,7 @@ func TestALiveCourseCertificatePrintsItsOrganisationsLogoFromIssueUntilReissued(
 	expectAll(t, pdf, imageSize(11, 13), imageSize(3, 5)) // on the artwork too, and as issued
 	expectNone(t, pdf, imageSize(17, 19))
 
-	admin.post("/admin/certificates/"+certID+"/revoke", nil)
+	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
 	res, body = admin.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get("/my-certificates")

@@ -118,7 +118,7 @@ func TestALiveCourseCertificateNeedsNoLessonsAndKeepsTheICAndPCCLevelFromIssue(t
 	_, body = ada.get("/certificates/" + certID)
 	expectAll(t, body, "PCC Level: Foundation")
 
-	admin.post("/admin/certificates/"+certID+"/revoke", nil)
+	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
 	res, body = admin.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get("/my-certificates")

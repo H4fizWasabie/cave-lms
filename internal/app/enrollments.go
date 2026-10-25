@@ -246,7 +246,7 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if r.PostFormValue("confirm") != "yes" {
+	if !confirmed(r) {
 		http.Redirect(w, r, "/courses/"+r.PathValue("id")+"/leave", http.StatusSeeOther)
 		return
 	}
