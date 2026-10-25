@@ -85,6 +85,7 @@ type page struct {
 	Title         string
 	Message       string
 	Error         string
+	ErrorField    string // the id of the form field Error is about, shown next to it; "" puts it above the form
 	Name          string
 	Email         string
 	OfferResend   bool

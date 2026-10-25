@@ -31,7 +31,8 @@ func formatIC(ic string) string {
 // myProfilePage is the logged-in Learner's profile: their IC or passport number, formatted, or a form to set it.
 type myProfilePage struct {
 	pageBase
-	IC string
+	IC    string
+	Typed string // what the Learner typed, kept when it is refused
 }
 
 func (a *App) myProfile(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +62,7 @@ func (a *App) setMyIC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	refuse := func(status int, key string) {
-		a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, key)}})
+		a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, key)}, Typed: r.PostFormValue("ic")})
 	}
 	ic := normaliseIC(r.PostFormValue("ic"))
 	if !validIC.MatchString(ic) {

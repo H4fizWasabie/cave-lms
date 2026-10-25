@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -20,6 +21,26 @@ func header(t *testing.T, body string) string {
 func content(body string) string {
 	_, c, _ := strings.Cut(body, "<main>")
 	return c
+}
+
+// mainOf is a page's own content: between its header and its footer.
+func mainOf(body string) string {
+	c, _, _ := strings.Cut(content(body), "</main>")
+	return c
+}
+
+// expectFieldError fails unless the form's field with id is marked invalid and want is said once, after that field and
+// before next (the field after it, or the form's button).
+func expectFieldError(t *testing.T, body, id, want, next string) {
+	t.Helper()
+	m := mainOf(body)
+	if n := strings.Count(m, want); n != 1 {
+		t.Fatalf("says %q %d times, want once; body:\n%s", want, n, m)
+	}
+	if !regexp.MustCompile(`<(input|textarea)[^>]*\bid="` + id + `"[^>]*aria-invalid="true"`).MatchString(m) {
+		t.Fatalf("field %q is not marked invalid; body:\n%s", id, m)
+	}
+	expectInOrder(t, m, `id="`+id+`"`, want, next)
 }
 
 // expectInOrder fails unless each of wants appears in body after the one before it.

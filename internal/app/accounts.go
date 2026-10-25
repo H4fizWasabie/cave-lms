@@ -80,8 +80,8 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	form := page{Name: name, Email: email, Error: accountFieldError(lang, name, email, password)}
-	if form.Error != "" {
+	form := page{Name: name, Email: email}
+	if form.ErrorField, form.Error = accountFieldError(lang, name, email, password); form.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "register", form)
 		return
 	}
@@ -443,15 +443,19 @@ func setSessionCookie(w http.ResponseWriter, token string, maxAge int) {
 	})
 }
 
-// accountFieldError returns a message in lang for the first invalid name, email or password, or "".
-func accountFieldError(lang, name, email, password string) string {
+// accountFieldError returns the first invalid field of name, email and password, and a message in lang saying why,
+// or "", "".
+func accountFieldError(lang, name, email, password string) (field, msg string) {
 	switch {
 	case name == "" || len(name) > 200:
-		return text.T(lang, "account.err.name")
+		return "name", text.T(lang, "account.err.name")
 	case !validEmail(email):
-		return text.T(lang, "account.err.email")
+		return "email", text.T(lang, "account.err.email")
 	}
-	return passwordProblem(lang, password)
+	if msg := passwordProblem(lang, password); msg != "" {
+		return "password", msg
+	}
+	return "", ""
 }
 
 // passwordProblem says in lang why a password is unacceptable, or returns "" if it is fine.

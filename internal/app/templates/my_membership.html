@@ -1,23 +1,23 @@
 {{define "title"}}{{t .Lang "my-membership.title"}} · CAVELMS{{end}}
 {{define "content"}}
-    <div class="wrap page-pad">
+    <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "my-membership.title"}}</h1>
         <p>{{t .Lang "my-membership.intro"}}</p>
       </div>
-      <div class="lab-plan">
+      <dl class="acct-list">
         {{- if .PlanName}}
-        <div><span class="panel-k">{{t .Lang "my-membership.plan"}}</span><strong>{{.PlanName}}</strong><span class="muted">{{t .Lang "my-membership.until" .PlanUntil}}</span></div>
+        <div><dt>{{t .Lang "my-membership.plan"}}</dt><dd><strong>{{.PlanName}}</strong><span>{{t .Lang "my-membership.until" .PlanUntil}}</span></dd></div>
         {{- else}}
-        <div><span class="panel-k">{{t .Lang "my-membership.plan"}}</span><strong>{{t .Lang "my-membership.no-plan"}}</strong><span class="muted"><a href="/pricing">{{t .Lang "my-membership.get-plan"}}</a></span></div>
+        <div><dt>{{t .Lang "my-membership.plan"}}</dt><dd><strong>{{t .Lang "my-membership.no-plan"}}</strong><a class="link-more" href="/pricing">{{t .Lang "my-membership.get-plan"}}</a></dd></div>
         {{- end}}
         {{- if .Cap.Pro}}
-        <div><span class="panel-k">CaveText Pro</span><strong>{{t .Lang "my-membership.until" .ProUntil}}</strong></div>
-        <div><span class="panel-k">{{t .Lang "my-membership.cap"}}</span><strong>{{t .Lang "my-membership.unlimited"}}</strong></div>
+        <div><dt>CaveText Pro</dt><dd><strong>{{t .Lang "my-membership.until" .ProUntil}}</strong></dd></div>
+        <div><dt>{{t .Lang "my-membership.cap"}}</dt><dd><strong>{{t .Lang "my-membership.unlimited"}}</strong></dd></div>
         {{- else}}
-        <div><span class="panel-k">CaveText Pro</span><strong>{{t .Lang "cavetext.free"}}</strong></div>
-        <div><span class="panel-k">{{t .Lang "my-membership.cap"}}</span>{{if .CaveText}}<strong>{{tn .Lang "cavetext.snippet-count" .Cap.Cap}}</strong>{{else}}<span class="muted">{{t .Lang "my-membership.cap-later"}}</span>{{end}}</div>
+        <div><dt>CaveText Pro</dt><dd><strong>{{t .Lang "cavetext.free"}}</strong></dd></div>
+        <div><dt>{{t .Lang "my-membership.cap"}}</dt><dd>{{if .CaveText}}<strong>{{tn .Lang "cavetext.snippet-count" .Cap.Cap}}</strong>{{else}}<span>{{t .Lang "my-membership.cap-later"}}</span>{{end}}</dd></div>
         {{- end}}
-      </div>
+      </dl>
     </div>
 {{end}}
