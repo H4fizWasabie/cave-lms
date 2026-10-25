@@ -650,7 +650,7 @@ func (b *WorkBlock) uses() []Use {
 	add := func(t Type, names ...string) {
 		for _, n := range names {
 			if n != "" {
-				out = append(out, Use{n, t})
+				out = append(out, Use{Name: n, Type: t})
 			}
 		}
 	}

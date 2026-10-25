@@ -425,7 +425,7 @@ func (res *CleanUp) addChanges(changes []Change) {
 		})
 		switch {
 		case i < 0:
-			res.Changes = append(res.Changes, Change{c.Key, slices.Clone(c.Args), c.Column})
+			res.Changes = append(res.Changes, Change{Key: c.Key, Args: slices.Clone(c.Args), Column: c.Column})
 		case slices.Contains(counted, c.Key):
 			res.Changes[i].Args[0] += c.Args[0]
 		}

@@ -189,7 +189,7 @@ func notes(d *Dataset) []Note {
 	var out []Note
 	for _, p := range profiles(d) {
 		if p.note != "" {
-			out = append(out, Note{p.note, p.Name})
+			out = append(out, Note{Key: p.note, Col: p.Name})
 		}
 	}
 	return out
