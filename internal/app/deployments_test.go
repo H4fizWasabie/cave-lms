@@ -8,6 +8,8 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -373,4 +375,32 @@ func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `fetch("data/`)
 	res, body = visitor.get("/d/" + old + "/" + visitor.dataOf("/d/"+old+"/"))
 	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
+}
+
+// A Dataset never changes under its key, so a Deployment builds its page and its data once, not on every visit:
+// with the stored Dataset gone, both still answer the same, as neither reads it again.
+func TestADeploymentReadsItsDatasetOnceNotOnEveryVisit(t *testing.T) {
+	_, ada := labLearner(t)
+	link := ada.deploy(ada.readyDashboard("Kewangan"))
+	visitor := ada.second()
+	dataURL := link + visitor.dataOf(link)
+	_, page := visitor.get(link)
+	_, data := visitor.get(dataURL)
+
+	key := dataURL[strings.LastIndex(dataURL, "/")+1:]
+	if err := os.Remove(filepath.Join(ada.storageDir, key)); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		res, again := visitor.get(link)
+		expectStatus(t, res, again, http.StatusOK, "")
+		if again != page {
+			t.Fatalf("visit %d: the page changed:\n%s\nwant\n%s", i, again, page)
+		}
+		res, again = visitor.get(dataURL)
+		expectStatus(t, res, again, http.StatusOK, "")
+		if again != data {
+			t.Fatalf("visit %d: the data changed", i)
+		}
+	}
 }

@@ -58,44 +58,44 @@ type chosenColumn struct {
 	Money bool   `json:"money,omitempty"`
 }
 
-// Generate writes a Dashboard: index.html, which loads charts.js beside it and its data from dataURL and draws
-// its blocks and filter bar in theme (a Theme's key), and data.json, the Dataset as one object per row. Every
-// column of the Dataset is offered to the blocks by its name.
+// Generate writes a Dashboard: index.html (Page) and data.json (DataJSON).
 func Generate(t *Template, name, theme string, cfg *Config, d *Dataset, dataURL string) (index, data []byte, err error) {
+	if index, err = Page(t, name, theme, cfg, d.Columns, dataURL); err != nil {
+		return nil, nil, err
+	}
+	data, err = DataJSON(d)
+	return index, data, err
+}
+
+// Page writes a Dashboard's index.html, which loads charts.js beside it and its data from dataURL and draws its
+// blocks and filter bar in theme (a Theme's key). Every one of the Dataset's columns is offered to the blocks by
+// its name. It needs only the columns, so a page costs the same whatever the Dataset's size.
+func Page(t *Template, name, theme string, cfg *Config, columns []Column, dataURL string) ([]byte, error) {
 	money := map[string]bool{}
 	for _, col := range cfg.Money {
 		money[col] = true
 	}
-	columns := map[string]chosenColumn{}
-	for _, col := range d.Columns {
-		columns[col.Name] = chosenColumn{Name: col.Name, Type: col.Type, Money: money[col.Name] && col.Type == Number}
+	chosen := map[string]chosenColumn{}
+	for _, col := range columns {
+		chosen[col.Name] = chosenColumn{Name: col.Name, Type: col.Type, Money: money[col.Name] && col.Type == Number}
 	}
-	return page(name, t.Question, map[string]any{"theme": theme, "columns": columns, "blocks": cfg.Blocks, "filters": cfg.FilterBar}, d, dataURL)
-}
-
-// page writes index.html with config as the chart script's settings, and data.json.
-func page(name, question string, config map[string]any, d *Dataset, dataURL string) (index, data []byte, err error) {
-	settings, err := json.MarshalIndent(config, "    ", "  ")
+	settings, err := json.MarshalIndent(map[string]any{"theme": theme, "columns": chosen, "blocks": cfg.Blocks, "filters": cfg.FilterBar}, "    ", "  ")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	var out bytes.Buffer
 	// template.JS is safe here: encoding/json escapes <, >, & and U+2028/2029, so no text can end the script.
 	// The same holds for dataURL, written as a JSON string so its slashes stay readable.
 	dataJS, err := json.Marshal(dataURL)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	err = dashboardPage.Execute(&out, map[string]any{"Name": name, "Question": question, "Config": template.JS(settings), "Data": template.JS(dataJS)})
-	if err != nil {
-		return nil, nil, err
-	}
-	data, err = dataJSON(d)
-	return out.Bytes(), data, err
+	var out bytes.Buffer
+	err = dashboardPage.Execute(&out, map[string]any{"Name": name, "Question": t.Question, "Config": template.JS(settings), "Data": template.JS(dataJS)})
+	return out.Bytes(), err
 }
 
-// dataJSON is the Dataset as a JSON array with one object per row, keys in column order, one row per line.
-func dataJSON(d *Dataset) ([]byte, error) {
+// DataJSON is a Dashboard's data.json: the Dataset as a JSON array with one object per row, keys in column order, one row per line.
+func DataJSON(d *Dataset) ([]byte, error) {
 	var b bytes.Buffer
 	b.WriteString("[")
 	for ri, row := range d.Rows {
