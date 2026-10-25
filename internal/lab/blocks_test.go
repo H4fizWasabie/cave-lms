@@ -29,8 +29,9 @@ func blockJSON(t *testing.T, cfg *lab.Config, label string) string {
 
 func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
+	res := sample(t, tpl)
+	d := res.Dataset
+	cfg := tpl.Open(res.Guess, d)
 
 	for label, want := range map[string]string{
 		"Spending by category": `{"kind":"bar","label":"Spending by category","value":{"agg":"sum","col":"Jumlah"},"group":"Kategori","top":8,"filter":{"col":"Jenis","vals":["Keluar"]}}`,
@@ -58,9 +59,9 @@ func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 
 func TestOpeningInventoryKeepsLowStockLockedAndStockValueAsACalculation(t *testing.T) {
 	tpl := lab.TemplateByKey("inventory")
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
-	c := tpl.Guess(d)
+	res := sample(t, tpl)
+	d, c := res.Dataset, res.Guess
+	cfg := tpl.Open(c, d)
 	if got, want := blockJSON(t, cfg, "Stock value"), `{"kind":"card","label":"Stock value","icon":"money","value":{"agg":"calc","a":"`+c["quantity"]+`","op":"x","b":"`+c["price"]+`","then":"sum"}}`; got != want {
 		t.Errorf("Stock value =\n%s\nwant\n%s", got, want)
 	}
@@ -71,8 +72,8 @@ func TestOpeningInventoryKeepsLowStockLockedAndStockValueAsACalculation(t *testi
 
 func TestOpeningLeavesOutBlocksWhoseChosenColumnIsGoneOrRetyped(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	c := tpl.Guess(d)
+	res := sample(t, tpl)
+	d, c := res.Dataset, res.Guess
 	c["category"] = "Gone"  // no such column now
 	c["type"] = c["amount"] // a Number column where Text is needed
 	cfg := tpl.Open(c, d)
@@ -86,27 +87,14 @@ func TestOpeningLeavesOutBlocksWhoseChosenColumnIsGoneOrRetyped(t *testing.T) {
 	}
 }
 
-func TestOpeningGeneralBuildsItsBlocksFromTheDataset(t *testing.T) {
-	tpl := lab.TemplateByKey("general")
-	d := readSample(t, tpl)
-	cfg := tpl.Open(nil, d)
-	var names []string
-	for _, c := range d.Columns {
-		names = append(names, c.Name)
-	}
-	table := cfg.Blocks[len(cfg.Blocks)-1]
-	if table.Kind != "table" || !reflect.DeepEqual(table.Cols, names) {
-		t.Fatalf("the last block is %+v, want a table of every column %v", table, names)
-	}
-}
-
 var pageConfig = regexp.MustCompile(`(?s)const dashboard = (\{.*?\n    \});`)
 
-func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
+func TestGenerateWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
-	index, data, err := lab.GenerateWork(tpl, "Kedai <Ali>", "", cfg, d, "data/x")
+	res := sample(t, tpl)
+	d := res.Dataset
+	cfg := tpl.Open(res.Guess, d)
+	index, data, err := lab.Generate(tpl, "Kedai <Ali>", "", cfg, d, "data/x")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +103,6 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 		t.Fatalf("no config in\n%s", index)
 	}
 	var got struct {
-		Work    bool `json:"work"`
 		Columns map[string]struct {
 			Name  string
 			Type  lab.Type
@@ -127,7 +114,7 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	if err := json.Unmarshal(m[1], &got); err != nil {
 		t.Fatalf("%v in\n%s", err, m[1])
 	}
-	if !got.Work || !reflect.DeepEqual(got.Blocks, cfg.Blocks) || !reflect.DeepEqual(got.Filters, cfg.FilterBar) {
+	if !reflect.DeepEqual(got.Blocks, cfg.Blocks) || !reflect.DeepEqual(got.Filters, cfg.FilterBar) {
 		t.Fatalf("config = %+v", got)
 	}
 	if c := got.Columns["Jumlah"]; c.Name != "Jumlah" || c.Type != lab.Number || !c.Money || got.Columns["Perkara"].Money {
@@ -143,14 +130,15 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 
 func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 	tpl := finance(t)
-	d := readSample(t, tpl)
-	cfg := tpl.Open(tpl.Guess(d), d)
+	res := sample(t, tpl)
+	d := res.Dataset
+	cfg := tpl.Open(res.Guess, d)
 	at, err := cfg.Add("card", d, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.Blocks[at].Icon; got != "people" {
-		t.Fatalf("a new card counting rows shows %q, want people", got)
+	if b := cfg.Blocks[at]; b.Icon != "money" || b.Value.Col != "Jumlah" {
+		t.Fatalf("a new card of %+v shows %q, want the sum of the RM column Jumlah, money", b.Value, b.Icon)
 	}
 	// While the Learner has not picked one, the icon follows the value.
 	b := cfg.Blocks[at]
@@ -158,7 +146,7 @@ func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 		v    lab.Value
 		want string
 	}{
-		{lab.Value{Agg: "sum", Col: "Jumlah"}, "money"},
+		{lab.Value{Agg: "count"}, "people"},
 		{lab.Value{Agg: "avg", Col: "Jumlah"}, "money"},
 		{lab.Value{Agg: "distinct", Col: "Perkara"}, "tag"},
 		{lab.Value{Agg: "calc", A: "Jumlah", Op: "/", B: "Jumlah", Then: "sum"}, "chart-up"},
@@ -188,9 +176,9 @@ func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
 }
 
 func TestEveryTemplateCardNamesAnIconFromTheSet(t *testing.T) {
-	for _, tpl := range lab.TemplatesFor(true) {
-		d := readSample(t, tpl)
-		for _, b := range tpl.Open(tpl.Guess(d), d).Blocks {
+	for _, tpl := range lab.Templates {
+		res := sample(t, tpl)
+		for _, b := range tpl.Open(res.Guess, res.Dataset).Blocks {
 			if b.IsCard() && !slices.Contains(lab.Icons, b.Icon) {
 				t.Errorf("%s card %q names icon %q", tpl.Key, b.Label, b.Icon)
 			}
@@ -219,13 +207,14 @@ func TestABarStandsHorizontalUnlessSetVertical(t *testing.T) {
 }
 
 func TestAHeatmapCrossesTwoDifferentTextColumns(t *testing.T) {
-	d := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Text}}}
+	d := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Text}},
+		Rows: [][]any{{"HR", 3000.0, "Tetap"}, {"IT", 4000.0, "Kontrak"}}}
 	var cfg lab.Config
 	at, err := cfg.Add("heatmap", d, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := json.Marshal(cfg.Blocks[at]); string(got) != `{"kind":"heatmap","label":"Rows by Jabatan × Status","value":{"agg":"count"},"split":"Status","group":"Jabatan","top":8,"wide":true}` {
+	if got, _ := json.Marshal(cfg.Blocks[at]); string(got) != `{"kind":"heatmap","label":"Gaji by Jabatan × Status","value":{"agg":"sum","col":"Gaji"},"split":"Status","group":"Jabatan","top":8,"wide":true}` {
 		t.Fatalf("a new heatmap = %s", got)
 	}
 	for _, c := range []struct {
@@ -245,7 +234,7 @@ func TestAHeatmapCrossesTwoDifferentTextColumns(t *testing.T) {
 		}
 	}
 	// Its columns pause it when gone or retyped, and follow a rename.
-	retyped := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Status", Type: lab.Number}}}
+	retyped := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Number}}}
 	if got := cfg.Blocks[at].Missing(retyped); !reflect.DeepEqual(got, []string{"Status"}) {
 		t.Errorf("missing = %v", got)
 	}

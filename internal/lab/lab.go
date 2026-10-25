@@ -1,5 +1,5 @@
-// Package lab is the Lab's pure logic: no database, no HTTP. Read turns an uploaded .xlsx into a
-// Dataset for a Template; Generate turns a Template, column choices and a Dataset into the
+// Package lab is the Lab's pure logic: no database, no HTTP. Clean turns an uploaded .xlsx into a
+// Dataset; a Template opens onto it as blocks; Generate turns the blocks and the Dataset into the
 // Dashboard's index.html and data.json. See ADR 0003.
 package lab
 
@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"io"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,19 +40,6 @@ type Dataset struct {
 	RowNumbers []int    `json:"rowNumbers,omitempty"` // each row's number in Excel, as blank rows are skipped
 }
 
-// rowNumber is row i's number in Excel.
-func (d *Dataset) rowNumber(i int) int {
-	if i < len(d.RowNumbers) {
-		return d.RowNumbers[i]
-	}
-	return i + 2
-}
-
-// emptyCell reports a blank cell in a column a required blank uses.
-func emptyCell(row int, col string) Problem {
-	return Problem{"lab.err.empty-cell", []any{row, col}}
-}
-
 // Problem is what is wrong with an upload or a column choice, as a text catalog key and the
 // values it fills in, so the page can word it in the Learner's language. A value that is itself
 // a Problem is worded too. As an error it reads in English, for logs.
@@ -81,9 +67,6 @@ func (p Problem) Error() string { return p.In("en") }
 
 // typeWord is typ as a word, like "number".
 func typeWord(typ Type) Problem { return Problem{"lab.type." + string(typ), nil} }
-
-// MaxRows is the most data rows the Lab reads from one file.
-const MaxRows = 5000
 
 // MaxUnzipped is the most an .xlsx may unpack to. A 5,000-row workbook unpacks to a few MB; without a cap, a
 // 10 MB upload of zeros or repeated cells can unpack to gigabytes and take the server down.
@@ -118,108 +101,8 @@ func sheetRows(f *excelize.File, name string, opts ...excelize.Options) ([][]str
 	return cells[:kept], nil
 }
 
-// Read reads the first sheet of an .xlsx file, row 1 being the column names, and checks it
-// against the Template. A column named like one of a blank's guesses is read as that blank's
-// type; any other column's type comes from its cells. Dates may be real Excel dates,
-// day/month/year text or Excel date serial numbers; numbers may carry RM and thousands commas.
-// A file Cave cannot use gives one Problem, the first in row order; failing to read r at all gives
-// that plain error. Only fully blank rows are skipped.
-func Read(r io.Reader, t *Template) (*Dataset, error) {
-	f, err := openWorkbook(r)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	sheet := f.GetSheetList()[0]
-	cells, err := sheetRows(f, sheet, excelize.Options{RawCellValue: true})
-	if p, ok := err.(Problem); ok {
-		return nil, p
-	} else if err != nil {
-		return nil, Problem{"lab.err.unreadable", []any{err.Error()}}
-	}
-	if len(cells) < 2 {
-		return nil, Problem{"lab.err.no-data", nil}
-	}
-
-	d := &Dataset{}
-	if d.Columns, err = columnsOf(cells[0]); err != nil {
-		return nil, err
-	}
-	raw, rowNo := rawRows(f, sheet, cells, 0, len(d.Columns))
-	if len(raw) > MaxRows {
-		return nil, Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxRows), thousands(rowNo[MaxRows])}}
-	}
-
-	for ci := range d.Columns {
-		typ, named := t.blankType(d.Columns[ci].Name)
-		if !named {
-			typ = columnType(raw, ci)
-		}
-		d.Columns[ci].Type = typ
-	}
-	for _, b := range t.Blanks {
-		if b.Required && !hasType(d.Columns, b.Type) {
-			if p, ok := t.headerBelow(cells); ok {
-				return nil, p
-			}
-			return nil, Problem{"lab.err.missing-column", []any{b.SampleName(), Problem{"lab.tpl." + t.Key + ".name", nil}, b.Label, Problem{"lab.types." + string(b.Type), nil}}}
-		}
-	}
-	required, guess := map[string]bool{}, t.Guess(d)
-	for _, b := range t.Blanks {
-		if col, ok := guess[b.Key]; ok && b.Required {
-			required[col] = true
-		}
-	}
-
-	for ri, vals := range raw {
-		row := make([]any, len(d.Columns))
-		for ci, c := range vals {
-			if ci >= len(d.Columns) {
-				if c.v != "" {
-					if p, ok := t.headerBelow(cells); ok {
-						return nil, p
-					}
-					return nil, Problem{"lab.err.stray-cell", []any{rowNo[ri], c.v, colLetter(ci)}}
-				}
-				continue
-			}
-			col := d.Columns[ci]
-			if c.v == "" {
-				if required[col.Name] {
-					return nil, emptyCell(rowNo[ri], col.Name)
-				}
-				continue
-			}
-			v, problem := parse(c, col.Type)
-			if problem != "" {
-				return nil, Problem{problem, []any{rowNo[ri], col.Name, c.v}}
-			}
-			row[ci] = v
-		}
-		d.Rows = append(d.Rows, row)
-	}
-	d.RowNumbers = rowNo
-	return d, nil
-}
-
-// headerBelow is the Problem for a header under title rows, which Practice does not skip: a row below row 1
-// that names two of the Template's blanks or more, so a data row holding one name, like Total, is not taken.
-// ponytail: only the first 20 rows are looked at; a header further down gets the plain Problem.
-func (t *Template) headerBelow(cells [][]string) (Problem, bool) {
-	for r := 1; r < min(len(cells), 20); r++ {
-		named := 0
-		for _, b := range t.Blanks {
-			if slices.ContainsFunc(cells[r], func(v string) bool { return b.Named(strings.TrimSpace(v)) }) {
-				named++
-			}
-		}
-		if named >= 2 {
-			return Problem{"lab.err.header-below", []any{r + 1}}, true
-		}
-	}
-	return Problem{}, false
-}
+// oldExcel is how an .xls file starts: the signature of the compound file Excel 97-2003 saved.
+var oldExcel = []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}
 
 // openWorkbook opens an .xlsx file within the size limits; a file that is not one gives a Problem.
 func openWorkbook(r io.Reader) (*excelize.File, error) {
@@ -228,7 +111,10 @@ func openWorkbook(r io.Reader) (*excelize.File, error) {
 		return nil, err
 	}
 	z, err := zip.NewReader(bytes.NewReader(file), int64(len(file)))
-	if err != nil {
+	switch {
+	case err != nil && bytes.HasPrefix(file, oldExcel):
+		return nil, Problem{"lab.err.xls", nil}
+	case err != nil:
 		return nil, Problem{"lab.err.not-workbook", nil}
 	}
 	var unzipped uint64
@@ -289,52 +175,27 @@ type cell struct {
 	date bool
 }
 
-// parse reads a filled cell as typ, or gives the catalog key that says why it cannot.
-func parse(c cell, typ Type) (any, string) {
+// parse reads a filled cell as typ; false when it does not fit.
+func parse(c cell, typ Type) (any, bool) {
 	switch typ {
 	case Date:
 		if day, ok := textDate(c.v); ok {
-			return day, ""
+			return day, true
 		}
 		// A real Excel date and a date serial number are both a count of days.
 		if n, err := strconv.ParseFloat(c.v, 64); err == nil && n >= 1 && n < 2958466 {
 			if day, err := excelize.ExcelDateToTime(n, false); err == nil {
-				return day.Format("2006-01-02"), ""
+				return day.Format("2006-01-02"), true
 			}
 		}
-		return nil, "lab.err.not-date"
+		return nil, false
 	case Number:
 		if n, ok := number(c.v); ok {
-			return n, ""
+			return n, true
 		}
-		return nil, "lab.err.not-number"
+		return nil, false
 	}
-	return c.v, ""
-}
-
-// columnType is Date when every filled cell is a date, Number when every one is a number, else Text.
-func columnType(raw [][]cell, ci int) Type {
-	allDates, allNumbers, filled := true, true, false
-	for _, vals := range raw {
-		c := vals[ci]
-		if c.v == "" {
-			continue
-		}
-		filled = true
-		_, isNumber := number(c.v)
-		_, isDate := textDate(c.v)
-		allNumbers = allNumbers && isNumber
-		allDates = allDates && (isDate || c.date && isNumber)
-	}
-	switch {
-	case !filled:
-		return Text
-	case allDates:
-		return Date
-	case allNumbers:
-		return Number
-	}
-	return Text
+	return c.v, true
 }
 
 var (
@@ -371,15 +232,6 @@ func thousands(n int) string {
 		s = s[:i] + "," + s[i:]
 	}
 	return s
-}
-
-func hasType(cols []Column, t Type) bool {
-	for _, c := range cols {
-		if c.Type == t {
-			return true
-		}
-	}
-	return false
 }
 
 func colLetter(i int) string {

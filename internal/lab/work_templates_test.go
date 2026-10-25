@@ -112,7 +112,7 @@ func TestOpeningRosterGivesItsBlocksAndFilterBar(t *testing.T) {
 	}
 }
 
-func TestWorkDashboardsAlsoOfferSalesAndRoster(t *testing.T) {
+func TestTheLabOffersSixTemplatesWithSalesAndRoster(t *testing.T) {
 	keys := func(ts []*lab.Template) []string {
 		var k []string
 		for _, t := range ts {
@@ -120,11 +120,8 @@ func TestWorkDashboardsAlsoOfferSalesAndRoster(t *testing.T) {
 		}
 		return k
 	}
-	if got, want := keys(lab.TemplatesFor(true)), []string{"finance", "inventory", "hr", "sales", "roster", "general"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("Work Templates = %v, want %v", got, want)
-	}
-	if got, want := keys(lab.TemplatesFor(false)), []string{"finance", "inventory", "hr", "general"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("Practice Templates = %v, want %v", got, want)
+	if got, want := keys(lab.Templates), []string{"finance", "inventory", "hr", "sales", "roster", "general"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Templates = %v, want %v", got, want)
 	}
 	for _, key := range []string{"sales", "roster"} {
 		if tpl := template(t, key); tpl.Question == "" {
@@ -144,9 +141,6 @@ func TestAClinicSalesSheetOpensAsSales(t *testing.T) {
 	res := clean(t, file, tpl)
 	if res.Guess["date"] != "Created Date & Time" || res.Guess["amount"] != "Price" {
 		t.Fatalf("guesses = %v, want Created Date & Time and Price", res.Guess)
-	}
-	if err := tpl.Check(res.Guess, res.Dataset); err != nil {
-		t.Fatalf("the guesses do not open Sales: %v", err)
 	}
 	if got := blockJSON(t, tpl.Open(res.Guess, res.Dataset), "Revenue"); got != `{"kind":"card","label":"Revenue","icon":"money","value":{"agg":"sum","col":"Price"}}` {
 		t.Errorf("Revenue = %s", got)
@@ -207,7 +201,7 @@ func TestSalesAndRosterDrawFromTheirSamples(t *testing.T) {
 	} {
 		tpl := template(t, key)
 		res := clean(t, tpl.Sample, tpl)
-		index, data, err := lab.GenerateWork(tpl, tpl.Name, "", tpl.Open(res.Guess, res.Dataset), res.Dataset, "data.json")
+		index, data, err := lab.Generate(tpl, tpl.Name, "", tpl.Open(res.Guess, res.Dataset), res.Dataset, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}

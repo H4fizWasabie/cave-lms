@@ -18,6 +18,7 @@ import (
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
+	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -65,8 +66,14 @@ type App struct {
 	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
 	// reading each whole in checkSubmissionFile would remove the ceiling.
 	uploading sync.Map
-	now       func() time.Time // the clock; tests set it
-	routes    []string         // every registered pattern, so the admin-route test can walk them
+	// cleaning holds a turn for each Clean-up running, so at most maxCleanUps uploads are read at once; others wait.
+	// ponytail: per process, right while the app runs as one; reading in the Learner's browser lifts the ceiling.
+	cleaning       chan struct{}
+	cleanUpWaitLog time.Duration // a wait for a turn longer than this is written to the System log
+	// samples is each Template's Sample, cleaned once at start-up, by Template key.
+	samples map[string]*lab.CleanUp
+	now     func() time.Time // the clock; tests set it
+	routes  []string         // every registered pattern, so the admin-route test can walk them
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -171,8 +178,15 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
+	if err = convertPracticeDashboards(ctx, db, datasets); err != nil {
+		return nil, err
+	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now}
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now,
+		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
+	if a.samples, err = cleanedSamples(); err != nil {
+		return nil, err
+	}
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
@@ -228,13 +242,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /lab/new", a.requireLearner(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab("dataset"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/columns", a.dashboardTab("columns"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.dashboardTab("preview"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset/confirm", a.withDashboardRow(a.confirmWork))
 	mux.HandleFunc("POST /lab/dashboards/{id}/datasets/{ds}/restore", a.withDashboardRow(a.restoreDataset))
 	mux.HandleFunc("POST /lab/dashboards/{id}/datasets/{ds}/delete", a.withDashboardRow(a.deleteDataset))
-	mux.HandleFunc("POST /lab/dashboards/{id}/columns", a.withDashboard(a.saveColumns))
 	mux.HandleFunc("GET /lab/dashboards/{id}/blocks", a.dashboardTab("blocks"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/blocks", a.withDashboard(a.editBlocks))
 	mux.HandleFunc("POST /lab/dashboards/{id}/theme", a.withDashboard(a.saveTheme))

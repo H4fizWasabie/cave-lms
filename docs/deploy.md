@@ -142,6 +142,47 @@ Run as root on the VPS unless a step says otherwise.
 5. Create the Admin as in First install, step 4, with `-p User=cave_staging -p EnvironmentFile=/etc/cave-lms/staging.env /usr/local/bin/cave-lms-staging`.
 6. In BCL, set each TEST form (19556, 19624, 19625) under Advanced > Webhook Settings to `https://staging.cavelms.com/cavetext/bcl/<staging key>` with the Payment Success event. In staging's Admin > Prices, set each payment link to the matching TEST form's address (`https://ideaniagaventures.bcl.my/form/cavetext-pro-test`, `lab-plan-test`, `pro-plan-test`) and each price to no more than that form charges, or a TEST payment is kept for an Admin instead of giving the product.
 
+## Converting Practice Dashboards (one-off, ADR 0015)
+
+The first start of the release with spec #273 converts every Practice Dashboard (`dashboards.kind = 'practice'`) into a normal Dashboard: nothing to type but the deploy. Its Template opens with its saved column choices onto its Dataset as its blocks (`dashboards.config`), and its Dataset becomes its current one in `datasets` under the same store key, so no object is copied or deleted and its Deployment, drawn from the Dashboard on each visit, keeps its link and data. Theme, Template, choices and name stay. Each Dashboard converts in one transaction; a converted one is no longer Practice, so later starts change nothing. A Practice Dashboard whose Dataset the store cannot give stops the start (`journalctl -u cave-lms -n 20` names it), so the app never answers and the deploy puts the previous binary back; the Dashboards converted before it stay converted. Its saved size becomes the stored Dataset's size, as for any Dataset, in place of the uploaded file's.
+
+The command is the deploy itself, `CAVE_ENV=staging deploy/deploy.sh` then `deploy/deploy.sh`. The production deploy backs up first only when the release adds a migration; if it adds none, back up by hand before it (`ssh vps systemctl start cave-lms-backup`, then `journalctl -u cave-lms-backup -n 20`).
+
+**Rehearsing it on a copy of production.** Restore the latest backup into a scratch database (see Restoring), then start the new binary on it. Production's Datasets are in R2, which the backup does not hold, so give it a new R2 token with Object Read only on `cave-lms-datasets`: the conversion only reads, and the start-up prune's deletes then fail harmlessly instead of deleting what production still uses. Leave out `RESEND_API_KEY`, the BCL and the OpenRouter settings.
+
+```sh
+DATABASE_URL=postgres:///cave_rehearsal PUBLIC_BASE_URL=http://127.0.0.1:8090 LISTEN_ADDR=127.0.0.1:8090 \
+  EMAIL_FROM="Cave LMS <noreply@cavelms.com>" STORAGE_DIR=/tmp/cave-rehearsal-uploads \
+  R2_ACCOUNT_ID=... R2_BUCKET=cave-lms-datasets R2_ACCESS_KEY_ID=<read-only> R2_SECRET_ACCESS_KEY=<read-only> \
+  ./cave-lms   # stop it with Ctrl-C once it listens
+```
+
+**Checks, before and after** (on the rehearsal, then on production with `sudo -u postgres psql cave` and `https://cavelms.com` as `$base`):
+
+```sql
+SELECT kind, count(*) FROM dashboards GROUP BY kind;            -- after: no practice, same total
+SELECT count(*) FROM deployments;                               -- after: the same
+-- before: the Practice Dashboards and their Deployments
+SELECT d.id, d.template, d.theme, d.dataset_key, d.dataset_file, dep.name
+  FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.kind = 'practice' ORDER BY d.id;
+-- after, for those ids: same theme; storage_key the old dataset_key; current; blocks there
+SELECT d.id, d.kind, d.template, d.theme, ds.storage_key, ds.file_name, ds.state, jsonb_array_length(d.config->'blocks') AS blocks, dep.name
+  FROM dashboards d LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'
+  LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.id IN (...) ORDER BY d.id;
+```
+
+For each Deployment `$n` with Dataset key `$key`, before and after, the page answers 200 with the same Theme and block labels, and the data is the same:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' "$base/d/$n/"
+curl -s "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'
+curl -s "$base/d/$n/data/$key" | sha256sum
+```
+
+A Dashboard never uploaded to has no blocks until its first confirm, as for a new one.
+
+**Dropped in a later release.** This release (#283) removes every Practice path from the code but keeps the conversion step (`convertPracticeDashboards`) and the columns it reads: `dashboards.kind` and the old `dashboards.dataset_key`, `dataset_file` and `dataset_size`. Migrations run before the conversion at start-up, so dropping them in the same release would lose the Practice Dashboards before they convert. Nothing else reads them now, except new Dashboards being inserted with `kind = 'work'` (the column defaults to `'practice'`). Once production has started on this release and the checks above show no `practice` row, a later release adds a migration dropping those four columns, removes `convertPracticeDashboards` with its test, the `kind` in `createDashboard`'s insert, and `copyDatasetsToStore`, whose old `dashboards.dataset` column 00069 already dropped.
+
 ## Changing the domain
 
 The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in `/etc/cave-lms/env`.

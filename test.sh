@@ -16,4 +16,5 @@ trap '"$bindir/pg_ctl" -D "$dir/data" -m immediate stop >/dev/null 2>&1 || true;
 "$bindir/createdb" -h "$dir" -U cave cave_lms_test
 
 export TEST_DATABASE_URL="postgres://cave@/cave_lms_test?host=$dir&sslmode=disable"
-go test -count=1 "${@:-./...}"
+# The whole app package can take over the default 10 minutes on a loaded machine; a later -timeout overrides it.
+go test -count=1 -timeout 30m "${@:-./...}"

@@ -1,40 +1,25 @@
-{{define "title"}}{{if .Work}}{{t .Lang "lab.new.work"}}{{else}}{{t .Lang "lab.new"}}{{end}} · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "lab.new"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
-      <p class="crumbs"><a href="/lab">Lab</a> / {{if .Work}}{{t .Lang "lab.new.work"}}{{else}}{{t .Lang "lab.new"}}{{end}}</p>
-      <div class="page-head"><h1>{{if .Work}}{{t .Lang "lab.new.work"}}{{else}}{{t .Lang "lab.new"}}{{end}}</h1><p>{{if .Work}}{{t .Lang "lab.new.work-sub"}}{{else}}{{t .Lang "lab.new.sub"}}{{end}}</p></div>
-      <ul class="tp-pick">
-        {{- range .Templates}}
-        <li><a class="tp-card{{if eq .Key $.Picked}} is-picked{{end}}" href="/lab/new?{{if $.Work}}kind=work&amp;{{end}}t={{.Key}}"{{if eq .Key $.Picked}} aria-current="true"{{end}}><span class="tp-frame"><iframe src="/lab/demo/{{.Key}}/" title="{{t $.Lang "lab.template-preview" (t $.Lang (print "lab.tpl." .Key ".name"))}}" loading="lazy" tabindex="-1" scrolling="no"></iframe></span><strong>{{t $.Lang (print "lab.tpl." .Key ".name")}}</strong>{{if .Question}}<span class="tp-q">{{t $.Lang (print "lab.tpl." .Key ".question")}}</span>{{end}}<span>{{t $.Lang (print "lab.tpl." .Key ".blurb")}}</span></a></li>
-        {{- end}}
-      </ul>
-      {{- range .Templates}}{{if eq .Key $.Picked}}
+      <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.new"}}</p>
+      <div class="page-head"><h1>{{t .Lang "lab.new"}}</h1><p>{{t .Lang "lab.new.sub"}}</p></div>
       <section class="card">
-        <div class="lab-detail-head">
-          <div><span class="panel-k">{{t $.Lang "lab.template-name" (t $.Lang (print "lab.tpl." .Key ".name"))}}</span><h2 class="h-md">{{t $.Lang "lab.new.needs"}}</h2></div>
-          <a class="btn btn-ghost" href="/lab/samples/{{.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.new.download-sample"}}</a>
-        </div>
-        <div class="table-wrap"><table class="table">
-          <thead><tr><th>{{t $.Lang "lab.new.blank"}}</th><th>{{t $.Lang "lab.new.needed"}}</th><th>{{t $.Lang "lab.new.what"}}</th><th>{{t $.Lang "lab.new.sample-column"}}</th></tr></thead>
-          <tbody>
-            {{- range .Blanks}}
-            <tr><th scope="row">{{.Label}}</th><td>{{if .Required}}<span class="badge badge-joined">{{t $.Lang "lab.required"}}</span>{{else}}<span class="muted">{{t $.Lang "lab.optional"}}</span>{{end}}</td><td>{{if .Help}}{{t $.Lang (print "lab.tpl." $.Picked "." .Key ".help")}}{{end}} <small>{{t $.Lang "lab.new.column-type" (t $.Lang (print "lab.type." .Type))}}</small></td><td><code>{{or (index $.Guess .Key) "-"}}</code></td></tr>
-            {{- else}}
-            <tr><td colspan="4">{{t $.Lang "lab.new.no-blanks"}}</td></tr>
-            {{- end}}
-          </tbody>
-        </table></div>
-        <p class="muted">{{tn $.Lang "lab.new.sample-has" (len $.Sample.Rows)}}{{range $.Sample.Columns}} <code>{{.Name}}</code>{{end}}. {{t $.Lang "lab.new.sample-how"}}</p>
-        {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
         <form class="form lab-create" method="post" action="/lab/dashboards">
-          <input type="hidden" name="template" value="{{.Key}}">
-          {{- if $.Work}}
-          <input type="hidden" name="kind" value="work">
-          {{- end}}
-          <div class="field"><label for="name">{{t $.Lang "lab.new.name"}}</label><input id="name" type="text" name="name" value="{{if $.Name}}{{$.Name}}{{else}}{{t $.Lang "lab.new.default-name" (t $.Lang (print "lab.tpl." .Key ".name"))}}{{end}}" required maxlength="80"></div>
-          <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t $.Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t $.Lang "lab.new.create"}}</button></div>
+          <div class="field"><label for="name">{{t .Lang "lab.new.name"}}</label><input id="name" type="text" name="name" value="{{.Name}}" required maxlength="80"></div>
+          <h2 class="h-sm">{{t .Lang "lab.new.upload"}}</h2>
+          <p class="muted">{{t .Lang "lab.new.upload-body"}}</p>
+          <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.new.create"}}</button></div>
+          <h2 class="h-sm">{{t .Lang "lab.new.sample"}}</h2>
+          <p class="muted">{{t .Lang "lab.new.sample-body"}}</p>
+          <ul class="tp-pick">
+            {{- range .Samples}}
+            <li><div class="tp-card"><strong>{{t $.Lang (print "lab.tpl." .Key ".name")}}</strong><span>{{t $.Lang (print "lab.tpl." .Key ".blurb")}}</span>
+              <button class="btn btn-ghost" name="sample" value="{{.Key}}">{{t $.Lang "lab.new.try" (t $.Lang (print "lab.tpl." .Key ".name"))}}</button>
+              <a href="/lab/samples/{{.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.d.download-sample"}}</a></div></li>
+            {{- end}}
+          </ul>
         </form>
       </section>
-      {{- end}}{{end}}
     </div>
 {{end}}

@@ -2,15 +2,13 @@ package lab
 
 import (
 	_ "embed"
-	"fmt"
 	"slices"
 	"strings"
 )
 
 // Template is a Dashboard design: blanks the Learner fills with columns, and blocks drawn from them.
 // A block is left out when a blank it needs is skipped; the first card left is drawn largest. To add
-// a Template, define it below with its Sample embedded from samples/ and list it in workTemplates, and in
-// Templates too if Practice Dashboards offer it.
+// a Template, define it below with its Sample embedded from samples/ and list it in Templates.
 type Template struct {
 	Key      string // in URLs and stored on each Dashboard; never changes
 	Name     string
@@ -33,7 +31,7 @@ type Blank struct {
 	Money    bool     // a Number shown as RM
 	Help     string   // what goes in it, for the Learner
 	Guess    []string // column names Cave tries first, lower case, Malay and English
-	// Loose, when set, are the names a Work Dashboard's guessing looks for in column names instead of Guess,
+	// Loose, when set, are the names Cave's guessing looks for in column names instead of Guess,
 	// lower case, best first.
 	Loose []string
 	// Not, with Loose, are words that keep a column from being guessed by part of its name, lower case.
@@ -45,10 +43,10 @@ type Block struct {
 	Kind   string   `json:"kind"` // card, line, bar, donut, table
 	Label  string   `json:"label"`
 	Icon   string   `json:"icon,omitempty"`   // card: one of Icons
-	Agg    string   `json:"agg,omitempty"`    // card: count or sum; distinct counts Of's values (Work Templates only)
+	Agg    string   `json:"agg,omitempty"`    // card: count or sum; distinct counts Of's values, avg averages them
 	Of     string   `json:"of,omitempty"`     // the Number blank summed; counts rows when empty
 	X      string   `json:"x,omitempty"`      // line: the Date blank, by month
-	By     string   `json:"by,omitempty"`     // line: day, else month (Work Templates only)
+	By     string   `json:"by,omitempty"`     // line: day, else month
 	Group  string   `json:"group,omitempty"`  // bar and donut: the Text blank grouped by
 	Series string   `json:"series,omitempty"` // line: one line per value of this blank, when chosen
 	Where  []string `json:"where,omitempty"`  // [blank, value]: only rows where the blank holds value, when chosen
@@ -169,45 +167,9 @@ var generalSample []byte
 var General = &Template{
 	Key:    "general",
 	Name:   "General",
-	Blurb:  "Any table. No blanks to fill: Cave builds the charts from your column types.",
+	Blurb:  "Any table. No blanks to fill: Cave builds the blocks from your columns and their values.",
 	Build:  buildGeneral,
 	Sample: generalSample,
-}
-
-// buildGeneral makes one blank per column, filled by that column: a card per Number column, a bar
-// chart for the first Text column, a line chart by month for the first Date column, and a table.
-func buildGeneral(d *Dataset) (*Template, Choices) {
-	t, c := &Template{}, Choices{}
-	first := map[Type]string{}
-	var cols []string
-	for i, col := range d.Columns {
-		key := fmt.Sprintf("c%d", i+1)
-		t.Blanks = append(t.Blanks, Blank{Key: key, Label: col.Name, Type: col.Type})
-		c[key] = col.Name
-		cols = append(cols, key)
-		if first[col.Type] == "" {
-			first[col.Type] = key
-		}
-		if col.Type == Number {
-			t.Blocks = append(t.Blocks, Block{Kind: "card", Label: col.Name, Icon: "chart-up", Agg: "sum", Of: key})
-		}
-	}
-	measure := "Rows"
-	if k := first[Number]; k != "" {
-		measure = c[k]
-	}
-	if k := first[Text]; k != "" {
-		t.Blocks = append(t.Blocks, Block{Kind: "bar", Label: measure + " by " + c[k], Group: k, Of: first[Number]})
-		t.Filters = append(t.Filters, k)
-	}
-	table := Block{Kind: "table", Label: "Rows", Cols: cols, Limit: 10}
-	if k := first[Date]; k != "" {
-		t.Blocks = append(t.Blocks, Block{Kind: "line", Label: measure + " by month", X: k, Of: first[Number], Wide: true})
-		t.Filters = append(t.Filters, k)
-		table.Label, table.Sort = "Latest rows", k
-	}
-	t.Blocks = append(t.Blocks, table)
-	return t, c
 }
 
 //go:embed samples/sales.xlsx
@@ -277,23 +239,12 @@ var Roster = &Template{
 	Sample:  rosterSample,
 }
 
-// Templates are the Templates a Practice Dashboard offers, in the order the Lab offers them.
-var Templates = []*Template{Finance, Inventory, HR, General}
+// Templates are the Templates a Dashboard may start from, in the order the Lab offers them.
+var Templates = []*Template{Finance, Inventory, HR, Sales, Roster, General}
 
-// workTemplates are the Templates a Work Dashboard offers: Practice's four with Sales and Roster.
-var workTemplates = []*Template{Finance, Inventory, HR, Sales, Roster, General}
-
-// TemplatesFor is the Templates a Work (work true) or Practice Dashboard offers.
-func TemplatesFor(work bool) []*Template {
-	if work {
-		return workTemplates
-	}
-	return Templates
-}
-
-// TemplateByKey finds a Template by its Key, Work-only ones included, or nil.
+// TemplateByKey finds a Template by its Key, or nil.
 func TemplateByKey(key string) *Template {
-	for _, t := range workTemplates {
+	for _, t := range Templates {
 		if t.Key == key {
 			return t
 		}
@@ -304,34 +255,7 @@ func TemplateByKey(key string) *Template {
 // Choices maps each filled blank's key to the column that fills it. A skipped optional blank is absent.
 type Choices map[string]string
 
-// Guess is Cave's pre-filled choice for each blank: an unused column of the blank's type whose name
-// matches one of its guesses, else, for a required blank, the first unused column of its type.
-func (t *Template) Guess(d *Dataset) Choices {
-	c, used := Choices{}, map[string]bool{}
-	pick := func(b Blank, match func(Column) bool) bool {
-		for _, col := range d.Columns {
-			if !used[col.Name] && col.Type == b.Type && match(col) {
-				c[b.Key], used[col.Name] = col.Name, true
-				return true
-			}
-		}
-		return false
-	}
-	for _, b := range t.Blanks {
-		named := false
-		for _, g := range b.Guess {
-			if named = pick(b, func(col Column) bool { return strings.EqualFold(col.Name, g) }); named {
-				break
-			}
-		}
-		if !named && b.Required {
-			pick(b, func(Column) bool { return true })
-		}
-	}
-	return c
-}
-
-// guessWork is a Work Dashboard's guess for each blank: an unused column of the blank's type whose name holds
+// guessWork is Cave's guess for each blank: an unused column of the blank's type whose name holds
 // one of the blank's Loose names (else Guess names), trying the names in order and, for each, a column of exactly
 // that name first; then, after Loose, a column named exactly as one of its Guess names. A column whose name holds
 // one of the blank's Not words is never guessed by part of its name. A blank no column name matches is left
@@ -371,32 +295,4 @@ func (t *Template) guessWork(d *Dataset) Choices {
 		}
 	}
 	return c
-}
-
-// blankType is the type of the first blank one of whose guesses is name.
-func (t *Template) blankType(name string) (Type, bool) {
-	for _, b := range t.Blanks {
-		if b.Named(name) {
-			return b.Type, true
-		}
-	}
-	return "", false
-}
-
-// Named reports whether col is one of the names Cave guesses for the blank.
-func (b Blank) Named(col string) bool {
-	for _, g := range b.Guess {
-		if strings.EqualFold(col, g) {
-			return true
-		}
-	}
-	return false
-}
-
-// SampleName is the blank's column name in the Sample: its first guess, capitalised.
-func (b Blank) SampleName() string {
-	if len(b.Guess) == 0 {
-		return b.Label
-	}
-	return strings.ToUpper(b.Guess[0][:1]) + b.Guess[0][1:]
 }

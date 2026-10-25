@@ -15,14 +15,19 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// createWork creates a Work Dashboard from a Template and returns its path.
+// createWork creates a Dashboard with template pre-chosen, as a Sample's Template is, and returns its path.
+// The New Dashboard form makes it on General; any other Template is set in the database.
 func (s *site) createWork(template, name string) string {
 	s.t.Helper()
-	res, body := s.post("/lab/dashboards", url.Values{"kind": {"work"}, "template": {template}, "name": {name}})
+	res, body := s.post("/lab/dashboards", url.Values{"name": {name}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	loc := res.Header.Get("Location")
-	if !dashboardPath.MatchString(loc) {
+	m := dashboardPath.FindStringSubmatch(loc)
+	if m == nil {
 		s.t.Fatalf("created Work Dashboard redirects to %q", loc)
+	}
+	if _, err := s.db.Exec(`UPDATE dashboards SET template = $2 WHERE id = $1`, m[1], template); err != nil {
+		s.t.Fatal(err)
 	}
 	return loc
 }
@@ -66,26 +71,26 @@ func (s *site) rowsOf(page string) string {
 
 var financeGuess = url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Kategori"}, "type": {"Jenis"}, "description": {"Perkara"}}
 
-func TestTheLabOffersBothKindsAndLabelsEachDashboard(t *testing.T) {
+// The Lab speaks of one kind of Dashboard (ADR 0015): no page names a kind, in either language.
+func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
 	_, ada := labLearner(t)
-	practice := ada.readyDashboard("Latihan")
-	res, body := ada.get("/lab")
-	for _, want := range []string{`href="/lab/new"`, `href="/lab/new?kind=work"`, "Practice Dashboard", "Work Dashboard"} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	work := ada.createWork("hr", "Staf")
-	_, body = ada.get("/lab")
-	for path, kind := range map[string]string{practice: "Practice", work: "Work"} {
-		row := body[strings.Index(body, `<a href="`+path+`">`):]
-		row = row[:strings.Index(row, "</li></ul>")]
-		if !strings.Contains(row, `<li>`+kind+`</li>`) {
-			t.Fatalf("%s is not labelled %s: %s", path, kind, row)
+	path := ada.readyDashboard("Kewangan")
+	ada.createWork("hr", "Staf")
+	for _, lang := range []string{"en", "ms"} {
+		ada.switchLanguage(lang, "/")
+		res, body := ada.get("/lab")
+		expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
+		for _, p := range []string{"/lab", "/lab/new", path, path + "/blocks", path + "/preview", path + "/hood", path + "/deploy"} {
+			res, body := ada.get(p)
+			expectStatus(t, res, body, http.StatusOK, `<html lang="`+lang+`">`)
+			low := strings.ToLower(body)
+			for _, gone := range []string{"kind=work", "practice dashboard", "work dashboard", "dashboard latihan", "dashboard kerja",
+				"<li>practice</li>", "<li>work</li>", "<li>latihan</li>", "<li>kerja</li>"} {
+				if strings.Contains(low, gone) {
+					t.Errorf("%s in %s still names a kind of Dashboard (%s)", p, lang, gone)
+				}
+			}
 		}
-	}
-
-	res, body = ada.get("/lab/new?kind=work")
-	for _, want := range []string{`name="kind" value="work"`, "Finance", "Inventory", "HR", "General"} {
-		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }
 
@@ -113,14 +118,10 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Baris 1 hingga 3 di atas tajuk lajur di baris 4 dilangkau.")
 	ada.switchLanguage("en", path)
 
-	res, body = ada.post(path+"/dataset/confirm", url.Values{"date": {""}, "amount": {"Jumlah"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose a column for Date.")
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, `value="general"`)
-
 	ada.confirmWork(path, financeGuess)
 	page := ada.rowsOf(path + "/view/")
 	_, index := ada.get(path + "/view/")
-	for _, want := range []string{`"work": true`, `"group": "Kategori"`, `"vals": [`} {
+	for _, want := range []string{`"group": "Kategori"`, `"vals": [`} {
 		if !strings.Contains(index, want) {
 			t.Fatalf("the Work Dashboard page lacks %s:\n%s", want, index)
 		}
@@ -404,11 +405,10 @@ func TestTheStorageAllowanceCountsConfirmedWorkDatasetsBySavedSize(t *testing.T)
 
 func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
-	practice := ada.createDashboard("finance", "Latihan")
-	res, body := ada.postFile(practice+"/dataset", "one.xlsx", bigFinance(t, 1))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	first := ada.createWork("finance", "Satu")
+	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
 	path := ada.createWork("finance", "Kedai")
-	res, body = ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
+	res, body := ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.post(path+"/dataset/confirm", financeGuess)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
@@ -452,27 +452,16 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	}
 }
 
-func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
+func TestTheSalesAndRosterTemplatesOpenAsTheirSamplesShow(t *testing.T) {
 	_, ada := labLearner(t)
-	res, body := ada.get("/lab/new?kind=work&t=roster")
-	for _, want := range []string{`href="/lab/new?kind=work&amp;t=sales"`, "<code>Kod</code>", `href="/lab/samples/roster.xlsx"`, `src="/lab/demo/roster/"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	_, body = ada.get("/lab/new")
-	if strings.Contains(body, "t=sales") || strings.Contains(body, "t=roster") {
-		t.Fatalf("New Practice Dashboard offers Sales or Roster:\n%s", body)
-	}
-	res, body = ada.post("/lab/dashboards", url.Values{"template": {"sales"}, "name": {"Jualan"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-
 	_, demo := ada.get("/lab/demo/roster/")
-	if !strings.Contains(demo, `"work": true`) || !strings.Contains(demo, `"by": "day"`) {
-		t.Fatalf("the Roster demo is not drawn as a Work Dashboard:\n%s", demo)
+	if !strings.Contains(demo, `"by": "day"`) {
+		t.Fatalf("the Roster demo is not drawn by day:\n%s", demo)
 	}
 
 	path := ada.createWork("sales", "Kafe")
 	_, sample := ada.get("/lab/samples/sales.xlsx")
-	res, body = ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
+	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "item": {"Produk"}, "category": {"Kategori"},
 		"staff": {"Staf"}, "payment": {"Kaedah bayaran"}, "quantity": {"Kuantiti"}})
@@ -481,5 +470,32 @@ func TestSalesAndRosterAreOfferedForWorkDashboardsOnly(t *testing.T) {
 		if !strings.Contains(index, want) {
 			t.Fatalf("the Sales Dashboard lacks %s:\n%s", want, index)
 		}
+	}
+}
+
+// stockFile is a stock list General reads by column roles: a unique SKU, a category, a unit price and a quantity.
+func stockFile(t *testing.T) []byte {
+	t.Helper()
+	var rows [][]any
+	for i := range 12 {
+		rows = append(rows, []any{fmt.Sprintf("SKU-%02d", i), []string{"Makanan", "Minuman", "Snek"}[i%3], float64(2 + i%4), float64(10 + i)})
+	}
+	return testutil.XLSX(t, []string{"SKU", "Kategori", "Unit Price", "Kuantiti"}, rows...)
+}
+
+func TestThePreviewSaysWhichColumnsGeneralLeavesOutOfChartsOrAverages(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("general", "Stor")
+	res, body := ada.postFile(path+"/dataset", "stok.xlsx", stockFile(t))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = ada.get(path)
+	for _, want := range []string{"How Cave reads your columns", "SKU: an ID or code, so it&#39;s only in the table.",
+		"Unit Price: a price, rate, balance or level, so it&#39;s averaged, not added up."} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	res, body = ada.getAsking(path, "ms")
+	for _, want := range []string{"Cara Cave membaca lajur anda", "SKU: ID atau kod, jadi ia hanya dalam jadual.",
+		"Unit Price: harga, kadar, baki atau paras, jadi puratanya diambil, bukan dijumlahkan."} {
+		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-var labKeys = []string{"finance", "inventory", "hr", "general"}
+var labKeys = []string{"finance", "inventory", "hr", "sales", "roster", "general"}
 
 // expectDemoPreviews checks the Lab page previews every Template on its Sample, and that each preview is served.
 func expectDemoPreviews(t *testing.T, s *site) {
@@ -56,44 +56,41 @@ func TestUnknownDemoIsNotFound(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "")
 }
 
-func TestTemplatePickerShowsBlanksAndSampleColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	res, body := ada.get("/lab/new?t=inventory")
-	for _, want := range []string{`href="/lab/samples/inventory.xlsx"`, "Reorder level", "Unit price", "<code>Nama Item</code>", "22 rows", `src="/lab/demo/hr/"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	res, body = ada.get("/lab/new?t=general")
-	expectStatus(t, res, body, http.StatusOK, "No blanks")
-}
-
-// buildFromSample creates a Dashboard from a Template, uploads its Sample and returns the Dashboard's path
-// and its Columns page.
-func buildFromSample(t *testing.T, s *site, key string) (path, columns string) {
+// buildFromSample creates a Dashboard on a Template, uploads its Sample and returns the Dashboard's path and the
+// upload's preview, which shows Cave's guesses for the blanks.
+func buildFromSample(t *testing.T, s *site, key string) (path, preview string) {
 	t.Helper()
-	path = s.createDashboard(key, "Mine")
+	path = s.createWork(key, "Mine")
 	res, sample := s.get("/lab/samples/" + key + ".xlsx")
 	expectStatus(t, res, sample, http.StatusOK, "")
 	res, body := s.postFile(path+"/dataset", key+".xlsx", []byte(sample))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, columns = s.get(path + "/columns")
-	expectStatus(t, res, columns, http.StatusOK, "")
-	return path, columns
+	res, preview = s.get(path)
+	expectStatus(t, res, preview, http.StatusOK, "")
+	return path, preview
 }
 
 func TestLearnerBuildsInventoryAndHRFromTheirSamplesWithGuesses(t *testing.T) {
 	_, ada := labLearner(t)
-	for key, want := range map[string]struct{ guesses, blocks []string }{
+	for key, want := range map[string]struct {
+		guesses []string
+		confirm url.Values
+		blocks  []string
+	}{
 		"inventory": {[]string{`<option value="Nama Item" selected>`, `<option value="Kuantiti" selected>`, `<option value="Paras Pesanan Semula" selected>`, `<option value="Harga Seunit" selected>`},
+			url.Values{"item": {"Nama Item"}, "quantity": {"Kuantiti"}, "reorder": {"Paras Pesanan Semula"}, "category": {"Kategori"}, "price": {"Harga Seunit"}},
 			[]string{"Total items", "Stock value", "Low stock", "Stock by category", "Running low"}},
 		"hr": {[]string{`<option value="Nama" selected>`, `<option value="Jabatan" selected>`, `<option value="Tarikh Mula" selected>`, `<option value="Jantina" selected>`},
+			url.Values{"name": {"Nama"}, "department": {"Jabatan"}, "joined": {"Tarikh Mula"}, "status": {"Status"}, "gender": {"Jantina"}},
 			[]string{"Headcount", "Active", "Headcount by department", "Joins per month", "Status split"}},
 	} {
-		path, columns := buildFromSample(t, ada, key)
+		path, preview := buildFromSample(t, ada, key)
 		for _, g := range want.guesses {
-			if !strings.Contains(columns, g) {
-				t.Errorf("%s Columns page lacks the guess %s", key, g)
+			if !strings.Contains(preview, g) {
+				t.Errorf("%s upload preview lacks the guess %s", key, g)
 			}
 		}
+		ada.confirmWork(path, want.confirm)
 		res, body := ada.get(path + "/view/")
 		for _, b := range want.blocks {
 			expectStatus(t, res, body, http.StatusOK, `"`+b+`"`)
@@ -104,9 +101,8 @@ func TestLearnerBuildsInventoryAndHRFromTheirSamplesWithGuesses(t *testing.T) {
 func TestSkippingUnitPriceHidesStockValueOnly(t *testing.T) {
 	_, ada := labLearner(t)
 	path, _ := buildFromSample(t, ada, "inventory")
-	res, body := ada.post(path+"/columns", url.Values{"item": {"Nama Item"}, "quantity": {"Kuantiti"}, "reorder": {"Paras Pesanan Semula"}, "category": {"Kategori"}, "price": {""}})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.get(path + "/view/")
+	ada.confirmWork(path, url.Values{"item": {"Nama Item"}, "quantity": {"Kuantiti"}, "reorder": {"Paras Pesanan Semula"}, "category": {"Kategori"}, "price": {""}})
+	res, body := ada.get(path + "/view/")
 	expectStatus(t, res, body, http.StatusOK, `"Low stock"`)
 	if strings.Contains(body, `"Stock value"`) {
 		t.Fatalf("Stock value shown without a Unit price column")
@@ -115,14 +111,13 @@ func TestSkippingUnitPriceHidesStockValueOnly(t *testing.T) {
 
 func TestGeneralNeedsNoColumnChoices(t *testing.T) {
 	_, ada := labLearner(t)
-	path, columns := buildFromSample(t, ada, "general")
-	for _, want := range []string{"General has no blanks", "<code>Cawangan</code>", "number"} {
-		if !strings.Contains(columns, want) {
-			t.Errorf("General Columns page lacks %q:\n%s", want, columns)
-		}
+	path, preview := buildFromSample(t, ada, "general")
+	if strings.Contains(preview, `class="field map-row"`) {
+		t.Errorf("General's upload preview asks for columns:\n%s", preview)
 	}
+	ada.confirmWork(path, nil)
 	res, body := ada.get(path + "/view/")
-	for _, want := range []string{`"Unit by Cawangan"`, `"Unit by month"`, `"Latest rows"`} {
+	for _, want := range []string{`"Jualan by Cawangan"`, `"Jualan by month"`, `"Latest rows"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }

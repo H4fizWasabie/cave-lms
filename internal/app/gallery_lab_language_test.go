@@ -4,10 +4,8 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
-	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
@@ -80,20 +78,18 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	_, body = ada.get("/lab")
 	expectLanguage(t, body, "ms", "Deployment aktif")
 	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
-	_, body = ada.get("/lab/new?t=finance")
-	expectLanguage(t, body, "ms", "Apa yang diperlukan oleh hamparan kerja anda")
-	expectAll(t, body, "Cipta Dashboard", `value="Dashboard Kewangan saya"`)
-	res, body := ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {""}})
+	_, body = ada.get("/lab/new")
+	expectLanguage(t, body, "ms", "Namakan Dashboard anda, kemudian muat naik fail Excel anda atau cuba Sampel.")
+	expectAll(t, body, "Cipta Dashboard")
+	res, body := ada.post("/lab/dashboards", url.Values{"name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan nama kepada Dashboard.")
 
-	path := ada.createDashboard("finance", "Kewangan")
+	path := ada.createWork("finance", "Kewangan")
 	_, body = ada.get(path)
 	expectLanguage(t, body, "ms", "Muat naik Set data anda")
 	res, body = ada.postFile(path+"/dataset", "notes.csv", []byte("a,b"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "notes.csv bukan fail .xlsx.")
-	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
-	_, body = ada.get(path + "/columns")
-	expectLanguage(t, body, "ms", "Lajur mana yang mengisi setiap ruang?")
+	ada.confirmFile(path, "finance-sample.xlsx", ada.financeSample())
 	_, body = ada.get(path + "/hood")
 	expectLanguage(t, body, "ms", "Hamparan kerja anda, sebagai data")
 	_, body = ada.get(path + "/deploy")
@@ -120,27 +116,14 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusForbidden, "Lab dikunci")
 }
 
-func TestTheLabsFileAndColumnErrorsAreInMalay(t *testing.T) {
+func TestTheLabsFileErrorsAreInMalay(t *testing.T) {
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
-	path := ada.createDashboard("finance", "Kewangan")
-	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
-
-	bad := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{day, "dua ratus"}, []any{"31/02/2026", 5}, []any{day, nil})
-	res, body := ada.postFile(path+"/dataset", "bad.xlsx", bad)
-	for _, want := range []string{"Baris 2, Jumlah: bukan nombor (&#34;dua ratus&#34;).", "Betulkan perkara ini dalam Excel, simpan, dan muat naik semula."} {
-		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
-	}
-	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Lajur Jumlah tiada. Templat Kewangan memerlukannya untuk Amount, iaitu lajur nombor.")
-	res, body = ada.postFile(path+"/dataset", "fake.xlsx", []byte("not a workbook"))
+	path := ada.createWork("finance", "Kewangan")
+	res, body := ada.postFile(path+"/dataset", "fake.xlsx", []byte("not a workbook"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja.")
-
-	ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
-	res, body = ada.post(path+"/columns", url.Values{})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Pilih lajur untuk Date.")
-	res, body = ada.post(path+"/columns", url.Values{"date": {"Jumlah"}, "amount": {"Jumlah"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Date memerlukan lajur tarikh, tetapi Jumlah mengandungi nombor.")
+	res, body = ada.postFile(path+"/dataset", "old.xls", []byte("old"))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ini fail Excel lama (Excel 97-2003, .xls).")
 }
 
 func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T) {
@@ -152,16 +135,14 @@ func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T)
 
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
-	_, body = ada.get("/lab/new?t=finance")
-	expectAll(t, body, "Templat Kewangan", "Hari setiap transaksi")
-	ada.createDashboard("finance", "Duit saya")
+	ada.createWork("finance", "Duit saya")
 	_, body = ada.get("/lab")
 	expectAll(t, body, "Templat Kewangan")
 	expectNone(t, body, "Templat Finance")
 }
 
 func TestEveryTemplateHasItsLabWordsInTheCatalogMatchingItsEnglish(t *testing.T) {
-	for _, tp := range lab.TemplatesFor(true) {
+	for _, tp := range lab.Templates {
 		words := map[string]string{"name": tp.Name, "blurb": tp.Blurb, "question": tp.Question}
 		for _, b := range tp.Blanks {
 			words[b.Key+".help"] = b.Help

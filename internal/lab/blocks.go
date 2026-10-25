@@ -9,7 +9,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// Config is a Work Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
+// Config is a Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
 // Dataset's columns rather than Template blanks. It is configuration Cave applies, never code (ADR 0013).
 type Config struct {
 	Blocks    []WorkBlock `json:"blocks"`
@@ -17,7 +17,7 @@ type Config struct {
 	Money     []string    `json:"money,omitempty"` // Number columns shown as RM
 }
 
-// WorkBlock is one block of a Work Dashboard, in the shape charts.js draws (spec #237).
+// WorkBlock is one block of a Dashboard, in the shape charts.js draws (spec #237).
 type WorkBlock struct {
 	Kind     string   `json:"kind"` // card, line, bar, heatmap, donut, table
 	Label    string   `json:"label"`
@@ -60,8 +60,8 @@ type Filter struct {
 	Vals []string `json:"vals"`
 }
 
-// Open copies the Template's blocks and filter bar for a Work Dashboard, each blank swapped for the column
-// chosen for it; blocks that need a skipped blank are left out, as in a Practice Dashboard. General builds
+// Open copies the Template's blocks and filter bar for a Dashboard, each blank swapped for the column
+// chosen for it; blocks that need a skipped blank are left out. General builds
 // its blocks from the Dataset. A choice naming a column d lacks, or holding another type, counts as skipped, so
 // Reset to Template fills the blanks from the current columns by name.
 func (t *Template) Open(c Choices, d *Dataset) *Config {
@@ -97,8 +97,8 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 			switch {
 			case b.Times != "":
 				w.Value = &Value{Agg: "calc", A: c[b.Of], Op: "x", B: c[b.Times], Then: "sum"}
-			case b.Agg == "distinct":
-				w.Value = &Value{Agg: "distinct", Col: c[b.Of]}
+			case b.Agg == "distinct" || b.Agg == "avg":
+				w.Value = &Value{Agg: b.Agg, Col: c[b.Of]}
 			case b.Of != "":
 				w.Value = &Value{Agg: "sum", Col: c[b.Of]}
 			default:
@@ -153,7 +153,7 @@ func (t *Template) included(c Choices) []Block {
 	return blocks
 }
 
-// MaxBlocks is the most blocks a Work Dashboard holds, and MaxCards the most of them that are cards (two rows).
+// MaxBlocks is the most blocks a Dashboard holds, and MaxCards the most of them that are cards (two rows).
 const (
 	MaxBlocks = 20
 	MaxCards  = 8
@@ -328,9 +328,10 @@ func (d *Dataset) first(t Type, skip ...string) string {
 // type, its default for d; options the kind does not use are cleared. A column the Dataset lacks, or one in
 // paused, is left as it is, so the block can say what it needs.
 func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
+	ps := profiles(d)
 	fit := func(col string, t Type) string {
 		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t && !slices.Contains(paused, col)) {
-			return d.first(t)
+			return best(ps, t)
 		}
 		return col
 	}
@@ -340,12 +341,10 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	if b.Kind == "table" {
 		b.Value, b.X, b.By, b.Split, b.Group, b.Top = nil, "", "", "", "", 0
 		if len(b.Cols) == 0 {
-			for _, c := range d.Columns[:min(3, len(d.Columns))] {
-				b.Cols = append(b.Cols, c.Name)
-			}
+			b.Cols = tableCols(d, ps)
 		}
 		if b.Sort == "" {
-			b.Sort = d.first(Date)
+			b.Sort = best(ps, Date)
 		}
 		if !slices.Contains(Limits, b.Limit) {
 			b.Limit = 10
@@ -355,6 +354,12 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	b.Cols, b.Sort, b.Limit = nil, "", 0
 	if b.Value == nil {
 		b.Value = &Value{Agg: "count"}
+		switch m := ranked(ps, Measure, Number); {
+		case mainMeasure(m) != "":
+			b.Value = &Value{Agg: "sum", Col: mainMeasure(m)}
+		case b.IsCard() && len(m) > 0: // as General, only a card averages
+			b.Value = &Value{Agg: "avg", Col: m[0].Name}
+		}
 	}
 	v := b.Value
 	switch v.Agg {
@@ -365,7 +370,7 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	case "calc":
 		v.Col, v.A = "", fit(v.A, Number)
 		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number && !slices.Contains(paused, v.B)) {
-			if v.B = d.first(Number, v.A); v.B == "" {
+			if v.B = best(ps, Number, v.A); v.B == "" {
 				v.B = v.A
 			}
 		}
@@ -398,8 +403,13 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		b.Wide = false
 	case "line":
 		b.X = fit(b.X, Date)
-		if b.By == "" {
+		if b.By == "" { // as General: by day over 62 days or less, else by month
 			b.By = "month"
+			if i := slices.IndexFunc(ps, func(p profile) bool { return p.Name == b.X }); i >= 0 {
+				if by, _ := lineBy(ps[i]); by != "" {
+					b.By = by
+				}
+			}
 		}
 	case "bar", "donut", "heatmap":
 		b.Group = fit(b.Group, Text)
@@ -408,8 +418,26 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		b.Split = ""
 	}
 	if b.Kind == "heatmap" && b.Split == "" { // a heatmap needs its columns across: another Text column
-		b.Split = d.first(Text, b.Group)
+		b.Split = best(ps, Text, b.Group)
 	}
+}
+
+// best is the name of the best-ranked column of type t other than skip, as General ranks them (ADR 0014): by its
+// role first, a dimension, measure or date, else the first of its type, so a block is never refused while the
+// Dataset has a column it can use; any type the first column. Empty if there is none.
+func best(ps []profile, t Type, skip ...string) string {
+	role := map[Type]Role{Text: Dimension, Number: Measure, Date: DateRole}[t]
+	for _, p := range ranked(ps, role, t) {
+		if !slices.Contains(skip, p.Name) {
+			return p.Name
+		}
+	}
+	for _, p := range ps {
+		if (t == "" || p.Type == t) && !slices.Contains(skip, p.Name) {
+			return p.Name
+		}
+	}
+	return ""
 }
 
 // Check refuses a block the editor cannot save on d: an option Cave does not offer, a label over 80
@@ -593,7 +621,7 @@ func (b *WorkBlock) Summary(lang string) string {
 	return strings.Join(parts, " · ")
 }
 
-// Use is one column a Work Dashboard's blocks name, with the type they need of it; empty when any type does.
+// Use is one column a Dashboard's blocks name, with the type they need of it; empty when any type does.
 type Use struct {
 	Name string
 	Type Type
@@ -622,7 +650,7 @@ func (b *WorkBlock) uses() []Use {
 	add := func(t Type, names ...string) {
 		for _, n := range names {
 			if n != "" {
-				out = append(out, Use{n, t})
+				out = append(out, Use{Name: n, Type: t})
 			}
 		}
 	}

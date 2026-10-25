@@ -43,36 +43,31 @@ func sizeText(b int64) string {
 	return strconv.FormatInt((b+1023)>>10, 10) + " KB"
 }
 
-// dashboard is one of a Learner's Dashboards. Dataset is nil until the first upload, or for a Work Dashboard
-// until its first confirm: Key, File and Size describe its current Dataset.
+// dashboard is one of a Learner's Dashboards. Dataset is nil until its first confirm: Key, File and Size describe
+// its current Dataset.
 type dashboard struct {
 	ID       int64
-	Work     bool // a Work Dashboard; else a Practice Dashboard
 	Template *lab.Template
 	Name     string
-	Theme    string // the key of the Theme it draws in
-	Choices  lab.Choices
-	Config   *lab.Config  // a Work Dashboard's blocks and filter bar; nil until its first confirm
-	Settings lab.Settings // what a Work Dashboard remembers for its next upload
+	Theme    string       // the key of the Theme it draws in
+	Choices  lab.Choices  // the column filling each of its Template's blanks, for Reset
+	Config   *lab.Config  // its blocks and filter bar; nil until its first confirm
+	Settings lab.Settings // what it remembers for its next upload
 	Dataset  *lab.Dataset
-	Key      string // where the Dataset is in the Dataset store; empty until the first upload
+	Key      string // where the Dataset is in the Dataset store; empty until the first confirm
 	File     string // the uploaded Dataset's file name
-	Size     int64  // the Dataset's size against the Storage allowance: the uploaded file's, or a Work Dataset's saved size
+	Size     int64  // the Dataset's saved size, against the Storage allowance
 	Updated  string // formatted as periodTime
 }
 
 // generate writes the Dashboard's index.html and data.json, its data fetched from dataURL.
 func (d *dashboard) generate(dataURL string) (index, data []byte, err error) {
-	if d.Work {
-		return lab.GenerateWork(d.Template, d.Name, d.Theme, d.Config, d.Dataset, dataURL)
-	}
-	return lab.Generate(d.Template, d.Name, d.Theme, d.Choices, d.Dataset, dataURL)
+	return lab.Generate(d.Template, d.Name, d.Theme, d.Config, d.Dataset, dataURL)
 }
 
 // dashboardRow is a Dashboard in the Lab list.
 type dashboardRow struct {
 	ID        int64
-	Work      bool
 	Name      string
 	Template  string
 	Updated   string
@@ -86,8 +81,8 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 	if err != nil {
 		return nil, err
 	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.kind = 'work', d.name, d.template, d.updated_at,
-			d.dataset_key IS NOT NULL OR EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current'),
+	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at,
+			EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current'),
 			dep.taken_down_at
 		FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id
 		WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
@@ -101,7 +96,7 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 		var key string
 		var updated time.Time
 		var takenDown sql.NullTime
-		if err := rows.Scan(&d.ID, &d.Work, &d.Name, &key, &updated, &d.HasData, &takenDown); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &key, &updated, &d.HasData, &takenDown); err != nil {
 			return nil, err
 		}
 		if takenDown.Valid {
@@ -141,12 +136,11 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	var key string
 	var choices, config, settings []byte
 	var updated time.Time
-	// A Work Dashboard's current Dataset is in datasets; a Practice Dashboard's is on its own row.
-	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.kind = 'work', d.template, d.name, d.theme, d.choices, d.config, d.upload_settings,
-			COALESCE(ds.storage_key, d.dataset_key, ''), COALESCE(ds.file_name, d.dataset_file), COALESCE(ds.saved_size, d.dataset_size), d.updated_at
+	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.template, d.name, d.theme, d.choices, d.config, d.upload_settings,
+			COALESCE(ds.storage_key, ''), COALESCE(ds.file_name, ''), COALESCE(ds.saved_size, 0), d.updated_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
 		LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'`, args...).
-		Scan(&d.ID, &d.Work, &key, &d.Name, &d.Theme, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated)
+		Scan(&d.ID, &key, &d.Name, &d.Theme, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -236,53 +230,33 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 	return acc, acc.Open()
 }
 
-// newDashboardPage is /lab/new: pick a Template, see its blanks, download its Sample, name the Dashboard.
+// newDashboardPage is /lab/new: name the Dashboard, then upload its Dataset or try a Sample. Cave builds the blocks
+// from the data and offers the Templates that fit it at the preview (ADR 0014).
 type newDashboardPage struct {
 	pageBase
-	Work      bool // making a Work Dashboard; else a Practice Dashboard
-	Templates []*lab.Template
-	Picked    string
-	Name      string
-	Sample    *lab.Dataset // the picked Template's Sample, as Cave reads it
-	Guess     lab.Choices  // Cave's guesses on that Sample
+	Name    string
+	Samples []*lab.Template // the Templates whose Sample the Learner may try
 }
 
-// offers reports whether this kind of Dashboard offers the Template with key: Sales and Roster are Work only.
-func (p *newDashboardPage) offers(key string) bool {
-	return slices.ContainsFunc(p.Templates, func(t *lab.Template) bool { return t.Key == key })
-}
-
-// renderNewDashboard shows /lab/new with the picked Template's Sample read, so the page can name its columns.
-func (a *App) renderNewDashboard(w http.ResponseWriter, r *http.Request, status int, p *newDashboardPage) {
-	t := lab.TemplateByKey(p.Picked)
-	var err error
-	if p.Work { // read and guessed as a Work Dashboard's upload is
-		var res *lab.CleanUp
-		if res, err = lab.Clean(bytes.NewReader(t.Sample), t, lab.Settings{}); err == nil {
-			p.Sample, p.Guess = res.Dataset, res.Guess
+func newDashboard(name string) *newDashboardPage {
+	p := &newDashboardPage{Name: name}
+	for _, t := range lab.Templates {
+		if t != lab.General {
+			p.Samples = append(p.Samples, t)
 		}
-	} else if p.Sample, err = lab.Read(bytes.NewReader(t.Sample), t); err == nil {
-		p.Guess = t.Guess(p.Sample)
 	}
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	a.render(w, r, status, "lab_new", p)
+	return p
 }
 
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	work := r.URL.Query().Get("kind") == "work"
-	p := &newDashboardPage{Templates: lab.TemplatesFor(work), Picked: r.URL.Query().Get("t"), Work: work}
-	if !p.offers(p.Picked) {
-		p.Picked = p.Templates[0].Key
-	}
-	a.renderNewDashboard(w, r, http.StatusOK, p)
+	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
 }
 
+// createDashboard makes a Dashboard with General's blocks to come (ADR 0015). With sample, a Template's key, the
+// Dashboard starts on that Template with its Sample, cleaned at start-up, as its pending Dataset.
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -292,17 +266,17 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	work := r.FormValue("kind") == "work"
-	p := &newDashboardPage{Templates: lab.TemplatesFor(work), Picked: r.FormValue("template"), Name: strings.TrimSpace(r.FormValue("name")),
-		Work: work}
-	switch {
-	case !p.offers(p.Picked):
-		p.Error, p.Picked = text.T(lang, "lab.err.template"), p.Templates[0].Key
-	default:
-		p.Error = dashboardNameError(lang, p.Name)
+	key := r.FormValue("sample")
+	t, sample := lab.General, a.samples[key]
+	if key != "" {
+		if t = lab.TemplateByKey(key); t == nil || t == lab.General || sample == nil {
+			a.notFound(w, r)
+			return
+		}
 	}
-	if p.Error != "" {
-		a.renderNewDashboard(w, r, http.StatusUnprocessableEntity, p)
+	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
+	if p.Error = dashboardNameError(lang, p.Name); p.Error != "" {
+		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
 		return
 	}
 	learner, err := a.currentLearner(r)
@@ -310,17 +284,19 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	var id string
-	kind := "practice"
-	if p.Work {
-		kind = "work"
-	}
-	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, $2, $3, $4)
-		RETURNING id`, learner.ID, kind, p.Picked, p.Name).Scan(&id); err != nil {
+	d := &dashboard{}
+	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', $2, $3)
+		RETURNING id`, learner.ID, t.Key, p.Name).Scan(&d.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/lab/dashboards/"+id, http.StatusSeeOther)
+	if t != lab.General {
+		if _, err := a.keepPending(r, d, sample, lab.Settings{}, t.Key+"-sample.xlsx"); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
 
 func dashboardNameError(lang, name string) string {
@@ -386,14 +362,11 @@ func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	if _, ok := a.labOpen(w, r); !ok {
 		return
 	}
-	var key string
-	if err := a.db.QueryRowContext(r.Context(), `DELETE FROM dashboards WHERE id = $1 RETURNING COALESCE(dataset_key, '')`,
-		d.ID).Scan(&key); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	a.dropDataset(r.Context(), r, key)
-	a.dropDeletedFiles(r.Context(), r) // a Work Dashboard's Datasets, queued as their records went
+	a.dropDeletedFiles(r.Context(), r) // its Datasets, queued as their records went
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
@@ -410,22 +383,24 @@ func (a *App) labSample(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(t.Sample)
 }
 
-// dashboardPage is the Dashboard page: tabs Dataset, Columns, Preview, Under the hood and Deploy,
+// dashboardPage is the Dashboard page: tabs Dataset, Blocks, Preview, Under the hood and Deploy,
 // plus Rename and Delete.
 type dashboardPage struct {
 	pageBase
 	Dashboard *dashboard
 	Tab       string
-	Problem   string // why an upload could not be read, or why a column has blank cells
-	Upload    string // the refused file's name
-	Failed    bool   // the store refused the upload's Dataset
-	Again     bool   // a re-upload did not fit the column choices, so Cave guessed them again
-	Blanks    []blankChoice
-	Pending   *pendingDataset // a Work Dashboard's upload waiting for its confirm
+	Problem   string          // why an upload could not be read
+	Upload    string          // the refused file's name
+	Failed    bool            // the store refused the upload's Dataset
+	Blanks    []blankChoice   // before the first confirm: the picked Template's blanks
+	Pending   *pendingDataset // an upload waiting for its confirm
 	Drops     []keptDataset   // the earlier Datasets confirming Pending deletes
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
-	Earlier   []keptDataset   // a Work Dashboard's earlier Datasets, newest first
+	Offers    []string        // before the first confirm: the keys of General and the Templates the pending Dataset fits
+	Picked    *lab.Template   // before the first confirm: the one of Offers the preview opens
+	Building  []string        // the labels of the blocks Picked opens to
+	Earlier   []keptDataset   // the earlier Datasets, newest first
 	Open      int             // Blocks tab: the block whose form is open; -1 for none
 	Saved     bool            // Blocks tab: an edit was just saved
 	Blocks    *blocksView     // Blocks tab
@@ -444,20 +419,18 @@ type dashboardPage struct {
 	Prefix     string      // a Deployment's link up to its name
 }
 
-// blankChoice is one blank on the Columns tab: the columns that may fill it and the current choice.
+// blankChoice is one blank of the first confirm's picked Template: the columns that may fill it and Cave's guess.
 type blankChoice struct {
 	lab.Blank
 	Options []string
 	Chosen  string
-	Guess   string
-	Renamed string // the Sample's column name, when Cave found no column by name and guessed by type
 }
 
 // blankChoices is each of the Template's blanks with the Dataset's columns that may fill it.
-func blankChoices(t *lab.Template, d *lab.Dataset, chosen, guess lab.Choices) []blankChoice {
+func blankChoices(t *lab.Template, d *lab.Dataset, chosen lab.Choices) []blankChoice {
 	var out []blankChoice
 	for _, b := range t.Blanks {
-		bc := blankChoice{Blank: b, Chosen: chosen[b.Key], Guess: guess[b.Key]}
+		bc := blankChoice{Blank: b, Chosen: chosen[b.Key]}
 		for _, c := range d.Columns {
 			if c.Type == b.Type {
 				bc.Options = append(bc.Options, c.Name)
@@ -468,6 +441,30 @@ func blankChoices(t *lab.Template, d *lab.Dataset, chosen, guess lab.Choices) []
 	return out
 }
 
+// pickOffer fills the first confirm's preview: General, the Dashboard's own Template and the Templates Clean-up
+// offered, with the one keyed want picked, else the Dashboard's own; then the picked one's blanks and blocks.
+func (p *dashboardPage) pickOffer(d *dashboard, want string) {
+	pd := p.Pending
+	p.Offers = []string{lab.General.Key}
+	for _, t := range lab.Templates {
+		if _, ok := pd.Offers[t.Key]; (ok || t == d.Template) && t != lab.General {
+			p.Offers = append(p.Offers, t.Key)
+		}
+	}
+	p.Picked = d.Template
+	if slices.Contains(p.Offers, want) {
+		p.Picked = lab.TemplateByKey(want)
+	}
+	guess := pd.Offers[p.Picked.Key]
+	if p.Picked == d.Template {
+		guess = pd.Guess
+	}
+	p.Blanks = blankChoices(p.Picked, pd.Dataset, guess)
+	for _, b := range p.Picked.Open(guess, pd.Dataset).Blocks {
+		p.Building = append(p.Building, b.Label)
+	}
+}
+
 func (a *App) dashboardTab(tab string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		acc, err := a.learnerAccess(r)
@@ -476,16 +473,11 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 			return
 		}
 		q := r.URL.Query()
-		// A Work Dashboard's blocks name columns themselves; a Practice Dashboard's blocks are its Template's.
-		if (d.Work && tab == "columns") || (!d.Work && tab == "blocks") {
-			a.notFound(w, r)
-			return
-		}
 		open, err := strconv.Atoi(q.Get("open"))
 		if err != nil {
 			open = -1
 		}
-		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"), Again: q.Has("again"),
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"),
 			Open: open, Saved: q.Has("saved")})
 	})
 }
@@ -493,14 +485,6 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
 	p.Title, p.ReadOnly, p.Themes = d.Name, !p.Access.Open(), lab.Themes
-	if p.Tab == "columns" && d.Dataset != nil {
-		p.Blanks = blankChoices(d.Template, d.Dataset, d.Choices, d.Template.Guess(d.Dataset))
-		for i, bc := range p.Blanks {
-			if bc.Guess != "" && !bc.Named(bc.Guess) {
-				p.Blanks[i].Renamed = bc.SampleName()
-			}
-		}
-	}
 	if p.Tab == "blocks" && d.Config != nil && d.Dataset != nil {
 		lang, err := a.language(r)
 		if err != nil {
@@ -509,15 +493,15 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		p.Blocks = newBlocksView(d, lang, p.Open, p.Saved)
 	}
-	if d.Work && p.Tab == "dataset" && p.Pending == nil && !p.ReadOnly {
+	if p.Tab == "dataset" && p.Pending == nil && !p.ReadOnly {
 		var err error
 		if p.Pending, err = a.pendingOf(r.Context(), d); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 	}
-	if p.Pending != nil && d.Config == nil { // the first confirm opens the Template with these choices
-		p.Blanks = blankChoices(d.Template, p.Pending.Dataset, p.Pending.Chosen, p.Pending.Guess)
+	if p.Pending != nil && d.Config == nil { // the first confirm opens the picked Template with these choices
+		p.pickOffer(d, r.URL.Query().Get("template"))
 	}
 	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
 		p.Uses = columnUses(d.Config, p.Pending.Dataset)
@@ -525,7 +509,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.AskHeader = p.Pending.HeaderRow
 		}
 	}
-	if d.Work && p.Tab == "dataset" && !p.ReadOnly {
+	if p.Tab == "dataset" && !p.ReadOnly {
 		var err error
 		if p.Pending != nil {
 			var room storageRoom
@@ -564,8 +548,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	a.render(w, r, status, "lab_dashboard", p)
 }
 
-// uploadDataset replaces the Dashboard's Dataset with an uploaded .xlsx. The column choices stay when
-// they still fit the new Dataset; otherwise Cave guesses again and sends the Learner to choose columns.
+// uploadDataset checks an uploaded .xlsx's name and size, then hands it to uploadWork to clean and keep pending.
 func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -595,6 +578,9 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	defer file.Close()
 	name = header.Filename
 	switch {
+	case strings.EqualFold(filepath.Ext(name), ".xls"):
+		refuse(text.T(lang, "lab.err.xls"))
+		return
 	case !strings.EqualFold(filepath.Ext(name), ".xlsx"):
 		refuse(text.T(lang, "lab.err.not-xlsx", name))
 		return
@@ -602,108 +588,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		refuse(tooBig)
 		return
 	}
-	if d.Work {
-		a.uploadWork(w, r, d, acc, file, name)
-		return
-	}
-	storageFull := func(used int64) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name,
-			pageBase: pageBase{Error: text.T(lang, "lab.err.storage-full", sizeText(header.Size), sizeText(used), sizeText(acc.Period.Storage()))}})
-	}
-	// A cheap check first, so an upload that cannot fit is refused without touching the store; replaceDataset's
-	// locked check stays the authority.
-	if p := acc.CountedPeriod(); p != nil && p.Used-d.Size+header.Size > p.Storage() {
-		storageFull(p.Used)
-		return
-	}
-	ds, err := lab.Read(file, d.Template)
-	var problem lab.Problem
-	if errors.As(err, &problem) {
-		refuse(problem.In(lang))
-		return
-	}
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	next := dashboardURL(d) + "/preview"
-	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, "", choices, ds, ""); errors.As(err, &problem) && problem.Key == "lab.err.empty-cell" {
-		refuse(problem.In(lang)) // blank cells in a column the Learner chose for a required blank
-		return
-	} else if err != nil {
-		choices, next = d.Template.Guess(ds), dashboardURL(d)+"/columns"
-		if d.Dataset != nil {
-			next += "?again"
-		}
-	}
-	dataset, err := json.Marshal(ds)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	choicesJSON, err := json.Marshal(choices)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	key, err := newDatasetKey()
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if err := a.datasets.Put(r.Context(), key, dataset); err != nil {
-		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
-		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
-		return
-	}
-	old, used, err := a.replaceDataset(r.Context(), d.ID, acc.CountedPeriod(), key, name, header.Size, choicesJSON)
-	if errors.Is(err, errStorageFull) {
-		a.dropDataset(r.Context(), r, key)
-		storageFull(used)
-		return
-	}
-	if err != nil {
-		a.dropDataset(r.Context(), r, key)
-		a.serverError(w, r, err)
-		return
-	}
-	a.dropDataset(r.Context(), r, old)
-	http.Redirect(w, r, next, http.StatusSeeOther)
-}
-
-// replaceDataset points the Dashboard at the Dataset stored under key and returns the key it replaces, if any.
-// The row lock makes two uploads take turns, so each sees the key the other wrote and none is left behind.
-// With a period, the Learner's Datasets, this one replaced, must fit its Storage allowance, or it answers
-// errStorageFull and used, the bytes their Datasets take now. Locking the Learner makes two uploads to different
-// Dashboards take turns too, so both cannot slip under. Without a period (the Admin) there is no allowance.
-func (a *App) replaceDataset(ctx context.Context, id int64, period *activePeriod, key, file string, size int64, choices []byte) (old string, used int64, err error) {
-	tx, err := a.db.BeginTx(ctx, nil)
-	if err != nil {
-		return "", 0, err
-	}
-	defer tx.Rollback()
-	if period != nil {
-		var own int64
-		if err := tx.QueryRowContext(ctx, `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, id).Scan(new(int)); err != nil {
-			return "", 0, err
-		}
-		if err := tx.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+`, this.dataset_size FROM dashboards this WHERE this.id = $1`,
-			id).Scan(&used, &own); err != nil {
-			return "", 0, err
-		}
-		if used-own+size > period.Storage() {
-			return "", used, errStorageFull
-		}
-	}
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(dataset_key, '') FROM dashboards WHERE id = $1 FOR UPDATE`, id).Scan(&old); err != nil {
-		return "", 0, err
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET dataset_key = $2, dataset_file = $3, dataset_size = $4, choices = $5,
-		updated_at = now() WHERE id = $1`, id, key, file, size, choices); err != nil {
-		return "", 0, err
-	}
-	return old, 0, tx.Commit()
+	a.uploadWork(w, r, d, acc, file, name)
 }
 
 // newDatasetKey is a new key in the Dataset store: a new one every upload, so a cached copy is never stale.
@@ -729,7 +614,7 @@ func (a *App) dropDataset(ctx context.Context, r *http.Request, key string) {
 // datasetKeepDays is how long a Learner's Datasets outlive their last Plan period.
 const datasetKeepDays = 90
 
-// pendingKeepHours is how long a Work Dashboard's unconfirmed Dataset waits for its Learner before the prune.
+// pendingKeepHours is how long a Dashboard's unconfirmed Dataset waits for its Learner before the prune.
 const pendingKeepHours = 24
 
 // lapsedSQL is an SQL condition, true for a Learner aliased l with no Plan period active, upcoming, or ended within
@@ -739,7 +624,7 @@ const lapsedSQL = `NOT l.is_admin AND NOT EXISTS (SELECT 1 FROM plan_periods pp
 
 // pruneDatasets deletes the Datasets of every Learner with no Plan period active, upcoming, or ended within
 // datasetKeepDays, from the store and the records, and returns how many it deleted. The Dashboards and their
-// Deployments stay, the Deployments asleep. The Admin's Datasets are never pruned. Work Datasets left pending
+// Deployments stay, the Deployments asleep. The Admin's Datasets are never pruned. Datasets left pending
 // past pendingKeepHours go too, the Admin's included.
 func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 	work, err := a.db.ExecContext(ctx, `DELETE FROM datasets ds USING dashboards d JOIN learners l ON l.id = d.learner_id
@@ -753,31 +638,7 @@ func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	a.dropDeletedFiles(ctx, nil)
-	rows, err := a.db.QueryContext(ctx, `WITH gone AS (
-		SELECT d.id, d.dataset_key FROM dashboards d JOIN learners l ON l.id = d.learner_id
-		WHERE d.dataset_key IS NOT NULL AND `+lapsedSQL+`
-		FOR UPDATE OF d)
-		UPDATE dashboards d SET dataset_key = NULL, dataset_file = '', dataset_size = 0 FROM gone WHERE d.id = gone.id
-		RETURNING gone.dataset_key`, datasetKeepDays)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-	var keys []string
-	for rows.Next() {
-		var key string
-		if err := rows.Scan(&key); err != nil {
-			return 0, err
-		}
-		keys = append(keys, key)
-	}
-	if err := rows.Err(); err != nil {
-		return 0, err
-	}
-	for _, key := range keys {
-		a.dropDataset(ctx, nil, key)
-	}
-	return len(keys) + int(deleted), nil
+	return int(deleted), nil
 }
 
 // copyDatasetsToStore is a one-off step at startup: it moves every Dataset still in the old dataset column into
@@ -826,54 +687,86 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 	return nil
 }
 
-// saveColumns stores the Learner's column choice for each blank; an empty value skips an optional blank.
-func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	acc, ok := a.labOpen(w, r)
-	if !ok {
-		return
+// convertPracticeDashboards is a one-off step at startup (ADR 0015): every Practice Dashboard becomes a normal one.
+// Its Template opens with its column choices onto its Dataset as its blocks, and the Dataset, already in the store
+// in the same format, becomes its current one under the same key, so nothing is copied or deleted and its
+// Deployment, drawn from the Dashboard on each visit, keeps its link and data. A converted Dashboard is not
+// Practice, so starting again changes nothing. Its Theme, Template and choices stay.
+// The migration that drops dashboards.kind removes this step.
+func convertPracticeDashboards(ctx context.Context, db *sql.DB, store storage.Store) error {
+	type row struct {
+		id             int64
+		template, file string
+		key            sql.NullString
+		choices        []byte
 	}
-	if d.Dataset == nil || d.Work {
-		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
-		return
-	}
-	c := lab.Choices{}
-	for _, b := range d.Template.Blanks {
-		if v := r.FormValue(b.Key); v != "" {
-			c[b.Key] = v
-		}
-	}
-	if _, _, err := lab.Generate(d.Template, d.Name, "", c, d.Dataset, ""); err != nil {
-		lang, langErr := a.language(r)
-		if langErr != nil {
-			a.serverError(w, r, langErr)
-			return
-		}
-		d.Choices = c
-		p := &dashboardPage{Dashboard: d, Tab: "columns", Access: acc}
-		var choice lab.Problem
-		switch {
-		case errors.As(err, &choice) && choice.Key == "lab.err.empty-cell":
-			p.Problem = choice.In(lang)
-		case errors.As(err, &choice):
-			p.Error = choice.In(lang)
-		default:
-			a.serverError(w, r, err)
-			return
-		}
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
-		return
-	}
-	choices, err := json.Marshal(c)
+	rows, err := db.QueryContext(ctx, `SELECT id, template, choices, dataset_key, dataset_file FROM dashboards WHERE kind = 'practice' ORDER BY id`)
 	if err != nil {
-		a.serverError(w, r, err)
-		return
+		return err
 	}
-	if _, err := a.db.ExecContext(r.Context(), `UPDATE dashboards SET choices = $2, updated_at = now() WHERE id = $1`,
-		d.ID, choices); err != nil {
-		a.serverError(w, r, err)
-		return
+	var todo []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.template, &r.choices, &r.key, &r.file); err != nil {
+			rows.Close()
+			return err
+		}
+		todo = append(todo, r)
 	}
-	http.Redirect(w, r, dashboardURL(d)+"/preview", http.StatusSeeOther)
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, r := range todo {
+		if err := convertPractice(ctx, db, store, r.id, r.template, r.choices, r.key, r.file); err != nil {
+			return fmt.Errorf("convert Practice Dashboard %d: %w", r.id, err)
+		}
+	}
+	return nil
+}
+
+// convertPractice converts one Practice Dashboard, as convertPracticeDashboards says, in one transaction.
+func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id int64, template string, choices []byte, key sql.NullString, file string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if !key.Valid { // never uploaded: its blocks come at its first confirm, as for any new Dashboard
+		if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET kind = 'work' WHERE id = $1 AND kind = 'practice'`, id); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	t := lab.TemplateByKey(template)
+	if t == nil {
+		return fmt.Errorf("unknown template %q", template)
+	}
+	var c lab.Choices
+	if err := json.Unmarshal(choices, &c); err != nil {
+		return err
+	}
+	data, err := store.Get(ctx, key.String)
+	if err != nil {
+		return fmt.Errorf("get Dataset %s: %w", key.String, err)
+	}
+	var ds lab.Dataset
+	if err := json.Unmarshal(data, &ds); err != nil {
+		return err
+	}
+	config, err := json.Marshal(t.Open(c, &ds))
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, confirmed_at)
+		VALUES ($1, $2, $3, $4, $5, 'current', now())`, id, key.String, file, len(data), len(ds.Rows)); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET kind = 'work', config = $2, dataset_key = NULL, dataset_file = '', dataset_size = 0
+		WHERE id = $1`, id, config); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.FormatInt(d.ID, 10) }
@@ -892,8 +785,8 @@ func (a *App) dashboardFile(name string) http.HandlerFunc {
 // cookie for data.json, so no sandbox.
 const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src data:; frame-ancestors 'self'"
 
-// demoFile serves a Template's demo, /lab/demo/{key}/: the Template drawn from its Sample with Cave's
-// guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.
+// demoFile serves a Template's demo, /lab/demo/{key}/: the Template opened on its Sample, cleaned at start-up,
+// with Cave's guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.
 func (a *App) demoFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		t := lab.TemplateByKey(r.PathValue("key"))
@@ -901,15 +794,8 @@ func (a *App) demoFile(name string) http.HandlerFunc {
 			a.notFound(w, r)
 			return
 		}
-		ds, err := lab.Read(bytes.NewReader(t.Sample), t)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		d := &dashboard{Template: t, Name: t.Name + " Template", Choices: t.Guess(ds), Dataset: ds}
-		if !slices.Contains(lab.Templates, t) { // a Work-only Template draws only as a Work Dashboard
-			d.Work, d.Config = true, t.Open(d.Choices, ds)
-		}
+		res := a.samples[t.Key]
+		d := &dashboard{Template: t, Name: t.Name + " Template", Config: t.Open(res.Guess, res.Dataset), Dataset: res.Dataset}
 		a.serveDashboardFile(w, r, d, name, previewCSP, "")
 	}
 }
@@ -1029,7 +915,7 @@ var hoodNotes = []struct{ marker, key string }{
 	{"", "lab.hood.head"},
 	{"<body>", "lab.hood.layout"},
 	{`  <script src="charts.js">`, "lab.hood.library"},
-	{"  <script>\n", "lab.hood.choices"},
+	{"  <script>\n", "lab.hood.blocks"},
 	{"    fetch(", "lab.hood.fetch"},
 }
 

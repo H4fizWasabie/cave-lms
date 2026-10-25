@@ -390,7 +390,7 @@ func (a *App) deleteSubmissionFile(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, assignmentPath(f.CourseID, f.AssignmentID), http.StatusSeeOther)
 }
 
-// dropDeletedFiles deletes from the store every Submission file and Work Dataset whose record is gone, and returns
+// dropDeletedFiles deletes from the store every Submission file and Dataset whose record is gone, and returns
 // how many. A file the store fails to delete stays queued for the next run.
 func (a *App) dropDeletedFiles(ctx context.Context, r *http.Request) int {
 	ctx = context.WithoutCancel(ctx)
