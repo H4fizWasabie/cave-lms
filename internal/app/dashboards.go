@@ -63,9 +63,9 @@ type dashboard struct {
 // generate writes the Dashboard's index.html and data.json, its data fetched from dataURL.
 func (d *dashboard) generate(dataURL string) (index, data []byte, err error) {
 	if d.Work {
-		return lab.GenerateWork(d.Template, d.Name, d.Config, d.Dataset, dataURL)
+		return lab.GenerateWork(d.Template, d.Name, "", d.Config, d.Dataset, dataURL)
 	}
-	return lab.Generate(d.Template, d.Name, d.Choices, d.Dataset, dataURL)
+	return lab.Generate(d.Template, d.Name, "", d.Choices, d.Dataset, dataURL)
 }
 
 // dashboardRow is a Dashboard in the Lab list.
@@ -599,7 +599,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	next := dashboardURL(d) + "/preview"
 	choices := d.Choices
-	if _, _, err := lab.Generate(d.Template, d.Name, choices, ds, ""); errors.As(err, &problem) && problem.Key == "lab.err.empty-cell" {
+	if _, _, err := lab.Generate(d.Template, d.Name, "", choices, ds, ""); errors.As(err, &problem) && problem.Key == "lab.err.empty-cell" {
 		refuse(problem.In(lang)) // blank cells in a column the Learner chose for a required blank
 		return
 	} else if err != nil {
@@ -813,7 +813,7 @@ func (a *App) saveColumns(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			c[b.Key] = v
 		}
 	}
-	if _, _, err := lab.Generate(d.Template, d.Name, c, d.Dataset, ""); err != nil {
+	if _, _, err := lab.Generate(d.Template, d.Name, "", c, d.Dataset, ""); err != nil {
 		lang, langErr := a.language(r)
 		if langErr != nil {
 			a.serverError(w, r, langErr)
