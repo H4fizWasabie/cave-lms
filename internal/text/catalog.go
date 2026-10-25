@@ -243,6 +243,7 @@ var catalog = map[string]entry{
 	"bank.delete-ask":               {en: "Delete “%s” from the Question bank? Exam copies of it stay. This cannot be undone.", ms: "Padam “%s” daripada Bank Soalan? Salinannya dalam Peperiksaan kekal. Tindakan ini tidak boleh dibuat asal."},
 	"adm.delete-ask":                {en: "Delete “%s”? This cannot be undone.", ms: "Padam “%s”? Tindakan ini tidak boleh dibuat asal."},
 	"orgs.delete":                   {en: "Delete Organisation", ms: "Padam Organisasi"},
+	"programmes.delete":             {en: "Delete Programme", ms: "Padam Program"},
 	// ---- Premium refresh: confirmation pages (QA): end ----
 
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----

@@ -297,6 +297,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/programmes", a.admin(a.createProgramme))
 	mux.HandleFunc("GET /admin/programmes/{id}/edit", a.admin(a.editProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes/{id}", a.admin(a.updateProgramme))
+	mux.HandleFunc("GET /admin/programmes/{id}/delete", a.admin(a.confirmDeleteProgramme))
 	mux.HandleFunc("POST /admin/programmes/{id}/delete", a.admin(a.deleteProgramme))
 	mux.HandleFunc("GET /admin/organisations", a.admin(a.adminOrganisations))
 	mux.HandleFunc("GET /admin/organisations/new", a.admin(a.newOrganisationForm))

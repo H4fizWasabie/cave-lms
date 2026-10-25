@@ -202,10 +202,19 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 	http.Redirect(w, r, "/admin/programmes", http.StatusSeeOther)
 }
 
-// deleteProgramme removes the row, then its picture. A picture left behind is logged, not shown to the Admin.
+// confirmDeleteProgramme asks the Admin to confirm deleting a Programme.
+func (a *App) confirmDeleteProgramme(w http.ResponseWriter, r *http.Request) {
+	if p, ok := a.programmeFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Side: "programmes", Heading: "programmes.delete", Question: "adm.delete-ask",
+			Cancel: "/admin/programmes/" + r.PathValue("id") + "/edit", Action: r.URL.Path}, p.Title)
+	}
+}
+
+// deleteProgramme removes the row, then its picture, once its confirmation page is posted. A picture left behind is
+// logged, not shown to the Admin.
 func (a *App) deleteProgramme(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.programmeFor(w, r)
-	if !ok {
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM programmes WHERE id = $1`, p.ID); err != nil {
