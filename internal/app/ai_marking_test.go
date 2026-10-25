@@ -113,6 +113,51 @@ func TestAFailedMarkIsRetriedEveryFiveMinutesAndStillUnmarkedAnHourPastReleaseWr
 	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 70%")
 }
 
+func TestAnAnswerWhoseMarkComesBackInTheWrongShapeThreeRunsIsLeftForTheAdmin(t *testing.T) {
+	s := newSite(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
+	id := s.writtenCourse("50", "Explain :=")
+	s.switchLanguage("en", "/") // saved on Ada's account
+	bad := testutil.FakeMark{Marking: aiwriter.Marking{Mark: 99, Reason: "Out of range."}}
+	attempt, qids := s.sitWritten(id, "My own words")
+	asked := func(want int) {
+		t.Helper()
+		if n := len(s.ai.MarkRequests()); n != want {
+			t.Fatalf("the AI writer was asked to mark %d times, want %d", n, want)
+		}
+	}
+	retry := func() {
+		s.ageMarkingTry(attempt, 5*60+1)
+		s.runReleaseJob()
+	}
+
+	s.ai.ReplyMarks(bad, bad)
+	s.releaseResults()
+	asked(2)
+	s.ai.FailMarks(aiwriter.ErrUnavailable) // an outage is no wrong shape, so it does not count
+	retry()
+	asked(3)
+	s.ai.FailMarks(nil)
+	for _, want := range []int{5, 7} {
+		s.ai.ReplyMarks(bad, bad)
+		retry()
+		asked(want)
+	}
+	retry() // the third wrong shape was the last: the fake would now give FakeMarking, but is not asked
+	retry()
+	asked(7)
+	s.ageSubmit(strings.TrimSuffix(attempt, "?format=written"), 70*60+1) // the Result was due an hour ago
+	s.runReleaseJob()
+	asked(7)
+	admin := s.adminSite()
+	if _, body := admin.get("/admin/log"); strings.Count(body, markingLate) != 1 {
+		t.Fatalf("the System log does not say once that the attempt is still unmarked: %s", body)
+	}
+
+	admin.saveMarks(attempt, map[string]string{qids[0]: "6"})
+	s.runReleaseJob()
+	expectEmail(t, s.lastEmailTo("ada@example.com"), "Your Written Exam Result for Go Basics", "Score: 60%")
+}
+
 func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=", "Explain go vet")
