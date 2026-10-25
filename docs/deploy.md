@@ -259,7 +259,7 @@ A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) wi
 
 ## Backups
 
-Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bin/cave-lms-backup` (`deploy/backup.sh`). It dumps the `cave` database with `pg_dump` and backs up the dump plus `/var/lib/cave-lms/uploads` with [restic](https://restic.net) to two encrypted repositories:
+Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bin/cave-lms-backup` (`deploy/backup.sh`). It dumps the `cave` database with `pg_dump`, mirrors the Datasets bucket `cave-lms-datasets` (ADR 0008, Datasets and Assignment Submission files) into `/var/backups/cave-lms/datasets` with `rclone sync` using the app's R2 settings in `/etc/cave-lms/env`, and backs up the dump, `/var/lib/cave-lms/uploads` and that mirror with [restic](https://restic.net) to two encrypted repositories:
 
 | Where | Repository |
 |---|---|
@@ -267,6 +267,8 @@ Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bi
 | Cloudflare R2 | bucket `cave-lms-backups` (survives losing the VPS) |
 
 Each keeps the last 7 days, 4 weeks and 6 months, and is checked after every run. If the VPS was off at 03:00, the backup runs at boot.
+
+Each snapshot therefore holds the database rows and the Dataset objects from the same moment. A Learner's Delete still removes the object from R2 at once, and it leaves the backups with the last snapshot that holds it: within 6 months, as the privacy notice promises. Backup copies do not count against the Storage allowance. A Dataset created and deleted between two nightly runs is never backed up. The mirror is a full copy on the VPS disk (112 GB free in October 2026); once the bucket passes about 50 GB, switch to a bucket-to-bucket copy or a soft delete in the app.
 
 | File on the VPS | Holds |
 |---|---|
@@ -306,7 +308,35 @@ createdb cave && pg_restore --no-owner --dbname=cave /tmp/cave-restore/var/backu
 
 Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot restored the Admin account and all 10 Gallery items with their files, and the app served them.
 
+The Datasets are at `/tmp/cave-restore/var/backups/cave-lms/datasets`; copy them back with `rclone copy` (below).
+
 Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database.
+
+### Restoring one deleted Dashboard's Datasets
+
+On the VPS, from the local repository (use the R2 one if the VPS repository is gone). Pick the last snapshot taken before the delete:
+
+```sh
+set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
+repo=/var/backups/cave-lms/restic
+restic -r $repo snapshots
+# the database rows: restore that snapshot's dump into a scratch database and read the Dashboard's Dataset keys
+restic -r $repo restore <snapshot> --include /var/backups/cave-lms/staging/cave.dump --target /tmp/r
+runuser -u postgres -- createdb cave_restore
+runuser -u postgres -- pg_restore --no-owner --dbname=cave_restore /tmp/r/var/backups/cave-lms/staging/cave.dump
+# the objects: one --include per key
+restic -r $repo restore <snapshot> --include /var/backups/cave-lms/datasets/<key> --target /tmp/r
+# put them back in the Datasets bucket with the app's R2 settings
+(set -a; . /etc/cave-lms/env; set +a
+ export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true \
+   RCLONE_CONFIG_R2_ENDPOINT="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
+   RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+ rclone copy /tmp/r/var/backups/cave-lms/datasets "r2:$R2_BUCKET")
+```
+
+Then copy the Dashboard's rows from `cave_restore` into `cave` by hand with SQL, and drop `cave_restore` and `/tmp/r`.
+
+Tested 2026-10-25 on the VPS with a scratch restic repository: a Dataset object mirrored, backed up, deleted locally and restored came back byte-identical to the live object. The final `rclone copy` into the bucket was not run, to leave production data untouched.
 
 ## Data requests
 

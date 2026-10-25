@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Nightly backup of Cave LMS: a dump of the cave database plus the uploads directory, written with restic
+# Nightly backup of Cave LMS: a dump of the cave database, the uploads directory and a mirror of the R2
+# Datasets bucket, written with restic
 # to a repository on the VPS and to one in Cloudflare R2. Installed to /usr/local/bin/cave-lms-backup by
 # deploy/deploy.sh and run by cave-lms-backup.timer. See docs/deploy.md, Backups.
 set -euo pipefail
@@ -17,9 +18,22 @@ install -d -m 700 /var/backups/cave-lms "$staging"
 runuser -u postgres -- pg_dump --format=custom cave > "$staging/cave.dump.tmp"
 mv "$staging/cave.dump.tmp" "$staging/cave.dump"
 
+# Mirror the Datasets bucket (ADR 0008) with the app's own R2 settings, so each snapshot holds the
+# objects that match its dump. Only new objects are downloaded; deleted ones leave the mirror and stay
+# in older snapshots until those are forgotten.
+# ponytail: a full mirror on the VPS disk; past ~50 GB move to a bucket-to-bucket copy or soft delete.
+datasets=/var/backups/cave-lms/datasets
+(
+	set -a; . /etc/cave-lms/env; set +a
+	export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true \
+		RCLONE_CONFIG_R2_ENDPOINT="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
+		RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+	rclone sync --quiet "r2:$R2_BUCKET" "$datasets"
+)
+
 for repo in "$local_repo" "$r2_repo"; do
 	restic -r "$repo" cat config >/dev/null 2>&1 || restic -r "$repo" init
-	restic -r "$repo" backup --quiet --tag nightly "$staging/cave.dump" /var/lib/cave-lms/uploads
+	restic -r "$repo" backup --quiet --tag nightly "$staging/cave.dump" /var/lib/cave-lms/uploads "$datasets"
 	restic -r "$repo" forget --quiet --tag nightly --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
 	restic -r "$repo" check --quiet
 done
