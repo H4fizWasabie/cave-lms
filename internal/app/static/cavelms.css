@@ -88,8 +88,11 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 main { flex: 1; }
 img, svg { display: block; max-width: 100%; }
-h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; letter-spacing: -0.01em; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
 p { margin: 0; text-wrap: pretty; }
+/* Admin-written titles can hold one long unbroken word (Pentadbiran_Kewangan_Kerajaan_Negeri): break it rather than
+   push the page sideways. Headings above; these lines repeat a title under one. */
+.adm-head p, .confirm p { overflow-wrap: anywhere; }
 a { color: inherit; text-underline-offset: .2em; }
 button, input, select, textarea { font: inherit; color: inherit; }
 .i { width: 1.15em; height: 1.15em; flex-shrink: 0; }
@@ -1800,6 +1803,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* What the refresh added to shared components, taken back off on the Lab. */
 .lab-page .btn { min-height: auto; }
 .lab-page .badge { line-height: inherit; }
+.lab-page h1, .lab-page h2, .lab-page h3 { overflow-wrap: normal; }
 .lab-page .offer .btn-solid { background: var(--brand-gold); color: var(--brand-ink); border-color: var(--brand-gold); } /* main's Buy button was .btn-gold */
 .lab-page .offer .btn-solid:hover { background: #ddb763; }
 .lab-page select, .lab-page input[type=text], .lab-page input[type=email], .lab-page input[type=password], .lab-page input[type=url], .lab-page input[type=number], .lab-page input[type=search], .lab-page input[type=date], .lab-page textarea { padding: .6rem .78rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: #fff; font-size: .96rem; line-height: 1.55; width: 100%; }
