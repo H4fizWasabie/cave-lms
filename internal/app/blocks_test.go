@@ -225,6 +225,28 @@ func TestACardShowsTheIconPickedInTheEditor(t *testing.T) {
 	}
 }
 
+func TestABarTurnsVertical(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.get(path + "/blocks?open=5")
+	expectStatus(t, res, body, http.StatusOK, `name="direction" value="horizontal" checked`)
+	ada.editBlocks(path, barForm(url.Values{"direction": {"vertical"}, "split": {"Jenis"}}))
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[5].Dir != "vertical" || blocks[5].Split != "Jenis" {
+		t.Fatalf("the vertical bar is %+v", blocks[5])
+	}
+	res, body = ada.post(path+"/blocks", barForm(url.Values{"direction": {"diagonal"}}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	ada.editBlocks(path, barForm(url.Values{"direction": {"horizontal"}}))
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[5].Dir != "" {
+		t.Fatalf("a horizontal bar stores direction %q", blocks[5].Dir)
+	}
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=5")
+	for _, want := range []string{">Arah<", ">Mendatar<", ">Menegak<"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
+
 func TestBlocksMoveAmongTheirOwnSortAndGo(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
