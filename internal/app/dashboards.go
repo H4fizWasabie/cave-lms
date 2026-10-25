@@ -595,6 +595,9 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	defer file.Close()
 	name = header.Filename
 	switch {
+	case strings.EqualFold(filepath.Ext(name), ".xls"):
+		refuse(text.T(lang, "lab.err.xls"))
+		return
 	case !strings.EqualFold(filepath.Ext(name), ".xlsx"):
 		refuse(text.T(lang, "lab.err.not-xlsx", name))
 		return

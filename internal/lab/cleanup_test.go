@@ -333,6 +333,21 @@ func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 	}
 }
 
+// An old Excel file renamed .xlsx is told to save it as .xlsx, not that it is no workbook.
+func TestCleanUpOfAnOldXLSFileSaysSaveItAsXLSX(t *testing.T) {
+	ole := append([]byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}, make([]byte, 504)...)
+	_, err := lab.Clean(bytes.NewReader(ole), finance(t), lab.Settings{})
+	var p lab.Problem
+	if !errors.As(err, &p) || p.Key != "lab.err.xls" {
+		t.Fatalf("err = %v, want lab.err.xls", err)
+	}
+	for _, want := range []string{"Excel Workbook (.xlsx)", "Excel 97-2003"} {
+		if !strings.Contains(p.In("en"), want) || !strings.Contains(p.In("ms"), want) {
+			t.Fatalf("%q / %q, want %q", p.In("en"), p.In("ms"), want)
+		}
+	}
+}
+
 // A file Clean-up cannot read gives the likely cause, the row in Excel and, with several sheets, the sheet: the
 // one most like a table, not a cover sheet before it.
 func TestCleanUpSaysWhyAFileCannotBeReadAndWhere(t *testing.T) {

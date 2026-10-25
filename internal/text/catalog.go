@@ -780,6 +780,10 @@ var catalog = map[string]entry{
 		en: "%s is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
 		ms: "%s bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
 	},
+	"lab.err.xls": {
+		en: "This is an old Excel file (Excel 97-2003, .xls). The Lab reads .xlsx files only. Open it in Excel, choose File, Save As, Excel Workbook (.xlsx) and upload that.",
+		ms: "Ini fail Excel lama (Excel 97-2003, .xls). Lab membaca fail .xlsx sahaja. Buka fail ini dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
+	},
 	"lab.err.not-workbook": {
 		en: "This is not an .xlsx file. The Lab reads Excel workbooks only. A CSV file stores everything as plain text, so dates and RM amounts can change on the way. In Excel choose File, Save As, Excel Workbook (.xlsx) and upload that.",
 		ms: "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja. Fail CSV menyimpan semuanya sebagai teks biasa, jadi tarikh dan jumlah RM boleh berubah di sepanjang jalan. Dalam Excel, pilih File, Save As, Excel Workbook (.xlsx) dan muat naik fail itu.",
