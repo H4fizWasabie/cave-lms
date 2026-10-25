@@ -1,10 +1,10 @@
 {{define "title"}}{{t .Lang "members-only.title"}} · CAVELMS{{end}}
 {{define "content"}}
-    <div class="wrap auth-page">
-      <div class="auth-box">
-        <span class="auth-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg></span>
+    <div class="wrap notice-page">
+      <div class="notice">
+        <span class="notice-icon"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg></span>
         <h1>{{t .Lang "members-only.title"}}</h1>
-        <p class="auth-sub">{{.Message}}</p>
+        <p class="notice-msg">{{.Message}}</p>
         {{with .Course}}
           {{if .Open}}
           <form method="post" action="/courses/{{.ID}}/join"><button class="btn btn-solid">{{t $.Lang "course.join"}}</button></form>

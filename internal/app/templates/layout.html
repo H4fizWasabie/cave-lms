@@ -190,7 +190,7 @@ description, dates, Lesson count, Exam and the Certificate it leads to. Pass (ca
             {{if .Live}}<ul class="meta"><li>{{t .Lang "course.dates" (.StartOn .Lang) (.EndOn .Lang)}}</li></ul>
             {{else}}{{with .StartOn .Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}{{end}}
             <ul class="catalogue-flags">
-              <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span class="num">{{tn .Lang "courses.card.lessons" .LessonCount}}</span></li>
+              {{if .LessonCount}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span class="num">{{tn .Lang "courses.card.lessons" .LessonCount}}</span></li>{{end}}
               {{if .HasExam}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>{{t .Lang "courses.card.exam"}}</li>{{end}}
               {{if .Live}}<li><img class="catalogue-badge" src="{{static .Badge}}" alt="" width="113" height="160">{{t .Lang "course.pcc-level" .Level}}</li>
               {{else if .HasExam}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{t .Lang "courses.card.certificate"}}</li>{{end}}
@@ -243,7 +243,7 @@ Visitors see the cards without buttons. */}}
           </ul>
           {{- if $.Learner}}
           {{- if .PaymentLink}}
-          <a class="btn btn-gold" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
           {{- else}}
           <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang (print "offers.contact-" (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
           {{- end}}

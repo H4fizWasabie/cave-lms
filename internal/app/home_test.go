@@ -49,8 +49,9 @@ func TestTheHomePageShowsThePCCPathwayAndTheLatestCourseCards(t *testing.T) {
 	expectInOrder(t, main, "pcc-basic.jpg", "Basic", "1 day", "pcc-foundation.jpg", "Foundation", "2 days",
 		"pcc-practitioner.jpg", "Practitioner", "3 days", "pcc-professional.jpg", "Professional", "4 or 5 days")
 	expectAll(t, courseCard(t, main, "Go Basics"), `href="/courses/`)
-	expectNoHeadingSkip(t, main)
+	expectHeadingsInOrder(t, "/ en", body)
 	_, body = s.getAsking("/", "ms")
+	expectHeadingsInOrder(t, "/ ms", body)
 	expectInOrder(t, content(body), "Laluan pensijilan PCC", "1 hari", "4 atau 5 hari", "Kursus terkini")
 }
 

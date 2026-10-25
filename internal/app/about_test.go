@@ -11,18 +11,18 @@ func TestTheAboutPageGivesTheClientsCompanyBackgroundInBothLanguages(t *testing.
 	expectStatus(t, res, body, http.StatusOK, "")
 	expectLanguage(t, body, "en", "Lifelong Learning for")
 	page := content(body)
-	expectInOrder(t, page, "HRD Corp Training Provider", "<h1>Lifelong Learning for <em>Efficiency",
+	expectInOrder(t, page, "<h1>Lifelong Learning for <em>Efficiency",
 		"HRD Corp Registered Training Provider", "Registered with the Ministry of Finance",
-		"About us", "registered as an HRD Corp Training Provider and with the Ministry of Finance Malaysia (MOF)",
+		"A Malaysian professional training and consultancy company", "registered as an HRD Corp Training Provider and with the Ministry of Finance Malaysia (MOF)",
 		"Coach Adam Daniel", "Strategic Intelligence Architect", `href="/#coach"`,
 		"including CAVELMS", `href="https://www.thecaveconsult.com/company-profile/"`)
 	expectNone(t, page, "Dinor", "ISDeT", "UTM CAIRO")
 
 	_, body = s.getAsking("/about", "ms")
 	expectLanguage(t, body, "ms", "Pembelajaran Sepanjang Hayat")
-	expectInOrder(t, content(body), "Penyedia Latihan HRD Corp", "<h1>Pembelajaran Sepanjang Hayat untuk <em>Kecekapan",
+	expectInOrder(t, content(body), "<h1>Pembelajaran Sepanjang Hayat untuk <em>Kecekapan",
 		"Penyedia Latihan Berdaftar HRD Corp", "Berdaftar dengan Kementerian Kewangan",
-		"Tentang kami", "berdaftar sebagai Penyedia Latihan HRD Corp dan dengan Kementerian Kewangan Malaysia (MOF)",
+		"Syarikat latihan dan perundingan profesional Malaysia", "berdaftar sebagai Penyedia Latihan HRD Corp dan dengan Kementerian Kewangan Malaysia (MOF)",
 		"Coach Adam Daniel", "Jurulatih NLP Bertauliah", "Pembelajaran Sepanjang Hayat untuk Kecekapan")
 }
 

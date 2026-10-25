@@ -126,28 +126,13 @@ func TestDeletingACourseRemovesItsPicture(t *testing.T) {
 	}
 }
 
-var headingTag = regexp.MustCompile(`<h([1-6])[ >]`)
-
-// expectNoHeadingSkip fails when a heading in body is more than one level below the heading before it (h1 then h3).
-func expectNoHeadingSkip(t *testing.T, body string) {
-	t.Helper()
-	prev := 0
-	for _, m := range headingTag.FindAllStringSubmatch(body, -1) {
-		level := int(m[1][0] - '0')
-		if level > prev+1 {
-			t.Fatalf("an h%d follows an h%d; body:\n%s", level, prev, body)
-		}
-		prev = level
-	}
-}
-
 func TestTheCourseListHasNoHeadingSkip(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.courseWithContent()
 	s.logOut()
 	_, body := s.get("/courses")
-	expectNoHeadingSkip(t, content(body))
+	expectHeadingsInOrder(t, "/courses", body)
 }
 
 // courseCard is the card of the Course titled title on the page body, or fails the test.
@@ -171,6 +156,8 @@ func TestACourseCardShowsItsLessonCountExamAndCertificate(t *testing.T) {
 	copyID := s.copiedCourseID(id, "Go for Acme", "2027-02-01", "2027-02-03", "2")
 	s.post("/admin/courses/"+copyID+"/publish", nil)
 	s.createCourse("Reading List", "Books to read.", "")
+	workshopID := s.copiedCourseID(s.courseIDByTitle("Reading List"), "Acme Workshop", "2027-03-01", "2027-03-03", "3")
+	s.post("/admin/courses/"+workshopID+"/publish", nil)
 
 	s.logOut()
 	_, body := s.get("/courses")
@@ -180,6 +167,9 @@ func TestACourseCardShowsItsLessonCountExamAndCertificate(t *testing.T) {
 	live := courseCard(t, body, "Go for Acme")
 	expectInOrder(t, live, "2 Lessons", "Exam", "/static/pcc-foundation", "PCC Level: Foundation")
 	empty := courseCard(t, body, "Reading List")
-	expectInOrder(t, empty, "0 Lessons")
-	expectNone(t, empty, "Exam", "Certificate", "PCC")
+	expectNone(t, empty, "Lesson", "Exam", "Certificate", "PCC")
+	// A Live Course run on dates with no Lessons shows its dates and Level, not "0 Lessons".
+	workshop := courseCard(t, body, "Acme Workshop")
+	expectInOrder(t, workshop, "PCC Level:")
+	expectNone(t, workshop, "Lesson")
 }
