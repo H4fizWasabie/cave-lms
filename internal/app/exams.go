@@ -109,6 +109,15 @@ func (e exam) Drafts() int {
 	return n
 }
 
+// DrawsFewer is how many questions an attempt really asks when fewer are published than the draw count, else 0.
+func (e exam) DrawsFewer() int {
+	n, _ := strconv.Atoi(e.DrawCount)
+	if published := len(e.Questions) - e.Drafts(); published > 0 && published < n {
+		return published
+	}
+	return 0
+}
+
 // cardPath is the address of question id's card on the Exam's Admin page, or of the question list when id is 0.
 func (e exam) cardPath(id int64) string {
 	if id == 0 {

@@ -367,6 +367,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .callout { display: flex; gap: var(--space-4); background: var(--brand-gold-soft); padding: var(--space-4) var(--space-4); border-radius: var(--radius); margin: var(--space-5) 0; font-size: var(--fs-ui); }
 .callout .i { width: 1.6rem; height: 1.6rem; color: var(--brand-gold-deep); }
 .callout p { margin: 0; }
+.form > .callout { margin: 0; } /* in a form the grid gap spaces it */
 
 .lesson-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--line); flex-wrap: wrap; }
 .btn-done { border-color: var(--line-strong); background: var(--surface); margin-left: auto; }

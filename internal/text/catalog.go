@@ -418,6 +418,7 @@ var catalog = map[string]entry{
 	"adm.exam.max-attempts":      {en: "Maximum attempts", ms: "Percubaan maksimum"},
 	"adm.exam.draw-is":           {en: "Questions per attempt: %s", ms: "Soalan setiap percubaan: %s"},
 	"adm.exam.draw-count":        {en: "Questions per attempt", ms: "Soalan setiap percubaan"},
+	"adm.exam.draws-fewer":       {en: "Only %d questions are published, so each attempt asks those %d, not %s.", ms: "Hanya %d soalan diterbitkan, jadi setiap percubaan bertanya %d soalan itu, bukan %s."},
 	"adm.exam.save":              {en: "Save Exam", ms: "Simpan Peperiksaan"},
 	"adm.exam.questions":         {en: "Questions", ms: "Soalan"},
 	"adm.exam.add":               {en: "Add question", ms: "Tambah soalan"},
