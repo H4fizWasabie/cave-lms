@@ -66,8 +66,8 @@ var catalog = map[string]entry{
 		ms: "Semuanya datang daripada anda, semasa anda mendaftar dan menggunakan laman ini. Nama, alamat e-mel dan kata laluan diperlukan untuk mendaftar; tanpanya kami tidak dapat memberi anda akaun.",
 	},
 	"privacy.collect.account": {
-		en: "Your account: your name, email address, password (kept only as a one-way hash, never as you typed it) and whether you have verified your email. We use them to log you in, to put your name on your Certificates, and to send you the verification and password reset emails.",
-		ms: "Akaun anda: nama, alamat e-mel, kata laluan (disimpan sebagai hash sehala sahaja, bukan seperti yang anda taip) dan sama ada anda telah mengesahkan e-mel anda. Kami menggunakannya untuk membolehkan anda log masuk, meletakkan nama anda pada Sijil anda, dan menghantar e-mel pengesahan dan set semula kata laluan kepada anda.",
+		en: "Your account: your name, email address, password (kept only as a one-way hash, never as you typed it) and whether you have verified your email. We use them to log you in, to put your name on your Certificates, to send you the verification and password reset emails, and to tell you if someone tries to register with your email.",
+		ms: "Akaun anda: nama, alamat e-mel, kata laluan (disimpan sebagai hash sehala sahaja, bukan seperti yang anda taip) dan sama ada anda telah mengesahkan e-mel anda. Kami menggunakannya untuk membolehkan anda log masuk, meletakkan nama anda pada Sijil anda, menghantar e-mel pengesahan dan set semula kata laluan kepada anda, dan memberitahu anda jika seseorang cuba mendaftar dengan e-mel anda.",
 	},
 	"privacy.collect.sessions": {
 		en: "Your logins: a cookie in your browser and a matching record on the server keep you logged in until you log out or the login expires.",
@@ -1528,7 +1528,6 @@ var catalog = map[string]entry{
 	"account.err.email":          {en: "Enter a valid email address.", ms: "Masukkan alamat e-mel yang sah."},
 	"account.err.password-short": {en: "Use a password of at least 8 characters.", ms: "Gunakan kata laluan sekurang-kurangnya 8 aksara."},
 	"account.err.password-long":  {en: "Use a password of at most 72 characters.", ms: "Gunakan kata laluan paling banyak 72 aksara."},
-	"register.err.taken":         {en: "This email is already registered. Log in instead.", ms: "E-mel ini sudah didaftarkan. Sila log masuk."},
 	"register.sent": {
 		en: "We sent a verification link to %s. Open it within 24 hours to confirm your account.",
 		ms: "Kami telah menghantar pautan pengesahan ke %s. Buka pautan itu dalam masa 24 jam untuk mengesahkan akaun anda.",
@@ -1575,6 +1574,12 @@ var catalog = map[string]entry{
 	"email.reset.body": {
 		en: "Hi,\n\nOpen this link within an hour to choose a new password:\n\n%[1]s\n\nIf you didn't ask for this, you can ignore this email.\n",
 		ms: "Hai,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[1]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
+	},
+	"email.used.subject": {en: "Someone tried to register with your CAVELMS email", ms: "Seseorang cuba mendaftar dengan e-mel CAVELMS anda"},
+	// The login link, then the reset link.
+	"email.used.body": {
+		en: "Hi,\n\nSomeone tried to register a new CAVELMS account with this email, which already has one. No new account was made.\n\nIf it was you, log in here:\n\n%[1]s\n\nForgot your password? Reset it here:\n\n%[2]s\n\nIf it wasn't you, you can ignore this email.\n",
+		ms: "Hai,\n\nSeseorang cuba mendaftar akaun CAVELMS baharu dengan e-mel ini, yang sudah mempunyai akaun. Tiada akaun baharu dibuat.\n\nJika itu anda, log masuk di sini:\n\n%[1]s\n\nLupa kata laluan? Set semula di sini:\n\n%[2]s\n\nJika itu bukan anda, abaikan sahaja e-mel ini.\n",
 	},
 	// The Course title and the Exam's format name, then for the body the Learner's name, the Course title, the mark,
 	// pass or fail, the link and the Exam's format name

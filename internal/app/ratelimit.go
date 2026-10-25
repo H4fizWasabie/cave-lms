@@ -30,7 +30,8 @@ const (
 	// anyone who knows an email can keep its logins refused, an hour at a time; password reset is not limited by it.
 	loginFailuresPerEmail = 50
 	loginEmailWindow      = time.Hour
-	// verificationsPerAddress caps the verification emails to one address, over sign-ups and resends from anywhere.
+	// verificationsPerAddress caps the verification emails and used-email notices to one address together, over sign-ups and
+	// resends from anywhere.
 	// ponytail: in memory like every count here, so a restart resets it.
 	verificationsPerAddress = 3
 	verificationWindow      = 24 * time.Hour

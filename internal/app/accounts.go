@@ -16,7 +16,6 @@ import (
 
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
-	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -100,20 +99,17 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var id int64
 	err = tx.QueryRowContext(r.Context(),
-		`INSERT INTO learners (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id`,
+		`INSERT INTO learners (name, email, password_hash) VALUES ($1, $2, $3) ON CONFLICT ((lower(email))) DO NOTHING RETURNING id`,
 		name, email, string(hash)).Scan(&id)
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		form.Error = text.T(lang, "register.err.taken")
-		a.render(w, r, http.StatusConflict, "register", form)
-		return
+	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// The email already has an account: answer as for a new one and email its owner, so the page tells nobody.
+		err = a.mailOwnerOfUsedEmail(r, tx, email)
+	case err == nil:
+		err = a.sendVerification(r.Context(), tx, lang, id, email)
 	}
 	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	// Commit only once the email is sent, so a failed send leaves no half-made account.
-	if err := a.sendVerification(r.Context(), tx, lang, id, email); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -139,9 +135,38 @@ func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, lea
 	return a.mailVerification(ctx, lang, email, token)
 }
 
-// verificationAllowed counts a verification email to email and reports whether it is within verificationsPerAddress in
-// verificationWindow. Past that, callers neither send nor replace the link, and answer as if they had, so the requester
-// learns nothing and the link already sent keeps working.
+// mailOwnerOfUsedEmail answers a registration with email, which already has an account: an unverified account gets a new
+// verification link, a verified one a notice that someone tried to register with its address.
+func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) error {
+	var (
+		id        int64
+		to, saved string
+		verified  bool
+	)
+	if err := tx.QueryRowContext(r.Context(),
+		`SELECT id, email, coalesce(language, ''), verified_at IS NOT NULL FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &to, &saved, &verified); err != nil {
+		return fmt.Errorf("look up account for used email: %w", err)
+	}
+	lang, err := a.recipientLanguage(r, saved)
+	if err != nil {
+		return err
+	}
+	if !verified {
+		return a.sendVerification(r.Context(), tx, lang, id, to)
+	}
+	if !a.verificationAllowed(to) {
+		return nil
+	}
+	return a.mailer.Send(r.Context(), mailer.Message{
+		To:      to,
+		Subject: text.T(lang, "email.used.subject"),
+		Body:    text.T(lang, "email.used.body", a.publicBaseURL+"/login", a.publicBaseURL+"/forgot-password"),
+	})
+}
+
+// verificationAllowed counts an email to email, a verification or a used-email notice, and reports whether it is within
+// verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the link, and answer as if
+// they had, so the requester learns nothing and the link already sent keeps working.
 func (a *App) verificationAllowed(email string) bool {
 	return a.limiter.allow("verification email "+strings.ToLower(email), verificationsPerAddress, verificationWindow, a.now())
 }
@@ -202,6 +227,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, langErr)
 		return
 	}
+	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		a.render(w, r, http.StatusBadRequest, "message", page{

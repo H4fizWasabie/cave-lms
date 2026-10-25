@@ -195,15 +195,64 @@ func TestRegisterVerifyLogInAndOut(t *testing.T) {
 	}
 }
 
-func TestRegisterRejectsDuplicateEmail(t *testing.T) {
+func TestRegisteringAUsedEmailAnswersAsANewOneAndTellsItsOwner(t *testing.T) {
 	s := newSite(t)
-	res, body := s.register("Ada", "ada@example.com", "password one")
-	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	s.register("Ada", "ada@example.com", "password one")
+	res, body := s.get(s.lastVerifyPath("ada@example.com"))
+	expectStatus(t, res, body, http.StatusOK, "Email verified")
+	_, fresh := s.register("Bob", "bob@example.com", "password three")
 
 	res, body = s.register("Someone Else", "Ada@Example.com", "password two")
-	expectStatus(t, res, body, http.StatusConflict, "This email is already registered")
-	if n := len(s.mail.Messages()); n != 1 {
-		t.Fatalf("sent %d emails, want 1", n)
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	if want := strings.ReplaceAll(fresh, "bob@example.com", "Ada@Example.com"); body != want {
+		t.Fatalf("a used email answered differently from a new one:\n%s\nvs\n%s", body, want)
+	}
+	var n int
+	if err := s.db.QueryRowContext(context.Background(), `SELECT count(*) FROM learners WHERE lower(email) = 'ada@example.com'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("%d accounts for the email, want 1", n)
+	}
+	m := s.lastEmailTo("ada@example.com")
+	expectEmail(t, m, "Someone tried to register with your CAVELMS email", "https://cave.example.invalid/forgot-password")
+	if !strings.Contains(m.Body, "https://cave.example.invalid/login") || strings.Contains(m.Body, "Someone Else") {
+		t.Fatalf("notice should link to log in and reset, without the typed name: %s", m.Body)
+	}
+	res, body = s.login("ada@example.com", "password one")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
+
+func TestRegisteringAnUnverifiedEmailAgainResendsItsVerification(t *testing.T) {
+	s := newSite(t)
+	s.register("Ada", "ada@example.com", "password one")
+	first := s.lastVerifyPath("ada@example.com")
+
+	res, body := s.register("Someone Else", "ada@example.com", "password two")
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	if n := len(s.mail.Messages()); n != 2 {
+		t.Fatalf("sent %d emails, want 2 verifications", n)
+	}
+	second := s.lastVerifyPath("ada@example.com")
+	if second == first {
+		t.Fatal("registering again reused the first link")
+	}
+	res, body = s.get(second)
+	expectStatus(t, res, body, http.StatusOK, "Email verified")
+	res, body = s.login("ada@example.com", "password one")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
+
+func TestEmailsFromRegisteringAUsedAddressStopAfterThreeADay(t *testing.T) {
+	s := newSite(t)
+	s.register("Ada", "ada@example.com", "password one")
+	s.get(s.lastVerifyPath("ada@example.com"))
+	for range 3 {
+		res, body := s.register("Someone Else", "ada@example.com", "password two")
+		expectStatus(t, res, body, http.StatusOK, "Check your email")
+	}
+	if n := len(s.mail.Messages()); n != 3 {
+		t.Fatalf("sent %d emails to one address, want 3 (a verification and two notices)", n)
 	}
 }
 
