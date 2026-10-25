@@ -121,6 +121,40 @@ func TestGeneralAveragesPricesAndBalancesAndAddsAPriceTimesQuantityCard(t *testi
 	}
 }
 
+// salesList is a list of sales: a date, an item sold again and again, a payment method and the price of each sale.
+func salesList(n int) (header []string, rows [][]any) {
+	header = []string{"Tarikh", "Item", "Bayaran", "Price"}
+	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	for i := range n {
+		rows = append(rows, []any{day.AddDate(0, 0, i%28).Format("02/01/2006"), []string{"Vaksin", "Grooming", "Ubat"}[i%3],
+			[]string{"Tunai", "Kad"}[i%2], float64(30 + i%4*10)})
+	}
+	return header, rows
+}
+
+func TestGeneralAddsUpThePriceOfEachSaleOnAListOfSales(t *testing.T) {
+	h, rows := salesList(30)
+	cfg := general(t, h, rows...)
+	if got := valueOf(cfg, "Price"); got == nil || *got != (lab.Value{Agg: "sum", Col: "Price"}) {
+		t.Errorf("Price card = %+v, want the sum of Price; blocks %+v", got, cfg.Blocks)
+	}
+	if got := valueOf(cfg, "Average Price"); got != nil {
+		t.Errorf("a list of sales averages Price: %+v", got)
+	}
+}
+
+func TestGeneralStillAveragesThePriceOnAPriceListWithADate(t *testing.T) {
+	var rows [][]any
+	for i := range 30 {
+		rows = append(rows, []any{fmt.Sprintf("%02d/09/2026", 1+i%2), fmt.Sprintf("Item %d", i), float64(10 + i),
+			[]string{"Checked by the store keeper on the morning shift.", "Price agreed with the supplier for the whole year."}[i%2]})
+	}
+	cfg := general(t, []string{"Tarikh Kemaskini", "Product", "Price", "Remarks"}, rows...)
+	if got := valueOf(cfg, "Average Price"); got == nil {
+		t.Errorf("a price list adds up Price; blocks %+v", cfg.Blocks)
+	}
+}
+
 func TestGeneralChartsARosterWithNoNumbersByRowCounts(t *testing.T) {
 	var rows [][]any
 	for i := range 24 {

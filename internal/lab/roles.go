@@ -49,9 +49,11 @@ var (
 	avgWords = []string{"price", "harga", "cost", "kos", "rate", "kadar", "percent", "percentage", "peratus", "balance", "baki",
 		"stock", "stok", "age", "umur", "score", "skor", "markah", "average", "avg", "purata"}
 	// sumWords keep a column added up though it names a price or stock: a total cost, stock in, a stock value.
-	sumWords  = []string{"total", "jumlah", "amount", "amaun", "value", "nilai", "in", "out", "masuk", "keluar", "sold", "jual", "received", "issued", "purchase", "belian"}
-	yearWords = []string{"year", "tahun", "yr"}
-	dateWords = []string{"tarikh", "date", "created"}
+	sumWords = []string{"total", "jumlah", "amount", "amaun", "value", "nilai", "in", "out", "masuk", "keluar", "sold", "jual", "received", "issued", "purchase", "belian"}
+	// priceWords name a price, which a list of sales adds up: each row's price is what that sale took.
+	priceWords = []string{"price", "harga", "cost", "kos"}
+	yearWords  = []string{"year", "tahun", "yr"}
+	dateWords  = []string{"tarikh", "date", "created"}
 )
 
 // mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for,
@@ -171,7 +173,34 @@ func profiles(d *Dataset) []profile {
 		}
 		out[ci] = p
 	}
+	addUpSalePrices(d, out)
 	return out
+}
+
+// addUpSalePrices stops averaging the prices on a list of sales: rows with a date and a grouping (an item, a payment
+// method, a staff name) whose values come again, where each row's price is what that sale took. A price beside a
+// quantity stays averaged, being per unit; the price times quantity card adds it up. ponytail: a dated list with
+// any repeating grouping counts as sales; a price list that repeats a category on every update would be summed too,
+// so look at whether the items themselves repeat if one turns up.
+func addUpSalePrices(d *Dataset, ps []profile) {
+	dated := slices.ContainsFunc(ps, func(p profile) bool { return p.Role == DateRole })
+	grouped := slices.ContainsFunc(ps, func(p profile) bool { return p.Role == Dimension && p.Name != sheetColumn })
+	if q, _ := priceAndQuantity(d, ps); !dated || !grouped || q != "" {
+		return
+	}
+	for i, p := range ps {
+		if p.Avg && averagedForPriceOnly(words(p.Name)) {
+			ps[i].Avg, ps[i].note = false, ""
+		}
+	}
+}
+
+// averagedForPriceOnly reports whether a column named by ws is averaged only for naming a price, not a rate,
+// balance, level, age or score as well.
+func averagedForPriceOnly(ws []string) bool {
+	return anyWord(ws, priceWords) && !slices.ContainsFunc(avgWords, func(w string) bool {
+		return !slices.Contains(priceWords, w) && slices.Contains(ws, w)
+	})
 }
 
 // Note is why a column is left out of charts or averaged, as a text catalog key and the column's name, so the
@@ -207,7 +236,7 @@ func ranked(ps []profile, r Role, t Type) []profile {
 	}
 	band := func(p profile) int {
 		switch {
-		case p.Name == "Sheet":
+		case p.Name == sheetColumn:
 			return 0
 		case p.Values >= 3 && p.Values <= 15:
 			return 1
