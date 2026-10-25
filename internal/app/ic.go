@@ -130,6 +130,21 @@ func (a *App) examICStep(w http.ResponseWriter, r *http.Request) (*learner, cour
 	if !ok {
 		return nil, course{}, exam{}, false
 	}
+	// Only a Learner who could start the Exam reaches the step: anyone else goes back to the Course, saving nothing.
+	st, err := a.examStatusFor(r.Context(), learner, c, e)
+	if err != nil {
+		a.serverError(w, r, err)
+		return nil, course{}, exam{}, false
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return nil, course{}, exam{}, false
+	}
+	if st.Blocker(lang) != "" {
+		http.Redirect(w, r, "/courses/"+strconv.FormatInt(c.ID, 10), http.StatusSeeOther)
+		return nil, course{}, exam{}, false
+	}
 	ic, err := a.learnerIC(r.Context(), learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)

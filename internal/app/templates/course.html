@@ -41,7 +41,7 @@
             <p class="cp-complete{{if eq .Kind "upcoming"}} step-upcoming{{end}}" id="next-step">{{.Label $.Lang}}</p>
             {{- end}}{{end}}
             {{- if .NeedsIC}}
-            <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t .Lang "course.needs-ic"}} <a class="link-more" href="/my-profile">{{t .Lang "my-profile.title"}}</a></p></div>
+            <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{if .PassedNoIC}}{{t .Lang "course.needs-ic.passed"}}{{else}}{{t .Lang "course.needs-ic"}}{{end}} <a class="link-more" href="/my-profile">{{t .Lang "my-profile.title"}}</a></p></div>
             {{- end}}
             {{- else if .Course.Joinable}}
             <form method="post" action="/courses/{{.Course.ID}}/join"><button class="btn btn-solid btn-lg btn-block">{{t .Lang "course.join"}}</button></form>

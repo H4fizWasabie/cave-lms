@@ -117,6 +117,7 @@ type page struct {
 	Certificates  []certificate
 	Certificate   *certificate // the one a verification page shows
 	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
+	PassedNoIC    bool         // NeedsIC, and the Learner already passed the Course's Exam: only the Certificate waits
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
 	Next          string         // where the login page goes after logging in
