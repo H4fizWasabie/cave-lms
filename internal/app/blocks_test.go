@@ -259,6 +259,9 @@ func TestTheEditorAddsAHeatmapAcrossTwoTextColumns(t *testing.T) {
 	for _, want := range []string{"Rows down", "Columns across", `name="split"`, `name="top" value="8" checked`, "Past the 10 largest columns", `name="fcol"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
+	if strings.Contains(body, `name="direction"`) {
+		t.Error("a heatmap offers a Direction, which only a bar has")
+	}
 	if strings.Contains(body, `<option value="" selected>None</option>`) {
 		t.Errorf("a heatmap offers no column across:\n%s", body)
 	}

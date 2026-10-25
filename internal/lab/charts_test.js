@@ -100,6 +100,8 @@ var wide = 'ABCDEFGHIJKL'.split('').reduce(function (a, k, i) { for (var n = 0; 
 var h = C.heat({ value: { agg: 'count' }, group: 'R', split: 'S' }, wide, { R: { type: 'text' }, S: { type: 'text' } });
 eq(h.cols, 'ABCDEFGHIJ'.split('').concat(['Other']), 'heatmap columns past 10 fold into Other');
 eq(h.rows, ['y', 'x'], 'heatmap rows');
+var h11 = C.heat({ value: { agg: 'count' }, group: 'R', split: 'S' }, wide.filter(function (r) { return r.S !== 'L'; }), { R: { type: 'text' }, S: { type: 'text' } });
+eq(h11.cols, 'ABCDEFGHIJ'.split('').concat(['Other']), 'heatmap folds an eleventh column too');
 eq([h.cells[0][10], h.cells[1][10]], [2, 1], 'heatmap Other cells');
 
 // Donut: a Work donut folds everything past the top 6 into one Other slice; a Practice donut, past the top 5, as before.

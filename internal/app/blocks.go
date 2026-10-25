@@ -191,8 +191,10 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			top.Options = append(top.Options, o)
 		}
 		row.Radios = append(row.Radios, top)
-		row.Radios = append(row.Radios, buttons(lang, "direction", "lab.b.direction", cmp.Or(b.Dir, "horizontal"),
-			"horizontal", "lab.b.horizontal", "vertical", "lab.b.vertical"))
+		if b.Kind == "bar" {
+			row.Radios = append(row.Radios, buttons(lang, "direction", "lab.b.direction", cmp.Or(b.Dir, "horizontal"),
+				"horizontal", "lab.b.horizontal", "vertical", "lab.b.vertical"))
+		}
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
 		for _, c := range ds.Columns {

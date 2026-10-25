@@ -58,7 +58,7 @@
     '.dtable th{text-align:left;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.45rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}',
     '.dtable td{padding:.5rem .6rem;border-bottom:1px solid var(--soft);white-space:nowrap}',
     '.dtable .num{text-align:right;font-variant-numeric:tabular-nums}',
-    '.dheat{overflow-x:auto}.dheat table{border-collapse:separate;border-spacing:3px;font-size:.84rem;margin:-3px}',
+    '.dheat{overflow-x:auto;overflow-y:hidden}.dheat table{border-collapse:separate;border-spacing:3px;font-size:.84rem;margin:-3px}',
     '.dheat th{font-weight:600;color:var(--muted);padding:.2rem .5rem;white-space:nowrap;max-width:9rem;overflow:hidden;text-overflow:ellipsis}.dheat thead th{font-size:.76rem;text-align:center}.dheat tbody th{text-align:left}',
     '.dheat td{min-width:3.4rem;padding:.45rem .5rem;text-align:center;border-radius:4px;background:var(--track);box-shadow:inset 0 0 0 1px var(--soft);font-variant-numeric:tabular-nums;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
     '.dnone{color:var(--muted);font-size:.88rem;padding:1rem 0;text-align:center}',
@@ -274,7 +274,7 @@
     var g = groups(b.value, scope(b, rows, cols), b.group);
     if (b.top) g = g.slice(0, b.top);
     var keys = groups(b.value, [].concat.apply([], g.map(function (x) { return x[2]; })), b.split).map(function (x) { return x[0]; });
-    var fold = keys.length > 11, across = fold ? keys.slice(0, 10).concat(['Other']) : keys;
+    var fold = keys.length > 10, across = fold ? keys.slice(0, 10).concat(['Other']) : keys;
     return { rows: g.map(function (x) { return x[0]; }), cols: across, cells: g.map(function (x) {
       var at = across.map(function () { return []; });
       x[2].forEach(function (r) { var i = keys.indexOf(String(blank(r[b.split]))); at[fold ? Math.min(i, 10) : i].push(r); });
