@@ -610,3 +610,21 @@ func TestCleanUpRefusesMoreThan50000CombinedRowsAnd100Columns(t *testing.T) {
 		t.Fatalf("problem = %q, want %q", got, want)
 	}
 }
+
+func TestCleanUpOffersOnlyTheTemplatesWhoseRequiredColumnsItFoundByName(t *testing.T) {
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jumlah"}, []any{day, "Beras", "Dapur", 12.5})
+	res := clean(t, file, lab.General)
+	if got, want := res.Offers, (map[string]lab.Choices{
+		"finance": {"date": "Tarikh", "amount": "Jumlah", "category": "Kategori", "description": "Perkara"},
+		"sales":   {"date": "Tarikh", "amount": "Jumlah", "category": "Kategori"},
+	}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("offers = %v, want %v", got, want)
+	}
+
+	// Without a name to go by, no Template is offered: a date and a number alone do not make Finance.
+	file = testutil.XLSX(t, []string{"Bila", "Siapa", "Berapa"}, []any{day, "Ali", 12.5})
+	if got := clean(t, file, lab.General).Offers; len(got) != 0 {
+		t.Fatalf("offers = %v, want none", got)
+	}
+}
