@@ -158,7 +158,7 @@ func TestDeletingAnAlreadyDeletedMessageSendsNothingToOpenStreams(t *testing.T) 
 	stream := ada.openStream(id)
 	mid := ben.say(id, "Oops")
 	ada.reply(id, mid, "Hi Ben")
-	stream.next()
+	stream.next() // the Message, then the reply
 	stream.next()
 	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
 	stream.next() // the Message, and the reply quoting it
