@@ -5,58 +5,129 @@
 (function () {
   'use strict';
 
+  // The look every Theme shares; a Theme sets the colours, corners and shadows through these variables.
   var CSS = [
     '*,*::before,*::after{box-sizing:border-box}',
-    'body{margin:0;background:#f3f4f6;color:#1c2430;font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}',
+    'body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}',
     'main{max-width:76rem;margin:0 auto;padding:1.6rem 1.4rem 1rem}',
     'h1,h2{margin:0;line-height:1.2}',
-    'select{font:inherit;padding:.35rem .5rem;border:1px solid #cfd4dc;border-radius:6px;background:#fff;color:inherit;max-width:11rem}',
-    '.dh{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:flex-end;margin-bottom:1.2rem}',
-    '.dh h1{font-size:1.6rem;letter-spacing:-.01em}',
-    '.dh p{color:#5b6573;font-size:.88rem;margin:.2rem 0 0}',
-    '.dh .dq{color:#1c2430;font-size:1rem;font-weight:600}',
+    'select{font:inherit;padding:.35rem .5rem;border:1px solid var(--line);border-radius:6px;background:var(--solid);color:inherit;max-width:11rem}',
+    '.dh{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;padding:1.1rem 1.3rem;background:var(--head);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}',
+    '.dh h1{font-size:1.6rem;letter-spacing:-.015em;color:var(--num)}',
+    '.dh p{color:var(--muted);font-size:.88rem;margin:.2rem 0 0}',
+    '.dh .dq{color:var(--ink);font-size:1rem;font-weight:600}',
     '.df{display:flex;flex-wrap:wrap;gap:.6rem .9rem}',
-    '.df label{display:grid;gap:.2rem;font-size:.78rem;font-weight:600;color:#5b6573}',
+    '.df label{display:grid;gap:.2rem;font-size:.78rem;font-weight:600;color:var(--muted)}',
     '.dcards{display:grid;grid-template-columns:var(--cols,1fr);gap:.8rem;margin-bottom:.8rem}',
-    '.dcard{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:.9rem 1rem;display:grid;gap:.15rem}',
-    '.dcard span{font-size:.82rem;color:#5b6573;font-weight:600}',
-    '.dcard strong{overflow-wrap:anywhere;font-size:1.45rem;font-variant-numeric:tabular-nums;letter-spacing:-.01em}',
-    '.dcard:first-child strong{font-size:2.1rem}',
-    '.dcard.is-pos strong{color:#2d7a52}.dcard.is-neg strong{color:#b4432a}',
+    '.dcard,.dpanel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);min-width:0}',
+    '.dcard{position:relative;padding:.95rem 1.1rem;display:grid;gap:.2rem;overflow:hidden}',
+    '.dcard::before{content:"";position:absolute;left:0;top:.9rem;bottom:.9rem;width:3px;border-radius:0 3px 3px 0;background:var(--kpi)}',
+    '.dcard span{font-size:.8rem;color:var(--muted);font-weight:600}',
+    '.dcard strong{overflow-wrap:anywhere;font-size:1.6rem;font-weight:700;color:var(--num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}',
+    '.dcard:first-child strong{font-size:2.2rem}',
+    '.dcard.is-pos strong{color:var(--pos)}.dcard.is-neg strong{color:var(--neg)}',
     '.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}',
-    '.dpanel{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:1rem 1.1rem;min-width:0}',
+    '.dpanel{padding:1rem 1.15rem}',
     '.dpanel.wide{grid-column:1/-1}',
-    '.dpanel h2{font-size:.98rem;margin-bottom:.7rem}',
-    '.dpanel .dfind{margin:-.5rem 0 .7rem;font-size:.84rem;color:#5b6573}',
-    '.dchart{width:100%;height:auto}.dchart text{font-size:11px;fill:#6b7482}.dchart .grid{stroke:#eceef2}',
-    '.dlegend{display:flex;gap:1rem;font-size:.82rem;color:#5b6573;margin:-.3rem 0 .4rem}',
+    '.dpanel h2{font-size:.98rem;margin-bottom:.7rem;color:var(--ink)}',
+    '.dpanel .dfind{margin:-.5rem 0 .7rem;font-size:.84rem;color:var(--muted)}',
+    '.dchart{width:100%;height:auto}.dchart text{font-size:11px;fill:var(--axis)}.dchart .grid{stroke:var(--grid)}',
+    '.dlegend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.82rem;color:var(--muted);margin:-.3rem 0 .5rem}',
     '.dlegend span,.ddonut li{display:flex;align-items:center;gap:.4rem}',
     '.dlegend i,.ddonut i{width:.7rem;height:.7rem;border-radius:3px;display:inline-block;flex-shrink:0}',
     '.dbars{list-style:none;margin:0;padding:0;display:grid;gap:.55rem}',
     '.dbars li{display:grid;grid-template-columns:minmax(6rem,9rem) 1fr 4rem;gap:.7rem;align-items:center;font-size:.86rem}',
     '.dbar-k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '.dbar-t{height:.8rem;background:#eef0f3;border-radius:99px;overflow:hidden}',
-    '.dbar-t span{display:block;height:100%;background:#2f5d8a;border-radius:99px}',
+    '.dbar-t{height:.8rem;background:var(--track);border-radius:99px;overflow:hidden}',
+    '.dbar-t span{display:block;height:100%;border-radius:99px}',
     '.dbar-t.split{display:flex}.dbar-t.split span{border-radius:0}',
-    '.dbar-v{text-align:right;font-variant-numeric:tabular-nums;color:#3c4552}',
+    '.dbar-v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}',
     '.ddonut{display:flex;gap:1.2rem;align-items:center}.ddonut svg{width:9.5rem;flex-shrink:0}',
-    '.ddonut .dtot{font-size:17px;font-weight:700;fill:#1c2430}',
+    '.ddonut .dtot{font-size:19px;font-weight:700;fill:var(--num)}',
     '.ddonut ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem;font-size:.86rem;flex:1}',
-    '.ddonut li span{margin-left:auto;color:#5b6573;font-variant-numeric:tabular-nums}',
+    '.ddonut li span{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}',
     '.dtable{overflow-x:auto}.dtable table{width:100%;border-collapse:collapse;font-size:.86rem}',
-    '.dtable th{text-align:left;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;color:#6b7482;padding:.45rem .6rem;border-bottom:1px solid #e3e6eb;white-space:nowrap}',
-    '.dtable td{padding:.5rem .6rem;border-bottom:1px solid #f0f1f4;white-space:nowrap}',
+    '.dtable th{text-align:left;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.45rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}',
+    '.dtable td{padding:.5rem .6rem;border-bottom:1px solid var(--soft);white-space:nowrap}',
     '.dtable .num{text-align:right;font-variant-numeric:tabular-nums}',
-    '.dnone{color:#6b7482;font-size:.88rem;padding:1rem 0;text-align:center}',
+    '.dnone{color:var(--muted);font-size:.88rem;padding:1rem 0;text-align:center}',
     '.dcard strong.dnone{font-size:.88rem;font-weight:400;padding:0;text-align:left}',
     '@media (max-width:640px){main{padding:1.1rem .9rem .6rem}.dh h1{font-size:1.3rem}.df{width:100%}.df label{flex:1 1 8rem}' +
-      '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard:first-child,.dcard:last-child:nth-child(even){grid-column:span 2}.dcard strong{font-size:1.15rem}.dcard:first-child strong{font-size:1.6rem}' +
-      '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}'
+      '.df select{max-width:none;width:100%}.dcards{grid-template-columns:1fr 1fr;gap:.6rem}.dcard:first-child,.dcard:last-child:nth-child(even){grid-column:span 2}.dcard strong{font-size:1.25rem}.dcard:first-child strong{font-size:1.7rem}' +
+      '.dgrid{grid-template-columns:1fr}.dbars li{grid-template-columns:6.5rem 1fr 3.4rem}.ddonut svg{width:7.5rem}}',
+    // Printed on white whatever the Theme, without the filter bar.
+    '@media print{body{background:#fff!important;color:#111}main{max-width:none;padding:0}.df{display:none}.dh,.dcard,.dpanel{background:#fff!important;border-color:#ccc!important;box-shadow:none!important;color:#111;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;break-inside:avoid}' +
+      '.dh h1,.dh .dq,.dcard strong,.dpanel h2,.dbar-v,.ddonut .dtot{color:#111!important;fill:#111!important}.dh p,.dcard span,.dfind,.dlegend,.dtable th,.dchart text{color:#444!important;fill:#444!important}}'
   ].join('\n');
 
+  // The five Themes (the client's specs, kept in .scratch/dashboard-themes): CSS variables, an extra rule or two,
+  // and the colours charts are drawn in. bar and top colour a bar chart, top marking its largest group; stack
+  // colours the parts of a split bar; line and point a line of one series; series a line split into several.
+  var THEMES = {
+    corporate: {
+      vars: { bg: '#F6F8FB', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#13263B', num: '#0E2A47', muted: '#5E6E80', axis: '#7A8899',
+        line: '#E3E8EF', soft: '#EEF1F5', grid: '#EDF0F4', track: '#EEF1F5', r: '12px', kpi: '#C89B3C', pos: '#2E8B6F', neg: '#C2553F',
+        shadow: '0 1px 2px rgba(14,42,71,.05),0 6px 16px -8px rgba(14,42,71,.10)' },
+      bar: '#0E2A47', top: '#C89B3C', line: '#0E2A47', point: '#C89B3C', area: 0.08,
+      donut: ['#0E2A47', '#C89B3C', '#5B7FA6', '#E2C88F', '#9AA9BA', '#2E8B6F', '#C7CED8'],
+      stack: ['#2E8B6F', '#C89B3C', '#D9725B', '#5B7FA6', '#9AA9BA'],
+      series: ['#0E2A47', '#C89B3C', '#2E8B6F', '#D9725B', '#5B7FA6', '#9AA9BA']
+    },
+    midnight: {
+      vars: { bg: '#081726', card: '#10263B', solid: '#10263B', head: '#06111E', ink: '#F5F7FA', num: '#F5F7FA', muted: '#A8BACB', axis: '#8DA2B6',
+        line: 'rgba(255,255,255,.09)', soft: 'rgba(255,255,255,.05)', grid: 'rgba(255,255,255,.07)', track: 'rgba(255,255,255,.07)', r: '12px',
+        kpi: '#D4AA55', pos: '#48A98A', neg: '#D97979', shadow: 'inset 0 1px 0 rgba(255,255,255,.04),0 12px 28px -14px rgba(0,0,0,.6)' },
+      css: ':root{color-scheme:dark}',
+      bar: '#3D7CC9', top: '#D4AA55', line: '#56B4E3', point: '#D4AA55', area: 0.12,
+      donut: ['#D4AA55', '#3D7CC9', '#56B4E3', '#48A98A', '#8FA3B8', '#D97979', '#5A6B80'],
+      stack: ['#48A98A', '#D4AA55', '#D97979', '#56B4E3', '#8FA3B8'],
+      series: ['#56B4E3', '#D4AA55', '#48A98A', '#D97979', '#8FA3B8', '#3D7CC9']
+    },
+    minimal: {
+      vars: { bg: '#FFFFFF', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#20252B', num: '#20252B', muted: '#68737D', axis: '#8A939C',
+        line: '#E5E9ED', soft: '#F0F2F4', grid: '#F0F2F4', track: '#F1F3F5', r: '6px', kpi: 'transparent', pos: '#2F7D5B', neg: '#B5473A', shadow: 'none' },
+      css: '.dh{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0 0 1.1rem;margin-bottom:1.2rem}' +
+        '.dcard span{text-transform:uppercase;letter-spacing:.06em;font-size:.72rem}.dcard:first-child strong{color:#3569A8}.dgrid,.dcards{gap:1rem}',
+      bar: '#3569A8', top: '#3569A8', line: '#3569A8', point: '#3569A8', area: 0, thin: true,
+      donut: ['#3569A8', '#A9C0DD', '#68737D', '#C9D0D7', '#2A9D8F', '#D9A03F', '#E5E9ED'],
+      stack: ['#3569A8', '#2A9D8F', '#D9A03F', '#9AA5B1', '#C9D0D7'],
+      series: ['#3569A8', '#2A9D8F', '#D9A03F', '#68737D', '#9AA5B1', '#B5473A']
+    },
+    glass: {
+      vars: { bg: 'linear-gradient(140deg,#132B54 0%,#3859A6 55%,#6C5AA8 100%) fixed', card: 'rgba(255,255,255,.09)', solid: '#22417A', head: 'rgba(255,255,255,.07)',
+        ink: '#FFFFFF', num: '#FFFFFF', muted: 'rgba(255,255,255,.76)', axis: 'rgba(255,255,255,.68)', line: 'rgba(255,255,255,.18)', soft: 'rgba(255,255,255,.10)',
+        grid: 'rgba(255,255,255,.12)', track: 'rgba(255,255,255,.12)', r: '16px', kpi: '#57C8E8', pos: '#7FE0C0', neg: '#FFA3A3',
+        shadow: 'inset 0 1px 0 rgba(255,255,255,.12),0 14px 34px -14px rgba(10,18,48,.5)' },
+      // Blur where the browser has it; elsewhere solid panels, so text never sits on the bare gradient.
+      css: ':root{color-scheme:dark}.dh,.dcard,.dpanel{-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%)}' +
+        '@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.dh,.dcard,.dpanel{background:rgba(26,50,98,.94)}}',
+      bar: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', top: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', line: '#57C8E8', point: '#D8F5FF', area: 0.14,
+      donut: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#E6E9F5', '#8FA8E8', '#6C7AA8'],
+      stack: ['#3CC6B5', '#A69DF2', '#D4AA55', '#57C8E8', '#E6E9F5'],
+      series: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#E6E9F5', '#FFA3A3']
+    },
+    storytelling: {
+      vars: { bg: '#FAFBFC', card: '#FFFFFF', solid: '#FFFFFF', head: '#FAFBFC', ink: '#18324A', num: '#18324A', muted: '#5A6E82', axis: '#7D8E9F',
+        line: '#E4E9EF', soft: '#EEF2F6', grid: '#EEF2F6', track: '#EEF2F6', r: '14px', kpi: '#3478C0', pos: '#14907F', neg: '#C9562F',
+        shadow: '0 1px 2px rgba(24,50,74,.04)' },
+      // Each card in its own colour, and the finding a chart's computed one-line insight, set off under its name.
+      css: '.dh{border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:0 0 1.1rem}' +
+        '.dcard:nth-child(4n+2){--kpi:#18A999}.dcard:nth-child(4n+3){--kpi:#E89A45}.dcard:nth-child(4n+4){--kpi:#8267C7}.dcard::before{top:0;bottom:auto;left:0;right:0;width:auto;height:3px;border-radius:0}' +
+        '.dpanel .dfind{margin:-.3rem 0 .8rem;padding:.45rem .7rem;border-left:3px solid #3478C0;border-radius:0 6px 6px 0;background:#EEF4FB;color:#18324A;font-weight:500}',
+      bar: '#3478C0', top: '#3478C0', line: '#3478C0', point: '#E89A45', area: 0.08,
+      donut: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9D3DD', '#5A6E82'],
+      stack: ['#18A999', '#E89A45', '#8267C7', '#3478C0', '#A8B6C4'],
+      series: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9562F']
+    }
+  };
+  // themeOf is the Dashboard's Theme, Corporate Executive when it names none Cave knows.
+  function themeOf(key) { return THEMES[key] || THEMES.corporate; }
+  // themeCSS is the stylesheet for a Theme: its variables, the shared rules, then its own.
+  function themeCSS(t) {
+    return ':root{' + Object.keys(t.vars).map(function (k) { return '--' + k + ':' + t.vars[k]; }).join(';') + '}\n' + CSS + '\n' + (t.css || '');
+  }
+
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var PALETTE = ['#2f5d8a', '#d2a649', '#3f8a63', '#b45a3c', '#7a5c9e', '#5e8f9c', '#a3a39a'];
-  var IN_OUT = { masuk: PALETTE[2], keluar: PALETTE[3] };
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -75,7 +146,8 @@
   function dmy(iso) { var p = String(iso).split('-'); return +p[2] + ' ' + MONTHS[+p[1] - 1] + ' ' + p[0]; }
   function monthName(ym) { return MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4); }
   function nice(v) { if (!v) return 1; var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
-  function seriesColour(s, i) { return IN_OUT[String(s).toLowerCase()] || PALETTE[i % PALETTE.length]; }
+  // seriesColour is the colour for the i-th value s from a Theme's list; Masuk and Keluar always show as its positive and negative.
+  function seriesColour(t, list, s, i) { return { masuk: t.vars.pos, keluar: t.vars.neg }[String(s).toLowerCase()] || list[i % list.length]; }
 
   function dayName(iso) { return +iso.slice(8) + ' ' + MONTHS[+iso.slice(5, 7) - 1]; }
 
@@ -176,7 +248,8 @@
 
   function drawDashboard(dash, data) {
     var style = document.createElement('style');
-    style.textContent = CSS;
+    var theme = themeOf(dash.theme);
+    style.textContent = themeCSS(theme);
     document.head.appendChild(style);
 
     var cols = dash.columns, blocks = dash.blocks || [], filters = dash.filters || [], state = {};
@@ -279,13 +352,13 @@
       var step = Math.ceil(keys.length / Math.max(1, Math.floor(w / (day ? 52 : 48))));
       keys.forEach(function (k, i) { if (i % step === 0) svg += '<text x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + (day ? dayName(k) : MONTHS[+k.slice(5) - 1]) + '</text>'; });
       names.forEach(function (s, si) {
-        var c = by ? seriesColour(s, si) : PALETTE[0];
+        var c = by ? seriesColour(theme, theme.series, s, si) : theme.line, dot = by ? c : theme.point;
         var pts = keys.map(function (k, i) { return X(i) + ',' + Y(series[s][k] || 0); }).join(' ');
-        if (!by) svg += '<polygon points="' + L + ',' + Y(0) + ' ' + pts + ' ' + X(keys.length - 1) + ',' + Y(0) + '" fill="' + c + '" opacity=".1"/>';
-        svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="2.5" stroke-linejoin="round"/>';
-        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="3.5" fill="' + c + '"><title>' + esc(s) + ', ' + esc(when(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
+        if (!by && theme.area) svg += '<polygon points="' + L + ',' + Y(0) + ' ' + pts + ' ' + X(keys.length - 1) + ',' + Y(0) + '" fill="' + c + '" opacity="' + theme.area + '"/>';
+        svg += '<polyline points="' + pts + '" fill="none" stroke="' + c + '" stroke-width="' + (theme.thin ? 1.75 : 2.5) + '" stroke-linejoin="round"/>';
+        keys.forEach(function (k, i) { svg += '<circle cx="' + X(i) + '" cy="' + Y(series[s][k] || 0) + '" r="' + (theme.thin ? 3 : 3.5) + '" fill="' + dot + '"><title>' + esc(s) + ', ' + esc(when(k)) + ': ' + fmt(series[s][k] || 0, m) + '</title></circle>'; });
       });
-      var legend = by ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + seriesColour(s, si) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
+      var legend = by ? '<p class="dlegend">' + names.map(function (s, si) { return '<span><i style="background:' + seriesColour(theme, theme.series, s, si) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
       var finding = keys.length > 1 && peak[2] > 0 ? 'Peak: ' + (by ? peak[0] + ', ' : '') + when(peak[1]) + ', ' + short(peak[2], m) : '';
       return panel(b, legend + '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dchart" role="img" aria-label="' + esc(b.label) + '">' + svg + '</svg>', finding);
     }
@@ -295,16 +368,17 @@
       if (!g.length) return empty(b);
       if (split) g.forEach(function (x) { x[2].forEach(function (s) { if (names.indexOf(s[0]) < 0) names.push(s[0]); }); });
       names.sort();
-      var max = g[0][1] || 1, colour = function (s) { return seriesColour(s, names.indexOf(s)); };
-      var track = function (x) {
-        if (!split) return '<span class="dbar-t"><span style="width:' + Math.max(0, x[1] / max * 100).toFixed(1) + '%"></span></span>';
+      var max = g[0][1] || 1, colour = function (s) { return seriesColour(theme, theme.stack, s, names.indexOf(s)); };
+      // The largest group, first, in the Theme's highlight colour when there is more than one.
+      var track = function (x, i) {
+        if (!split) return '<span class="dbar-t"><span style="width:' + Math.max(0, x[1] / max * 100).toFixed(1) + '%;background:' + (i === 0 && g.length > 1 ? theme.top : theme.bar) + '"></span></span>';
         return '<span class="dbar-t split">' + x[2].map(function (s) {
           return '<span style="width:' + Math.max(0, s[1] / max * 100).toFixed(1) + '%;background:' + colour(s[0]) + '" title="' + esc(s[0]) + ': ' + esc(fmt(s[1], m)) + '"></span>';
         }).join('') + '</span>';
       };
       var legend = split ? '<p class="dlegend">' + names.map(function (s) { return '<span><i style="background:' + colour(s) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
-      return panel(b, legend + '<ul class="dbars">' + g.map(function (x) {
-        return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span>' + track(x) + '<span class="dbar-v">' + short(x[1], m) + '</span></li>';
+      return panel(b, legend + '<ul class="dbars">' + g.map(function (x, i) {
+        return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span>' + track(x, i) + '<span class="dbar-v">' + short(x[1], m) + '</span></li>';
       }).join('') + '</ul>', g.length > 1 && g[0][1] > 0 ? 'Top: ' + g[0][0] + ', ' + short(g[0][1], m) : '');
     }
 
@@ -315,11 +389,11 @@
       var finding = g.length > 1 ? 'Largest: ' + g[0][0] + ', ' + Math.round(g[0][1] / tot * 100) + '%' : '';
       g = slices(b, rows, cols);
       var acc = 0, r = 60, C = 2 * Math.PI * r, segs = g.map(function (x, i) {
-        var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + PALETTE[i] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
+        var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + theme.donut[i] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
         acc += len; return s;
       }).join('');
       return panel(b, '<div class="ddonut"><svg viewBox="0 0 160 160" role="img" aria-label="' + esc(b.label) + '">' + segs + '<text x="80" y="86" text-anchor="middle" class="dtot">' + short(tot, m) + '</text></svg><ul>' +
-        g.map(function (x, i) { return '<li><i style="background:' + PALETTE[i] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
+        g.map(function (x, i) { return '<li><i style="background:' + theme.donut[i] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
         finding);
     }
 

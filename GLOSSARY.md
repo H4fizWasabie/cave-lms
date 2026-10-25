@@ -245,6 +245,11 @@ A dashboard design with blanks for columns, such as Finance, Inventory, HR, Sale
 _Malay_: Templat
 _Avoid_: Theme, layout, preset
 
+**Theme**:
+How a Dashboard looks: its colours, fonts and chart styles, such as Corporate Executive or Midnight Intelligence. Changing it never changes what the Dashboard shows.
+_Malay_: Tema
+_Avoid_: Template, skin, style, look
+
 **Dashboard question**:
 The one thing a Template's Dashboard answers, shown under its name. General has none. Unrelated to the questions in an Exam.
 _Malay_: Soalan Dashboard

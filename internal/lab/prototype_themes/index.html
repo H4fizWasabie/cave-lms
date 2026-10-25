@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HR Sample</title>
+</head>
+<body>
+  <main>
+    <header class="dh">
+      <div><h1>HR Sample</h1><p class="dq">Is the team growing, and where?</p><p id="count"></p></div>
+      <form class="df" id="filters" aria-label="Filters"></form>
+    </header>
+    <section class="dcards" id="cards"></section>
+    <section class="dgrid" id="charts"></section>
+  </main>
+  <script src="charts.js"></script>
+  <script>
+    const dashboard = {
+      "blocks": [
+        {
+          "kind": "card",
+          "label": "Headcount",
+          "value": {
+            "agg": "count"
+          }
+        },
+        {
+          "kind": "card",
+          "label": "Active",
+          "value": {
+            "agg": "count"
+          },
+          "filter": {
+            "col": "Status",
+            "vals": [
+              "Aktif"
+            ]
+          }
+        },
+        {
+          "kind": "card",
+          "label": "Departments",
+          "value": {
+            "agg": "distinct",
+            "col": "Jabatan"
+          }
+        },
+        {
+          "kind": "card",
+          "label": "Positions",
+          "value": {
+            "agg": "distinct",
+            "col": "Jawatan"
+          }
+        },
+        {
+          "kind": "card",
+          "label": "Women",
+          "value": {
+            "agg": "count"
+          },
+          "filter": {
+            "col": "Jantina",
+            "vals": [
+              "Perempuan"
+            ]
+          }
+        },
+        {
+          "kind": "card",
+          "label": "Men",
+          "value": {
+            "agg": "count"
+          },
+          "filter": {
+            "col": "Jantina",
+            "vals": [
+              "Lelaki"
+            ]
+          }
+        },
+        {
+          "kind": "bar",
+          "label": "Headcount by department",
+          "value": {
+            "agg": "count"
+          },
+          "group": "Jabatan"
+        },
+        {
+          "kind": "bar",
+          "label": "Status by department",
+          "value": {
+            "agg": "count"
+          },
+          "split": "Status",
+          "group": "Jabatan"
+        },
+        {
+          "kind": "line",
+          "label": "Joins per month",
+          "value": {
+            "agg": "count"
+          },
+          "x": "Tarikh Mula",
+          "by": "month",
+          "wide": true
+        },
+        {
+          "kind": "donut",
+          "label": "Gender",
+          "value": {
+            "agg": "count"
+          },
+          "group": "Jantina"
+        },
+        {
+          "kind": "donut",
+          "label": "Status split",
+          "value": {
+            "agg": "count"
+          },
+          "group": "Status"
+        },
+        {
+          "kind": "table",
+          "label": "Staff",
+          "cols": [
+            "Nama",
+            "Jabatan",
+            "Jawatan",
+            "Tarikh Mula",
+            "Status",
+            "Jantina"
+          ],
+          "sort": "Tarikh Mula",
+          "limit": 10,
+          "wide": true
+        }
+      ],
+      "columns": {
+        "Jabatan": {
+          "name": "Jabatan",
+          "type": "text"
+        },
+        "Jantina": {
+          "name": "Jantina",
+          "type": "text"
+        },
+        "Jawatan": {
+          "name": "Jawatan",
+          "type": "text"
+        },
+        "Nama": {
+          "name": "Nama",
+          "type": "text"
+        },
+        "Status": {
+          "name": "Status",
+          "type": "text"
+        },
+        "Tarikh Mula": {
+          "name": "Tarikh Mula",
+          "type": "date"
+        }
+      },
+      "filters": [
+        "Jabatan",
+        "Status",
+        "Jantina",
+        "Tarikh Mula"
+      ],
+      "work": true
+    };
+    </script>
+<script>
+  var THEMES = [['corporate','Corporate Executive'],['midnight','Midnight Intelligence'],['minimal','Minimal Insight'],['glass','Glass Vision'],['storytelling','Data Storytelling']];
+  var cur = Math.max(0, THEMES.findIndex(function (t) { return t[0] === new URLSearchParams(location.search).get('variant'); }));
+  dashboard.theme = THEMES[cur][0];
+  function go(step) { location.search = '?variant=' + THEMES[(cur + step + THEMES.length) % THEMES.length][0]; }
+  addEventListener('keydown', function (e) { if (e.target.closest('input,select,textarea')) return; if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1); });
+  document.addEventListener('DOMContentLoaded', function () {
+    var bar = document.createElement('div');
+    bar.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:9;display:flex;gap:.6rem;align-items:center;background:#111;color:#fff;font:600 13px system-ui;padding:.45rem .6rem;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+    bar.innerHTML = '<button id="pv">&larr;</button><span>PROTOTYPE ' + (cur + 1) + '/5: ' + THEMES[cur][1] + '</span><button id="nx">&rarr;</button>';
+    bar.querySelectorAll('button').forEach(function (b) { b.style.cssText = 'all:unset;cursor:pointer;padding:.1rem .6rem;border-radius:99px;background:#333'; });
+    document.body.append(bar);
+    document.getElementById('pv').onclick = function () { go(-1); };
+    document.getElementById('nx').onclick = function () { go(1); };
+  });
+</script>
+  <script>
+    fetch("data.json")
+      .then(response => response.json())
+      .catch(() => new Promise(done => {
+        
+        const script = document.createElement("script");
+        script.src = "data.js";
+        script.onload = () => done(dashboardRows);
+        document.head.append(script);
+      }))
+      .then(rows => drawDashboard(dashboard, rows));
+  </script>
+</body>
+</html>
