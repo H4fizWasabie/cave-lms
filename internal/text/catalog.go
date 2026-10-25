@@ -1044,6 +1044,9 @@ var catalog = map[string]entry{
 		ms: ".xlsx sahaja · helaian pertama · baris 1 ialah nama lajur · sehingga 5,000 baris dan 10 MB",
 	},
 	"lab.d.upload": {en: "Upload", ms: "Muat naik"},
+	// Shown while the upload waits its turn and is read.
+	"lab.d.reading":       {en: "Reading your file. A large one can take a minute.", ms: "Sedang membaca fail anda. Fail yang besar boleh mengambil masa seminit."},
+	"lab.d.reading-lines": {en: "Opening the workbook|Finding the header row|Tidying the columns", ms: "Membuka buku kerja|Mencari baris tajuk lajur|Mengemas lajur"},
 
 	// A Work Dashboard's Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {
