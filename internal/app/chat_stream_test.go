@@ -14,6 +14,7 @@ import (
 type chatStream struct {
 	t      *testing.T
 	events chan string
+	done   chan struct{} // closed when the server ends the stream
 }
 
 // openStream opens Course id's Chat, or the Community Chat's, event stream as s, which must be allowed it; the stream closes with the test.
@@ -33,8 +34,9 @@ func (s *site) openStream(id string) *chatStream {
 	if res.StatusCode != http.StatusOK || !strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
 		s.t.Fatalf("the Chat stream answered %d %s", res.StatusCode, res.Header.Get("Content-Type"))
 	}
-	st := &chatStream{t: s.t, events: make(chan string, 100)}
+	st := &chatStream{t: s.t, events: make(chan string, 100), done: make(chan struct{})}
 	go func() {
+		defer close(st.done)
 		defer res.Body.Close()
 		lines := bufio.NewScanner(res.Body)
 		var data []string
@@ -61,6 +63,41 @@ func (st *chatStream) next() string {
 		st.t.Fatal("no event on the Chat stream within 5 seconds")
 		return ""
 	}
+}
+
+// ends waits for the server to end the stream, which must carry no further event.
+func (st *chatStream) ends() {
+	st.t.Helper()
+	select {
+	case e := <-st.events:
+		st.t.Fatalf("the Chat stream carried an event when it should have ended: %s", e)
+	case <-st.done:
+		select {
+		case e := <-st.events:
+			st.t.Fatalf("the Chat stream carried an event before it ended: %s", e)
+		default:
+		}
+	case <-time.After(5 * time.Second):
+		st.t.Fatal("the Chat stream did not end within 5 seconds")
+	}
+}
+
+func TestAChatStreamEndsWhenItsLearnerLogsOut(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	stream := ada.openStream(id)
+	ada.post("/logout", nil)
+	ben.say(id, "After the logout")
+	stream.ends()
+}
+
+func TestAChatStreamEndsWhenAPasswordResetSignsItsLearnerOut(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	stream := ada.openStream(id)
+	owner := admin.second()
+	owner.forgotPassword("ada@example.com")
+	owner.resetPassword(resetToken(t, owner.lastEmailLinkPath("ada@example.com", "/reset-password")), "a brand new passphrase")
+	ben.say(id, "After the reset")
+	stream.ends()
 }
 
 func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
