@@ -141,7 +141,7 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .link-more { font-weight: 600; font-size: var(--fs-ui); text-decoration: underline; text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; white-space: nowrap; }
 .link-more:hover { text-decoration-color: var(--brand-ink); }
 .crumbs { font-size: var(--fs-meta); color: var(--muted); margin-bottom: var(--space-3); }
-.crumbs a { color: var(--muted); }
+.crumbs a { color: var(--muted); overflow-wrap: anywhere; }
 .crumbs a:hover { color: var(--brand-ink); }
 
 /* ============================ Header ============================
@@ -1525,7 +1525,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .x-top { flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .x-count { font-variant-numeric: tabular-nums; }
 .x-warn { flex-basis: 100%; margin: 0; padding-top: var(--space-2); border-top: 1px solid var(--on-dark-line); color: var(--on-dark); }
-.x-warn:empty { display: none; }
+/* Empty, the live region stays in the accessibility tree so its first warning is announced: visually hidden, not display:none. */
+.x-warn:empty { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .x-q { scroll-margin-top: 4rem; }
 .x-qn { display: block; margin-bottom: var(--space-1); font-family: var(--font-body); font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
 .x-q.is-blank { border-color: var(--bad); }
