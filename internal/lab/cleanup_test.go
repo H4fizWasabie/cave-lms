@@ -610,3 +610,44 @@ func TestCleanUpRefusesMoreThan50000CombinedRowsAnd100Columns(t *testing.T) {
 		t.Fatalf("problem = %q, want %q", got, want)
 	}
 }
+
+// A column counts as numbers when at least 90% of its filled cells are; the others are left empty and counted,
+// one change per column.
+func TestCleanUpReadsAMostlyNumberColumnAsNumbersLeavingTheOthersEmpty(t *testing.T) {
+	rows := [][]any{{"Sewa", "N/A", 5}, {"Gaji", "TBA", 5}}
+	for i := range 18 {
+		rows = append(rows, []any{"Gaji", 100 + i, 5})
+	}
+	file := testutil.XLSX(t, []string{"Perkara", "Amount", "Kos"}, rows...)
+	res := clean(t, file, finance(t))
+
+	if got := res.Dataset.Columns[1].Type; got != lab.Number {
+		t.Fatalf("Amount is %s, want number", got)
+	}
+	if got := res.Dataset.Rows[0][1]; got != nil {
+		t.Fatalf("N/A read as %v, want empty", got)
+	}
+	if got := res.Dataset.Rows[2][1]; got != 100.0 {
+		t.Fatalf("100 read as %v", got)
+	}
+	if got, want := changesIn(res, "en"), []string{"Cells in Amount that were not numbers, left empty: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Sel dalam Amount yang bukan nombor, dibiarkan kosong: 2."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+}
+
+func TestCleanUpKeepsAColumnHalfNumbersHalfTextAsText(t *testing.T) {
+	file := testutil.XLSX(t, []string{"Perkara", "Kod"},
+		[]any{"Sewa", 101}, []any{"Gaji", "A12"}, []any{"Air", 102}, []any{"Api", "B7"},
+	)
+	res := clean(t, file, finance(t))
+
+	if got := res.Dataset.Columns[1].Type; got != lab.Text {
+		t.Fatalf("Kod is %s, want text", got)
+	}
+	if len(res.Changes) != 0 {
+		t.Fatalf("changes = %q, want none", changesIn(res, "en"))
+	}
+}
