@@ -36,7 +36,7 @@ func stylesheet(t *testing.T) (all, rules string) {
 func tokens(all, prefix string) []string {
 	var names []string
 	for _, block := range regexp.MustCompile(`(?s):root\s*\{([^}]*)\}`).FindAllStringSubmatch(all, -1) {
-		for _, m := range regexp.MustCompile(`(--` + prefix + `[a-z0-9-]*)\s*:`).FindAllStringSubmatch(block[1], -1) {
+		for _, m := range regexp.MustCompile(`(--`+prefix+`[a-z0-9-]*)\s*:`).FindAllStringSubmatch(block[1], -1) {
 			names = append(names, m[1])
 		}
 	}
@@ -46,7 +46,7 @@ func tokens(all, prefix string) []string {
 // declarations returns the values of the given properties in the rules.
 func declarations(rules string, property string) []string {
 	var values []string
-	for _, m := range regexp.MustCompile(`(?:^|[;{\s])(` + property + `)\s*:\s*([^;{}]+)`).FindAllStringSubmatch(rules, -1) {
+	for _, m := range regexp.MustCompile(`(?:^|[;{\s])(`+property+`)\s*:\s*([^;{}]+)`).FindAllStringSubmatch(rules, -1) {
 		values = append(values, strings.TrimSpace(m[2]))
 	}
 	return values
