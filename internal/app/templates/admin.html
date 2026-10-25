@@ -13,16 +13,51 @@
             <a class="btn btn-solid" href="/admin/courses/new"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-plus"/></svg>{{t .Lang "adm.courses.new"}}</a>
           </div>
         </div>
-        <ul class="stats">
-          <li><a class="stat stat-link" href="/admin/courses"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span><small>{{t .Lang "adm.home.courses"}}</small></a></li>
-          <li><a class="stat stat-link" href="/admin/gallery"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "adm.home.gallery"}}</span><small>{{t .Lang "adm.home.gallery-sub"}}</small></a></li>
-          <li><a class="stat stat-link" href="/admin/certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span><small>{{t .Lang "adm.home.certs-sub"}}</small></a></li>
-          <li><a class="stat stat-link" href="/admin/certificate-settings"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span><small>{{t .Lang "adm.home.details-sub"}}</small></a></li>
-          <li><a class="stat stat-link" href="/admin/plans"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span><small>{{t .Lang "adm.home.plans-sub"}}</small></a></li>
-          <li><a class="stat stat-link" href="/admin/deployments"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span><small>{{t .Lang "adm.home.deploys-sub"}}</small></a></li>
-          {{if .Learner.IsOwner}}<li><a class="stat stat-link" href="/admin/log"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.side.log"}}</span><small>{{t .Lang "adm.home.log-sub"}}</small></a></li>{{end}}
-        </ul>
-        <p class="note"><a href="/gallery">{{t .Lang "nav.gallery"}}</a> · <a href="/">{{t .Lang "adm.home.home"}}</a></p>
+        <dl class="dash-counts">
+          <div><dt>{{t .Lang "adm.learners"}}</dt><dd class="num">{{.Learners}}</dd></div>
+          <div><dt>{{t .Lang "admin.side.courses"}}</dt><dd class="num">{{.Courses}}</dd></div>
+          <div><dt>{{t .Lang "admin.side.certificates"}}</dt><dd class="num">{{.Certificates}}</dd></div>
+        </dl>
+        <div class="dash-cols">
+        <section class="card dash-card" aria-labelledby="dash-marking">
+          <h2 id="dash-marking">{{t .Lang "adm.home.marking"}}</h2>
+          {{if or .ToMark .Unmarked}}
+          {{with .ToMark}}
+          <h3 class="dash-sub">{{tn $.Lang "adm.home.to-mark" $.SubmissionsToMark}}</h3>
+          <ul class="dash-list">
+            {{range .}}
+            <li><a href="/admin/assignments/{{.AssignmentID}}"><span>{{.Title}}<small>{{.CourseTitle}}</small></span><span class="dash-n num">{{.Count}}</span></a></li>
+            {{end}}
+          </ul>
+          {{end}}
+          {{with .Unmarked}}
+          <h3 class="dash-sub">{{tn $.Lang "adm.home.unmarked" $.AnswersToMark}}</h3>
+          <ul class="dash-list">
+            {{range .}}
+            <li><a href="/admin/results/{{.AttemptID}}"><span>{{.LearnerName}}<small>{{.CourseTitle}}</small></span><span class="dash-n num">{{.Count}}</span></a></li>
+            {{end}}
+          </ul>
+          {{end}}
+          {{else}}
+          <p class="empty">{{t .Lang "adm.home.nothing"}}</p>
+          {{end}}
+        </section>
+        <section class="card dash-card" aria-labelledby="dash-results">
+          <div class="card-head">
+            <h2 id="dash-results">{{t .Lang "adm.home.recent"}}</h2>
+            <a class="btn btn-quiet btn-sm" href="/admin/results">{{t .Lang "adm.home.all-results"}}</a>
+          </div>
+          {{with .Recent}}
+          <ul class="dash-list">
+            {{range .}}
+            <li><a href="/admin/results/{{.ID}}"><span>{{.LearnerName}}<small>{{.CourseTitle}} · {{t $.Lang (print "bank.format." .Format)}}</small></span><span class="dash-score"><span class="num">{{.Score}}%</span> <span class="badge {{if .Passed}}badge-open{{else}}badge-closed{{end}}">{{t $.Lang .Status}}</span></span></a></li>
+            {{end}}
+          </ul>
+          {{else}}
+          <p class="empty">{{t .Lang "adm.home.no-results"}}</p>
+          {{end}}
+        </section>
+        </div>
       </div>
     </div>
 {{end}}

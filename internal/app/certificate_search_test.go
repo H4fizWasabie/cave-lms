@@ -92,7 +92,7 @@ func TestSearchMatchesTheICTheCertificateWasIssuedWith(t *testing.T) {
 
 func TestARevokedCertificateShowsAsRevokedInTheResults(t *testing.T) {
 	admin, ada, _, certID := passedLiveCourse(t)
-	admin.post("/admin/certificates/"+certID+"/revoke", nil)
+	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body := search(ada, "951206085555")
 	expectAll(t, body, `href="/certificates/`+certID+`"`, "Status: Revoked")
 }

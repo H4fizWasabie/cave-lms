@@ -100,7 +100,7 @@ func TestAReissuedCertificateIsEmailedAndALearnerWithNoICGetsNone(t *testing.T) 
 	s := newSite(t)
 	oldID := s.earnedCertificate()
 	s.loginAdmin()
-	s.post("/admin/certificates/"+oldID+"/revoke", nil)
+	s.post("/admin/certificates/"+oldID+"/revoke", confirming)
 	res, body := s.post("/admin/certificates/"+oldID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	newID := strings.TrimPrefix(res.Header.Get("Location"), "/admin/certificates?q=")
@@ -115,7 +115,7 @@ func TestAReissuedCertificateIsEmailedAndALearnerWithNoICGetsNone(t *testing.T) 
 	}
 	expectAll(t, sent[1], "/certificates/"+newID)
 
-	s.post("/admin/certificates/"+newID+"/revoke", nil)
+	s.post("/admin/certificates/"+newID+"/revoke", confirming)
 	if _, err := s.db.Exec(`UPDATE learners SET ic = NULL WHERE email = 'ada@example.com'`); err != nil { // from before ICs
 		t.Fatal(err)
 	}

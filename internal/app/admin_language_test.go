@@ -172,7 +172,7 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 
 	res, body := s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Batalkan Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan.")
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body = s.get("/admin/certificates")
 	expectAll(t, body, "<td>Dibatalkan</td>", "Keluarkan Sijil yang diperbetulkan")
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {""}})

@@ -163,12 +163,51 @@ func TestAdminEditsAndRemovesALesson(t *testing.T) {
 	res, body = s.get("/admin/courses/" + id + "/lessons")
 	expectStatus(t, res, body, http.StatusOK, "Variables and constants")
 
-	res, body = s.post("/admin/lessons/"+lessonID+"/delete", nil)
+	res, body = s.post("/admin/lessons/"+lessonID+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = s.get("/admin/courses/" + id + "/lessons")
 	if strings.Contains(body, "Variables and constants") {
 		t.Fatal("removed Lesson still listed")
 	}
+}
+
+// confirming is the form a confirmation page posts: without it, Remove lesson and Revoke certificate do nothing.
+var confirming = url.Values{"confirm": {"yes"}}
+
+func TestAdminRemovesALessonOnlyAfterConfirming(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	s.addTextLesson(id, "Variables", "", "Use `:=`.", false)
+	lessonID := s.lessonIDByTitle("Variables")
+	confirmPage := "/admin/lessons/" + lessonID + "/delete"
+
+	_, body := s.get("/admin/courses/" + id + "/lessons")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Remove &ldquo;Variables&rdquo; from &ldquo;Go Basics&rdquo;? This cannot be undone.")
+
+	res, body = s.post(confirmPage, nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != confirmPage {
+		t.Fatalf("a post without confirming went to %q, want the confirmation page", loc)
+	}
+	_, body = s.get("/admin/courses/" + id + "/lessons")
+	expectAll(t, body, "Variables")
+
+	res, body = s.post(confirmPage, confirming)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/courses/" + id + "/lessons")
+	expectNone(t, body, "Variables")
+
+	ada := s.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	s.addTextLesson(id, "Loops", "", "Use `for`.", false)
+	res, body = ada.post("/admin/lessons/"+s.lessonIDByTitle("Loops")+"/delete", confirming)
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	_, body = s.get("/admin/courses/" + id + "/lessons")
+	expectAll(t, body, "Loops")
 }
 
 // addItemLesson posts the Lesson form as the logged-in Admin with one Gallery item.

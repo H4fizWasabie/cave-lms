@@ -434,7 +434,7 @@ func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"}) // failed, so no Certificate
 	s.post("/courses/"+id+"/leave", nil)
 	s.loginAdmin()
-	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", nil)
+	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", confirming)
 
 	res, body := s.post("/admin/courses/"+id+"/delete", nil)
 	expectStatus(t, res, body, http.StatusConflict,

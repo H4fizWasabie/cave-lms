@@ -22,6 +22,7 @@
             <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
           </form>
         </div>
+        {{if and .Course.ID (not .DuplicateOf)}}<p class="danger-row"><a class="btn btn-danger btn-sm" href="/admin/courses/{{.Course.ID}}/delete"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg>{{t .Lang "adm.courses.delete"}}</a></p>{{end}}
       </div>
     </div>
 {{end}}

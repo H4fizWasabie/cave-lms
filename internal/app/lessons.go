@@ -164,6 +164,10 @@ func nullID(id int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: id, Valid: id != 0}
 }
 
+// confirmed reports whether the post came from a confirmation page, which sends confirm=yes with its button. A
+// destructive action posted without it does nothing.
+func confirmed(r *http.Request) bool { return r.PostFormValue("confirm") == "yes" }
+
 // isForeignKeyError reports whether err is a violated foreign key (23503).
 func isForeignKeyError(err error) bool {
 	var pgErr *pgconn.PgError
@@ -366,9 +370,28 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
 }
 
+// confirmDeleteLesson asks the Admin to confirm removing a Lesson.
+func (a *App) confirmDeleteLesson(w http.ResponseWriter, r *http.Request) {
+	l, ok := a.lessonByPath(w, r)
+	if !ok {
+		return
+	}
+	c, err := a.courseByID(r.Context(), l.CourseID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "remove_lesson", page{Lesson: &l, Course: &c})
+}
+
+// deleteLesson removes a Lesson once its confirmation page is posted; a post without it goes to that page instead.
 func (a *App) deleteLesson(w http.ResponseWriter, r *http.Request) {
 	l, ok := a.lessonByPath(w, r)
 	if !ok {
+		return
+	}
+	if !confirmed(r) {
+		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM lessons WHERE id = $1`, l.ID)

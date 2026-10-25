@@ -311,7 +311,7 @@ func TestRemovingTheLastIncompleteLessonIssuesTheCertificate(t *testing.T) {
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	s.logOut()
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
-	res, body := s.post("/admin/lessons/"+s.lessonIDByTitle("Functions")+"/delete", nil)
+	res, body := s.post("/admin/lessons/"+s.lessonIDByTitle("Functions")+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
 	s.logOut()

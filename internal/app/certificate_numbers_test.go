@@ -80,7 +80,7 @@ func TestRevokedCertificateKeepsItsNumberAndNoNumberIsReused(t *testing.T) {
 	s.at("2026-03-01 10:00:00")
 	courseID, adaID := s.adaEarns()
 	s.loginAdmin()
-	s.post("/admin/certificates/"+adaID+"/revoke", nil)
+	s.post("/admin/certificates/"+adaID+"/revoke", confirming)
 
 	res, body := s.get("/certificates/" + adaID)
 	expectStatus(t, res, body, http.StatusOK, "PCC-2026-00001")
