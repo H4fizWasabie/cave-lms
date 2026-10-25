@@ -59,9 +59,9 @@ func TestOpeningSalesGivesItsBlocksAndFilterBar(t *testing.T) {
 		t.Fatalf("blocks = %v, want %v", got, want)
 	}
 	for label, want := range map[string]string{
-		"Revenue":                   `{"kind":"card","label":"Revenue","value":{"agg":"sum","col":"Jumlah"}}`,
-		"Sales":                     `{"kind":"card","label":"Sales","value":{"agg":"count"}}`,
-		"Units":                     `{"kind":"card","label":"Units","value":{"agg":"sum","col":"Kuantiti"}}`,
+		"Revenue":                   `{"kind":"card","label":"Revenue","icon":"money","value":{"agg":"sum","col":"Jumlah"}}`,
+		"Sales":                     `{"kind":"card","label":"Sales","icon":"cart","value":{"agg":"count"}}`,
+		"Units":                     `{"kind":"card","label":"Units","icon":"box","value":{"agg":"sum","col":"Kuantiti"}}`,
 		"Revenue by month":          `{"kind":"line","label":"Revenue by month","value":{"agg":"sum","col":"Jumlah"},"x":"Tarikh","by":"month","split":"Kategori","wide":true}`,
 		"Revenue by item":           `{"kind":"bar","label":"Revenue by item","value":{"agg":"sum","col":"Jumlah"},"group":"Produk","top":8}`,
 		"Revenue by staff":          `{"kind":"bar","label":"Revenue by staff","value":{"agg":"sum","col":"Jumlah"},"group":"Staf","top":8}`,
@@ -96,8 +96,8 @@ func TestOpeningRosterGivesItsBlocksAndFilterBar(t *testing.T) {
 		t.Fatalf("blocks = %v, want %v", got, want)
 	}
 	for label, want := range map[string]string{
-		"Staff":           `{"kind":"card","label":"Staff","value":{"agg":"distinct","col":"Staf"}}`,
-		"Shifts":          `{"kind":"card","label":"Shifts","value":{"agg":"count"}}`,
+		"Staff":           `{"kind":"card","label":"Staff","icon":"people","value":{"agg":"distinct","col":"Staf"}}`,
+		"Shifts":          `{"kind":"card","label":"Shifts","icon":"clock","value":{"agg":"count"}}`,
 		"Shifts by staff": `{"kind":"bar","label":"Shifts by staff","value":{"agg":"count"},"group":"Staf","top":8}`,
 		"Shifts by code":  `{"kind":"bar","label":"Shifts by code","value":{"agg":"count"},"group":"Kod","top":8}`,
 		"Shifts per day":  `{"kind":"line","label":"Shifts per day","value":{"agg":"count"},"x":"Tarikh","by":"day","wide":true}`,
@@ -148,7 +148,7 @@ func TestAClinicSalesSheetOpensAsSales(t *testing.T) {
 	if err := tpl.Check(res.Guess, res.Dataset); err != nil {
 		t.Fatalf("the guesses do not open Sales: %v", err)
 	}
-	if got := blockJSON(t, tpl.Open(res.Guess, res.Dataset), "Revenue"); got != `{"kind":"card","label":"Revenue","value":{"agg":"sum","col":"Price"}}` {
+	if got := blockJSON(t, tpl.Open(res.Guess, res.Dataset), "Revenue"); got != `{"kind":"card","label":"Revenue","icon":"money","value":{"agg":"sum","col":"Price"}}` {
 		t.Errorf("Revenue = %s", got)
 	}
 }

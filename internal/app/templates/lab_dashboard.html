@@ -296,6 +296,7 @@
                 <div class="field"><label for="b-{{.Name}}">{{.Label}}</label><select id="b-{{.Name}}" name="{{.Name}}"{{if .Off}} disabled{{end}}>{{range .Options}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Text}}</option>{{end}}</select></div>
                 {{- end}}
                 {{- if eq .Kind "donut"}}<small class="muted">{{t $.Lang "lab.b.donut-other"}}</small>{{end}}
+                {{- if eq .Kind "heatmap"}}<small class="muted">{{t $.Lang "lab.b.heat-other"}}</small>{{end}}
                 {{- with .ColTicks}}
                 <fieldset class="field"><legend>{{.Label}}</legend><div class="eb-ticks">{{range .Options}}<label><input type="checkbox" name="cols" value="{{.Value}}"{{if .On}} checked{{end}}>{{.Text}}</label>{{end}}</div></fieldset>
                 {{- end}}
