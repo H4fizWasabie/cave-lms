@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -118,8 +119,8 @@ func TestAnAddedBlockShowsOnTheDeploymentAtOnce(t *testing.T) {
 
 	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
 	blocks, _ := ada.pageBlocks(path + "/view/")
-	if blocks[4].Kind != "card" || blocks[4].Label != "Rows" {
-		t.Fatalf("a new card goes after the cards, labelled Rows: %s", labels(blocks))
+	if blocks[4].Kind != "card" || blocks[4].Label != "Jumlah" {
+		t.Fatalf("a new card goes after the cards, labelled by its value Jumlah: %s", labels(blocks))
 	}
 }
 
@@ -210,13 +211,14 @@ func TestACardShowsTheIconPickedInTheEditor(t *testing.T) {
 
 	// A new card starts with the icon its value suggests, and follows the value until the Learner picks one.
 	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "people" {
-		t.Fatalf("a new card's icon is %q, want people", blocks[4].Icon)
-	}
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"sum"}, "col": {"Jumlah"}, "icon": {"people"}})
 	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "money" {
 		t.Fatalf("a new card summing the RM column Jumlah shows %q, want money", blocks[4].Icon)
 	}
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"count"}, "icon": {"money"}})
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "people" {
+		t.Fatalf("a new card turned to counting rows shows %q, want people", blocks[4].Icon)
+	}
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"sum"}, "col": {"Jumlah"}, "icon": {"people"}})
 
 	ada.switchLanguage("ms", path+"/blocks")
 	res, body = ada.get(path + "/blocks?open=4")
@@ -506,7 +508,9 @@ func TestResetOnGeneralUsesColumnRolesAndStoredBlocksStayUntilThen(t *testing.T)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, url.Values{"template": {"general"}})
 	sumsPrice := func(blocks []lab.WorkBlock) bool {
-		return slices.ContainsFunc(blocks, func(b lab.WorkBlock) bool { return b.Value != nil && b.Value.Agg == "sum" && b.Value.Col == "Unit Price" })
+		return slices.ContainsFunc(blocks, func(b lab.WorkBlock) bool {
+			return b.Value != nil && b.Value.Agg == "sum" && b.Value.Col == "Unit Price"
+		})
 	}
 	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
 	blocks, _ := ada.pageBlocks(path + "/view/")
@@ -519,5 +523,79 @@ func TestResetOnGeneralUsesColumnRolesAndStoredBlocksStayUntilThen(t *testing.T)
 	blocks, _ = ada.pageBlocks(path + "/view/")
 	if sumsPrice(blocks) || !strings.Contains(labels(blocks), "Average Unit Price") || !strings.Contains(labels(blocks), "Kuantiti × Unit Price") {
 		t.Fatalf("Reset gave %s", labels(blocks))
+	}
+}
+
+// salesFile is a sales list whose first Text columns are an invoice number, one branch and a different customer
+// on every row, and whose first Number column is a price: the columns a new block must not start with.
+func salesFile(t *testing.T) []byte {
+	t.Helper()
+	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	var rows [][]any
+	for i := range 12 {
+		rows = append(rows, []any{fmt.Sprintf("INV-%02d", i), "Ipoh", fmt.Sprintf("Pelanggan %d", i),
+			[]string{"Beras", "Beras", "Beras", "Minyak", "Gula"}[i%5], []string{"Tunai", "Kad"}[i%2],
+			float64(3 + i%4), float64(20 + i), day.AddDate(0, 0, i)})
+	}
+	return testutil.XLSX(t, []string{"Invoice", "Cawangan", "Pelanggan", "Kategori", "Bayaran", "Harga", "Jumlah", "Tarikh"}, rows...)
+}
+
+func TestNewBlocksStartWithTheBestColumn(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("general", "Jualan")
+	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", salesFile(t))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"template": {"general"}})
+	added := func(kind string) lab.WorkBlock {
+		t.Helper()
+		before, _ := ada.pageBlocks(path + "/view/")
+		ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {kind}})
+		after, _ := ada.pageBlocks(path + "/view/")
+		for i, b := range after {
+			if i >= len(before) || !reflect.DeepEqual(b, before[i]) {
+				return b
+			}
+		}
+		t.Fatalf("adding a %s changed nothing", kind)
+		return lab.WorkBlock{}
+	}
+	sumJumlah := func(v *lab.Value) bool { return v != nil && v.Agg == "sum" && v.Col == "Jumlah" }
+
+	for _, kind := range []string{"bar", "donut"} {
+		if b := added(kind); b.Group != "Kategori" || !sumJumlah(b.Value) {
+			t.Errorf("a new %s groups by %q with %+v, want Jumlah by Kategori", kind, b.Group, b.Value)
+		}
+	}
+	if b := added("heatmap"); b.Group != "Kategori" || b.Split != "Bayaran" {
+		t.Errorf("a new heatmap is %q × %q, want Kategori × Bayaran", b.Group, b.Split)
+	}
+	if b := added("line"); b.X != "Tarikh" || !sumJumlah(b.Value) {
+		t.Errorf("a new line is %+v over %q, want Jumlah over Tarikh", b.Value, b.X)
+	}
+	card := added("card")
+	if !sumJumlah(card.Value) || card.Label != "Jumlah" {
+		t.Errorf("a new card is %q, %+v, want the sum of Jumlah", card.Label, card.Value)
+	}
+
+	// A kind change fills the new kind's options the same way and keeps what the Learner set.
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	at := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return !b.IsCard() }) - 1 // the new card
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(at)}, "kind": {"donut"}})
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	donut := at // a card turned chart goes first after the cards
+	if b := blocks[donut]; b.Kind != "donut" || b.Group != "Kategori" || !sumJumlah(b.Value) {
+		t.Fatalf("the card turned donut is %+v %+v", b, b.Value)
+	}
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(donut)}, "kind": {"donut"}, "agg": {"avg"}, "col": {"Jumlah"}, "group": {"Bayaran"}})
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(donut)}, "kind": {"heatmap"}})
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if b := blocks[donut]; b.Kind != "heatmap" || b.Group != "Bayaran" || b.Split != "Kategori" || b.Value.Agg != "avg" {
+		t.Fatalf("the donut by Bayaran turned heatmap is %+v %+v", b, b.Value)
+	}
+	table := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Kind == "table" })
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(table)}, "kind": {"card"}})
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if !slices.ContainsFunc(blocks, func(b lab.WorkBlock) bool { return b.Kind == "card" && sumJumlah(b.Value) }) {
+		t.Fatalf("the table turned card does not sum Jumlah: %s", labels(blocks))
 	}
 }
