@@ -6,6 +6,7 @@ var catalog = map[string]entry{
 	"header.logo-alt":     {en: "CAVELMS, your digital learning hub", ms: "CAVELMS, hab pembelajaran digital anda"},
 	"header.main-nav":     {en: "Main", ms: "Utama"},
 	"header.menu":         {en: "Menu", ms: "Menu"},
+	"header.skip":         {en: "Skip to content", ms: "Langkau ke kandungan"},
 	"header.account":      {en: "Account", ms: "Akaun"},
 	"header.logged-in-as": {en: "Logged in as %s", ms: "Log masuk sebagai %s"},
 	"header.admin-area":   {en: "Admin area", ms: "Ruang Pentadbir"},

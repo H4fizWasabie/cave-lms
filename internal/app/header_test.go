@@ -10,7 +10,7 @@ import (
 // header is the part of a page above its content: the site header.
 func header(t *testing.T, body string) string {
 	t.Helper()
-	head, _, ok := strings.Cut(body, "<main>")
+	head, _, ok := strings.Cut(body, `<main id="main">`)
 	if !ok {
 		t.Fatalf("page has no <main>; body:\n%s", body)
 	}
@@ -19,7 +19,7 @@ func header(t *testing.T, body string) string {
 
 // content is the part of a page below its header.
 func content(body string) string {
-	_, c, _ := strings.Cut(body, "<main>")
+	_, c, _ := strings.Cut(body, `<main id="main">`)
 	return c
 }
 
@@ -146,4 +146,12 @@ func TestLabIsAPlainLinkInTheHeaderAndItsHeroLineStaysOnTheLabPage(t *testing.T)
 		expectNone(t, head, `<summary class="hdr-link">Lab</summary>`, hero)
 		expectAll(t, content(body), "<h1>"+hero+"</h1>")
 	}
+}
+
+func TestEveryPageOpensWithALinkThatSkipsTheHeaderToTheContent(t *testing.T) {
+	s := newSite(t)
+	_, body := s.getAsking("/", "en")
+	expectInOrder(t, body, "<body>", `<a class="skip" href="#main">Skip to content</a>`, `<header class="site-header">`, `<main id="main">`)
+	_, body = s.getAsking("/courses", "ms")
+	expectInOrder(t, body, `<a class="skip" href="#main">Langkau ke kandungan</a>`, `<main id="main">`)
 }

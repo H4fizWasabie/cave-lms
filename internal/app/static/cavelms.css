@@ -97,11 +97,16 @@ a { color: inherit; text-underline-offset: .2em; }
 button, input, select, textarea { font: inherit; color: inherit; }
 .i { width: 1.15em; height: 1.15em; flex-shrink: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Skip link: the page's first Tab stop, hidden above the header until focused. */
+.skip { position: absolute; left: var(--space-4); top: var(--space-2); z-index: 40; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--brand-ink); color: var(--surface); font-size: var(--fs-ui); font-weight: 600; text-decoration: none; transform: translateY(calc(-100% - var(--space-4))); }
+.skip:focus { transform: none; outline-color: var(--brand-gold); }
 .muted { color: var(--muted); }
 .wrap { max-width: calc(82rem + 2 * var(--gutter)); margin: 0 auto; padding-inline: var(--gutter); }
 .wrap-narrow { max-width: calc(43rem + 2 * var(--gutter)); }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+/* On a charcoal band the ring turns gold (the home hero, footer and admin sidebar set theirs in their own sections). */
+.cp-hero :focus-visible, .about-hero :focus-visible { outline-color: var(--brand-gold); }
 ::selection { background: var(--brand-gold-soft); color: var(--brand-ink); }
 html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-color: var(--line-strong) var(--bg); scroll-padding-top: 5rem; }
 /* Display type, the editorial voice: large, light Source Serif. For heroes and the page titles of public pages. */

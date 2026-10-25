@@ -9,6 +9,7 @@
   <title>{{block "title" .}}CAVELMS{{end}}</title>
 </head>
 <body>
+  <a class="skip" href="#main">{{t .Lang "header.skip"}}</a>
   <header class="site-header">
     <div class="wrap site-header-in">
       <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
@@ -40,7 +41,7 @@
       </div>
     </div>
   </header>
-  <main>
+  <main id="main">
     {{template "content" .}}
   </main>
   <footer class="site-footer">
