@@ -3,8 +3,8 @@ package lab_test
 import (
 	"encoding/json"
 	"reflect"
-	"slices"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
