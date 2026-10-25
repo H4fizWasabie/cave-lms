@@ -16,6 +16,10 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
+// maxBlocksForm is the most a Blocks tab form may post: its forms are a few KiB, and the Config they save goes
+// into every Deployment page.
+const maxBlocksForm = 64 << 10
+
 // option is one choice of a select, a set of radio buttons or of checkboxes on the Blocks tab.
 type option struct {
 	Value, Text string
@@ -335,7 +339,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 // do is add (a block of kind), save (block's form; close shuts it), up, down, remove (block), filter-bar or reset.
 // An edit Cave refuses shows why and changes nothing.
 func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10) // the editor's forms are a few KiB; the Config goes into every Deployment page
+	r.Body = http.MaxBytesReader(w, r.Body, maxBlocksForm)
 	acc, ok := a.labOpen(w, r)
 	if !ok {
 		return
