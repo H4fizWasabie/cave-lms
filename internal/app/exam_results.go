@@ -80,6 +80,10 @@ var unmarkedSQL = `released_at IS NULL AND ` + submittedAtSQL + ` IS NOT NULL
 // markRetrySQL is how long after the AI was asked to mark an attempt it is asked again.
 const markRetrySQL = "interval '5 minutes'"
 
+// maxBadShapes is how many runs the AI's mark for an attempt may come back in the wrong shape before the AI is asked
+// no more and the attempt's unmarked answers wait for the Admin. An outage does not count.
+const maxBadShapes = 3
+
 // logLateMarking writes a System log line, once, for each attempt still unmarked an hour after its release time.
 func (a *App) logLateMarking(ctx context.Context) error {
 	rows, err := a.db.QueryContext(ctx, `UPDATE exam_attempts SET marking_late_logged = true
@@ -107,12 +111,13 @@ func (a *App) logLateMarking(ctx context.Context) error {
 // markWritten asks the AI writer to mark, one by one, each unmarked Written answer of every attempt it has not been
 // asked about in the last 5 minutes, and saves each mark as it comes. Only the question, model answer and answer go
 // out (ADR 0009). A mark that fails is left for a later run; when the AI service fails, the run stops, so a service
-// that is down costs one call a run.
+// that is down costs one call a run. An attempt whose marks came back in the wrong shape in maxBadShapes runs is
+// left for the Admin.
 func (a *App) markWritten(ctx context.Context) {
 	if err := a.logLateMarking(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("find Written attempts unmarked an hour after release: %w", err))
 	}
-	due, err := a.queryDue(ctx, unmarkedSQL+` AND (marking_tried_at IS NULL OR marking_tried_at <= now() - `+markRetrySQL+`)`)
+	due, err := a.queryDue(ctx, unmarkedSQL+` AND marking_bad_shapes < `+fmt.Sprint(maxBadShapes)+` AND (marking_tried_at IS NULL OR marking_tried_at <= now() - `+markRetrySQL+`)`)
 	if err != nil {
 		a.logError(nil, fmt.Errorf("find Written answers to mark: %w", err))
 		return
@@ -122,12 +127,19 @@ func (a *App) markWritten(ctx context.Context) {
 			a.logError(nil, fmt.Errorf("note marking attempt %d: %w", d.attemptID, err))
 			return
 		}
+		badShape := false
 		for i, q := range d.questions {
 			if q.Mark != nil || q.Answer == "" {
 				continue
 			}
 			m, err := aiwriter.Mark(ctx, a.writer, aiwriter.MarkRequest{Question: q.Prompt, ModelAnswer: q.ModelAnswer, Answer: q.Answer})
 			if errors.Is(err, aiwriter.ErrBadShape) {
+				if !badShape {
+					badShape = true
+					if _, err := a.db.ExecContext(ctx, `UPDATE exam_attempts SET marking_bad_shapes = marking_bad_shapes + 1 WHERE id = $1`, d.attemptID); err != nil {
+						a.logError(nil, fmt.Errorf("count a wrong-shaped mark on attempt %d: %w", d.attemptID, err))
+					}
+				}
 				continue
 			}
 			if err != nil {
