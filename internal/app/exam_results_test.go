@@ -222,7 +222,9 @@ func TestALearnerWhoSitsBothExamsGetsResultsThatNameEachExamInTheirLanguage(t *t
 	s.releaseResults()
 	subjects := map[string]string{}
 	for _, m := range s.emailsTo("ada@example.com")[before:] {
-		subjects[m.Subject] = m.Body
+		if strings.HasPrefix(m.Subject, "Keputusan") { // passing both also issues her Certificate, emailed too
+			subjects[m.Subject] = m.Body
+		}
 	}
 	for subject, body := range map[string]string{
 		"Keputusan Peperiksaan Objektif anda untuk Go Basics":  "Keputusan Peperiksaan Objektif anda untuk Go Basics sudah sedia.",

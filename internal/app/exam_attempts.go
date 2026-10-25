@@ -240,6 +240,11 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	ic, err := a.learnerIC(r.Context(), learner.ID) // read before the lock below, for the same reason as there
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	// Locking the Enrollment row serialises starts by one Learner on one Course, so two quick clicks can never
 	// both pass the open-attempt and attempt-limit checks. The lock is held until the new attempt is committed.
 	// The Enrollment and the attempts, which another tab can change while this one waits, are read again under the
@@ -274,6 +279,12 @@ func (a *App) startAttempt(w http.ResponseWriter, r *http.Request) {
 	}
 	if msg := st.Blocker(lang); msg != "" {
 		a.render(w, r, http.StatusConflict, "learner_exam", page{Course: &c, Learner: learner, Status: &st, Error: msg})
+		return
+	}
+	// Every attempt starts here, so this is the one gate: a Learner who could start but has no IC sets it first, so
+	// a pass can always be issued its Certificate. An attempt already open (above) is let through.
+	if ic == "" {
+		http.Redirect(w, r, e.Path("/ic"), http.StatusSeeOther)
 		return
 	}
 	id, err := insertAttempt(r.Context(), tx, learner.ID, e)

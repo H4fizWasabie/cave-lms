@@ -54,6 +54,7 @@ func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {
 	s.logOut()
 
 	s.loginAsNewLearner("Ada", "ada@example.com", examPassword)
+	s.setICFor("ada@example.com")
 	for id, title := range map[string]string{fresh: "Fresh", passed: "Passer", failed: "Failer", none: "Examless"} {
 		s.joinAndFinish(id, title)
 	}
