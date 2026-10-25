@@ -44,6 +44,40 @@ var catalog = map[string]entry{
 
 	// ---- Privacy notice (/privacy) and the Register consent line: begin ----
 	// The facts are recorded in docs/adr/0006. Change the date in privacy.updated whenever the notice changes.
+	// The About page: Coach Adam's company background, in his words; the Malay was approved by Abah.
+	"about.link":       {en: "About TCC", ms: "Tentang TCC"},
+	"about.menu":       {en: "Company background", ms: "Latar belakang syarikat"},
+	"about.eyebrow":    {en: "HRD Corp Training Provider · MOF Registered · Kuala Lumpur", ms: "Penyedia Latihan HRD Corp · Berdaftar MOF · Kuala Lumpur"},
+	"about.title":      {en: "Lifelong Learning for", ms: "Pembelajaran Sepanjang Hayat untuk"},
+	"about.title-mark": {en: "Efficiency & Career Development", ms: "Kecekapan & Pembangunan Kerjaya"},
+	"about.lede":       {en: "Practical, industry-focused training and consultancy for government agencies, GLCs, educational institutions and private organisations.", ms: "Latihan dan perundingan praktikal berfokuskan industri untuk agensi kerajaan, GLC, institusi pendidikan dan organisasi swasta."},
+	"about.creds":      {en: "Registrations", ms: "Pendaftaran"},
+	"about.hrd":        {en: "HRD Corp Registered Training Provider", ms: "Penyedia Latihan Berdaftar HRD Corp"},
+	"about.mof":        {en: "Registered with the Ministry of Finance (MOF)", ms: "Berdaftar dengan Kementerian Kewangan (MOF)"},
+	"about.label":      {en: "About us", ms: "Tentang kami"},
+	"about.heading":    {en: "A Malaysian professional training and consultancy company", ms: "Syarikat latihan dan perundingan profesional Malaysia"},
+	"about.coach-link": {en: "Coach Adam's profile", ms: "Profil Coach Adam"},
+	"about.more":       {en: "Read the full company profile", ms: "Baca profil penuh syarikat"},
+	"about.p1": {
+		en: "The Cave Consult (TCC) is a Malaysian professional training and consultancy company, registered as an HRD Corp Training Provider and with the Ministry of Finance Malaysia (MOF).",
+		ms: "The Cave Consult (TCC) ialah syarikat latihan dan perundingan profesional Malaysia, berdaftar sebagai Penyedia Latihan HRD Corp dan dengan Kementerian Kewangan Malaysia (MOF).",
+	},
+	"about.p2": {
+		en: "TCC specialises in professional competency development, leadership, artificial intelligence, digital transformation, strategic management and sustainability. The company serves government agencies, Government-Linked Companies (GLCs), educational institutions and private sector organisations through practical, industry-focused training and consultancy solutions.",
+		ms: "TCC mengkhusus dalam pembangunan kompetensi profesional, kepimpinan, kecerdasan buatan, transformasi digital, pengurusan strategik dan kelestarian. Syarikat ini berkhidmat kepada agensi kerajaan, Syarikat Berkaitan Kerajaan (GLC), institusi pendidikan dan organisasi sektor swasta melalui penyelesaian latihan dan perundingan yang praktikal dan berfokuskan industri.",
+	},
+	"about.p3": {
+		en: "TCC is led by Coach Adam Daniel, Strategic Intelligence Architect and Founder & Chief Consultant of The Cave Consult, a Certified NLP Trainer and Hypnotherapy Certified Trainer with over 25 years of experience in entrepreneurship, business management and leadership.",
+		ms: "TCC diterajui oleh Coach Adam Daniel, Strategic Intelligence Architect serta Pengasas & Ketua Perunding The Cave Consult, Jurulatih NLP Bertauliah dan Jurulatih Hipnoterapi Bertauliah dengan lebih 25 tahun pengalaman dalam keusahawanan, pengurusan perniagaan dan kepimpinan.",
+	},
+	"about.p4": {
+		en: "Together with The Cave Consult Team, TCC combines professional expertise, industry experience and practical training methodologies to deliver competency-based learning solutions that address evolving workplace challenges.",
+		ms: "Bersama Pasukan The Cave Consult, TCC menggabungkan kepakaran profesional, pengalaman industri dan metodologi latihan praktikal untuk menyampaikan penyelesaian pembelajaran berasaskan kompetensi yang menangani cabaran tempat kerja yang sentiasa berubah.",
+	},
+	"about.p5": {
+		en: "Through its professional training programmes, consultancy services and digital learning initiatives, including CAVELMS, The Cave Consult is committed to promoting Lifelong Learning for Efficiency & Career Development, enabling individuals and organisations to strengthen professional competencies, improve workplace productivity and support sustainable career growth.",
+		ms: "Melalui program latihan profesional, perkhidmatan perundingan dan inisiatif pembelajaran digitalnya, termasuk CAVELMS, The Cave Consult komited untuk memupuk Lifelong Learning for Efficiency & Career Development (Pembelajaran Sepanjang Hayat untuk Kecekapan & Pembangunan Kerjaya), membolehkan individu dan organisasi memperkukuh kompetensi profesional, meningkatkan produktiviti tempat kerja dan menyokong pertumbuhan kerjaya yang mampan.",
+	},
 	"privacy.link":     {en: "Privacy Notice", ms: "Notis Privasi"},
 	"privacy.updated":  {en: "Last updated 24 October 2026", ms: "Kemas kini terakhir 24 Oktober 2026"},
 	"register.consent": {en: "By registering you confirm you are 18 or older and agree to the", ms: "Dengan mendaftar, anda mengesahkan bahawa anda berumur 18 tahun ke atas dan bersetuju dengan"},
@@ -1982,14 +2016,7 @@ var catalog = map[string]entry{
 	"home.cta.classes":   {en: "Join Online Classes", ms: "Join Online Classes"},
 	"home.cta.ebooks":    {en: "Explore eBooks", ms: "Explore eBooks"},
 	"home.cta.dashboard": {en: "Learn AI Dashboard Development", ms: "Learn AI Dashboard Development"},
-	// Company background: drawn from the client's company profile page until they send their own text.
-	"home.background.title": {en: "Company background", ms: "Latar belakang syarikat"},
-	"home.background.p": {
-		en: "The Cave Consult (TCC) trains people and organisations for a working world shaped by AI. It is led by Coach Adam Daniel, an HRD Corp and JPK accredited trainer with over 25 years in entrepreneurship and leadership, alongside COO Capt Dinor Sabudin, who served 22 years in the Malaysian Army. Through its training arm ISDeT, and with UTM CAIRO, TCC runs HRDC-claimable programmes across AI and robotics, leadership, NLP and communication, in line with Malaysia's AI-Driven Nation 2030 goal.",
-		ms: "The Cave Consult (TCC) melatih individu dan organisasi untuk dunia kerja yang dibentuk oleh AI. Ia diterajui oleh Coach Adam Daniel, jurulatih bertauliah HRD Corp dan JPK dengan lebih 25 tahun pengalaman dalam keusahawanan dan kepimpinan, bersama COO Kapten Dinor Sabudin yang berkhidmat 22 tahun dalam Tentera Darat Malaysia. Melalui sayap latihannya ISDeT, dan bersama UTM CAIRO, TCC menjalankan program boleh tuntut HRDC dalam AI dan robotik, kepimpinan, NLP dan komunikasi, selaras dengan matlamat Negara Dipacu AI 2030.",
-	},
-	"home.background.more": {en: "Read the full company profile", ms: "Baca profil penuh syarikat"},
-	"home.coach-alt":       {en: "Coach Adam Daniel's profile card", ms: "Kad profil Coach Adam Daniel"},
+	"home.coach-alt":     {en: "Coach Adam Daniel's profile card", ms: "Kad profil Coach Adam Daniel"},
 	"home.intro.1": {
 		en: "CAVELMS is a digital learning platform built by The Cave Consult (TCC) to help educators, civil servants, professionals and organisations master Generative Artificial Intelligence (Generative AI) in a way that is practical, systematic and easy to understand.",
 		ms: "CAVELMS ialah platform pembelajaran digital yang dibangunkan oleh The Cave Consult (TCC) untuk membantu pendidik, penjawat awam, profesional dan organisasi menguasai teknologi Generative Artificial Intelligence (Generative AI) secara praktikal, sistematik dan mudah difahami.",

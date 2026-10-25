@@ -184,6 +184,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("/", a.notFound) // any other address
 	mux.Handle("GET /static/", staticHandler())
 	mux.HandleFunc("GET /privacy", a.privacy)
+	mux.HandleFunc("GET /about", a.about)
 	mux.HandleFunc("GET /register", a.registerForm)
 	mux.HandleFunc("POST /register", a.limited(signUpAttempts, a.register))
 	mux.HandleFunc("GET /verify", a.verify)
@@ -449,6 +450,11 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
+}
+
+// about is The Cave Consult's company background, in the client's words.
+func (a *App) about(w http.ResponseWriter, r *http.Request) {
+	a.render(w, r, http.StatusOK, "about", page{})
 }
 
 // privacy is the PDPA notice; its facts are in docs/adr/0006.
