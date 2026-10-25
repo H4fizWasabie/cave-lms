@@ -25,6 +25,28 @@
         <div class="prose">{{.Lesson.HTML}}</div>
         {{end}}
       </article>
-      <div class="lesson-foot"><a class="btn btn-ghost" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></div>
+      <footer class="lp-foot">
+        {{if and .Enrolled .Lesson.Published}}
+        <div class="lp-act">
+          {{if .Lesson.Completed}}
+          {{with .Step}}{{if .URL}}<a id="next-step" href="{{.URL}}" class="btn btn-solid btn-lg">{{.Label $.Lang}}</a>{{end}}{{end}}
+          <div class="lp-done">
+            <p><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg>{{t .Lang "lesson.is-done"}}</p>
+            <form method="post" action="/courses/{{.Course.ID}}/lessons/{{.Lesson.ID}}/incomplete"><input type="hidden" name="then" value="lesson"><button class="btn btn-quiet btn-sm">{{t .Lang "course.mark-incomplete"}}<span class="sr">: {{.Lesson.Title}}</span></button></form>
+          </div>
+          {{else}}
+          <form method="post" action="/courses/{{.Course.ID}}/lessons/{{.Lesson.ID}}/complete"><input type="hidden" name="then" value="next"><button class="btn btn-solid btn-lg">{{if .Place.Next}}{{t .Lang "lesson.done-next"}}{{else}}{{t .Lang "lesson.done-last"}}{{end}}<span class="sr">: {{.Lesson.Title}}</span></button></form>
+          {{end}}
+        </div>
+        {{end}}
+        <nav class="lp-pager" aria-label="{{t .Lang "lesson.pager"}}">
+          {{with .Place.Prev}}<a class="lp-prev" href="/courses/{{$.Course.ID}}/lessons/{{.ID}}" rel="prev"><small><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-caret-left"/></svg>{{t $.Lang "lesson.prev"}}</small><span>{{.Title}}</span></a>{{end}}
+          <div class="lp-mid">
+            <p class="lp-count num">{{t .Lang "lesson.n-of" .Place.N .Place.Total}}</p>
+            <a class="lp-back" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a>
+          </div>
+          {{with .Place.Next}}<a class="lp-next" href="/courses/{{$.Course.ID}}/lessons/{{.ID}}" rel="next"><small>{{t $.Lang "lesson.next"}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></small><span>{{.Title}}</span></a>{{end}}
+        </nav>
+      </footer>
     </div>
 {{end}}

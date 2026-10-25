@@ -1495,10 +1495,19 @@ var catalog = map[string]entry{
 	"ic.taken":             {en: "That IC or passport number is already used by another Learner.", ms: "No. KP atau pasport itu sudah digunakan oleh Pelajar lain."},
 	"ic.set-once":          {en: "Your IC or passport number is already set. Only the Admin can change it.", ms: "No. KP atau pasport anda sudah ditetapkan. Hanya Admin boleh mengubahnya."},
 
-	"lesson.draft":            {en: "Draft: Learners cannot see this Lesson.", ms: "Draf: Pelajar tidak dapat melihat Pelajaran ini."},
-	"lesson.objective":        {en: "Objective:", ms: "Objektif:"},
-	"lesson.download-ebook":   {en: "Download the ebook", ms: "Muat turun e-buku"},
-	"lesson.back":             {en: "Back to the Course", ms: "Kembali ke Kursus"},
+	"lesson.draft":          {en: "Draft: Learners cannot see this Lesson.", ms: "Draf: Pelajar tidak dapat melihat Pelajaran ini."},
+	"lesson.objective":      {en: "Objective:", ms: "Objektif:"},
+	"lesson.download-ebook": {en: "Download the ebook", ms: "Muat turun e-buku"},
+	"lesson.back":           {en: "Back to the Course", ms: "Kembali ke Kursus"},
+	// ---- Premium refresh: Lesson page (#315) ----
+	"lesson.n-of":      {en: "Lesson %d of %d", ms: "Pelajaran %d daripada %d"},
+	"lesson.pager":     {en: "Lessons in this Course", ms: "Pelajaran dalam Kursus ini"},
+	"lesson.prev":      {en: "Previous Lesson", ms: "Pelajaran sebelumnya"},
+	"lesson.next":      {en: "Next Lesson", ms: "Pelajaran seterusnya"},
+	"lesson.done-next": {en: "Mark done and next", ms: "Tandakan selesai dan seterusnya"},
+	"lesson.done-last": {en: "Mark done and return to the Course", ms: "Tandakan selesai dan kembali ke Kursus"},
+	"lesson.is-done":   {en: "You have done this Lesson.", ms: "Anda telah menyelesaikan Pelajaran ini."},
+	// ---- Premium refresh: Lesson page (#315): end ----
 	"assignment.join-to-open": {en: "Join this Course to open its Assignments.", ms: "Sertai Kursus ini untuk membuka Tugasannya."},
 	"assignment.draft":        {en: "Draft: Learners cannot see this Assignment.", ms: "Draf: Pelajar tidak dapat melihat Tugasan ini."},
 	"submission.title":        {en: "Your Submission", ms: "Serahan anda"},
