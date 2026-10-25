@@ -105,7 +105,10 @@ func otherSnippets(r *http.Request, tx *sql.Tx, l *caveTextLearner, except int64
 }
 
 // A Snippet's name, folder and shortcut have up to maxSnippetField characters each, its body up to maxSnippetBody.
-const maxSnippetField, maxSnippetBody = 100, 20000
+const (
+	maxSnippetField = 100
+	maxSnippetBody  = 20000
+)
 
 // snippetProblem says, in lang, why a Snippet can't be saved beside the others, or "".
 func snippetProblem(lang string, s caveTextSnippet, others []caveTextSnippet) string {
@@ -114,7 +117,7 @@ func snippetProblem(lang string, s caveTextSnippet, others []caveTextSnippet) st
 	}
 	if utf8.RuneCountInString(s.Name) > maxSnippetField || utf8.RuneCountInString(s.Folder) > maxSnippetField ||
 		utf8.RuneCountInString(s.Shortcut) > maxSnippetField || utf8.RuneCountInString(s.Body) > maxSnippetBody {
-		return text.T(lang, "cavetext.api.too-long")
+		return text.T(lang, "cavetext.api.too-long", thousands(maxSnippetField), thousands(maxSnippetBody))
 	}
 	return shortcutProblem(lang, s.Shortcut, others)
 }

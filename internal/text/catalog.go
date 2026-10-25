@@ -1299,8 +1299,8 @@ var catalog = map[string]entry{
 		ms: "Anda mempunyai %d Snippet, iaitu jumlah maksimum CaveText Pro. Padam satu untuk menambah yang lain.",
 	},
 	"cavetext.api.too-long": {
-		en: "A Snippet's name, folder and shortcut can each have up to 100 characters, and its body up to 20,000. Shorten it, then save.",
-		ms: "Nama, folder dan pintasan Snippet masing-masing boleh mempunyai sehingga 100 aksara, dan kandungannya sehingga 20,000. Pendekkannya, kemudian simpan.",
+		en: "A Snippet's name, folder and shortcut can each have up to %s characters, and its body up to %s. Shorten it, then save.",
+		ms: "Nama, folder dan pintasan Snippet masing-masing boleh mempunyai sehingga %s aksara, dan kandungannya sehingga %s. Pendekkannya, kemudian simpan.",
 	},
 	"cavetext.api.skipped-one":  {en: "the other one was skipped", ms: "satu lagi dilangkau"},
 	"cavetext.api.skipped-many": {en: "the other %d were skipped", ms: "%d yang lain dilangkau"},
