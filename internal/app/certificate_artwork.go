@@ -15,9 +15,11 @@ import (
 )
 
 // The built-in Certificate artwork: the client's design (sample PCC-2026-00509) drawn at print quality on A4 portrait,
-// in English only. drawArtwork draws the constant layer; certificatePDF fills in the details on top, at the same places
-// as on an uploaded background. The web preview, template certificate-preview in layout.html, draws the same artwork in
-// SVG in the same millimetre coordinates: change the two together.
+// in English only (ADR 0016). drawArtwork draws the constant layer; certificatePDF fills in the details on top, at the
+// same places as on an uploaded background. The web preview, template certificate-preview in layout.html, draws the
+// same artwork in SVG in the same millimetre coordinates: its wording, rules, images and the places of the details come
+// from artTexts, artRules, artImages and the layout constants in certificates.go, so the two can't drift. Only the
+// frame, the gold corners, the logo, the ornament and the sketched QR code are drawn twice: change those together.
 
 // Colours, as the stylesheet's tokens: charcoal, ink 2, logo gold, deep gold, light gold (60% logo gold on surface)
 // and the text gold (60% logo gold, 40% deep gold).
@@ -39,18 +41,91 @@ var artworkLogo = sync.OnceValues(func() ([]byte, error) {
 	return logoImage(svg)
 })
 
-// The signatories under the two signatures.
-var artSignatories = [2][]string{
-	{"ADAM BIN YUSUF", "HRD Corp Accredited Trainer ID: 41123", "FOUNDER & CHIEF CONSULTANT", "THE CAVE CONSULT"},
-	{"DINOR SABUDIN", "HRDC Trainer ID: 37066"},
+// The Certificate's fixed wording besides the artwork's own (artTexts), in English only like the artwork (ADR 0016):
+// certificatePDF prints it on any artwork, built-in or uploaded.
+const (
+	certIssuedOn    = "Issued on: "
+	certRevoked     = "REVOKED"
+	certRevokedNote = "This Certificate has been revoked and is no longer valid."
+)
+
+// certMid is the page's centre line, which most of the artwork is centred on.
+const certMid = 105.0
+
+// ptMM is a font size in points as millimetres, the preview's unit.
+func ptMM(pt float64) float64 { return pt * 25.4 / 72 }
+
+// artText is one line of the built-in artwork's wording: centred on X with its baseline at Y, in mm, set in fpdf's Font
+// and Style at Size points with Track mm between letters, in Ink. Class is how the preview's stylesheet sets the same
+// face and colour.
+type artText struct {
+	Text              string
+	X, Y, Size, Track float64
+	Font, Style       string
+	Ink               [3]int
+	Class             string
 }
 
-// The awarding paragraph, as the sample sets its lines, with its typos fixed.
-var artAward = []string{
-	"This achievement is awarded under the",
-	"Professional Competency Credential (PCC)",
-	"in recognition of the knowledge, skills, and ability to apply",
-	"the competencies demonstrated throughout the programme",
+// SizeMM is the line's font size in mm, as the preview sets it.
+func (t artText) SizeMM() float64 { return ptMM(t.Size) }
+
+// artTexts is every line of wording the built-in artwork prints.
+var artTexts = func() []artText {
+	l := []artText{
+		{"CERTIFICATE NO.", certNumberX, 15, 7.5, .2, "Helvetica", "B", artInk, "cert-art-sans"},
+		{"CERTIFICATE", certMid, 63.6, 40, 1.6, "Times", "", artInk, ""},
+		{"OF COMPETENCY", certMid, 72.7, 20, .9, "Times", "", artGoldText, "cert-art-gold"},
+		{"THIS IS TO CERTIFY THAT", certMid, 88, 11, .6, "Times", "", artInk2, "cert-art-muted"},
+		{"has successfully completed the competency requirements of", certMid, 119.5, 11, 0, "Times", "", artInk2, "cert-art-muted"},
+	}
+	// The awarding paragraph, as the sample sets its lines, with its typos fixed, under the Course title's ornament.
+	for i, s := range []string{
+		"This achievement is awarded under the",
+		"Professional Competency Credential (PCC)",
+		"in recognition of the knowledge, skills, and ability to apply",
+		"the competencies demonstrated throughout the programme",
+	} {
+		l = append(l, artText{s, certMid, 165.5 + float64(i)*5.65, 13, 0, "Times", "I", artInk, "cert-art-award"})
+	}
+	// The signatories under the two signatures: a name, then their credentials, the first and last lines larger.
+	for i, sig := range [][]string{
+		{"ADAM BIN YUSUF", "HRD Corp Accredited Trainer ID: 41123", "FOUNDER & CHIEF CONSULTANT", "THE CAVE CONSULT"},
+		{"DINOR SABUDIN", "HRDC Trainer ID: 37066"},
+	} {
+		for j, s := range sig {
+			size := 9.5
+			if j == 0 || j == 3 {
+				size = 11
+			}
+			l = append(l, artText{s, []float64{85.7, 141}[i], 276.7 + float64(i)*1.3 + float64(j)*3.8, size, 0, "Times", "", artInk, ""})
+		}
+	}
+	return l
+}()
+
+// artRule is one of the artwork's gold rules: from X1 to X2 at Y, Width thick, in mm.
+type artRule struct{ X1, X2, Y, Width float64 }
+
+// artRules are the rules either side of "OF COMPETENCY", the one the name stands on, and the two either side of the
+// ornament under the Course title.
+var artRules = []artRule{
+	{45, 66.3, 70.4, .5}, {143.7, 165, 70.4, .5},
+	{19, 191, 112.5, .3},
+	{30.5, certMid - 6, 157, .3}, {certMid + 6, 179.5, 157, .3},
+}
+
+// artImage is a static PNG the artwork places at X, Y, W by H mm.
+type artImage struct {
+	Name       string
+	X, Y, W, H float64
+}
+
+// artImages are the seal, the HRD Corp badge and the two signatures.
+var artImages = []artImage{
+	{"cert-seal.png", 10.5, 221, 51, 50.4},
+	{"cert-hrd-corp.png", 69.6, 227.5, 31, 30.1},
+	{"cert-signature-1.png", 62.8, 260, 48.2, 12.9},
+	{"cert-signature-2.png", 128.6, 259.6, 24.8, 15.3},
 }
 
 // sweep is one gold corner of the frame: the corner out to a curve from (0, h) to (w, 0), as a polygon. The preview
@@ -75,14 +150,13 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	fill := func(c [3]int) { pdf.SetFillColor(c[0], c[1], c[2]) }
 	draw := func(c [3]int) { pdf.SetDrawColor(c[0], c[1], c[2]) }
 	ink := func(c [3]int) { pdf.SetTextColor(c[0], c[1], c[2]) }
-	// spaced writes s centred on x with its baseline at y and track mm between letters, and returns its width.
-	spaced := func(x, y, track float64, family, style string, size float64, s string) float64 {
+	// spaced writes s centred on x with its baseline at y and track mm between letters.
+	spaced := func(x, y, track float64, family, style string, size float64, s string) {
 		pdf.SetFont(family, style, size)
 		w := pdf.GetStringWidth(s) + track*float64(len(s)-1)
 		pdf.RawWriteStr(fmt.Sprintf("%.3f Tc", track*k))
 		pdf.Text(x-w/2, y, s)
 		pdf.RawWriteStr("0 Tc")
-		return w
 	}
 	image := func(name string, x, y, w, h float64) error {
 		f, err := staticFiles.Open("static/" + name)
@@ -137,58 +211,25 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 
 	pdf.ImageOptions("logo-dark", 79, 17, 52, 0, false, opt, 0, "")
 
-	ink(artInk)
-	spaced(certNumberX, 15, .2, "Helvetica", "B", 7.5, "CERTIFICATE NO.")
-
-	spaced(pageW/2, 63.6, 1.6, "Times", "", 40, "CERTIFICATE")
-	ink(artGoldText)
-	w := spaced(pageW/2, 72.7, .9, "Times", "", 20, "OF COMPETENCY")
 	draw(artGold)
-	pdf.SetLineWidth(.5)
-	pdf.Line(45, 70.4, pageW/2-w/2-4, 70.4)
-	pdf.Line(pageW/2+w/2+4, 70.4, pageW-45, 70.4)
-	ink(artInk2)
-	spaced(pageW/2, 88, .6, "Times", "", 11, "THIS IS TO CERTIFY THAT")
-
-	// The rule the name and IC stand on.
-	pdf.SetLineWidth(.3)
-	pdf.Line(19, 112.5, pageW-19, 112.5)
-	spaced(pageW/2, 119.5, 0, "Times", "", 11, "has successfully completed the competency requirements of")
-
-	// The ornament under the Course title: two rules and a diamond between them.
+	for _, l := range artRules {
+		pdf.SetLineWidth(l.Width)
+		pdf.Line(l.X1, l.Y, l.X2, l.Y)
+	}
+	// The ornament under the Course title: a diamond between the rules, with a dot either side.
 	const orn = 157
-	pdf.Line(30.5, orn, pageW/2-6, orn)
-	pdf.Line(pageW/2+6, orn, pageW-30.5, orn)
 	fill(artGold)
-	pdf.Polygon([]fpdf.PointType{{X: pageW / 2, Y: orn - 1.8}, {X: pageW/2 + 2.6, Y: orn}, {X: pageW / 2, Y: orn + 1.8}, {X: pageW/2 - 2.6, Y: orn}}, "F")
-	pdf.Circle(pageW/2-4.4, orn, .55, "F")
-	pdf.Circle(pageW/2+4.4, orn, .55, "F")
+	pdf.Polygon([]fpdf.PointType{{X: certMid, Y: orn - 1.8}, {X: certMid + 2.6, Y: orn}, {X: certMid, Y: orn + 1.8}, {X: certMid - 2.6, Y: orn}}, "F")
+	pdf.Circle(certMid-4.4, orn, .55, "F")
+	pdf.Circle(certMid+4.4, orn, .55, "F")
 
-	ink(artInk)
-	for i, l := range artAward {
-		spaced(pageW/2, orn+8.5+float64(i)*5.65, 0, "Times", "I", 13, l)
+	for _, t := range artTexts {
+		ink(t.Ink)
+		spaced(t.X, t.Y, t.Track, t.Font, t.Style, t.Size, t.Text)
 	}
-
-	for _, im := range []struct {
-		name       string
-		x, y, w, h float64
-	}{
-		{"cert-seal.png", 10.5, 221, 51, 50.4},
-		{"cert-hrd-corp.png", 69.6, 227.5, 31, 30.1},
-		{"cert-signature-1.png", 62.8, 260, 48.2, 12.9},
-		{"cert-signature-2.png", 128.6, 259.6, 24.8, 15.3},
-	} {
-		if err := image(im.name, im.x, im.y, im.w, im.h); err != nil {
+	for _, im := range artImages {
+		if err := image(im.Name, im.X, im.Y, im.W, im.H); err != nil {
 			return err
-		}
-	}
-	for i, x := range []float64{85.7, 141} {
-		for j, l := range artSignatories[i] {
-			size := 9.5
-			if j == 0 || j == 3 {
-				size = 11
-			}
-			spaced(x, 276.7+float64(i)*1.3+float64(j)*3.8, 0, "Times", "", size, l)
 		}
 	}
 	return pdf.Error()
@@ -315,27 +356,47 @@ func certTitleLines(pdf *fpdf.Fpdf, title string) (size float64, lines []certLin
 }
 
 // certPreview is what the certificate-preview template draws: the artwork with a name, a Course title and a PCC
-// badge, never an IC. Number and Issued are set only for an issued Certificate.
+// badge, never an IC. Number and Issued are set only for an issued Certificate. Background is the address of the
+// Admin's uploaded background, drawn in place of the built-in artwork, or "" for the built-in one.
 type certPreview struct {
 	Name, Badge    string
 	Title          []certLine
 	NameSize       float64 // in mm
 	TitleSize      float64 // in mm
 	Number, Issued string
+	Background     string
 }
 
 // newCertPreview is the template function certPreview: the preview of a Certificate for name on the Course titled title
-// with the PCC badge static file badge ("" for none).
-func newCertPreview(name, title, badge string) certPreview {
+// with the PCC badge static file badge ("" for none), over the background at the address background ("" for the
+// built-in artwork).
+func newCertPreview(name, title, badge, background string) certPreview {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	size, lines := certTitleLines(pdf, title)
-	return certPreview{Name: name, Badge: badge, Title: lines, NameSize: certNameSize(pdf, name) * 25.4 / 72,
-		TitleSize: size * 25.4 / 72}
+	return certPreview{Name: name, Badge: badge, Title: lines, NameSize: ptMM(certNameSize(pdf, name)),
+		TitleSize: ptMM(size), Background: background}
 }
 
-// Preview is the Certificate's preview, as issued.
-func (c certificate) Preview() certPreview {
-	p := newCertPreview(c.LearnerName, c.CourseTitle, c.Badge())
-	p.Number, p.Issued = c.Number(), c.IssuedIn("en")
+// Preview is the Certificate's preview, as issued, over the background at the address background.
+func (c certificate) Preview(background string) certPreview {
+	p := newCertPreview(c.LearnerName, c.CourseTitle, c.Badge(), background)
+	p.Number, p.Issued = c.Number(), certIssuedOn+c.IssuedIn("en")
 	return p
 }
+
+// certPlaces are where the details print, in mm, and their sizes in mm, for the preview: certificatePDF's layout.
+type certPlaces struct {
+	NumberX, NumberY, NumberSize, QRX, QRY, QR, NameY, TitleX    float64
+	BadgeX, BadgeY, BadgeW, BadgeH, IssuedX, IssuedY, IssuedSize float64
+}
+
+// At is where the preview draws the details, as certificatePDF prints them.
+func (certPreview) At() certPlaces {
+	return certPlaces{certNumberX, certNumberY, ptMM(certNumberPt), certQRX, certQRY, certQR, certNameY,
+		certTitleX + certTitleW/2, certBadgeX, certBadgeY, certBadgeW, certBadgeH, certIssuedX, certIssuedY, ptMM(certIssuedPt)}
+}
+
+// Texts, Rules and Images are the built-in artwork's, for the preview to draw.
+func (certPreview) Texts() []artText   { return artTexts }
+func (certPreview) Rules() []artRule   { return artRules }
+func (certPreview) Images() []artImage { return artImages }

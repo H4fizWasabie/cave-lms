@@ -4,7 +4,7 @@ data (.Course, .Learner, .Lang). */}}
 {{define "course-certificate"}}
           {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
           <figure class="cp-cert">
-            {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) .Course.Title .Course.Badge)}}
+            {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) .Course.Title .Course.Badge .CertBackground)}}
             <figcaption>{{t .Lang "course.cert-caption"}}</figcaption>
           </figure>
 {{end}}

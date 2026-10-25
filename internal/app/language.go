@@ -13,12 +13,13 @@ const (
 	languageLifetime = 365 * 24 * time.Hour
 )
 
-// chrome is what render fills in for layout.html on every page: the page's language, its own address
-// and the header's Courses menu.
+// chrome is what render fills in for layout.html on every page: the page's language, its own address,
+// the header's Courses menu and the Certificate background the Certificate previews draw.
 type chrome struct {
-	Lang   string
-	Here   string   // path and query of this page for the language switch to come back to, or "" for home
-	Latest []course // the 3 newest open Courses
+	Lang           string
+	Here           string   // path and query of this page for the language switch to come back to, or "" for home
+	Latest         []course // the 3 newest open Courses
+	CertBackground string   // the uploaded Certificate background's address, "" for the built-in artwork
 }
 
 func (c *chrome) chromeField() *chrome { return c }
@@ -28,9 +29,12 @@ func (c *chrome) chromeField() *chrome { return c }
 func (a *App) newChrome(r *http.Request, lang string) (chrome, error) {
 	c := chrome{Lang: lang, Here: here(r)}
 	latest, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE is_open AND published ORDER BY created_at DESC, id DESC LIMIT 3`)
-	if err == nil {
-		c.Latest = latest
+	if err != nil {
+		return c, err
 	}
+	c.Latest = latest
+	s, err := a.certificateSettingsFor(r.Context())
+	c.CertBackground = certBackgroundURL(s.BackgroundKey)
 	return c, err
 }
 

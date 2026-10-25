@@ -15,7 +15,7 @@
         </div>
         {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
         <figure class="cert-preview">
-          {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) (t .Lang "cert-preview.course") "")}}
+          {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) (t .Lang "cert-preview.course") "" .CertBackground)}}
           <figcaption>{{t .Lang "cert-preview.caption"}} <a href="/certificates">{{t .Lang "nav.check-cert"}}</a></figcaption>
         </figure>
       </div>

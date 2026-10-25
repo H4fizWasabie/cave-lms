@@ -291,6 +291,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /programmes", a.programmes)
 	mux.HandleFunc("GET /programmes/pictures/{key}", a.programmePicture)
 	mux.HandleFunc("GET /course-pictures/{key}", a.coursePicture)
+	mux.HandleFunc("GET /certificate-background/{key}", a.certificateBackground)
 	mux.HandleFunc("GET /admin/programmes", a.admin(a.adminProgrammes))
 	mux.HandleFunc("GET /admin/programmes/new", a.admin(a.newProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes", a.admin(a.createProgramme))
