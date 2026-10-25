@@ -205,6 +205,23 @@ func TestPostingIsLimitedToTenMessagesAMinuteForLearnersButNotTheAdmin(t *testin
 	}
 }
 
+func TestDeletingIsLimitedToTenAMinuteForLearnersButNotTheAdmin(t *testing.T) {
+	ada, admin, _, id := chatSite(t)
+	mid := ada.say(id, "Oops")
+	for range 10 {
+		res, body := ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+	res, body := ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	expectStatus(t, res, body, http.StatusTooManyRequests, "sending too fast")
+
+	aid := admin.say(id, "Announcement")
+	for range 11 {
+		res, body := admin.post("/courses/"+id+"/chat/"+aid+"/delete", nil)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+}
+
 func TestDeletingALearnerDeletesTheirMessages(t *testing.T) {
 	ada, _, _, id := chatSite(t)
 	ada.say(id, "Hello")
