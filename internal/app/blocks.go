@@ -16,9 +16,9 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// maxFilterValues is how many of a column's values a block's filter offers to tick.
-// ponytail: a column with more values (receipt numbers) shows only the first ones; a search box if Learners need them.
-const maxFilterValues = 100
+// maxBlocksForm is the most a Blocks tab form may post: its forms are a few KiB, and the Config they save goes
+// into every Deployment page.
+const maxBlocksForm = 64 << 10
 
 // option is one choice of a select, a set of radio buttons or of checkboxes on the Blocks tab.
 type option struct {
@@ -234,8 +234,9 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			}
 		}
 		sort.Strings(all)
-		if len(all) > maxFilterValues {
-			all, row.More = all[:maxFilterValues], maxFilterValues
+		// ponytail: a column with more values (receipt numbers) shows only the first ones; a search box if Learners need them.
+		if len(all) > lab.MaxFilterValues {
+			all, row.More = all[:lab.MaxFilterValues], lab.MaxFilterValues
 		}
 		for _, s := range f.Vals { // a ticked value stays offered even when the Dataset no longer has it
 			if !slices.Contains(all, s) {
@@ -350,6 +351,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 // do is add (a block of kind), save (block's form; close shuts it), up, down, remove (block), filter-bar or reset.
 // An edit Cave refuses shows why and changes nothing.
 func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBlocksForm)
 	acc, ok := a.labOpen(w, r)
 	if !ok {
 		return
