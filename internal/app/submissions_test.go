@@ -43,19 +43,18 @@ func TestALearnerSendsOneSubmissionUploadAtATime(t *testing.T) {
 		fw.Write(pdfHandIn)
 	}()
 
-	// An empty upload is 422 until the first one holds Ada's place, then 429.
+	// Wait until the server holds Ada's place. Probing with another upload instead would race the first one for it:
+	// a probe that wins makes the first one 429, and the server then waits on its unfinished body forever.
 	deadline := time.Now().Add(5 * time.Second)
-	for {
-		res, _ := ada.postFiles(path + "/files")
-		if res.StatusCode == http.StatusTooManyRequests {
-			break
-		}
+	for ada.application.Uploading() == 0 {
 		if time.Now().After(deadline) {
-			t.Fatalf("second upload got %d, want 429", res.StatusCode)
+			t.Fatal("the first upload never reached the server")
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	res, body := ben.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
+	res, body := ada.postFiles(path+"/files", upload{"second.pdf", pdfHandIn})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "")
+	res, body = ben.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
 	mw.Close()

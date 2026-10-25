@@ -92,3 +92,10 @@ func (a *App) SetClock(now func() time.Time) { a.now = now }
 
 // Routes lists every registered pattern, such as "GET /admin/plans", for tests.
 func (a *App) Routes() []string { return a.routes }
+
+// Uploading counts the Learners with a submission upload in flight, for tests.
+func (a *App) Uploading() int {
+	n := 0
+	a.uploading.Range(func(_, _ any) bool { n++; return true })
+	return n
+}
