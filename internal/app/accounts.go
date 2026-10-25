@@ -175,8 +175,8 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) er
 }
 
 // verificationAllowed counts an email to email, a verification, a set-password link or a used-email notice, and reports
-// whether it is within verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the link, and answer as if
-// they had, so the requester learns nothing and the link already sent keeps working.
+// whether it is within verificationsPerAddress in verificationWindow. Past that, callers neither send nor replace the
+// link, and answer as if they had, so the requester learns nothing and the link already sent keeps working.
 func (a *App) verificationAllowed(email string) bool {
 	return a.limiter.allow("verification email "+strings.ToLower(email), verificationsPerAddress, verificationWindow, a.now())
 }

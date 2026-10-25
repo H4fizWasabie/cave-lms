@@ -243,9 +243,10 @@ func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *t
 	s := newSite(t)
 	s.register("Mallory", "ada@example.com", "mallory's password")
 	s.register("Ada", "ada@example.com", "ada's password")
-	s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "ada's password")
+	res, body := s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "ada's password")
+	expectStatus(t, res, body, http.StatusOK, "")
 
-	res, body := s.login("ada@example.com", "mallory's password")
+	res, body = s.login("ada@example.com", "mallory's password")
 	expectStatus(t, res, body, http.StatusUnauthorized, "")
 	res, body = s.login("ada@example.com", "ada's password")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
