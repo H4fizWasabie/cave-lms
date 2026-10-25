@@ -304,6 +304,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/organisations/{id}/edit", a.admin(a.editOrganisationForm))
 	mux.HandleFunc("GET /admin/organisations/{id}/logo", a.admin(a.organisationLogo))
 	mux.HandleFunc("POST /admin/organisations/{id}", a.admin(a.updateOrganisation))
+	mux.HandleFunc("GET /admin/organisations/{id}/delete", a.admin(a.confirmDeleteOrganisation))
 	mux.HandleFunc("POST /admin/organisations/{id}/delete", a.admin(a.deleteOrganisation))
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))

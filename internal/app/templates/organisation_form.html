@@ -13,7 +13,7 @@
             <div class="field"><label for="logo">{{t .Lang "orgs.logo"}}</label><input id="logo" type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml"{{if not .Organisation.ID}} required{{end}}><small>{{t .Lang "orgs.logo-hint"}} <a href="{{.Organisation.LogoSearch}}" target="_blank" rel="noopener" data-logo-search="{{.Organisation.LogoSearchBase}}">{{t .Lang "orgs.search"}}</a></small></div>
             <div class="form-foot"><a class="btn btn-quiet" href="/admin/organisations">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>
-          {{if .Organisation.ID}}<form method="post" action="/admin/organisations/{{.Organisation.ID}}/delete"><button class="btn btn-danger btn-sm">{{t .Lang "adm.delete"}}</button></form>{{end}}
+          {{if .Organisation.ID}}<p class="danger-row"><a class="btn btn-danger btn-sm" href="/admin/organisations/{{.Organisation.ID}}/delete">{{t .Lang "adm.delete"}}</a></p>{{end}}
         </div>
       </div>
     </div>
