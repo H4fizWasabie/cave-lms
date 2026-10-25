@@ -111,7 +111,7 @@ func TestBankQuestionsAndExamCopiesChangeIndependently(t *testing.T) {
 
 	s.saveQuestion(examPath+"/questions", "What is a goroutine?", [5]string{"A thread", "A fish", "", "", ""}, "0", false)
 	ids := s.examQuestionIDs(id)
-	res, body = s.post(examPath+"/questions/"+ids[len(ids)-1]+"/delete", nil)
+	res, body = s.post(examPath+"/questions/"+ids[len(ids)-1]+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/admin/question-bank")
 	expectStatus(t, res, body, http.StatusOK, "What is a goroutine?")

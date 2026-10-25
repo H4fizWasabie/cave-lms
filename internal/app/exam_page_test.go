@@ -38,9 +38,9 @@ func TestEachActionOnAnExamQuestionReturnsToItsCard(t *testing.T) {
 	res, body = s.post(exam+"/questions/"+q[1]+"/down", nil)
 	expectRedirect(t, res, body, exam+"#q-"+q[1])
 
-	res, body = s.post(exam+"/questions/"+q[1]+"/delete", nil)
+	res, body = s.post(exam+"/questions/"+q[1]+"/delete", confirming)
 	expectRedirect(t, res, body, exam+"#q-"+q[2])
-	res, body = s.post(exam+"/questions/"+q[2]+"/delete", nil)
+	res, body = s.post(exam+"/questions/"+q[2]+"/delete", confirming)
 	expectRedirect(t, res, body, exam+"#questions")
 }
 
@@ -55,6 +55,11 @@ func TestActionsOnAWrittenExamQuestionKeepTheFormat(t *testing.T) {
 
 	res, body := s.post("/admin/courses/"+id+"/exam/questions/"+qid+"/up?format=written", nil)
 	expectRedirect(t, res, body, writtenExam(id)+"#q-"+qid)
+	confirmPage := "/admin/courses/" + id + "/exam/questions/" + qid + "/delete?format=written"
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get(confirmPage)
+	expectAll(t, body, `action="/admin/courses/`+id+`/exam/questions/`+qid+`/delete?format=written"`)
 }
 
 func TestEachActionOnABankQuestionReturnsToItsCardUnderTheSameFilters(t *testing.T) {

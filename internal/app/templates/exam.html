@@ -32,7 +32,7 @@
                   <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/up" $q.ID)}}"><button class="icon-btn" aria-label="{{t $.Lang "adm.up"}}" title="{{t $.Lang "adm.move-up"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-up"/></svg></button></form>
                   <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/down" $q.ID)}}"><button class="icon-btn" aria-label="{{t $.Lang "adm.down"}}" title="{{t $.Lang "adm.move-down"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-down"/></svg></button></form>
                   {{if $q.Draft}}<form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/publish" $q.ID)}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
-                  <form method="post" action="{{$.Exam.AdminPath (printf "/questions/%d/delete" $q.ID)}}"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
+                  <a class="btn btn-danger btn-sm" href="{{$.Exam.AdminPath (printf "/questions/%d/delete" $q.ID)}}">{{t $.Lang "adm.delete"}}</a>
                 </div>
               </div>
               {{if $.Exam.Written}}<p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{$q.ModelAnswer}}</p>{{else}}

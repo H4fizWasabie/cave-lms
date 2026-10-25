@@ -235,6 +235,11 @@ var catalog = map[string]entry{
 	"adm.home.no-results":     {en: "No Results released yet.", ms: "Belum ada Keputusan dikeluarkan."},
 	// ---- Premium refresh: admin tidy-up (#313): end ----
 
+	// ---- Premium refresh: confirmation pages (QA) ----
+	"adm.exam.delete-q":     {en: "Delete question", ms: "Padam soalan"},
+	"adm.exam.delete-q-ask": {en: "Delete the question “%s” from the Exam for “%s”? This cannot be undone.", ms: "Padam soalan “%s” daripada Peperiksaan untuk “%s”? Tindakan ini tidak boleh dibuat asal."},
+	// ---- Premium refresh: confirmation pages (QA): end ----
+
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----
 	// Shared by these Admin screens
 	"adm.title-suffix": {en: "Admin", ms: "Pentadbir"},

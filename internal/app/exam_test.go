@@ -225,7 +225,7 @@ func TestAdminReordersQuestionsWithUpAndDown(t *testing.T) {
 	}
 }
 
-func TestAdminDeletesAQuestion(t *testing.T) {
+func TestAdminDeletesAQuestionOnlyAfterConfirming(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -238,8 +238,18 @@ func TestAdminDeletesAQuestion(t *testing.T) {
 	if len(ids) != 2 {
 		t.Fatalf("want 2 questions on the Exam page: %s", body)
 	}
+	confirmPage := examPath + "/questions/" + ids[0][1] + "/delete"
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete the question “Doomed question text” from the Exam for “Go Basics”? This cannot be undone.")
+	expectAll(t, body, `href="`+examPath+`#q-`+ids[0][1]+`"`, `name="confirm" value="yes"`)
 
-	res, body := s.post(examPath+"/questions/"+ids[0][1]+"/delete", nil)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get(examPath)
+	expectAll(t, body, "Doomed question text")
+
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get(examPath)
 	expectStatus(t, res, body, http.StatusOK, "Kept question text")

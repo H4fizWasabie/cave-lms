@@ -1,0 +1,26 @@
+{{define "title"}}{{t .Lang .Heading}}{{if .Side}} · {{t .Lang "adm.title-suffix"}}{{end}} · CAVELMS{{end}}
+{{define "confirm-card"}}
+        <div class="card confirm">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{else}}<p>{{.Question}}</p>{{end}}
+          <div class="form-foot">
+            <a class="btn btn-quiet" href="{{.Cancel}}">{{t .Lang (or .CancelLabel "adm.cancel")}}</a>
+            {{if not .Error}}<form method="post" action="{{.Action}}"><input type="hidden" name="confirm" value="yes"><button class="btn btn-danger-solid">{{t .Lang .Heading}}</button></form>{{end}}
+          </div>
+        </div>
+{{end}}
+{{define "content"}}
+    {{if .Side}}
+    <div class="adm">
+      {{template "admin-side" (side .Side $.Learner $.Lang)}}
+      <div class="adm-main">
+        <div class="adm-head"><h1>{{t .Lang .Heading}}</h1></div>
+        {{template "confirm-card" .}}
+      </div>
+    </div>
+    {{else}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head"><h1>{{t .Lang .Heading}}</h1></div>
+      {{template "confirm-card" .}}
+    </div>
+    {{end}}
+{{end}}
