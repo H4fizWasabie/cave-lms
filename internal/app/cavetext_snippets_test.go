@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -249,5 +250,29 @@ func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `"snippets":[]`)
 	if got := s.snippets(token); len(got) != 0 {
 		t.Fatalf("Snippets after importing none = %s", describe(got))
+	}
+}
+
+func TestASnippetWithAFieldTooLongIsRefused(t *testing.T) {
+	s := newCaveTextSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	const tooLong = "A Snippet's name, folder and shortcut can each have up to 100 characters, and its body up to 20,000. Shorten it, then save."
+	// Characters, not bytes: 100 accented letters fit.
+	kept := ada.createSnippet(token, snippet{Folder: strings.Repeat("é", 100), Name: strings.Repeat("é", 100), Shortcut: "/" + strings.Repeat("é", 99), Body: strings.Repeat("é", 20000)})
+	for _, sn := range []snippet{
+		{Folder: strings.Repeat("f", 101), Name: "N", Shortcut: "/a", Body: "x"},
+		{Folder: "F", Name: strings.Repeat("n", 101), Shortcut: "/a", Body: "x"},
+		{Folder: "F", Name: "N", Shortcut: "/" + strings.Repeat("a", 100), Body: "x"},
+		{Folder: "F", Name: "N", Shortcut: "/a", Body: strings.Repeat("b", 20001)},
+	} {
+		res, body := ada.caveTextSend(http.MethodPost, "snippets", token, sn)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+		res, body = ada.caveTextSend(http.MethodPut, fmt.Sprintf("snippets/%d", kept.ID), token, sn)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+		res, body = ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": []snippet{sn}})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+	}
+	if n := len(ada.snippets(token)); n != 1 {
+		t.Fatalf("Snippets = %d, want only the one that fits", n)
 	}
 }

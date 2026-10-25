@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -103,10 +104,17 @@ func otherSnippets(r *http.Request, tx *sql.Tx, l *caveTextLearner, except int64
 	return others, rows.Err()
 }
 
+// A Snippet's name, folder and shortcut have up to maxSnippetField characters each, its body up to maxSnippetBody.
+const maxSnippetField, maxSnippetBody = 100, 20000
+
 // snippetProblem says, in lang, why a Snippet can't be saved beside the others, or "".
 func snippetProblem(lang string, s caveTextSnippet, others []caveTextSnippet) string {
 	if strings.TrimSpace(s.Name) == "" {
 		return text.T(lang, "cavetext.api.name-needed")
+	}
+	if utf8.RuneCountInString(s.Name) > maxSnippetField || utf8.RuneCountInString(s.Folder) > maxSnippetField ||
+		utf8.RuneCountInString(s.Shortcut) > maxSnippetField || utf8.RuneCountInString(s.Body) > maxSnippetBody {
+		return text.T(lang, "cavetext.api.too-long")
 	}
 	return shortcutProblem(lang, s.Shortcut, others)
 }
@@ -249,6 +257,9 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	list := make([]caveTextSnippet, len(in.Snippets)-skipped)
 	before := clashList(reserved, nil, len(list)) // grows by each kept Snippet once it passes
 	for i := range list {
+		if r.Context().Err() != nil {
+			return // the request is gone; stop the clash check, and the deferred Rollback frees the lock
+		}
 		list[i] = in.Snippets[i].snippet()
 		if problem := snippetProblem(l.Lang, list[i], before); problem != "" {
 			writeJSONError(w, http.StatusUnprocessableEntity, problem)
@@ -276,7 +287,7 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 	}
 	answer := map[string]any{"snippets": list, "skipped": skipped}
 	if skipped > 0 {
-		answer["message"] = skippedMessage(l.Lang, len(list), skipped)
+		answer["message"] = skippedMessage(l.Lang, len(list), skipped, c)
 	}
 	writeJSON(w, http.StatusOK, answer)
 }

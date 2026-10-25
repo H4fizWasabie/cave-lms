@@ -395,3 +395,23 @@ func TestTheCaveTextPageAsksALearnerNewToCaveTextToSignIn(t *testing.T) {
 		t.Errorf("the new Learner's CaveText page links the extension %d times, want once", n)
 	}
 }
+
+func TestAProImportStopsAtTwoThousandSnippetsAndAFullProLearnerCannotAddAnother(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.givePro("ada@example.com")
+	set := make([]snippet, 2001)
+	for i := range set {
+		set[i] = snippet{Folder: "Kept", Name: fmt.Sprintf("I%d", i), Shortcut: fmt.Sprintf("/i%04d", i), Body: "x"}
+	}
+	res, body := ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": set})
+	expectStatus(t, res, body, http.StatusOK, `"skipped":1`)
+	if want := "Imported 2000 Snippets, the most CaveText Pro keeps; the other one was skipped."; !strings.Contains(body, want) {
+		t.Fatalf("answer %s, want message %q", body, want)
+	}
+	if n := len(ada.snippets(token)); n != 2000 {
+		t.Fatalf("Snippets = %d, want 2000", n)
+	}
+	res, body = ada.caveTextSend(http.MethodPost, "snippets", token, snippet{Folder: "Work", Name: "More", Shortcut: "/more", Body: "x"})
+	expectStatus(t, res, body, http.StatusForbidden, "You have 2000 Snippets, the most CaveText Pro keeps. Delete one to add another.")
+}

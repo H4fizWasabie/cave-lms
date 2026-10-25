@@ -1293,6 +1293,15 @@ var catalog = map[string]entry{
 		ms: "Anda mempunyai %d daripada %d Snippet percuma anda. Padam satu untuk menambah yang lain, atau dapatkan CaveText Pro untuk Snippet tanpa had.",
 	},
 	"cavetext.api.imported":     {en: "Imported %s, your free cap; %s. CaveText Pro gives unlimited Snippets.", ms: "%s diimport, iaitu had percuma anda; %s. CaveText Pro memberi Snippet tanpa had."},
+	"cavetext.api.pro-imported": {en: "Imported %s, the most CaveText Pro keeps; %s.", ms: "%s diimport, iaitu jumlah maksimum CaveText Pro; %s."},
+	"cavetext.api.pro-cap-reached": {
+		en: "You have %d Snippets, the most CaveText Pro keeps. Delete one to add another.",
+		ms: "Anda mempunyai %d Snippet, iaitu jumlah maksimum CaveText Pro. Padam satu untuk menambah yang lain.",
+	},
+	"cavetext.api.too-long": {
+		en: "A Snippet's name, folder and shortcut can each have up to 100 characters, and its body up to 20,000. Shorten it, then save.",
+		ms: "Nama, folder dan pintasan Snippet masing-masing boleh mempunyai sehingga 100 aksara, dan kandungannya sehingga 20,000. Pendekkannya, kemudian simpan.",
+	},
 	"cavetext.api.skipped-one":  {en: "the other one was skipped", ms: "satu lagi dilangkau"},
 	"cavetext.api.skipped-many": {en: "the other %d were skipped", ms: "%d yang lain dilangkau"},
 	"cavetext.api.paste-first":  {en: "Paste the User master prompt first.", ms: "Tampal User master prompt dahulu."},
