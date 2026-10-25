@@ -82,10 +82,12 @@ func readGrid(name string, cells [][]string, h, first, days int) (*table, error)
 	if len(tb.raw) == 0 {
 		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
+	// One join, not += per row: a grid under many blank rows would copy the title once per row.
+	parts := make([]string, 0, h+1)
 	for _, row := range cells[:h] {
-		tb.title += " " + strings.Join(row, " ")
+		parts = append(parts, strings.Join(row, " "))
 	}
-	tb.title += " " + name
+	tb.title = " " + strings.Join(append(parts, name), " ")
 	return tb, nil
 }
 
