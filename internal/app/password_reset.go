@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -36,7 +37,7 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if err == nil && a.limiter.allow("reset email "+strings.ToLower(to), resetEmailsPerAddress, verificationWindow, a.now()) {
+	if err == nil && a.limiter.allow("reset email "+strings.ToLower(to), resetEmailsPerAddress, resetEmailWindow, a.now()) {
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeResetPassword, resetLinkLifetime)
 		if err != nil {
 			a.serverError(w, r, err)
@@ -104,6 +105,11 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		hashToken(token), purposeResetPassword).Scan(&learnerID, &expired)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		// Only bad links count, so Learners on one network each using their own link never run out.
+		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), sharedAddressAttempts, rateLimitWindow, time.Now()) {
+			a.tooManyAttempts(w, r)
+			return
+		}
 		a.render(w, r, http.StatusBadRequest, "message", page{
 			Title:      text.T(lang, "message.link-invalid"),
 			Message:    text.T(lang, "reset.invalid"),

@@ -200,7 +200,7 @@ func TestForwardedForFromANonLocalAddressIsIgnored(t *testing.T) {
 	}
 }
 
-// One address still cannot hammer the account-recovery forms without end.
+// One address gets 100 tries at each account-recovery form in 15 minutes; at reset-password only bad links count.
 func TestForgotPasswordResendAndResetAreRateLimited(t *testing.T) {
 	for _, path := range []string{"/forgot-password", "/verify/resend", "/reset-password"} {
 		s := newSite(t)
@@ -213,31 +213,38 @@ func TestForgotPasswordResendAndResetAreRateLimited(t *testing.T) {
 	}
 }
 
-// A class that signed up together on one network can each resend a verification email, ask for a reset and use it.
-func TestAClassOnOneAddressCanEachRecoverTheirAccount(t *testing.T) {
+// Learners who signed up together on one network can each resend a verification email, ask for a reset and use it,
+// and their good reset links leave the address's budget for bad ones untouched.
+func TestLearnersOnOneAddressCanEachRecoverTheirAccount(t *testing.T) {
 	s := newSite(t)
-	const class = 30
-	for i := range class {
-		res, body := s.register("Learner", fmt.Sprintf("learner%d@example.com", i), "correct horse battery")
+	const learners = 30
+	email := func(i int) string { return fmt.Sprintf("learner%d@example.com", i) }
+	for i := range learners {
+		res, body := s.register("Learner", email(i), "correct horse battery")
 		expectStatus(t, res, body, http.StatusOK, "Check your email")
 	}
-	for i := range class {
-		res, body := s.post("/verify/resend", url.Values{"email": {fmt.Sprintf("learner%d@example.com", i)}})
+	for i := range learners {
+		res, body := s.post("/verify/resend", url.Values{"email": {email(i)}})
 		expectStatus(t, res, body, http.StatusOK, "Check your email")
 	}
-	for i := range class {
-		res, body := s.forgotPassword(fmt.Sprintf("learner%d@example.com", i))
+	for i := range learners {
+		res, body := s.forgotPassword(email(i))
 		expectStatus(t, res, body, http.StatusOK, "Check your email")
 	}
-	for i := range class {
-		email := fmt.Sprintf("learner%d@example.com", i)
-		res, body := s.resetPassword(resetToken(t, s.lastEmailLinkPath(email, "/reset-password")), "new horse staple")
+	for i := range learners {
+		res, body := s.resetPassword(resetToken(t, s.lastEmailLinkPath(email(i), "/reset-password")), "new horse staple")
 		expectStatus(t, res, body, http.StatusOK, "Your password has been changed")
 	}
 	// Each Learner got a verification email, its resend and a reset email.
-	if n := len(s.mail.Messages()); n != 3*class {
-		t.Fatalf("sent %d emails, want %d", n, 3*class)
+	if n := len(s.mail.Messages()); n != 3*learners {
+		t.Fatalf("sent %d emails, want %d", n, 3*learners)
 	}
+	for range 100 {
+		res, body := s.resetPassword("not-a-token", "new horse staple")
+		expectStatus(t, res, body, http.StatusBadRequest, "")
+	}
+	res, body := s.resetPassword("not-a-token", "new horse staple")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
 }
 
 // Asking for resets to one email from many addresses stops sending past resetEmailsPerAddress, answers as if it had

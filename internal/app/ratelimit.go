@@ -15,9 +15,9 @@ const (
 	rateLimitWindow = 15 * time.Minute
 	// longestWindow is the longest window any key is counted over; a key with no attempt in it is dropped.
 	longestWindow = verificationWindow
-	// classAttempts is each address's budget at sign-up and the account-recovery forms: enough for a whole class on
-	// one network to use each once, too few to hammer them.
-	classAttempts = 100
+	// sharedAddressAttempts is each address's budget at sign-up and the account-recovery forms, and for bad links at
+	// reset-password: enough for every Learner on one network (a classroom, carrier NAT) to use each once.
+	sharedAddressAttempts = 100
 	// certificateSearches is each address's budget at the public Certificate search, enough for an employer checking a
 	// class but too few to guess ICs.
 	certificateSearches = 30
@@ -35,8 +35,10 @@ const (
 	// ponytail: in memory like every count here, so a restart resets it.
 	verificationsPerAddress = 3
 	verificationWindow      = 24 * time.Hour
-	// resetEmailsPerAddress caps the password reset emails to one address from anywhere, in verificationWindow.
+	// resetEmailsPerAddress caps the password reset emails to one address from anywhere. An hour, not a day like
+	// verifications: anyone who knows an email can hold back its reset emails, so not for long.
 	resetEmailsPerAddress = 3
+	resetEmailWindow      = time.Hour
 )
 
 // rateLimiter counts attempts per key (a form and client address, for logins also the account; in a Chat the
