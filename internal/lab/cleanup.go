@@ -342,7 +342,8 @@ func likeliest(f *excelize.File, names []string, picked string) int {
 	}
 	best, most := 0, -1
 	for i, name := range names {
-		cells, _ := sheetRows(f, name)
+		// Raw, as readTable reads: through a number format of many '@', a cell's text repeats once per '@'.
+		cells, _ := sheetRows(f, name, excelize.Options{RawCellValue: true})
 		n := 0
 		for _, row := range cells {
 			if strings.TrimSpace(strings.Join(row, "")) != "" {

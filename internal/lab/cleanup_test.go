@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -833,5 +834,47 @@ func TestASheetPaddedPast5MillionCellsByAWideHeaderIsRefused(t *testing.T) {
 	var p lab.Problem
 	if !errors.As(err, &p) || p.Key != "lab.err.too-many-cells" {
 		t.Fatalf("got %v, want lab.err.too-many-cells", err)
+	}
+}
+
+// A number format of many '@' makes excelize repeat a cell's text once per '@', so a few-KB file Clean-up
+// cannot read must not have its sheets formatted to choose whose Problem to give.
+func TestCleanUpOfAnUnreadableSheetDoesNotFormatItsCellText(t *testing.T) {
+	f := excelize.NewFile()
+	format := strings.Repeat("@", 8000)
+	style, err := f.NewStyle(&excelize.Style{CustomNumFmt: &format})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for r := 1; r <= 11; r++ {
+		cells := []any{"abc", "def"}
+		if r == 1 {
+			cells = []any{"Perkara", "Perkara"}
+		}
+		if err := f.SetSheetRow("Sheet1", fmt.Sprint("A", r), &cells); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.SetCellStyle("Sheet1", "A1", "B11", style); err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	if err := f.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	start := time.Now()
+	_, err = lab.Clean(bytes.NewReader(b.Bytes()), lab.General, lab.Settings{})
+	took := time.Since(start)
+	runtime.ReadMemStats(&after)
+	var p lab.Problem
+	if !errors.As(err, &p) || p.Key != "lab.err.header-same-name" {
+		t.Fatalf("err = %v, want lab.err.header-same-name", err)
+	}
+	// Read as formatted, this file allocates about 2.4 GB in about 0.8 s.
+	if mb := (after.TotalAlloc - before.TotalAlloc) >> 20; mb > 50 || took > time.Second {
+		t.Fatalf("Clean of a %d-byte file allocated %d MB in %v, want under 50 MB and 1s", b.Len(), mb, took)
 	}
 }
