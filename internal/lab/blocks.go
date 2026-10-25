@@ -19,15 +19,17 @@ type Config struct {
 
 // WorkBlock is one block of a Work Dashboard, in the shape charts.js draws (spec #237).
 type WorkBlock struct {
-	Kind     string   `json:"kind"` // card, line, bar, donut, table
+	Kind     string   `json:"kind"` // card, line, bar, heatmap, donut, table
 	Label    string   `json:"label"`
 	LabelSet bool     `json:"labelSet,omitempty"` // the Learner typed the label, so it no longer follows the choices
+	Icon     string   `json:"icon,omitempty"`     // card: one of Icons, or none; empty draws the one its value suggests
 	Value    *Value   `json:"value,omitempty"`    // card, line, bar, donut
 	X        string   `json:"x,omitempty"`        // line: the Date column
 	By       string   `json:"by,omitempty"`       // line: day or month
-	Split    string   `json:"split,omitempty"`    // line: one line per value of this column
-	Group    string   `json:"group,omitempty"`    // bar, donut
-	Top      int      `json:"top,omitempty"`      // bar: the largest 5, 8 or 15 groups; 0 shows all
+	Split    string   `json:"split,omitempty"`    // line: one line per value of this column; heatmap: its columns across
+	Group    string   `json:"group,omitempty"`    // bar, donut; heatmap: its rows down
+	Top      int      `json:"top,omitempty"`      // bar, heatmap: the largest 5, 8 or 15 groups; 0 shows all
+	Dir      string   `json:"dir,omitempty"`      // bar: vertical, or empty for horizontal
 	Cols     []string `json:"cols,omitempty"`     // table: columns shown, in order
 	Sort     string   `json:"sort,omitempty"`     // table: newest or largest first by this column
 	Limit    int      `json:"limit,omitempty"`    // table: 10, 25 or 50 rows
@@ -89,7 +91,7 @@ func (t *Template) Open(c Choices, d *Dataset) *Config {
 		}
 	}
 	for _, b := range t.included(c) {
-		w := WorkBlock{Kind: b.Kind, Label: b.Label, X: c[b.X], Split: c[b.Series], Group: c[b.Group], Cols: cols(b.Cols),
+		w := WorkBlock{Kind: b.Kind, Label: b.Label, Icon: b.Icon, X: c[b.X], Split: c[b.Series], Group: c[b.Group], Cols: cols(b.Cols),
 			Sort: c[b.Sort], Limit: b.Limit, Wide: b.Wide || b.Kind == "table"} // a Template's tables span the row
 		if b.Kind != "table" {
 			switch {
@@ -159,12 +161,37 @@ const (
 
 // The options the editor offers, in its order.
 var (
-	Kinds  = []string{"card", "line", "bar", "donut", "table"}
+	Kinds  = []string{"card", "line", "bar", "heatmap", "donut", "table"}
 	Aggs   = []string{"count", "sum", "avg", "distinct", "calc"}
 	Ops    = [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} // a calculation's operators, as posted and as written
 	Tops   = []int{5, 8, 15, 0}                                          // a bar's largest groups; 0 shows all
 	Limits = []int{10, 25, 50}                                           // a table's rows
+	// Icons are the outline icons charts.js draws on a card; a card's Icon is one of them, or "none".
+	Icons = []string{"people", "money", "box", "calendar", "check", "alert", "chart-up", "tag", "clock", "building", "cart", "star"}
 )
+
+// DefaultIcon is the icon a card's value suggests: people for a count, money for a sum or average of one of the
+// money columns, tag for a distinct count, otherwise chart-up. charts.js draws the same for a card with no Icon.
+func (b *WorkBlock) DefaultIcon(money []string) string {
+	switch v := b.Value; {
+	case v == nil || v.Agg == "count":
+		return "people"
+	case (v.Agg == "sum" || v.Agg == "avg") && slices.Contains(money, v.Col):
+		return "money"
+	case v.Agg == "distinct":
+		return "tag"
+	}
+	return "chart-up"
+}
+
+// FollowIcon gives a card the icon its value suggests while old, the block before the edit, showed its own
+// suggestion and the Learner picked no other: a picked icon stays.
+func (b *WorkBlock) FollowIcon(old WorkBlock, money []string) {
+	was := cmp.Or(old.Icon, old.DefaultIcon(money))
+	if b.IsCard() && (b.Icon == "" || (b.Icon == was && was == old.DefaultIcon(money))) {
+		b.Icon = b.DefaultIcon(money)
+	}
+}
 
 // opSign is operator op as people write it; empty for one Cave does not offer.
 func opSign(op string) string {
@@ -230,14 +257,15 @@ func (c *Config) Arrange(i int) int {
 // the last card, anything else at the end.
 func (c *Config) Add(kind string, d *Dataset, lang string) (int, error) {
 	b := WorkBlock{Kind: kind}
-	if kind == "line" || kind == "table" {
+	if kind == "line" || kind == "table" || kind == "heatmap" {
 		b.Wide = true
 	}
-	if kind == "bar" {
+	if kind == "bar" || kind == "heatmap" {
 		b.Top = 8
 	}
 	b.Fill(d)
 	b.Label = b.AutoLabel(lang)
+	b.FollowIcon(b, c.Money)
 	if err := b.Check(d); err != nil {
 		return 0, err
 	}
@@ -306,6 +334,9 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		}
 		return col
 	}
+	if !b.IsCard() {
+		b.Icon = ""
+	}
 	if b.Kind == "table" {
 		b.Value, b.X, b.By, b.Split, b.Group, b.Top = nil, "", "", "", "", 0
 		if len(b.Cols) == 0 {
@@ -350,14 +381,17 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	if b.Kind != "line" {
 		b.X, b.By = "", ""
 	}
-	if b.Kind != "bar" && b.Kind != "donut" {
+	if b.Kind != "bar" && b.Kind != "donut" && b.Kind != "heatmap" {
 		b.Group = ""
 	}
-	if b.Kind != "line" && b.Kind != "bar" {
+	if b.Kind != "line" && b.Kind != "bar" && b.Kind != "heatmap" {
 		b.Split = ""
 	}
-	if b.Kind != "bar" {
+	if b.Kind != "bar" && b.Kind != "heatmap" {
 		b.Top = 0
+	}
+	if b.Kind != "bar" || b.Dir == "horizontal" { // horizontal, the default, is not stored
+		b.Dir = ""
 	}
 	switch b.Kind {
 	case "card":
@@ -367,11 +401,14 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		if b.By == "" {
 			b.By = "month"
 		}
-	case "bar", "donut":
+	case "bar", "donut", "heatmap":
 		b.Group = fit(b.Group, Text)
 	}
 	if have := d.typeOf(b.Split); have != "" && have != Text && !slices.Contains(paused, b.Split) {
 		b.Split = ""
+	}
+	if b.Kind == "heatmap" && b.Split == "" { // a heatmap needs its columns across: another Text column
+		b.Split = d.first(Text, b.Group)
 	}
 }
 
@@ -405,6 +442,9 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 	if utf8.RuneCountInString(b.Label) > 80 {
 		return Problem{"lab.err.block-label", nil}
 	}
+	if b.Icon != "" && b.Icon != "none" && !slices.Contains(Icons, b.Icon) {
+		return bad
+	}
 	var errs []error
 	switch b.Kind {
 	case "table":
@@ -418,7 +458,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		if !slices.Contains(Limits, b.Limit) {
 			return bad
 		}
-	case "card", "line", "bar", "donut":
+	case "card", "line", "bar", "heatmap", "donut":
 		v := b.Value
 		if v == nil {
 			return bad
@@ -447,10 +487,18 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		}
 		errs = append(errs, col(b.X, Date), maybe(b.Split, Text))
 	case "bar":
-		if !slices.Contains(Tops, b.Top) {
+		if !slices.Contains(Tops, b.Top) || (b.Dir != "" && b.Dir != "horizontal" && b.Dir != "vertical") {
 			return bad
 		}
 		errs = append(errs, col(b.Group, Text), maybe(b.Split, Text))
+	case "heatmap":
+		if !slices.Contains(Tops, b.Top) {
+			return bad
+		}
+		if b.Split == "" || b.Split == b.Group {
+			return Problem{"lab.err.block-heat-cols", nil}
+		}
+		errs = append(errs, col(b.Group, Text), col(b.Split, Text))
 	case "donut":
 		errs = append(errs, col(b.Group, Text))
 	}
@@ -512,6 +560,8 @@ func (b *WorkBlock) AutoLabel(lang string) string {
 		return text.T(lang, "lab.b.by", b.what(lang), text.T(lang, "lab.b.by-"+b.By))
 	case "bar", "donut":
 		return text.T(lang, "lab.b.by", b.what(lang), b.Group)
+	case "heatmap":
+		return text.T(lang, "lab.b.by", b.what(lang), b.Group+" × "+b.Split)
 	}
 	return b.what(lang)
 }
@@ -532,6 +582,8 @@ func (b *WorkBlock) Summary(lang string) string {
 	switch {
 	case b.Kind == "line":
 		parts = append(parts, text.T(lang, "lab.b.by", b.X, text.T(lang, "lab.b.by-"+b.By)))
+	case b.Kind == "heatmap":
+		parts = append(parts, b.Group+" × "+b.Split)
 	case b.Group != "":
 		parts = append(parts, b.Group)
 	}

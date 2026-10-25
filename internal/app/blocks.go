@@ -91,6 +91,9 @@ func newBlocksView(d *dashboard, lang string, open int, saved bool) *blocksView 
 			row.Needs = append(row.Needs, need{Name: name, Options: u.Options(ds)})
 		}
 		if row.Open {
+			if card && b.Icon == "" { // a card saved before icons draws the one its value suggests
+				row.Icon = b.DefaultIcon(cfg.Money)
+			}
 			row.form(ds, lang)
 		}
 		v.Rows = append(v.Rows, row)
@@ -134,10 +137,19 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		row.Fields = append(row.Fields, choice{Name: name, Label: text.T(lang, label), Options: opts})
 	}
 	switch b.Kind {
+	case "card":
+		icons := []option{{Value: "none", Text: text.T(lang, "lab.b.none"), On: b.Icon == "none"}}
+		for _, k := range lab.Icons {
+			icons = append(icons, option{Value: k, Text: text.T(lang, "lab.b.icon."+k), On: b.Icon == k})
+		}
+		field("icon", "lab.b.icon", icons)
 	case "line":
 		field("x", "lab.b.date", columns(ds, lab.Date, b.X, ""))
 	case "bar", "donut":
 		field("group", "lab.b.group", columns(ds, lab.Text, b.Group, ""))
+	case "heatmap":
+		field("group", "lab.b.heat-rows", columns(ds, lab.Text, b.Group, ""))
+		field("split", "lab.b.heat-cols", columns(ds, lab.Text, b.Split, ""))
 	}
 	if v := b.Value; v != nil {
 		var aggs []option
@@ -166,8 +178,10 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 	case "line":
 		field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
 		row.Radios = append(row.Radios, buttons(lang, "by", "lab.b.by-word", b.By, "day", "lab.b.by-day", "month", "lab.b.by-month"))
-	case "bar":
-		field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
+	case "bar", "heatmap":
+		if b.Kind == "bar" {
+			field("split", "lab.b.split", columns(ds, lab.Text, b.Split, text.T(lang, "lab.b.none")))
+		}
 		top := choice{Name: "top", Label: text.T(lang, "lab.b.top")}
 		for _, n := range lab.Tops {
 			o := option{Value: strconv.Itoa(n), Text: text.T(lang, "lab.b.top-n", n), On: b.Top == n}
@@ -177,6 +191,10 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			top.Options = append(top.Options, o)
 		}
 		row.Radios = append(row.Radios, top)
+		if b.Kind == "bar" {
+			row.Radios = append(row.Radios, buttons(lang, "direction", "lab.b.direction", cmp.Or(b.Dir, "horizontal"),
+				"horizontal", "lab.b.horizontal", "vertical", "lab.b.vertical"))
+		}
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
 		for _, c := range ds.Columns {
@@ -279,6 +297,8 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		switch kind {
 		case "bar":
 			b.Top = 8
+		case "heatmap":
+			b.Top, b.Wide = 8, true
 		case "line", "table":
 			b.Wide = true
 		}
@@ -287,8 +307,9 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		if agg != "" {
 			b.Value = &lab.Value{Agg: agg, Col: f.Get("col"), A: f.Get("a"), Op: f.Get("op"), B: f.Get("b"), Then: f.Get("then")}
 		}
-		b.X, b.By, b.Split, b.Group, b.Sort = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort")
+		b.X, b.By, b.Split, b.Group, b.Sort, b.Icon = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort"), f.Get("icon")
 		b.Top, _ = strconv.Atoi(f.Get("top"))
+		b.Dir = f.Get("direction")
 		b.Limit, _ = strconv.Atoi(f.Get("limit"))
 		b.Cols = append([]string{}, f["cols"]...) // none ticked stays empty, so Check asks for one
 		b.Wide = f.Get("width") == "full"
@@ -347,6 +368,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		open, err = cfg.Add(r.FormValue("kind"), d.Dataset, lang)
 	case "save":
 		b := blockFromForm(r.Form, cfg.Blocks[i], d.Dataset, lang)
+		b.FollowIcon(cfg.Blocks[i], cfg.Money)
 		if err = b.KeepsLock(cfg.Blocks[i]); err == nil {
 			err = b.Check(d.Dataset, cfg.Blocks[i].Missing(d.Dataset)...)
 		}
