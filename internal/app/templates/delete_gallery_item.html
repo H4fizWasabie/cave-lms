@@ -4,7 +4,7 @@
       {{template "admin-side" (side "gallery" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head"><h1>{{t .Lang "adm.gallery.delete"}}</h1></div>
-        <div class="card">
+        <div class="card confirm">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           {{with .Item}}{{if not $.Error}}
           <p>{{t $.Lang "adm.delete"}} &ldquo;{{.Title}}&rdquo; {{t $.Lang "adm.gallery.and-file"}} {{t $.Lang "adm.not-undone"}}</p>

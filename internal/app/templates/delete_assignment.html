@@ -4,7 +4,7 @@
       {{template "admin-side" (side "courses" $.Learner $.Lang)}}
       <div class="adm-main">
         <div class="adm-head"><h1>{{t .Lang "adm.assignments.delete"}}</h1></div>
-        <div class="card">
+        <div class="card confirm">
           <p>{{t .Lang "adm.delete"}} &ldquo;{{.Assignment.Title}}&rdquo;? {{t .Lang "adm.assignments.delete-warning"}} {{t .Lang "adm.not-undone"}}</p>
           <div class="form-foot">
             <a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/assignments">{{t .Lang "adm.cancel"}}</a>
