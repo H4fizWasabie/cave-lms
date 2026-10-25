@@ -26,10 +26,9 @@ func TestTheAboutPageGivesTheClientsCompanyBackgroundInBothLanguages(t *testing.
 		"Coach Adam Daniel", "Jurulatih NLP Bertauliah", "Pembelajaran Sepanjang Hayat untuk Kecekapan")
 }
 
-func TestTheHomeMenuAndTheFooterLeadToTheAboutPage(t *testing.T) {
+func TestTheFooterLeadsToTheAboutPageAndTheHomePageDropsItsPlaceholder(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
-	expectAll(t, header(t, body), `href="/about"`)
 	expectAll(t, body, `<a href="/about">About TCC</a>`)
 	expectNone(t, body, `href="/#background"`, `id="background"`, "Dinor")
 }

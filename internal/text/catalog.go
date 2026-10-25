@@ -44,7 +44,7 @@ var catalog = map[string]entry{
 
 	// ---- Privacy notice (/privacy) and the Register consent line: begin ----
 	// The facts are recorded in docs/adr/0006. Change the date in privacy.updated whenever the notice changes.
-	// The About page: Coach Adam's company background, in his words; the Malay was approved by Abah.
+	// The About page: the client's company background, in its own words; the Malay was approved by Abah.
 	"about.link":       {en: "About TCC", ms: "Tentang TCC"},
 	"about.menu":       {en: "Company background", ms: "Latar belakang syarikat"},
 	"about.eyebrow":    {en: "HRD Corp Training Provider · MOF Registered · Kuala Lumpur", ms: "Penyedia Latihan HRD Corp · Berdaftar MOF · Kuala Lumpur"},

@@ -97,7 +97,7 @@ func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
 	expectInOrder(t, header(t, body), ">Certification<", `href="/certificates"`, `href="/my-certificates"`)
 }
 
-func TestTheHomeMenuReachesTheHomePageSectionsAndTheLabMenuSaysWhatTheLabDoes(t *testing.T) {
+func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPageAndTheLabMenuSaysWhatTheLabDoes(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/lab", "en")
 	head := header(t, body)
