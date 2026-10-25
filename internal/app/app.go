@@ -285,6 +285,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /gallery/{id}/thumb", a.galleryThumb)
 	mux.HandleFunc("GET /programmes", a.programmes)
 	mux.HandleFunc("GET /programmes/pictures/{key}", a.programmePicture)
+	mux.HandleFunc("GET /course-pictures/{key}", a.coursePicture)
 	mux.HandleFunc("GET /admin/programmes", a.admin(a.adminProgrammes))
 	mux.HandleFunc("GET /admin/programmes/new", a.admin(a.newProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes", a.admin(a.createProgramme))
@@ -558,9 +559,18 @@ type galleryTile struct {
 // tile is the template function behind {{template "gallery-tile" (tile . $.Lang)}}.
 func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, lang} }
 
+// courseCard is what the course-card and course-cover templates read: a Course and the page's language.
+type courseCard struct {
+	course
+	Lang string
+}
+
+// card is the template function behind {{template "course-card" (card . $.Lang)}}.
+func card(c course, lang string) courseCard { return courseCard{c, lang} }
+
 // parsePages pairs each page template with layout.html, keyed by file name without extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
 		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html")
 	if err != nil {

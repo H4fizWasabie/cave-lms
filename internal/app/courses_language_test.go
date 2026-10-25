@@ -19,10 +19,10 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 
 	_, body := s.getAsking("/courses", "ms")
 	expectLanguage(t, body, "ms", "Mula bila-bila masa dan sertai dengan satu klik.")
-	expectAll(t, body, "Go Basics", "Learn Go from scratch.", "Dibuka untuk penyertaan baharu", "Tarikh mula: 3 November 2026", "Lihat Kursus")
+	expectAll(t, body, "Go Basics", "Learn Go from scratch.", "Dibuka untuk penyertaan baharu", "Tarikh mula: 3 November 2026", "2 Pelajaran")
 	_, body = s.getAsking("/courses", "en")
 	expectLanguage(t, body, "en", "Start any time and join in one click.")
-	expectAll(t, body, "Open to new joins", "Start date: 3 November 2026", "View course")
+	expectAll(t, body, "Open to new joins", "Start date: 3 November 2026", "2 Lessons")
 
 	_, body = s.getAsking("/courses/"+id, "ms")
 	expectLanguage(t, body, "ms", `atau <a href="/register">daftar</a> untuk menyertai Kursus ini.`)

@@ -178,6 +178,36 @@ the tab being "course" or "chat". */}}
       </nav>
 {{end}}
 
+{{/* course-card is one Course in a list of Course cards (ul.catalogue): its picture or drawn cover, title, status,
+description, dates, Lesson count, Exam and the Certificate it leads to. Pass (card . $.Lang) for a course. */}}
+{{define "course-card"}}
+        <li class="catalogue-card{{if not .Joinable}} is-closed{{end}}">
+          {{template "course-cover" .}}
+          <div class="catalogue-card-body">
+            <h2><a href="/courses/{{.ID}}">{{.Title}}</a></h2>
+            {{if .Ended}}<span class="badge badge-closed">{{t .Lang "course.ended"}}</span>{{else if .Open}}<span class="badge badge-open">{{t .Lang "course.open"}}</span>{{else}}<span class="badge badge-closed">{{t .Lang "course.closed-badge"}}</span>{{end}}
+            <p class="catalogue-card-desc">{{.Description}}</p>
+            {{if .Live}}<ul class="meta"><li>{{t .Lang "course.dates" (.StartOn .Lang) (.EndOn .Lang)}}</li></ul>
+            {{else}}{{with .StartOn .Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}{{end}}
+            <ul class="catalogue-flags">
+              <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span class="num">{{tn .Lang "courses.card.lessons" .LessonCount}}</span></li>
+              {{if .HasExam}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>{{t .Lang "courses.card.exam"}}</li>{{end}}
+              {{if .Live}}<li><img class="catalogue-badge" src="{{static .Badge}}" alt="" width="113" height="160">{{t .Lang "course.pcc-level" .Level}}</li>
+              {{else if .HasExam}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{t .Lang "courses.card.certificate"}}</li>{{end}}
+            </ul>
+          </div>
+        </li>
+{{end}}
+
+{{/* course-cover is a Course's picture or, without one, a drawn cover. It is decorative: the title is said next to it.
+Pass (card .Course .Lang); it fills its container's width at 16:9. */}}
+{{define "course-cover"}}{{if .PictureKey}}<img class="course-cover" src="/course-pictures/{{.PictureKey}}" alt="" loading="lazy">{{else -}}
+<div class="course-cover course-cover-drawn{{if .Live}} is-live{{end}}" aria-hidden="true">
+            <svg class="course-cover-mark" viewBox="0 0 64 64"><path d="M14 52 32 12l18 40h-9l-9-20-9 20z" fill="currentColor"/></svg>
+            <span class="course-cover-title">{{.Title}}</span>
+            <span class="course-cover-level">{{with .Level}}PCC {{.}}{{else}}{{t $.Lang "courses.card.self-paced"}}{{end}}</span>
+          </div>{{end}}{{end}}
+
 {{/* offers lists a Learner page's .Offers side by side as pricing cards: each product's logo, name, tagline, price, its Normal
 price crossed out when set, its benefits, and at the bottom Buy to its payment link, or Contact us without one.
 Visitors see the cards without buttons. */}}
