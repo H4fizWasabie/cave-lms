@@ -29,7 +29,7 @@ _Malay_: Pemilik
 _Avoid_: Super admin, root
 
 **System log**:
-What the site records about its own running: errors and start-ups, kept 30 days. Only the Owner sees it.
+What the site records about its own running: errors, start-ups and events such as an email's logins being limited, kept 30 days. Only the Owner sees it.
 _Malay_: Log sistem
 _Avoid_: Audit log, activity log, history
 

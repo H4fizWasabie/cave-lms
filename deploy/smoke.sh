@@ -24,7 +24,7 @@ staging)
 esac
 # Connect straight to the address Caddy binds: the VPS's own DNS (Tailscale's resolver) sometimes fails to look up
 # its own domain, and that is no fault of the site. Caddy, TLS and the app are still all tested.
-echo "resolve = \"${base#https://}:443:169.58.63.110\"" >>"$work/curlrc"
+echo "resolve = \"${base#https://}:443:13.140.65.183\"" >>"$work/curlrc"
 
 failed=0
 # check METHOD PATH STATUS [TEXT]: the answer must have STATUS and, when given, contain TEXT in its headers or body

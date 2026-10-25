@@ -1,6 +1,6 @@
 # Installed to /etc/caddy/sites/cave-lms-staging.caddy by CAVE_ENV=staging deploy/deploy.sh. See docs/deploy.md, Staging.
 staging.cavelms.com {
-	bind 169.58.63.110
+	bind 13.140.65.183
 	request_body {
 		max_size 2100MiB
 	}

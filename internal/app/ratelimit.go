@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -23,6 +24,12 @@ const (
 	// Only failed logins count: per account from one address, and per address across all accounts.
 	loginFailuresPerAccount = 10
 	loginFailuresPerAddress = 100
+	// loginFailuresPerEmail caps guesses at one email from all addresses together, which the two above leave
+	// unbounded. 50 an hour is past what one Learner forgetting a password reaches (10 per 15 minutes from each
+	// address), and with bcrypt and 8-character passwords it holds a distributed guesser to about 1200 a day. The cost:
+	// anyone who knows an email can keep its logins refused, an hour at a time; password reset is not limited by it.
+	loginFailuresPerEmail = 50
+	loginEmailWindow      = time.Hour
 	// verificationsPerAddress caps the verification emails and used-email notices to one address together, over sign-ups and
 	// resends from anywhere.
 	// ponytail: in memory like every count here, so a restart resets it.
@@ -63,11 +70,24 @@ func (a *App) tooManyAttempts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// loginKeys are the limiter keys for a login to email from r's client: that account from there, and there at all.
-// The email is cut to the longest valid address, so a huge one cannot bloat the limiter.
-func loginKeys(r *http.Request, email string) (account, address string) {
+// loginKeys are the limiter keys for a login to email from r's client: that account from there, there at all, and
+// that account from anywhere. The email is cut to the longest valid address, so a huge one cannot bloat the limiter.
+func loginKeys(r *http.Request, email string) (account, address, emailKey string) {
 	address = r.URL.Path + " " + clientAddress(r)
-	return address + " " + strings.ToLower(email[:min(len(email), 254)]), address
+	email = strings.ToLower(email[:min(len(email), 254)])
+	return address + " " + email, address, r.URL.Path + " " + email
+}
+
+// maskEmail keeps a login email's first character and domain, lowercased and cut like in loginKeys, as
+// a***@example.com, for the System log.
+func maskEmail(email string) string {
+	email = strings.ToLower(email[:min(len(email), 254)])
+	_, first := utf8.DecodeRuneInString(email)
+	at := strings.LastIndex(email, "@")
+	if at < first {
+		return "***"
+	}
+	return email[:first] + "***" + email[at:]
 }
 
 // clientAddress is the host part of r.RemoteAddr. When that is loopback, the request came through the local
@@ -103,17 +123,24 @@ func (l *rateLimiter) allow(key string, limit int, window time.Duration, now tim
 	return true
 }
 
-// allowLogin records a login attempt from address to account and reports whether both are within budget. The address
-// goes first, so once it is blocked a flood of new emails from it adds no account keys; a refusal leaves no count.
-func (l *rateLimiter) allowLogin(account, address string, now time.Time) bool {
+// allowLogin records a login attempt from address to account, and to emailKey (that email from any address), and
+// reports whether all three are within budget. The address goes first, so once it is blocked a flood of new emails
+// from it adds no account keys; a refusal leaves no count. report is set on the first refusal by emailKey in its
+// window, so the caller logs it once, not on every refusal after it.
+func (l *rateLimiter) allowLogin(account, address, emailKey string, now time.Time) (ok, report bool) {
 	if !l.allow(address, loginFailuresPerAddress, rateLimitWindow, now) {
-		return false
+		return false, false
 	}
 	if !l.allow(account, loginFailuresPerAccount, rateLimitWindow, now) {
 		l.forget(address)
-		return false
+		return false, false
 	}
-	return true
+	if !l.allow(emailKey, loginFailuresPerEmail, loginEmailWindow, now) {
+		l.forget(account)
+		l.forget(address)
+		return false, l.allow("reported "+emailKey, 1, loginEmailWindow, now)
+	}
+	return true, false
 }
 
 // sweep drops, at most once per longestWindow, every key with no attempt in the last longestWindow, so the map doesn't
