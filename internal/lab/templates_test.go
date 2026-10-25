@@ -264,19 +264,3 @@ func TestTheFirstCardIsTheHeadline(t *testing.T) {
 		}
 	}
 }
-
-func TestEveryTemplateHasItsWordsInMalay(t *testing.T) {
-	for _, tp := range lab.TemplatesFor(true) {
-		if tp.Ms.Name == "" || tp.Ms.Blurb == "" || (tp.Question != "") != (tp.Ms.Question != "") {
-			t.Errorf("%s Template lacks Malay for its Name, Blurb or Question", tp.Key)
-		}
-		for _, b := range tp.Blanks {
-			if (b.Help != "") != (b.HelpMs != "") {
-				t.Errorf("%s Template's %s blank lacks Malay Help", tp.Key, b.Key)
-			}
-		}
-	}
-	if got := lab.Finance.NameIn("en"); got != "Finance" {
-		t.Errorf("Finance in English = %q", got)
-	}
-}

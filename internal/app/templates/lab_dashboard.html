@@ -2,7 +2,7 @@
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
     <div class="wrap page-pad">
-      <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.template-name" (.Dashboard.Template.NameIn $.Lang)}}</p>
+      <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>
         {{- if .Dashboard.Dataset}}
@@ -50,7 +50,7 @@
           <p class="muted">{{if $.Dashboard.Work}}{{t $.Lang "lab.w.upload-body"}}{{else}}{{t $.Lang "lab.d.upload-new-body"}}{{end}}</p>
           {{- else}}
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
-          <p class="muted">{{t .Lang "lab.d.upload-yours-body" (.Dashboard.Template.NameIn $.Lang)}}</p>
+          <p class="muted">{{t .Lang "lab.d.upload-yours-body" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
           {{- end}}
           {{- with .Problem}}
           <div class="ds-err" role="alert">
@@ -98,7 +98,7 @@
             {{- end}}
             <form class="form" method="post" action="{{$url}}/dataset/confirm">
               {{- if $.Blanks}}
-              <p class="muted">{{t $.Lang "lab.w.which-column" ($.Dashboard.Template.NameIn $.Lang)}}</p>
+              <p class="muted">{{t $.Lang "lab.w.which-column" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
               {{- end}}
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
               {{- if $.Uses}}
@@ -135,7 +135,7 @@
                   <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
                   {{- end}}
                 </select>
-                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{.HelpIn $.Lang}}</small>
+                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{if .Help}}{{t $.Lang (print "lab.tpl." $.Dashboard.Template.Key "." .Key ".help")}}{{end}}</small>
               </div>
               {{- end}}
               <div class="form-foot">
@@ -208,7 +208,7 @@
           {{- end}}
         </section>
         <aside class="panel">
-          <span class="panel-k">{{t .Lang "lab.template-name" (.Dashboard.Template.NameIn $.Lang)}}</span>
+          <span class="panel-k">{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</span>
           <h2 class="h-sm">{{t .Lang "lab.d.start-sample"}}</h2>
           <p class="panel-msg">{{t .Lang "lab.d.start-sample-body"}}{{range $i, $b := .Dashboard.Template.Blanks}}{{if $b.Required}} {{$b.Label}}{{end}}{{end}}.</p>
           <a class="btn btn-ghost btn-block" href="/lab/samples/{{.Dashboard.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "lab.d.download-sample"}}</a>
@@ -353,7 +353,7 @@
       <p class="empty">{{t .Lang "lab.d.columns-need-access"}} <a href="{{$url}}/preview">{{t .Lang "lab.d.see-preview"}}</a>.</p>
       {{- else if and (eq .Tab "columns") (not .Dashboard.Template.Blanks)}}
       <section class="lab-narrow">
-        <h2 class="h-md">{{t .Lang "lab.d.no-blanks" (.Dashboard.Template.NameIn $.Lang)}}</h2>
+        <h2 class="h-md">{{t .Lang "lab.d.no-blanks" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</h2>
         <p class="muted">{{t .Lang "lab.d.no-blanks-body"}}</p>
         <div class="table-wrap"><table class="table">
           <thead><tr><th>{{t .Lang "lab.d.column"}}</th><th>{{t .Lang "lab.d.read-as"}}</th></tr></thead>
@@ -385,7 +385,7 @@
             <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
             {{- end}}
           </select>
-          <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{.HelpIn $.Lang}}{{with .Guess}} · {{t $.Lang "lab.d.guess" .}}{{end}}</small>
+          <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{if .Help}}{{t $.Lang (print "lab.tpl." $.Dashboard.Template.Key "." .Key ".help")}}{{end}}{{with .Guess}} · {{t $.Lang "lab.d.guess" .}}{{end}}</small>
           {{- if .Renamed}}
           <small class="field-err">{{t $.Lang "lab.d.renamed" .Renamed .Guess .Label}}</small>
           {{- end}}
