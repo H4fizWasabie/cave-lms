@@ -84,6 +84,9 @@ func (a *App) DBStats() sql.DBStats { return a.db.Stats() }
 // SetMaxDBConns shrinks the database pool, for tests.
 func (a *App) SetMaxDBConns(n int) { a.db.SetMaxOpenConns(n) }
 
+// Survive runs one turn of a background loop the way the loops do, for tests.
+func (a *App) Survive(job string, run func()) { a.survive(job, run) }
+
 // RunReleaseResults runs the minutely Result release now, for tests.
 func (a *App) RunReleaseResults(ctx context.Context) { a.releaseResults(ctx) }
 

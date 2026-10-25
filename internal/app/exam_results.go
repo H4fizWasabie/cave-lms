@@ -269,7 +269,7 @@ func (a *App) releaseEveryMinute(done <-chan struct{}) {
 		case <-done:
 			return
 		case <-tick.C:
-			a.releaseResults(context.Background())
+			a.survive("Result release", func() { a.releaseResults(context.Background()) })
 		}
 	}
 }
