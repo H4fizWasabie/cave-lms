@@ -187,6 +187,44 @@ func TestAChangedBlockUsesAnyColumnAndItsLabelFollowsUntilTyped(t *testing.T) {
 	}
 }
 
+func TestACardShowsTheIconPickedInTheEditor(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	res, body := ada.get(path + "/blocks?open=3")
+	expectStatus(t, res, body, http.StatusOK, `<option value="check" selected>Tick</option>`) // the Template's icon
+	expectStatus(t, res, body, http.StatusOK, `<option value="none">None</option>`)
+
+	card := url.Values{"do": {"save"}, "block": {"3"}, "kind": {"card"}, "label": {"Transactions"}, "agg": {"count"}, "icon": {"star"}}
+	ada.editBlocks(path, card)
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[3].Icon != "star" {
+		t.Fatalf("the card's icon is %q, want star", blocks[3].Icon)
+	}
+	card.Set("icon", "none")
+	ada.editBlocks(path, card)
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[3].Icon != "none" {
+		t.Fatalf("the card's icon is %q, want none", blocks[3].Icon)
+	}
+	card.Set("icon", "rocket")
+	res, body = ada.post(path+"/blocks", card)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+
+	// A new card starts with the icon its value suggests, and follows the value until the Learner picks one.
+	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "people" {
+		t.Fatalf("a new card's icon is %q, want people", blocks[4].Icon)
+	}
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"sum"}, "col": {"Jumlah"}, "icon": {"people"}})
+	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "money" {
+		t.Fatalf("a new card summing the RM column Jumlah shows %q, want money", blocks[4].Icon)
+	}
+
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=4")
+	for _, want := range []string{`<label for="b-icon">Ikon</label>`, `<option value="none">Tiada</option>`, `<option value="money" selected>Wang</option>`, "Bintang"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
+
 func TestABarTurnsVertical(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()

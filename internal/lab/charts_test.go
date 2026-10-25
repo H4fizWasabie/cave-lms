@@ -43,12 +43,13 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 	for _, l := range []string{"C1", "C2", "C3", "C4", "C5", "C6"} {
 		cards = append(cards, lab.WorkBlock{Kind: "card", Label: l, Value: &lab.Value{Agg: "count"}})
 	}
+	cards[0].Icon = "star"
 	cfg := &lab.Config{
 		Money:     []string{"Jumlah"},
 		FilterBar: []string{"Staf", "Tarikh", "Cawangan"},
 		Blocks: append(cards,
 			lab.WorkBlock{Kind: "card", Label: "Untung", Value: &lab.Value{Agg: "calc", A: "Jumlah", Op: "-", B: "Kos", Then: "sum"}},
-			lab.WorkBlock{Kind: "card", Label: "Purata", Value: &lab.Value{Agg: "avg", Col: "Jumlah"}},
+			lab.WorkBlock{Kind: "card", Label: "Purata", Icon: "none", Value: &lab.Value{Agg: "avg", Col: "Jumlah"}},
 			lab.WorkBlock{Kind: "line", Label: "Ikut hari", Value: &lab.Value{Agg: "sum", Col: "Jumlah"}, X: "Tarikh", By: "day", Split: "Staf"},
 			lab.WorkBlock{Kind: "bar", Label: "Ikut staf", Value: &lab.Value{Agg: "count"}, Group: "Staf", Top: 5},
 			lab.WorkBlock{Kind: "donut", Label: "Dr Farah sahaja", Value: &lab.Value{Agg: "count"}, Group: "Staf", Filter: &lab.Filter{Col: "Staf", Vals: []string{"Dr Farah"}}},
@@ -79,6 +80,15 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 		if !strings.Contains(got.Cards+got.Charts, want) {
 			t.Errorf("drawn Dashboard lacks %q:\n%s\n%s", want, got.Cards, got.Charts)
 		}
+	}
+	// A card draws the icon it names, or with none named the one its value suggests; Purata names none.
+	for _, want := range []string{`data-icon="star"`, `data-icon="people"`, `data-icon="chart-up"`} {
+		if !strings.Contains(got.Cards, want) {
+			t.Errorf("cards lack %s:\n%s", want, got.Cards)
+		}
+	}
+	if !strings.Contains(got.Cards, `<div class="dcard"><span>Purata</span>`) {
+		t.Errorf("Purata, naming no icon, draws one:\n%s", got.Cards)
 	}
 	if strings.Contains(got.Charts, "Ikut cawangan") || strings.Contains(got.Charts, "Ikut jumlah") {
 		t.Errorf("a block needing Cawangan, absent from the Dataset, or grouping by the Number Jumlah, is drawn:\n%s", got.Charts)
@@ -137,6 +147,12 @@ func TestChartsDrawsEveryThemeCaveOffersAndNoOther(t *testing.T) {
 	}
 	if lab.Themes[0].Key != "corporate" {
 		t.Fatalf("the first Theme, every Dashboard's until its Learner picks another, is %q", lab.Themes[0].Key)
+	}
+}
+
+func TestChartsDrawsEveryIconACardMayName(t *testing.T) {
+	if out := strings.TrimSpace(node(t, "icons")); out != strings.Join(lab.Icons, " ") {
+		t.Fatalf("charts.js draws icons %q, a card may name %q", out, lab.Icons)
 	}
 }
 

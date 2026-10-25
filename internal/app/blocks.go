@@ -91,6 +91,9 @@ func newBlocksView(d *dashboard, lang string, open int, saved bool) *blocksView 
 			row.Needs = append(row.Needs, need{Name: name, Options: u.Options(ds)})
 		}
 		if row.Open {
+			if card && b.Icon == "" { // a card saved before icons draws the one its value suggests
+				row.Icon = b.DefaultIcon(cfg.Money)
+			}
 			row.form(ds, lang)
 		}
 		v.Rows = append(v.Rows, row)
@@ -134,6 +137,12 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 		row.Fields = append(row.Fields, choice{Name: name, Label: text.T(lang, label), Options: opts})
 	}
 	switch b.Kind {
+	case "card":
+		icons := []option{{Value: "none", Text: text.T(lang, "lab.b.none"), On: b.Icon == "none"}}
+		for _, k := range lab.Icons {
+			icons = append(icons, option{Value: k, Text: text.T(lang, "lab.b.icon."+k), On: b.Icon == k})
+		}
+		field("icon", "lab.b.icon", icons)
 	case "line":
 		field("x", "lab.b.date", columns(ds, lab.Date, b.X, ""))
 	case "bar", "donut":
@@ -289,7 +298,7 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		if agg != "" {
 			b.Value = &lab.Value{Agg: agg, Col: f.Get("col"), A: f.Get("a"), Op: f.Get("op"), B: f.Get("b"), Then: f.Get("then")}
 		}
-		b.X, b.By, b.Split, b.Group, b.Sort = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort")
+		b.X, b.By, b.Split, b.Group, b.Sort, b.Icon = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort"), f.Get("icon")
 		b.Top, _ = strconv.Atoi(f.Get("top"))
 		b.Dir = f.Get("direction")
 		b.Limit, _ = strconv.Atoi(f.Get("limit"))
@@ -350,6 +359,7 @@ func (a *App) editBlocks(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		open, err = cfg.Add(r.FormValue("kind"), d.Dataset, lang)
 	case "save":
 		b := blockFromForm(r.Form, cfg.Blocks[i], d.Dataset, lang)
+		b.FollowIcon(cfg.Blocks[i], cfg.Money)
 		if err = b.KeepsLock(cfg.Blocks[i]); err == nil {
 			err = b.Check(d.Dataset, cfg.Blocks[i].Missing(d.Dataset)...)
 		}

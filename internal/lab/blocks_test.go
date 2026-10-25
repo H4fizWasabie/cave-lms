@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,10 +33,10 @@ func TestOpeningFinanceGivesBlocksNamingTheChosenColumns(t *testing.T) {
 
 	for label, want := range map[string]string{
 		"Spending by category": `{"kind":"bar","label":"Spending by category","value":{"agg":"sum","col":"Jumlah"},"group":"Kategori","top":8,"filter":{"col":"Jenis","vals":["Keluar"]}}`,
-		"Transactions":         `{"kind":"card","label":"Transactions","value":{"agg":"count"}}`,
+		"Transactions":         `{"kind":"card","label":"Transactions","icon":"check","value":{"agg":"count"}}`,
 		"By month":             `{"kind":"line","label":"By month","value":{"agg":"sum","col":"Jumlah"},"x":"Tarikh","by":"month","split":"Jenis","wide":true}`,
 		"Latest transactions":  `{"kind":"table","label":"Latest transactions","cols":["Tarikh","Perkara","Kategori","Jenis","Jumlah"],"sort":"Tarikh","limit":10,"wide":true}`,
-		"Balance":              `{"kind":"card","label":"Balance","value":{"agg":"sum","col":"Jumlah"},"locked":true,"where":["Jenis","Masuk"],"minus":["Jenis","Keluar"]}`,
+		"Balance":              `{"kind":"card","label":"Balance","icon":"money","value":{"agg":"sum","col":"Jumlah"},"locked":true,"where":["Jenis","Masuk"],"minus":["Jenis","Keluar"]}`,
 	} {
 		if got := blockJSON(t, cfg, label); got != want {
 			t.Errorf("%s =\n%s\nwant\n%s", label, got, want)
@@ -59,7 +60,7 @@ func TestOpeningInventoryKeepsLowStockLockedAndStockValueAsACalculation(t *testi
 	d := readSample(t, tpl)
 	cfg := tpl.Open(tpl.Guess(d), d)
 	c := tpl.Guess(d)
-	if got, want := blockJSON(t, cfg, "Stock value"), `{"kind":"card","label":"Stock value","value":{"agg":"calc","a":"`+c["quantity"]+`","op":"x","b":"`+c["price"]+`","then":"sum"}}`; got != want {
+	if got, want := blockJSON(t, cfg, "Stock value"), `{"kind":"card","label":"Stock value","icon":"money","value":{"agg":"calc","a":"`+c["quantity"]+`","op":"x","b":"`+c["price"]+`","then":"sum"}}`; got != want {
 		t.Errorf("Stock value =\n%s\nwant\n%s", got, want)
 	}
 	if got := blockJSON(t, cfg, "Running low"); !strings.Contains(got, `"locked":true,"low":["`+c["quantity"]+`","`+c["reorder"]+`"]`) {
@@ -136,6 +137,63 @@ func TestGenerateWorkWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(data), "[\n  {\"Tarikh\": ") {
 		t.Fatalf("data.json = %.80s", data)
+	}
+}
+
+func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
+	tpl := finance(t)
+	d := readSample(t, tpl)
+	cfg := tpl.Open(tpl.Guess(d), d)
+	at, err := cfg.Add("card", d, "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Blocks[at].Icon; got != "people" {
+		t.Fatalf("a new card counting rows shows %q, want people", got)
+	}
+	// While the Learner has not picked one, the icon follows the value.
+	b := cfg.Blocks[at]
+	for _, c := range []struct {
+		v    lab.Value
+		want string
+	}{
+		{lab.Value{Agg: "sum", Col: "Jumlah"}, "money"},
+		{lab.Value{Agg: "avg", Col: "Jumlah"}, "money"},
+		{lab.Value{Agg: "distinct", Col: "Perkara"}, "tag"},
+		{lab.Value{Agg: "calc", A: "Jumlah", Op: "/", B: "Jumlah", Then: "sum"}, "chart-up"},
+	} {
+		old := b
+		b.Value = &c.v
+		b.FollowIcon(old, cfg.Money)
+		if b.Icon != c.want {
+			t.Errorf("a card of %+v shows %q, want %s", c.v, b.Icon, c.want)
+		}
+	}
+	old := b
+	b.Icon = "star"
+	b.FollowIcon(old, cfg.Money)
+	old, b.Value = b, &lab.Value{Agg: "count"}
+	b.FollowIcon(old, cfg.Money)
+	if b.Icon != "star" {
+		t.Errorf("a picked icon changed with the value to %q", b.Icon)
+	}
+
+	for icon, ok := range map[string]bool{"star": true, "none": true, "": true, "rocket": false, "Star": false} {
+		b.Icon = icon
+		if err := b.Check(d); (err == nil) != ok {
+			t.Errorf("Check of icon %q = %v", icon, err)
+		}
+	}
+}
+
+func TestEveryTemplateCardNamesAnIconFromTheSet(t *testing.T) {
+	for _, tpl := range lab.TemplatesFor(true) {
+		d := readSample(t, tpl)
+		for _, b := range tpl.Open(tpl.Guess(d), d).Blocks {
+			if b.IsCard() && !slices.Contains(lab.Icons, b.Icon) {
+				t.Errorf("%s card %q names icon %q", tpl.Key, b.Label, b.Icon)
+			}
+		}
 	}
 }
 

@@ -44,6 +44,7 @@ type Blank struct {
 type Block struct {
 	Kind   string   `json:"kind"` // card, line, bar, donut, table
 	Label  string   `json:"label"`
+	Icon   string   `json:"icon,omitempty"`   // card: one of Icons
 	Agg    string   `json:"agg,omitempty"`    // card: count or sum; distinct counts Of's values (Work Templates only)
 	Of     string   `json:"of,omitempty"`     // the Number blank summed; counts rows when empty
 	X      string   `json:"x,omitempty"`      // line: the Date blank, by month
@@ -83,11 +84,11 @@ var Finance = &Template{
 			Loose: []string{"perkara", "butiran", "keterangan", "description", "details", "item", "catatan", "nota", "note", "remark"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Balance", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Minus: []string{"type", "Keluar"}, Needs: []string{"type"}},
-		{Kind: "card", Label: "Total", Agg: "sum", Of: "amount", Unless: "type"},
-		{Kind: "card", Label: "Money in", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Needs: []string{"type"}},
-		{Kind: "card", Label: "Money out", Agg: "sum", Of: "amount", Where: []string{"type", "Keluar"}, Needs: []string{"type"}},
-		{Kind: "card", Label: "Transactions", Agg: "count"},
+		{Kind: "card", Label: "Balance", Icon: "money", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Minus: []string{"type", "Keluar"}, Needs: []string{"type"}},
+		{Kind: "card", Label: "Total", Icon: "money", Agg: "sum", Of: "amount", Unless: "type"},
+		{Kind: "card", Label: "Money in", Icon: "chart-up", Agg: "sum", Of: "amount", Where: []string{"type", "Masuk"}, Needs: []string{"type"}},
+		{Kind: "card", Label: "Money out", Icon: "cart", Agg: "sum", Of: "amount", Where: []string{"type", "Keluar"}, Needs: []string{"type"}},
+		{Kind: "card", Label: "Transactions", Icon: "check", Agg: "count"},
 		{Kind: "line", Label: "By month", X: "date", Of: "amount", Series: "type", Wide: true},
 		{Kind: "bar", Label: "Spending by category", Group: "category", Of: "amount", Where: []string{"type", "Keluar"}},
 		{Kind: "donut", Label: "Money in by source", Group: "category", Of: "amount", Where: []string{"type", "Masuk"}, Needs: []string{"type"}},
@@ -120,9 +121,9 @@ var Inventory = &Template{
 			Loose: []string{"harga seunit", "unit price", "harga", "price", "cost", "kos"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Stock value", Agg: "sum", Of: "quantity", Times: "price", Needs: []string{"price"}},
-		{Kind: "card", Label: "Total items", Agg: "sum", Of: "quantity"},
-		{Kind: "card", Label: "Low stock", Agg: "count", Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
+		{Kind: "card", Label: "Stock value", Icon: "money", Agg: "sum", Of: "quantity", Times: "price", Needs: []string{"price"}},
+		{Kind: "card", Label: "Total items", Icon: "box", Agg: "sum", Of: "quantity"},
+		{Kind: "card", Label: "Low stock", Icon: "alert", Agg: "count", Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
 		{Kind: "bar", Label: "Stock by category", Group: "category", Of: "quantity"},
 		{Kind: "table", Label: "Running low", Cols: []string{"item", "category", "quantity", "reorder"}, Low: []string{"quantity", "reorder"}, Needs: []string{"reorder"}},
 		{Kind: "table", Label: "All items", Cols: []string{"item", "category", "quantity", "reorder", "price"}},
@@ -151,8 +152,8 @@ var HR = &Template{
 			Loose: []string{"jantina", "gender", "sex"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Headcount", Agg: "count"},
-		{Kind: "card", Label: "Active", Agg: "count", Where: []string{"status", "Aktif"}, Needs: []string{"status"}},
+		{Kind: "card", Label: "Headcount", Icon: "people", Agg: "count"},
+		{Kind: "card", Label: "Active", Icon: "check", Agg: "count", Where: []string{"status", "Aktif"}, Needs: []string{"status"}},
 		{Kind: "bar", Label: "Headcount by department", Group: "department"},
 		{Kind: "donut", Label: "Status split", Group: "status"},
 		{Kind: "line", Label: "Joins per month", X: "joined", Wide: true},
@@ -188,7 +189,7 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 			first[col.Type] = key
 		}
 		if col.Type == Number {
-			t.Blocks = append(t.Blocks, Block{Kind: "card", Label: col.Name, Agg: "sum", Of: key})
+			t.Blocks = append(t.Blocks, Block{Kind: "card", Label: col.Name, Icon: "chart-up", Agg: "sum", Of: key})
 		}
 	}
 	measure := "Rows"
@@ -233,9 +234,9 @@ var Sales = &Template{
 			Loose: []string{"kuantiti", "quantity", "qty", "bil. unit", "bilangan unit", "units sold"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Revenue", Agg: "sum", Of: "amount"},
-		{Kind: "card", Label: "Sales", Agg: "count"},
-		{Kind: "card", Label: "Units", Agg: "sum", Of: "quantity"},
+		{Kind: "card", Label: "Revenue", Icon: "money", Agg: "sum", Of: "amount"},
+		{Kind: "card", Label: "Sales", Icon: "cart", Agg: "count"},
+		{Kind: "card", Label: "Units", Icon: "box", Agg: "sum", Of: "quantity"},
 		{Kind: "line", Label: "Revenue by month", X: "date", Of: "amount", Series: "category", Wide: true},
 		{Kind: "bar", Label: "Revenue by item", Group: "item", Of: "amount"},
 		{Kind: "bar", Label: "Revenue by staff", Group: "staff", Of: "amount"},
@@ -265,8 +266,8 @@ var Roster = &Template{
 			Loose: []string{"jabatan", "bahagian", "department", "dept", "ward", "wad", "section"}},
 	},
 	Blocks: []Block{
-		{Kind: "card", Label: "Staff", Agg: "distinct", Of: "staff"},
-		{Kind: "card", Label: "Shifts", Agg: "count"},
+		{Kind: "card", Label: "Staff", Icon: "people", Agg: "distinct", Of: "staff"},
+		{Kind: "card", Label: "Shifts", Icon: "clock", Agg: "count"},
 		{Kind: "bar", Label: "Shifts by staff", Group: "staff"},
 		{Kind: "bar", Label: "Shifts by code", Group: "code"},
 		{Kind: "line", Label: "Shifts per day", X: "date", By: "day", Wide: true},
