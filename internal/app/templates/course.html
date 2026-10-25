@@ -18,7 +18,7 @@
             <li class="cp-state{{if .Course.Joinable}} is-open{{end}}">{{if .Course.Ended}}{{t .Lang "course.ended"}}{{else if .Course.Open}}{{t .Lang "course.open"}}{{else}}{{t .Lang "course.closed-badge"}}{{end}}</li>
           </ul>
         </div>
-        {{/* #309: the Course picture, or its brand fallback, goes here as <div class="cp-hero-media">, beside the text. */}}
+        <div class="cp-hero-media">{{template "course-cover" (card .Course .Lang)}}</div>
       </div>
     </section>
     {{if $member}}<div class="wrap c-tabs">{{template "course-tabs" (courseTab .Course.ID "course" .Lang)}}</div>{{end}}

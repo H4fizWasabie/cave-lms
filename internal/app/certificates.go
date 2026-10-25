@@ -174,7 +174,7 @@ func (a *App) emailCertificate(ctx context.Context, id string) {
 		Subject: text.T(lang, "email.certificate.subject", c.CourseTitle),
 		Body:    text.T(lang, "email.certificate.body", c.LearnerName, c.CourseTitle, c.Number(), a.publicBaseURL+"/certificates/"+c.ID),
 	}
-	if pdf, err := a.certificatePDF(ctx, lang, c); err != nil {
+	if pdf, err := a.certificatePDF(ctx, c); err != nil {
 		a.logError(nil, fmt.Errorf("make Certificate PDF for %s: %w", c.ID, err))
 	} else {
 		msg.Body += "\n" + text.T(lang, "email.certificate.attached") + "\n"
@@ -314,7 +314,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.not-found-here")})
 		return
 	}
-	pdf, err := a.certificatePDF(r.Context(), lang, list[0])
+	pdf, err := a.certificatePDF(r.Context(), list[0])
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -324,26 +324,27 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// The Certificate's layout on A4 portrait, in mm, matching the client's sample PCC-2026-00509. Baselines are where
-// the sample's text sits on the artwork; the artwork itself prints every fixed word.
+// The Certificate's layout on A4 portrait, in mm, after the client's sample PCC-2026-00509. Baselines are where the
+// built-in artwork leaves room for the details; it prints every fixed word itself.
 const (
 	certNumberX, certNumberY = 183.0, 19.9 // centre and baseline of the Certificate No., under the artwork's label
 	certQRX, certQRY, certQR = 173.2, 21.1, 19.3
-	certNameY, certICY       = 97.7, 102.1 // centred on the page
-	certTitleX, certTitleW   = 30.0, 150.0 // the title box, under "has successfully completed..."
-	certTitleY, certTitleH   = 114.0, 48.0 // the title is centred in it, shrunk until it fits
-	certBadgeX, certBadgeY   = 99.6, 206.4 // the badge image's top left; it carries its own label
-	certBadgeW, certBadgeH   = 39.9, 56.6  // the badge files are 904 by 1280
-	certIssuedX, certIssuedY = 18.2, 281.7 // "Issued on" bottom left
+	certNameY, certICY       = 103.0, 109.0 // centred on the page, over the rule
+	certNameW                = 160.0        // a longer name shrinks to this width, inside the 172 mm rule
+	certTitleX, certTitleW   = 30.0, 150.0  // the title box, under "has successfully completed..."
+	certTitleY, certTitleH   = 124.5, 24.0  // three lines at 16 pt; the title is centred in it, shrunk until it fits
+	certBadgeX, certBadgeY   = 99.6, 206.4  // the badge image's top left; it carries its own label
+	certBadgeW, certBadgeH   = 39.9, 56.6   // the badge files are 904 by 1280
+	certIssuedX, certIssuedY = 18.2, 281.7  // "Issued on" bottom left
 	// The Organisation's logo is scaled to fit this box and centred in it. A first guess on the plain page, clear of
 	// its heading and the Certificate No. and QR: tune it once the client's artwork with the top-left space blank arrives.
 	certLogoX, certLogoY = 18.0, 12.0
 	certLogoW, certLogoH = 50.0, 35.0
 )
 
-// certificatePDF prints the Certificate's details over the Admin's background artwork on one portrait A4 page, its
-// fixed wording and date in lang. Without a background it prints the same details under a plain heading.
-func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([]byte, error) {
+// certificatePDF prints the Certificate's details on one portrait A4 page, in English like the artwork, over the
+// Admin's uploaded background or, without one, over the built-in artwork.
+func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error) {
 	s, err := a.certificateSettingsFor(ctx)
 	if err != nil {
 		return nil, err
@@ -355,9 +356,12 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 	pdf.AddPage()
 	pageW, pageH := pdf.GetPageSize()
 	if s.BackgroundKey != "" {
-		if err := a.placeImage(pdf, s.BackgroundKey, 0, 0, pageW, pageH); err != nil {
-			return nil, err
-		}
+		err = a.placeImage(pdf, s.BackgroundKey, 0, 0, pageW, pageH)
+	} else {
+		err = drawArtwork(pdf)
+	}
+	if err != nil {
+		return nil, err
 	}
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
 	// centred writes s with its baseline at y, centred on x.
@@ -367,38 +371,22 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		pdf.Text(x-pdf.GetStringWidth(s)/2, y, s)
 	}
 
-	if s.BackgroundKey == "" { // the artwork carries the heading; without it the page would be headless
-		centred(pageW/2, 66, "Times", "B", 28, text.T(lang, "certificate.pdf.heading"))
-	}
 	pdf.SetTextColor(214, 132, 28) // the sample's gold
 	centred(certNumberX, certNumberY, "Helvetica", "", 8, c.Number())
-	pdf.SetTextColor(0, 0, 0)
+	pdf.SetTextColor(artInk[0], artInk[1], artInk[2])
 	checkURL := a.publicBaseURL + "/certificates/" + c.ID
 	if err := placeQR(pdf, checkURL, certQRX, certQRY, certQR); err != nil {
 		return nil, err
 	}
 	pdf.LinkString(certQRX, certQRY, certQR, certQR, checkURL)
 
-	centred(pageW/2, certNameY, "Times", "B", 13, c.LearnerName)
+	centred(pageW/2, certNameY, "Times", "B", certNameSize(pdf, c.LearnerName), c.LearnerName)
 	if c.LearnerIC != "" {
-		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
+		centred(pageW/2, certICY, "Times", "", 11, formatIC(c.LearnerIC))
 	}
-	// The largest size whose wrapped lines fit the box, down to 8 pt, below which a title overflows it.
-	// SplitLines, not SplitText: tr turns the title into Windows-1252 bytes, which SplitText would misread as UTF-8 and panic on.
-	var lines [][]byte
-	size := 16.0
-	for ; ; size-- {
-		pdf.SetFont("Times", "B", size)
-		lines = pdf.SplitLines([]byte(tr(c.CourseTitle)), certTitleW)
-		if size <= 8 || float64(len(lines))*size*0.45 <= certTitleH {
-			break
-		}
-	}
-	lineH := size * 0.45 // 1.27 times the font size, in mm
-	top := certTitleY + (certTitleH-float64(len(lines))*lineH)/2
-	for i, b := range lines {
-		l := string(b)
-		pdf.Text(certTitleX+(certTitleW-pdf.GetStringWidth(l))/2, top+float64(i)*lineH+size*0.3, l)
+	size, lines := certTitleLines(pdf, c.CourseTitle)
+	for _, l := range lines {
+		centred(certTitleX+certTitleW/2, l.Y, "Times", "B", size, l.Text)
 	}
 
 	if c.LogoKey != "" {
@@ -412,26 +400,23 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		pdf.ImageOptions(c.LogoKey, certLogoX+(certLogoW-w)/2, certLogoY+(certLogoH-h)/2, w, h, false, fpdf.ImageOptions{}, 0, "")
 	}
 	if badge := c.Badge(); badge != "" {
-		f, err := staticFiles.Open("static/" + badge)
+		cut, err := badgeCutouts()
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
-		opt := fpdf.ImageOptions{ImageType: "jpg"}
-		pdf.RegisterImageOptionsReader(badge, opt, f)
-		pdf.SetAlpha(1, "Multiply") // the badge's white surround takes the artwork's colour
+		opt := fpdf.ImageOptions{ImageType: "png"}
+		pdf.RegisterImageOptionsReader(badge, opt, bytes.NewReader(cut[badge]))
 		pdf.ImageOptions(badge, certBadgeX, certBadgeY, certBadgeW, certBadgeH, false, opt, 0, "")
-		pdf.SetAlpha(1, "Normal")
 	}
 	pdf.SetFont("Helvetica", "", 6.5)
-	pdf.Text(certIssuedX, certIssuedY, tr(text.T(lang, "certificate.pdf.issued-on", c.IssuedIn(lang))))
+	pdf.Text(certIssuedX, certIssuedY, "Issued on: "+c.IssuedIn("en"))
 
 	if c.Revoked {
 		pdf.SetFillColor(255, 255, 255)
 		pdf.Rect(20, 52, pageW-40, 27, "F") // over the heading, so the mark reads clearly on any artwork
 		pdf.SetTextColor(200, 0, 0)
-		centred(pageW/2, 66, "Helvetica", "B", 40, text.T(lang, "certificate.pdf.revoked"))
-		centred(pageW/2, 74, "Helvetica", "B", 12, text.T(lang, "certificate.pdf.revoked-note"))
+		centred(pageW/2, 66, "Helvetica", "B", 40, "REVOKED")
+		centred(pageW/2, 74, "Helvetica", "B", 12, "This Certificate has been revoked and is no longer valid.")
 	}
 	if err := pdf.Error(); err != nil {
 		return nil, err
