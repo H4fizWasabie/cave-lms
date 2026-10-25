@@ -809,10 +809,11 @@ func TestWithTestPaymentsATestModeOrderIsLookedUpWhereBCLFindsTestOrders(t *test
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	atStart := bcl.askedFor("/forms") // the startup token check reads them
 	s.bclPay(testOrder("LINK-1", "ada@example.com"))
 	expectProForAYear(t, ada, token)
 	bcl.lastAsked(t, "/transaction/LINK-1")
-	if n := bcl.askedFor("/forms") + bcl.askedFor("/transactions"); n != 0 {
+	if n := bcl.askedFor("/forms") - atStart + bcl.askedFor("/transactions"); n != 0 {
 		t.Errorf("staging asked BCL for its forms or an order's detail %d times, want none", n)
 	}
 }
@@ -966,7 +967,9 @@ func TestStartingWithATokenBCLRefusesLogsItAndStillServes(t *testing.T) {
 	bcl := newFakeBCL(t, nil)
 	bcl.setRefuse(http.StatusUnauthorized)
 	s := confirmingSite(t, bcl) // it started: the site answers
-	bcl.lastAsked(t, "/forms")
+	if got := bcl.lastAsked(t, "/forms").Header.Get("Authorization"); got != "Bearer "+bclToken {
+		t.Errorf("Authorization = %q, want the token as a Bearer", got)
+	}
 	_, body := s.get("/admin/log")
 	expectAll(t, body, tokenRefused+" (401): replace BCL_API_TOKEN")
 }

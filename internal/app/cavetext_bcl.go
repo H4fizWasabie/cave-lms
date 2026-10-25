@@ -422,8 +422,9 @@ func (a *App) checkBCLToken(ctx context.Context) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second) // startup waits on it, and deploy waits 15 s for the app
 	defer cancel()
+	// The read bclProductLink makes on each order; only whether BCL takes the token matters, not the forms.
 	var forms struct{}
-	switch err := a.bclGet(ctx, "/forms?per_page=1", &forms); {
+	switch err := a.bclGet(ctx, "/forms?per_page=100", &forms); {
 	case errors.Is(err, errBCLTokenRefused):
 		a.logError(nil, err)
 	case err != nil:
