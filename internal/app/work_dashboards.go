@@ -288,6 +288,45 @@ func cleanSamples() (map[string]*lab.CleanUp, error) {
 	return samples, nil
 }
 
+// errDatasetStore is keepPending's error when the store refuses the Dataset.
+var errDatasetStore = errors.New("the store refused the Dataset")
+
+// keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Dataset, replacing any
+// earlier pending one, and returns its saved size.
+func (a *App) keepPending(r *http.Request, d *dashboard, res *lab.CleanUp, settings lab.Settings, name string) (int64, error) {
+	data, err := json.Marshal(res.Dataset)
+	if err != nil {
+		return 0, err
+	}
+	found := cleaned{Changes: res.Changes, Notes: res.Notes, Guess: res.Guess, Offers: res.Offers, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
+	c, err := json.Marshal(found)
+	if err != nil {
+		return 0, err
+	}
+	key, err := newDatasetKey()
+	if err != nil {
+		return 0, err
+	}
+	if err := a.datasets.Put(r.Context(), key, data); err != nil {
+		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
+		return 0, errDatasetStore
+	}
+	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c)
+		return err
+	})
+	if err != nil {
+		a.dropDataset(r.Context(), r, key)
+		return 0, err
+	}
+	a.dropDeletedFiles(r.Context(), r)
+	return int64(len(data)), nil
+}
+
 // uploadWork runs Clean-up on a Work Dashboard's upload and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
@@ -328,46 +367,20 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	data, err := json.Marshal(res.Dataset)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	found := cleaned{Changes: res.Changes, Notes: res.Notes, Guess: res.Guess, Offers: res.Offers, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
-	c, err := json.Marshal(found)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	key, err := newDatasetKey()
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if err := a.datasets.Put(r.Context(), key, data); err != nil {
-		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
+	size, err := a.keepPending(r, d, res, settings, name)
+	if errors.Is(err, errDatasetStore) {
 		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
 		return
 	}
-	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
-			return err
-		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c)
-		return err
-	})
 	if err != nil {
-		a.dropDataset(r.Context(), r, key)
 		a.serverError(w, r, err)
 		return
 	}
-	a.dropDeletedFiles(r.Context(), r)
 	if d.Config != nil && allFit(d.Config, res.Dataset) { // nothing new to check: it goes live
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
-			room, err = roomFor(r.Context(), a.db, d, int64(len(data)), acc)
+			room, err = roomFor(r.Context(), a.db, d, size, acc)
 		}
 		if err != nil {
 			a.serverError(w, r, err)
