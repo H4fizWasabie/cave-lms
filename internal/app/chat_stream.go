@@ -98,6 +98,21 @@ func (a *App) chatEvents(w http.ResponseWriter, r *http.Request) {
 	if rc.Flush() != nil {
 		return
 	}
+	// stillAllowed reports whether the stream may go on, as access may have ended since it opened: signed out,
+	// session revoked or expired, left or removed. It looks the session up again with lookUpLearner, not
+	// currentLearner, which keeps the first lookup for the whole request, and renders from then on as the fresh Learner.
+	// ponytail: two queries per change and per ping per stream; fine for a Course's Learners, cache it if Chats grow large.
+	stillAllowed := func() bool {
+		l, err := a.lookUpLearner(r)
+		if err != nil || l == nil || l.ID != v.ID {
+			return false
+		}
+		if allowed, err := a.mayChat(r.Context(), l, c.ID); err != nil || !allowed {
+			return false
+		}
+		v.learner = l
+		return true
+	}
 	ping := time.NewTicker(chatPing)
 	defer ping.Stop()
 	for {
@@ -108,11 +123,12 @@ func (a *App) chatEvents(w http.ResponseWriter, r *http.Request) {
 		case <-a.done:
 			return
 		case <-ping.C:
+			if !stillAllowed() {
+				return
+			}
 			event = ": ping\n\n"
 		case id := <-changes:
-			// Access may have ended since the stream opened: the Learner left or was removed.
-			// ponytail: one query per change per stream; fine for a class, cache it if Chats grow large.
-			if allowed, err := a.mayChat(r.Context(), v.learner, c.ID); err != nil || !allowed {
+			if !stillAllowed() {
 				return
 			}
 			html, err := a.messageFragment(r.Context(), v, c.ID, id)
