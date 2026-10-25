@@ -110,7 +110,12 @@ func TestRateLimitCountsEachClientAddressSeparately(t *testing.T) {
 
 // loginFrom posts a wrong login through the TLS server (a loopback proxy) with the given X-Forwarded-For.
 func (s *site) loginFrom(forwardedFor string) (*http.Response, string) {
-	form := url.Values{"email": {"nobody@example.com"}, "password": {"wrong password"}}
+	return s.loginVia(forwardedFor, "nobody@example.com", "wrong password")
+}
+
+// loginVia posts a login through the TLS server (a loopback proxy) with the given X-Forwarded-For.
+func (s *site) loginVia(forwardedFor, email, password string) (*http.Response, string) {
+	form := url.Values{"email": {email}, "password": {password}}
 	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/login", strings.NewReader(form.Encode()))
 	if err != nil {
 		s.t.Fatal(err)
@@ -118,6 +123,42 @@ func (s *site) loginFrom(forwardedFor string) (*http.Response, string) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("X-Forwarded-For", forwardedFor)
 	return s.do(req)
+}
+
+// Guesses at one email spread over many addresses stop at the per-email limit, which refuses even the right password
+// from a new address, like the per-account one. The Owner sees one masked line in the System log, and a password
+// reset still works.
+func TestFailedLoginsToOneEmailFromManyAddressesBlockItAndResetStillWorks(t *testing.T) {
+	s := newSite(t)
+	const email, password = "ada@example.com", "correct horse battery"
+	s.second().loginAsNewLearner("Ada", email, password)
+	for i := range 50 {
+		res, body := s.loginVia(fmt.Sprintf("198.51.100.%d", i/10), "ADA@example.com", "wrong password")
+		expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect")
+	}
+	for range 2 {
+		res, body := s.loginVia("198.51.100.99", email, password)
+		expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+	}
+	var lines int
+	if err := s.db.QueryRow(`SELECT count(*) FROM system_log WHERE message LIKE '%"a***@example.com"%'`).Scan(&lines); err != nil {
+		t.Fatal(err)
+	}
+	var full int
+	if err := s.db.QueryRow(`SELECT count(*) FROM system_log WHERE message LIKE '%ada@%'`).Scan(&full); err != nil {
+		t.Fatal(err)
+	}
+	if lines != 1 || full != 0 {
+		t.Fatalf("System log has %d masked lines and %d with the full email, want 1 and 0", lines, full)
+	}
+
+	res, body := s.forgotPassword(email)
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	res, body = s.resetPassword(resetToken(t, s.lastEmailLinkPath(email, "/reset-password")), "new horse staple")
+	expectStatus(t, res, body, http.StatusOK, "Your password has been changed")
+	// The reset leaves the count: logins stay refused until the hour has passed.
+	res, body = s.loginVia("198.51.100.99", email, "new horse staple")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
 }
 
 func TestBehindALocalProxyEachForwardedClientHasItsOwnBudget(t *testing.T) {
