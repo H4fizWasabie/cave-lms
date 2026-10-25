@@ -381,7 +381,11 @@ func (a *App) bclProductLink(ctx context.Context, formID bclText) (string, error
 // errBCLUnknown is BCL's API answering 404: it has nothing at that address.
 var errBCLUnknown = errors.New("BCL does not know it")
 
-// bclGet reads BCL's API at pathAndQuery into v, with a.bclAPIToken. A 404 is errBCLUnknown.
+// errBCLTokenRefused is BCL's API answering 401 or 403: a.bclAPIToken is revoked, expired or wrong.
+var errBCLTokenRefused = errors.New("BCL API token refused")
+
+// bclGet reads BCL's API at pathAndQuery into v, with a.bclAPIToken. A 404 is errBCLUnknown; a 401 or 403 wraps
+// errBCLTokenRefused and says to replace the token.
 func (a *App) bclGet(ctx context.Context, pathAndQuery string, v any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.bclAPIURL+pathAndQuery, nil)
 	if err != nil {
@@ -399,6 +403,8 @@ func (a *App) bclGet(ctx context.Context, pathAndQuery string, v any) error {
 	case http.StatusOK:
 	case http.StatusNotFound:
 		return errBCLUnknown
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return fmt.Errorf("%w (%d): replace BCL_API_TOKEN", errBCLTokenRefused, res.StatusCode)
 	default:
 		return fmt.Errorf("BCL answered %s", res.Status)
 	}
@@ -406,6 +412,24 @@ func (a *App) bclGet(ctx context.Context, pathAndQuery string, v any) error {
 		return fmt.Errorf("read BCL's answer: %w", err)
 	}
 	return nil
+}
+
+// checkBCLToken asks BCL's API for one form with a.bclAPIToken, at startup and daily, so a refused token is in the
+// System log before a payment finds it. Without a token it asks nothing.
+func (a *App) checkBCLToken(ctx context.Context) {
+	if a.bclAPIToken == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second) // startup waits on it, and deploy waits 15 s for the app
+	defer cancel()
+	// The read bclProductLink makes on each order; only whether BCL takes the token matters, not the forms.
+	var forms struct{}
+	switch err := a.bclGet(ctx, "/forms?per_page=100", &forms); {
+	case errors.Is(err, errBCLTokenRefused):
+		a.logError(nil, err)
+	case err != nil:
+		a.logError(nil, fmt.Errorf("check BCL_API_TOKEN: BCL out of reach or failing: %w", err))
+	}
 }
 
 // recordPayment keeps a paid order on the form of product (none when form.Product is empty) and, when it names a

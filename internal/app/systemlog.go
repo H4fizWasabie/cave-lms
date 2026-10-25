@@ -109,7 +109,7 @@ func (a *App) dailyPrune(ctx context.Context) {
 	a.logInfo("Daily prune deleted %d Datasets", n)
 }
 
-// pruneDaily runs dailyPrune once a day until done is closed.
+// pruneDaily runs dailyPrune and checkBCLToken once a day until done is closed.
 func (a *App) pruneDaily(done <-chan struct{}) {
 	tick := time.NewTicker(24 * time.Hour)
 	defer tick.Stop()
@@ -119,6 +119,7 @@ func (a *App) pruneDaily(done <-chan struct{}) {
 			return
 		case <-tick.C:
 			a.survive("Daily prune", func() { a.dailyPrune(context.Background()) })
+			a.survive("BCL token check", func() { a.checkBCLToken(context.Background()) })
 		}
 	}
 }
