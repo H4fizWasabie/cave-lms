@@ -81,9 +81,11 @@ systemctl daemon-reload
 
 # Everything that can fail goes before the binary swap, so a failure leaves the running site as it was.
 if [ "$name" = cave-lms ]; then
-	# Backups need restic and the R2 settings in /etc/cave-lms/backup.env (docs/deploy.md, Backups).
+	# Backups need restic, rclone and the R2 settings in /etc/cave-lms/backup.env (docs/deploy.md, Backups).
 	chmod 755 /usr/local/bin/cave-lms-backup /usr/local/bin/cave-lms-backup-failed
-	command -v restic >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq restic >/dev/null
+	for tool in restic rclone; do
+		command -v $tool >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $tool >/dev/null
+	done
 	if [ -f /etc/cave-lms/backup.env ] && [ -f /etc/cave-lms/restic-password ]; then
 		systemctl enable --quiet --now cave-lms-backup.timer
 	else
