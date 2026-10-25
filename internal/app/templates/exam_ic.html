@@ -8,11 +8,11 @@
         <p>{{t .Lang "exam-ic.intro"}}</p>
       </div>
       <form class="card form acct-form" method="post" action="{{.Exam.Path "/ic"}}">
+        <p class="callout" id="ic-once"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span>{{t .Lang "my-profile.ic-once"}}</span></p>
         <div class="field">
           <label for="ic">{{t .Lang "my-profile.ic"}}</label>
-          <input id="ic" name="ic" value="{{.IC}}" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="{{if eq $f "ic"}}ic-err {{end}}ic-hint"{{if eq $f "ic"}} aria-invalid="true"{{end}}>
+          <input id="ic" name="ic" value="{{.IC}}" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="{{if eq $f "ic"}}ic-err {{end}}ic-once"{{if eq $f "ic"}} aria-invalid="true"{{end}}>
           {{if eq $f "ic"}}<p class="field-err" id="ic-err" role="alert">{{.Error}}</p>{{end}}
-          <small id="ic-hint">{{t .Lang "my-profile.ic-once"}}</small>
         </div>
         <div class="field">
           <label for="ic-confirm">{{t .Lang "exam-ic.again"}}</label>

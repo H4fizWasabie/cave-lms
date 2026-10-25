@@ -1507,6 +1507,7 @@ var catalog = map[string]entry{
 	"exam-ic.again":          {en: "Type it again", ms: "Taip sekali lagi"},
 	"exam-ic.save":           {en: "Save and go to the Exam", ms: "Simpan dan pergi ke Peperiksaan"},
 	"exam-ic.cancel":         {en: "Cancel", ms: "Batal"},
+	"exam.ic-first":          {en: "Before the Exam starts, you will add your IC or passport number.", ms: "Sebelum Peperiksaan bermula, anda akan menambah No. KP atau pasport anda."},
 	"course.needs-ic":        {en: "Set your IC or passport number before your first Exam attempt, so your Certificate can be issued when you pass.", ms: "Tetapkan No. KP atau pasport anda sebelum cubaan Peperiksaan pertama anda, supaya Sijil anda dapat dikeluarkan apabila anda lulus."},
 	"course.needs-ic.passed": {en: "Set your IC so we can issue your Certificate", ms: "Tetapkan No. KP anda supaya Sijil anda dapat dikeluarkan"},
 
