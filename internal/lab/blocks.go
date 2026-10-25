@@ -328,9 +328,10 @@ func (d *Dataset) first(t Type, skip ...string) string {
 // type, its default for d; options the kind does not use are cleared. A column the Dataset lacks, or one in
 // paused, is left as it is, so the block can say what it needs.
 func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
+	ps := profiles(d)
 	fit := func(col string, t Type) string {
 		if have := d.typeOf(col); col == "" || (have != "" && t != "" && have != t && !slices.Contains(paused, col)) {
-			return d.first(t)
+			return best(ps, t)
 		}
 		return col
 	}
@@ -345,7 +346,7 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 			}
 		}
 		if b.Sort == "" {
-			b.Sort = d.first(Date)
+			b.Sort = best(ps, Date)
 		}
 		if !slices.Contains(Limits, b.Limit) {
 			b.Limit = 10
@@ -355,6 +356,12 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	b.Cols, b.Sort, b.Limit = nil, "", 0
 	if b.Value == nil {
 		b.Value = &Value{Agg: "count"}
+		if m := ranked(ps, Measure, Number); len(m) > 0 && (b.IsCard() || !m[0].Avg) { // as General: only cards average
+			b.Value = &Value{Agg: "sum", Col: m[0].Name}
+			if m[0].Avg {
+				b.Value.Agg = "avg"
+			}
+		}
 	}
 	v := b.Value
 	switch v.Agg {
@@ -365,7 +372,7 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	case "calc":
 		v.Col, v.A = "", fit(v.A, Number)
 		if have := d.typeOf(v.B); v.B == "" || (have != "" && have != Number && !slices.Contains(paused, v.B)) {
-			if v.B = d.first(Number, v.A); v.B == "" {
+			if v.B = best(ps, Number, v.A); v.B == "" {
 				v.B = v.A
 			}
 		}
@@ -408,8 +415,26 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 		b.Split = ""
 	}
 	if b.Kind == "heatmap" && b.Split == "" { // a heatmap needs its columns across: another Text column
-		b.Split = d.first(Text, b.Group)
+		b.Split = best(ps, Text, b.Group)
 	}
+}
+
+// best is the name of the best-ranked column of type t other than skip, as General ranks them (ADR 0014): a Text
+// column only when it is a dimension, never an identifier or constant; a Number or Date column by its role first,
+// else the first of its type; any other column the first. Empty if there is none.
+func best(ps []profile, t Type, skip ...string) string {
+	role := map[Type]Role{Text: Dimension, Number: Measure, Date: DateRole}[t]
+	for _, p := range ranked(ps, role, t) {
+		if !slices.Contains(skip, p.Name) {
+			return p.Name
+		}
+	}
+	for _, p := range ps {
+		if t != Text && (t == "" || p.Type == t) && !slices.Contains(skip, p.Name) {
+			return p.Name
+		}
+	}
+	return ""
 }
 
 // Check refuses a block the editor cannot save on d: an option Cave does not offer, a label over 80
