@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 func TestTheGalleryPagesAreInMalayAndEnglish(t *testing.T) {
@@ -80,7 +82,7 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
 	_, body = ada.get("/lab/new?t=finance")
 	expectLanguage(t, body, "ms", "Apa yang diperlukan oleh hamparan kerja anda")
-	expectAll(t, body, "Cipta Dashboard", `value="Dashboard Finance saya"`)
+	expectAll(t, body, "Cipta Dashboard", `value="Dashboard Kewangan saya"`)
 	res, body := ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan nama kepada Dashboard.")
 
@@ -130,7 +132,7 @@ func TestTheLabsFileAndColumnErrorsAreInMalay(t *testing.T) {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
 	}
 	res, body = ada.postFile(path+"/dataset", "renamed.xlsx", testutil.XLSX(t, []string{"Tarikh", "Jumlah Baru"}, []any{day, "x"}))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Lajur Jumlah tiada. Templat Finance memerlukannya untuk Amount, iaitu lajur nombor.")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Lajur Jumlah tiada. Templat Kewangan memerlukannya untuk Amount, iaitu lajur nombor.")
 	res, body = ada.postFile(path+"/dataset", "fake.xlsx", []byte("not a workbook"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja.")
 
@@ -139,4 +141,42 @@ func TestTheLabsFileAndColumnErrorsAreInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Pilih lajur untuk Date.")
 	res, body = ada.post(path+"/columns", url.Values{"date": {"Jumlah"}, "amount": {"Jumlah"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Date memerlukan lajur tarikh, tetapi Jumlah mengandungi nombor.")
+}
+
+func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T) {
+	visitor := newSite(t)
+	_, body := visitor.getAsking("/lab", "ms")
+	expectAll(t, body, "<h3>Kewangan</h3>", "Adakah saya berbelanja lebih daripada pendapatan saya?", "Wang masuk dan keluar: jumlah, baki, perbelanjaan mengikut bulan dan kategori.")
+	_, body = visitor.getAsking("/lab", "en")
+	expectAll(t, body, "<h3>Finance</h3>", "Am I spending more than I earn?", "Money in and out: totals, balance, spending by month and category.")
+
+	_, ada := labLearner(t)
+	ada.switchLanguage("ms", "/")
+	_, body = ada.get("/lab/new?t=finance")
+	expectAll(t, body, "Templat Kewangan", "Hari setiap transaksi")
+	ada.createDashboard("finance", "Duit saya")
+	_, body = ada.get("/lab")
+	expectAll(t, body, "Templat Kewangan")
+	expectNone(t, body, "Templat Finance")
+}
+
+func TestEveryTemplateHasItsLabWordsInTheCatalogMatchingItsEnglish(t *testing.T) {
+	for _, tp := range lab.TemplatesFor(true) {
+		words := map[string]string{"name": tp.Name, "blurb": tp.Blurb, "question": tp.Question}
+		for _, b := range tp.Blanks {
+			words[b.Key+".help"] = b.Help
+		}
+		for k, en := range words {
+			key := "lab.tpl." + tp.Key + "." + k
+			if en == "" {
+				continue
+			}
+			if got := text.T("en", key); got != en {
+				t.Errorf("%s in English = %q, want the Template's %q", key, got, en)
+			}
+			if got := text.T("ms", key); got == key || got == "" {
+				t.Errorf("%s has no Malay", key)
+			}
+		}
+	}
 }

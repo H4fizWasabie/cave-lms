@@ -165,3 +165,17 @@ func TestEveryPageCarriesTheContentSecurityPolicy(t *testing.T) {
 		t.Errorf("the demo Dashboard's Content-Security-Policy = %q, want its own, allowing its inline script", got)
 	}
 }
+
+func TestTheHomePageShowsCoachAdamDanielsCardWithHisCredentialsAsText(t *testing.T) {
+	application, _, _, _ := newTestApplication(t)
+	recorder := httptest.NewRecorder()
+	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := recorder.Body.String()
+
+	expectAll(t, body, `src="/static/coach-adam-daniel.webp`, "Coach Adam Daniel", "Strategic Intelligence Architect", "Founder &amp; Chief Consultant, The Cave Consult",
+		"Executive Master in Business Management with Honours (EMBM)", "Certified Generative AI (Associates With Distinction)", "HRDC Accredited Trainer",
+		"Department of Skills Development (JPK) Certified Trainer", "Sustainability &amp; ESG Reporting Professional (SERP)")
+	if strings.Contains(body, "Adam bin Yusuf") {
+		t.Errorf("home page still names the old coach caption")
+	}
+}

@@ -162,7 +162,7 @@ func Read(r io.Reader, t *Template) (*Dataset, error) {
 			if p, ok := t.headerBelow(cells); ok {
 				return nil, p
 			}
-			return nil, Problem{"lab.err.missing-column", []any{b.SampleName(), t.Name, b.Label, Problem{"lab.types." + string(b.Type), nil}}}
+			return nil, Problem{"lab.err.missing-column", []any{b.SampleName(), Problem{"lab.tpl." + t.Key + ".name", nil}, b.Label, Problem{"lab.types." + string(b.Type), nil}}}
 		}
 	}
 	required, guess := map[string]bool{}, t.Guess(d)
