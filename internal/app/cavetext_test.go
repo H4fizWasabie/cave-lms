@@ -123,7 +123,9 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 	// Browsers drop tabs and newlines from URLs, so "/\t/evil.example" would land on //evil.example.
 	// Form values arrive decoded, so these also cover next=/%09/evil.example.
 	for _, next := range []string{"https://evil.example/", "//evil.example/", `/\evil.example/`,
-		"/\t/evil.example/", "/\n/evil.example/", "/\r/evil.example/", "/\r\n/evil.example/", "\t//evil.example/"} {
+		"/\t/evil.example/", "/\n/evil.example/", "/\r/evil.example/", "/\r\n/evil.example/", "\t//evil.example/",
+		// http.Redirect cleans dot segments, so these would leave as /\evil.example/.
+		`/./\evil.example/`, `/x/../\evil.example/`} {
 		res, body := s.get("/login?next=" + url.QueryEscape(next))
 		expectStatus(t, res, body, http.StatusOK, "")
 		// The language switch comes back to this very page, query and all; only the login form must drop next.

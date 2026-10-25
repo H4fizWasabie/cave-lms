@@ -306,13 +306,14 @@ func (a *App) loginForm(w http.ResponseWriter, r *http.Request) {
 
 // localPath returns next if it is a path on this site, else "", so a login link can't send anyone off-site.
 // Control characters are refused outright: browsers drop tabs and newlines, so "/\t/evil.com" becomes "//evil.com".
+// So is any backslash: browsers read it as "/", and http.Redirect cleans "/./\evil.com" down to "/\evil.com".
 func localPath(next string) string {
 	if strings.ContainsFunc(next, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
 		return ""
 	}
 	u, err := url.Parse(next)
 	if err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(u.Path, "/") ||
-		strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+		strings.HasPrefix(next, "//") || strings.ContainsRune(next, '\\') {
 		return ""
 	}
 	return next
