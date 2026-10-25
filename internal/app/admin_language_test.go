@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -171,10 +172,10 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	expectLanguage(t, body, "ms", "Imej latar (JPEG atau PNG)")
 
 	res, body := s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Batalkan Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan.")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tarik balik Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan.")
 	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body = s.get("/admin/certificates")
-	expectAll(t, body, "<td>Dibatalkan</td>", "Keluarkan Sijil yang diperbetulkan")
+	expectAll(t, body, "<td>Ditarik balik</td>", "Keluarkan Sijil yang diperbetulkan")
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Masukkan nama untuk Sijil")
 
@@ -185,6 +186,33 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	_, body = s.get("/admin/certificates")
 	expectLanguage(t, body, "en", "Search by name or ID")
 	expectAll(t, body, "<td>Revoked</td>")
+}
+
+// On a Malay confirmation page "Batal" is the way out, so neither the action nor its warning uses that word.
+func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	courseID := s.onlyCourseID()
+	s.addAssignment(courseID, "Esei", "Tulis satu perenggan.")
+	item := s.uploadAs("Rajah Go", "everyone", pngFile)
+	s.switchLanguage("ms", "/")
+
+	for _, path := range []string{
+		"/admin/certificates/" + certID + "/revoke",
+		"/admin/courses/" + courseID + "/delete",
+		"/admin/lessons/" + s.lessonIDByTitle("Variables") + "/delete",
+		"/admin/assignments/" + s.assignmentIDByTitle("Esei") + "/delete",
+		"/admin" + item + "/delete",
+	} {
+		res, body := s.get(path)
+		expectStatus(t, res, body, http.StatusOK, ">Batal</a>")
+		if n := strings.Count(strings.ToLower(mainOf(body)), "batal"); n != 1 {
+			t.Errorf("%s says batal %d times, want once (the Cancel link):\n%s", path, n, mainOf(body))
+		}
+	}
+	_, body := s.get("/admin/certificates/" + certID + "/revoke")
+	expectAll(t, mainOf(body), "<h1>Tarik balik Sijil</h1>", ">Tarik balik Sijil</button>")
 }
 
 func TestTheAdminOnlyAndQuestionNotFoundPagesAreInMalay(t *testing.T) {

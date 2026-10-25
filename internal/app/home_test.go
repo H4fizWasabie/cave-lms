@@ -67,6 +67,16 @@ func TestTheCostComparisonIsATableInBothLanguages(t *testing.T) {
 
 }
 
+func TestTheHomeHeroCarriesTheClientsTaglineInBothLanguages(t *testing.T) {
+	s := newSite(t)
+	for _, lang := range []string{"en", "ms"} {
+		_, body := s.getAsking("/", lang)
+		_, hero, _ := strings.Cut(content(body), `<section class="home-hero"`)
+		hero, _, _ = strings.Cut(hero, "</section>")
+		expectInOrder(t, hero, "CAVELMS · Learn AI • Build Skills • Create Impact", "<h1")
+	}
+}
+
 func TestTheMalayHomePagesButtonsAreInMalay(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "ms")
