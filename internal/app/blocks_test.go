@@ -399,3 +399,26 @@ func TestResetOnGeneralRebuildsFromTheCurrentDataset(t *testing.T) {
 		t.Fatalf("Reset on General gave %+v", blocks)
 	}
 }
+
+func TestResetOnGeneralUsesColumnRolesAndStoredBlocksStayUntilThen(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("general", "Stor")
+	res, body := ada.postFile(path+"/dataset", "stok.xlsx", stockFile(t))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, url.Values{"template": {"general"}})
+	sumsPrice := func(blocks []lab.WorkBlock) bool {
+		return slices.ContainsFunc(blocks, func(b lab.WorkBlock) bool { return b.Value != nil && b.Value.Agg == "sum" && b.Value.Col == "Unit Price" })
+	}
+	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	last := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return !b.IsCard() }) - 1
+	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(last)}, "kind": {"card"}, "agg": {"sum"}, "col": {"Unit Price"}})
+	if blocks, _ = ada.pageBlocks(path + "/view/"); !sumsPrice(blocks) {
+		t.Fatalf("the Learner's card adding up Unit Price is gone: %s", labels(blocks))
+	}
+	ada.editBlocks(path, url.Values{"do": {"reset"}})
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if sumsPrice(blocks) || !strings.Contains(labels(blocks), "Average Unit Price") || !strings.Contains(labels(blocks), "Kuantiti × Unit Price") {
+		t.Fatalf("Reset gave %s", labels(blocks))
+	}
+}

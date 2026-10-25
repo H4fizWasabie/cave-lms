@@ -25,6 +25,7 @@ const previewRows = 20
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
 	Changes   []lab.Change `json:"changes"`
+	Notes     []lab.Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
 	Guess     lab.Choices  `json:"guess"`
 	Sheets    []lab.Sheet  `json:"sheets"`          // every sheet of the upload
 	Used      []string     `json:"used"`            // the sheets that went into the Dataset
@@ -291,7 +292,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	found := cleaned{Changes: res.Changes, Guess: res.Guess, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
+	found := cleaned{Changes: res.Changes, Notes: res.Notes, Guess: res.Guess, Sheets: res.Sheets, Used: res.Used, HeaderRow: res.HeaderRow, Settings: settings, Month: res.Month, Year: res.Year}
 	c, err := json.Marshal(found)
 	if err != nil {
 		a.serverError(w, r, err)
