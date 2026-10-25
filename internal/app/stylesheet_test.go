@@ -12,6 +12,7 @@ import (
 // defined in :root, and rules use the tokens, so the site stays one product as pages are added.
 
 // stylesheet returns the served stylesheet without comments, and its rules with the :root and @font-face blocks taken out.
+// The rules also leave out the "Lab: as on main" section: the Lab is out of the refresh and keeps main's values.
 func stylesheet(t *testing.T) (all, rules string) {
 	t.Helper()
 	application, _, _, _ := newTestApplication(t)
@@ -20,8 +21,14 @@ func stylesheet(t *testing.T) (all, rules string) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("GET /static/cavelms.css = %d", recorder.Code)
 	}
-	all = regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(recorder.Body.String(), "")
-	rules = regexp.MustCompile(`(?s)(:root|@font-face)\s*\{[^}]*\}`).ReplaceAllString(all, "")
+	comments := regexp.MustCompile(`(?s)/\*.*?\*/`)
+	all = comments.ReplaceAllString(recorder.Body.String(), "")
+	lab := regexp.MustCompile(`(?s)/\* === Lab: as on main .*?/\* === end Lab: as on main === \*/`)
+	if !lab.MatchString(recorder.Body.String()) {
+		t.Fatal(`the stylesheet has no "Lab: as on main" section; if the Lab was redesigned, drop its exemption here`)
+	}
+	rules = comments.ReplaceAllString(lab.ReplaceAllString(recorder.Body.String(), ""), "")
+	rules = regexp.MustCompile(`(?s)(:root|@font-face)\s*\{[^}]*\}`).ReplaceAllString(rules, "")
 	return all, rules
 }
 
@@ -115,9 +122,9 @@ func TestTextFieldsKeepAFocusOutlineInForcedColours(t *testing.T) {
 }
 
 func TestTheStylesheetHasThreeBreakpoints(t *testing.T) {
-	_, rules := stylesheet(t)
+	all, _ := stylesheet(t)
 	seen := map[string]bool{}
-	for _, m := range regexp.MustCompile(`\((?:max|min)-width:\s*([^)]+)\)`).FindAllStringSubmatch(rules, -1) {
+	for _, m := range regexp.MustCompile(`\((?:max|min)-width:\s*([^)]+)\)`).FindAllStringSubmatch(all, -1) {
 		seen[m[1]] = true
 	}
 	if len(seen) > 3 {
