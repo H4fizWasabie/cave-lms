@@ -1,0 +1,31 @@
+{{define "title"}}{{t .Lang "about.link"}} · CAVELMS{{end}}
+{{define "content"}}
+    <section class="about-hero">
+      <div class="wrap about-hero-in">
+        <p class="about-eyebrow">{{t .Lang "about.eyebrow"}}</p>
+        <h1>{{t .Lang "about.title"}} <em>{{t .Lang "about.title-mark"}}</em></h1>
+        <p class="about-lede">{{t .Lang "about.lede"}}</p>
+      </div>
+    </section>
+
+    <section class="about-creds" aria-label="{{t .Lang "about.creds"}}">
+      <div class="wrap about-creds-in">
+        <p class="about-badge"><span class="about-seal" aria-hidden="true">HRD<br>Corp</span><strong>{{t .Lang "about.hrd"}}</strong></p>
+        <p class="about-badge"><span class="about-seal" aria-hidden="true">MOF</span><strong>{{t .Lang "about.mof"}}</strong></p>
+        <p class="about-company"><strong>The Cave Consult</strong> (TCC)</p>
+      </div>
+    </section>
+
+    <section class="wrap about-body">
+      <p class="about-label">{{t .Lang "about.label"}}</p>
+      <h2>{{t .Lang "about.heading"}}</h2>
+      <div class="prose">
+        <p>{{t .Lang "about.p1"}}</p>
+        <p>{{t .Lang "about.p2"}}</p>
+        <p>{{t .Lang "about.p3"}} <a href="/#coach">{{t .Lang "about.coach-link"}}</a></p>
+        <p>{{t .Lang "about.p4"}}</p>
+        <p>{{t .Lang "about.p5"}}</p>
+        <p><a href="https://www.thecaveconsult.com/company-profile/">{{t .Lang "about.more"}}</a></p>
+      </div>
+    </section>
+{{end}}

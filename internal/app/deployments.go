@@ -309,7 +309,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 			return
 		}
 		if dep.Template != "" {
-			dep.Template = templateName(dep.Template)
+			dep.Template = templateName(lang, dep.Template)
 		}
 		p.Deployments = append(p.Deployments, dep)
 	}

@@ -81,6 +81,10 @@ type dashboardRow struct {
 
 // labDashboards lists a Learner's Dashboards, most recently changed first.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
+	lang, err := a.language(r)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.kind = 'work', d.name, d.template, d.updated_at,
 			d.dataset_key IS NOT NULL OR EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current'),
 			dep.taken_down_at
@@ -102,15 +106,16 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 		if takenDown.Valid {
 			d.TakenDown = takenDown.Time.UTC().Format(periodTime)
 		}
-		d.Template, d.Updated = templateName(key), updated.UTC().Format(periodTime)
+		d.Template, d.Updated = templateName(lang, key), updated.UTC().Format(periodTime)
 		list = append(list, d)
 	}
 	return list, rows.Err()
 }
 
-func templateName(key string) string {
-	if t := lab.TemplateByKey(key); t != nil {
-		return t.Name
+// templateName is the name of the Template with key in lang, or key itself for one Cave no longer has.
+func templateName(lang, key string) string {
+	if lab.TemplateByKey(key) != nil {
+		return text.T(lang, "lab.tpl."+key+".name")
 	}
 	return key
 }

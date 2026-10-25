@@ -189,6 +189,29 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .verify-band input { padding: .62rem .8rem; border: 1px solid #4a4c51; border-radius: var(--radius); background: #2a2c30; color: #fff; min-width: 17rem; }
 .verify-band input::placeholder { color: #9d9e99; }
 
+/* ============================ About (TCC) ============================ */
+.about-hero { background: var(--brand-ink); color: #cfcfc8; position: relative; overflow: hidden; }
+.about-hero::before { content: ""; position: absolute; right: -20%; bottom: -60%; width: 70vw; height: 70vw; max-width: 40rem; max-height: 40rem; border-radius: 50%; background: radial-gradient(closest-side, rgba(210, 166, 73, .18), transparent); }
+.about-hero-in { position: relative; padding-block: 3rem 3.2rem; }
+.about-eyebrow, .about-label { font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; line-height: 1.7; margin: 0 0 1rem; }
+.about-eyebrow { color: var(--brand-gold); }
+.about-label { color: var(--brand-gold-deep); margin-bottom: .7rem; }
+.about-hero h1 { color: #fff; font-size: clamp(2.1rem, 7vw, 3.6rem); line-height: 1.06; letter-spacing: -0.02em; max-width: 18ch; margin-bottom: 1.1rem; }
+.about-hero h1 em { font-style: normal; color: var(--brand-gold); }
+.about-lede { font-size: 1.08rem; line-height: 1.6; max-width: 34rem; margin: 0; }
+.about-hero ::selection { background: var(--brand-gold); color: var(--brand-ink); }
+.about-creds { background: var(--brand-gold-soft); border-bottom: 1px solid var(--line); }
+.about-creds-in { display: grid; gap: 1rem; padding-block: 1.4rem; }
+.about-badge { display: grid; grid-template-columns: 3.4rem 1fr; gap: .9rem; align-items: center; margin: 0; font-size: 1.02rem; line-height: 1.3; }
+.about-seal { width: 3.4rem; height: 3.4rem; border-radius: 50%; border: 2px solid var(--brand-gold-deep); outline: 1px solid var(--brand-gold-deep); outline-offset: 3px; display: grid; place-items: center; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: .78rem; line-height: 1.05; color: var(--brand-gold-deep); }
+.about-company { margin: 0; font-size: .88rem; color: var(--muted); border-top: 1px solid #e6d8b5; padding-top: .9rem; }
+.about-body { padding-block: 3rem 3.5rem; }
+.about-body h2 { font-size: clamp(1.7rem, 5vw, 2.4rem); max-width: 22ch; margin-bottom: 1.2rem; }
+@media (min-width: 760px) {
+  .about-creds-in { grid-template-columns: 1fr 1fr auto; align-items: center; gap: 2rem; }
+  .about-company { border: 0; padding: 0; text-align: right; }
+}
+
 /* ============================ Inner pages ============================ */
 .page-pad { padding-block: 2.75rem 4rem; }
 .page-head { margin-bottom: 2rem; }
@@ -366,14 +389,8 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 
 /* ============================ Home (CAVELMS) ============================ */
 .home-kicker { font-size: .86rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-gold-deep); margin-bottom: .9rem; }
-.coach { margin: 0; display: grid; grid-template-columns: minmax(9rem, 13rem) 1fr; gap: 1.6rem; align-items: end; background: var(--brand-gold-soft); border-radius: var(--radius-lg); padding: 1.6rem 1.6rem 0; position: relative; overflow: hidden; }
-.coach-photo img { width: 100%; height: auto; }
-.coach figcaption { padding-bottom: 1.8rem; display: grid; gap: .3rem; }
-.coach figcaption > strong { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.15; }
-.coach figcaption > span { color: var(--muted); font-size: .94rem; }
-.coach-creds { list-style: none; margin: .8rem 0 0; padding: 0; display: grid; gap: .45rem; font-size: .92rem; font-weight: 600; }
-.coach-creds li { display: flex; gap: .5rem; align-items: flex-start; }
-.coach-creds .i { color: var(--brand-gold-deep); margin-top: .15rem; }
+.coach { margin: 0; }
+.coach img { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); }
 .home-intro { display: grid; grid-template-columns: 1.4fr 1fr; gap: 3rem; align-items: center; }
 .home-pull { margin: 0; padding: 0; font-family: var(--font-display); font-size: 1.6rem; line-height: 1.35; }
 .learn-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.2rem 2.5rem; }
@@ -505,8 +522,6 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
   .home-hero h1 br { display: none; }
   
   .home-intro, .learn-grid, .learn-pair, .programmes, .course-grid, .footer-in { grid-template-columns: 1fr; }
-  .coach { grid-template-columns: 7.5rem 1fr; padding: 1.1rem 1.1rem 0; gap: 1rem; }
-  .coach figcaption > strong { font-size: 1.3rem; }
   
   
   .section { padding: 2.75rem 0; }
