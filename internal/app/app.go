@@ -369,6 +369,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/question-bank", a.admin(a.adminQuestionBank))
 	mux.HandleFunc("GET /admin/question-bank/{qid}/edit", a.admin(a.editBankQuestionForm))
 	mux.HandleFunc("POST /admin/question-bank/{qid}", a.admin(a.updateBankQuestion))
+	mux.HandleFunc("GET /admin/question-bank/{qid}/delete", a.admin(a.confirmDeleteBankQuestion))
 	mux.HandleFunc("POST /admin/question-bank/{qid}/delete", a.admin(a.deleteBankQuestion))
 	mux.HandleFunc("POST /admin/question-bank/{qid}/publish", a.admin(a.publishBankQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/from-bank", a.admin(a.addFromBank))

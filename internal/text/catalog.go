@@ -240,6 +240,7 @@ var catalog = map[string]entry{
 	"adm.exam.delete-q-ask":         {en: "Delete the question “%s” from the Exam for “%s”? This cannot be undone.", ms: "Padam soalan “%s” daripada Peperiksaan untuk “%s”? Tindakan ini tidak boleh dibuat asal."},
 	"adm.course.remove-learner":     {en: "Remove Learner", ms: "Buang Pelajar"},
 	"adm.course.remove-learner-ask": {en: "Remove %s from “%s”? They lose its Lessons, Exams and Chat at once. Their progress is kept if they join again.", ms: "Buang %s daripada “%s”? Mereka serta-merta hilang akses kepada Pelajaran, Peperiksaan dan Sembangnya. Kemajuan mereka disimpan jika mereka menyertainya semula."},
+	"bank.delete-ask":               {en: "Delete “%s” from the Question bank? Exam copies of it stay. This cannot be undone.", ms: "Padam “%s” daripada Bank Soalan? Salinannya dalam Peperiksaan kekal. Tindakan ini tidak boleh dibuat asal."},
 	// ---- Premium refresh: confirmation pages (QA): end ----
 
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----

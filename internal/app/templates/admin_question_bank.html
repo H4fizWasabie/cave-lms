@@ -27,7 +27,7 @@
                 <div class="lb-act">
                   <a class="btn btn-quiet btn-sm" href="/admin/question-bank/{{$q.ID}}/edit{{$.Query}}">{{t $.Lang "adm.edit"}}</a>
                   {{if $q.Draft}}<form method="post" action="/admin/question-bank/{{$q.ID}}/publish{{$.Query}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.publish"}}</button></form>{{end}}
-                  <form method="post" action="/admin/question-bank/{{$q.ID}}/delete{{$.Query}}"><button class="btn btn-danger btn-sm">{{t $.Lang "adm.delete"}}</button></form>
+                  <a class="btn btn-danger btn-sm" href="/admin/question-bank/{{$q.ID}}/delete{{$.Query}}">{{t $.Lang "adm.delete"}}</a>
                 </div>
               </div>
               {{with $q.ModelAnswer}}<p class="card-sub">{{t $.Lang "adm.exam.model-answer"}}: {{.}}</p>{{end}}

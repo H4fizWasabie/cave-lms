@@ -102,7 +102,16 @@ func TestBankQuestionsAndExamCopiesChangeIndependently(t *testing.T) {
 	res, body = s.get(examPath)
 	expectInOrder(t, body, "What is Go, in the Exam?", "A language (correct)", "A drink", "A car")
 
-	res, body = s.post("/admin/question-bank/"+bankQ+"/delete", nil)
+	confirmPage := "/admin/question-bank/" + bankQ + "/delete"
+	_, body = s.get("/admin/question-bank")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body = s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “What is Go, in the bank?” from the Question bank? Exam copies of it stay. This cannot be undone.")
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get("/admin/question-bank")
+	expectAll(t, body, "What is Go, in the bank?")
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/admin/question-bank")
 	expectStatus(t, res, body, http.StatusOK, "No questions in the Question bank.")
@@ -234,7 +243,7 @@ func TestLearnersAreRefusedTheQuestionBankAndItsActions(t *testing.T) {
 	res, body = s.get("/admin/question-bank/" + bankQ + "/edit")
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
 	for _, path := range []string{"/admin/question-bank/" + bankQ + "/publish", "/admin/question-bank/" + bankQ + "/delete"} {
-		res, body = s.post(path, nil)
+		res, body = s.post(path, confirming)
 		expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
 	}
 	res, body = s.saveBankQuestion(bankQ, "Hacked", "en", "Hacked?", [5]string{"Yes", "No", "", "", ""}, "0")
