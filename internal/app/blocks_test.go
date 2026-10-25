@@ -247,6 +247,46 @@ func TestABarTurnsVertical(t *testing.T) {
 	}
 }
 
+func TestTheEditorAddsAHeatmapAcrossTwoTextColumns(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"heatmap"}})
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	if b := blocks[8]; b.Kind != "heatmap" || !b.Wide || b.Top != 8 || b.Group == "" || b.Split == "" || b.Group == b.Split {
+		t.Fatalf("a new heatmap is %+v", b)
+	}
+	res, body := ada.get(path + "/blocks?open=8")
+	for _, want := range []string{"Rows down", "Columns across", `name="split"`, `name="top" value="8" checked`, "Past the 10 largest columns", `name="fcol"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	if strings.Contains(body, `<option value="" selected>None</option>`) {
+		t.Errorf("a heatmap offers no column across:\n%s", body)
+	}
+
+	heat := url.Values{"do": {"save"}, "block": {"8"}, "kind": {"heatmap"}, "agg": {"sum"}, "col": {"Jumlah"}, "group": {"Kategori"}, "split": {"Kategori"}, "top": {"5"}}
+	res, body = ada.post(path+"/blocks", heat)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "A heatmap needs two different Text columns")
+	heat.Set("split", "Jenis")
+	ada.editBlocks(path, heat)
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if b := blocks[8]; b.Group != "Kategori" || b.Split != "Jenis" || b.Top != 5 || b.Value.Agg != "sum" || b.Label != "Jumlah by Kategori × Jenis" {
+		t.Fatalf("the saved heatmap is %+v", b)
+	}
+
+	// A bar turned heatmap spans the row and gets a column across.
+	ada.editBlocks(path, barForm(url.Values{"kind": {"heatmap"}}))
+	blocks, _ = ada.pageBlocks(path + "/view/")
+	if b := blocks[5]; b.Kind != "heatmap" || !b.Wide || b.Top != 8 || b.Split == "" || b.Split == b.Group {
+		t.Fatalf("the bar turned heatmap is %+v", b)
+	}
+
+	ada.switchLanguage("ms", path+"/blocks")
+	res, body = ada.get(path + "/blocks?open=8")
+	for _, want := range []string{"Peta haba", "Baris ke bawah", "Lajur melintang"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+}
+
 func TestBlocksMoveAmongTheirOwnSortAndGo(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()

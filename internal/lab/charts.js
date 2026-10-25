@@ -1,5 +1,5 @@
 /* Cave's chart library. It draws a Dashboard from the column choices and blocks Cave wrote into
-   index.html and the rows in data.json: summary cards, a line chart by month or day, bar and donut charts,
+   index.html and the rows in data.json: summary cards, a line chart by month or day, bar and donut charts, a heatmap,
    a table, and a filter bar. It needs no other library and loads nothing from other websites.
    Every column name and cell is escaped before it reaches the page, so a cell shows as text. */
 (function () {
@@ -58,6 +58,9 @@
     '.dtable th{text-align:left;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:.45rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}',
     '.dtable td{padding:.5rem .6rem;border-bottom:1px solid var(--soft);white-space:nowrap}',
     '.dtable .num{text-align:right;font-variant-numeric:tabular-nums}',
+    '.dheat{overflow-x:auto}.dheat table{border-collapse:separate;border-spacing:3px;font-size:.84rem;margin:-3px}',
+    '.dheat th{font-weight:600;color:var(--muted);padding:.2rem .5rem;white-space:nowrap;max-width:9rem;overflow:hidden;text-overflow:ellipsis}.dheat thead th{font-size:.76rem;text-align:center}.dheat tbody th{text-align:left}',
+    '.dheat td{min-width:3.4rem;padding:.45rem .5rem;text-align:center;border-radius:4px;background:var(--track);box-shadow:inset 0 0 0 1px var(--soft);font-variant-numeric:tabular-nums;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
     '.dnone{color:var(--muted);font-size:.88rem;padding:1rem 0;text-align:center}',
     '.dcard strong.dnone{font-size:.88rem;font-weight:400;padding:0;text-align:left}',
     '@media (max-width:640px){main{padding:1.1rem .9rem .6rem}.dh h1{font-size:1.3rem}.df{width:100%}.df label{flex:1 1 8rem}' +
@@ -71,7 +74,7 @@
   // The five Themes, from the client's specs: CSS variables, an extra rule or two, and the colours charts are
   // drawn in. bar and top colour a bar chart, top marking its largest group; stack colours the parts of a split
   // bar; line and point a line of one series, area the shade under it, stroke and dot its width and its points'
-  // radius; series a line split into several.
+  // radius; series a line split into several; heat a heatmap's scale, from its empty to its largest cell.
   var THEMES = {
     corporate: {
       vars: { bg: '#F6F8FB', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#13263B', num: '#0E2A47', muted: '#5E6E80', axis: '#7A8899',
@@ -80,7 +83,8 @@
       bar: '#0E2A47', top: '#C89B3C', line: '#0E2A47', point: '#C89B3C', area: 0.08, stroke: 2.5, dot: 3.5,
       donut: ['#0E2A47', '#C89B3C', '#5B7FA6', '#E2C88F', '#9AA9BA', '#2E8B6F', '#C7CED8'],
       stack: ['#2E8B6F', '#C89B3C', '#D9725B', '#5B7FA6', '#9AA9BA'],
-      series: ['#0E2A47', '#C89B3C', '#2E8B6F', '#D9725B', '#5B7FA6', '#9AA9BA']
+      series: ['#0E2A47', '#C89B3C', '#2E8B6F', '#D9725B', '#5B7FA6', '#9AA9BA'],
+      heat: ['#FFFFFF', '#0E2A47']
     },
     midnight: {
       vars: { bg: '#081726', card: '#10263B', solid: '#10263B', head: '#06111E', ink: '#F5F7FA', num: '#F5F7FA', muted: '#A8BACB', axis: '#8DA2B6',
@@ -90,7 +94,8 @@
       bar: '#3D7CC9', top: '#D4AA55', line: '#56B4E3', point: '#D4AA55', area: 0.12, stroke: 2.5, dot: 3.5,
       donut: ['#D4AA55', '#3D7CC9', '#56B4E3', '#48A98A', '#8FA3B8', '#D97979', '#5A6B80'],
       stack: ['#48A98A', '#D4AA55', '#D97979', '#56B4E3', '#8FA3B8'],
-      series: ['#56B4E3', '#D4AA55', '#48A98A', '#D97979', '#8FA3B8', '#3D7CC9']
+      series: ['#56B4E3', '#D4AA55', '#48A98A', '#D97979', '#8FA3B8', '#3D7CC9'],
+      heat: ['#14304F', '#1B7F77']
     },
     minimal: {
       vars: { bg: '#FFFFFF', card: '#FFFFFF', solid: '#FFFFFF', head: '#FFFFFF', ink: '#20252B', num: '#20252B', muted: '#68737D', axis: '#8A939C',
@@ -100,7 +105,8 @@
       bar: '#3569A8', top: '#3569A8', line: '#3569A8', point: '#3569A8', area: 0, stroke: 1.75, dot: 3,
       donut: ['#3569A8', '#A9C0DD', '#68737D', '#C9D0D7', '#2A9D8F', '#D9A03F', '#E5E9ED'],
       stack: ['#3569A8', '#2A9D8F', '#D9A03F', '#9AA5B1', '#C9D0D7'],
-      series: ['#3569A8', '#2A9D8F', '#D9A03F', '#68737D', '#9AA5B1', '#B5473A']
+      series: ['#3569A8', '#2A9D8F', '#D9A03F', '#68737D', '#9AA5B1', '#B5473A'],
+      heat: ['#FFFFFF', '#3569A8']
     },
     glass: {
       vars: { bg: 'linear-gradient(140deg,#132B54 0%,#3859A6 55%,#6C5AA8 100%) fixed', card: 'rgba(255,255,255,.09)', solid: '#22417A', head: 'rgba(255,255,255,.07)',
@@ -113,7 +119,8 @@
       bar: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', top: 'linear-gradient(90deg,#3E8EE0,#57C8E8)', line: '#57C8E8', point: '#D8F5FF', area: 0.14, stroke: 2.5, dot: 3.5,
       donut: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#F2A7C9', '#8FA8E8', '#6C7AA8'],
       stack: ['#3CC6B5', '#A69DF2', '#D4AA55', '#57C8E8', '#F2A7C9'],
-      series: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#F2A7C9', '#FFA3A3']
+      series: ['#57C8E8', '#A69DF2', '#D4AA55', '#7FE0C0', '#F2A7C9', '#FFA3A3'],
+      heat: ['#1A3262', '#57C8E8']
     },
     storytelling: {
       vars: { bg: '#FAFBFC', card: '#FFFFFF', solid: '#FFFFFF', head: '#FAFBFC', ink: '#18324A', num: '#18324A', muted: '#5A6E82', axis: '#7D8E9F',
@@ -126,7 +133,8 @@
       bar: '#3478C0', top: '#3478C0', line: '#3478C0', point: '#E89A45', area: 0.08, stroke: 2.5, dot: 3.5,
       donut: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9D3DD', '#5A6E82'],
       stack: ['#18A999', '#E89A45', '#8267C7', '#3478C0', '#A8B6C4'],
-      series: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9562F']
+      series: ['#3478C0', '#E89A45', '#18A999', '#8267C7', '#A8B6C4', '#C9562F'],
+      heat: ['#FFFFFF', '#3478C0']
     }
   };
   // FONTS is Inter's @font-face rules, which Cave writes in when it serves this file (lab.ChartScript).
@@ -175,6 +183,19 @@
   function nice(v) { if (!v) return 1; var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
   // seriesColour is the colour for the i-th value s from a Theme's list; Masuk and Keluar always show as its positive and negative.
   function seriesColour(t, list, s, i) { return { masuk: t.vars.pos, keluar: t.vars.neg }[String(s).toLowerCase()] || list[i % list.length]; }
+
+  // mix is the colour t of the way (0 to 1) from #RRGGBB a to b.
+  function mix(a, b, t) {
+    return '#' + [1, 3, 5].map(function (i) {
+      var x = parseInt(a.substr(i, 2), 16), y = parseInt(b.substr(i, 2), 16);
+      return ('0' + Math.round(x + (y - x) * t).toString(16).toUpperCase()).slice(-2);
+    }).join('');
+  }
+  // inkOn is a label colour readable on #RRGGBB c: white on a dark shade, dark ink on a light one.
+  function inkOn(c) {
+    var l = [1, 3, 5].map(function (i) { var x = parseInt(c.substr(i, 2), 16) / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2] > 0.2 ? '#13263B' : '#FFFFFF';
+  }
 
   function dayName(iso) { return +iso.slice(8) + ' ' + MONTHS[+iso.slice(5, 7) - 1]; }
 
@@ -246,6 +267,19 @@
     return g.map(function (x) {
       return [x[0], x[1]].concat(b.split ? [groups(b.value, x[2], b.split).map(function (s) { return [s[0], s[1]]; }).sort(function (a, c) { return a[0] < c[0] ? -1 : 1; })] : []);
     });
+  }
+  // heat is a heatmap's rows (its groups, top N or all), columns (its split's groups in the rows kept, past the 10
+  // largest folded into one Other) and cells[row][column], null where no row falls.
+  function heat(b, rows, cols) {
+    var g = groups(b.value, scope(b, rows, cols), b.group);
+    if (b.top) g = g.slice(0, b.top);
+    var keys = groups(b.value, [].concat.apply([], g.map(function (x) { return x[2]; })), b.split).map(function (x) { return x[0]; });
+    var fold = keys.length > 11, across = fold ? keys.slice(0, 10).concat(['Other']) : keys;
+    return { rows: g.map(function (x) { return x[0]; }), cols: across, cells: g.map(function (x) {
+      var at = across.map(function () { return []; });
+      x[2].forEach(function (r) { var i = keys.indexOf(String(blank(r[b.split]))); at[fold ? Math.min(i, 10) : i].push(r); });
+      return at.map(function (rs) { return rs.length ? valueOf(b.value, rs) : null; });
+    }) };
   }
   // slices is a donut's groups, past the top 6 folded into one Other (a Practice donut's, past the top 5, as it always was).
   function slices(b, rows, cols) {
@@ -444,6 +478,22 @@
       }).join('') + '</ul>', finding);
     }
 
+    // heatmap shades each cell from the Theme's first stop at 0 to its second at the largest cell; an empty one is left blank.
+    function heatmap(b, rows) {
+      var h = heat(b, rows, cols), m = money(b.value), top = null;
+      if (!h.rows.length) return empty(b);
+      h.cells.forEach(function (r, i) { r.forEach(function (v, j) { if (v != null && (!top || v > top[2])) top = [h.rows[i], h.cols[j], v]; }); });
+      var n = [].concat.apply([], h.cells).filter(function (v) { return v != null; }).length, max = Math.max(0, top[2]) || 1;
+      var th = function (k) { return '<th title="' + esc(k) + '">' + esc(k) + '</th>'; };
+      return panel(b, '<div class="dheat"><table><thead><tr><th></th>' + h.cols.map(th).join('') + '</tr></thead><tbody>' + h.cells.map(function (r, i) {
+        return '<tr>' + th(h.rows[i]) + r.map(function (v) {
+          if (v == null) return '<td></td>';
+          var c = mix(theme.heat[0], theme.heat[1], Math.max(0, v) / max);
+          return '<td style="background:' + c + ';color:' + inkOn(c) + '">' + short(v, m) + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>', n > 1 && top[2] > 0 ? 'Highest: ' + top[0] + ', ' + top[1] + ', ' + short(top[2], m) : '');
+    }
+
     function donut(b, rows) {
       var g = groups(b.value, scope(b, rows, cols), b.group), m = money(b.value), tot = g.reduce(function (a, x) { return a + x[1]; }, 0);
       if (!tot) return empty(b);
@@ -472,7 +522,7 @@
       return panel(b, '<button type="button" class="dcsv" data-csv="' + blocks.indexOf(b) + '">Download CSV</button><div class="dtable"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>');
     }
 
-    var DRAW = { line: line, bar: bar, donut: donut, table: table };
+    var DRAW = { line: line, bar: bar, heatmap: heatmap, donut: donut, table: table };
     function draw() {
       var rows = rowsNow();
       cardsEl.innerHTML = blocks.filter(function (b) { return b.kind === 'card'; }).map(function (b) { return card(b, rows); }).join('');
@@ -496,7 +546,7 @@
   }
 
   drawDashboard.compute = { fromPractice: fromPractice, cardValue: cardValue, noMatch: noMatch, timeline: timeline, bars: bars,
-    slices: slices, tableRows: tableRows, csv: csv, paused: paused, iconOf: iconOf };
+    heat: heat, slices: slices, tableRows: tableRows, csv: csv, paused: paused, iconOf: iconOf };
   drawDashboard.themes = Object.keys(THEMES);
   drawDashboard.icons = Object.keys(ICONS);
   window.drawDashboard = drawDashboard;
