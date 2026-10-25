@@ -84,7 +84,7 @@ func TestSubmittingShowsCongratulationsAndWhenTheResultIsReadyButNoMark(t *testi
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Submitted, your Result is ready at 2 January 2099, 11:14.")
 	expectAll(t, body, "No score yet")
-	expectNone(t, body, "Best score", "Start the Exam", "You have passed")
+	expectNone(t, body, "Best score:", "Start the Exam", "You have passed") // the bare "Best score" label shows over "-"
 }
 
 func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearnersLanguage(t *testing.T) {
