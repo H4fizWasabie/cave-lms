@@ -102,7 +102,7 @@ type page struct {
 	Course        *course
 	Exam          *exam
 	Exams         []exam      // the Course's usable Exams, Multiple-choice first, on its page
-	Step          *nextStep   // the enrolled Learner's next step, on the Course page
+	Step          *nextStep   // the enrolled Learner's next step, on the Course page and a done Lesson's page
 	Status        *examStatus // the Learner's Exam
 	Attempt       *examAttempt
 	Question      *examQuestion
@@ -111,6 +111,7 @@ type page struct {
 	Total         int // published Lessons in the Course
 	Lessons       []lesson
 	Lesson        *lesson
+	Place         *lessonPlace // where the Lesson stands in its Course, on its page
 	Assignments   []assignment // the Course's, on its page for an enrolled Learner or the Admin
 	Enrollees     []enrollee
 	Certificates  []certificate

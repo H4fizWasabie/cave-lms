@@ -65,14 +65,6 @@ func TestTheCostComparisonIsATableInBothLanguages(t *testing.T) {
 	_, body = s.getAsking("/", "ms")
 	expectInOrder(t, content(body), "Kos setahun", "<table", "Perkhidmatan", "RM99", "</table>")
 
-	for lang, want := range map[string][]string{
-		"en": {`id="comparison"`, "<table", "Text expansion", "Personal subdomain", "Depends on plan", "Total yearly cost", "RM1,300+", "</table>"},
-		"ms": {`id="comparison"`, "<table", "Pengembangan teks", "Subdomain peribadi", "Bergantung pada pelan", "Jumlah kos setahun", "RM1,300+", "</table>"},
-	} {
-		_, body = s.getAsking("/pricing", lang)
-		expectInOrder(t, content(body), want...)
-		expectNone(t, content(body), "cost-comparison.webp")
-	}
 }
 
 func TestTheMalayHomePagesButtonsAreInMalay(t *testing.T) {

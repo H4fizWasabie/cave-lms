@@ -8,20 +8,70 @@
         </div>
         <a class="btn btn-ghost" href="/my-certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{t .Lang "my-certificates.title"}}</a>
       </div>
-      <ul class="mc-list">
-        {{range .Courses}}
-        <li class="mc-row mc-row-plain">
-          <div class="mc-main">
-            <h3><a href="/courses/{{.ID}}">{{.Title}}</a></h3>
-            <p class="muted">{{.Description}}</p>
-            {{with .StartOn $.Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}
-          </div>
-          <a class="btn btn-solid btn-sm" href="/courses/{{.ID}}">{{t $.Lang "my-courses.open"}}</a>
+      {{- if .Courses}}
+      <ul class="mc-courses">
+        {{- range .Courses}}
+        <li>
+          <article class="mc-course" id="my-course-{{.Course.ID}}">
+            <div class="mc-cover">{{template "course-cover" (card .Course $.Lang)}}</div>
+            <div class="mc-body">
+              <h2><a href="/courses/{{.Course.ID}}">{{.Course.Title}}</a></h2>
+              {{- with .Course.StartOn $.Lang}}
+              <p class="mc-when">{{t $.Lang "course.start-date" .}}</p>
+              {{- end}}
+              {{- with .Course.Description}}
+              <p class="mc-desc">{{.}}</p>
+              {{- end}}
+              {{- if .Total}}
+              <div class="cp-progress">
+                <p><span>{{t $.Lang "course.your-progress"}}</span> <strong class="num">{{tn $.Lang "course.lessons-of" .Total .Done}}</strong></p>
+                <progress max="{{.Total}}" value="{{.Done}}" aria-label="{{t $.Lang "course.progress" .Done .Total}}"></progress>
+              </div>
+              {{- end}}
+              {{- with .Exams}}
+              <ul class="mc-exams">
+                {{- range .}}{{$b := .Badge}}
+                <li>{{t $.Lang .Name}} <span class="badge {{$b.Class}}">{{t $.Lang $b.Key}}</span></li>
+                {{- end}}
+              </ul>
+              {{- end}}
+            </div>
+            {{- with .Step}}{{if .URL}}
+            <a class="btn btn-ghost mc-step" data-next-step href="{{.URL}}">{{.Label $.Lang}}</a>
+            {{- else}}
+            <p class="mc-step mc-done{{if eq .Kind "upcoming"}} step-upcoming{{end}}" data-next-step>{{.Label $.Lang}}</p>
+            {{- end}}{{end}}
+          </article>
         </li>
-        {{else}}
-        <li class="empty">{{t .Lang "my-courses.none"}} <a href="/courses">{{t .Lang "my-courses.browse"}}</a>.</li>
-        {{end}}
+        {{- end}}
       </ul>
+      {{- else}}
+      <div class="empty-state mc-empty">
+        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg>
+        <h2>{{t .Lang "my-courses.none"}}</h2>
+        <p>{{t .Lang "my-courses.none-intro"}}</p>
+        <a class="btn btn-solid" href="/courses">{{t .Lang "my-courses.browse"}}</a>
+      </div>
+      {{- end}}
+      {{- with .Certificates}}
+      <section class="mc-certs">
+        <h2>{{t $.Lang "my-courses.certificates"}}</h2>
+        <ul class="cert-list">
+          {{- range .}}
+          <li class="cert-chip">
+            <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
+            <div class="cert-chip-main">
+              <strong>{{.CourseTitle}}</strong>
+              <small>{{t $.Lang "certificate.number" .Number}} · {{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</small>
+            </div>
+            <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
+          </li>
+          {{- end}}
+        </ul>
+      </section>
+      {{- end}}
+      {{- if .Courses}}
       <p class="mc-more"><a class="link-more" href="/courses">{{t .Lang "my-courses.all"}}</a></p>
+      {{- end}}
     </div>
 {{end}}
