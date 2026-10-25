@@ -28,6 +28,7 @@ type WorkBlock struct {
 	Split    string   `json:"split,omitempty"`    // line: one line per value of this column
 	Group    string   `json:"group,omitempty"`    // bar, donut
 	Top      int      `json:"top,omitempty"`      // bar: the largest 5, 8 or 15 groups; 0 shows all
+	Dir      string   `json:"dir,omitempty"`      // bar: vertical, or empty for horizontal
 	Cols     []string `json:"cols,omitempty"`     // table: columns shown, in order
 	Sort     string   `json:"sort,omitempty"`     // table: newest or largest first by this column
 	Limit    int      `json:"limit,omitempty"`    // table: 10, 25 or 50 rows
@@ -359,6 +360,9 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	if b.Kind != "bar" {
 		b.Top = 0
 	}
+	if b.Kind != "bar" || b.Dir == "horizontal" { // horizontal, the default, is not stored
+		b.Dir = ""
+	}
 	switch b.Kind {
 	case "card":
 		b.Wide = false
@@ -447,7 +451,7 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		}
 		errs = append(errs, col(b.X, Date), maybe(b.Split, Text))
 	case "bar":
-		if !slices.Contains(Tops, b.Top) {
+		if !slices.Contains(Tops, b.Top) || (b.Dir != "" && b.Dir != "horizontal" && b.Dir != "vertical") {
 			return bad
 		}
 		errs = append(errs, col(b.Group, Text), maybe(b.Split, Text))

@@ -128,4 +128,18 @@ eq(C.fromPractice({ kind: 'card', label: 'Stock value', agg: 'sum', of: 'q', tim
 eq(C.fromPractice({ kind: 'bar', group: 'c', of: 'a', where: ['t', 'Keluar'] }),
   { kind: 'bar', value: { agg: 'sum', col: 'a' }, group: 'c', top: 8, where: ['t', 'Keluar'] }, 'practice bar');
 
+// A vertical bar draws columns from the same groups, the largest in the Theme's highlight colour, its value on
+// top and its full name on hover; a split one stacks in the Theme's stack colours.
+var named = {};
+Object.keys(cols).forEach(function (k) { named[k] = { name: k, type: cols[k].type }; });
+window.drawDashboard({ work: true, theme: 'corporate', columns: named, blocks: [
+  { kind: 'bar', label: 'Tegak', dir: 'vertical', value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf', wide: true },
+  { kind: 'bar', label: 'Tindan', dir: 'vertical', value: { agg: 'sum', col: 'Jumlah' }, group: 'Staf', split: 'Kategori', wide: true }] }, rows);
+var drawn = els.charts.innerHTML.split('<article');
+[['<div class="dcols">', 'columns'], ['Top: Ali, 158', 'finding'], ['<span class="dcol-v">158</span><span class="dcol-t" style="height:100.0%"><span style="height:100%;background:#C89B3C"', 'largest in the highlight colour'],
+  ['<span class="dcol-v">20</span><span class="dcol-t" style="height:12.7%"><span style="height:100%;background:#0E2A47"', 'the rest in the bar colour'],
+  ['<span class="dcol-k" title="(blank)">(blank)</span>', 'name under the axis']].forEach(function (w) { assert(drawn[1].indexOf(w[0]) >= 0, 'vertical ' + w[1] + ':\n' + drawn[1]); });
+[['<span style="height:36.7%;background:#2E8B6F" title="Servis: 58"></span><span style="height:63.3%;background:#C89B3C" title="Ubat: 100"></span>', 'stacked'],
+  ['<i style="background:#2E8B6F"></i>Servis', 'legend']].forEach(function (w) { assert(drawn[2].indexOf(w[0]) >= 0, 'vertical ' + w[1] + ':\n' + drawn[2]); });
+
 console.log('ok');

@@ -42,6 +42,12 @@
     '.dbar-t span{display:block;height:100%;border-radius:99px}',
     '.dbar-t.split{display:flex}.dbar-t.split span{border-radius:0}',
     '.dbar-v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}',
+    // A vertical bar: each column's area is a fixed height, its bar a share of it with the value on top.
+    '.dcols{display:flex;gap:.5rem;font-size:.8rem}.dcol{flex:1;min-width:0;display:grid;justify-items:center;gap:.35rem}',
+    '.dcol-a{width:100%;height:11rem;padding-top:1.3rem;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;border-bottom:1px solid var(--line)}',
+    '.dcol-v{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;white-space:nowrap}',
+    '.dcol-t{width:min(100%,3rem);display:flex;flex-direction:column-reverse;border-radius:6px 6px 0 0;overflow:hidden}.dcol-t span{display:block;width:100%}',
+    '.dcol-k{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}',
     '.ddonut{display:flex;gap:1.2rem;align-items:center}.ddonut svg{width:9.5rem;flex-shrink:0}',
     '.ddonut .dtot{font-size:19px;font-weight:600;fill:var(--num)}',
     '.ddonut ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem;font-size:.86rem;flex:1}',
@@ -390,9 +396,24 @@
         }).join('') + '</span>';
       };
       var legend = split ? '<p class="dlegend">' + names.map(function (s) { return '<span><i style="background:' + colour(s) + '"></i>' + esc(s) + '</span>'; }).join('') + '</p>' : '';
+      var finding = g.length > 1 && g[0][1] > 0 ? 'Top: ' + g[0][0] + ', ' + short(g[0][1], m) : '';
+      // A vertical bar stands each group as a column, its split stacked from the bottom, scaled to the tallest;
+      // a long name is cut short under the axis, whole on hover.
+      if (b.dir === 'vertical') {
+        var pos = function (v) { return Math.max(0, v); };
+        var tall = function (x) { return split ? x[2].reduce(function (a, s) { return a + pos(s[1]); }, 0) : pos(x[1]); };
+        var most = Math.max.apply(null, g.map(tall)) || 1;
+        return panel(b, legend + '<div class="dcols">' + g.map(function (x, i) {
+          var t = tall(x), segs = split ? x[2].map(function (s) {
+            return '<span style="height:' + (t ? pos(s[1]) / t * 100 : 0).toFixed(1) + '%;background:' + colour(s[0]) + '" title="' + esc(s[0]) + ': ' + esc(fmt(s[1], m)) + '"></span>';
+          }).join('') : '<span style="height:100%;background:' + (i === 0 && g.length > 1 ? theme.top : theme.bar) + '"></span>';
+          return '<div class="dcol"><span class="dcol-a"><span class="dcol-v">' + short(x[1], m) + '</span><span class="dcol-t" style="height:' + (t / most * 100).toFixed(1) + '%">' +
+            segs + '</span></span><span class="dcol-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span></div>';
+        }).join('') + '</div>', finding);
+      }
       return panel(b, legend + '<ul class="dbars">' + g.map(function (x, i) {
         return '<li><span class="dbar-k" title="' + esc(x[0]) + '">' + esc(x[0]) + '</span>' + track(x, i) + '<span class="dbar-v">' + short(x[1], m) + '</span></li>';
-      }).join('') + '</ul>', g.length > 1 && g[0][1] > 0 ? 'Top: ' + g[0][0] + ', ' + short(g[0][1], m) : '');
+      }).join('') + '</ul>', finding);
     }
 
     function donut(b, rows) {
