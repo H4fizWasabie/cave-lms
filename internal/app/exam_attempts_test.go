@@ -125,6 +125,20 @@ func TestExamPageShowsTimeLimitPassMarkAndAttemptsLeft(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Start the Exam")
 }
 
+func TestTheExamFactsShowEachValueOverItsBareLabelAndSayBothOnce(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("70", "30", "3", "What is Go?")
+
+	_, body := s.getAsking("/courses/"+id+"/exam", "en")
+	expectInOrder(t, mainOf(body),
+		`<span aria-hidden="true">Pass mark</span><span class="sr">Pass mark: 70%</span>`,
+		`<span aria-hidden="true">Time limit</span><span class="sr">Time limit: 30 minutes</span>`,
+		`<span aria-hidden="true">Attempts left</span><span class="sr">Attempts left: 3</span>`,
+		`<span aria-hidden="true">Best score</span><span class="sr">No score yet</span>`)
+	_, body = s.getAsking("/courses/"+id+"/exam", "ms")
+	expectInOrder(t, mainOf(body), `<span aria-hidden="true">Soalan</span>`, `<span aria-hidden="true">Markah lulus</span>`)
+}
+
 func TestDraftQuestionsAreNeverAsked(t *testing.T) {
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Published question")

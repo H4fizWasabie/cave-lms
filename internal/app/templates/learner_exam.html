@@ -8,11 +8,12 @@
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{with .Status}}
         <ul class="x-facts">
-          <li><strong class="num">{{.Asked}}</strong>{{t $.Lang "exam.questions" .Asked}}</li>
-          <li><strong>{{.Exam.PassMark}}%</strong>{{t $.Lang "exam.pass-mark" .Exam.PassMark}}</li>
-          <li><strong>{{with .Exam.TimeLimit}}{{t $.Lang "exam.minutes-short" .}}{{else}}{{t $.Lang "exam.none"}}{{end}}</strong>{{with .Exam.TimeLimit}}{{t $.Lang "exam.time-limit" .}}{{else}}{{t $.Lang "exam.no-time-limit"}}{{end}}</li>
-          <li><strong>{{.AttemptsLeft $.Lang}}</strong>{{t $.Lang "exam.attempts-left" (.AttemptsLeft $.Lang)}}</li>
-          <li><strong>{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong>{{if .HasBest}}{{t $.Lang "exam.best" .Best}}{{else}}{{t $.Lang "exam.no-score"}}{{end}}</li>
+          {{- /* Each fact shows its value over a bare label; a screen reader hears the one sentence instead. */}}
+          <li><strong class="num" aria-hidden="true">{{.Asked}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.questions"}}</span><span class="sr">{{t $.Lang "exam.questions" .Asked}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{.Exam.PassMark}}%</strong><span aria-hidden="true">{{t $.Lang "exam.fact.pass-mark"}}</span><span class="sr">{{t $.Lang "exam.pass-mark" .Exam.PassMark}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{with .Exam.TimeLimit}}{{t $.Lang "exam.minutes-short" .}}{{else}}{{t $.Lang "exam.none"}}{{end}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.time-limit"}}</span><span class="sr">{{with .Exam.TimeLimit}}{{t $.Lang "exam.time-limit" .}}{{else}}{{t $.Lang "exam.no-time-limit"}}{{end}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{.AttemptsLeft $.Lang}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.attempts-left"}}</span><span class="sr">{{t $.Lang "exam.attempts-left" (.AttemptsLeft $.Lang)}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.best"}}</span><span class="sr">{{if .HasBest}}{{t $.Lang "exam.best" .Best}}{{else}}{{t $.Lang "exam.no-score"}}{{end}}</span></li>
         </ul>
         {{if .Open}}
         <a class="btn btn-solid btn-lg" href="{{.Exam.Path (printf "/attempts/%d" .Open.ID)}}">{{t $.Lang "exam.continue"}}</a>

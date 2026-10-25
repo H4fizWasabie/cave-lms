@@ -165,3 +165,14 @@ func TestTheExamICStepSendsALearnerWhoCannotStartTheExamBackToTheCourseSavingNot
 		expectInOrder(t, content(body), `action="/my-profile/ic"`) // still unset
 	}
 }
+
+func TestTheExamICStepCanBeCancelledBackToTheExam(t *testing.T) {
+	s := newSite(t)
+	id := s.examCourseForBea()
+	exam, step := "/courses/"+id+"/exam", "/courses/"+id+"/exam/ic"
+
+	_, body := s.getAsking(step, "en")
+	expectInOrder(t, mainOf(body), `class="form-foot"`, `<a class="btn btn-quiet" href="`+exam+`">Cancel</a>`, "Save and go to the Exam</button>")
+	_, body = s.getAsking(step, "ms")
+	expectInOrder(t, mainOf(body), `href="`+exam+`">Batal</a>`, "Simpan dan pergi ke Peperiksaan</button>")
+}

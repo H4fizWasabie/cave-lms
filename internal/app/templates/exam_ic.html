@@ -19,7 +19,7 @@
           <input id="ic-confirm" name="ic-confirm" value="{{.Again}}" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" required{{if eq $f "ic-confirm"}} aria-invalid="true" aria-describedby="ic-confirm-err"{{end}}>
           {{if eq $f "ic-confirm"}}<p class="field-err" id="ic-confirm-err" role="alert">{{.Error}}</p>{{end}}
         </div>
-        <div><button class="btn btn-solid">{{t .Lang "exam-ic.save"}}</button></div>
+        <div class="form-foot"><a class="btn btn-quiet" href="{{.Exam.Path ""}}">{{t .Lang "exam-ic.cancel"}}</a><button class="btn btn-solid">{{t .Lang "exam-ic.save"}}</button></div>
       </form>
     </div>
 {{end}}
