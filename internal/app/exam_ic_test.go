@@ -30,7 +30,7 @@ func TestALearnerWithoutAnICSetsItBeforeTheirFirstExamAttemptAndContinuesToTheEx
 	res, body := s.startExam(id)
 	expectRedirect(t, res, body, step)
 	_, body = s.getAsking(step, "en")
-	expectInOrder(t, mainOf(body), "Go Basics", "IC or passport number", `action="`+step+`"`, `id="ic"`, `id="ic-confirm"`, "Save and go to the Exam</button>")
+	expectInOrder(t, mainOf(body), "Go Basics", "IC or passport number", "issued under this number", `action="`+step+`"`, `id="ic"`, `id="ic-confirm"`, "Save and go to the Exam</button>")
 	_, body = s.getAsking(step, "ms")
 	expectInOrder(t, mainOf(body), "No. KP atau pasport", `id="ic-confirm"`, "Simpan dan pergi ke Peperiksaan</button>")
 

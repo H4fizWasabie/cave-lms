@@ -1501,7 +1501,7 @@ var catalog = map[string]entry{
 	"ic.set-once":            {en: "Your IC or passport number is already set. Only the Admin can change it.", ms: "No. KP atau pasport anda sudah ditetapkan. Hanya Admin boleh mengubahnya."},
 	"ic.mismatch":            {en: "The two entries do not match. Type the same number in both.", ms: "Kedua-dua entri tidak sepadan. Taip nombor yang sama pada kedua-duanya."},
 	"exam-ic.title":          {en: "Add your IC or passport number", ms: "Tambah No. KP atau pasport anda"},
-	"exam-ic.intro":          {en: "Your Certificate is issued in this number, so it is needed before your first Exam attempt.", ms: "Sijil anda dikeluarkan atas nombor ini, jadi ia diperlukan sebelum cubaan Peperiksaan pertama anda."},
+	"exam-ic.intro":          {en: "Your Certificate is issued under this number, so it is needed before your first Exam attempt.", ms: "Sijil anda dikeluarkan atas nombor ini, jadi ia diperlukan sebelum cubaan Peperiksaan pertama anda."},
 	"exam-ic.again":          {en: "Type it again", ms: "Taip sekali lagi"},
 	"exam-ic.save":           {en: "Save and go to the Exam", ms: "Simpan dan pergi ke Peperiksaan"},
 	"course.needs-ic":        {en: "Set your IC or passport number before your first Exam attempt, so your Certificate can be issued when you pass.", ms: "Tetapkan No. KP atau pasport anda sebelum cubaan Peperiksaan pertama anda, supaya Sijil anda dapat dikeluarkan apabila anda lulus."},
