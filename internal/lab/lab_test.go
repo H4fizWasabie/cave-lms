@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"math"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,6 +25,15 @@ func finance(t *testing.T) *lab.Template {
 		t.Fatal("no Finance Template")
 	}
 	return tpl
+}
+
+// allocated is how many bytes fn allocates.
+func allocated(fn func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	fn()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
 }
 
 // sample is tpl's Sample cleaned, as the Lab cleans it at start-up.
@@ -149,5 +160,72 @@ func TestRefusesASheetOfTooManyCells(t *testing.T) {
 	var p lab.Problem
 	if !errors.As(err, &p) || p.Key != "lab.err.too-many-cells" {
 		t.Fatalf("got %v, want lab.err.too-many-cells", err)
+	}
+}
+
+// sharedStringBomb has a header of cells columns and one row whose cells all point at the same shared string of
+// size bytes, so the file stays a few KB however long the string.
+func sharedStringBomb(t *testing.T, cells, size int) []byte {
+	t.Helper()
+	f := excelize.NewFile()
+	defer f.Close()
+	for c := 1; c <= cells; c++ {
+		name, _ := excelize.ColumnNumberToName(c)
+		f.SetCellValue("Sheet1", name+"1", "Column "+name)
+		f.SetCellValue("Sheet1", name+"2", "PLACEHOLDER")
+	}
+	var b bytes.Buffer
+	if err := f.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	in, err := zip.NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	out := zip.NewWriter(&buf)
+	for _, entry := range in.File {
+		r, err := entry.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		part, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry.Name == "xl/sharedStrings.xml" {
+			part = bytes.Replace(part, []byte("PLACEHOLDER"), bytes.Repeat([]byte("x"), size), 1)
+		}
+		w, err := out.Create(entry.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.Write(part)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func TestAWorkbookWhoseSharedTextPasses50MBOnceGivenToEachCellIsRefusedUnread(t *testing.T) {
+	file := sharedStringBomb(t, 100, 1<<20) // 100 cells of the same 1 MB string: 100 MB of text
+	if len(file) > 64<<10 {
+		t.Fatalf("the file is %d bytes; it should be a few KB", len(file))
+	}
+	var err error
+	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(file), finance(t), lab.Settings{}) }); n > 32<<20 {
+		t.Errorf("Clean allocated %d MB; it should refuse the file before giving the string to each cell", n>>20)
+	}
+	var p lab.Problem
+	if !errors.As(err, &p) || p.Key != "lab.err.too-big-unzipped" {
+		t.Fatalf("got %v, want lab.err.too-big-unzipped", err)
+	}
+}
+
+func TestAWorkbookWhoseCellsShareShortTextIsRead(t *testing.T) {
+	file := sharedStringBomb(t, 3, 1000)
+	if _, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{}); err != nil {
+		t.Fatalf("Clean: %v", err)
 	}
 }

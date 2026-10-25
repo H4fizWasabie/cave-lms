@@ -6,8 +6,10 @@ package lab
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/xml"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -101,6 +103,86 @@ func sheetRows(f *excelize.File, name string, opts ...excelize.Options) ([][]str
 	return cells[:kept], nil
 }
 
+// sharedText is how many bytes of text the cells that point at a shared string come to, each given its own copy
+// as excelize gives them; it stops counting once past limit. One long string shared by thousands of cells is a few
+// KB in the file and gigabytes in memory. Every part of the archive is read, not just the worksheets, as a workbook
+// can keep a sheet anywhere; a part that is not XML ends its own read at its first bad byte.
+func sharedText(f *excelize.File, z *zip.Reader, limit int) int {
+	decoder := func(entry *zip.File) (*xml.Decoder, io.Closer) {
+		r, err := entry.Open()
+		if err != nil {
+			return nil, nil
+		}
+		d := xml.NewDecoder(r)
+		d.CharsetReader = f.CharsetReader // as excelize reads a part saved in another encoding
+		return d, r
+	}
+	isStrings := func(entry *zip.File) bool {
+		return strings.EqualFold(strings.ReplaceAll(entry.Name, "\\", "/"), "xl/sharedStrings.xml")
+	}
+	var sizes []int // each shared string's length, from the last such part, as excelize keeps
+	for _, entry := range z.File {
+		if !isStrings(entry) {
+			continue
+		}
+		d, r := decoder(entry)
+		if d == nil {
+			continue
+		}
+		sizes = sizes[:0]
+		for {
+			tok, err := d.Token()
+			if err != nil {
+				break
+			}
+			if el, ok := tok.(xml.StartElement); ok && el.Name.Local == "si" {
+				var si struct {
+					T string `xml:"t"`
+					R []struct {
+						T string `xml:"t"`
+					} `xml:"r"`
+				}
+				d.DecodeElement(&si, &el)
+				n := len(si.T)
+				for _, run := range si.R {
+					n += len(run.T)
+				}
+				sizes = append(sizes, n)
+			}
+		}
+		r.Close()
+	}
+	total := 0
+	for _, entry := range z.File {
+		if len(sizes) == 0 || isStrings(entry) {
+			continue
+		}
+		d, r := decoder(entry)
+		if d == nil {
+			continue
+		}
+		for total <= limit {
+			tok, err := d.Token()
+			if err != nil {
+				break
+			}
+			el, ok := tok.(xml.StartElement)
+			if !ok || el.Name.Local != "c" || !slices.ContainsFunc(el.Attr, func(a xml.Attr) bool { return a.Name.Local == "t" && a.Value == "s" }) {
+				continue
+			}
+			var c struct {
+				V string `xml:"v"`
+			}
+			d.DecodeElement(&c, &el)
+			if i, err := strconv.Atoi(strings.TrimSpace(c.V)); err == nil && i >= 0 && i < len(sizes) {
+				total += sizes[i]
+			}
+		}
+		r.Close()
+	}
+	return total
+}
+
 // oldExcel is how an .xls file starts: the signature of the compound file Excel 97-2003 saved.
 var oldExcel = []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}
 
@@ -128,6 +210,10 @@ func openWorkbook(r io.Reader) (*excelize.File, error) {
 	f, err := excelize.OpenReader(bytes.NewReader(file), excelize.Options{UnzipSizeLimit: MaxUnzipped})
 	if err != nil {
 		return nil, Problem{"lab.err.not-workbook", nil}
+	}
+	if sharedText(f, z, MaxUnzipped) > MaxUnzipped {
+		f.Close()
+		return nil, Problem{"lab.err.too-big-unzipped", nil}
 	}
 	return f, nil
 }
