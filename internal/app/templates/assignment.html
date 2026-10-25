@@ -16,7 +16,7 @@
         <ul class="file-list">
           {{range .Files}}
           <li><a href="/submission-files/{{.ID}}">{{.Name}}</a> <small>{{size .Size}}</small>
-            <form method="post" action="/submission-files/{{.ID}}/delete"><button class="btn btn-danger btn-sm" aria-label="{{t $.Lang "submission.delete-file" .Name}}">{{t $.Lang "adm.delete"}}</button></form>
+            <a class="btn btn-danger btn-sm" href="/submission-files/{{.ID}}/delete" aria-label="{{t $.Lang "submission.delete-file" .Name}}">{{t $.Lang "adm.delete"}}</a>
           </li>
           {{end}}
         </ul>

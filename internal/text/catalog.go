@@ -244,6 +244,9 @@ var catalog = map[string]entry{
 	"adm.delete-ask":                {en: "Delete “%s”? This cannot be undone.", ms: "Padam “%s”? Tindakan ini tidak boleh dibuat asal."},
 	"orgs.delete":                   {en: "Delete Organisation", ms: "Padam Organisasi"},
 	"programmes.delete":             {en: "Delete Programme", ms: "Padam Program"},
+	"submission.delete":             {en: "Delete file", ms: "Padam fail"},
+	"submission.delete-ask":         {en: "Delete “%s” from your Submission for “%s”? You cannot get it back.", ms: "Padam “%s” daripada Serahan anda untuk “%s”? Anda tidak boleh mendapatkannya semula."},
+	"submission.keep":               {en: "Keep the file", ms: "Simpan fail"},
 	// ---- Premium refresh: confirmation pages (QA): end ----
 
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----

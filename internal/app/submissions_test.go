@@ -192,11 +192,23 @@ func TestALearnersSubmissionsStopAt200MBInTotal(t *testing.T) {
 	}
 }
 
-func TestALearnerDeletesAFileAndAddsAnother(t *testing.T) {
+func TestALearnerDeletesAFileOnlyAfterConfirmingAndAddsAnother(t *testing.T) {
 	_, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"draft.pdf", pdfHandIn})
 	link := ada.fileLinks(path)[0]
-	res, body := ada.post(link+"/delete", nil)
+	confirmPage := link + "/delete"
+	_, body := ada.get(path)
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := ada.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “draft.pdf” from your Submission for “Write a prompt”? You cannot get it back.")
+	expectAll(t, body, `href="`+path+`">Keep the file</a>`, `name="confirm" value="yes"`)
+	res, body = ada.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	if n := ada.storedFiles(); n != 1 {
+		t.Fatalf("%d stored files after an unconfirmed delete, want 1", n)
+	}
+
+	res, body = ada.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get(path)
 	if strings.Contains(body, "draft.pdf") {
@@ -224,7 +236,10 @@ func TestOnlyTheOwnerAndTheAdminDownloadAFile(t *testing.T) {
 	if res, body := bea.get(link); res.StatusCode != http.StatusNotFound || strings.Contains(body, "a hand-in") {
 		t.Fatalf("another Learner got %d downloading Ada's file", res.StatusCode)
 	}
-	if res, _ := bea.post(link+"/delete", nil); res.StatusCode != http.StatusNotFound {
+	if res, _ := bea.get(link + "/delete"); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("another Learner got %d asking to delete Ada's file", res.StatusCode)
+	}
+	if res, _ := bea.post(link+"/delete", confirming); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("another Learner got %d deleting Ada's file", res.StatusCode)
 	}
 	if res, _ := admin.second().get(link); res.StatusCode != http.StatusSeeOther || !strings.HasPrefix(res.Header.Get("Location"), "/login") {
@@ -247,7 +262,7 @@ func TestALearnerWhoLeftTheCourseKeepsTheirFilesReadOnly(t *testing.T) {
 	if res, _ := ada.postFiles(path+"/files", upload{"more.pdf", pdfHandIn}); res.StatusCode != http.StatusForbidden {
 		t.Fatalf("a Learner who left uploaded: %d", res.StatusCode)
 	}
-	if res, _ := ada.post(link+"/delete", nil); res.StatusCode != http.StatusForbidden {
+	if res, _ := ada.post(link+"/delete", confirming); res.StatusCode != http.StatusForbidden {
 		t.Fatalf("a Learner who left deleted a file: %d", res.StatusCode)
 	}
 	if n := ada.storedFiles(); n != 1 {
