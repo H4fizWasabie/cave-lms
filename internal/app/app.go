@@ -178,6 +178,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
+	if err = convertPracticeDashboards(ctx, db, datasets); err != nil {
+		return nil, err
+	}
 
 	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
