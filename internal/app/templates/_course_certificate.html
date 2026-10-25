@@ -1,14 +1,10 @@
-{{/* course-certificate is the Certificate a Course leads to, at the top of the Course page's side card. It reads the
-Course page's data (.Course, .Learner, .Lang). This is a placeholder until #317 draws the real artwork preview here;
-its English lines follow the artwork, which is English-only. */}}
+{{/* course-certificate is the Certificate a Course leads to, at the top of the Course page's side card: its artwork
+with the Learner's name (a placeholder for a Visitor), the Course title and its PCC badge. It reads the Course page's
+data (.Course, .Learner, .Lang). */}}
 {{define "course-certificate"}}
+          {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
           <figure class="cp-cert">
-            <div class="cp-cert-sheet">
-              <p class="cp-cert-k">Certificate of Competency</p>
-              <p class="cp-cert-name">{{if .Learner}}{{.Learner.Name}}{{else}}{{t .Lang "course.cert-name"}}{{end}}</p>
-              <p class="cp-cert-course">{{.Course.Title}}</p>
-              {{with .Course.Level}}<img src="{{static $.Course.Badge}}" alt="{{t $.Lang "course.pcc-badge" .}}" width="113" height="160">{{end}}
-            </div>
+            {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) .Course.Title .Course.Badge)}}
             <figcaption>{{t .Lang "course.cert-caption"}}</figcaption>
           </figure>
 {{end}}

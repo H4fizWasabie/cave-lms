@@ -349,16 +349,11 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 
 /* My courses */
 
-.mc-list, .cert-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.mc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
 .mc-row { display: grid; grid-template-columns: 5.5rem 1fr auto; gap: var(--space-4); align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3); }
 .mc-row img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: var(--radius); }
 .mc-main h3 { font-size: var(--fs-lede); margin-bottom: var(--space-2); }
 .mc-main h3 a { text-decoration: none; }
-.cert-chip { display: flex; gap: var(--space-4); align-items: center; padding: var(--space-4) var(--space-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); text-decoration: none; }
-.cert-chip:hover { border-color: var(--line-strong); }
-.cert-chip > .i { width: 1.8rem; height: 1.8rem; color: var(--brand-gold-deep); }
-.cert-chip strong { display: block; font-size: var(--fs-ui); line-height: 1.3; }
-.cert-chip small { color: var(--muted); }
 .mc-more { margin-top: var(--space-7); }
 
 /* Lesson */
@@ -429,7 +424,6 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .lesson-list form { margin: 0; }
 .mc-row-plain { grid-template-columns: 1fr auto; padding: var(--space-4) var(--space-4); }
 .mc-main p { margin-bottom: var(--space-2); }
-.cert-chip-main { flex: 1; }
 .cert-revoked { color: var(--bad); font-size: var(--fs-meta); margin-top: var(--space-1); }
 .lesson-objective { color: var(--ink-2); margin-bottom: var(--space-5); }
 .ebook-plain { grid-template-columns: 1fr; }
@@ -440,8 +434,8 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .btn, .site-nav a, .hdr-link, .footer-col a, .lab-tab, .x-opt, .check-card, .icon-btn,
 .lesson-list > li > a, .adm-nav a, .table tbody tr td { transition: background-color var(--duration-quick) ease, border-color var(--duration-quick) ease, color var(--duration-quick) ease, transform var(--duration-quick) ease; }
 input, select, textarea, .search { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-quick) ease, background-color var(--duration-quick) ease; }
-.course-card, .cert-chip, .tp-card, .tp-show, .g-plate { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-fast) var(--ease-smooth-out); }
-.course-card:hover, .cert-chip:hover, .tp-card:hover, .tp-show:hover, .g-tile:hover .g-plate { box-shadow: var(--shadow-lift); }
+.course-card, .tp-card, .tp-show, .g-plate { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-fast) var(--ease-smooth-out); }
+.course-card:hover, .tp-card:hover, .tp-show:hover, .g-tile:hover .g-plate { box-shadow: var(--shadow-lift); }
 .tp-show:hover { border-color: var(--line-strong); }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1055,11 +1049,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 /* The Certificate slot: a placeholder sheet until #317 puts the real artwork preview here. */
 .cp-cert { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
-.cp-cert-sheet { aspect-ratio: 1.414; display: grid; place-content: center; justify-items: center; gap: var(--space-1); padding: var(--space-4); text-align: center; background: color-mix(in srgb, var(--brand-gold) 7%, var(--surface)); border: 1px solid var(--brand-gold); border-radius: var(--radius); box-shadow: inset 0 0 0 4px var(--surface), inset 0 0 0 5px color-mix(in srgb, var(--brand-gold) 55%, transparent); }
-.cp-cert-k { font-family: var(--font-display); font-size: var(--fs-meta); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--brand-gold-deep); }
-.cp-cert-name { font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; }
-.cp-cert-course { font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); max-width: 24ch; overflow-wrap: anywhere; }
-.cp-cert-sheet img { width: auto; height: 3rem; margin-top: var(--space-1); }
 .cp-cert figcaption { font-size: var(--fs-meta); color: var(--muted); text-align: center; }
 
 .cp-joined { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-ui); font-weight: 600; color: var(--ok); }
@@ -1172,13 +1161,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .home-hero :focus-visible, .home-close :focus-visible { outline-color: var(--brand-gold); }
 .home-hero-more { display: inline-block; margin-top: var(--space-5); font-size: var(--fs-ui); font-weight: 600; color: var(--surface); text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; }
 
-/* The Certificate beside the headline: A4 portrait, gold double rule. #317 draws the real artwork in its place. */
+/* The Certificate beside the headline (#317 draws its artwork). */
 .cert-preview { margin: 0; justify-self: center; width: min(100%, 22rem); }
-.cert-preview-sheet { aspect-ratio: 210 / 297; display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-7) var(--space-5); text-align: center; background: var(--surface); color: var(--brand-ink); border: 1px solid var(--brand-gold); outline: 1px solid var(--brand-gold); outline-offset: calc(-1 * var(--space-2)); }
-.cert-preview-logo { width: 72%; height: auto; margin-bottom: var(--space-5); }
-.cert-preview-title { font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.15; }
-.cert-preview-for { margin-top: auto; font-size: var(--fs-meta); color: var(--muted); }
-.cert-preview-name { width: 100%; padding-bottom: var(--space-2); margin-bottom: var(--space-7); border-bottom: 1px solid var(--line-strong); font-family: var(--font-display); font-size: var(--fs-heading); line-height: 1.15; overflow-wrap: anywhere; }
 .cert-preview figcaption { margin-top: var(--space-3); font-size: var(--fs-meta); color: var(--on-dark-muted); }
 .cert-preview figcaption a { color: var(--on-dark); text-decoration-color: var(--brand-gold); }
 
@@ -1439,3 +1423,42 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .danger-row { margin-top: var(--space-6); }
 /* Multiple-choice options: "Option 1" names each field. */
 .nq-n { font-size: var(--fs-ui); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+
+/* === Page: Certificate artwork (#317) === */
+/* The Certificate preview (template certificate-preview): the PDF's artwork drawn in SVG on the A4 page in mm, so its
+   font sizes are the SVG's own, set on the text as the PDF prints them, not type-scale tokens. Colours as the PDF's. */
+.cert-art { display: block; width: 100%; height: auto; border: 1px solid var(--line); user-select: none; }
+/* Source Serif runs wider than the PDF's Times: matching Times' x-height brings its line lengths close to the PDF's. */
+.cert-art text { font-family: var(--font-display); font-size-adjust: .45; fill: var(--brand-ink); }
+.cert-art .cert-art-sans { font-family: var(--font-body); font-weight: 700; }
+.cert-art .cert-art-muted { fill: var(--ink-2); }
+.cert-art .cert-art-gold, .cert-art .cert-art-number { fill: color-mix(in srgb, var(--brand-gold) 60%, var(--brand-gold-deep)); }
+.cert-art .cert-art-number, .cert-art .cert-art-issued { font-weight: 400; }
+.cert-art-name, .cert-art-title { font-weight: 700; }
+.cert-art-award { font-style: italic; }
+.cert-art-paper { fill: var(--surface); }
+.cert-art-rule { fill: none; stroke: var(--brand-gold); }
+.cert-art-shine { fill: none; stroke: var(--surface); }
+.cert-art-ornament { fill: var(--brand-gold); }
+.cert-art-s-deep { stop-color: var(--brand-gold-deep); }
+.cert-art-s-gold { stop-color: var(--brand-gold); }
+.cert-art-s-light { stop-color: color-mix(in srgb, var(--brand-gold) 60%, var(--surface)); }
+.cert-art-qr rect { fill: color-mix(in srgb, var(--brand-ink) 6%, transparent); }
+.cert-art-qr path { fill: none; stroke: var(--brand-ink); }
+.cert-art-qr .cert-art-qr-core { fill: var(--brand-ink); stroke: none; }
+.cert-art-badge { mix-blend-mode: multiply; }
+
+/* The Course page's side card: the sheet, centred, above its caption. */
+.cp-cert .cert-art { max-width: 18rem; margin-inline: auto; }
+
+/* My certificates: a shelf of Certificates, each its preview over its title, number, date and download. */
+.cert-shelf { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-6) var(--space-5); }
+.cert-item { display: grid; align-content: start; gap: var(--space-3); }
+.cert-item-main { display: grid; justify-items: start; gap: var(--space-1); }
+.cert-item h2 { font-size: var(--fs-lede); line-height: 1.3; overflow-wrap: anywhere; }
+.cert-item small { color: var(--muted); }
+.cert-item .btn { margin-top: var(--space-2); }
+.cert-item.is-revoked .cert-art { opacity: .55; filter: grayscale(1); }
+@media (max-width: 720px) {
+  .cp-cert .cert-art { max-width: 12rem; } /* a shorter sheet keeps the next step nearer the top */
+}

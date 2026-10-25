@@ -174,7 +174,7 @@ func (a *App) emailCertificate(ctx context.Context, id string) {
 		Subject: text.T(lang, "email.certificate.subject", c.CourseTitle),
 		Body:    text.T(lang, "email.certificate.body", c.LearnerName, c.CourseTitle, c.Number(), a.publicBaseURL+"/certificates/"+c.ID),
 	}
-	if pdf, err := a.certificatePDF(ctx, lang, c); err != nil {
+	if pdf, err := a.certificatePDF(ctx, c); err != nil {
 		a.logError(nil, fmt.Errorf("make Certificate PDF for %s: %w", c.ID, err))
 	} else {
 		msg.Body += "\n" + text.T(lang, "email.certificate.attached") + "\n"
@@ -314,7 +314,7 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "certificate.not-found.title"), Message: text.T(lang, "certificate.not-found-here")})
 		return
 	}
-	pdf, err := a.certificatePDF(r.Context(), lang, list[0])
+	pdf, err := a.certificatePDF(r.Context(), list[0])
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -341,9 +341,9 @@ const (
 	certLogoW, certLogoH = 50.0, 35.0
 )
 
-// certificatePDF prints the Certificate's details over the Admin's background artwork on one portrait A4 page, its
-// fixed wording and date in lang. Without a background it prints the same details under a plain heading.
-func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([]byte, error) {
+// certificatePDF prints the Certificate's details on one portrait A4 page, in English like the artwork, over the
+// Admin's uploaded background or, without one, over the built-in artwork.
+func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error) {
 	s, err := a.certificateSettingsFor(ctx)
 	if err != nil {
 		return nil, err
@@ -355,9 +355,12 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 	pdf.AddPage()
 	pageW, pageH := pdf.GetPageSize()
 	if s.BackgroundKey != "" {
-		if err := a.placeImage(pdf, s.BackgroundKey, 0, 0, pageW, pageH); err != nil {
-			return nil, err
-		}
+		err = a.placeImage(pdf, s.BackgroundKey, 0, 0, pageW, pageH)
+	} else {
+		err = drawArtwork(pdf)
+	}
+	if err != nil {
+		return nil, err
 	}
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
 	// centred writes s with its baseline at y, centred on x.
@@ -367,9 +370,6 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		pdf.Text(x-pdf.GetStringWidth(s)/2, y, s)
 	}
 
-	if s.BackgroundKey == "" { // the artwork carries the heading; without it the page would be headless
-		centred(pageW/2, 66, "Times", "B", 28, text.T(lang, "certificate.pdf.heading"))
-	}
 	pdf.SetTextColor(214, 132, 28) // the sample's gold
 	centred(certNumberX, certNumberY, "Helvetica", "", 8, c.Number())
 	pdf.SetTextColor(0, 0, 0)
@@ -383,22 +383,9 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 	if c.LearnerIC != "" {
 		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
 	}
-	// The largest size whose wrapped lines fit the box, down to 8 pt, below which a title overflows it.
-	// SplitLines, not SplitText: tr turns the title into Windows-1252 bytes, which SplitText would misread as UTF-8 and panic on.
-	var lines [][]byte
-	size := 16.0
-	for ; ; size-- {
-		pdf.SetFont("Times", "B", size)
-		lines = pdf.SplitLines([]byte(tr(c.CourseTitle)), certTitleW)
-		if size <= 8 || float64(len(lines))*size*0.45 <= certTitleH {
-			break
-		}
-	}
-	lineH := size * 0.45 // 1.27 times the font size, in mm
-	top := certTitleY + (certTitleH-float64(len(lines))*lineH)/2
-	for i, b := range lines {
-		l := string(b)
-		pdf.Text(certTitleX+(certTitleW-pdf.GetStringWidth(l))/2, top+float64(i)*lineH+size*0.3, l)
+	size, lines := certTitleLines(pdf, c.CourseTitle)
+	for _, l := range lines {
+		centred(certTitleX+certTitleW/2, l.Y, "Times", "B", size, l.Text)
 	}
 
 	if c.LogoKey != "" {
@@ -424,14 +411,14 @@ func (a *App) certificatePDF(ctx context.Context, lang string, c certificate) ([
 		pdf.SetAlpha(1, "Normal")
 	}
 	pdf.SetFont("Helvetica", "", 6.5)
-	pdf.Text(certIssuedX, certIssuedY, tr(text.T(lang, "certificate.pdf.issued-on", c.IssuedIn(lang))))
+	pdf.Text(certIssuedX, certIssuedY, "Issued on: "+c.IssuedIn("en"))
 
 	if c.Revoked {
 		pdf.SetFillColor(255, 255, 255)
 		pdf.Rect(20, 52, pageW-40, 27, "F") // over the heading, so the mark reads clearly on any artwork
 		pdf.SetTextColor(200, 0, 0)
-		centred(pageW/2, 66, "Helvetica", "B", 40, text.T(lang, "certificate.pdf.revoked"))
-		centred(pageW/2, 74, "Helvetica", "B", 12, text.T(lang, "certificate.pdf.revoked-note"))
+		centred(pageW/2, 66, "Helvetica", "B", 40, "REVOKED")
+		centred(pageW/2, 74, "Helvetica", "B", 12, "This Certificate has been revoked and is no longer valid.")
 	}
 	if err := pdf.Error(); err != nil {
 		return nil, err

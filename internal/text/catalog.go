@@ -1393,7 +1393,6 @@ var catalog = map[string]entry{
 	"course.register-to-join":   {en: "Register to join", ms: "Daftar untuk menyertai"},
 	"course.registered":         {en: "Already registered?", ms: "Sudah mendaftar?"},
 	"course.cert-caption":       {en: "The Certificate this Course leads to, issued in your name with a number anyone can check.", ms: "Sijil yang diperoleh daripada Kursus ini, dikeluarkan atas nama anda dengan nombor yang boleh disemak oleh sesiapa."},
-	"course.cert-name":          {en: "Your name", ms: "Nama anda"},
 	// Leave this Course: the confirmation page. %s is the Course title.
 	"course.leave-question": {en: "Leave “%s”? Its Lessons, Exams and Chat close to you. Your progress is kept if you join again.", ms: "Tinggalkan “%s”? Pelajaran, Peperiksaan dan Sembangnya akan ditutup kepada anda. Kemajuan anda disimpan jika anda menyertainya semula."},
 	"course.leave-closed":   {en: "This Course is closed to new joins, so you cannot join it again.", ms: "Kursus ini ditutup untuk penyertaan baharu, jadi anda tidak boleh menyertainya semula."},
@@ -1591,10 +1590,6 @@ var catalog = map[string]entry{
 	"certificate.not-found-here":  {en: "There is no Certificate at this address.", ms: "Tiada Sijil di alamat ini."},
 	"certificate.no-such-id":      {en: "No Certificate has this ID.", ms: "Tiada Sijil dengan ID ini."},
 	// The PDF: Helvetica and Times with the cp1252 translator, so plain Latin letters only
-	"certificate.pdf.heading":      {en: "Certificate of Completion", ms: "Sijil Penyempurnaan"},
-	"certificate.pdf.revoked":      {en: "REVOKED", ms: "DIBATALKAN"},
-	"certificate.pdf.revoked-note": {en: "This Certificate has been revoked and is no longer valid.", ms: "Sijil ini telah dibatalkan dan tidak lagi sah."},
-	"certificate.pdf.issued-on":    {en: "Issued on: %s", ms: "Dikeluarkan pada: %s"},
 	// The Certificate check page (/certificates)
 	"check.title":         {en: "Check a Certificate", ms: "Semak Sijil"},
 	"check.intro":         {en: "Every certificate has an ID. Enter it to see who it was issued to, for which course, and whether it is still valid.", ms: "Setiap sijil mempunyai ID. Masukkan ID itu untuk melihat kepada siapa sijil itu dikeluarkan, untuk kursus apa, dan sama ada ia masih sah."},
@@ -2098,6 +2093,7 @@ var catalog = map[string]entry{
 	"cost.paid":             {en: "Paid add-on", ms: "Add-on berbayar"},
 	"cost.not-needed":       {en: "Not needed (subdomain)", ms: "Tidak perlu (subdomain)"},
 	"cert-preview.name":     {en: "Your name here", ms: "Nama anda di sini"},
+	"cert-preview.course":   {en: "Your Course", ms: "Kursus anda"},
 	"cert-preview.caption":  {en: "A sample Certificate. Each one has a number anyone can check.", ms: "Contoh Sijil. Setiap Sijil mempunyai nombor yang boleh disemak sesiapa."},
 	// ---- end home page (#314) ----
 	"home.intro.1": {

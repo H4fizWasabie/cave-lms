@@ -164,7 +164,9 @@ func TestAdminSetsAndEditsALiveCoursesDatesAndDaysAndBadValuesAreRefused(t *test
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter the end date as YYYY-MM-DD, on or after the start date.")
 }
 
-var pccBadge = regexp.MustCompile(`<img src="(/static/pcc-[a-z]+\.jpg[^"]*)" alt="PCC ([A-Za-z]+) badge"`)
+// pccBadge finds a PCC badge: an img with its Level in words, or the badge on the Certificate preview, whose Level is
+// in its file name.
+var pccBadge = regexp.MustCompile(`(?:<img src="|<image class="cert-art-badge" href=")(/static/pcc-([a-z]+)\.jpg[^"]*)"`)
 
 func TestThePCCLevelFollowsFromDaysAndItsBadgeShowsToTheAdminAndLearners(t *testing.T) {
 	s := newSite(t)
@@ -182,7 +184,7 @@ func TestThePCCLevelFollowsFromDaysAndItsBadgeShowsToTheAdminAndLearners(t *test
 			res, body = s.get(path)
 			expectStatus(t, res, body, http.StatusOK, "PCC Level: "+c.level)
 			m := pccBadge.FindStringSubmatch(body)
-			if m == nil || m[2] != c.level {
+			if m == nil || m[2] != strings.ToLower(c.level) {
 				t.Fatalf("%s with %s days shows badge %v, want PCC %s", path, c.days, m, c.level)
 			}
 			img, _ := s.get(m[1])

@@ -52,6 +52,22 @@ func TestACourseWithoutAPictureShowsADrawnCoverWithItsTitleAndLevel(t *testing.T
 	expectInOrder(t, courseCard(t, body, "Go Basics"), "course-cover-drawn", "Dalam talian, kendiri")
 }
 
+func TestTheCoursePageHeroShowsTheCoursePictureOrItsDrawnCover(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	res, body := s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.saveCourse("/admin/courses", map[string]string{"title": "Rust Basics", "description": "Learn Rust."}, nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	pictured, drawn := s.courseIDByTitle("Go Basics"), s.courseIDByTitle("Rust Basics")
+
+	s.logOut()
+	_, body = s.get("/courses/" + pictured)
+	expectInOrder(t, body, `class="cp-hero-text"`, "<h1>Go Basics</h1>", `class="cp-hero-media"`, `<img class="course-cover" src="/course-pictures/`, "</section>")
+	_, body = s.get("/courses/" + drawn)
+	expectInOrder(t, body, `class="cp-hero-text"`, "<h1>Rust Basics</h1>", `class="cp-hero-media"`, "course-cover-drawn", "Rust Basics", "</section>")
+}
+
 func TestAdminReplacesThenRemovesACoursePictureFromTheCourseForm(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")

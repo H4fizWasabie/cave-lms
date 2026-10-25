@@ -232,19 +232,62 @@ Pass (card .Course .Lang); it fills its container's width at 16:9. */}}
             <span class="course-cover-level">{{with .Level}}PCC {{.}}{{else}}{{t $.Lang "courses.card.self-paced"}}{{end}}</span>
           </div>{{end}}{{end}}
 
-{{/* certificate-preview is the Certificate shown beside the home page's headline, with the Learner's name or a
-placeholder for a Visitor, and never an IC. For now a plain framed sheet: #317 draws the real artwork here. */}}
-{{define "certificate-preview"}}
-        <figure class="cert-preview">
-          <div class="cert-preview-sheet" aria-hidden="true">
-            <img class="cert-preview-logo" src="{{static "cavelms.svg"}}" alt="" width="975" height="186">
-            <span class="cert-preview-title">Certificate of Competency</span>
-            <span class="cert-preview-for">This is to certify that</span>
-            <span class="cert-preview-name">{{with .Learner}}{{.Name}}{{else}}{{t $.Lang "cert-preview.name"}}{{end}}</span>
-          </div>
-          <figcaption>{{t .Lang "cert-preview.caption"}} <a href="/certificates">{{t .Lang "nav.check-cert"}}</a></figcaption>
-        </figure>
-{{- end}}
+{{/* certificate-preview draws a Certificate's artwork as the PDF prints it (drawArtwork in certificate_artwork.go: same
+A4 page in mm, same places, so change the two together), from a certPreview: (certPreview <name> <Course title> <badge>),
+or a Certificate's .Preview. It shows a name and never an IC; the QR code is only sketched. It is decorative: the page
+says in words what it shows. */}}
+{{define "certificate-preview"}}<svg class="cert-art" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="cert-art-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
+    <linearGradient id="cert-art-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
+  </defs>
+  <rect class="cert-art-paper" width="210" height="297"/>
+  <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".07" transform="rotate(-90 160 150)"/>
+  <rect class="cert-art-rule" x="5" y="5" width="200" height="287" stroke-width=".35"/>
+  <rect class="cert-art-rule" x="6.4" y="6.4" width="197.2" height="284.2" stroke-width=".15"/>
+  <path fill="url(#cert-art-g1)" d="M0 0V82C3.5 36.9 31.5 3.28 70 0Z"/>
+  <path fill="url(#cert-art-g2)" d="M0 0V67C2.85 30.15 25.65 2.68 57 0Z"/>
+  <path class="cert-art-shine" d="M0 67C2.85 30.15 25.65 2.68 57 0" stroke-width=".6"/>
+  <g transform="rotate(180 105 148.5)">
+    <path fill="url(#cert-art-g1)" d="M0 0V112C3.1 50.4 27.9 4.48 62 0Z"/>
+    <path fill="url(#cert-art-g2)" d="M0 0V96C2.5 43.2 22.5 3.84 50 0Z"/>
+    <path class="cert-art-shine" d="M0 96C2.5 43.2 22.5 3.84 50 0" stroke-width=".6"/>
+  </g>
+  <image href="{{static "logo-dark.svg"}}" x="79" y="17" width="52" height="23.37"/>
+  <text class="cert-art-sans" x="183" y="15" font-size="2.65" letter-spacing=".2" text-anchor="middle">CERTIFICATE NO.</text>
+  {{- with .Number}}
+  <text class="cert-art-sans cert-art-number" x="183" y="19.9" font-size="2.82" text-anchor="middle">{{.}}</text>{{end}}
+  <g class="cert-art-qr">
+    <rect x="173.2" y="21.1" width="19.3" height="19.3"/>
+    <path d="M174.6 22.5h4.6v4.6h-4.6zM186.6 22.5h4.6v4.6h-4.6zM174.6 34.5h4.6v4.6h-4.6z" stroke-width=".77"/>
+    <path class="cert-art-qr-core" d="M175.9 23.8h2v2h-2zM187.9 23.8h2v2h-2zM175.9 35.8h2v2h-2z"/>
+  </g>
+  <text x="105" y="63.6" font-size="14.11" letter-spacing="1.6" text-anchor="middle">CERTIFICATE</text>
+  <text class="cert-art-gold" x="105" y="72.7" font-size="7.06" letter-spacing=".9" text-anchor="middle">OF COMPETENCY</text>
+  <path class="cert-art-rule" d="M45 70.4H65.5M144.5 70.4H165" stroke-width=".5"/>
+  <text class="cert-art-muted" x="105" y="85.2" font-size="3.88" letter-spacing=".6" text-anchor="middle">THIS IS TO CERTIFY THAT</text>
+  <text class="cert-art-name" x="105" y="97.7" font-size="4.59" text-anchor="middle">{{.Name}}</text>
+  <path class="cert-art-rule" d="M19 106.1H191M30.5 165.5H99M111 165.5H179.5" stroke-width=".3"/>
+  <text class="cert-art-muted" x="105" y="111.5" font-size="3.88" text-anchor="middle">has successfully completed the competency requirements of</text>
+  {{- range .Title}}
+  <text class="cert-art-title" x="105" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" $.TitleSize}}" text-anchor="middle">{{.Text}}</text>{{end}}
+  <path class="cert-art-ornament" d="M105 163.7 107.6 165.5 105 167.3 102.4 165.5Z"/>
+  <circle class="cert-art-ornament" cx="100.6" cy="165.5" r=".55"/><circle class="cert-art-ornament" cx="109.4" cy="165.5" r=".55"/>
+  <text class="cert-art-award" x="105" y="173.2" font-size="4.59" text-anchor="middle">This achievement is awarded under the</text>
+  <text class="cert-art-award" x="105" y="178.85" font-size="4.59" text-anchor="middle">Professional Competency Credential (PCC)</text>
+  <text class="cert-art-award" x="105" y="184.5" font-size="4.59" text-anchor="middle">in recognition of the knowledge, skills, and ability to apply</text>
+  <text class="cert-art-award" x="105" y="190.15" font-size="4.59" text-anchor="middle">the competencies demonstrated throughout the programme</text>
+  <image href="{{static "cert-seal.png"}}" x="10.5" y="221" width="51" height="50.4"/>
+  <image href="{{static "cert-hrd-corp.png"}}" x="69.6" y="227.5" width="31" height="30.1"/>
+  {{- with .Badge}}
+  <image class="cert-art-badge" href="{{static .}}" x="99.6" y="206.4" width="39.9" height="56.6"/>{{end}}
+  <image href="{{static "cert-signature-1.png"}}" x="62.8" y="260" width="48.2" height="12.9"/>
+  <image href="{{static "cert-signature-2.png"}}" x="128.6" y="259.6" width="24.8" height="15.3"/>
+  <text x="85.7" font-size="3.35" text-anchor="middle"><tspan x="85.7" y="276.7" font-size="3.88">ADAM BIN YUSUF</tspan><tspan x="85.7" y="280.5">HRD Corp Accredited Trainer ID: 41123</tspan><tspan x="85.7" y="284.3">FOUNDER &amp; CHIEF CONSULTANT</tspan><tspan x="85.7" y="288.1" font-size="3.88">THE CAVE CONSULT</tspan></text>
+  <text x="141" font-size="3.35" text-anchor="middle"><tspan x="141" y="278" font-size="3.88">DINOR SABUDIN</tspan><tspan x="141" y="281.8">HRDC Trainer ID: 37066</tspan></text>
+  {{- with .Issued}}
+  <text class="cert-art-sans cert-art-issued" x="18.2" y="281.7" font-size="2.29">Issued on: {{.}}</text>{{end}}
+</svg>{{end}}
 
 {{/* offers lists a Learner page's .Offers side by side as pricing cards: each product's logo, name, tagline, price, its Normal
 price crossed out when set, its benefits, and at the bottom Buy to its payment link, or Contact us without one.

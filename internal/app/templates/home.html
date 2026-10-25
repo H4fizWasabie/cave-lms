@@ -12,7 +12,11 @@
           </div>
           <a class="home-hero-more" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
         </div>
-        {{template "certificate-preview" .}}
+        {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
+        <figure class="cert-preview">
+          {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) (t .Lang "cert-preview.course") "")}}
+          <figcaption>{{t .Lang "cert-preview.caption"}} <a href="/certificates">{{t .Lang "nav.check-cert"}}</a></figcaption>
+        </figure>
       </div>
     </section>
 

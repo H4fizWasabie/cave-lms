@@ -7,16 +7,16 @@
       </div>
       {{if .NeedsIC}}<div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t .Lang "my-certificates.needs-ic"}} <a class="link-more" href="/my-profile">{{t .Lang "my-profile.title"}}</a></p></div>{{end}}
       {{- if .Certificates}}
-      <ul class="cert-list">
+      <ul class="cert-shelf">
         {{range .Certificates}}
-        <li class="cert-chip">
-          <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
-          <div class="cert-chip-main">
-            <strong>{{.CourseTitle}}</strong>
+        <li class="cert-item{{if .Revoked}} is-revoked{{end}}">
+          {{template "certificate-preview" .Preview}}
+          <div class="cert-item-main">
+            <h2>{{.CourseTitle}}</h2>
             <small>{{t $.Lang "certificate.number" .Number}} · {{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</small>
             {{if .Revoked}}<p class="cert-revoked"><strong>{{t $.Lang "certificate.revoked"}}</strong>: {{t $.Lang "my-certificates.revoked"}}</p>{{end}}
+            <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
           </div>
-          <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
         </li>
         {{end}}
       </ul>

@@ -84,21 +84,29 @@ func TestSelfPacedCertificateHasNoBadgeAndALongTitleWraps(t *testing.T) {
 
 	pdf := s.pdfBody("/certificates/" + certificateIDs(body)[0] + "/pdf")
 	expectAll(t, pdf, "Pengintegrasian", "Pegawai")
-	expectNone(t, pdf, title, imageSize(904, 1280))
-	if strings.Count(pdf, "/Subtype /Image") != 1 {
-		t.Fatalf("self-paced Certificate PDF without a background has %d images, want only the QR code", strings.Count(pdf, "/Subtype /Image"))
-	}
+	expectNone(t, pdf, title, imageSize(904, 1280), "/Width 904\n") // no PCC badge, of any Level
 }
 
-func TestACertificatePDFWithoutABackgroundPrintsAPlainHeading(t *testing.T) {
+// The built-in artwork's wording and its image assets: the CAVE logo (drawn from its SVG at 1200 pixels wide), the seal,
+// the HRD Corp badge and the two signatures.
+var builtInArtwork = []string{"CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT",
+	"has successfully completed the competency requirements of", "Professional Competency Credential",
+	"the competencies demonstrated throughout the programme", "ADAM BIN YUSUF", "DINOR SABUDIN", "CERTIFICATE NO.",
+	imageSize(1200, 539), imageSize(316, 312), imageSize(206, 200), imageSize(284, 76), imageSize(146, 90)}
+
+func TestACertificatePDFDrawsTheBuiltInArtworkUntilABackgroundIsUploaded(t *testing.T) {
 	s := newSite(t)
 	_, certID := s.adaEarns()
 	path := "/certificates/" + certID + "/pdf"
-	expectAll(t, s.pdfBody(path), "Certificate of Completion")
+	pdf := s.pdfBody(path)
+	expectAll(t, pdf, builtInArtwork...)
+	expectNone(t, pdf, "demonsrated", "throughtout", "KEMENTERIAN")
 
 	s.loginAdmin()
 	s.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
-	expectNone(t, s.pdfBody(path), "Certificate of Completion") // the artwork carries its own
+	pdf = s.pdfBody(path)
+	expectAll(t, pdf, imageSize(3, 5), "Ada", "Go Basics")
+	expectNone(t, pdf, builtInArtwork...) // the upload carries its own
 }
 
 // orgCertificate has Ada pass a 2-day Live Course run for an Organisation with logo ("" logo for none) and returns
@@ -160,8 +168,9 @@ func TestCertificatesWithoutAnOrganisationRecordAndPrintNoLogo(t *testing.T) {
 	if hasLogo(t, admin, certID) {
 		t.Fatal("a Live Course without an Organisation recorded a logo")
 	}
-	if n := strings.Count(ada.pdfBody("/certificates/"+certID+"/pdf"), "/Subtype /Image"); n != 2 {
-		t.Fatalf("Certificate PDF has %d images, want the QR code and the badge", n)
+	admin.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)}) // so every image is known
+	if n := strings.Count(ada.pdfBody("/certificates/"+certID+"/pdf"), "/Subtype /Image"); n != 4 {
+		t.Fatalf("Certificate PDF has %d images, want the background and its transparency mask, the QR code and the badge", n)
 	}
 
 	s := newSite(t)
