@@ -314,7 +314,9 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		l.Completed = done[l.ID]
-		if l.Completed {
+		// A done Lesson's one way on is the pager's next Lesson; only the last Lesson offers the Course's next step,
+		// which can point elsewhere (an earlier Lesson not done, the Exam).
+		if l.Completed && place.Next == nil {
 			step, err := a.nextStep(r.Context(), learner, c, nil)
 			if err != nil {
 				a.serverError(w, r, err)
