@@ -255,8 +255,8 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
 }
 
-// createDashboard makes a Dashboard with General's blocks to come (ADR 0015). With sample, a Template's key, the Dashboard starts on that Template with its Sample, cleaned at start-up, as
-// its pending Dataset.
+// createDashboard makes a Dashboard with General's blocks to come (ADR 0015). With sample, a Template's key, the
+// Dashboard starts on that Template with its Sample, cleaned at start-up, as its pending Dataset.
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -266,8 +266,9 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	t, sample := lab.General, a.samples[r.FormValue("sample")]
-	if key := r.FormValue("sample"); key != "" {
+	key := r.FormValue("sample")
+	t, sample := lab.General, a.samples[key]
+	if key != "" {
 		if t = lab.TemplateByKey(key); t == nil || t == lab.General || sample == nil {
 			a.notFound(w, r)
 			return
