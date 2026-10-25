@@ -23,7 +23,11 @@
         <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}
-        {{if .Passed}}<a class="btn btn-solid btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>{{end}}
+        {{if .Passed}}
+        {{- /* After a pass the Course's next step is the primary; the Answer sheet is the primary only when none leads anywhere. */}}
+        {{with $.Step}}{{if .URL}}<a id="next-step" class="btn btn-solid btn-lg" href="{{.URL}}">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="x-help step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
+        <a class="btn {{if and $.Step $.Step.URL}}btn-ghost{{else}}btn-solid{{end}} btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>
+        {{end}}
         {{end}}
       </div>
       <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></p>

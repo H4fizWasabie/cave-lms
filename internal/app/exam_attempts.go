@@ -276,7 +276,16 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "learner_exam", page{Course: &c, Learner: learner, Status: &st})
+	p := page{Course: &c, Learner: learner, Status: &st}
+	if st.Passed && st.Enrolled { // the Exam is behind them: their next step on the Course comes first
+		step, err := a.nextStep(r.Context(), learner, c, nil)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Step = &step
+	}
+	a.render(w, r, http.StatusOK, "learner_exam", p)
 }
 
 // startAttempt begins an attempt, or returns to the one still open.
@@ -441,7 +450,26 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.render(w, r, http.StatusOK, "exam_attempt", page{Course: &c, Exam: &e, Learner: learner, Attempt: &att})
+	p := page{Course: &c, Exam: &e, Learner: learner, Attempt: &att}
+	if att.Released {
+		// A released Result leads on: a pass to the Learner's next step on the Course, a fail to its retake.
+		enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if enrolled {
+			step, err := a.nextStep(r.Context(), learner, c, nil)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			if att.Passed || (step.Key == "next.exam-retake" && step.URL == e.Path("")) {
+				p.Step = &step
+			}
+		}
+	}
+	a.render(w, r, http.StatusOK, "exam_attempt", p)
 }
 
 // submitAttempt saves an open attempt's answers and submits it; the release job marks it. A submission after the

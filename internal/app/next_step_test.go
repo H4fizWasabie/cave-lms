@@ -215,3 +215,77 @@ func TestALiveCourseWithAnOpenExamStillShowsTheExam(t *testing.T) {
 	s.expectNextStep(id, "Take the Exam", "/courses/"+id+"/exam")
 	s.expectMyCourse(id, "", "Take the Exam", "/courses/"+id+"/exam")
 }
+
+var solidTag = regexp.MustCompile(`<(?:a|button)\b([^>]*\bclass="[^"]*\bbtn-solid\b[^"]*"[^>]*)>\s*([^<]+?)\s*<`)
+
+// primaries are the primary buttons in a page's own content, each as "label > href", or the label alone for a button.
+func primaries(body string) []string {
+	var got []string
+	for _, m := range solidTag.FindAllStringSubmatch(mainOf(body), -1) {
+		p := m[2]
+		if h := hrefAttr.FindStringSubmatch(m[1]); h != nil {
+			p += " > " + html.UnescapeString(h[1])
+		}
+		got = append(got, p)
+	}
+	return got
+}
+
+// expectPrimaries checks a page's primary buttons.
+func expectPrimaries(t *testing.T, body string, want ...string) {
+	t.Helper()
+	if got := primaries(body); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("primary buttons = %q, want %q: %s", got, want, mainOf(body))
+	}
+}
+
+// sitExamAt is Ada sitting the Course's Exam answering slot to every question, its Result then released; it
+// returns the attempt's path, where its Result shows.
+func (s *site) sitExamAt(courseID, slot string) string {
+	s.t.Helper()
+	res, body := s.startExam(courseID)
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+	attempt := res.Header.Get("Location")
+	s.answerAll(attempt, slot)
+	s.releaseResults()
+	return attempt
+}
+
+func TestAPassedResultLeadsToTheCertificate(t *testing.T) {
+	s := newSite(t)
+	id := s.nextStepCourse(true, "Variables")
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	attempt := s.sitExamAt(id, "0") // passed, and the Certificate is issued
+
+	_, body := s.get(attempt)
+	expectAll(t, body, "Passed (pass mark 50%)", "Back to the Exam")
+	expectPrimaries(t, body, "View your Certificate > /my-certificates")
+	_, body = s.getAsking(attempt, "ms")
+	expectPrimaries(t, body, "Lihat Sijil anda > /my-certificates")
+}
+
+func TestAfterAPassTheExamPageLeadsToTheCertificateWithTheAnswerSheetSecond(t *testing.T) {
+	s := newSite(t)
+	id := s.nextStepCourse(true, "Variables")
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	s.sitExamAt(id, "0")
+
+	_, body := s.get("/courses/" + id + "/exam")
+	expectPrimaries(t, body, "View your Certificate > /my-certificates")
+	expectAll(t, body, `class="btn btn-ghost btn-lg" href="/courses/`+id+`/exam/answer-sheet">Download your Answer sheet`)
+}
+
+func TestAFailedResultOffersTheRetakeWhileAttemptsRemainAndOtherwiseOnlyTheWayBack(t *testing.T) {
+	s := newSite(t)
+	id := s.nextStepCourse(true, "Variables")
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+
+	_, body := s.get(s.sitExamAt(id, "1")) // failed, one attempt left
+	expectAll(t, body, "Failed (pass mark 50%)", "Back to the Exam")
+	expectPrimaries(t, body, "Retake the Exam > /courses/"+id+"/exam")
+
+	_, body = s.get(s.sitExamAt(id, "1")) // failed, no attempts left
+	expectAll(t, body, "Failed (pass mark 50%)", "Back to the Exam")
+	expectPrimaries(t, body)
+	expectNone(t, mainOf(body), "/my-certificates")
+}
