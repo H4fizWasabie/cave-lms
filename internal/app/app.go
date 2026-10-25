@@ -46,8 +46,8 @@ type App struct {
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
-	datasets             storage.Store  // where Dataset data and Submission files live (ADR 0008)
-	generated            generatedCache // what Dashboard pages and data need of each stored Dataset
+	datasets             storage.Store     // where Dataset data and Submission files live (ADR 0008)
+	datasetFiles         datasetFilesCache // what Dashboard pages and data need of each stored Dataset
 	maxUpload            int64
 	limiter              rateLimiter
 	chatHub              chatHub       // tells open Chat streams of new and changed Messages

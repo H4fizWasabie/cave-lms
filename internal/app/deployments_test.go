@@ -377,8 +377,8 @@ func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
 }
 
-// A Dataset never changes under its key, so a Deployment builds its page and its data once, not on every visit:
-// with the stored Dataset gone, both still answer the same, as neither reads it again.
+// A Dataset never changes under its key, so a Deployment reads it once, not on every visit:
+// with the stored Dataset gone, its page and data still answer the same.
 func TestADeploymentReadsItsDatasetOnceNotOnEveryVisit(t *testing.T) {
 	_, ada := labLearner(t)
 	link := ada.deploy(ada.readyDashboard("Kewangan"))
