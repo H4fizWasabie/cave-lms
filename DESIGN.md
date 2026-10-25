@@ -114,7 +114,7 @@ CAVELMS sells accredited training to civil servants and HRD Corp-claimable compa
 
 The identity is fixed: the CAVELMS logo, charcoal with logo gold, Source Serif 4 for display and Public Sans for everything else, all self-hosted. There is no dark mode. Gold is an accent, never a fill for whole sections; charcoal carries the weight.
 
-The Lab (Lab pages, the Dashboard builder, Lab Plans) is outside the refresh. It shares the tokens and shared components but keeps its own section of rules; don't restyle it from a page ticket.
+The Lab (Lab pages, the Dashboard builder, Lab Plans) is outside the refresh and keeps the look it had on main. Its pages are wrapped in `.lab-page`, and the stylesheet's `Lab: as on main` section (see Page section convention) gives every class they use main's values, so the refreshed shared components don't reach it. It shares the colour tokens only; don't restyle it from a page ticket.
 
 **Key Characteristics:**
 - Paper background, near-white surfaces, hairline rules; depth from tone and rules, shadows only on hover and popovers.
@@ -193,7 +193,7 @@ Headings balance (`text-wrap: balance`), paragraphs avoid orphans (`text-wrap: p
 Flat by default. Depth comes from paper versus surface, hairline borders and charcoal bands.
 
 ### Shadow Vocabulary
-- **Lift** (`--shadow-lift`): hover on cards and tiles (`.course-card`, `.cert-chip`, Gallery tiles).
+- **Lift** (`--shadow-lift`): hover on cards and tiles that are links (`.catalogue-card`, Gallery tiles, the Lab's template cards).
 - **Pop** (`--shadow-pop`): header menus, Chat popovers; anything floating over the page.
 - **Focus halo** (`--focus`): the gold halo a focused text field adds beside its outline.
 
@@ -282,6 +282,10 @@ Parallel tickets share this one stylesheet. Page-specific rules go in their own 
 ```
 
 for example `/* === Page: Course (#310) === */`. Inside it, use only the tokens and shared components above. Don't edit another page's section or a shared component from a page ticket; if a shared component needs a change, say so in the ticket.
+
+A rule a page section adds that other pages reuse stays in the section that introduced it, with a comment naming who else uses it: `.step-upcoming` (an upcoming Live Course's next step, on My courses, the Course page and under a Lesson) sits in `Page: My courses (#318)`, after the `.mc-done` and `.cp-complete` it overrides.
+
+**The Lab exemption.** The last section, `/* === Lab: as on main (QA, #307) === */` to `/* === end Lab: as on main === */`, is main's Lab rules scoped to `.lab-page`, with main's raw sizes and spacing. `stylesheet_test.go` skips it, and fails if it goes missing. Add nothing to it; delete it when the Lab gets its own redesign. The older tokenised `Lab` section above it still applies where the as-on-main rules don't override it.
 
 ## Do's and Don'ts
 
