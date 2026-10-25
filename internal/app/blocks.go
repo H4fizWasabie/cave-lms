@@ -195,6 +195,16 @@ func (row *blockRow) form(ds *lab.Dataset, lang string) {
 			row.Radios = append(row.Radios, buttons(lang, "direction", "lab.b.direction", cmp.Or(b.Dir, "horizontal"),
 				"horizontal", "lab.b.horizontal", "vertical", "lab.b.vertical"))
 		}
+	case "donut":
+		slices := choice{Name: "slices", Label: text.T(lang, "lab.b.slices")}
+		for _, n := range lab.Slices {
+			o := option{Value: strconv.Itoa(n), Text: strconv.Itoa(n), On: n == 6 && b.Slices == nil || b.Slices != nil && *b.Slices == n}
+			if n == 0 {
+				o.Text = text.T(lang, "lab.b.top-all")
+			}
+			slices.Options = append(slices.Options, o)
+		}
+		row.Radios = append(row.Radios, slices)
 	case "table":
 		cols := choice{Name: "cols", Label: text.T(lang, "lab.b.cols")}
 		for _, c := range ds.Columns {
@@ -309,6 +319,10 @@ func blockFromForm(f url.Values, old lab.WorkBlock, ds *lab.Dataset, lang string
 		}
 		b.X, b.By, b.Split, b.Group, b.Sort, b.Icon = f.Get("x"), f.Get("by"), f.Get("split"), f.Get("group"), f.Get("sort"), f.Get("icon")
 		b.Top, _ = strconv.Atoi(f.Get("top"))
+		b.Slices = nil
+		if n, err := strconv.Atoi(f.Get("slices")); err == nil && n != 6 { // 6 is the default, left unstored
+			b.Slices = &n
+		}
 		b.Dir = f.Get("direction")
 		b.Limit, _ = strconv.Atoi(f.Get("limit"))
 		b.Cols = append([]string{}, f["cols"]...) // none ticked stays empty, so Check asks for one

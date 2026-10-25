@@ -276,8 +276,8 @@
   }
   // slices is a donut's groups, past the top 6 folded into one Other.
   function slices(b, rows, cols) {
-    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; }), n = 6;
-    if (g.length > n + 1) { var rest = g.slice(n).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, n).concat([['Other', rest]]); }
+    var g = groups(b.value, scope(b, rows, cols), b.group).map(function (x) { return [x[0], x[1]]; }), n = b.slices == null ? 6 : b.slices;
+    if (n && g.length > n + 1) { var rest = g.slice(n).reduce(function (a, x) { return a + x[1]; }, 0); g = g.slice(0, n).concat([['Other', rest]]); }
     return g;
   }
   // timeline is a line's values by month or day, one series per split value; empty dates are left off the axis.
@@ -491,11 +491,11 @@
       var finding = g.length > 1 ? 'Largest: ' + g[0][0] + ', ' + Math.round(g[0][1] / tot * 100) + '%' : '';
       g = slices(b, rows, cols);
       var acc = 0, r = 60, C = 2 * Math.PI * r, segs = g.map(function (x, i) {
-        var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + theme.donut[i] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
+        var len = x[1] / tot * C, s = '<circle r="' + r + '" cx="80" cy="80" fill="none" stroke="' + theme.donut[i % theme.donut.length] + '" stroke-width="28" stroke-dasharray="' + len + ' ' + (C - len) + '" stroke-dashoffset="' + (-acc) + '" transform="rotate(-90 80 80)"><title>' + esc(x[0]) + ': ' + fmt(x[1], m) + '</title></circle>';
         acc += len; return s;
       }).join('');
       return panel(b, '<div class="ddonut"><svg viewBox="0 0 160 160" role="img" aria-label="' + esc(b.label) + '">' + segs + '<text x="80" y="86" text-anchor="middle" class="dtot">' + short(tot, m) + '</text></svg><ul>' +
-        g.map(function (x, i) { return '<li><i style="background:' + theme.donut[i] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
+        g.map(function (x, i) { return '<li><i style="background:' + theme.donut[i % theme.donut.length] + '"></i>' + esc(x[0]) + '<span>' + Math.round(x[1] / tot * 100) + '%</span></li>'; }).join('') + '</ul></div>',
         finding);
     }
 

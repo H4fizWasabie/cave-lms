@@ -110,6 +110,11 @@ eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many, { G: {
   [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['F', 3], ['Other', 3]], 'donut Other past 6');
 eq(C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G' }, many.filter(function (r) { return r.G !== 'H'; }), { G: { type: 'text' } }).length,
   7, 'donut of 7 groups shows all 7');
+var donut = function (n) { return C.slices({ kind: 'donut', value: { agg: 'count' }, group: 'G', slices: n }, many, { G: { type: 'text' } }); };
+eq(donut(5), [['A', 8], ['B', 7], ['C', 6], ['D', 5], ['E', 4], ['Other', 6]], 'donut of 5 slices folds the rest');
+eq(donut(8).length, 8, 'donut of 8 slices shows all 8 groups');
+eq(donut(0).length, 8, 'donut of all slices folds nothing');
+eq(donut(undefined), JSON.parse(JSON.stringify(donut(6))), 'a donut with no slices chosen shows 6');
 eq(C.slices({ value: { agg: 'count' }, group: 'Staf' }, rows, cols), [['Ali', 3], ['Siti', 2], ['(blank)', 1]], 'donut (blank)');
 
 // Table: newest or largest first, empty cells last, 10, 25 or 50 rows.

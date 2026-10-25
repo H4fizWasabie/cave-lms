@@ -934,6 +934,7 @@ var catalog = map[string]entry{
 	"lab.b.top":            {en: "Show", ms: "Tunjuk"},
 	"lab.b.top-n":          {en: "Top %d", ms: "%d teratas"},
 	"lab.b.top-all":        {en: "All", ms: "Semua"},
+	"lab.b.slices":         {en: "Slices", ms: "Hirisan"},
 	"lab.b.direction":      {en: "Direction", ms: "Arah"},
 	"lab.b.horizontal":     {en: "Horizontal", ms: "Mendatar"},
 	"lab.b.vertical":       {en: "Vertical", ms: "Menegak"},

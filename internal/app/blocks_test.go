@@ -245,6 +245,33 @@ func TestABarTurnsVertical(t *testing.T) {
 	}
 }
 
+func TestADonutShowsTheSlicesTheLearnerPicks(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.workReady()
+	ada.editBlocks(path, barForm(url.Values{"kind": {"donut"}}))
+	blocks, _ := ada.pageBlocks(path + "/view/")
+	if b := blocks[5]; b.Kind != "donut" || b.Slices != nil {
+		t.Fatalf("a bar turned donut is %+v, want 6 slices by default", b)
+	}
+	res, body := ada.get(path + "/blocks?open=5")
+	for _, want := range []string{`name="slices" value="6" checked`, `name="slices" value="5"`, `name="slices" value="8"`, `name="slices" value="0"`} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	for n, want := range map[string]int{"5": 5, "0": 0, "8": 8} {
+		ada.editBlocks(path, barForm(url.Values{"kind": {"donut"}, "slices": {n}}))
+		blocks, _ = ada.pageBlocks(path + "/view/")
+		if b := blocks[5]; b.Slices == nil || *b.Slices != want {
+			t.Errorf("slices %s saved as %v", n, b.Slices)
+		}
+	}
+	res, body = ada.post(path+"/blocks", barForm(url.Values{"kind": {"donut"}, "slices": {"7"}}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	ada.editBlocks(path, barForm(url.Values{"kind": {"bar"}}))
+	if blocks, _ = ada.pageBlocks(path + "/view/"); blocks[5].Slices != nil {
+		t.Errorf("a donut turned bar keeps slices %v", *blocks[5].Slices)
+	}
+}
+
 func TestTheEditorAddsAHeatmapAcrossTwoTextColumns(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()

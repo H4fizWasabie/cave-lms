@@ -19,22 +19,24 @@ type Config struct {
 
 // WorkBlock is one block of a Dashboard, in the shape charts.js draws (spec #237).
 type WorkBlock struct {
-	Kind     string   `json:"kind"` // card, line, bar, heatmap, donut, table
-	Label    string   `json:"label"`
-	LabelSet bool     `json:"labelSet,omitempty"` // the Learner typed the label, so it no longer follows the choices
-	Icon     string   `json:"icon,omitempty"`     // card: one of Icons, or none; empty draws the one its value suggests
-	Value    *Value   `json:"value,omitempty"`    // card, line, bar, donut
-	X        string   `json:"x,omitempty"`        // line: the Date column
-	By       string   `json:"by,omitempty"`       // line: day or month
-	Split    string   `json:"split,omitempty"`    // line: one line per value of this column; heatmap: its columns across
-	Group    string   `json:"group,omitempty"`    // bar, donut; heatmap: its rows down
-	Top      int      `json:"top,omitempty"`      // bar, heatmap: the largest 5, 8 or 15 groups; 0 shows all
-	Dir      string   `json:"dir,omitempty"`      // bar: vertical, or empty for horizontal
-	Cols     []string `json:"cols,omitempty"`     // table: columns shown, in order
-	Sort     string   `json:"sort,omitempty"`     // table: newest or largest first by this column
-	Limit    int      `json:"limit,omitempty"`    // table: 10, 25 or 50 rows
-	Filter   *Filter  `json:"filter,omitempty"`   // only rows where a column holds one of some values
-	Wide     bool     `json:"wide,omitempty"`
+	Kind     string `json:"kind"` // card, line, bar, heatmap, donut, table
+	Label    string `json:"label"`
+	LabelSet bool   `json:"labelSet,omitempty"` // the Learner typed the label, so it no longer follows the choices
+	Icon     string `json:"icon,omitempty"`     // card: one of Icons, or none; empty draws the one its value suggests
+	Value    *Value `json:"value,omitempty"`    // card, line, bar, donut
+	X        string `json:"x,omitempty"`        // line: the Date column
+	By       string `json:"by,omitempty"`       // line: day or month
+	Split    string `json:"split,omitempty"`    // line: one line per value of this column; heatmap: its columns across
+	Group    string `json:"group,omitempty"`    // bar, donut; heatmap: its rows down
+	Top      int    `json:"top,omitempty"`      // bar, heatmap: the largest 5, 8 or 15 groups; 0 shows all
+	// Slices is a donut's: the largest 5, 6 or 8 groups, the rest folded into Other, or 0 for all; none chosen is 6.
+	Slices *int     `json:"slices,omitempty"`
+	Dir    string   `json:"dir,omitempty"`    // bar: vertical, or empty for horizontal
+	Cols   []string `json:"cols,omitempty"`   // table: columns shown, in order
+	Sort   string   `json:"sort,omitempty"`   // table: newest or largest first by this column
+	Limit  int      `json:"limit,omitempty"`  // table: 10, 25 or 50 rows
+	Filter *Filter  `json:"filter,omitempty"` // only rows where a column holds one of some values
+	Wide   bool     `json:"wide,omitempty"`
 	// Locked marks a Template block the editor cannot express; it keeps its Template calculation below,
 	// naming columns as Block names blanks.
 	Locked bool     `json:"locked,omitempty"`
@@ -166,6 +168,7 @@ var (
 	Ops    = [][2]string{{"+", "+"}, {"-", "−"}, {"x", "×"}, {"/", "÷"}} // a calculation's operators, as posted and as written
 	Tops   = []int{5, 8, 15, 0}                                          // a bar's largest groups; 0 shows all
 	Limits = []int{10, 25, 50}                                           // a table's rows
+	Slices = []int{5, 6, 8, 0}                                           // a donut's largest groups; 0 shows all
 	// Icons are the outline icons charts.js draws on a card; a card's Icon is one of them, or "none".
 	Icons = []string{"people", "money", "box", "calendar", "check", "alert", "chart-up", "tag", "clock", "building", "cart", "star"}
 )
@@ -395,6 +398,9 @@ func (b *WorkBlock) Fill(d *Dataset, paused ...string) {
 	if b.Kind != "bar" && b.Kind != "heatmap" {
 		b.Top = 0
 	}
+	if b.Kind != "donut" {
+		b.Slices = nil
+	}
 	if b.Kind != "bar" || b.Dir == "horizontal" { // horizontal, the default, is not stored
 		b.Dir = ""
 	}
@@ -528,6 +534,9 @@ func (b *WorkBlock) Check(d *Dataset, paused ...string) error {
 		}
 		errs = append(errs, col(b.Group, Text), col(b.Split, Text))
 	case "donut":
+		if b.Slices != nil && !slices.Contains(Slices, *b.Slices) {
+			return bad
+		}
 		errs = append(errs, col(b.Group, Text))
 	}
 	if b.Filter != nil {
