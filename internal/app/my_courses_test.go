@@ -19,7 +19,7 @@ func (s *site) expectLoginLandsOn(email, password, next, want string) {
 	}
 }
 
-func TestLoggingInTakesALearnerToMyCoursesAndAnAdminToTheHomePageUnlessNextSaysOtherwise(t *testing.T) {
+func TestLoggingInTakesALearnerOrAnAdminToTheHomePageUnlessNextSaysOtherwise(t *testing.T) {
 	s := newSite(t)
 	const password = "correct horse battery"
 	s.loginAsNewLearner("Ada", "ada@example.com", password)
@@ -28,7 +28,7 @@ func TestLoggingInTakesALearnerToMyCoursesAndAnAdminToTheHomePageUnlessNextSaysO
 		t.Fatal(err)
 	}
 
-	s.expectLoginLandsOn("ada@example.com", password, "", "/my-courses")
+	s.expectLoginLandsOn("ada@example.com", password, "", "/")
 	s.logOut()
 	s.expectLoginLandsOn("admin@example.com", password, "", "/")
 	s.logOut()
