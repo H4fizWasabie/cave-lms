@@ -903,7 +903,7 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 }
 
 // typed fills d's rows from raw, each column typed by its cells. Unlike Read, a lone - in a Number column is
-// left empty, as a blank is, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
+// left empty, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
 // left empty; each is listed as a change, the last once per column.
 func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
