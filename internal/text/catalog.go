@@ -2167,7 +2167,6 @@ var catalog = map[string]entry{
 	"cost.usage":            {en: "Depends on usage", ms: "Bergantung penggunaan"},
 	"cost.paid":             {en: "Paid add-on", ms: "Add-on berbayar"},
 	"cost.not-needed":       {en: "Not needed (subdomain)", ms: "Tidak perlu (subdomain)"},
-	"cert-preview.name":     {en: "Your name here", ms: "Nama anda di sini"},
 	"cert-preview.course":   {en: "Your Course", ms: "Kursus anda"},
 	// ---- end home page (#314) ----
 	"home.intro.1": {

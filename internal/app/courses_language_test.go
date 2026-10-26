@@ -26,7 +26,8 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 
 	_, body = s.getAsking("/courses/"+id, "ms")
 	expectLanguage(t, body, "ms", "Daftar untuk menyertai")
-	expectAll(t, body, "Go Basics", "Variables", "Pelajaran", "Sudah mendaftar?", "Kandungan Kursus", "Nama anda")
+	expectAll(t, body, "Go Basics", "Variables", "Pelajaran", "Sudah mendaftar?", "Kandungan Kursus")
+	expectNone(t, body, "Nama anda", "cert-art")
 
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
 	s.switchLanguage("ms", "/")

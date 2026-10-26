@@ -266,7 +266,7 @@ func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.
 	s.submitExam(retry, answers)
 	s.releaseResults()
 	res, body = s.get(retry)
-	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">100%<`)
 }
 
 func TestAReleasedResultShowsOnlyTheMarkAndPassOrFail(t *testing.T) {
@@ -298,7 +298,7 @@ func TestTimeLimitIsEnforcedOnTheServer(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Time ran out before your answers were sent, so none of them count.")
 	s.releaseResults()
 	res, body = s.get(late)
-	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">0%<`)
 
 	// 70 seconds in is inside the grace period after the one-minute limit: the answers count.
 	res, _ = s.startExam(id)
@@ -307,7 +307,7 @@ func TestTimeLimitIsEnforcedOnTheServer(t *testing.T) {
 	s.submitExam(inGrace, map[string]string{qids[0]: "0"})
 	s.releaseResults()
 	res, body = s.get(inGrace)
-	expectStatus(t, res, body, http.StatusOK, "Score: 100%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">100%<`)
 }
 
 func TestFailedLearnerRetakesWhileAttemptsRemainAndAttemptsAreLimited(t *testing.T) {
