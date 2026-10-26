@@ -21,10 +21,10 @@
 
     <section class="trust" aria-label="{{t .Lang "home.trust"}}">
       <ul class="wrap trust-in">
-        <li><strong>TCC</strong>{{t .Lang "home.trust.tcc"}}</li>
-        <li><strong>HRD Corp</strong>{{t .Lang "about.hrd"}}</li>
-        <li><strong>MOF</strong>{{t .Lang "about.mof"}}</li>
-        <li><strong>JPK</strong>{{t .Lang "home.trust.jpk"}}</li>
+        <li><strong><img src="{{static "cave-consult-logo.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" width="387" height="160">TCC</strong>{{t .Lang "home.trust.tcc"}}</li>
+        <li><strong><img src="{{static "hrd-corp-logo.webp"}}" alt="{{t .Lang "logo-alt" "HRD Corp"}}" width="334" height="96">HRD Corp</strong>{{t .Lang "about.hrd"}}</li>
+        <li><strong><img src="{{static "eperolehan-logo.webp"}}" alt="{{t .Lang "logo-alt" "ePerolehan"}}" width="235" height="160">MOF</strong>{{t .Lang "about.mof"}}</li>
+        <li><strong><img src="{{static "jpk-logo.webp"}}" alt="{{t .Lang "logo-alt" "JPK"}}" width="54" height="96">JPK</strong>{{t .Lang "home.trust.jpk"}}</li>
         {{- if .Placeholders}}
         <li class="trust-ph"><span class="trust-ph-tag">{{t .Lang "home.trust.placeholder"}}</span><strong>[N]</strong>{{t .Lang "home.trust.learners"}}</li>
         <li class="trust-ph"><span class="trust-ph-tag">{{t .Lang "home.trust.placeholder"}}</span><strong>[N]</strong>{{t .Lang "home.trust.clients"}}</li>
