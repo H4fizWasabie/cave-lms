@@ -16,6 +16,15 @@ func dataTab(d *dashboard) string {
 	return "dataset"
 }
 
+// homeTab is the screen at a Dashboard's own address: the Page screen for a page Dashboard, the Dataset tab for an
+// engine one or one without a page yet.
+func homeTab(d *dashboard) string {
+	if d.Page != nil {
+		return "page"
+	}
+	return "dataset"
+}
+
 func dataURL(d *dashboard) string {
 	if d.Page != nil {
 		return dashboardURL(d) + "/data"

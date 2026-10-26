@@ -259,7 +259,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	})
 	mux.HandleFunc("GET /lab/new", a.requireLearner(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
-	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab("dataset"))
+	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab(""))
 	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.dashboardTab("preview"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/data", a.dashboardTab("data"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))

@@ -230,7 +230,7 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		return
 	}
 	refuse := func(msg string) {
-		p := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc}
+		p := &dashboardPage{Dashboard: d, Tab: homeTab(d), Access: acc}
 		p.Error = msg
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
 	}

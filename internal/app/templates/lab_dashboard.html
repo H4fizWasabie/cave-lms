@@ -14,7 +14,7 @@
       {{- end}}
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
         {{- if .Dashboard.Page}}
-        <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.page.tab"}}</a>
+        <a class="lab-tab" href="{{$url}}"{{if eq .Tab "page"}} aria-current="page"{{end}}>{{t .Lang "lab.page.tab"}}</a>
         <a class="lab-tab" href="{{$url}}/data"{{if eq .Tab "data"}} aria-current="page"{{end}}>{{t .Lang "lab.data.tab"}}</a>
         <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
@@ -44,7 +44,7 @@
         </form>
       </section>
       {{- end}}
-      {{- if and .Dashboard.Page (eq .Tab "dataset")}}{{with .Dashboard.Page}}
+      {{- if and .Dashboard.Page (eq .Tab "page")}}{{with .Dashboard.Page}}
       <section class="lab-narrow">
         <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div></div>
         {{- if not $.ReadOnly}}

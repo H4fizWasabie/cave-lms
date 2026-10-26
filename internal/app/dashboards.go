@@ -515,6 +515,9 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
+		if tab == "" {
+			tab = homeTab(d)
+		}
 		q := r.URL.Query()
 		open, err := strconv.Atoi(q.Get("open"))
 		if err != nil {
@@ -587,7 +590,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			return
 		}
 	}
-	if d.Page != nil && p.Tab == "dataset" && !p.ReadOnly { // a page Dashboard's Page screen lists its earlier pages
+	if p.Tab == "page" && !p.ReadOnly { // a page Dashboard's Page screen lists its earlier pages
 		var err error
 		if p.Pages, err = a.earlierPages(r.Context(), d.ID); err != nil {
 			a.serverError(w, r, err)
