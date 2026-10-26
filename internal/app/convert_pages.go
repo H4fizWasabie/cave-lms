@@ -65,6 +65,9 @@ func (a *App) convertEngineDashboard(ctx context.Context, id int64) error {
 	if err := a.readDataset(ctx, d); err != nil {
 		return err
 	}
+	if d.Dataset == nil { // its Dataset went since the list
+		return nil
+	}
 	html, err := lab.Page(d.Template, d.Name, d.Theme, d.Config, d.Dataset.Columns, "./data.json")
 	if err != nil {
 		return err

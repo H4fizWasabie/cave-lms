@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -88,7 +89,8 @@ func TestEngineDashboardsBecomePagesAtStartupAtTheSameLinkReadingDataJSON(t *tes
 		t.Fatalf("%d stored files after converting, want %d", n, files+2)
 	}
 	res, body = ada.get(empty)
-	expectStatus(t, res, body, http.StatusOK, "")
+	expectStatus(t, res, body, http.StatusOK, "Add a page")
+	expectAll(t, body, `action="`+empty+`/page"`)
 
 	state, files := ada.pageState(), ada.storedFiles()
 	ada.restart()
@@ -110,6 +112,12 @@ func TestEngineDashboardsBecomePagesAtStartupAtTheSameLinkReadingDataJSON(t *tes
 	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, `"Perkara": "Gula"`) {
 		t.Fatalf("after confirming new data, data.json = %.300s", body)
 	}
+
+	// The one without a Dataset takes its first page as any upload.
+	res, body = ada.post(empty+"/page", url.Values{"html": {myPage}})
+	expectRedirect(t, res, body, empty)
+	res, body = ada.get(empty)
+	expectStatus(t, res, body, http.StatusOK, "Your page")
 }
 
 // idOf is the id at the end of a Dashboard's path.

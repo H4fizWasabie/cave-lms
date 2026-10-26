@@ -783,6 +783,7 @@ var catalog = map[string]entry{
 		ms: "Ia disiarkan pada pautan yang sama. Cave menyimpan 3 halaman terdahulu anda.",
 	},
 	"lab.page.upload":       {en: "Upload page", ms: "Muat naik halaman"},
+	"lab.page.add":          {en: "Add a page", ms: "Tambah halaman"},
 	"lab.page.earlier":      {en: "Earlier pages", ms: "Halaman terdahulu"},
 	"lab.page.earlier-body": {en: "Restore one to put it live again at once.", ms: "Pulihkan satu untuk menyiarkannya semula serta-merta."},
 	"lab.page.err.empty":    {en: "Paste your page's HTML or pick a .html file.", ms: "Tampal HTML halaman anda atau pilih fail .html."},
