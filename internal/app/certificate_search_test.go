@@ -63,9 +63,10 @@ func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
 func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.T) {
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
-	number := regexp.MustCompile(`PCC-\d{4}-\d{5}`).FindString(body)
+	number := regexp.MustCompile(`PCC-LMS-\d{6}`).FindString(body)
+	old := "PCC-20" + number[8:10] + "-0" + number[10:] // as Certificates showed it before PCC-LMS
 
-	for _, q := range []string{number, strings.ToLower(number)} {
+	for _, q := range []string{number, strings.ToLower(number), old} {
 		res, body := search(ada, q)
 		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
 		expectNone(t, body, "951206", "IC or passport No.")
@@ -105,7 +106,7 @@ func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
 	}
 	res, body := search(s, "951206085555")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
-	res, body = searchAsking(s, "PCC-2026-00001", "ms")
+	res, body = searchAsking(s, "PCC-LMS-260001", "ms")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak cubaan")
 
 	res, body = s.get("/certificates") // the plain check page and ID box are not searches
