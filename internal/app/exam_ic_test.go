@@ -82,7 +82,7 @@ func TestTheCoursePageRemindsOnlyAnEnrolledLearnerWithoutAnICOnACourseWithAnExam
 	_, body := s.getAsking("/courses/"+id, "en")
 	expectInOrder(t, mainOf(body), reminder, `href="/my-profile"`)
 	_, body = s.getAsking("/courses/"+id, "ms")
-	expectInOrder(t, mainOf(body), "Tetapkan No. KP atau pasport anda sebelum cubaan Peperiksaan pertama anda")
+	expectInOrder(t, mainOf(body), "Tetapkan No. KP atau pasport anda sebelum percubaan Peperiksaan pertama anda")
 
 	admin := s.adminSite()
 	admin.createCourse("No Exam", "Just reading.", "")
