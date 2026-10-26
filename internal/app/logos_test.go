@@ -29,6 +29,7 @@ func TestTheHeaderFooterAdminBarAndFaviconShowTheCaveConsultLogoInBothLanguages(
 		_, body := s.getAsking("/", lang)
 		head, page, _ := strings.Cut(body, `<main id="main">`)
 		s.expectImage(head, alt)
+		expectAll(t, head, `<a class="brand" href="/"><img src="/static/cave-consult-logo.webp`)
 		s.expectImage(page, alt)
 		expectNone(t, body, "cavelms.svg", "logo-light.svg")
 		m := regexp.MustCompile(`<link rel="icon" href="(/static/[^"]+)">`).FindStringSubmatch(body)
@@ -58,6 +59,7 @@ func TestCoachAdamsCardShowsTheIssuerLogosAndTheHRDCorpBadgeInBothLanguages(t *t
 		for _, alt := range alts {
 			s.expectImage(coach, alt)
 		}
+		expectInOrder(t, coach, alts[0], `class="coach-creds"`, `class="coach-issuers"`)
 		expectNone(t, body, "Claimable", "CLAIMABLE")
 	}
 }

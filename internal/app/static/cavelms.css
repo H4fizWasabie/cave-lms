@@ -1226,12 +1226,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .coach-creds li { display: grid; gap: var(--space-1); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
 .coach-creds strong { font-weight: 600; color: var(--brand-ink); }
 .coach-creds span { font-size: var(--fs-ui); color: var(--muted); }
-/* The HRD Corp badge beside the credentials, then each issuer's logo in a row that wraps. */
-.coach-accredited { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--space-5); align-items: center; margin-top: var(--space-6); }
-.coach-accredited .coach-creds { margin-top: 0; }
-.coach-badge { width: 100%; height: auto; }
-.coach-issuers { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); }
-.coach-issuers img { height: 2.5rem; width: auto; max-width: 100%; object-fit: contain; }
 
 .home-pull { margin: var(--space-5) 0 0; padding-top: var(--space-5); border-top: 1px solid var(--brand-gold); font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.35; color: var(--ink-2); }
 .home-essay .prose { font-size: var(--fs-lede); color: var(--ink-2); }
@@ -1289,7 +1283,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .trust-in li:nth-child(-n+2) { border-top: 0; }
   .trust-in .trust-ph { padding-inline: var(--space-3); }
   .coach-photo { width: min(100%, 22rem); }
-  .coach-accredited { grid-template-columns: 5rem minmax(0, 1fr); gap: var(--space-4); }
   .home-learn > li { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -1323,9 +1316,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .about-trust strong { font-family: var(--font-display); font-size: var(--fs-title); }
 .about-trust span { font-size: var(--fs-ui); color: var(--muted); }
 .about-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 42rem); gap: var(--space-7); padding-block: var(--space-8); align-items: start; }
-.about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
-.about-body h2 { font-size: var(--fs-heading); font-weight: 400; max-width: 16ch; }
-.about-crest { width: min(100%, 16rem); height: auto; }
+.about-body h2 { font-size: var(--fs-heading); font-weight: 400; max-width: 16ch; position: sticky; top: 6rem; }
 
 .pricing-cta { margin-top: var(--space-7); }
 
@@ -1391,8 +1382,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 @media (max-width: 999px) {
   .about-body { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
-  .about-side { position: static; }
-  .about-body h2 { max-width: none; }
+  .about-body h2 { position: static; max-width: none; }
   .ct-gives { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
@@ -1592,25 +1582,28 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* === Page: Certificate artwork (#317) === */
 /* The Certificate preview (template certificate-preview): the PDF's artwork drawn in SVG on the A4 page in mm, so its
    font sizes are the SVG's own, set on the text as the PDF prints them, not type-scale tokens. Colours as the PDF's. */
+/* The Certificate prints in its own palette, outside the Eleven Rule: the --cert-* properties come from Go
+   (certificate_artwork.go) on the element, as the PDF uses them. */
 .cert-art { display: block; width: 100%; height: auto; border: 1px solid var(--line); user-select: none; }
 /* Source Serif runs wider than the PDF's Times: matching Times' x-height brings its line lengths close to the PDF's. */
-.cert-art text { font-family: var(--font-display); font-size-adjust: .45; fill: var(--brand-ink); }
+.cert-art text { font-family: var(--font-display); font-size-adjust: .45; fill: var(--cert-ink); }
 .cert-art .cert-art-sans { font-family: var(--font-body); font-weight: 700; }
-.cert-art .cert-art-muted { fill: var(--ink-2); }
-.cert-art .cert-art-gold, .cert-art .cert-art-number { fill: color-mix(in srgb, var(--brand-gold) 60%, var(--brand-gold-deep)); }
+.cert-art .cert-art-muted { fill: var(--cert-ink-2); }
+.cert-art .cert-art-gold { fill: var(--cert-gold-text); }
+.cert-art .cert-art-number { fill: var(--cert-number); }
 .cert-art .cert-art-number, .cert-art .cert-art-issued { font-weight: 400; }
 .cert-art-name, .cert-art-title { font-weight: 700; }
 .cert-art-award { font-style: italic; }
 .cert-art-paper { fill: var(--surface); }
-.cert-art-rule { fill: none; stroke: var(--brand-gold); }
+.cert-art-rule { fill: none; stroke: var(--cert-gold); }
 .cert-art-shine { fill: none; stroke: var(--surface); }
-.cert-art-ornament { fill: var(--brand-gold); }
-.cert-art-s-deep { stop-color: var(--brand-gold-deep); }
-.cert-art-s-gold { stop-color: var(--brand-gold); }
-.cert-art-s-light { stop-color: color-mix(in srgb, var(--brand-gold) 60%, var(--surface)); }
-.cert-art-qr rect { fill: color-mix(in srgb, var(--brand-ink) 6%, transparent); }
-.cert-art-qr path { fill: none; stroke: var(--brand-ink); }
-.cert-art-qr .cert-art-qr-core { fill: var(--brand-ink); stroke: none; }
+.cert-art-ornament { fill: var(--cert-gold); }
+.cert-art-s-deep { stop-color: var(--cert-gold-deep); }
+.cert-art-s-gold { stop-color: var(--cert-gold); }
+.cert-art-s-light { stop-color: var(--cert-gold-light); }
+.cert-art-qr rect { fill: color-mix(in srgb, var(--cert-ink) 6%, transparent); }
+.cert-art-qr path { fill: none; stroke: var(--cert-ink); }
+.cert-art-qr .cert-art-qr-core { fill: var(--cert-ink); stroke: none; }
 /* The badge JPEG's grey surround (252) lifted to white and multiplied takes the paper's colour, so no box shows; its
    clip trims the frame line some badge files have. The PDF prints a cut-out instead (badgeCutouts). */
 .cert-art-badge { mix-blend-mode: multiply; filter: brightness(1.012); }
@@ -1628,6 +1621,24 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .cert-item.is-revoked .cert-art { opacity: .55; filter: grayscale(1); }
 @media (max-width: 720px) {
   .cp-cert .cert-art { max-width: 12rem; } /* a shorter sheet keeps the next step nearer the top */
+}
+
+/* === Page: Logos (#343) === */
+/* Coach Adam's card: the HRD Corp badge beside the credentials, then each issuer's logo in a row that wraps. */
+.coach-accredited { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--space-5); align-items: center; margin-top: var(--space-6); }
+.coach-accredited .coach-creds { margin-top: 0; }
+.coach-badge { width: 100%; height: auto; }
+.coach-issuers { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); }
+.coach-issuers img { height: 2.5rem; width: auto; max-width: 100%; object-fit: contain; }
+/* About: the KPM crest under the heading; the heading and crest stick together. */
+.about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
+.about-side h2 { position: static; }
+.about-crest { width: min(100%, 16rem); height: auto; }
+@media (max-width: 999px) {
+  .about-side { position: static; }
+}
+@media (max-width: 720px) {
+  .coach-accredited { grid-template-columns: 5rem minmax(0, 1fr); gap: var(--space-4); }
 }
 
 /* === Lab: as on main (QA, #307) ===
