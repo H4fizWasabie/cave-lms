@@ -55,7 +55,11 @@ func newTestApplicationWith(t *testing.T, writer aiwriter.Writer, opts ...func(*
 		t.Fatal(err)
 	}
 
-	pgConfig.RuntimeParams["search_path"] = schema
+	// Extensions belong to the database, not a test's schema: keep pg_trgm in public, which outlives every schema.
+	if _, err := baseDB.ExecContext(context.Background(), "CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public"); err != nil {
+		t.Fatal(err)
+	}
+	pgConfig.RuntimeParams["search_path"] = schema + ",public"
 	scopedURL := stdlib.RegisterConnConfig(pgConfig)
 	var application *app.App
 	scopedDB, err := sql.Open("pgx", scopedURL)

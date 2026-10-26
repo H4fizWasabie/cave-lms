@@ -1821,8 +1821,8 @@ var catalog = map[string]entry{
 
 	"plans.periods":               {en: "Plan periods", ms: "Tempoh Pelan"},
 	"plans.periods-of":            {en: "Plan periods: %s", ms: "Tempoh Pelan: %s"},
-	"plans.periods.intro":         {en: "Find a Learner by email to see their periods, assign a Plan or end a period early.", ms: "Cari Pelajar melalui e-mel untuk melihat tempoh mereka, menetapkan Pelan atau menamatkan tempoh lebih awal."},
-	"plans.learner-email":         {en: "Learner's email", ms: "E-mel Pelajar"},
+	"plans.periods.intro":         {en: "Find a Learner by part of their name or email to see their periods, assign a Plan or end a period early.", ms: "Cari Pelajar melalui sebahagian nama atau e-mel untuk melihat tempoh mereka, menetapkan Pelan atau menamatkan tempoh lebih awal."},
+	"plans.learner-email":         {en: "Learner's name or email", ms: "Nama atau e-mel Pelajar"},
 	"plans.find":                  {en: "Find", ms: "Cari"},
 	"plans.periods.heading":       {en: "Periods", ms: "Tempoh"},
 	"plans.plan":                  {en: "Plan", ms: "Pelan"},

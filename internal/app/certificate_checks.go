@@ -71,12 +71,13 @@ func (a *App) verifyCertificate(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list[:1]})
 }
 
-// adminCertificates lists every Certificate, newest first. ?q= matches the Learner's name or the exact ID.
+// adminCertificates lists every Certificate, newest first. ?q= matches the exact ID, part of the Learner's name, or a
+// name close to it (a typo), by trigram similarity.
 func (a *App) adminCertificates(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
-		WHERE $1 = '' OR id = $1 OR strpos(lower(learner_name), lower($1)) > 0
-		ORDER BY issued_at DESC, year DESC, number DESC`, q)
+		WHERE $1 = '' OR id = $1 OR lower(learner_name) LIKE '%' || lower($2) || '%' OR lower(learner_name) % lower($1)
+		ORDER BY issued_at DESC, year DESC, number DESC`, q, likeLiteral(q))
 	if err != nil {
 		a.serverError(w, r, err)
 		return
