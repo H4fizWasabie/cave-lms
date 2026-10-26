@@ -53,10 +53,16 @@ type offer struct {
 var offerBenefits = map[string][]string{
 	caveTextProProduct: {"offers.cavetext-pro.unlimited", "offers.cavetext-pro.user", "offers.cavetext-pro.ready", "offers.cavetext-pro.keep"},
 	labPlanProduct:     {"offers.lab-plan.build", "offers.lab-plan.deploy", "offers.lab-plan.hosting", "offers.lab-plan.code"},
-	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.ebooks", "offers.pro-plan.deploy", "offers.pro-plan.storage", "offers.pro-plan.both"},
+	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.deploy", "offers.pro-plan.storage", "offers.pro-plan.both"},
 }
 
-func (o offer) Benefits() []string { return offerBenefits[o.Product] }
+// promoBenefits are listed on the COMBO Pro Plan card, shown beside the Pro Plan's while a Promo runs: the Pro Plan's
+// benefits, CaveText Pro's Snippets and characters, and the Ebooks and 1 GB the Pro Plan card leaves out.
+var promoBenefits = []string{"offers.pro-plan.cavetext", "offers.cavetext-pro.unlimited", "offers.combo.characters", "offers.pro-plan.lab",
+	"offers.pro-plan.ebooks", "offers.pro-plan.deploy", "offers.combo.storage", "offers.pro-plan.both"}
+
+func (o offer) Benefits() []string      { return offerBenefits[o.Product] }
+func (o offer) PromoBenefits() []string { return promoBenefits }
 
 // offersOf reads the products' prices as offers, in the order given.
 func (a *App) offersOf(ctx context.Context, products ...string) ([]offer, error) {

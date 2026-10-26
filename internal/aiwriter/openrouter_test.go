@@ -210,3 +210,74 @@ func TestOpenRouterAsksForAndReadsWrittenQuestionsWithAModelAnswer(t *testing.T)
 		t.Fatalf("messages = %q", sent.Messages)
 	}
 }
+
+var pivotLesson = LessonRequest{CourseTitle: "Excel for the office", Title: "Pivot tables", Language: "ms",
+	Objectives: []string{"Build a pivot table.", "Filter a pivot table."}, OtherTitles: []string{"Formulas", "Charts"}}
+
+// lessonText is a reply of n words.
+func lessonText(n int) string { return strings.TrimSpace(strings.Repeat("perkataan ", n)) }
+
+func TestOpenRouterWritesALessonSendingOnlyTheCourseTitleLessonTitleObjectivesOtherTitlesAndLanguage(t *testing.T) {
+	var body struct {
+		MaxTokens int                 `json:"max_tokens"`
+		Messages  []map[string]string `json:"messages"`
+		Format    struct {
+			Type string `json:"type"`
+		} `json:"response_format"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		content, _ := json.Marshal(map[string]string{"markdown": lessonText(600)})
+		reply, _ := json.Marshal(string(content))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":` + string(reply) + `}}]}`))
+	}))
+	defer server.Close()
+
+	got, err := Lesson(context.Background(), OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: server.URL}, pivotLesson)
+	if err != nil || got != lessonText(600) {
+		t.Fatalf("Lesson() = %d words, %v", len(strings.Fields(got)), err)
+	}
+	if body.MaxTokens != maxLessonTokens || body.Format.Type != "json_schema" {
+		t.Fatalf("body = %#v, want a capped structured reply", body)
+	}
+	want := "Course: Excel for the office\nLesson: Pivot tables\nLanguage: Malay\nObjectives:\n- Build a pivot table.\n- Filter a pivot table." +
+		"\nOther Lessons in the Course:\n- Formulas\n- Charts"
+	if len(body.Messages) != 2 || body.Messages[0]["content"] != writeLessonInstructions || body.Messages[1]["content"] != want {
+		t.Fatalf("messages = %q, want the instructions then %q", body.Messages, want)
+	}
+	for _, s := range []string{"one section per Objective", "500 to 900 words", "Other Lessons"} {
+		if !strings.Contains(writeLessonInstructions, s) {
+			t.Errorf("the instructions don't say %q: %s", s, writeLessonInstructions)
+		}
+	}
+}
+
+func TestLessonAsksOnceMoreWhenTheTextIsEmptyOrBadlySized(t *testing.T) {
+	for _, c := range []struct {
+		replies []string
+		want    string
+		err     error
+	}{
+		{[]string{" ", lessonText(500)}, lessonText(500), nil},
+		{[]string{lessonText(20), lessonText(5000)}, "", ErrBadShape},
+		{[]string{strings.Repeat("x", 20001), ""}, "", ErrBadShape},
+	} {
+		calls := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			content, _ := json.Marshal(map[string]string{"markdown": c.replies[calls]})
+			reply, _ := json.Marshal(string(content))
+			calls++
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":` + string(reply) + `}}]}`))
+		}))
+		got, err := Lesson(context.Background(), OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: server.URL}, pivotLesson)
+		server.Close()
+		if got != c.want || !errors.Is(err, c.err) || calls != 2 {
+			t.Errorf("Lesson() = %d words, %v after %d calls, want %d words, %v after 2", len(strings.Fields(got)), err, calls, len(strings.Fields(c.want)), c.err)
+		}
+	}
+	if _, err := Lesson(context.Background(), New("", "", false), pivotLesson); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("unconfigured Lesson() error = %v", err)
+	}
+}

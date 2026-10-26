@@ -5,7 +5,15 @@
       <article class="lesson">
         <h1>{{.Lesson.Title}}</h1>
         {{if not .Lesson.Published}}<p class="callout">{{t .Lang "lesson.draft"}}</p>{{end}}
-        {{with .Lesson.Objective}}<p class="lesson-objective"><strong>{{t $.Lang "lesson.objective"}}</strong> {{.}}</p>{{end}}
+        {{with .Lesson.Objectives}}
+        <div class="lesson-objective">
+          <h2 id="objectives">{{t $.Lang "lesson.objectives"}}</h2>
+          <ul aria-labelledby="objectives">{{range .}}<li>{{.}}</li>{{end}}</ul>
+        </div>
+        {{end}}
+        {{if .Lesson.ImageKey}}
+        <div class="g-media"><img src="/lesson-images/{{.Lesson.ImageKey}}" alt="{{.Lesson.ImageDescription}}"></div>
+        {{end}}
         {{with .Item}}
         <div class="g-media">
           {{if eq .Format "video"}}
@@ -21,9 +29,8 @@
           </div>
           {{end}}
         </div>
-        {{else}}
-        <div class="prose">{{.Lesson.HTML}}</div>
         {{end}}
+        {{with .Lesson.HTML}}<div class="prose">{{.}}</div>{{end}}
       </article>
       <footer class="lp-foot">
         {{if and .Enrolled .Lesson.Published}}

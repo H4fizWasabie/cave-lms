@@ -41,7 +41,10 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 	expectInOrder(t, main,
 		`src="/static/logo-cavetext-pro.svg`, "CaveText Pro", "Text expansion for up to 2,000 Snippets", "RM25 a year", `<ul class="offer-benefits">`, "Up to 2,000 Snippets", "Image and Dashboard master prompts",
 		`src="/static/logo-lab-plan.svg`, "Lab Plan", "Live Dashboards, hosted for you", "RM89 a year", `<ul class="offer-benefits">`, "Deploy it online at a link you can share",
-		`src="/static/logo-pro-plan.svg`, "Pro Plan", "Everything, one payment", "RM99 a year", `<s><span class="sr">Normal price </span>RM119</s>`, `<ul class="offer-benefits">`, "Everything in CaveText Pro", "Everything in the Lab Plan", "Ebooks", "Your own Dashboard deployment", "1 GB of storage", "One payment a year for both")
+		`src="/static/logo-pro-plan.svg`, "Pro Plan", "Everything, one payment", "RM99 a year", `<s><span class="sr">Normal price </span>RM119</s>`, `<ul class="offer-benefits">`, "Everything in CaveText Pro", "Everything in the Lab Plan", "Your own Dashboard deployment", "0.5 GB of storage", "One payment a year for both")
+	// Ebooks are the COMBO Pro Plan's, a card shown only while a Promo runs.
+	cards, _, _ := strings.Cut(main, `id="comparison"`)
+	expectNone(t, cards, "Ebooks", "1 GB of storage", "COMBO Pro Plan")
 	if n := strings.Count(main, "<s>"); n != 1 {
 		t.Errorf("%d crossed-out prices, want 1", n)
 	}
@@ -86,9 +89,9 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 			"Fungsi / Komponen", "CAVELMS", "RM99/tahun", "TextExpander Pro", "RM258/tahun", "Hostinger Premium", "RM119.88/tahun",
 			"Cloudflare Paid", "RM258/tahun", "Render Starter", "RM361.2/tahun", "Netlify Personal", "RM464.4/tahun",
 			"Vercel Pro", "RM1,000/tahun", "Supabase Pro", "RM1,300/tahun",
-			"Text Expansion", "Prompt Library KPM", "AI Prompt Templates", "Subdomain peribadi", "(domain promosi)",
+			"Text Expansion", "AI Prompt Templates", "Subdomain peribadi", "(domain promosi)",
 			"Web hosting / deployment", "SSL / HTTPS", "Static to dynamic dashboard (tanpa coding)", "Upload Excel sebagai data",
-			"Storan pengguna", "1 GB", "~10 GB", "Bergantung pelan", "Penyelenggaraan aplikasi",
+			"Storan pengguna", "0.5 GB", "~10 GB", "Bergantung pelan", "Penyelenggaraan aplikasi",
 			"Anggaran Add-on (jika perlu)", "Domain sendiri (.com)", "Tidak perlu", "(subdomain)", "~RM50/tahun",
 			"Storan tambahan", "Termasuk", "~RM80/tahun", "(20 GB)", "Bergantung penggunaan", "~RM91/tahun", "(100 GB)",
 			"Back-up tambahan", "Termasuk", "~RM40/tahun", "Bergantung penggunaan",
@@ -97,9 +100,9 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 			"RM99", "RM258", "RM269.88", "RM258+", "RM361.2+", "RM464.4+", "RM1,000+", "RM1,300+", "</table>"},
 		"en": {"Annual Cost Comparison", "<table",
 			"Feature / Component", "CAVELMS", "RM99/year", "TextExpander Pro", "RM258/year", "Render Starter", "RM361.2/year", "Supabase Pro", "RM1,300/year",
-			"Text Expansion", "KPM Prompt Library", "AI Prompt Templates", "Personal subdomain", "(promotional domain)",
+			"Text Expansion", "AI Prompt Templates", "Personal subdomain", "(promotional domain)",
 			"Web hosting / deployment", "Static to dynamic dashboard (no coding)", "Upload Excel as data",
-			"User storage", "Depends on plan", "App maintenance",
+			"User storage", "0.5 GB", "Depends on plan", "App maintenance",
 			"Add-on estimate (if needed)", "Own domain (.com)", "Not needed", "~RM50/year",
 			"Extra storage", "Included", "~RM80/year", "Depends on usage", "Extra backups", "~RM40/year", "Technical support", "Paid add-on",
 			"Total Annual Cost", "(includes basic features + add-on estimate)",
@@ -107,6 +110,6 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 	} {
 		_, body := s.getAsking("/pricing", lang)
 		expectInOrder(t, html.UnescapeString(mainOf(body)), want...)
-		expectNone(t, body, "cost-comparison.webp")
+		expectNone(t, body, "cost-comparison.webp", "Prompt Library") // the client dropped the KPM Prompt Library row
 	}
 }

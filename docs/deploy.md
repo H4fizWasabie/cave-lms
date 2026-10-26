@@ -45,7 +45,7 @@ Once per VPS. Run as root on the VPS.
 
    For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
 
-   For AI-written Exam questions, add the `OPENROUTER_` settings the same way (see AI writer below). Without them the Exam page says the AI writer is not configured.
+   For AI-written Exam questions and Lesson text, add the `OPENROUTER_` settings the same way (see AI writer below). Without them the Exam page and the Lesson form say the AI writer is not configured.
 
 3. From your machine, run `deploy/deploy.sh` (next section).
 4. Create the Admin on the VPS. `systemd-run` runs it as `cave` with the service's own env file. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
@@ -258,6 +258,8 @@ From an Exam's Admin page, Generate questions takes matching published Question 
 
 The AI also marks each Written answer 0 to 10 with a one-line reason, before the Result is released. Only the question, its model answer and the Learner's answer are sent, nothing about the Learner (ADR 0009). A mark in the wrong shape is asked for once more; an answer still unmarked is asked about again every 5 minutes, and an hour past its release time the System log says so, for the Admin to mark it on Admin > Results.
 
+On the Lesson form, Generate text has the AI write the Lesson's text, about 500 to 900 words of Markdown, into the Text box; nothing is saved until the Admin clicks Save. Only the Course title, the Lesson's title and Objectives, the other Lessons' titles and the chosen language are sent, nothing about a Learner. A reply that is not 300 to 1500 words, or is over a Lesson's 20000 characters, is asked for once more, then reported.
+
 1. On OpenRouter, create an API key for Cave LMS and **set a monthly credit limit on it**, so a runaway month cannot overspend. Over the limit, the Exam page says so and nothing is saved.
 2. Add to `/etc/cave-lms/env` with an editor, then `systemctl restart cave-lms` (or deploy):
 
@@ -267,7 +269,7 @@ The AI also marks each Written answer 0 to 10 with a one-line reason, before the
    OPENROUTER_WEB_SEARCH=true    # optional: true (the default) or false
    ```
 
-There is no built-in model: with the key or model unset the app starts, the Exam page says the AI writer is not configured, and Written attempts with non-blank answers wait for the Admin to mark them on Admin > Results; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt` for questions and `internal/aiwriter/mark_answer.txt` for marks, built into the binary: edit them and deploy to change the wording.
+There is no built-in model: with the key or model unset the app starts, the Exam page and the Lesson form say the AI writer is not configured, and Written attempts with non-blank answers wait for the Admin to mark them on Admin > Results; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt` for questions, `internal/aiwriter/mark_answer.txt` for marks and `internal/aiwriter/write_lesson.txt` for Lesson text, built into the binary: edit them and deploy to change the wording.
 
 ## Email
 

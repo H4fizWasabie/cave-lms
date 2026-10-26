@@ -1,12 +1,14 @@
-// Package aiwriter asks an AI to write Exam questions and mark Written answers. Only the topic, format, language,
-// count, Difficulty, the Admin's key points and the Question bank's existing prompts on the topic go out for
-// questions, and only the question, model answer and answer for a mark. No Learner data goes out for questions.
+// Package aiwriter asks an AI to write Exam questions, mark Written answers and write Lesson text. Only the topic,
+// format, language, count, Difficulty, the Admin's key points and the Question bank's existing prompts on the topic
+// go out for questions; only the question, model answer and answer for a mark; and only the Course title, the
+// Lesson title, its Objectives, the other Lessons' titles and the language for a Lesson. No Learner data goes out.
 package aiwriter
 
 import (
 	"context"
 	"errors"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -16,7 +18,7 @@ var (
 	ErrBadShape      = errors.New("the AI's reply is not in the required shape")
 )
 
-// Request is everything the AI is told: nothing about a Course or a Learner.
+// Request is everything the AI is told for questions: nothing about a Course or a Learner.
 type Request struct {
 	Topic      string
 	Format     string // "multiple-choice" or "written"
@@ -54,13 +56,24 @@ type Marking struct {
 // MaxMark is what a Written answer is marked out of.
 const MaxMark = 10
 
-// Writer is an AI that writes Exam questions and marks Written answers. Callers go through Questions and Mark,
-// which check the reply's shape.
+// LessonRequest is everything the AI is told to write a Lesson's text: nothing about a Learner.
+type LessonRequest struct {
+	CourseTitle string
+	Title       string   // the Lesson's title, its topic
+	Objectives  []string // one to five
+	OtherTitles []string // the Course's other Lessons, whose ground the text should not repeat
+	Language    string   // "ms" or "en"
+}
+
+// Writer is an AI that writes Exam questions, marks Written answers and writes Lesson text. Callers go through
+// Questions, Mark and Lesson, which check the reply's shape.
 type Writer interface {
 	// WriteQuestions writes r.Count questions. A reply that cannot be read is ErrBadShape.
 	WriteQuestions(context.Context, Request) ([]Question, error)
 	// MarkAnswer marks r's answer against its model answer. A reply that cannot be read is ErrBadShape.
 	MarkAnswer(context.Context, MarkRequest) (Marking, error)
+	// WriteLesson writes r's Lesson text in Markdown. A reply that cannot be read is ErrBadShape.
+	WriteLesson(context.Context, LessonRequest) (string, error)
 }
 
 // Unconfigured is the Writer when no AI is set up: every call is ErrNotConfigured.
@@ -73,6 +86,22 @@ func (Unconfigured) WriteQuestions(context.Context, Request) ([]Question, error)
 func (Unconfigured) MarkAnswer(context.Context, MarkRequest) (Marking, error) {
 	return Marking{}, ErrNotConfigured
 }
+
+func (Unconfigured) WriteLesson(context.Context, LessonRequest) (string, error) {
+	return "", ErrNotConfigured
+}
+
+// Lesson asks w for r's Lesson text, asking once more when it is not 300 to 1500 words (the prompt asks for 500 to
+// 900) or is longer than a Lesson's text may be. A second wrong shape is ErrBadShape.
+func Lesson(ctx context.Context, w Writer, r LessonRequest) (string, error) {
+	return askTwice(func() (string, error) { return w.WriteLesson(ctx, r) }, func(s string) bool {
+		words := len(strings.Fields(s))
+		return words >= 300 && words <= 1500 && utf8.RuneCountInString(strings.TrimSpace(s)) <= MaxLessonText
+	})
+}
+
+// MaxLessonText is the most characters a Lesson's text may have.
+const MaxLessonText = 20000
 
 // Mark asks w to mark r, asking once more when the mark is not a whole number 0 to MaxMark with a reason. A second
 // wrong shape is ErrBadShape.

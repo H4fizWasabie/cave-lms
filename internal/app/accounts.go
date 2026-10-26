@@ -416,9 +416,9 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	if saved != "" {
 		setLanguageCookie(w, saved) // so the site stays in it after logging out
 	}
-	// Without a next, everyone lands on My courses, an Admin too: the admin area is a click away in the menu.
+	// Without a next, everyone lands on the home page, Learner and Admin alike.
 	if next == "" {
-		next = "/my-courses"
+		next = "/"
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }

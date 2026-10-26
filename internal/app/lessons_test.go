@@ -11,7 +11,7 @@ import (
 
 // addTextLesson posts the Lesson form as the logged-in Admin with a text Lesson.
 func (s *site) addTextLesson(courseID, title, objective, body string, draft bool) (*http.Response, string) {
-	form := url.Values{"kind": {"text"}, "title": {title}, "objective": {objective}, "body": {body}}
+	form := url.Values{"title": {title}, "objective": {objective}, "body": {body}}
 	if draft {
 		form.Set("draft", "on")
 	}
@@ -104,18 +104,45 @@ func TestNonMemberIsAskedToJoinBeforeOpeningALesson(t *testing.T) {
 	}
 }
 
-func TestLessonShowsItsObjectiveAtTheTop(t *testing.T) {
+func TestLessonShowsItsObjectivesAsAListAtTheTop(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	itemID := strings.TrimPrefix(s.uploadAs("Diagram", "everyone", pngFile), "/gallery/")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
 	id := s.onlyCourseID()
-	s.addTextLesson(id, "Variables", "Declare a variable with :=.", "Body text.", false)
+	res, body := s.post("/admin/courses/"+id+"/lessons", url.Values{"title": {"Variables"}, "gallery_item_id": {itemID}, "body": {"Body text."},
+		"objective": {"Declare a variable with :=.\r\n\r\n  Name a constant.  \n"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.post("/courses/"+id+"/join", nil)
 
-	res, body := s.get("/courses/" + id + "/lessons/" + s.lessonIDByTitle("Variables"))
-	expectStatus(t, res, body, http.StatusOK, "<strong>Objective:</strong> Declare a variable with :=.")
+	res, body = s.get("/courses/" + id + "/lessons/" + s.lessonIDByTitle("Variables"))
+	expectStatus(t, res, body, http.StatusOK, "<li>Declare a variable with :=.</li><li>Name a constant.</li></ul>")
+	objectives, media, text := strings.Index(body, "Name a constant."), strings.Index(body, "/gallery/"+itemID+"/file"), strings.Index(body, "Body text.")
+	if !(objectives < media && media < text) {
+		t.Fatalf("want the Objectives, then the Gallery item, then the text: %s", body)
+	}
+	_, body = s.get("/courses/" + id)
+	expectAll(t, body, "Declare a variable with :=.</li>", "Name a constant.</li>")
+}
+
+func TestLessonTakesUpToFiveObjectivesOfOneSentenceEach(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	const refused = "Write at most five Objectives, one sentence of at most 200 characters per line."
+
+	res, body := s.addTextLesson(id, "Six", "One.\nTwo.\nThree.\nFour.\nFive.\nSix.", "Text.", false)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, refused)
+	expectAll(t, body, "Six.</textarea>")
+	res, body = s.addTextLesson(id, "Long", "Short.\n"+strings.Repeat("a", 201), "Text.", false)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, refused)
+	res, body = s.addTextLesson(id, "Five", "One.\n\nTwo.\nThree.\n\nFour.\n"+strings.Repeat("a", 200), "Text.", false)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.addTextLesson(id, "None", "", "Text.", false)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
 func TestAdminMovesLessonsUpAndDown(t *testing.T) {
@@ -212,11 +239,40 @@ func TestAdminRemovesALessonOnlyAfterConfirming(t *testing.T) {
 
 // addItemLesson posts the Lesson form as the logged-in Admin with one Gallery item.
 func (s *site) addItemLesson(courseID, itemID, title string, draft bool) (*http.Response, string) {
-	form := url.Values{"kind": {"item"}, "title": {title}, "gallery_item_id": {itemID}}
+	form := url.Values{"title": {title}, "gallery_item_id": {itemID}}
 	if draft {
 		form.Set("draft", "on")
 	}
 	return s.post("/admin/courses/"+courseID+"/lessons", form)
+}
+
+func TestLessonKeepsTextWrittenUnderItsGalleryItem(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	itemID := strings.TrimPrefix(s.uploadAs("Diagram", "everyone", pngFile), "/gallery/")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+
+	res, body := s.post("/admin/courses/"+id+"/lessons", url.Values{"title": {"Diagram lesson"}, "gallery_item_id": {itemID}, "body": {"Notes under the diagram."}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.get("/courses/" + id + "/lessons/" + s.lessonIDByTitle("Diagram lesson"))
+	expectStatus(t, res, body, http.StatusOK, `src="/gallery/`+itemID+`/file"`)
+	if media, notes := strings.Index(body, "/gallery/"+itemID+"/file"), strings.Index(body, "Notes under the diagram."); notes < media {
+		t.Fatalf("want the Gallery item, then the text: %s", body)
+	}
+}
+
+func TestLessonWithNeitherTextNorAGalleryItemIsRefused(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+
+	res, body := s.post("/admin/courses/"+id+"/lessons", url.Values{"title": {"Empty"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Write the text of the Lesson or choose a Gallery item.")
+	s.addTextLesson(id, "Variables", "", "Old text.", false)
+	res, body = s.post("/admin/lessons/"+s.lessonIDByTitle("Variables"), url.Values{"title": {"Variables"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Write the text of the Lesson or choose a Gallery item.")
 }
 
 func TestCourseMembersItemIsVisibleToMembersOfAnyCourseUsingIt(t *testing.T) {
@@ -472,5 +528,59 @@ func TestLessonFormSaysWhenAVideoBecomesCourseMembersOnly(t *testing.T) {
 	s.createCourse("Go Basics", "Learn Go.", "")
 	res, body := s.get("/admin/courses/" + s.onlyCourseID() + "/lessons/new")
 	expectStatus(t, res, body, http.StatusOK, "becomes Course members only once a published Lesson uses it")
-	expectStatus(t, res, body, http.StatusOK, "Lesson content")
+}
+
+func TestTheNewAndEditLessonFormsShowEveryFieldOnceWithNoContentKind(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	s.addTextLesson(id, "Variables", "", "Text.", false)
+	for _, path := range []string{"/admin/courses/" + id + "/lessons/new", "/admin/lessons/" + s.lessonIDByTitle("Variables") + "/edit"} {
+		res, body := s.get(path)
+		expectStatus(t, res, body, http.StatusOK, "")
+		if strings.Contains(body, `name="kind"`) || strings.Contains(body, "Lesson content") {
+			t.Errorf("%s still asks for the Lesson content kind: %s", path, body)
+		}
+		for _, field := range []string{`name="title"`, `name="objective"`, `name="gallery_item_id"`, `name="body"`} {
+			if n := strings.Count(body, field); n != 1 {
+				t.Errorf("%s shows %s %d times, want once", path, field, n)
+			}
+		}
+	}
+}
+
+func TestAdminAddsAndRemovesTheTextOrGalleryItemOfASavedLesson(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	itemID := strings.TrimPrefix(s.uploadAs("Diagram", "everyone", pngFile), "/gallery/")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	s.addItemLesson(id, itemID, "Diagram lesson", false)
+	lessonID := s.lessonIDByTitle("Diagram lesson")
+	lessonPage := "/courses/" + id + "/lessons/" + lessonID
+	edit := func(form url.Values) {
+		t.Helper()
+		form.Set("title", "Diagram lesson")
+		res, body := s.post("/admin/lessons/"+lessonID, form)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+
+	edit(url.Values{"gallery_item_id": {itemID}, "body": {"Added notes."}})
+	_, body := s.get(lessonPage)
+	expectAll(t, body, "/gallery/"+itemID+"/file", "Added notes.")
+
+	edit(url.Values{"body": {"Added notes."}})
+	_, body = s.get(lessonPage)
+	expectAll(t, body, "Added notes.")
+	if strings.Contains(body, "/gallery/"+itemID+"/file") {
+		t.Fatalf("removed Gallery item still shown: %s", body)
+	}
+
+	edit(url.Values{"gallery_item_id": {itemID}})
+	_, body = s.get(lessonPage)
+	expectAll(t, body, "/gallery/"+itemID+"/file")
+	if strings.Contains(body, "Added notes.") {
+		t.Fatalf("removed text still shown: %s", body)
+	}
 }

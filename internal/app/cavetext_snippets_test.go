@@ -258,16 +258,16 @@ func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
 }
 
 func TestASnippetWithAFieldTooLongIsRefused(t *testing.T) {
-	s := newCaveTextSite(t)
+	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	const tooLong = "A Snippet's name, folder and shortcut can each have up to 100 characters, and its body up to 20,000. Shorten it, then save."
-	// Characters, not bytes: 100 accented letters fit.
-	kept := ada.createSnippet(token, snippet{Folder: strings.Repeat("é", 100), Name: strings.Repeat("é", 100), Shortcut: "/" + strings.Repeat("é", 99), Body: strings.Repeat("é", 20000)})
+	s.givePro("ada@example.com")
+	const tooLong = "A Snippet's name, folder and shortcut can each have up to 100 characters. Shorten it, then save."
+	// Characters, not bytes: 100 accented letters fit, and with Pro the body has no limit.
+	kept := ada.createSnippet(token, snippet{Folder: strings.Repeat("é", 100), Name: strings.Repeat("é", 100), Shortcut: "/" + strings.Repeat("é", 99), Body: strings.Repeat("é", 200000)})
 	for _, sn := range []snippet{
 		{Folder: strings.Repeat("f", 101), Name: "N", Shortcut: "/a", Body: "x"},
 		{Folder: "F", Name: strings.Repeat("n", 101), Shortcut: "/a", Body: "x"},
 		{Folder: "F", Name: "N", Shortcut: "/" + strings.Repeat("a", 100), Body: "x"},
-		{Folder: "F", Name: "N", Shortcut: "/a", Body: strings.Repeat("b", 20001)},
 	} {
 		res, body := ada.caveTextSend(http.MethodPost, "snippets", token, sn)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
@@ -279,6 +279,35 @@ func TestASnippetWithAFieldTooLongIsRefused(t *testing.T) {
 	if n := len(ada.snippets(token)); n != 1 {
 		t.Fatalf("Snippets = %d, want only the one that fits", n)
 	}
+}
+
+// Without Pro a body has up to 4,500 characters; a 422, so CaveText doesn't take it for the Snippet cap. One kept
+// from a Pro period can still be saved as long as it was, or shorter.
+func TestAFreeSnippetBodyHasUpTo4500Characters(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	const tooLong = "Without CaveText Pro, a Snippet's body can have up to 4,500 characters (about 700 words); this one has 4,501. Shorten it, or get CaveText Pro, which has no limit."
+	fits := ada.createSnippet(token, snippet{Folder: "F", Name: "Fits", Shortcut: "/fits", Body: strings.Repeat("é", 4500)})
+	long := snippet{Folder: "F", Name: "Long", Shortcut: "/long", Body: strings.Repeat("b", 4501)}
+	res, body := ada.caveTextSend(http.MethodPost, "snippets", token, long)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+	res, body = ada.caveTextSend(http.MethodPut, fmt.Sprintf("snippets/%d", fits.ID), token, long)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+	res, body = ada.caveTextSend(http.MethodPut, "snippets", token, map[string]any{"snippets": []snippet{long}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, tooLong)
+
+	s.givePro("ada@example.com")
+	kept := ada.createSnippet(token, snippet{Folder: "F", Name: "Kept", Shortcut: "/kept", Body: strings.Repeat("k", 20000)})
+	s.endPro("ada@example.com")
+	kept.Folder = "Renamed"
+	res, body = ada.caveTextSend(http.MethodPut, fmt.Sprintf("snippets/%d", kept.ID), token, kept)
+	expectStatus(t, res, body, http.StatusOK, "Renamed")
+	kept.Body = strings.Repeat("k", 19000)
+	res, body = ada.caveTextSend(http.MethodPut, fmt.Sprintf("snippets/%d", kept.ID), token, kept)
+	expectStatus(t, res, body, http.StatusOK, "")
+	kept.Body = strings.Repeat("k", 19001)
+	res, body = ada.caveTextSend(http.MethodPut, fmt.Sprintf("snippets/%d", kept.ID), token, kept)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "this one has 19,001")
 }
 
 // The clash check runs under the account's row lock, so a full Pro import must not check its shortcuts pair by pair.

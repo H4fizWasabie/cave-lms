@@ -36,12 +36,15 @@ func Open(dir string) (*Disk, error) {
 }
 
 // Save streams r to a new file and returns its key and size. A failed write leaves no file behind.
-func (d *Disk) Save(r io.Reader) (string, int64, error) {
+func (d *Disk) Save(r io.Reader) (string, int64, error) { return d.SaveAs("", r) }
+
+// SaveAs is Save with a key starting with prefix, a constant with no path separator.
+func (d *Disk) SaveAs(prefix string, r io.Reader) (string, int64, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", 0, err
 	}
-	key := hex.EncodeToString(b[:])
+	key := prefix + hex.EncodeToString(b[:])
 	f, err := os.OpenFile(d.path(key), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", 0, err

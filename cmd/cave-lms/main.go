@@ -53,9 +53,9 @@ func serve() error {
 	}
 	w := aiwriter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
 	if _, off := w.(aiwriter.Unconfigured); off {
-		log.Print("OPENROUTER_API_KEY or OPENROUTER_MODEL is not set: the AI will not write Exam questions or mark Written answers")
+		log.Print("OPENROUTER_API_KEY or OPENROUTER_MODEL is not set: the AI will not write Exam questions or Lesson text or mark Written answers")
 	} else {
-		log.Printf("Writing Exam questions and marking Written answers with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
+		log.Printf("Writing Exam questions and Lesson text and marking Written answers with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
 	}
 	if cfg.BCLWebhookKey != "" && cfg.BCLAPIToken == "" {
 		log.Print("BCL_API_TOKEN is not set: BCL webhook orders are not confirmed with BCL, so a forged one would count")
