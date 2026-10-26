@@ -553,8 +553,17 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 	}
 	if p.Pending != nil && p.Pending.Added == nil && d.Page != nil && d.Dataset != nil {
-		gone, added := lab.ColumnChanges(d.Dataset.Columns, p.Pending.Dataset.Columns)
-		p.Gone, p.New = strings.Join(gone, ", "), strings.Join(added, ", ")
+		// By exact name, as data.json's keys are: a page reading Jumlah breaks on jumlah.
+		lacking := func(cols, others []lab.Column) string {
+			var out []string
+			for _, c := range cols {
+				if !slices.ContainsFunc(others, func(o lab.Column) bool { return o.Name == c.Name }) {
+					out = append(out, c.Name)
+				}
+			}
+			return strings.Join(out, ", ")
+		}
+		p.Gone, p.New = lacking(d.Dataset.Columns, p.Pending.Dataset.Columns), lacking(p.Pending.Dataset.Columns, d.Dataset.Columns)
 	}
 	if p.Tab == dataTab(d) && !p.ReadOnly {
 		var err error

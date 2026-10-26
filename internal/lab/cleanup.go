@@ -374,8 +374,8 @@ func sameColumns(a, b []Column) bool {
 	return slices.Equal(keys(a), keys(b))
 }
 
-// ColumnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
-func ColumnChanges(was, now []Column) (gone, added []string) {
+// columnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
+func columnChanges(was, now []Column) (gone, added []string) {
 	in := func(cols []Column, c Column) bool {
 		return slices.ContainsFunc(cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
 	}
@@ -396,7 +396,7 @@ func ColumnChanges(was, now []Column) (gone, added []string) {
 // more needs d's columns by name, in any order, and the two at most MaxCleanRows rows; else a Problem names the
 // columns missing and extra, or the row counts. d's column types stay, whatever more's cells are.
 func Add(d, more *Dataset) (*Dataset, int, error) {
-	if gone, added := ColumnChanges(d.Columns, more.Columns); gone != nil || added != nil {
+	if gone, added := columnChanges(d.Columns, more.Columns); gone != nil || added != nil {
 		return nil, 0, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
 	}
 	if n := len(d.Rows) + len(more.Rows); n > MaxCleanRows {

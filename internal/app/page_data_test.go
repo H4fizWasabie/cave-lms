@@ -113,9 +113,16 @@ func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
 func TestReplacingDataWithOtherColumnsWarnsNamingThem(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
+	lower := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "jumlah"},
+		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", 80.0})
+	res, body := ada.postFile(path+"/dataset", "kecil.xlsx", lower)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Gone or renamed: Jumlah.", "New: jumlah.") // data.json's keys are case-sensitive
+
 	other := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"},
 		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", 80.0})
-	res, body := ada.postFile(path+"/dataset", "baru.xlsx", other)
+	res, body = ada.postFile(path+"/dataset", "baru.xlsx", other)
 	expectRedirect(t, res, body, path+"/data")
 	_, body = ada.get(path + "/data")
 	expectAll(t, body, "Your page may stop working", "Gone or renamed: Jumlah.", "New: Amaun.")
