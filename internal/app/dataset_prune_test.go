@@ -3,7 +3,6 @@ package app_test
 import (
 	"context"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -51,12 +50,16 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 	if line := admin.lastLogLine("Datasets"); line != "Daily prune deleted 1 Datasets" {
 		t.Fatalf("System log line = %q", line)
 	}
-	res, body := ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, "Kewangan")
-	if strings.Contains(body, `href="`+path+`/download"`) {
-		t.Fatalf("the Dashboard still has a Dataset to download: %s", body)
+	// The Dashboard stays, without its Dataset. Lapsed, Ada can't open the Lab (it sends her to /pricing), so ask the database.
+	var dashboards, datasets int
+	if err := admin.db.QueryRow(`SELECT count(*), (SELECT count(*) FROM datasets ds JOIN dashboards d ON d.id = ds.dashboard_id
+		WHERE d.name = 'Kewangan') FROM dashboards WHERE name = 'Kewangan'`).Scan(&dashboards, &datasets); err != nil {
+		t.Fatal(err)
 	}
-	res, body = ada.second().get(link)
+	if dashboards != 1 || datasets != 0 {
+		t.Fatalf("Kewangan: %d Dashboards and %d Datasets, want 1 and 0", dashboards, datasets)
+	}
+	res, body := ada.second().get(link)
 	expectStatus(t, res, body, http.StatusOK, "This Dashboard is asleep")
 }
 
