@@ -40,14 +40,15 @@ type chatReaction struct {
 // chatMessage is a Message as one viewer sees it, which is what the chat-message template reads. Text is empty when
 // the Message is removed for the viewer, so removed text is never sent to them.
 type chatMessage struct {
-	ID, CourseID int64
-	Writer       string
-	ByAdmin      bool // the writer is the Admin
-	Mine         bool // the viewer wrote it
-	Text         string
-	At           time.Time
-	Deleted      bool // by its writer
-	Hidden       bool // by the Admin
+	ID, CourseID  int64
+	Writer        string
+	WriterPicture string // the writer's profile picture's storage key, "" when they have none
+	ByAdmin       bool   // the writer is the Admin
+	Mine          bool   // the viewer wrote it
+	Text          string
+	At            time.Time
+	Deleted       bool // by its writer
+	Hidden        bool // by the Admin
 	// The Message this one replies to, 0 when none, with its writer and first line. A removed original, hidden,
 	// deleted or gone with its writer's account, is quoted as removed, with neither.
 	ReplyID      int64
@@ -109,13 +110,8 @@ func (m chatMessage) When() string { return dateTimeIn(m.Lang, m.At) }
 // Clock is the time of day the Message was posted, as "11:14" Malaysia time.
 func (m chatMessage) Clock() string { return m.At.In(malaysia).Format("15:04") }
 
-// Initial is the first letter of the writer's name, which stands in for their picture.
-func (m chatMessage) Initial() string {
-	for _, r := range m.Writer {
-		return strings.ToUpper(string(r))
-	}
-	return ""
-}
+// Initials stand in for the writer's picture when they have none.
+func (m chatMessage) Initials() string { return initials(m.Writer) }
 
 // followsWithin is how soon after a writer's Message their next one shows under the same name.
 const followsWithin = 5 * time.Minute
@@ -211,7 +207,7 @@ func (a *App) mayChat(ctx context.Context, l *learner, courseID int64) (bool, er
 }
 
 // chatColumns selects a Message as viewer $1, who is the Admin when $2, sees it. Removed text never leaves the database.
-const chatColumns = `m.id, coalesce(m.course_id, 0), l.name, l.is_admin, m.learner_id = $1,
+const chatColumns = `m.id, coalesce(m.course_id, 0), l.name, l.picture_key, l.is_admin, m.learner_id = $1,
 	CASE WHEN m.hidden AND NOT $2 THEN '' ELSE m.body END, m.created_at, m.deleted, m.hidden,
 	coalesce(m.reply_to, 0), o.id IS NULL OR o.deleted OR o.hidden,
 	CASE WHEN o.deleted OR o.hidden THEN '' ELSE coalesce(ol.name, '') END,
@@ -254,7 +250,7 @@ func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args
 		for i, e := range reactions {
 			m.Reactions[i].Emoji = e
 		}
-		if err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
+		if err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.WriterPicture, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
 			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine, &m.Reported, &m.writerID); err != nil {
 			return nil, err
 		}
