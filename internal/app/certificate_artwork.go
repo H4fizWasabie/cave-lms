@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 	"image"
 	"image/draw"
 	"image/jpeg"
@@ -14,16 +15,18 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
-// The built-in Certificate artwork: the client's design (sample PCC-2026-00509, laid out as its blank background)
-// drawn at print quality on A4 portrait,
-// in English only (ADR 0016). drawArtwork draws the constant layer; certificatePDF fills in the details on top, at the
-// same places as on an uploaded background. The web preview, template certificate-preview in layout.html, draws the
-// same artwork in SVG in the same millimetre coordinates: its wording, rules, images and the places of the details come
-// from artTexts, artRules, artImages and the layout constants in certificates.go, so the two can't drift. Only the
-// frame, the gold corners, the logo, the ornament and the sketched QR code are drawn twice: change those together.
+// The built-in Certificate artwork: the client's design (sample PCC-2026-00509, laid out as its uploaded background)
+// drawn at print quality on A4 portrait, in English only (ADR 0016). drawArtwork draws the constant layer;
+// certificatePDF fills in the details on top, at the same places as on an uploaded background. The web preview,
+// template certificate-preview in layout.html, draws the same artwork in SVG in the same millimetre coordinates: its
+// wording, rules, images and the places of the details come from artTexts, artRules, artImages and the layout constants
+// in certificates.go, so the two can't drift. Only the frame, the gold corners, the logo, the ornament and the sketched
+// QR code are drawn twice: change those together.
 
-// Colours, after the client's sample PCC-2026-00509 rather than the brand's tokens, as the stylesheet's --cert-* under
-// .cert-art: near-black ink, ink 2, a metallic gold, its deep and light ends, and the bronze of the gold wording.
+// Colours, after the client's sample PCC-2026-00509 rather than the brand's tokens: near-black ink, ink 2, a metallic
+// gold, its deep and light ends, the bronze of the gold wording and the orange of the Certificate No. They are the
+// Certificate's print palette, outside the stylesheet's Eleven Rule (DESIGN.md): the preview takes them from here, as
+// certPalette, so it prints in the PDF's colours.
 var (
 	artInk       = [3]int{20, 20, 20}
 	artInk2      = [3]int{40, 40, 40}
@@ -31,7 +34,21 @@ var (
 	artGoldDeep  = [3]int{176, 128, 16}
 	artGoldLight = [3]int{234, 216, 92}
 	artGoldText  = [3]int{150, 120, 64}
+	artNumber    = [3]int{214, 132, 28}
 )
+
+// certPalette is the print palette as the CSS custom properties the stylesheet's .cert-art rules use.
+var certPalette = func() template.CSS {
+	var b strings.Builder
+	for _, c := range []struct {
+		name string
+		rgb  [3]int
+	}{{"ink", artInk}, {"ink-2", artInk2}, {"gold", artGold}, {"gold-deep", artGoldDeep}, {"gold-light", artGoldLight},
+		{"gold-text", artGoldText}, {"number", artNumber}} {
+		fmt.Fprintf(&b, "--cert-%s:#%02x%02x%02x;", c.name, c.rgb[0], c.rgb[1], c.rgb[2])
+	}
+	return template.CSS(b.String())
+}()
 
 // artworkLogo is the CAVE logo for the artwork, drawn once from its SVG at 1200 pixels wide (about 600 ppi as printed).
 var artworkLogo = sync.OnceValues(func() ([]byte, error) {
@@ -43,7 +60,7 @@ var artworkLogo = sync.OnceValues(func() ([]byte, error) {
 })
 
 // The Certificate's fixed wording besides the artwork's own (artTexts), in English only like the artwork (ADR 0016):
-// certificatePDF prints it on any artwork, built-in or uploaded, as the client's blank has none of it.
+// certificatePDF prints it on any artwork, built-in or uploaded, as the client's artwork has none of it.
 const (
 	certNumberLabel = "CERTIFICATE NO."
 	certIssuedOn    = "Issued on: "
@@ -211,7 +228,7 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	corner(62, 112, 50, 96)
 	pdf.TransformEnd()
 
-	// Right of centre, where the client's blank has it, leaving the Organisation's logo room on its left.
+	// Right of centre, where the client's artwork has it, leaving the Organisation's logo room on its left.
 	pdf.ImageOptions("logo-dark", 107, 17, 42, 0, false, opt, 0, "")
 
 	draw(artGold)
@@ -413,6 +430,9 @@ func (certPreview) At() certPlaces {
 		certTitleX + certTitleW/2, certBadgeX, certBadgeY, certBadgeW, certBadgeH, certIssuedX, certIssuedY, ptMM(certIssuedPt),
 		certLabelY, ptMM(certLabelPt), certNumberLabel}
 }
+
+// Palette is the print palette, for the preview to draw in.
+func (certPreview) Palette() template.CSS { return certPalette }
 
 // Texts, Rules and Images are the built-in artwork's, for the preview to draw.
 func (certPreview) Texts() []artText   { return artTexts }

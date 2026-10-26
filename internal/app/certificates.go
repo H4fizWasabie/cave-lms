@@ -324,7 +324,8 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// The Certificate's layout on A4 portrait, in mm, after the client's blank background for sample PCC-2026-00509.
+// The Certificate's layout on A4 portrait, in mm, after the client's artwork for sample PCC-2026-00509, as
+// its uploaded background lays it out.
 // Baselines are where the artwork, built-in or uploaded, leaves room for the details.
 const (
 	certNumberX, certNumberY   = 183.0, 19.9 // centre and baseline of the Certificate No., under its label
@@ -339,7 +340,7 @@ const (
 	certIssuedX, certIssuedY   = 18.2, 281.7 // "Issued on" bottom left
 	certNumberPt, certIssuedPt = 8.0, 6.5    // the Certificate No.'s and the issue date's font sizes
 	// The Organisation's logo is scaled to fit this box and centred in it: left of the CAVE logo, where the client's
-	// blank leaves room for a partner's logo, 7 mm clear of it.
+	// artwork leaves room for a partner's logo, 7 mm clear of it.
 	certLogoX, certLogoY = 45.0, 10.0
 	certLogoW, certLogoH = 55.0, 30.0
 )
@@ -375,7 +376,7 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 
 	pdf.SetTextColor(artInk[0], artInk[1], artInk[2])
 	centred(certNumberX, certLabelY, "Helvetica", "B", certLabelPt, certNumberLabel)
-	pdf.SetTextColor(214, 132, 28) // the sample's gold
+	pdf.SetTextColor(artNumber[0], artNumber[1], artNumber[2])
 	centred(certNumberX, certNumberY, "Helvetica", "", certNumberPt, c.Number())
 	pdf.SetTextColor(artInk[0], artInk[1], artInk[2])
 	checkURL := a.publicBaseURL + "/certificates/" + c.ID

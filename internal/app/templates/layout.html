@@ -251,7 +251,7 @@ images and the places of the details come from Go (certificate_artwork.go), shar
 logo, ornament and QR sketch are drawn here and in drawArtwork, so change those two together. With an uploaded
 background it draws that in place of the built-in artwork, as the PDF does. It shows a name and never an IC; the QR
 code is only sketched. It is decorative: the page says in words what it shows. */}}
-{{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
+{{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" style="{{.Palette}}" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
   <defs>
     <linearGradient id="{{.ID}}-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
     <linearGradient id="{{.ID}}-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>

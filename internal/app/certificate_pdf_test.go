@@ -122,7 +122,8 @@ func TestALongUnbrokenWordInACourseTitleBreaksInsideTheTitleBoxOnThePDFAndThePre
 	}
 }
 
-// The built-in artwork's wording and its image assets: the CAVE logo (drawn from its SVG at 1200 pixels wide), the seal,
+// The built-in artwork's wording and its image assets ("(CERTIFICATE)" as fpdf writes the line, so it doesn't match the
+// "CERTIFICATE NO." label every Certificate prints): the CAVE logo (drawn from its SVG at 1200 pixels wide), the seal,
 // the HRD Corp badge and the two signatures.
 var builtInArtwork = []string{"(CERTIFICATE)", "OF COMPETENCY", "THIS IS TO CERTIFY THAT",
 	"has successfully completed the competency requirements of", "Professional Competency Credential",
@@ -140,7 +141,7 @@ func TestACertificatePDFDrawsTheBuiltInArtworkUntilABackgroundIsUploaded(t *test
 	s.loginAdmin()
 	s.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
 	pdf = s.pdfBody(path)
-	expectAll(t, pdf, imageSize(3, 5), "Ada", "Go Basics", "CERTIFICATE NO.") // the client's blank has no label
+	expectAll(t, pdf, imageSize(3, 5), "Ada", "Go Basics", "CERTIFICATE NO.") // the uploaded artwork has no label
 	expectNone(t, pdf, builtInArtwork...)                                     // the upload carries its own
 }
 
@@ -242,7 +243,7 @@ func TestTheLearnersNamePrintsAt14PtAsOnTheSampleAndShrinksToFitItsRule(t *testi
 	ids := certificateIDs(body)
 	size, left := nameOnPDF(t, ada.pdfBody("/certificates/"+ids[len(ids)-1]+"/pdf"), long)
 	if size >= 14 || left < 21 { // the rule under the name runs from 21 mm to 189 mm, centred on the page
-		t.Fatalf("a 89-character name prints at %v pt from %.1f mm, want it shrunk to start on the rule", size, left)
+		t.Fatalf("an 89-character name prints at %v pt from %.1f mm, want it shrunk to start on the rule", size, left)
 	}
 }
 
