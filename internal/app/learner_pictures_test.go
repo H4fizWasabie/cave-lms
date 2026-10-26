@@ -199,3 +199,47 @@ func TestChatMessagesShowTheWritersPictureOrTheirInitials(t *testing.T) {
 		expectInOrder(t, body, `<img class="msg-avatar" src="`+path+`"`, "Hello from Ada", `<span class="msg-avatar" aria-hidden="true">B</span>`, "Hello from Ben")
 	}
 }
+
+// phonePhoto is a 200x100 JPEG, red on its left half and blue on its right, tagged with EXIF orientation 6: the
+// camera was turned, and the picture shows rotated 90 degrees clockwise, red on top.
+func phonePhoto(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 200, 100))
+	for x := range 200 {
+		for y := range 100 {
+			c := color.RGBA{255, 0, 0, 255}
+			if x >= 100 {
+				c = color.RGBA{0, 0, 255, 255}
+			}
+			img.Set(x, y, c)
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 95}); err != nil {
+		t.Fatal(err)
+	}
+	tiff := []byte("MM\x00\x2a\x00\x00\x00\x08" + // big-endian TIFF header, first IFD at 8
+		"\x00\x01" + // one entry
+		"\x01\x12\x00\x03\x00\x00\x00\x01\x00\x06\x00\x00" + // Orientation, SHORT, 1 value: 6
+		"\x00\x00\x00\x00") // no next IFD
+	app1 := append([]byte("Exif\x00\x00"), tiff...)
+	segment := append([]byte{0xFF, 0xE1, byte((len(app1) + 2) >> 8), byte(len(app1) + 2)}, app1...)
+	jpg := buf.Bytes()
+	return append(append(append([]byte{}, jpg[:2]...), segment...), jpg[2:]...)
+}
+
+func TestAPhonePhotoIsTurnedTheWayItsEXIFOrientationSays(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	expectStatus(t, must(s.uploadPicture(phonePhoto(t), "en")), "", http.StatusSeeOther, "")
+	path, _ := s.myPicture()
+	_, picture := s.get(path)
+	img, err := jpeg.Decode(strings.NewReader(picture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	isRed := func(x, y int) bool { r, _, b, _ := img.At(x, y).RGBA(); return r > b }
+	if !isRed(128, 20) || isRed(128, 236) {
+		t.Fatal("the picture is not turned upright: want red on top and blue below")
+	}
+}

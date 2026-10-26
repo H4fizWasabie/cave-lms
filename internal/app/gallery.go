@@ -337,7 +337,7 @@ func (a *App) makeThumb(item galleryItem) ([]byte, error) {
 	if w > thumbWidth {
 		w, h = thumbWidth, max(1, h*thumbWidth/w)
 	}
-	return scaleToJPEG(src, src.Bounds(), w, h)
+	return encodeJPEG(scaleOnWhite(src, src.Bounds(), w, h))
 }
 
 // decodePicture decodes a JPEG, PNG or WebP picture of at most thumbMaxPixels.
@@ -356,13 +356,17 @@ func decodePicture(f io.ReadSeeker) (image.Image, error) {
 	return src, err
 }
 
-// scaleToJPEG scales the part from of src to w x h as a JPEG, on white for transparent pictures.
-func scaleToJPEG(src image.Image, from image.Rectangle, w, h int) ([]byte, error) {
+// scaleOnWhite scales the part from of src to w x h, on white for transparent pictures.
+func scaleOnWhite(src image.Image, from image.Rectangle, w, h int) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(dst, dst.Bounds(), image.White, image.Point{}, draw.Src)
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, from, draw.Over, nil)
+	return dst
+}
+
+func encodeJPEG(img image.Image) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80}); err != nil {
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
