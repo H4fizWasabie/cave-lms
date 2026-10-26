@@ -1975,6 +1975,7 @@ var catalog = map[string]entry{
 	"offers.combo":                  {en: "COMBO Pro Plan", ms: "Pelan Pro COMBO"},
 	"offers.combo.tag":              {en: "Promo", ms: "Promo"},
 	"offers.combo.characters":       {en: "Unlimited characters", ms: "Aksara tanpa had"},
+	"offers.combo.storage":          {en: "1 GB of storage", ms: "Had storan 1 GB"},
 	"offers.combo.tagline":          {en: "The Pro Plan at its promo price.", ms: "Pelan Pro pada harga promosi."},
 	"offers.pro-plan.both":          {en: "One payment a year for both", ms: "Satu bayaran setahun untuk kedua-duanya"},
 
