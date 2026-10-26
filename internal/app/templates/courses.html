@@ -5,9 +5,13 @@
         <h1>{{t .Lang "nav.courses"}}</h1>
         <p>{{t .Lang "courses.intro"}}</p>
       </div>
+      <form class="toolbar" method="get" action="/courses">
+        <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "courses.search-by"}}</span><input type="search" name="q" value="{{.Query}}" placeholder="{{t .Lang "courses.search-by"}}"></label>
+        <button class="btn btn-ghost">{{t .Lang "courses.search"}}</button>
+      </form>
       <ul class="catalogue">
         {{range .Courses}}{{template "course-card" (card . $.Lang)}}{{else}}
-        <li class="empty">{{t .Lang "courses.none"}}</li>
+        <li class="empty">{{if .Query}}{{t .Lang "courses.no-match"}}{{else}}{{t .Lang "courses.none"}}{{end}}</li>
         {{end}}
       </ul>
     </div>

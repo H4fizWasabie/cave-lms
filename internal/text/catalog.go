@@ -1363,6 +1363,9 @@ var catalog = map[string]entry{
 	// Course titles, Lessons and Exam questions are Admin-typed and shown as written.
 	"courses.intro":          {en: "Start any time and join in one click. No approval needed.", ms: "Mula bila-bila masa dan sertai dengan satu klik. Tiada kelulusan diperlukan."},
 	"courses.none":           {en: "No Courses yet.", ms: "Belum ada Kursus."},
+	"courses.search-by":      {en: "Search Courses and Lessons", ms: "Cari Kursus dan Pelajaran"},
+	"courses.search":         {en: "Search", ms: "Cari"},
+	"courses.no-match":       {en: "No Courses match your search.", ms: "Tiada Kursus sepadan dengan carian anda."},
 	"course.open":            {en: "Open to new joins", ms: "Dibuka untuk penyertaan baharu"},
 	"course.closed-badge":    {en: "Closed to new joins", ms: "Ditutup untuk penyertaan baharu"},
 	"course.closed":          {en: "This Course is closed to new joins.", ms: "Kursus ini ditutup untuk penyertaan baharu."},

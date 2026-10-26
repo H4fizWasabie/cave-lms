@@ -85,14 +85,42 @@ const courseColumns = `id, title, description, COALESCE(start_date::text, ''), C
 	(SELECT count(*) FROM lessons l WHERE l.course_id = courses.id AND l.published),
 	EXISTS (SELECT 1 FROM exams e JOIN exam_questions q ON q.exam_id = e.id WHERE e.course_id = courses.id AND NOT q.is_draft)`
 
-// courses lists every Course for Visitors and Learners.
+// courses lists every published Course for Visitors and Learners, or the ones matching the words in ?q: in the Course's
+// title or description, or in the title or objective of one of its published Lessons, or in the body of one when the
+// Learner is enrolled in the Course or is the Admin, who can open every Lesson (a word found in a body the searcher
+// cannot open would leak what it says). Nothing else changes who sees what, so a Draft Course and a Draft Lesson are
+// never found.
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
-	list, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE published ORDER BY start_date NULLS LAST, id`)
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	query, args := `SELECT `+courseColumns+` FROM courses WHERE published ORDER BY start_date NULLS LAST, id`, []any(nil)
+	if q != "" {
+		learner, err := a.currentLearner(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		var learnerID int64                        // 0 for a Visitor: no Enrollment has it
+		admin := learner != nil && learner.IsAdmin // as showLesson lets the Admin in
+		if learner != nil {
+			learnerID = learner.ID
+		}
+		// websearch_to_tsquery never raises a syntax error, whatever the Learner typed. The enrollments test is
+		// the one enrolled() makes, inlined to run per Course.
+		query = `SELECT ` + courseColumns + ` FROM courses WHERE published AND (
+			search @@ websearch_to_tsquery('simple', $1)
+			OR EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = courses.id AND l.published AND (
+				l.search @@ websearch_to_tsquery('simple', $1)
+				OR (l.body_search @@ websearch_to_tsquery('simple', $1)
+					AND ($3 OR EXISTS (SELECT 1 FROM enrollments e WHERE e.learner_id = $2 AND e.course_id = courses.id))))))
+			ORDER BY start_date NULLS LAST, id`
+		args = []any{q, learnerID, admin}
+	}
+	list, err := a.queryCourses(r, query, args...)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "courses", page{Courses: list})
+	a.render(w, r, http.StatusOK, "courses", page{Courses: list, Query: q})
 }
 
 func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
