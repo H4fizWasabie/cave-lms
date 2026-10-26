@@ -1,13 +1,17 @@
 package app
 
 import (
+	"cmp"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -20,6 +24,7 @@ const (
 
 // htmlPage is a Dashboard's page: the HTML its Learner made, kept in the store (ADR 0018).
 type htmlPage struct {
+	ID       int64
 	Key      string // where the page is in the store
 	Size     int64  // bytes, against the Storage allowance
 	Uploaded string // formatted as periodTime
@@ -64,37 +69,49 @@ func newPageKey() (string, error) {
 	return "page-" + token[:22], nil
 }
 
-// pageOf reads the page a Learner gave on the New Dashboard form: the picked .html file, else the pasted HTML.
-// problem is the catalog key saying why it is refused, with its value, or "" when it is not.
-func pageOf(r *http.Request, tooBig bool) (html []byte, problem string, arg string, err error) {
+// parsePageForm parses a form carrying a page, capped at maxPageUpload, and reports whether it was over the cap.
+func parsePageForm(w http.ResponseWriter, r *http.Request) (tooBig bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxPageUpload)
+	// ParseForm first: ParseMultipartForm hides its error on a form that is not multipart, as a pasted page may be.
+	err := r.ParseForm()
+	if err == nil {
+		err = r.ParseMultipartForm(maxPageUpload)
+	}
+	var over *http.MaxBytesError
+	return errors.As(err, &over) || r.ContentLength > maxPageUpload
+}
+
+// pageOf reads the page a Learner gave on a page form: the picked .html file, else the pasted HTML.
+// problem says why it is refused, in lang, or is "" when it is not.
+func pageOf(r *http.Request, lang string, tooBig bool) (html []byte, problem string, err error) {
 	if tooBig {
-		return nil, "lab.page.err.too-big", "", nil
+		return nil, text.T(lang, "lab.page.err.too-big"), nil
 	}
 	file, header, err := r.FormFile("file")
 	switch {
 	case err == nil:
 		defer file.Close()
 		if !strings.EqualFold(filepath.Ext(header.Filename), ".html") {
-			return nil, "lab.page.err.not-html", header.Filename, nil
+			return nil, text.T(lang, "lab.page.err.not-html", header.Filename), nil
 		}
 		if header.Size > maxPageSize {
-			return nil, "lab.page.err.too-big", "", nil
+			return nil, text.T(lang, "lab.page.err.too-big"), nil
 		}
 		if html, err = io.ReadAll(file); err != nil {
-			return nil, "", "", err
+			return nil, "", err
 		}
 	case errors.Is(err, http.ErrMissingFile) || errors.Is(err, http.ErrNotMultipart):
 		html = []byte(r.PostFormValue("html"))
 	default:
-		return nil, "", "", err
+		return nil, "", err
 	}
 	switch {
 	case strings.TrimSpace(string(html)) == "":
-		return nil, "lab.page.err.empty", "", nil
+		return nil, text.T(lang, "lab.page.err.empty"), nil
 	case len(html) > maxPageSize:
-		return nil, "lab.page.err.too-big", "", nil
+		return nil, text.T(lang, "lab.page.err.too-big"), nil
 	}
-	return html, "", "", nil
+	return html, "", nil
 }
 
 // createPageDashboard makes a Dashboard from a name and its page, if the page fits the Learner's Storage allowance.
@@ -117,17 +134,13 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 		refuse(msg)
 		return
 	}
-	html, problem, arg, err := pageOf(r, tooBig)
+	html, problem, err := pageOf(r, lang, tooBig)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	if problem != "" {
-		if arg != "" {
-			refuse(text.T(lang, problem, arg))
-		} else {
-			refuse(text.T(lang, problem))
-		}
+		refuse(problem)
 		return
 	}
 	learner, err := a.currentLearner(r)
@@ -178,4 +191,147 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 		return
 	}
 	http.Redirect(w, r, dashboardURL(&dashboard{ID: id}), http.StatusSeeOther)
+}
+
+// earlierPages lists the Dashboard's earlier pages, newest first.
+func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT id, storage_key, size, uploaded_at FROM dashboard_pages
+		WHERE dashboard_id = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC`, dashboardID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []htmlPage
+	for rows.Next() {
+		var p htmlPage
+		var uploaded time.Time
+		if err := rows.Scan(&p.ID, &p.Key, &p.Size, &uploaded); err != nil {
+			return nil, err
+		}
+		p.Uploaded = uploaded.UTC().Format(periodTime)
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// uploadPage makes a new page current at the Dashboard's link, POST /lab/dashboards/{id}/page, checked as
+// createPageDashboard checks the first. The page it replaces turns earlier; past keepEarlier, the oldest earlier one
+// goes, from the store too, and its bytes no longer count against the Storage allowance.
+func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
+		return
+	}
+	if d.Page == nil { // an engine Dashboard: its first page comes from the conversion (#375)
+		a.notFound(w, r)
+		return
+	}
+	tooBig := parsePageForm(w, r)
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	refuse := func(msg string) {
+		p := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc}
+		p.Error = msg
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, p)
+	}
+	html, problem, err := pageOf(r, lang, tooBig)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if problem != "" {
+		refuse(problem)
+		return
+	}
+	key, err := newPageKey()
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if err := a.datasets.Put(r.Context(), key, html); err != nil {
+		a.logError(r, fmt.Errorf("put page %s: %w", key, err))
+		refuse(text.T(lang, "lab.d.upload-failed"))
+		return
+	}
+	var used int64
+	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+		// Locking the Learner makes this take turns with other uploads and confirms, so none slips under the allowance.
+		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
+			return err
+		}
+		// The current page turns earlier, so keepEarlier-1 of the earlier ones stay.
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dashboard_pages WHERE id IN (SELECT id FROM dashboard_pages
+			WHERE dashboard_id = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC OFFSET $2)`, d.ID, keepEarlier-1); err != nil {
+			return err
+		}
+		if period := acc.CountedPeriod(); period != nil {
+			if err := tx.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&used); err != nil {
+				return err
+			}
+			if used+int64(len(html)) > period.Storage() {
+				return errStorageFull
+			}
+		}
+		// Two statements, as the one-current index is checked row by row.
+		if _, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = false WHERE dashboard_id = $1 AND current`, d.ID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO dashboard_pages (dashboard_id, storage_key, size, current) VALUES ($1, $2, $3, true)`,
+			d.ID, key, len(html)); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
+		return err
+	})
+	if err != nil {
+		a.dropDataset(r.Context(), r, key)
+		if errors.Is(err, errStorageFull) {
+			refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(html))), sizeText(used), sizeText(acc.Period.Storage())))
+			return
+		}
+		a.serverError(w, r, err)
+		return
+	}
+	a.dropDeletedFiles(r.Context(), r) // the oldest earlier page, queued as its record went
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+}
+
+// restorePage makes an earlier page current at once, POST /lab/dashboards/{id}/pages/{pg}/restore; the current one
+// turns earlier.
+func (a *App) restorePage(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, ok := a.labOpen(w, r); !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("pg"), 10, 64)
+	if err != nil {
+		a.notFound(w, r)
+		return
+	}
+	gone := errors.New("not an earlier page")
+	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = false WHERE dashboard_id = $1 AND current AND id <> $2`, d.ID, id); err != nil {
+			return err
+		}
+		res, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = true WHERE id = $1 AND dashboard_id = $2 AND NOT current`, id, d.ID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
+			return cmp.Or(err, gone)
+		}
+		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
+		return err
+	})
+	if errors.Is(err, gone) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }

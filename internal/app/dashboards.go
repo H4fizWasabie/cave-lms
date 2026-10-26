@@ -288,14 +288,7 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxPageUpload)
-	// ParseForm first: ParseMultipartForm hides its error on a form that is not multipart, as a pasted page may be.
-	err := r.ParseForm()
-	if err == nil {
-		err = r.ParseMultipartForm(maxPageUpload)
-	}
-	var over *http.MaxBytesError
-	tooBig := errors.As(err, &over) || r.ContentLength > maxPageUpload
+	tooBig := parsePageForm(w, r)
 	key := r.FormValue("sample")
 	if key == "" {
 		a.createPageDashboard(w, r, acc, tooBig)
@@ -448,6 +441,7 @@ type dashboardPage struct {
 	Picked    *lab.Template   // before the first confirm: the one of Offers the preview opens
 	Building  []string        // the labels of the blocks Picked opens to
 	Earlier   []keptDataset   // the earlier Datasets, newest first
+	Pages     []htmlPage      // the earlier pages, newest first
 	Open      int             // Blocks tab: the block whose form is open; -1 for none
 	Saved     bool            // Blocks tab: an edit was just saved
 	Blocks    *blocksView     // Blocks tab
@@ -572,6 +566,9 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		if err == nil {
 			p.Earlier, err = a.earlierOf(r.Context(), d)
+		}
+		if err == nil && d.Page != nil {
+			p.Pages, err = a.earlierPages(r.Context(), d.ID)
 		}
 		if err != nil {
 			a.serverError(w, r, err)

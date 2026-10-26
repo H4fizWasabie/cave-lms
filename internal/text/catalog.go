@@ -777,6 +777,14 @@ var catalog = map[string]entry{
 	"lab.page.uploaded":     {en: "Uploaded %s", ms: "Dimuat naik %s"},
 	"lab.page.share":        {en: "Select the link to copy it, then share it on WhatsApp or email.", ms: "Pilih pautan untuk menyalinnya, kemudian kongsikan di WhatsApp atau e-mel."},
 	"lab.page.not-deployed": {en: "Not deployed", ms: "Belum di-deploy"},
+	"lab.page.new":          {en: "Upload a new page", ms: "Muat naik halaman baharu"},
+	"lab.page.new-body": {
+		en: "It goes live at the same link. Cave keeps your 3 earlier pages.",
+		ms: "Ia disiarkan pada pautan yang sama. Cave menyimpan 3 halaman terdahulu anda.",
+	},
+	"lab.page.upload":       {en: "Upload page", ms: "Muat naik halaman"},
+	"lab.page.earlier":      {en: "Earlier pages", ms: "Halaman terdahulu"},
+	"lab.page.earlier-body": {en: "Restore one to put it live again at once.", ms: "Pulihkan satu untuk menyiarkannya semula serta-merta."},
 	"lab.page.err.empty":    {en: "Paste your page's HTML or pick a .html file.", ms: "Tampal HTML halaman anda atau pilih fail .html."},
 	"lab.page.err.too-big": {
 		en: "The page is over 5 MB. The Lab takes pages up to 5 MB. Ask your chatbot for a smaller page and try again.",
