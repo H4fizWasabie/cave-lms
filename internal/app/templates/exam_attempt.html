@@ -8,9 +8,17 @@
         <h1>{{if $.Exam.Written}}{{t $.Lang "exam.written-for" $.Course.Title}}{{else}}{{t $.Lang "exam.multiple-choice-for" $.Course.Title}}{{end}}</h1>
         <h2 class="sr">{{t $.Lang "exam.result"}}</h2>
         <p class="x-score">{{.Score}}%</p>
-        <p>{{t $.Lang "exam.score" .Score}}</p>
-        <p class="x-verdict {{if .Passed}}x-pass{{else}}x-fail{{end}}">{{if .Passed}}{{t $.Lang "exam.passed" .PassMark}}{{else}}{{t $.Lang "exam.failed" .PassMark}}{{end}}</p>
-        {{with $.Step}}{{if .URL}}<a id="next-step" class="btn btn-solid btn-lg" href="{{.URL}}">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="x-help step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
+        <p class="x-verdict {{if .Passed}}x-pass{{else}}x-fail{{end}}">{{if .Passed}}{{t $.Lang "exam.passed-congrats" .PassMark}}{{else}}{{t $.Lang "exam.failed" .PassMark}}{{end}}</p>
+        {{with $.Certificate}}
+        <div class="x-cert">
+          {{template "certificate-preview" (.Preview $.CertBackground)}}
+          <div>
+            <p>{{t $.Lang "certificate.number" .Number}}</p>
+            <a class="btn btn-solid" href="/certificates/{{.ID}}/pdf">{{t $.Lang "next.certificate"}}</a>
+          </div>
+        </div>
+        {{end}}
+        {{with $.Step}}{{if .URL}}<a id="next-step" class="btn {{if $.Certificate}}btn-ghost{{else}}btn-solid btn-lg{{end}}" href="{{.URL}}">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="x-help step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
       </div>
       {{else if or .Finished .TimedOut}}
       <div class="x-card">

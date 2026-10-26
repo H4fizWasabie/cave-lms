@@ -279,8 +279,8 @@ func TestAReleasedResultShowsOnlyTheMarkAndPassOrFail(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.releaseResults()
 	res, body = s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Score: 50%")
-	expectAll(t, body, "Passed (pass mark 50%)")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">50%<`)
+	expectAll(t, body, "Congratulations, you passed (pass mark 50%)")
 	expectNone(t, content(body), "Right one", "Wrong one", "Right answer", "Wrong answer", "Your answer")
 }
 
@@ -383,7 +383,7 @@ func TestLaterExamEditsDoNotChangePastAttempts(t *testing.T) {
 	s.releaseResults()
 
 	res, body := s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">0%<`)
 	expectStatus(t, res, body, http.StatusOK, "Failed (pass mark 50%)")
 }
 
@@ -487,7 +487,7 @@ func TestTodaysExamsBecomeMultipleChoiceWithTheirSettingsQuestionsAndAttempts(t 
 	expectStatus(t, res, body, http.StatusOK, "Best score: 50%")
 	expectStatus(t, res, body, http.StatusOK, "Attempts left: 2")
 	res, body = s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Score: 50%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">50%<`)
 	var format string
 	if err := s.db.QueryRow(`SELECT format FROM exams WHERE course_id = $1`, id).Scan(&format); err != nil || format != "multiple-choice" {
 		t.Fatalf("the Exam's format is %q (%v), want multiple-choice", format, err)

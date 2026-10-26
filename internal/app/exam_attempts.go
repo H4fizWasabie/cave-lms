@@ -475,6 +475,21 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if att.Released && att.Passed {
+		// A passed Result leads to the Course's Certificate once it is issued, whichever passing Result issued it.
+		list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
+			WHERE learner_id = $1 AND course_id = $2 AND revoked_at IS NULL ORDER BY issued_at DESC LIMIT 1`, learner.ID, c.ID)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if len(list) == 1 {
+			p.Certificate = &list[0]
+			if p.Step != nil && p.Step.Key == "next.certificate" {
+				p.Step = nil // the Certificate's own button leads there
+			}
+		}
+	}
 	a.render(w, r, http.StatusOK, "exam_attempt", p)
 }
 
