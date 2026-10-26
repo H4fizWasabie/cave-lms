@@ -201,12 +201,22 @@ _Avoid_: Course, event, module
 ### Lab
 
 **Lab**:
-The area where Learners build Dashboards. Open to a Learner with an active Plan. Always open to the Admin.
+The area where Learners build Dashboards, in two parts: Lab Lesson and Lab Live. Always open to the Admin.
 _Malay_: Lab (kept in English)
 _Avoid_: Workspace, studio, builder
 
+**Lab Lesson**:
+The part of the Lab open to every Learner, Plan or not, where they build Dashboards from Samples only and may make a Trial Deployment.
+_Malay_: Lab Pelajaran
+_Avoid_: Free Lab, demo, mockup
+
+**Lab Live**:
+The part of the Lab open to a Learner with an active Plan, where they build Dashboards from their own data and make Deployments. A Learner without a Plan sees it locked.
+_Malay_: Lab Live (kept in English)
+_Avoid_: Paid Lab, Pro Lab, real Lab
+
 **Plan**:
-Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; a Learner without one sees only the demo. Courses stay free to join.
+Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; a Learner without one has only Lab Lesson. Courses stay free to join.
 _Malay_: Pelan
 _Avoid_: Tier, subscription, package, free plan
 
@@ -283,7 +293,12 @@ _Avoid_: Report, chart, app, Practice Dashboard and Work Dashboard (the two form
 **Deployment**:
 A Dashboard put online for anyone with its link. It is awake while the Learner has an active Plan period, and updating its Dataset updates it. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
 _Malay_: Deployment (kept in English)
-_Avoid_: Publish (that is for Course content), hosting, site
+_Avoid_: Publish (that is for Course content), hosting, site, web app
+
+**Trial Deployment**:
+A Lab Lesson Dashboard put online for 5 days at a link Cave picks, then deleted, leaving the Dashboard. A Learner has at most one at a time. Not a Deployment: it counts against no Plan and its link is never a name the Learner picks.
+_Malay_: Deployment Percubaan
+_Avoid_: Free Deployment, demo deployment, mockup
 
 **Takedown**:
 The Admin putting a Deployment to sleep early, with a recorded reason. The Dashboard itself stays.
