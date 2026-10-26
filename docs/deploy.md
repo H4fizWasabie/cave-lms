@@ -33,7 +33,7 @@ Once per VPS. Run as root on the VPS.
    STORAGE_DIR=/var/lib/cave-lms/uploads
    LISTEN_ADDR=127.0.0.1:8088
    OWNER_EMAIL=hafizwasabie@gmail.com
-   CAVETEXT_EXTENSION_IDS=omcdclpagggfcjlhpkohpcgdmfbelohd,akkjngndkjadciijkjblnojfgbbhhmnl
+   CAVETEXT_EXTENSION_IDS=omcdclpagggfcjlhpkohpcgdmfbelohd,akkjngndkjadciijkjblnojfgbbhhmnl,ckbckpnpljpmcoeajhokjpombijphbkd
    EOF
    ```
 
