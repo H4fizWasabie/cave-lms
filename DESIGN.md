@@ -110,7 +110,7 @@ Read this before any UI edit. The stylesheet is one file, `internal/app/static/c
 
 **Creative North Star: "The Accredited Journal"**
 
-CAVELMS sells accredited training to civil servants and HRD Corp-claimable companies. The direction chosen from the prototype (`prototype/premium-refresh`) is **variant B's structure set in variant A's typography and spacing**. From B, the site is credentials first: dark charcoal bands, the Certificate shown beside the headline, a trust strip, the four-step PCC pathway, Course cards with pictures, and a two-column Course page with a sticky card. From A, it is calm and editorial: large, light Source Serif display headlines, generous white space, ruled lists instead of boxes where a list reads better, and a printed-journal rhythm.
+CAVELMS sells accredited training to civil servants and HRD Corp-claimable companies. The direction chosen from the prototype (`prototype/premium-refresh`) is **variant B's structure set in variant A's typography and spacing**. From B, the site is credentials first: dark charcoal bands, people building a dashboard beside the headline, a trust strip, the four-step PCC pathway, Course cards with pictures, and a two-column Course page with a sticky card. From A, it is calm and editorial: large, light Source Serif display headlines, generous white space, ruled lists instead of boxes where a list reads better, and a printed-journal rhythm.
 
 The identity is fixed: the CAVELMS logo, charcoal with logo gold, Source Serif 4 for display and Public Sans for everything else, all self-hosted. There is no dark mode. Gold is an accent, never a fill for whole sections; charcoal carries the weight.
 
