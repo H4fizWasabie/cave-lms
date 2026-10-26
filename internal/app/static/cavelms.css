@@ -315,6 +315,7 @@ input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor:
 .result dl { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-5); margin: 0; font-size: var(--fs-ui); }
 .result dt { color: var(--muted); }
 .result dd { margin: 0; font-weight: 600; }
+.result strong { overflow-wrap: anywhere; } /* a long unbroken Course title wraps rather than widen the page */
 .result-valid { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, var(--surface)); }
 .result-valid > .i, .result-valid .result-k { color: var(--ok); }
 .result-revoked { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 30%, var(--surface)); }
@@ -561,8 +562,17 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
 .card-head-pad { padding: var(--space-5) var(--space-5) 0; }
 .card-sub { color: var(--muted); font-size: var(--fs-ui); margin-top: var(--space-1); }
 
-.table-wrap { overflow-x: auto; position: relative; }
+/* A table wider than its box scrolls, and a shadow at the edge it scrolls to says there is more: surface-coloured
+   covers scroll with the table (local) and hide each shadow (scroll) once that edge is reached. */
+.table-wrap { overflow-x: auto; position: relative; background-color: var(--surface);
+  background-image: linear-gradient(to right, var(--surface) 40%, transparent), linear-gradient(to left, var(--surface) 40%, transparent),
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--brand-ink) 22%, transparent), transparent),
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--brand-ink) 22%, transparent), transparent);
+  background-position: left, right, left, right; background-size: 2.5rem 100%, 2.5rem 100%, .9rem 100%, .9rem 100%;
+  background-repeat: no-repeat; background-attachment: local, local, scroll, scroll; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-ui); }
+.table td.when { white-space: nowrap; }
+.table td small { overflow-wrap: anywhere; } /* a long email breaks before it widens the table */
 .table th { text-align: left; font-size: var(--fs-meta); font-weight: 600; color: var(--muted); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); background: var(--bg); white-space: nowrap; }
 .table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); vertical-align: middle; }
 .table tr:last-child td { border-bottom: 0; }
@@ -673,6 +683,7 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
   /* Admin tables scroll inside their box rather than crush a title to a word per line. */
   .adm-main .table td { min-width: 8rem; }
   .adm-main .table td.actions { min-width: 0; }
+  .adm-main .table td small { overflow-wrap: normal; }
 }
 .q-list { counter-reset: q; }
 .q-card { counter-increment: q; }
@@ -1215,7 +1226,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .past-programmes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); column-gap: var(--space-6); border-top: 1px solid var(--brand-ink); }
 .past-programmes li { padding-block: var(--space-3); border-bottom: 1px solid var(--line); font-weight: 600; }
 
-.home-cost .table-wrap, .cost-compare .table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.home-cost .table-wrap, .cost-compare .table-wrap { border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .cost-table th { white-space: normal; }
 .cost-table td { white-space: nowrap; }
 .cost-table th[scope="row"] { font-size: var(--fs-ui); font-weight: 600; color: var(--brand-ink); background: none; }
@@ -1446,7 +1457,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .lesson .prose blockquote { margin-inline: 0; padding-left: var(--space-5); border-left: 1px solid var(--brand-gold-deep); font-family: var(--font-display); color: var(--ink-2); }
 .lesson .prose blockquote > :last-child { margin-bottom: 0; }
 /* Tables (GitHub-style Markdown): ruled like .table, inside a .table-wrap that scrolls when they are wide. */
-.lesson .prose .table-wrap { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.lesson .prose .table-wrap { border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .lesson .prose table { width: 100%; border-collapse: collapse; font-size: var(--fs-ui); line-height: 1.45; font-variant-numeric: tabular-nums lining-nums; }
 .lesson .prose :is(th, td) { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .lesson .prose th { font-size: var(--fs-meta); font-weight: 600; color: var(--muted); background: var(--bg); white-space: nowrap; }
@@ -1596,6 +1607,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
    pages use, scoped to .lab-page (the Lab templates' wrapper) so the refreshed components elsewhere stay as they are.
    The values are main's, off the token scale: stylesheet_test.go exempts this section from the token checks. Add nothing
    new here; when the Lab gets its own redesign, delete the section. */
+:where(.lab-page) a { text-underline-offset: auto; } /* main's underline; weighs no more than the global a rule it undoes */
 .lab-page .i { width: 1.15em; height: 1.15em; flex-shrink: 0; }
 .lab-page .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .62rem 1.15rem; border-radius: var(--radius); border: 1px solid transparent; font-weight: 600; font-size: .95rem; line-height: 1.2; text-decoration: none; cursor: pointer; white-space: nowrap; background: none; }
 .lab-page .btn-solid { background: var(--brand-ink); color: #f8f8f4; border-color: var(--brand-ink); }

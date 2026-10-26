@@ -121,6 +121,15 @@ func TestTextFieldsKeepAFocusOutlineInForcedColours(t *testing.T) {
 	}
 }
 
+func TestLabLinksKeepMainsUnderlineLongTitlesWrapAndWideTablesShowAScrollCue(t *testing.T) {
+	all, _ := stylesheet(t)
+	expectAll(t, all,
+		`:where(.lab-page) a { text-underline-offset: auto; }`,
+		`.result strong { overflow-wrap: anywhere; }`,
+		`background-attachment: local, local, scroll, scroll;`,
+		`.table td.when { white-space: nowrap; }`)
+}
+
 func TestTheStylesheetHasThreeBreakpoints(t *testing.T) {
 	all, _ := stylesheet(t)
 	seen := map[string]bool{}
