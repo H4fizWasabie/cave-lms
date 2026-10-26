@@ -56,8 +56,9 @@ func expectInOrder(t *testing.T, body string, wants ...string) {
 	}
 }
 
+// A Plan holder's header has eight sections; a Visitor's has seven, without the Lab.
 func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
-	s := newSite(t)
+	_, s := labLearner(t)
 	for _, path := range []string{"/", "/courses", "/certificates"} {
 		_, body := s.getAsking(path, "en")
 		head := header(t, body)
@@ -66,6 +67,10 @@ func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
 		head = header(t, body)
 		expectInOrder(t, head, ">Utama<", ">Kursus<", ">Lab<", ">Kelas<", ">Harga<", ">Program<", ">Pensijilan<", ">Komuniti<")
 	}
+	_, body := newSite(t).getAsking("/", "en")
+	head := header(t, body)
+	expectInOrder(t, head, ">Home<", ">Courses<", ">Classroom<", ">Pricing<", ">Program<", ">Certification<", ">Community<")
+	expectNone(t, head, ">Lab<")
 }
 
 func TestTheCoursesMenuListsTheThreeLatestOpenCoursesThenAllCourses(t *testing.T) {
@@ -133,7 +138,7 @@ func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPage(t *testing.T) {
 
 // The header holds the nav twice: once for wide screens and once in the narrow-screen Menu.
 func TestLabIsAPlainLinkInTheHeader(t *testing.T) {
-	s := newSite(t)
+	_, s := labLearner(t)
 	for _, lang := range []string{"en", "ms"} {
 		_, body := s.getAsking("/gallery", lang)
 		head := header(t, body)

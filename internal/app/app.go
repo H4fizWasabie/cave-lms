@@ -257,31 +257,32 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /lab/demo/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/pricing", http.StatusSeeOther)
 	})
-	mux.HandleFunc("GET /lab/new", a.requireLearner(a.newDashboardForm))
+	// Every Lab screen is a.labScreen: a GET without the Lab goes to /pricing. Every change answers 403 (a.labOpen).
+	mux.HandleFunc("GET /lab/new", a.labScreen(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
-	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab(""))
-	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.dashboardTab("preview"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/data", a.dashboardTab("data"))
+	mux.HandleFunc("GET /lab/dashboards/{id}", a.labScreen(a.dashboardTab("")))
+	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.labScreen(a.dashboardTab("preview")))
+	mux.HandleFunc("GET /lab/dashboards/{id}/data", a.labScreen(a.dashboardTab("data")))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))
 	mux.HandleFunc("POST /lab/dashboards/{id}/page", a.withDashboardRow(a.uploadPage))
 	mux.HandleFunc("POST /lab/dashboards/{id}/pages/{pg}/restore", a.withDashboardRow(a.restorePage))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset/confirm", a.withDashboardRow(a.confirmWork))
 	mux.HandleFunc("POST /lab/dashboards/{id}/datasets/{ds}/restore", a.withDashboardRow(a.restoreDataset))
-	mux.HandleFunc("GET /lab/dashboards/{id}/datasets/{ds}/delete", a.withDashboardRow(a.confirmDeleteDataset))
+	mux.HandleFunc("GET /lab/dashboards/{id}/datasets/{ds}/delete", a.labScreen(a.withDashboardRow(a.confirmDeleteDataset)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/datasets/{ds}/delete", a.withDashboardRow(a.deleteDataset))
-	mux.HandleFunc("GET /lab/dashboards/{id}/blocks", a.dashboardTab("blocks"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/blocks", a.labScreen(a.dashboardTab("blocks")))
 	mux.HandleFunc("POST /lab/dashboards/{id}/blocks", a.withDashboard(a.editBlocks))
 	mux.HandleFunc("POST /lab/dashboards/{id}/theme", a.withDashboard(a.saveTheme))
-	mux.HandleFunc("GET /lab/dashboards/{id}/hood", a.dashboardTab("hood"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/download", a.withDashboard(a.downloadDashboard))
-	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.dashboardFile("index.html"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/view/data/{key}", a.dashboardFile("data"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/view/charts.js", a.dashboardFile("charts.js"))
-	mux.HandleFunc("GET /lab/dashboards/{id}/deploy", a.withDashboard(a.deployTab))
+	mux.HandleFunc("GET /lab/dashboards/{id}/hood", a.labScreen(a.dashboardTab("hood")))
+	mux.HandleFunc("GET /lab/dashboards/{id}/download", a.labScreen(a.withDashboard(a.downloadDashboard)))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.labScreen(a.dashboardFile("index.html")))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/data/{key}", a.labScreen(a.dashboardFile("data")))
+	mux.HandleFunc("GET /lab/dashboards/{id}/view/charts.js", a.labScreen(a.dashboardFile("charts.js")))
+	mux.HandleFunc("GET /lab/dashboards/{id}/deploy", a.labScreen(a.withDashboard(a.deployTab)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/deploy", a.withDashboard(a.deployDashboard))
-	mux.HandleFunc("GET /lab/dashboards/{id}/rename", a.dashboardTab("rename"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/rename", a.labScreen(a.dashboardTab("rename")))
 	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
-	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.withDashboardRow(a.confirmDeleteDashboard))
+	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.labScreen(a.withDashboardRow(a.confirmDeleteDashboard)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))
@@ -691,6 +692,14 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 		// A message page (not found, refused, an error) has no sidebar, so it keeps the site's header to lead somewhere.
 		l := *withLearner.learnerField()
 		c.chromeField().Shell = l != nil && l.IsAdmin && strings.HasPrefix(r.URL.Path, "/admin") && name != "message"
+		if l != nil {
+			acc, err := a.labAccessOf(r.Context(), l)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			c.chromeField().Lab = acc.Open()
+		}
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

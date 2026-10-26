@@ -221,6 +221,7 @@ func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
 
 	bob := admin.second()
 	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	admin.assignPlan("bob@example.com", admin.onlyPlanID()) // without a Plan the Lab sends him to /pricing first
 	for _, p := range []string{path, path + "/blocks", path + "/preview", path + "/view/", path + "/view/" + data} {
 		if res, _ := bob.get(p); res.StatusCode != http.StatusNotFound {
 			t.Errorf("Bob got %d for %s, want 404", res.StatusCode, p)
@@ -346,32 +347,21 @@ func TestUnderTheHoodShowsTheGeneratedPageAndDataExplained(t *testing.T) {
 	}
 }
 
-func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
+// Once the Plan ends every Lab screen, the Learner's own Dashboards too, goes to /pricing; changes stay refused.
+func TestAfterAccessEndsEveryLabScreenGoesToPricing(t *testing.T) {
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	empty := ada.createWork("finance", "Kosong")
+	view := path + "/view/" + ada.dataOf(path+"/view/")
 	admin.ageAllPeriods(31)
 
-	res, body := ada.get("/lab")
-	expectRedirect(t, res, body, "/pricing")
-	res, body = ada.get(empty)
-	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
-
-	res, body = ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
-	for _, p := range []string{path, path + "/blocks"} {
-		_, body := ada.get(p)
-		if strings.Contains(body, `action="`+path+`/dataset"`) || strings.Contains(body, `action="`+path+`/blocks"`) {
-			t.Fatalf("%s still offers a form: %s", p, body)
-		}
-	}
-	for _, p := range []string{path + "/preview", path + "/hood", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/"), path + "/download"} {
-		if res, body := ada.get(p); res.StatusCode != http.StatusOK {
-			t.Errorf("%s = %d without access, want 200: %.300s", p, res.StatusCode, body)
-		}
+	for _, p := range []string{"/lab", "/lab/new", empty, path, path + "/data", path + "/blocks", path + "/preview", path + "/hood",
+		path + "/view/", view, path + "/download", path + "/deploy", path + "/rename", path + "/delete"} {
+		res, body := ada.get(p)
+		expectRedirect(t, res, body, "/pricing")
 	}
 
-	res, body = ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
+	res, body := ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 	res, body = ada.post(path+"/blocks", url.Values{"do": {"reset"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")

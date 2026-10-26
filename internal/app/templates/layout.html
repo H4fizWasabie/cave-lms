@@ -57,7 +57,9 @@
       <nav class="footer-col" aria-label="{{t .Lang "footer.learn"}}">
         <h2>{{t .Lang "footer.learn"}}</h2>
         <a href="/courses">{{t .Lang "footer.all-courses"}}</a>
+        {{- if .Lab}}
         <a href="/lab">{{t .Lang "nav.lab"}}</a>
+        {{- end}}
         <a href="/gallery">{{t .Lang "nav.gallery"}}</a>
         <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
         <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
@@ -108,7 +110,9 @@
           {{- end}}
           <a href="/courses">{{t .Lang "footer.all-courses"}}</a>
         </div></details>
+        {{- if .Lab}}
         <a class="hdr-link" href="/lab">{{t .Lang "nav.lab"}}</a>
+        {{- end}}
         <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.classroom"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/my-courses">{{t .Lang "nav.my-courses"}}</a>
           <a href="/my-exams">{{t .Lang "nav.my-exams"}}</a>

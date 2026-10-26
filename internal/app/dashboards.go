@@ -273,17 +273,32 @@ func newDashboard(name string) *newDashboardPage {
 	return p
 }
 
-// newDashboardForm is GET /lab/new; without the Lab it goes to /pricing, as /lab does.
+// labScreen opens a Lab screen, a GET under /lab, only to those the Lab is open to. Visitors, Learners without a
+// Plan and lapsed Plan holders go to /pricing, even for their own Dashboards (ADR 0018).
+func (a *App) labScreen(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		learner, err := a.currentLearner(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		var acc labAccess
+		if learner != nil {
+			if acc, err = a.labAccessOf(r.Context(), learner); err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+		}
+		if !acc.Open() {
+			http.Redirect(w, r, "/pricing", http.StatusSeeOther)
+			return
+		}
+		h(w, r)
+	}
+}
+
+// newDashboardForm is GET /lab/new.
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
-	acc, err := a.learnerAccess(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if !acc.Open() {
-		http.Redirect(w, r, "/pricing", http.StatusSeeOther)
-		return
-	}
 	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
 }
 
