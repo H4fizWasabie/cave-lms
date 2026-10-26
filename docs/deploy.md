@@ -261,20 +261,20 @@ A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) wi
 
 `pg_stat_statements` records per-query timing, so index decisions rest on evidence (spec #321). It is a one-time step on the VPS's Postgres 16, done as the `postgres` superuser. It is not a goose migration: the extension is not trusted, so the app's `cave` role cannot create it, and a migration that tried would stop the app starting.
 
-The preload setting is for the whole Postgres cluster, which production, staging and the other apps on the VPS share, so there is **one restart for all of them**, not one each. Staging comes first in the sense that its database gets the extension and is checked before production's does. Pick a quiet hour for the restart: connections drop for a few seconds.
+The preload setting is for the whole Postgres cluster, which production, staging and the other apps on the VPS share, so there is **one restart for all of them**, not one each, and staging cannot soak it first. Pick a quiet hour: connections drop for a few seconds, for the other apps too. Staging comes first only for the extension: its database gets it, and is checked, before production's does.
 
 Run as root on the VPS:
 
-1. Read the current setting, which is empty on a fresh Ubuntu install, so that the new value keeps anything already there:
+1. Read the current setting, which is empty on a fresh Ubuntu install, so the new value keeps anything already there:
 
    ```sh
-   runuser -u postgres -- psql -Atc 'SHOW shared_preload_libraries'
+   sudo -u postgres psql -Atc 'SHOW shared_preload_libraries'
    ```
 
-   If it prints nothing, use `pg_stat_statements` below. If it prints a list, for example `pg_cron`, use that list with `,pg_stat_statements` added. If it already contains `pg_stat_statements`, skip to step 3.
+   If it prints nothing, set it to `pg_stat_statements`. If it prints a list, set it to that list with `pg_stat_statements` added, for example `'pg_cron,pg_stat_statements'`. If it already contains `pg_stat_statements`, skip to step 3.
 
    ```sh
-   runuser -u postgres -- psql -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements'"
+   sudo -u postgres psql -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements'"
    ```
 
    `ALTER SYSTEM` writes `postgresql.auto.conf` in the data directory, which wins over `postgresql.conf` and `conf.d`.
@@ -284,25 +284,25 @@ Run as root on the VPS:
    systemctl restart postgresql@16-main
    pg_lsclusters
    systemctl is-active cave-lms cave-lms-staging
-   runuser -u postgres -- psql -Atc 'SHOW shared_preload_libraries'
+   sudo -u postgres psql -Atc 'SHOW shared_preload_libraries'
    ```
 
-   Open `staging.cavelms.com` and `cavelms.com` and check a page loads; `journalctl -u cave-lms -n 50` shows any database error from the restart.
-3. Create the extension in staging first, then production, as `postgres`. It is once per database and needs no restart, so production's can wait until staging has shown rows (below):
+   Open `staging.cavelms.com` and `cavelms.com` and check a page loads; `journalctl -u cave-lms -u cave-lms-staging -n 50` shows any database error from the restart.
+3. Create the extension in staging first, then production. It is once per database and needs no restart, so production's can wait until staging has shown rows (below):
 
    ```sh
-   runuser -u postgres -- psql -d cave_staging -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
+   sudo -u postgres psql -d cave_staging -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
    # after staging has shown rows:
-   runuser -u postgres -- psql -d cave -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
+   sudo -u postgres psql -d cave -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
    ```
 
-**Confirm it works.** Click around staging as a few users, then:
+**Confirm it works.** Click around staging as a few users, then list its most-called statements: the app's own queries should be there, with `calls` growing as you click.
 
 ```sh
-runuser -u postgres -- psql -d cave_staging -c "SELECT count(*) FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())"
+sudo -u postgres psql -d cave_staging -c "SELECT calls, left(query, 80) AS query FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AND query NOT LIKE '%pg_stat_statements%' ORDER BY calls DESC LIMIT 10"
 ```
 
-A count above zero that grows with traffic is working. `pg_stat_statements must be loaded via "shared_preload_libraries"` means the restart (or the setting) did not happen. `relation "pg_stat_statements" does not exist` means step 3 was skipped for that database.
+`pg_stat_statements must be loaded via "shared_preload_libraries"` means the restart (or the setting) did not happen. `relation "pg_stat_statements" does not exist` means step 3 was skipped for that database.
 
 **Read the slowest queries**, per database (`-d cave` or `-d cave_staging`). The view holds every database in the cluster, so keep the `dbid` filter. Times are milliseconds. Slowest on average, ignoring one-off queries:
 
@@ -314,11 +314,23 @@ WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AN
 ORDER BY mean_exec_time DESC LIMIT 20;
 ```
 
-Most total time, which is where an index pays most; change the `ORDER BY` to `total_exec_time DESC`. `SELECT pg_stat_statements_reset()` (superuser) clears the counters, for a clean before and after around a new index.
+Most total time, which is where an index pays most:
 
-**Grants.** None are needed. As `postgres` the whole view is readable. The `cave` and `cave_staging` roles can read the view too, but see `query` text only for their own statements, which is every statement the app runs; only a role with `pg_read_all_stats` sees other roles' text. Grant it (`GRANT pg_read_all_stats TO cave`) only if you want to read the view as `cave` and see another role's queries. `pg_stat_statements_reset` stays superuser-only.
+```sql
+SELECT round(total_exec_time::numeric) AS total_ms, calls,
+       round(mean_exec_time::numeric, 1) AS mean_ms, left(query, 100) AS query
+FROM pg_stat_statements
+WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+ORDER BY total_exec_time DESC LIMIT 20;
+```
 
-Backups: `pg_dump` records the extension, so restoring into a database needs it available: restore as `postgres` on a machine with Postgres 16 (the Ubuntu package includes it). A restore as `cave` reports errors for the extension and loads everything else.
+To clear this database's counters, for a clean before and after around a new index (superuser; the three zeros mean every user, every query):
+
+```sql
+SELECT pg_stat_statements_reset(0, (SELECT oid FROM pg_database WHERE datname = current_database()), 0);
+```
+
+**Grants.** None are needed. As `postgres` the whole view is readable. `cave` and `cave_staging` can read it too, and see `query` text for their own statements, which is every statement the app runs. Only `GRANT pg_read_all_stats TO cave` would show other roles' text.
 
 ## Backups
 
@@ -373,7 +385,7 @@ Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot resto
 
 The Datasets are at `/tmp/cave-restore/var/backups/cave-lms/datasets`; copy them back with `rclone copy` (below).
 
-Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database.
+Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database. Once Query statistics is on, the dump also holds `CREATE EXTENSION pg_stat_statements`: a restore as `cave` reports errors for that and loads everything else; as `postgres` on Postgres 16 it restores in full.
 
 ### Restoring one deleted Dashboard's Datasets
 
