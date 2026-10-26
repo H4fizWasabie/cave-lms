@@ -312,6 +312,21 @@ func malaysiaTime(lang string, at sql.NullTime) string {
 	return dateTimeIn(lang, at.Time)
 }
 
+// stamp is a time split for a table cell: the date on one line, the time under it.
+type stamp struct{ Date, Time string }
+
+// SubmittedStamp and ReleasedStamp are SubmittedIn and ReleasedIn split for the Results table, nil when not yet.
+func (r adminResult) SubmittedStamp(lang string) *stamp { return stampIn(lang, r.Submitted) }
+func (r adminResult) ReleasedStamp(lang string) *stamp  { return stampIn(lang, r.ReleasedAt) }
+
+func stampIn(lang string, at sql.NullTime) *stamp {
+	if !at.Valid {
+		return nil
+	}
+	t := at.Time.In(malaysia)
+	return &stamp{text.Date(lang, t), t.Format("15:04")}
+}
+
 // dateTimeIn is at in lang, as "2 January 2099, 11:14" Malaysia time.
 func dateTimeIn(lang string, at time.Time) string {
 	at = at.In(malaysia)

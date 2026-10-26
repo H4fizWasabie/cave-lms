@@ -46,10 +46,11 @@ func TestAdminResultsListEveryAttemptWithItsMarkTimesAndWhoMarkedIt(t *testing.T
 
 	res, body := s.adminSite().get("/admin/results")
 	expectStatus(t, res, body, http.StatusOK, "Results")
-	expectCells(t, resultRow(t, body, first), "Ada", "ada@example.com", "Go Basics", "Multiple-choice", "<td>1</td>",
-		"50%", "Failed", "2 January 2099, 11:04", "2 January 2099, 11:14", "Automatic")
+	// The Exam sits under its Course, who marked it under the Result, and each time under its date, so the table fits.
+	expectCells(t, resultRow(t, body, first), "Ada", "ada@example.com", "Go Basics<small>Multiple-choice</small>", "<td>1</td>",
+		"50%", "Failed<small>Marked by: Automatic</small>", "2 January 2099<small>11:04</small>", "2 January 2099<small>11:14</small>")
 	row := resultRow(t, body, second)
-	expectCells(t, row, "Ada", "<td>2</td>", "3 January 2099, 11:04", "Waiting for release")
+	expectCells(t, row, "Ada", "<td>2</td>", "3 January 2099<small>11:04</small>", "Waiting for release")
 	expectNone(t, row, "100%", "Passed", "Failed")
 }
 

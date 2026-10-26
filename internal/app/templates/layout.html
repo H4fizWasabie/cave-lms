@@ -63,7 +63,10 @@
         <h2>{{t .Lang "header.account"}}</h2>
         {{- if .Learner}}
         <a href="/my-courses">{{t .Lang "nav.my-courses"}}</a>
+        <a href="/my-exams">{{t .Lang "nav.my-exams"}}</a>
         <a href="/my-certificates">{{t .Lang "footer.my-certificates"}}</a>
+        <a href="/my-profile">{{t .Lang "nav.my-profile"}}</a>
+        <form method="post" action="/logout"><button>{{t .Lang "header.log-out"}}</button></form>
         {{- else}}
         <a href="/login">{{t .Lang "header.log-in"}}</a>
         <a href="/register">{{t .Lang "header.register"}}</a>
@@ -113,18 +116,16 @@
           <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
           <a href="/my-membership">{{t .Lang "nav.my-membership"}}</a>
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.program"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
-          <a href="/programmes">{{t .Lang "nav.programmes"}}</a>
-        </div></details>
+        <a class="hdr-link" href="/programmes">{{t .Lang "nav.program"}}</a>
+        {{- if .Learner}}
         <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.certification"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
-          {{- if .Learner}}
           <a href="/my-certificates">{{t .Lang "footer.my-certificates"}}</a>
-          {{- end}}
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.community"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
-          <a href="/community">{{t .Lang "community.chat"}}</a>
-        </div></details>
+        {{- else}}
+        <a class="hdr-link" href="/certificates">{{t .Lang "nav.certification"}}</a>
+        {{- end}}
+        <a class="hdr-link" href="/community">{{t .Lang "nav.community"}}</a>
 {{- end}}
 {{/* account-links are Log in and Register for a Visitor, or the logged-in Learner's links. */}}
 {{define "account-links"}}

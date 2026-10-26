@@ -20,11 +20,13 @@
         {{else}}
         {{with .Blocker $.Lang}}<p class="x-help">{{.}}</p>{{else}}
         {{with .StartNote $.Lang}}<p class="x-help">{{.}}</p>{{end}}
+        <p class="x-help">{{if .Exam.Written}}{{t $.Lang "exam.release-note.written" resultDelayMinutes}}{{else}}{{t $.Lang "exam.release-note" resultDelayMinutes}}{{end}}</p>
         {{if $.NeedsIC}}<p class="x-help">{{t $.Lang "exam.ic-first"}}</p>{{end}}
         <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}
         {{if .Passed}}
+        {{if $.PassedNoIC}}<div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t $.Lang "course.needs-ic.passed"}} <a class="link-more" href="/my-profile">{{t $.Lang "my-profile.title"}}</a></p></div>{{end}}
         {{- /* After a pass the Course's next step is the primary; the Answer sheet is the primary only when none leads anywhere. */}}
         {{with $.Step}}{{if .URL}}<a id="next-step" class="btn btn-solid btn-lg" href="{{.URL}}">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="x-help step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
         <a class="btn {{if and $.Step $.Step.URL}}btn-ghost{{else}}btn-solid{{end}} btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>

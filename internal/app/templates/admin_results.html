@@ -19,22 +19,21 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "adm.certs.learner"}}</th><th>{{t .Lang "adm.certs.course"}}</th><th>{{t .Lang "results.exam"}}</th><th>{{t .Lang "results.attempt"}}</th><th>{{t .Lang "results.mark"}}</th><th>{{t .Lang "results.result"}}</th><th>{{t .Lang "results.submitted"}}</th><th>{{t .Lang "results.released"}}</th><th>{{t .Lang "results.marked-by"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "adm.certs.learner"}}</th><th>{{t .Lang "adm.certs.course"}}</th><th>{{t .Lang "results.attempt"}}</th><th>{{t .Lang "results.mark"}}</th><th>{{t .Lang "results.result"}}</th><th>{{t .Lang "results.submitted"}}</th><th>{{t .Lang "results.released"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
+              {{- /* The Exam sits under its Course, who marked it under the Result, and each time under its date, so the table fits its card at 1280px. */}}
               {{range .Results}}
               <tr>
                 <td>{{.LearnerName}}<br><small>{{.Email}}</small></td>
-                <td>{{.CourseTitle}}</td>
-                <td>{{t $.Lang (print "bank.format." .Format)}}</td>
+                <td>{{.CourseTitle}}<small>{{t $.Lang (print "bank.format." .Format)}}</small></td>
                 <td>{{.Number}}</td>
                 <td>{{if .Released}}{{.Score}}%{{end}}</td>
-                <td>{{t $.Lang .Status}}</td>
-                <td>{{.SubmittedIn $.Lang}}</td>
-                <td>{{.ReleasedIn $.Lang}}</td>
-                <td>{{if .Released}}{{t $.Lang .MarkedBy}}{{end}}</td>
+                <td>{{t $.Lang .Status}}{{if .Released}}<small>{{t $.Lang "results.marked-by"}}: {{t $.Lang .MarkedBy}}</small>{{end}}</td>
+                <td class="when">{{with .SubmittedStamp $.Lang}}{{.Date}}<small>{{.Time}}</small>{{end}}</td>
+                <td class="when">{{with .ReleasedStamp $.Lang}}{{.Date}}<small>{{.Time}}</small>{{end}}</td>
                 <td class="actions"><a class="btn btn-quiet btn-sm" href="/admin/results/{{.ID}}">{{t $.Lang "results.open"}}</a></td>
               </tr>
               {{else}}
-              <tr><td colspan="10">{{t .Lang "results.none"}}</td></tr>
+              <tr><td colspan="8">{{t .Lang "results.none"}}</td></tr>
               {{end}}
             </table>
           </div>

@@ -148,6 +148,38 @@ func TestLabIsAPlainLinkInTheHeaderAndItsHeroLineStaysOnTheLabPage(t *testing.T)
 	}
 }
 
+// A section with one link is that link; Certification has a second, My certificates, once logged in.
+func TestHeaderSectionsWithOneLinkArePlainLinks(t *testing.T) {
+	s := newSite(t)
+	_, body := s.getAsking("/", "en")
+	head := header(t, body)
+	for _, link := range []string{
+		`<a class="hdr-link" href="/programmes">Program</a>`,
+		`<a class="hdr-link" href="/community">Community</a>`,
+		`<a class="hdr-link" href="/certificates">Certification</a>`,
+	} {
+		if n := strings.Count(head, link); n != 2 {
+			t.Errorf("header has %d of %s, want 2 (wide and Menu); header:\n%s", n, link, head)
+		}
+	}
+	expectNone(t, head, `<summary class="hdr-link">Program<`, `<summary class="hdr-link">Community<`, `<summary class="hdr-link">Certification<`)
+
+	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
+	_, body = s.getAsking("/", "en")
+	head = header(t, body)
+	expectInOrder(t, head, `<summary class="hdr-link">Certification<`, `href="/certificates"`, `href="/my-certificates"`)
+	expectNone(t, head, `<a class="hdr-link" href="/certificates">Certification</a>`)
+}
+
+func TestTheLearnerFooterReachesTheirPagesAndLogsOut(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
+	_, body := s.getAsking("/courses", "en")
+	_, foot, _ := strings.Cut(content(body), "</main>")
+	expectInOrder(t, foot, `href="/my-courses">My courses<`, `href="/my-exams">My exams<`, `href="/my-certificates">My certificates<`,
+		`href="/my-profile">My profile<`, `<form method="post" action="/logout"><button>Log out</button></form>`)
+}
+
 func TestEveryPageOpensWithALinkThatSkipsTheHeaderToTheContent(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")

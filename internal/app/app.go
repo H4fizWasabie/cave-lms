@@ -91,8 +91,9 @@ type page struct {
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
-	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set
+	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set; render sets it on a 403 or 404
 	Retry         string
+	BackToCourse  string // a 403 or 404 inside a Course: its page, offered before Go to the home page
 	Items         []galleryItem
 	Item          *galleryItem
 	Format        string // Gallery filters
@@ -618,7 +619,7 @@ func card(c course, lang string) courseCard { return courseCard{c, lang} }
 func parsePages() (map[string]*template.Template, error) {
 	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "inc": func(i int) int { return i + 1 },
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
-		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
+		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }, "resultDelayMinutes": func() int { return resultDelayMinutes }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
@@ -646,6 +647,9 @@ func parsePages() (map[string]*template.Template, error) {
 func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
 	if p, ok := data.(page); ok {
 		data = &p
+	}
+	if p, ok := data.(*page); ok && name == "message" && (status == http.StatusNotFound || status == http.StatusForbidden) {
+		p.OfferHome = true // every not-found or refused page leads somewhere
 	}
 	withLearner, ok := data.(interface{ learnerField() **learner })
 	if !ok {

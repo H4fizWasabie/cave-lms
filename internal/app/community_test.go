@@ -148,12 +148,12 @@ func TestTheCommunityStreamCarriesMessagesWithoutEmailOrIC(t *testing.T) {
 	}
 }
 
-func TestTheHeaderHasACommunityMenu(t *testing.T) {
+func TestTheHeaderLinksToTheCommunityChat(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
-	expectInOrder(t, header(t, body), ">Certification<", ">Community<", `href="/community">Community Chat<`)
+	expectInOrder(t, header(t, body), ">Certification<", `href="/community">Community<`)
 	_, body = s.getAsking("/", "ms")
-	expectInOrder(t, header(t, body), ">Pensijilan<", ">Komuniti<", `href="/community">Sembang Komuniti<`)
+	expectInOrder(t, header(t, body), ">Pensijilan<", `href="/community">Komuniti<`)
 }
 
 func TestThePrivacyNoticeTellsWhoSeesCommunityChatMessages(t *testing.T) {

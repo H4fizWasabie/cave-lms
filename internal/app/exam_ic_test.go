@@ -82,7 +82,7 @@ func TestTheCoursePageRemindsOnlyAnEnrolledLearnerWithoutAnICOnACourseWithAnExam
 	_, body := s.getAsking("/courses/"+id, "en")
 	expectInOrder(t, mainOf(body), reminder, `href="/my-profile"`)
 	_, body = s.getAsking("/courses/"+id, "ms")
-	expectInOrder(t, mainOf(body), "Tetapkan No. KP atau pasport anda sebelum cubaan Peperiksaan pertama anda")
+	expectInOrder(t, mainOf(body), "Tetapkan No. KP atau pasport anda sebelum percubaan Peperiksaan pertama anda")
 
 	admin := s.adminSite()
 	admin.createCourse("No Exam", "Just reading.", "")
@@ -123,6 +123,27 @@ func TestTheCoursePageAsksALearnerWhoPassedWithoutAnICToSetItForTheirCertificate
 	expectNone(t, mainOf(body), "before your first Exam attempt")
 	_, body = s.getAsking("/courses/"+id, "ms")
 	expectInOrder(t, mainOf(body), "Tetapkan No. KP anda supaya Sijil anda dapat dikeluarkan")
+}
+
+func TestTheExamPageAsksALearnerWhoPassedWithoutAnICToSetIt(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "Which is right?")
+	res, body := s.startExam(id)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if _, err := s.db.Exec(`UPDATE learners SET ic = NULL WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	s.releaseResults()
+
+	_, body = s.getAsking("/courses/"+id+"/exam", "en")
+	expectInOrder(t, mainOf(body), "Set your IC so we can issue your Certificate", `href="/my-profile"`)
+	_, body = s.getAsking("/courses/"+id+"/exam", "ms")
+	expectInOrder(t, mainOf(body), "Tetapkan No. KP anda supaya Sijil anda dapat dikeluarkan", `href="/my-profile"`)
+
+	s.setIC("951206085555")
+	_, body = s.getAsking("/courses/"+id+"/exam", "en")
+	expectNone(t, mainOf(body), "Set your IC so we can issue your Certificate", `href="/my-profile"`)
 }
 
 func TestAWrittenExamSendsALearnerWithoutAnICToItsOwnICStepAndBack(t *testing.T) {

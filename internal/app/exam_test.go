@@ -414,3 +414,18 @@ func TestExamSettingsWarnWhenTheDrawCountIsMoreThanThePublishedQuestions(t *test
 		t.Fatalf("Exam warns although the draw count equals the published questions: %s", body)
 	}
 }
+
+func TestTheDrawWarningForOnePublishedQuestionIsSingular(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	examPath := "/admin/courses/" + id + "/exam"
+	s.saveQuestion(examPath+"/questions", "Q1", [5]string{"Yes", "No", "", "", ""}, "0", false)
+	s.saveExamDraw(id, "50", "", "", "30")
+
+	_, body := s.getAsking(examPath, "en")
+	expectAll(t, mainOf(body), "Only 1 question is published, so each attempt asks that 1, not 30.")
+	_, body = s.getAsking(examPath, "ms")
+	expectAll(t, mainOf(body), "Hanya 1 soalan diterbitkan, jadi setiap percubaan bertanya 1 soalan itu sahaja, bukan 30.")
+}

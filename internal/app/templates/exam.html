@@ -56,7 +56,7 @@
               <div class="field"><label for="gen-count">{{t .Lang "bank.count"}}</label><input id="gen-count" type="number" name="count" min="1" max="50" value="10" required></div>
             </div>
             <div class="field"><label for="gen-key-points">{{t .Lang "gen.key-points"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><textarea id="gen-key-points" name="key_points" rows="3" maxlength="{{maxKeyPoints}}"></textarea><p class="hint">{{t .Lang "gen.key-points-hint"}}</p></div>
-            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "gen.button"}}</button></div>
+            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "gen.button"}}</button></div>
             {{template "cave-loader" (loader (t .Lang "gen.busy") (t .Lang "gen.busy-lines"))}}
           </form>
         </div>
@@ -83,7 +83,7 @@
               <div class="field"><label for="max_attempts">{{t .Lang "adm.exam.max-attempts"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="max_attempts" name="max_attempts" type="number" min="1" value="{{.Exam.MaxAttempts}}"></div>
               <div class="field"><label for="draw_count">{{t .Lang "adm.exam.draw-count"}}</label><input id="draw_count" name="draw_count" type="number" min="1" value="{{.Exam.DrawCount}}" required{{if .Exam.DrawsFewer}} aria-describedby="draw-fewer"{{end}}></div>
             </div>
-            {{with .Exam.DrawsFewer}}<p class="callout" id="draw-fewer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span>{{t $.Lang "adm.exam.draws-fewer" . . $.Exam.DrawCount}}</span></p>{{end}}
+            {{with .Exam.DrawsFewer}}<p class="callout" id="draw-fewer"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span>{{tn $.Lang "adm.exam.draws-fewer" . . $.Exam.DrawCount}}</span></p>{{end}}
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.exam.save"}}</button></div>
           </form>
         </div>
