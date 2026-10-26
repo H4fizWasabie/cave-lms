@@ -2179,7 +2179,6 @@ var catalog = map[string]entry{
 	"cost.feature":          {en: "Feature / Component", ms: "Fungsi / Komponen"},
 	"cost.per-year":         {en: "%s/year", ms: "%s/tahun"},
 	"cost.text-expansion":   {en: "Text Expansion", ms: "Text Expansion"},
-	"cost.prompt-library":   {en: "KPM Prompt Library", ms: "Prompt Library KPM"},
 	"cost.prompt-templates": {en: "AI Prompt Templates", ms: "AI Prompt Templates"},
 	"cost.subdomain":        {en: "Personal subdomain", ms: "Subdomain peribadi"},
 	"cost.hosting":          {en: "Web hosting / deployment", ms: "Web hosting / deployment"},

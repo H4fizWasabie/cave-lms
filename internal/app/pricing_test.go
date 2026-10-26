@@ -86,7 +86,7 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 			"Fungsi / Komponen", "CAVELMS", "RM99/tahun", "TextExpander Pro", "RM258/tahun", "Hostinger Premium", "RM119.88/tahun",
 			"Cloudflare Paid", "RM258/tahun", "Render Starter", "RM361.2/tahun", "Netlify Personal", "RM464.4/tahun",
 			"Vercel Pro", "RM1,000/tahun", "Supabase Pro", "RM1,300/tahun",
-			"Text Expansion", "Prompt Library KPM", "AI Prompt Templates", "Subdomain peribadi", "(domain promosi)",
+			"Text Expansion", "AI Prompt Templates", "Subdomain peribadi", "(domain promosi)",
 			"Web hosting / deployment", "SSL / HTTPS", "Static to dynamic dashboard (tanpa coding)", "Upload Excel sebagai data",
 			"Storan pengguna", "1 GB", "~10 GB", "Bergantung pelan", "Penyelenggaraan aplikasi",
 			"Anggaran Add-on (jika perlu)", "Domain sendiri (.com)", "Tidak perlu", "(subdomain)", "~RM50/tahun",
@@ -97,7 +97,7 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 			"RM99", "RM258", "RM269.88", "RM258+", "RM361.2+", "RM464.4+", "RM1,000+", "RM1,300+", "</table>"},
 		"en": {"Annual Cost Comparison", "<table",
 			"Feature / Component", "CAVELMS", "RM99/year", "TextExpander Pro", "RM258/year", "Render Starter", "RM361.2/year", "Supabase Pro", "RM1,300/year",
-			"Text Expansion", "KPM Prompt Library", "AI Prompt Templates", "Personal subdomain", "(promotional domain)",
+			"Text Expansion", "AI Prompt Templates", "Personal subdomain", "(promotional domain)",
 			"Web hosting / deployment", "Static to dynamic dashboard (no coding)", "Upload Excel as data",
 			"User storage", "Depends on plan", "App maintenance",
 			"Add-on estimate (if needed)", "Own domain (.com)", "Not needed", "~RM50/year",
@@ -107,6 +107,6 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 	} {
 		_, body := s.getAsking("/pricing", lang)
 		expectInOrder(t, html.UnescapeString(mainOf(body)), want...)
-		expectNone(t, body, "cost-comparison.webp")
+		expectNone(t, body, "cost-comparison.webp", "Prompt Library") // the client dropped the KPM Prompt Library row
 	}
 }
