@@ -192,19 +192,22 @@ func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	expectInOrder(t, cards, "Pro Plan", "RM249 a year")
 	expectNone(t, cards, "with a promo code")
 	expectAll(t, comparison, "RM99 with a promo code")
-	// A fourth card sells the Pro Plan at its promo price, with the Ebooks the Pro Plan card leaves out; both have 0.5 GB.
+	// A fourth card sells the Pro Plan at its promo price, with the Ebooks and 1 GB the Pro Plan card leaves out.
 	// It is the COMBO Pro Plan, tagged Promo at its top right, with the Snippets and characters CaveText Pro gives.
 	expectInOrder(t, cards, "Pro Plan", "0.5 GB of storage", `<li class="offer offer-combo">`, `<span class="offer-tag">Promo</span>`,
 		`<h3 class="offer-combo-name">COMBO Pro Plan</h3>`, "RM99 a year",
 		"Everything in CaveText Pro", "Up to 2,000 Snippets", "Unlimited characters", "Everything in the Lab Plan", "Ebooks",
-		"Your own Dashboard deployment", "0.5 GB of storage", "One payment a year for both")
-	expectNone(t, cards, "1 GB", "Promo Pro Plan")
+		"Your own Dashboard deployment", "1 GB of storage", "One payment a year for both")
+	expectNone(t, cards, "Promo Pro Plan")
+	if n := strings.Count(cards, "1 GB of storage"); n != 1 {
+		t.Errorf("%d cards list 1 GB, want 1: the COMBO Pro Plan's; the Pro Plan card lists 0.5 GB", n)
+	}
 	// A Learner buys it on the Pro Plan's form, where the promo code goes.
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	_, body = ada.getAsking("/pricing", "en")
 	expectAll(t, content(body), `href="`+proPlanFormURL+`">Buy COMBO Pro Plan</a>`)
 	_, body = visitor.getAsking("/pricing", "ms")
-	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro COMBO", "Aksara tanpa had", "Had storan 0.5 GB")
+	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro COMBO", "Aksara tanpa had", "Had storan 1 GB")
 
 	s.endPromo("CAVE99")
 	_, body = visitor.getAsking("/pricing", "en")
