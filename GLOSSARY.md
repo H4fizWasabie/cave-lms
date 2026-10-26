@@ -2,7 +2,7 @@
 
 CAVELMS is the product's public name ("Learn AI • Build Skills • Create Impact", powered by The Cave Consult). "Cave LMS" is the repo's working name. The Malay home page uses the client's own marketing copy word for word, and the English one translates it, so it says "online classes" for Courses and "programmes" for The Cave Consult's past in-person programmes, which are not Courses.
 
-A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Paying Learners also build and deploy dashboards in the Lab, from sample spreadsheets or their own.
+A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Learners also build dashboards in the Lab from sample spreadsheets; paying Learners use their own and put pages they made online.
 
 The site is written in Malay and English. Each term gives the Malay word the site uses for it; product names stay in English, and Coach Adam may override any of them.
 
@@ -201,22 +201,12 @@ _Avoid_: Course, event, module
 ### Lab
 
 **Lab**:
-The area where Learners build Dashboards, in two parts: Lab Lesson and Lab Live. Always open to the Admin.
+The area where Learners build Dashboards. Open to every logged-in Learner; without an active Plan they build from Samples only and cannot deploy. Always open to the Admin.
 _Malay_: Lab (kept in English)
 _Avoid_: Workspace, studio, builder
 
-**Lab Lesson**:
-The part of the Lab open to every Learner, Plan or not, where they build Dashboards from Samples only and may make a Trial Deployment.
-_Malay_: Lab Pelajaran
-_Avoid_: Free Lab, demo, mockup
-
-**Lab Live**:
-The part of the Lab open to a Learner with an active Plan, where they build Dashboards from their own data and make Deployments. A Learner without a Plan sees it locked.
-_Malay_: Lab Live (kept in English)
-_Avoid_: Paid Lab, Pro Lab, real Lab
-
 **Plan**:
-Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; a Learner without one has only Lab Lesson. Courses stay free to join.
+Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; It adds the Learner's own uploads and Deployments; a Learner without one builds from Samples only. Courses stay free to join.
 _Malay_: Pelan
 _Avoid_: Tier, subscription, package, free plan
 
@@ -241,12 +231,12 @@ _Malay_: Promosi
 _Avoid_: Coupon, voucher, discount
 
 **Plan period**:
-One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Datasets are kept for 90 days, then deleted unless a new period has started.
+One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Datasets and Deployment pages are kept for 90 days, then deleted unless a new period has started.
 _Malay_: Tempoh Pelan
 _Avoid_: Subscription, term, cycle
 
 **Storage allowance**:
-How much Dataset data a Learner may keep while they have an active Plan period, such as 1 GB.
+How much Dataset data and Deployment pages a Learner may keep while they have an active Plan period, such as 1 GB.
 _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
@@ -286,19 +276,14 @@ _Malay_: Pembersihan
 _Avoid_: Sanitise, normalise, transform, fix
 
 **Dashboard**:
-One Learner's Dataset drawn as blocks the Learner can change, which Cave turns into a page whose code they can look at under the hood and deploy. There is one kind.
+One Learner's Dataset drawn as blocks the Learner can change, which Cave turns into a page whose code they can look at under the hood and download. There is one kind.
 _Malay_: Dashboard (kept in English)
 _Avoid_: Report, chart, app, Practice Dashboard and Work Dashboard (the two former kinds), dashboard engine
 
 **Deployment**:
-A Dashboard put online for anyone with its link. It is awake while the Learner has an active Plan period, and updating its Dataset updates it. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
+A page the Learner made themselves, such as with an AI chatbot, uploaded as one HTML file on one of their Dashboards and put online for anyone with its link. A Dashboard has at most one. Uploading a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site, web app
-
-**Trial Deployment**:
-A Lab Lesson Dashboard put online for 5 days at a link Cave picks, then deleted, leaving the Dashboard. A Learner has at most one at a time. Not a Deployment: it counts against no Plan and its link is never a name the Learner picks.
-_Malay_: Deployment Percubaan
-_Avoid_: Free Deployment, demo deployment, mockup
 
 **Takedown**:
 The Admin putting a Deployment to sleep early, with a recorded reason. The Dashboard itself stays.
