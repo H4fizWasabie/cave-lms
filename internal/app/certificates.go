@@ -47,9 +47,10 @@ const certificateColumns = `id, year, number, learner_id, learner_name, COALESCE
 	COALESCE(days, 0), issued_at, revoked_at IS NOT NULL,
 	(SELECT name FROM learners WHERE learners.id = certificates.learner_id), given_by_admin, COALESCE(logo_key, '')`
 
-// Number is the Certificate No., as PCC-2026-00509. The ID, not this, goes in URLs and the QR, so it can't be walked.
+// Number is the Certificate No., as PCC-LMS-260001: the year's last two digits and its place in the year, four digits
+// or more. The ID, not this, goes in URLs and the QR, so it can't be walked.
 func (c certificate) Number() string {
-	return fmt.Sprintf("PCC-%d-%05d", c.Year, c.Seq)
+	return fmt.Sprintf("PCC-LMS-%02d%04d", c.Year%100, c.Seq)
 }
 
 // MaskedIC is the Certificate's IC, formatted, with its last 4 characters hidden, as 951206-08-****.

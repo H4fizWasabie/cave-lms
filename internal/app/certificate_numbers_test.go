@@ -48,20 +48,20 @@ func TestCertificatesAreNumberedInIssueOrderOnEveryPage(t *testing.T) {
 	s.at("2026-03-01 10:00:00")
 	courseID, adaID := s.adaEarns()
 	res, body := s.get("/my-certificates")
-	expectStatus(t, res, body, http.StatusOK, "PCC-2026-00001")
+	expectStatus(t, res, body, http.StatusOK, "PCC-LMS-260001")
 	body = s.earns("Bob", "bob@example.com", courseID)
-	if want := "PCC-2026-00002"; !strings.Contains(body, want) {
+	if want := "PCC-LMS-260002"; !strings.Contains(body, want) {
 		t.Fatalf("Bob's certificates lack %q: %s", want, body)
 	}
 
 	s.logOut()
 	res, body = s.get("/certificates/" + adaID)
-	expectStatus(t, res, body, http.StatusOK, "PCC-2026-00001")
+	expectStatus(t, res, body, http.StatusOK, "PCC-LMS-260001")
 
 	s.loginAdmin()
 	res, body = s.get("/admin/certificates")
 	expectStatus(t, res, body, http.StatusOK, "")
-	expectInOrder(t, body, "PCC-2026-00002", "PCC-2026-00001")
+	expectInOrder(t, body, "PCC-LMS-260002", "PCC-LMS-260001")
 }
 
 func TestCertificateNumberRestartsEachYear(t *testing.T) {
@@ -70,7 +70,7 @@ func TestCertificateNumberRestartsEachYear(t *testing.T) {
 	courseID, _ := s.adaEarns()
 	s.at("2026-12-31 16:01:00") // 00:01 on 1 January 2027 in Malaysia
 	body := s.earns("Bob", "bob@example.com", courseID)
-	if want := "PCC-2027-00001"; !strings.Contains(body, want) {
+	if want := "PCC-LMS-270001"; !strings.Contains(body, want) {
 		t.Fatalf("the first Certificate of 2027 lacks %q: %s", want, body)
 	}
 }
@@ -83,14 +83,14 @@ func TestRevokedCertificateKeepsItsNumberAndNoNumberIsReused(t *testing.T) {
 	s.post("/admin/certificates/"+adaID+"/revoke", confirming)
 
 	res, body := s.get("/certificates/" + adaID)
-	expectStatus(t, res, body, http.StatusOK, "PCC-2026-00001")
+	expectStatus(t, res, body, http.StatusOK, "PCC-LMS-260001")
 	res, body = s.post("/admin/certificates/"+adaID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get(res.Header.Get("Location"))
-	expectStatus(t, res, body, http.StatusOK, "PCC-2026-00002")
+	expectStatus(t, res, body, http.StatusOK, "PCC-LMS-260002")
 
 	body = s.earns("Bob", "bob@example.com", courseID)
-	if want := "PCC-2026-00003"; !strings.Contains(body, want) {
+	if want := "PCC-LMS-260003"; !strings.Contains(body, want) {
 		t.Fatalf("a later Certificate lacks %q: %s", want, body)
 	}
 }
@@ -113,11 +113,11 @@ func TestCertificatesIssuedBeforeNumbersAreNumberedByIssueDate(t *testing.T) {
 	s.loginAdmin()
 	res, body := s.get("/admin/certificates")
 	expectStatus(t, res, body, http.StatusOK, "")
-	expectInOrder(t, body, "PCC-2026-00001", "Cy", "PCC-2025-00002", "Ada", "PCC-2025-00001", "Bob")
+	expectInOrder(t, body, "PCC-LMS-260001", "Cy", "PCC-LMS-250002", "Ada", "PCC-LMS-250001", "Bob")
 
 	s.at("2026-02-01 10:00:00")
 	body = s.earns("Di", "di@example.com", courseID)
-	if want := "PCC-2026-00002"; !strings.Contains(body, want) {
+	if want := "PCC-LMS-260002"; !strings.Contains(body, want) {
 		t.Fatalf("the next Certificate after the backfill lacks %q: %s", want, body)
 	}
 }
@@ -128,7 +128,7 @@ func TestACertificateIsNumberedAndDatedInMalaysiaTime(t *testing.T) {
 	s := newSite(t)
 	s.at("2026-12-31 16:30:00")
 	courseID, certID := s.adaEarns()
-	const number, issued = "PCC-2027-00001", "1 January 2027"
+	const number, issued = "PCC-LMS-270001", "1 January 2027"
 
 	res, body := s.get("/my-certificates")
 	expectStatus(t, res, body, http.StatusOK, number)
