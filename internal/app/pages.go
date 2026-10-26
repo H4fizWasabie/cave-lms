@@ -36,13 +36,14 @@ func (p *htmlPage) SizeText() string { return sizeText(p.Size) }
 const pageCDNs = "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com"
 
 // pageCSP sandboxes a Deployment's own page (ADR 0017): inline code and the CDNs, images from anywhere over https,
-// and nothing sent out but reads from Cave, by its origin as deploymentCSP explains; no form posts anywhere.
+// and nothing sent out but reads from Cave, by its origin as deploymentCSP explains; no form posts anywhere, and no
+// <base> to point its relative links, such as ./data.json, elsewhere.
 func (a *App) pageCSP() string {
 	return "sandbox allow-scripts; default-src 'none'; " +
 		"script-src 'unsafe-inline' " + pageCDNs + "; " +
 		"style-src 'unsafe-inline' " + pageCDNs + " https://fonts.googleapis.com; " +
 		"font-src data: " + pageCDNs + " https://fonts.gstatic.com; " +
-		"img-src data: https:; connect-src 'self' " + a.origin() + "; form-action 'none'; frame-ancestors 'none'"
+		"img-src data: https:; connect-src 'self' " + a.origin() + "; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
 }
 
 // servePage writes a Deployment's page under pageCSP, cached five minutes so sleep and Takedown take effect soon.
