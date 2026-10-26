@@ -1,0 +1,9 @@
+# The Lab only deploys: Cave no longer builds Dashboards
+
+Supersedes ADR 0003, ADR 0014 and ADR 0015; amends ADR 0017. The client teaches Learners to build a dashboard with an AI chatbot: they give it their Excel file, it writes an HTML page, and the Learner brings that page to Cave to put online. Cave's dashboard engine (Templates, blocks, Themes, Samples, the public demo, Preview, Under the hood and the zip download) is removed, and the Lab becomes a Plan-only place to deploy those pages and keep their data live. A Dashboard is now a Learner's HTML page, pasted or picked as one file, with an optional Dataset; a Deployment is that page online.
+
+Clean-up stays. When the Learner later uploads Excel to a Dashboard, Clean-up turns it into a Dataset, which replaces the rows or, with the same columns, adds to them, and Cave serves it at `<link>/data.json` (ADR 0017). A page reads it only if it was asked to: the Lab gives a standard sentence for the chatbot ("load the rows from `./data.json` when it exists, otherwise use the data in this page"), and a page without it stays static. The first upload should hold all the rows, since the page then reads Cave's data instead of its own.
+
+Before the engine is deleted, every existing Dashboard is converted once: Cave generates its page one last time, reading `data.json`, and stores it as the Dashboard's page, so Deployments keep their links and stay live and no Learner loses work. Learners without a Plan have no Lab; the Lab link takes them to `/pricing`.
+
+Rejected: (1) keeping the engine beside the uploads, for teaching, which the client declined since the class teaches the chatbot instead; (2) dropping the data too and hosting static pages only, which loses the live dashboard the client sells; (3) several Datasets per Dashboard, left for later if a class needs it; (4) Cave rewriting the data baked into a page, which cannot be done reliably on code it did not write.
