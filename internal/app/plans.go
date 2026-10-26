@@ -213,22 +213,56 @@ type planPeriodsPage struct {
 	HolderName string
 	Periods    []planPeriod
 	Plans      []plan
+	Matches    []learnerMatch // several Learners fit the part of a name or email searched for
 }
+
+// learnerMatch is a Learner the Admin can pick from when a search fits several.
+type learnerMatch struct{ Name, Email string }
 
 const periodTime = "2006-01-02 15:04 UTC"
 
 func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 	p, err := a.planPeriodsPage(r, r.URL.Query().Get("email"))
+	if err == nil && p.Email != "" && p.HolderID == 0 {
+		// Not an exact email: take the Learner whose name or email contains it. Several are listed to choose from.
+		// Only this lookup is partial; assigning a Plan still needs the exact email.
+		var matches []learnerMatch
+		if matches, err = a.findLearners(r.Context(), p.Email); err == nil && len(matches) == 1 {
+			p, err = a.planPeriodsPage(r, matches[0].Email)
+		} else if err == nil {
+			p.Matches = matches
+		}
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	status := http.StatusOK
-	if p.Email != "" && p.HolderID == 0 {
+	if p.Email != "" && p.HolderID == 0 && len(p.Matches) == 0 {
 		status = http.StatusNotFound
 		p.Error = text.T(p.Lang, "plans.err.no-learner", p.Email)
 	}
 	a.render(w, r, status, "admin_plan_periods", p)
+}
+
+// findLearners returns up to 20 Learners whose name or email contains q, ignoring case.
+func (a *App) findLearners(ctx context.Context, q string) ([]learnerMatch, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT name, email FROM learners
+		WHERE lower(name) LIKE '%' || lower($1) || '%' OR lower(email) LIKE '%' || lower($1) || '%'
+		ORDER BY lower(name), id LIMIT 20`, likeLiteral(q))
+	if err != nil {
+		return nil, fmt.Errorf("find Learners: %w", err)
+	}
+	defer rows.Close()
+	var list []learnerMatch
+	for rows.Next() {
+		var m learnerMatch
+		if err := rows.Scan(&m.Name, &m.Email); err != nil {
+			return nil, err
+		}
+		list = append(list, m)
+	}
+	return list, rows.Err()
 }
 
 // nextPlanStart is s.at, when the next Plan period of the Learner $1 starts: now, or when their last Plan period

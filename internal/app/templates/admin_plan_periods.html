@@ -11,10 +11,21 @@
           </div>
         </div>
         <form class="toolbar" method="get" action="/admin/plans/periods">
-          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "plans.learner-email"}}</span><input type="email" name="email" value="{{.Email}}" placeholder="{{t .Lang "plans.learner-email"}}" required></label>
+          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "plans.learner-email"}}</span><input type="search" name="email" value="{{.Email}}" placeholder="{{t .Lang "plans.learner-email"}}" required></label>
           <button class="btn btn-ghost">{{t .Lang "plans.find"}}</button>
         </form>
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        {{if .Matches}}
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              {{range .Matches}}
+              <tr><td><a href="/admin/plans/periods?email={{.Email}}">{{.Name}}</a><br><span class="muted">{{.Email}}</span></td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+        {{end}}
         {{if .HolderID}}
         <div class="card card-flush">
           <div class="card-head card-head-pad"><h2>{{t .Lang "plans.periods.heading"}}</h2></div>
