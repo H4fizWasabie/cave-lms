@@ -69,7 +69,7 @@ func TestTheLessonPagesAreInMalayAndEnglish(t *testing.T) {
 	s.post("/courses/"+id+"/join", nil)
 	_, body = s.getAsking(lesson, "ms")
 	expectLanguage(t, body, "ms", "Kembali ke Kursus")
-	expectAll(t, body, "<strong>Objektif:</strong> Build a pivot table.", "<em>fields</em>")
+	expectAll(t, body, `<h2 id="objectives">Objektif</h2>`, "<li>Build a pivot table.</li>", "<em>fields</em>")
 	_, body = s.getAsking(lesson, "en")
 	expectLanguage(t, body, "en", "Back to the Course")
 

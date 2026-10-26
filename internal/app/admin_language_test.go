@@ -70,7 +70,15 @@ func TestTheLessonScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	expectLanguage(t, body, "ms", "Terbitkan semua Pelajaran Draf")
 	expectAll(t, body, "Pemboleh ubah", "Guna :=")
 	_, body = s.get("/admin/courses/" + id + "/lessons/new")
-	expectLanguage(t, body, "ms", "Satu Item Galeri")
+	expectLanguage(t, body, "ms", "(sehingga lima, satu ayat setiap baris, pilihan)")
+	expectAll(t, body, "Jana teks", "Gantikan teks dalam kotak Teks dengan teks baharu daripada AI?", "Tiada apa yang disimpan sehingga anda klik Simpan.",
+		`<option value="ms" selected>`, "Imej Pelajaran", "pilih gambar selepas menjana")
+	res, body := s.saveProgramme("/admin/courses/"+id+"/lessons", map[string]string{"title": "Gambar", "body": "Isi."}, pngFile)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Terangkan Imej Pelajaran dalam satu baris")
+	res, body = s.saveProgramme("/admin/courses/"+id+"/lessons/generate", map[string]string{"title": "Gambar", "objective": "Lihat."}, pngFile)
+	expectStatus(t, res, body, http.StatusOK, "Pilih gambar sekali lagi")
+	res, body = s.post("/admin/courses/"+id+"/lessons/generate", url.Values{"title": {"Pemboleh ubah"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tulis sekurang-kurangnya satu Objektif sebelum menjana teks.")
 	_, body = s.get("/admin/lessons/" + lesson + "/edit")
 	expectLanguage(t, body, "ms", "Sunting Pelajaran")
 
@@ -78,9 +86,10 @@ func TestTheLessonScreensAndTheirErrorsAreInMalay(t *testing.T) {
 		form url.Values
 		want string
 	}{
-		{url.Values{"kind": {"item"}, "title": {"Gambar"}}, "Pilih Item Galeri."},
-		{url.Values{"kind": {"text"}, "title": {"Teks"}}, "Tulis teks Pelajaran ini."},
-		{url.Values{"kind": {"text"}, "title": {""}, "body": {"Isi."}}, "Masukkan tajuk (sehingga 200 aksara)."},
+		{url.Values{"title": {"Gambar"}, "gallery_item_id": {"x"}}, "Pilih Item Galeri."},
+		{url.Values{"title": {"Teks"}}, "Tulis teks Pelajaran ini atau pilih Item Galeri."},
+		{url.Values{"title": {""}, "body": {"Isi."}}, "Masukkan tajuk (sehingga 200 aksara)."},
+		{url.Values{"title": {"Teks"}, "body": {"Isi."}, "objective": {"1\n2\n3\n4\n5\n6"}}, "Tulis paling banyak lima Objektif"},
 	} {
 		res, body := s.post("/admin/courses/"+id+"/lessons", c.form)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)

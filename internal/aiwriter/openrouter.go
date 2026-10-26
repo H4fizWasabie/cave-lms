@@ -26,6 +26,12 @@ var writeQuestionsInstructions string
 //go:embed mark_answer.txt
 var markAnswerInstructions string
 
+//go:embed write_lesson.txt
+var writeLessonInstructions string
+
+// maxLessonTokens caps one Lesson's reply: 900 words of Malay Markdown, with room for a model that reasons first.
+const maxLessonTokens = 6000
+
 // OpenRouter writes through OpenRouter's chat API (https://openrouter.ai/docs/api-reference/chat-completion), with
 // structured JSON output and no tools.
 type OpenRouter struct {
@@ -117,6 +123,37 @@ func (o OpenRouter) MarkAnswer(ctx context.Context, r MarkRequest) (Marking, err
 	var m Marking
 	err := o.chat(ctx, req, &m)
 	return m, err
+}
+
+// lessonSchema is a Lesson's JSON schema. Its length is checked after.
+var lessonSchema = json.RawMessage(`{
+	"type": "object",
+	"properties": {"markdown": {"type": "string"}},
+	"required": ["markdown"], "additionalProperties": false}`)
+
+// WriteLesson writes with web search when it is on, for current material, as WriteQuestions does.
+func (o OpenRouter) WriteLesson(ctx context.Context, r LessonRequest) (string, error) {
+	user := fmt.Sprintf("Course: %s\nLesson: %s\nLanguage: %s\nObjectives:\n- %s", r.CourseTitle, r.Title, languageNames[r.Language], strings.Join(r.Objectives, "\n- "))
+	if len(r.OtherTitles) > 0 {
+		user += "\nOther Lessons in the Course:\n- " + strings.Join(r.OtherTitles, "\n- ")
+	}
+	req := map[string]any{
+		"model":      o.Model,
+		"max_tokens": maxLessonTokens,
+		"messages": []map[string]string{
+			{"role": "system", "content": writeLessonInstructions},
+			{"role": "user", "content": user},
+		},
+		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "lesson", "strict": true, "schema": lessonSchema}},
+	}
+	if o.WebSearch {
+		req["plugins"] = []map[string]string{{"id": "web"}}
+	}
+	var out struct {
+		Markdown string `json:"markdown"`
+	}
+	err := o.chat(ctx, req, &out)
+	return out.Markdown, err
 }
 
 // chat sends req and decodes the first reply's JSON content into v. Content that is not v's JSON is ErrBadShape.

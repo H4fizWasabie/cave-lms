@@ -7,17 +7,11 @@
         <div class="adm-head"><h1>{{if .Lesson.ID}}{{t .Lang "adm.lessons.edit-for" .Course.Title}}{{else}}{{t .Lang "adm.lessons.new-for" .Course.Title}}{{end}}</h1></div>
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-          <form class="form" method="post" action="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}{{else}}/admin/courses/{{.Course.ID}}/lessons{{end}}">
-            {{if not .Lesson.ID}}
-            <div class="field field-half"><label for="kind">{{t .Lang "adm.lessons.content"}}</label>
-              <select id="kind" name="kind">
-                <option value="item">{{t .Lang "adm.lessons.kind-item"}}</option>
-                <option value="text">{{t .Lang "adm.lessons.markdown"}}</option>
-              </select>
-            </div>
-            {{end}}
+          {{with .Message}}<p class="callout" role="status">{{.}}</p>{{end}}
+          {{/* data-busy sends the form once, so a double click cannot Save twice or Generate twice. */}}
+          <form class="form" method="post" enctype="multipart/form-data" data-busy action="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}{{else}}/admin/courses/{{.Course.ID}}/lessons{{end}}">
             <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Lesson.Title}}" maxlength="200" required></div>
-            <div class="field"><label for="objective">{{t .Lang "adm.lessons.objective"}} <span class="opt">{{t .Lang "adm.lessons.objective-hint"}}</span></label><input id="objective" type="text" name="objective" value="{{.Lesson.Objective}}" maxlength="200"></div>
+            <div class="field"><label for="objective">{{t .Lang "adm.lessons.objective"}} <span class="opt">{{t .Lang "adm.lessons.objective-hint"}}</span></label><textarea id="objective" name="objective" rows="5">{{.Lesson.Objective}}</textarea></div>
             <div class="field"><label for="gallery_item_id">{{t .Lang "adm.lessons.item"}}</label>
               <select id="gallery_item_id" name="gallery_item_id">
                 <option value="">{{t .Lang "adm.lessons.choose-item"}}</option>
@@ -26,11 +20,27 @@
               <small>{{t .Lang "adm.lessons.item-hint"}}</small>
             </div>
             <div class="field"><label for="body">{{t .Lang "adm.lessons.markdown"}}</label><textarea id="body" name="body" rows="12" maxlength="20000">{{.Lesson.Body}}</textarea></div>
+            {{/* After the Text box: Generate cannot keep a chosen file, so the Admin picks it last. */}}
+            <div class="field"><label for="picture">{{t .Lang "adm.lessons.image"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label>
+              {{with .Lesson.ImageKey}}<img class="lesson-image-current" src="/lesson-images/{{.}}" alt="{{$.Lesson.ImageDescription}}">{{end}}
+              <input id="picture" type="file" name="picture" accept="image/jpeg,image/png,image/webp">
+              <small>{{t .Lang "adm.lessons.image-hint"}}</small>
+              {{if .Lesson.ImageKey}}<label class="check"><input type="checkbox" name="remove_image" value="on"{{if .Lesson.RemoveImage}} checked{{end}}> {{t .Lang "adm.lessons.image-remove"}}</label>{{end}}
+            </div>
+            <div class="field"><label for="image_description">{{t .Lang "adm.lessons.image-description"}}</label><input id="image_description" type="text" name="image_description" value="{{.Lesson.ImageDescription}}" maxlength="200"></div>
             {{if not .Lesson.ID}}
-            <label class="check"><input type="checkbox" name="draft" value="on"> {{t .Lang "adm.lessons.keep-draft"}}</label>
+            <label class="check"><input type="checkbox" name="draft" value="on"{{if not .Lesson.Published}} checked{{end}}> {{t .Lang "adm.lessons.keep-draft"}}</label>
             {{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
+            {{/* Save comes first, so Enter in a field saves rather than asking the AI. */}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.cancel"}}</a>
+              <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.save"}}</button>
+                {{$gen := or .AILanguage .Lang}}<select name="language" aria-label="{{t .Lang "adm.lessons.gen.language"}}"><option value="ms"{{if eq $gen "ms"}} selected{{end}}>{{t .Lang "bank.lang.ms"}}</option><option value="en"{{if eq $gen "en"}} selected{{end}}>{{t .Lang "bank.lang.en"}}</option></select>
+                <button class="btn btn-ghost" formaction="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}/generate{{else}}/admin/courses/{{.Course.ID}}/lessons/generate{{end}}" data-confirm="{{t .Lang "adm.lessons.gen.confirm"}}" data-confirm-if="body">{{t .Lang "adm.lessons.gen.button"}}</button>
+              </div>
+            </div>
+            <p class="hint">{{t .Lang "adm.lessons.gen.hint"}}</p>
           </form>
+          <script src="{{static "forms.js"}}" defer></script>
         </div>
       </div>
     </div>

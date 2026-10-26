@@ -45,9 +45,9 @@ type Config struct {
 	R2Bucket          string
 	R2AccessKeyID     string
 	R2SecretAccessKey string
-	// OpenRouterAPIKey and OpenRouterModel let the AI write Exam questions and mark Written answers through OpenRouter
-	// (ADR 0009). There is no built-in model: either unset, the Admin is told the AI is not configured and marks
-	// Written answers by hand.
+	// OpenRouterAPIKey and OpenRouterModel let the AI write Exam questions and Lesson text and mark Written answers
+	// through OpenRouter (ADR 0009). There is no built-in model: either unset, the Admin is told the AI is not
+	// configured, writes Lesson text and marks Written answers by hand.
 	OpenRouterAPIKey string
 	OpenRouterModel  string
 	// OpenRouterWebSearch, from OPENROUTER_WEB_SEARCH (true or false, true when unset), turns on OpenRouter's web search.

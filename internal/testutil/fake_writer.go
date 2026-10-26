@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
@@ -11,14 +12,55 @@ import (
 // FakeWriter is an AI writer that records what it was asked. It gives the queued replies first, then for each
 // request writes the Count questions asked for: "AI question 1" onward, each with a right and a wrong option, or
 // for a Written request the model answer "AI model answer 1" onward. It marks each answer with the queued marks
-// first, then FakeMarking, or fails every mark while FailMarks is set.
+// first, then FakeMarking, or fails every mark while FailMarks is set. It writes each Lesson with the queued Lesson
+// replies first, then FakeLessonText.
 type FakeWriter struct {
-	mu           sync.Mutex
-	requests     []aiwriter.Request
-	replies      []FakeReply
-	markRequests []aiwriter.MarkRequest
-	marks        []FakeMark
-	markErr      error
+	mu            sync.Mutex
+	requests      []aiwriter.Request
+	replies       []FakeReply
+	markRequests  []aiwriter.MarkRequest
+	marks         []FakeMark
+	markErr       error
+	lessons       []aiwriter.LessonRequest
+	lessonReplies []FakeLesson
+}
+
+// FakeLessonText is the fake writer's Lesson text when none is queued: 400 words, starting "AI lesson text".
+var FakeLessonText = "AI lesson text" + strings.Repeat(" kata", 397)
+
+// FakeLesson is one queued Lesson reply: Text as it is, or Err.
+type FakeLesson struct {
+	Text string
+	Err  error
+}
+
+func (f *FakeWriter) WriteLesson(ctx context.Context, r aiwriter.LessonRequest) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lessons = append(f.lessons, r)
+	if len(f.lessonReplies) > 0 {
+		reply := f.lessonReplies[0]
+		f.lessonReplies = f.lessonReplies[1:]
+		return reply.Text, reply.Err
+	}
+	return FakeLessonText, nil
+}
+
+// ReplyLessons queues replies for the next Lesson requests.
+func (f *FakeWriter) ReplyLessons(replies ...FakeLesson) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lessonReplies = append(f.lessonReplies, replies...)
+}
+
+// LessonRequests lists the Lessons the writer was asked to write, oldest first.
+func (f *FakeWriter) LessonRequests() []aiwriter.LessonRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]aiwriter.LessonRequest(nil), f.lessons...)
 }
 
 // FakeMarking is the fake writer's mark when none is queued.

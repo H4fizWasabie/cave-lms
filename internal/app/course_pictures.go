@@ -27,9 +27,9 @@ func readPictureForm(w http.ResponseWriter, r *http.Request) (status int, msgKey
 	}
 }
 
-// storePicture stores the parsed form's "picture" file. key is "" when none was sent; bad reports a file that is
-// not a JPEG, PNG or WebP picture, which is not stored.
-func (a *App) storePicture(r *http.Request) (key, mimeType string, bad bool, err error) {
+// storePicture stores the parsed form's "picture" file under a key starting with prefix. key is "" when none was
+// sent; bad reports a file that is not a JPEG, PNG or WebP picture, which is not stored.
+func (a *App) storePicture(r *http.Request, prefix string) (key, mimeType string, bad bool, err error) {
 	file, _, err := r.FormFile("picture")
 	if errors.Is(err, http.ErrMissingFile) || errors.Is(err, http.ErrNotMultipart) {
 		return "", "", false, nil
@@ -42,7 +42,7 @@ func (a *App) storePicture(r *http.Request) (key, mimeType string, bad bool, err
 	if err != nil || mimeType == "" {
 		return "", "", err == nil, err
 	}
-	key, _, err = a.store.Save(whole)
+	key, _, err = a.store.SaveAs(prefix, whole)
 	return key, mimeType, false, err
 }
 
