@@ -320,23 +320,46 @@ func (a *App) assignPlan(w http.ResponseWriter, r *http.Request) {
 
 // endPlanPeriod ends a period now. A period that has already ended is left as it is.
 func (a *App) endPlanPeriod(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	var email string
-	err := a.db.QueryRowContext(r.Context(),
-		`SELECT l.email FROM plan_periods pp JOIN learners l ON l.id = pp.learner_id WHERE pp.id = $1`, id).Scan(&email)
-	if errors.Is(err, sql.ErrNoRows) {
-		a.adminNotFound(w, r, "plans.period.not-found.title", "plans.period.not-found")
+	id, email, _, ok := a.planPeriodFor(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
-	if err == nil {
-		_, err = a.db.ExecContext(r.Context(),
-			`UPDATE plan_periods SET ended_early_at = now() WHERE id = $1 AND ended_early_at IS NULL AND ends_at > now()`, id)
-	}
-	if err != nil {
+	if _, err := a.db.ExecContext(r.Context(),
+		`UPDATE plan_periods SET ended_early_at = now() WHERE id = $1 AND ended_early_at IS NULL AND ends_at > now()`, id); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/admin/plans/periods?email="+url.QueryEscape(email), http.StatusSeeOther)
+	http.Redirect(w, r, planPeriodsPath(email), http.StatusSeeOther)
+}
+
+// confirmEndPlanPeriod asks the Admin to confirm ending a Plan period now.
+func (a *App) confirmEndPlanPeriod(w http.ResponseWriter, r *http.Request) {
+	if _, email, plan, ok := a.planPeriodFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Side: "plans", Heading: "plans.period.end", Question: "plans.period.end-ask",
+			Cancel: planPeriodsPath(email), Action: r.URL.Path}, email, plan)
+	}
+}
+
+// planPeriodFor loads the Plan period named by {id}: its Learner's email and its Plan's name. When there is none it
+// writes the Not found page and returns false.
+func (a *App) planPeriodFor(w http.ResponseWriter, r *http.Request) (id int64, email, plan string, ok bool) {
+	id, _ = strconv.ParseInt(r.PathValue("id"), 10, 64)
+	err := a.db.QueryRowContext(r.Context(), `SELECT l.email, p.name FROM plan_periods pp
+		JOIN learners l ON l.id = pp.learner_id JOIN plans p ON p.id = pp.plan_id WHERE pp.id = $1`, id).Scan(&email, &plan)
+	if errors.Is(err, sql.ErrNoRows) {
+		a.adminNotFound(w, r, "plans.period.not-found.title", "plans.period.not-found")
+		return 0, "", "", false
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return 0, "", "", false
+	}
+	return id, email, plan, true
+}
+
+// planPeriodsPath is the Plan periods page of the Learner with email.
+func planPeriodsPath(email string) string {
+	return "/admin/plans/periods?email=" + url.QueryEscape(email)
 }
 
 // planPeriodsPage loads the Learner with the given email, their periods in start order, and every Plan.

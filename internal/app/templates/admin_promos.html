@@ -20,7 +20,7 @@
                 <td>{{.Price}}</td>
                 <td>{{.Starts $.Lang}} – {{.Ends $.Lang}}</td>
                 <td>{{if .Ended}}{{t $.Lang "promos.ended"}}{{else if .Running}}{{t $.Lang "promos.running"}}{{else if .Upcoming}}{{t $.Lang "promos.upcoming"}}{{else}}{{t $.Lang "promos.over"}}{{end}}</td>
-                <td class="actions">{{if or .Running .Upcoming}}<form method="post" action="/admin/promos/{{.ID}}/end" aria-label="{{t $.Lang "promos.end-label" .Code}}"><button class="btn btn-quiet btn-sm">{{t $.Lang "promos.end"}}</button></form>{{end}}</td>
+                <td class="actions">{{if or .Running .Upcoming}}<a class="btn btn-quiet btn-sm" href="/admin/promos/{{.ID}}/end" aria-label="{{t $.Lang "promos.end-label" .Code}}">{{t $.Lang "promos.end"}}</a>{{end}}</td>
               </tr>
               {{else}}
               <tr><td colspan="6">{{t .Lang "promos.none"}}</td></tr>

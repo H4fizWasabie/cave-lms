@@ -39,7 +39,7 @@
                 <td>{{.Ends}}</td>
                 <td>{{.Deployments}}</td>
                 <td>{{.Shown}}</td>
-                <td class="actions">{{if or (eq .Status "active") (eq .Status "upcoming")}}<form method="post" action="/admin/plans/periods/{{.ID}}/end"><button class="btn btn-danger btn-sm">{{t $.Lang "plans.end-now"}}</button></form>{{end}}</td>
+                <td class="actions">{{if or (eq .Status "active") (eq .Status "upcoming")}}<a class="btn btn-danger btn-sm" href="/admin/plans/periods/{{.ID}}/end">{{t $.Lang "plans.end-now"}}</a>{{end}}</td>
               </tr>
               {{else}}
               <tr><td colspan="6">{{t .Lang "plans.periods.none"}}</td></tr>
