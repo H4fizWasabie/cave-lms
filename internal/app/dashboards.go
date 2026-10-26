@@ -295,7 +295,7 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		err = r.ParseMultipartForm(maxPageUpload)
 	}
 	var over *http.MaxBytesError
-	tooBig := errors.As(err, &over)
+	tooBig := errors.As(err, &over) || r.ContentLength > maxPageUpload
 	key := r.FormValue("sample")
 	if key == "" {
 		a.createPageDashboard(w, r, acc, tooBig)

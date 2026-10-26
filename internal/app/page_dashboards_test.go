@@ -64,6 +64,10 @@ func TestAPlanHolderPastesHTMLDeploysAndAVisitorGetsItSandboxed(t *testing.T) {
 	if ct := res.Header.Get("Content-Type"); ct != "text/html; charset=utf-8" {
 		t.Fatalf("page Content-Type = %q", ct)
 	}
+
+	// A browser posts the form with an empty file part when no file is picked: the paste is used.
+	res, body = ada.postFile("/lab/dashboards", "", nil, url.Values{"name": {"Tampal"}, "html": {myPage}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
 func TestAPlanHolderPicksAnHTMLFileForTheirPage(t *testing.T) {
@@ -103,6 +107,9 @@ func TestAPageThatIsEmptyTooBigNotHTMLOrOverTheAllowanceIsRefusedAndNothingIsSav
 		}, "jualan.xlsx is not a .html file."},
 		{"big file", func() (*http.Response, string) {
 			return ada.postFile("/lab/dashboards", "jualan.html", []byte(big), url.Values{"name": {"Jualan"}})
+		}, "The page is over 5 MB."},
+		{"file over the request cap", func() (*http.Response, string) {
+			return ada.postFile("/lab/dashboards", "jualan.html", []byte(strings.Repeat("x", 6<<20)), url.Values{"name": {"Jualan"}})
 		}, "The page is over 5 MB."},
 		{"big paste", func() (*http.Response, string) {
 			return ada.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {big + big}})
