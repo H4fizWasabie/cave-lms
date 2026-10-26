@@ -25,6 +25,7 @@
         {{end}}
         {{end}}
         {{if .Passed}}
+        {{if $.PassedNoIC}}<div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t $.Lang "course.needs-ic.passed"}} <a class="link-more" href="/my-profile">{{t $.Lang "my-profile.title"}}</a></p></div>{{end}}
         {{- /* After a pass the Course's next step is the primary; the Answer sheet is the primary only when none leads anywhere. */}}
         {{with $.Step}}{{if .URL}}<a id="next-step" class="btn btn-solid btn-lg" href="{{.URL}}">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="x-help step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
         <a class="btn {{if and $.Step $.Step.URL}}btn-ghost{{else}}btn-solid{{end}} btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>

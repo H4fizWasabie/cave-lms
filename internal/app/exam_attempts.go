@@ -283,6 +283,7 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.NeedsIC = ic == ""
+	p.PassedNoIC = p.NeedsIC && st.Passed
 	if st.Passed && st.Enrolled { // the Exam is behind them: their next step on the Course comes first
 		step, err := a.nextStep(r.Context(), learner, c, nil)
 		if err != nil {
