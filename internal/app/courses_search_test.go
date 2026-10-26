@@ -44,10 +44,15 @@ func searchableCourses(t *testing.T) *site {
 
 func TestCourseSearchFindsAWordInTheTitleOrDescription(t *testing.T) {
 	s := searchableCourses(t)
-	for _, q := range []string{"garden", "TOMATOES"} {
-		body := s.searchCourses(q)
-		if !strings.Contains(body, "Garden Basics") || strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Cooking Hour") {
-			t.Errorf("search %q: want only Garden Basics: %s", q, body)
+	for _, visitor := range []bool{false, true} {
+		if visitor {
+			s.logOut()
+		}
+		for _, q := range []string{"garden", "TOMATOES"} {
+			body := s.searchCourses(q)
+			if !strings.Contains(body, "Garden Basics") || strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Cooking Hour") {
+				t.Errorf("search %q (visitor %v): want only Garden Basics: %s", q, visitor, body)
+			}
 		}
 	}
 }
@@ -62,18 +67,51 @@ func TestCourseSearchFindsMalayWords(t *testing.T) {
 	}
 }
 
-func TestCourseSearchFindsTheCourseOfALessonByTitleObjectiveOrBody(t *testing.T) {
+func TestCourseSearchFindsTheCourseOfALessonByTitleOrObjectiveWhoeverAsks(t *testing.T) {
 	s := searchableCourses(t)
-	for _, q := range []string{"baja", "memahami", "kompos"} {
-		body := s.searchCourses(q)
-		if !strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Garden Basics") {
-			t.Errorf("search %q: want only Kebun Sayur: %s", q, body)
+	for _, visitor := range []bool{false, true} {
+		if visitor {
+			s.logOut()
 		}
+		for _, q := range []string{"baja", "memahami"} {
+			body := s.searchCourses(q)
+			if !strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Garden Basics") {
+				t.Errorf("search %q (visitor %v): want only Kebun Sayur: %s", q, visitor, body)
+			}
+		}
+	}
+}
+
+func TestCourseSearchMatchesLessonBodiesOnlyForALearnerEnrolledInThatCourse(t *testing.T) {
+	s := searchableCourses(t)
+	kebun := s.courseIDByTitle("Kebun Sayur")
+	garden := s.courseIDByTitle("Garden Basics")
+	// Not enrolled: the Learner cannot open the Lesson, so its words must not find the Course.
+	if body := s.searchCourses("kompos"); strings.Contains(body, "Kebun Sayur") {
+		t.Errorf("a Learner not enrolled found a Lesson body word: %s", body)
+	}
+	// Enrolled in another Course does not help.
+	s.post("/courses/"+garden+"/join", nil)
+	if body := s.searchCourses("kompos"); strings.Contains(body, "Kebun Sayur") {
+		t.Errorf("a Learner enrolled elsewhere found a Lesson body word: %s", body)
+	}
+	s.post("/courses/"+kebun+"/join", nil)
+	if body := s.searchCourses("kompos"); !strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Garden Basics") {
+		t.Errorf("an enrolled Learner should find only Kebun Sayur by a Lesson body word: %s", body)
+	}
+	// A Visitor never does.
+	s.logOut()
+	if body := s.searchCourses("kompos"); strings.Contains(body, "Kebun Sayur") {
+		t.Errorf("a Visitor found a Lesson body word: %s", body)
 	}
 }
 
 func TestCourseSearchIgnoresUnpublishedLessons(t *testing.T) {
 	s := searchableCourses(t)
+	s.post("/courses/"+s.courseIDByTitle("Kebun Sayur")+"/join", nil) // enrolled, so bodies are searched
+	if body := s.searchCourses("kompos"); !strings.Contains(body, "Kebun Sayur") {
+		t.Fatalf("setup: an enrolled Learner should find a published body word: %s", body)
+	}
 	if body := s.searchCourses("sekam"); strings.Contains(body, "Kebun Sayur") {
 		t.Errorf("a draft Lesson's word found its Course: %s", body)
 	}
@@ -84,7 +122,7 @@ func TestCourseSearchHidesDraftCourses(t *testing.T) {
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Garden Basics", "Grow tomatoes on a balcony.", "")
 	id := s.onlyCourseID()
-	s.addTextLesson(id, "Soil", "", "Compost feeds the plants.", false)
+	s.addTextLesson(id, "Compost", "", "Feeds the plants.", false)
 	s.copiedCourseID(id, "Acme Orchard", "2027-03-01", "2027-03-02", "2") // a Draft copy with the same Lesson
 	_, body := s.get("/admin/courses")
 	if !strings.Contains(body, "Acme Orchard") {
