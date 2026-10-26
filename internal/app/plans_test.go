@@ -268,7 +268,7 @@ func TestAdminEndsAPeriodEarly(t *testing.T) {
 		t.Fatalf("periods = %+v after an unconfirmed end, want the first Active", p)
 	}
 	res, body = s.get(confirmPage)
-	expectStatus(t, res, body, http.StatusOK, "End the Lab Monthly period for ada@example.com now? It stops at once. This cannot be undone")
+	expectStatus(t, res, body, http.StatusOK, "End the “Lab Monthly” period for ada@example.com now? It stops at once. This cannot be undone")
 	expectAll(t, body, `href="/admin/plans/periods?email=ada%40example.com"`)
 
 	res, body = s.post(confirmPage, confirming)

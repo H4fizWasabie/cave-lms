@@ -59,7 +59,7 @@ func TestAnyAdminAddsListsAndEndsPromosAndPastOnesStayListed(t *testing.T) {
 	_, body = s.get("/admin/promos")
 	expectInOrder(t, content(body), "CAVE99", "Running")
 	res, body = s.get(confirmPage)
-	expectStatus(t, res, body, http.StatusOK, "End the Promo CAVE99 now? Its price stops at once. This cannot be undone.")
+	expectStatus(t, res, body, http.StatusOK, "End the Promo “CAVE99” now? Its price stops at once. This cannot be undone.")
 	expectAll(t, body, `href="/admin/promos"`)
 
 	s.endPromo("CAVE99")

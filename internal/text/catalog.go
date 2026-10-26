@@ -256,9 +256,9 @@ var catalog = map[string]entry{
 	"lab.w.delete-ask":              {en: "Delete the earlier Dataset “%s”? Its file goes too. This cannot be undone.", ms: "Padam Set data terdahulu “%s”? Failnya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
 	"ctadmin.learners.end-ask":      {en: "End Pro for %s now? Their running Pro and any given to follow it end at once; their Plan periods stay. This cannot be undone, but you can give Pro again.", ms: "Tamatkan Pro untuk %s sekarang? Pro mereka yang berjalan dan yang diberikan selepasnya tamat serta-merta; Tempoh Pelan mereka kekal. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh memberikan Pro semula."},
 	"plans.period.end":              {en: "End Plan period", ms: "Tamatkan Tempoh Pelan"},
-	"plans.period.end-ask":          {en: "End the %[2]s period for %[1]s now? It stops at once. This cannot be undone, but you can assign a Plan again.", ms: "Tamatkan tempoh %[2]s bagi %[1]s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan semula."},
+	"plans.period.end-ask":          {en: "End the “%[2]s” period for %[1]s now? It stops at once. This cannot be undone, but you can assign a Plan again.", ms: "Tamatkan tempoh “%[2]s” bagi %[1]s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan semula."},
 	"promos.end-title":              {en: "End Promo", ms: "Tamatkan Promosi"},
-	"promos.end-ask":                {en: "End the Promo %s now? Its price stops at once. This cannot be undone.", ms: "Tamatkan Promosi %s sekarang? Harganya berhenti serta-merta. Tindakan ini tidak boleh dibuat asal."},
+	"promos.end-ask":                {en: "End the Promo “%s” now? Its price stops at once. This cannot be undone.", ms: "Tamatkan Promosi “%s” sekarang? Harganya berhenti serta-merta. Tindakan ini tidak boleh dibuat asal."},
 	"adm.assignments.delete-ask":    {en: "Delete “%s”? Learners' Submissions to it are deleted with it. This cannot be undone.", ms: "Padam “%s”? Serahan Pelajar kepadanya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
 	"adm.gallery.delete-ask":        {en: "Delete “%s” and its file? This cannot be undone.", ms: "Padam “%s” dan failnya? Tindakan ini tidak boleh dibuat asal."},
 	// ---- Premium refresh: confirmation pages (QA): end ----

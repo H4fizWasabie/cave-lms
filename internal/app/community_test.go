@@ -86,11 +86,17 @@ func TestAMemberPostsRepliesReactsDeletesAndReportsInTheCommunityChat(t *testing
 
 	gone := ada.say(community, "Oops")
 	expectStatus(t, must(ben.post("/community/"+gone+"/delete", nil)), "", http.StatusForbidden, "")
+	res, body := ada.post("/community/"+gone+"/delete", nil)
+	expectRedirect(t, res, body, "/community/"+gone+"/delete")
+	expectInOrder(t, ben.messageHTML(community, gone), "Oops")
+	res, body = ada.get("/community/" + gone + "/delete")
+	expectStatus(t, res, body, http.StatusOK, "Delete your Message?")
+	expectAll(t, body, `href="/community#m`+gone+`"`)
 	expectStatus(t, must(ada.post("/community/"+gone+"/delete", confirming)), "", http.StatusSeeOther, "")
 	expectInOrder(t, ben.messageHTML(community, gone), "Message deleted")
 
 	expectStatus(t, must(ada.report(community, mid, "Spam")), "", http.StatusSeeOther, "")
-	_, body := admin.get("/admin/reports")
+	_, body = admin.get("/admin/reports")
 	expectInOrder(t, body, `href="/community?before=`, "Hello from Go Basics", "Ben", "Community Chat", "Ada", "Spam")
 	_, body = admin.getAsking("/admin/reports", "ms")
 	expectInOrder(t, body, "Sembang Komuniti")
