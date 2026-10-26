@@ -192,12 +192,15 @@ func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	if n := strings.Count(cards, "with a promo code"); n != 1 {
 		t.Errorf("%d promo lines, want 1 (only the Pro Plan has a Promo)", n)
 	}
+	// A fourth card sells the Pro Plan at its promo price, with Ebooks and 1 GB the Pro Plan card leaves out.
+	expectInOrder(t, cards, "Pro Plan", "0.5 GB of storage", "Promo Pro Plan", "RM99 a year",
+		"Everything in CaveText Pro", "Everything in the Lab Plan", "Ebooks", "Your own Dashboard deployment", "1 GB of storage", "One payment a year for both")
 	_, body = visitor.getAsking("/pricing", "ms")
-	expectAll(t, content(body), "RM99 dengan kod promosi")
+	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro Promo", "Had storan 1 GB")
 
 	s.endPromo("CAVE99")
 	_, body = visitor.getAsking("/pricing", "en")
-	expectNone(t, content(body), "with a promo code")
+	expectNone(t, content(body), "with a promo code", "Promo Pro Plan")
 }
 
 // couponProPlan is a paid Pro Plan order as BCL sends one with a coupon: the subtotal before it, the discount apart.

@@ -1966,7 +1966,10 @@ var catalog = map[string]entry{
 	"offers.pro-plan.lab":           {en: "Everything in the Lab Plan", ms: "Semua dalam Pelan Lab"},
 	"offers.pro-plan.ebooks":        {en: "Ebooks", ms: "Ebook"},
 	"offers.pro-plan.deploy":        {en: "Your own Dashboard deployment", ms: "Deployment Dashboard anda sendiri"},
-	"offers.pro-plan.storage":       {en: "1 GB of storage", ms: "Had storan 1 GB"},
+	"offers.pro-plan.storage":       {en: "0.5 GB of storage", ms: "Had storan 0.5 GB"},
+	"offers.promo-plan":             {en: "Promo Pro Plan", ms: "Pelan Pro Promo"},
+	"offers.promo-plan.tagline":     {en: "The Pro Plan at its promo price.", ms: "Pelan Pro pada harga promosi."},
+	"offers.promo-plan.storage":     {en: "1 GB of storage", ms: "Had storan 1 GB"},
 	"offers.pro-plan.both":          {en: "One payment a year for both", ms: "Satu bayaran setahun untuk kedua-duanya"},
 
 	"offers.fee": {
@@ -2179,7 +2182,6 @@ var catalog = map[string]entry{
 	"cost.feature":          {en: "Feature / Component", ms: "Fungsi / Komponen"},
 	"cost.per-year":         {en: "%s/year", ms: "%s/tahun"},
 	"cost.text-expansion":   {en: "Text Expansion", ms: "Text Expansion"},
-	"cost.prompt-library":   {en: "KPM Prompt Library", ms: "Prompt Library KPM"},
 	"cost.prompt-templates": {en: "AI Prompt Templates", ms: "AI Prompt Templates"},
 	"cost.subdomain":        {en: "Personal subdomain", ms: "Subdomain peribadi"},
 	"cost.hosting":          {en: "Web hosting / deployment", ms: "Web hosting / deployment"},
