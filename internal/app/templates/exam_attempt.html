@@ -12,7 +12,7 @@
         {{with $.Certificate}}
         <div class="x-cert">
           {{template "certificate-preview" (.Preview $.CertBackground)}}
-          <div>
+          <div class="x-cert-body">
             <p>{{t $.Lang "certificate.number" .Number}}</p>
             <a class="btn btn-solid" href="/certificates/{{.ID}}/pdf">{{t $.Lang "next.certificate"}}</a>
           </div>

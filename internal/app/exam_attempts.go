@@ -483,7 +483,7 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		if len(list) == 1 {
+		if len(list) > 0 {
 			p.Certificate = &list[0]
 			if p.Step != nil && p.Step.Key == "next.certificate" {
 				p.Step = nil // the Certificate's own button leads there

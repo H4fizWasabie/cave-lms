@@ -400,11 +400,11 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .x-submit p { color: var(--muted); }
 .x-score { font-family: var(--font-display); font-size: var(--fs-display); font-weight: 700; line-height: 1; }
 .x-cert { display: grid; grid-template-columns: 7rem auto; gap: var(--space-4); align-items: center; text-align: start; }
-.x-cert div { display: grid; justify-items: start; gap: var(--space-3); }
-@media (max-width: 480px) {
+.x-cert-body { display: grid; justify-items: start; gap: var(--space-3); }
+@media (max-width: 720px) {
   .x-cert { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
   .x-cert .cert-art { width: 7rem; }
-  .x-cert div { justify-items: center; }
+  .x-cert-body { justify-items: center; }
 }
 .is-pass .x-score { color: var(--ok); }
 .is-fail .x-score { color: var(--bad); }
