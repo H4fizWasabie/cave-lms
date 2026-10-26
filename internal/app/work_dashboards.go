@@ -27,7 +27,16 @@ const previewRows = 20
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
 	lab.CleanUp              // without its Dataset
-	Settings    lab.Settings `json:"settings"` // the remembered part of the settings Clean-up read with
+	Settings    lab.Settings `json:"settings"`        // the remembered part of the settings Clean-up read with
+	Added       *addition    `json:"added,omitempty"` // an Add to data; nil for one that replaces the rows
+}
+
+// addition is what an Add to data put together: the upload's rows, the current Dataset's before them, and how
+// many of the upload's exactly match one of those.
+type addition struct {
+	Rows int `json:"rows"`
+	Had  int `json:"had"`
+	Same int `json:"same"`
 }
 
 // pendingDataset is a Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
@@ -70,10 +79,14 @@ func (p *pendingDataset) Grid() *struct{ Month, Year int } {
 // UsedList is the sheets that went in, for the preview.
 func (p *pendingDataset) UsedList() string { return strings.Join(p.Used, ", ") }
 
-// Rows are the first previewRows cleaned rows as the preview shows them.
+// Rows are the first previewRows cleaned rows as the preview shows them; for an Add to data, the upload's.
 func (p *pendingDataset) Rows() [][]string {
+	rows := p.Dataset.Rows
+	if p.Added != nil {
+		rows = rows[p.Added.Had:]
+	}
 	var out [][]string
-	for _, row := range p.Dataset.Rows[:min(len(p.Dataset.Rows), previewRows)] {
+	for _, row := range rows[:min(len(rows), previewRows)] {
 		cells := make([]string, len(row))
 		for i, v := range row {
 			switch v := v.(type) {
@@ -288,12 +301,12 @@ var errDatasetStore = errors.New("the store refused the Dataset")
 // count against the Storage allowance too. A Dataset that would not fit, even with every Dataset of this Dashboard
 // that roomFor may delete on confirm gone, is dropped with errStorageFull; used is then the bytes the Learner's
 // Datasets take, pending ones included.
-func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res *lab.CleanUp, settings lab.Settings, name string) (size, used int64, err error) {
+func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string) (size, used int64, err error) {
 	data, err := json.Marshal(res.Dataset)
 	if err != nil {
 		return 0, 0, err
 	}
-	c, err := json.Marshal(cleaned{CleanUp: *res, Settings: settings})
+	c, err := json.Marshal(res)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -384,7 +397,21 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	size, used, err := a.keepPending(r, d, acc, res, settings, name)
+	kept := cleaned{CleanUp: *res, Settings: settings}
+	// Add to data on a page Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
+	// ponytail: combined with the Dataset current at upload; a restore before the confirm is undone by it.
+	if r.FormValue("mode") == "add" && d.Page != nil && d.Dataset != nil {
+		combined, same, err := lab.Add(d.Dataset, res.Dataset)
+		if errors.As(err, &problem) {
+			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
+			page.Error = problem.In(lang)
+			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
+			return
+		}
+		kept.Added = &addition{Rows: len(res.Dataset.Rows), Had: len(d.Dataset.Rows), Same: same}
+		kept.Dataset = combined
+	}
+	size, used, err := a.keepPending(r, d, acc, kept, name)
 	if errors.Is(err, errStorageFull) {
 		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 		page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))

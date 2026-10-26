@@ -323,7 +323,7 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	if t != lab.General {
 		// ponytail: the Sample is kept unchecked, as refusing a new Dashboard would need its own message; it is one
 		// small fixed Dataset per Dashboard, and it counts against the allowance for every other upload.
-		if _, _, err := a.keepPending(r, d, labAccess{}, sample, lab.Settings{}, t.Key+"-sample.xlsx"); err != nil {
+		if _, _, err := a.keepPending(r, d, labAccess{}, cleaned{CleanUp: *sample}, t.Key+"-sample.xlsx"); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -441,6 +441,8 @@ type dashboardPage struct {
 	Picked    *lab.Template   // before the first confirm: the one of Offers the preview opens
 	Building  []string        // the labels of the blocks Picked opens to
 	Earlier   []keptDataset   // the earlier Datasets, newest first
+	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
+	New       string          // and its columns the current Dataset lacks
 	Pages     []htmlPage      // the earlier pages, newest first
 	Open      int             // Blocks tab: the block whose form is open; -1 for none
 	Saved     bool            // Blocks tab: an edit was just saved
@@ -549,6 +551,10 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		if 2*missingUses(p.Uses) > len(p.Uses) {
 			p.AskHeader = p.Pending.HeaderRow
 		}
+	}
+	if p.Pending != nil && p.Pending.Added == nil && d.Page != nil && d.Dataset != nil {
+		gone, added := lab.ColumnChanges(d.Dataset.Columns, p.Pending.Dataset.Columns)
+		p.Gone, p.New = strings.Join(gone, ", "), strings.Join(added, ", ")
 	}
 	if p.Tab == dataTab(d) && !p.ReadOnly {
 		var err error

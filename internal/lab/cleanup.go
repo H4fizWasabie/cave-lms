@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"path"
 	"regexp"
@@ -371,6 +372,66 @@ func sameColumns(a, b []Column) bool {
 		return out
 	}
 	return slices.Equal(keys(a), keys(b))
+}
+
+// ColumnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
+func ColumnChanges(was, now []Column) (gone, added []string) {
+	in := func(cols []Column, c Column) bool {
+		return slices.ContainsFunc(cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
+	}
+	for _, c := range was {
+		if !in(now, c) {
+			gone = append(gone, c.Name)
+		}
+	}
+	for _, c := range now {
+		if !in(was, c) {
+			added = append(added, c.Name)
+		}
+	}
+	return gone, added
+}
+
+// Add is d's rows followed by more's, put in d's columns, and how many of more's rows exactly match one of d's.
+// more needs d's columns by name, in any order, and the two at most MaxCleanRows rows; else a Problem names the
+// columns missing and extra, or the row counts. d's column types stay, whatever more's cells are.
+func Add(d, more *Dataset) (*Dataset, int, error) {
+	if gone, added := ColumnChanges(d.Columns, more.Columns); gone != nil || added != nil {
+		return nil, 0, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
+	}
+	if n := len(d.Rows) + len(more.Rows); n > MaxCleanRows {
+		return nil, 0, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(len(d.Rows)), thousands(n), thousands(MaxCleanRows)}}
+	}
+	at := make([]int, len(d.Columns)) // each column's index in more
+	for i, c := range d.Columns {
+		at[i] = slices.IndexFunc(more.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
+	}
+	key := func(row []any) string { return fmt.Sprintf("%#v", row) } // typed, so 1 and "1" differ
+	had := map[string]bool{}
+	for _, row := range d.Rows {
+		had[key(row)] = true
+	}
+	out := &Dataset{Columns: d.Columns, Rows: slices.Clone(d.Rows)}
+	same := 0
+	for _, vals := range more.Rows {
+		row := make([]any, len(at))
+		for i, j := range at {
+			row[i] = vals[j]
+		}
+		if had[key(row)] {
+			same++
+		}
+		out.Rows = append(out.Rows, row)
+	}
+	return out, same, nil
+}
+
+// columnList is names as a Problem lists them, or the word for none.
+func columnList(names []string) any {
+	if len(names) == 0 {
+		return Problem{"lab.add.none", nil}
+	}
+	return strings.Join(names, ", ")
 }
 
 // sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.

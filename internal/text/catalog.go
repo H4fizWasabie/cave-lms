@@ -1121,6 +1121,45 @@ var catalog = map[string]entry{
 		en: "Your page changes only if it reads data.json. A page with its data written into it stays as it is; to change it, upload a new page.",
 		ms: "Halaman anda hanya berubah jika ia membaca data.json. Halaman yang datanya ditulis di dalamnya kekal seperti asal; untuk mengubahnya, muat naik halaman baharu.",
 	},
+	"lab.data.mode":         {en: "This upload", ms: "Muat naik ini"},
+	"lab.data.replace":      {en: "Replace data", ms: "Gantikan data"},
+	"lab.data.replace-help": {en: "Your page shows only this file's rows.", ms: "Halaman anda hanya menunjukkan baris fail ini."},
+	"lab.data.add":          {en: "Add to data", ms: "Tambah pada data"},
+	"lab.data.add-help": {
+		en: "This file's rows join the rows you have. It needs the same columns, in any order.",
+		ms: "Baris fail ini disertakan bersama baris yang anda ada. Ia perlu mempunyai lajur yang sama, dalam apa jua susunan.",
+	},
+	"lab.data.adds.one": {
+		en: "Adding %d row to your %d: %d rows in all. The new row is below, as Cave will keep it.",
+		ms: "Menambah %d baris pada %d baris anda: %d baris semuanya. Baris baharu di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.data.adds.other": {
+		en: "Adding %d rows to your %d: %d rows in all. The first new rows are below, as Cave will keep them.",
+		ms: "Menambah %d baris pada %d baris anda: %d baris semuanya. Baris baharu pertama di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.data.same.one": {
+		en: "%d new row exactly matches a row already in your data. Check you are not adding the same rows twice.",
+		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
+	},
+	"lab.data.same.other": {
+		en: "%d new rows exactly match rows already in your data. Check you are not adding the same rows twice.",
+		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
+	},
+	"lab.data.columns-changed": {
+		en: "Your page may stop working: these columns differ from your current data's.",
+		ms: "Halaman anda mungkin berhenti berfungsi: lajur ini berbeza daripada lajur data semasa anda.",
+	},
+	"lab.data.gone": {en: "Gone or renamed: %s.", ms: "Hilang atau ditukar nama: %s."},
+	"lab.data.new":  {en: "New: %s.", ms: "Baharu: %s."},
+	"lab.err.add-columns": {
+		en: "To add to your data, the file needs the same columns, in any order. Missing: %s. Not in your data: %s. Fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai lajur yang sama, dalam apa jua susunan. Hilang: %s. Tiada dalam data anda: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+	},
+	"lab.err.add-too-many-rows": {
+		en: "Adding these %s rows to your %s makes %s. A Dataset holds up to %s rows. Upload fewer rows, or choose Replace data.",
+		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Set data memuatkan sehingga %s baris. Muat naik lebih sedikit baris, atau pilih Gantikan data.",
+	},
+	"lab.add.none": {en: "none", ms: "tiada"},
 
 	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {
