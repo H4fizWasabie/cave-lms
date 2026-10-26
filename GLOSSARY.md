@@ -124,12 +124,17 @@ _Malay_: Keterlihatan
 _Avoid_: Permission, access level
 
 **Lesson**:
-One step of a Course: a Gallery item or text, with a title and an optional Objective. A Course is its ordered Lessons.
+One step of a Course: a title naming its topic, up to five Objectives, and its content: text, a Gallery item, or text with either a Gallery item or a Lesson image above it. The AI can write the text from the title and Objectives as a Draft. A Course is its ordered Lessons.
 _Malay_: Pelajaran
-_Avoid_: Chapter, unit, module
+_Avoid_: Chapter, unit, module, lesson plan, topic
+
+**Lesson image**:
+A picture the Admin uploads to one Lesson, with a short description for Learners who cannot see it. It belongs to that Lesson alone, is never a Gallery item, and goes when the Lesson goes.
+_Malay_: Imej Pelajaran
+_Avoid_: Lesson picture, cover, thumbnail
 
 **Objective**:
-One sentence saying what a Learner can do after a Lesson.
+One sentence saying what a Learner can do after a Lesson. A Lesson has up to five.
 _Malay_: Objektif
 _Avoid_: Learning outcome, goal, aim
 
