@@ -12,8 +12,10 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// resultDelaySQL is how long after an attempt is submitted its Result is released.
-const resultDelaySQL = "interval '10 minutes'"
+// resultDelayMinutes is how long after an attempt is submitted its Result is released; the Exam page says so.
+const resultDelayMinutes = 10
+
+var resultDelaySQL = fmt.Sprintf("interval '%d minutes'", resultDelayMinutes)
 
 // submittedAtSQL is when an attempt was submitted, NULL while it is open. An attempt left open past its time limit
 // and grace counts as submitted at its limit, with the answers sent so far, which is none.

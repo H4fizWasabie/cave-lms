@@ -1580,6 +1580,8 @@ var catalog = map[string]entry{
 	"exam.no-time-limit":           {en: "No time limit", ms: "Tiada had masa"},
 	"exam.questions":               {en: "Questions: %d", ms: "Soalan: %d"},
 	"exam.starting-uses":           {en: "Starting uses 1 of your %d attempts.", ms: "Memulakan Peperiksaan menggunakan 1 daripada %d percubaan anda."},
+	"exam.release-note":            {en: "Your Result is ready %d minutes after you submit.", ms: "Keputusan anda sedia %d minit selepas anda menghantar."},
+	"exam.release-note.written":    {en: "Your Result is ready at least %d minutes after you submit, once your answers are marked.", ms: "Keputusan anda sedia sekurang-kurangnya %d minit selepas anda menghantar, setelah jawapan anda disemak."},
 	"exam.used-of":                 {en: "You have used %d of %d attempts. Starting uses 1 of the %d left.", ms: "Anda telah menggunakan %d daripada %d percubaan. Memulakan Peperiksaan menggunakan 1 daripada %d yang berbaki."},
 	"exam.used-last":               {en: "You have used %d of %d attempts. This is your last one.", ms: "Anda telah menggunakan %d daripada %d percubaan. Ini percubaan terakhir anda."},
 	"exam.used-one":                {en: "You have used 1 attempt so far.", ms: "Anda telah menggunakan 1 percubaan setakat ini."},

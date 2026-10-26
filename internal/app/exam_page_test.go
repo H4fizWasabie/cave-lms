@@ -146,6 +146,22 @@ func TestGenerateHasItsOwnCardAboveAddFromTheBankWithABusyIndicator(t *testing.T
 	expectAll(t, body, `src="/static/forms.js`)
 }
 
+func TestTheExamStartPageSaysWhenTheResultIsReleased(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("50", "", "", "Q1")
+	_, body := s.getAsking("/courses/"+id+"/exam", "en")
+	expectInOrder(t, mainOf(body), "Your Result is ready 10 minutes after you submit.", "Start the Exam")
+	_, body = s.getAsking("/courses/"+id+"/exam", "ms")
+	expectInOrder(t, mainOf(body), "Keputusan anda sedia 10 minit selepas anda menghantar.", "Mulakan Peperiksaan")
+
+	w := newSite(t)
+	wid := w.writtenCourse("50", "Explain :=")
+	_, body = w.getAsking("/courses/"+wid+"/exam?format=written", "en")
+	expectAll(t, mainOf(body), "Your Result is ready at least 10 minutes after you submit, once your answers are marked.")
+	_, body = w.getAsking("/courses/"+wid+"/exam?format=written", "ms")
+	expectAll(t, mainOf(body), "Keputusan anda sedia sekurang-kurangnya 10 minit selepas anda menghantar, setelah jawapan anda disemak.")
+}
+
 func TestADraftCoursesExamIsNotFoundToLearnersButOpenToTheAdmin(t *testing.T) {
 	s := newSite(t)
 	id, _ := s.examCourse("50", "30", "3", "Q1")
