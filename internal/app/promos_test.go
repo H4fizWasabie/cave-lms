@@ -24,13 +24,19 @@ func (s *site) addPromo(code, product, price, starts, ends string) {
 // endPromo ends the Promo with code early, as the logged-in Admin.
 func (s *site) endPromo(code string) {
 	s.t.Helper()
-	_, body := s.get("/admin/promos")
-	m := regexp.MustCompile(`action="(/admin/promos/\d+/end)" aria-label="End ` + code + `"`).FindStringSubmatch(body)
-	if m == nil {
-		s.t.Fatalf("no End button for %s:\n%s", code, body)
-	}
-	res, body := s.post(m[1], nil)
+	res, body := s.post(s.endPromoLink(code), confirming)
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+}
+
+// endPromoLink is the address of the End link of the Promo with code, as the logged-in Admin sees it.
+func (s *site) endPromoLink(code string) string {
+	s.t.Helper()
+	_, body := s.get("/admin/promos")
+	m := regexp.MustCompile(`href="(/admin/promos/\d+/end)" aria-label="End ` + code + `"`).FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("no End link for %s:\n%s", code, body)
+	}
+	return m[1]
 }
 
 func TestAnyAdminAddsListsAndEndsPromosAndPastOnesStayListed(t *testing.T) {
@@ -46,6 +52,15 @@ func TestAnyAdminAddsListsAndEndsPromosAndPastOnesStayListed(t *testing.T) {
 	expectInOrder(t, content(body), "NEXT", "CaveText Pro", "RM20", "Not started",
 		"CAVE99", "Pro Plan", "RM99", "Running", "OLD50", "Lab Plan", "RM50", "Over")
 	expectNone(t, body, `aria-label="End OLD50"`) // an Over Promo has nothing to end
+
+	confirmPage := s.endPromoLink("CAVE99")
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get("/admin/promos")
+	expectInOrder(t, content(body), "CAVE99", "Running")
+	res, body = s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "End the Promo “CAVE99” now? Its price stops at once. This cannot be undone.")
+	expectAll(t, body, `href="/admin/promos"`)
 
 	s.endPromo("CAVE99")
 	_, body = s.get("/admin/promos")
@@ -86,7 +101,7 @@ func TestOnlyAnAdminManagesPromos(t *testing.T) {
 	s.addPromo("CAVE99", "pro-plan", "99", "2026-01-01", "2099-12-31")
 	_, body = s.get("/admin/promos")
 	id := regexp.MustCompile(`/admin/promos/(\d+)/end`).FindStringSubmatch(body)[1]
-	res, body = ada.post("/admin/promos/"+id+"/end", nil)
+	res, body = ada.post("/admin/promos/"+id+"/end", confirming)
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
 }
 

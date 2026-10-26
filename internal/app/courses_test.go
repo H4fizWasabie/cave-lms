@@ -132,10 +132,18 @@ func TestAdminDeletesACourseAfterConfirming(t *testing.T) {
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
 	id := s.onlyCourseID()
 
-	res, body := s.get("/admin/courses/" + id + "/delete")
-	expectStatus(t, res, body, http.StatusOK, "Delete &ldquo;Go Basics&rdquo;? This cannot be undone.")
+	confirmPage := "/admin/courses/" + id + "/delete"
+	_, body := s.get("/admin/courses/" + id + "/edit")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	res, body = s.get("/admin/courses")
+	expectStatus(t, res, body, http.StatusOK, "Go Basics")
+	res, body = s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “Go Basics”? This cannot be undone.")
+	expectAll(t, body, `href="/admin/courses/`+id+`/edit"`)
 
-	res, body = s.post("/admin/courses/"+id+"/delete", nil)
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusNotFound, "There is no Course at this address.")

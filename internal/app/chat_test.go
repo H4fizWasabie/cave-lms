@@ -175,10 +175,22 @@ func TestALearnerDeletesOnlyTheirOwnMessage(t *testing.T) {
 	ada, _, ben, id := chatSite(t)
 	mid := ada.say(id, "Oops, wrong Course")
 
-	res, body := ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	res, body := ben.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusForbidden, "")
 
-	res, body = ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	res, body = ben.get("/courses/" + id + "/chat/" + mid + "/delete")
+	expectStatus(t, res, body, http.StatusForbidden, "")
+
+	confirmPage := "/courses/" + id + "/chat/" + mid + "/delete"
+	expectAll(t, ada.messageHTML(id, mid), `<form method="get" action="`+confirmPage+`">`)
+	res, body = ada.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	expectInOrder(t, ada.messageHTML(id, mid), "Oops, wrong Course")
+	res, body = ada.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete your Message? Everyone in the Chat sees “Message deleted” in its place. This cannot be undone.")
+	expectAll(t, body, `href="/courses/`+id+`/chat#m`+mid+`"`)
+
+	res, body = ada.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
 		t.Fatalf("delete redirected to %q, want the Chat at the Message", loc)
@@ -209,15 +221,15 @@ func TestDeletingIsLimitedToTenAMinuteForLearnersButNotTheAdmin(t *testing.T) {
 	ada, admin, _, id := chatSite(t)
 	mid := ada.say(id, "Oops")
 	for range 10 {
-		res, body := ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+		res, body := ada.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 	}
-	res, body := ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	res, body := ada.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusTooManyRequests, "sending too fast")
 
 	aid := admin.say(id, "Announcement")
 	for range 11 {
-		res, body := admin.post("/courses/"+id+"/chat/"+aid+"/delete", nil)
+		res, body := admin.post("/courses/"+id+"/chat/"+aid+"/delete", confirming)
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 	}
 }
@@ -271,7 +283,7 @@ func TestAReplyToADeletedMessageShowsItRemoved(t *testing.T) {
 	ada, _, ben, id := chatSite(t)
 	mid := ada.say(id, "Secret plans")
 	rid := ben.reply(id, mid, "Nice")
-	ada.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	ada.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 
 	_, body := ben.get("/courses/" + id + "/chat")
 	_, reply, _ := strings.Cut(body, `id="m`+rid+`"`)
@@ -384,7 +396,7 @@ func TestOnlyTheSixReactionsOnVisibleMessagesByChatMembersAreTaken(t *testing.T)
 	res, body = cara.react(id, mid, thumbsUp)
 	expectStatus(t, res, body, http.StatusForbidden, "")
 
-	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 	res, body = ada.react(id, mid, thumbsUp)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
 	if n := ada.reactionCount(); n != 0 {
@@ -480,7 +492,23 @@ func TestHidingAMessageRemovesItForLearnersAndClosesItsReports(t *testing.T) {
 	cara.post("/courses/"+id+"/join", nil)
 	cara.report(id, mid, "")
 
-	res, body := admin.post("/admin/chat/"+mid+"/hide", url.Values{"back": {"reports"}})
+	confirmPage := "/admin/chat/" + mid + "/hide?back=reports"
+	expectAll(t, admin.messageHTML(id, mid), `<form method="get" action="/admin/chat/`+mid+`/hide">`)
+	_, body := admin.get("/admin/reports")
+	expectAll(t, body, `<form method="get" action="/admin/chat/`+mid+`/hide"><input type="hidden" name="back" value="reports">`)
+	res, body := admin.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	if n := ada.openReports(); n != 2 {
+		t.Fatalf("%d Reports open after an unconfirmed hide, want 2", n)
+	}
+	expectInOrder(t, ada.messageHTML(id, mid), "Something nasty")
+	res, body = admin.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Hide this Message from the Chat and from Reports? You can unhide it later.")
+	expectAll(t, body, `href="/admin/reports"`)
+	res, body = admin.get("/admin/chat/" + mid + "/hide")
+	expectAll(t, body, `href="/courses/`+id+`/chat#m`+mid+`"`)
+
+	res, body = admin.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/admin/reports" {
 		t.Fatalf("hiding from the Reports page went to %q", loc)
@@ -536,7 +564,9 @@ func TestDismissingAReportClosesOnlyThatOne(t *testing.T) {
 func TestLearnersCannotHideOrSeeReports(t *testing.T) {
 	ada, _, ben, id := chatSite(t)
 	mid := ben.say(id, "Hi")
-	res, body := ada.post("/admin/chat/"+mid+"/hide", nil)
+	res, body := ada.post("/admin/chat/"+mid+"/hide", confirming)
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	res, body = ada.get("/admin/chat/" + mid + "/hide")
 	expectStatus(t, res, body, http.StatusForbidden, "")
 	if strings.Contains(ada.messageHTML(id, mid), "/hide") {
 		t.Fatalf("a Learner is offered Hide")
@@ -568,7 +598,7 @@ func TestTheAdminAndWritersCannotReportAndARepeatReportCostsNothing(t *testing.T
 	expectStatus(t, must(ada.report(id, other, "")), "", http.StatusSeeOther, "")
 
 	// A Message its writer deletes leaves no Report open.
-	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 	if n := ada.openReports(); n != 1 {
 		t.Fatalf("%d Reports open, want only the one on the Message still there", n)
 	}

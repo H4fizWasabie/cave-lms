@@ -334,7 +334,7 @@ func TestCourseWithLessonsCannotBeDeleted(t *testing.T) {
 	id := s.onlyCourseID()
 	s.addTextLesson(id, "Variables", "", "Use `:=`.", true)
 
-	res, body := s.post("/admin/courses/"+id+"/delete", nil)
+	res, body := s.post("/admin/courses/"+id+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusConflict, "This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates.")
 	res, body = s.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Go Basics</h1>")
@@ -349,7 +349,7 @@ func TestGalleryItemUsedByALessonCannotBeDeleted(t *testing.T) {
 	id := s.onlyCourseID()
 	s.addItemLesson(id, itemID, "Diagram lesson", false)
 
-	res, body := s.post("/admin/gallery/"+itemID+"/delete", nil)
+	res, body := s.post("/admin/gallery/"+itemID+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusConflict, "This item cannot be deleted because a Lesson uses it. Remove the Lesson first.")
 	if n := s.countGalleryItems(); n != 1 {
 		t.Fatalf("Gallery items after refused delete = %d, want 1", n)

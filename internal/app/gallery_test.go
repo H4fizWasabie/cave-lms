@@ -420,7 +420,7 @@ func TestOnlyTheAdminManagesTheGallery(t *testing.T) {
 		res, body = s.get(path)
 		expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
 	}
-	res, body = s.post("/admin/gallery/"+id+"/delete", url.Values{})
+	res, body = s.post("/admin/gallery/"+id+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page")
 	if n := s.countGalleryItems(); n != 1 {
 		t.Fatalf("%d gallery items after a Learner's delete, want 1", n)
@@ -480,10 +480,19 @@ func TestAdminDeletesAGalleryItemAndItsFile(t *testing.T) {
 	res, body := s.get(location + "/thumb") // leaves a thumbnail on disk too
 	expectStatus(t, res, body, http.StatusOK, "")
 
-	res, body = s.get("/admin/gallery/" + id + "/delete")
-	expectStatus(t, res, body, http.StatusOK, "Doomed")
+	confirmPage := "/admin/gallery/" + id + "/delete"
+	_, body = s.get("/admin/gallery")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body = s.post(confirmPage, url.Values{})
+	expectRedirect(t, res, body, confirmPage)
+	if n := s.countGalleryItems(); n != 1 {
+		t.Fatalf("%d gallery items after an unconfirmed delete, want 1", n)
+	}
+	res, body = s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “Doomed” and its file? This cannot be undone.")
+	expectAll(t, body, `href="/admin/gallery"`)
 
-	res, body = s.post("/admin/gallery/"+id+"/delete", url.Values{})
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/admin/gallery" {
 		t.Fatalf("delete redirected to %q, want /admin/gallery", loc)

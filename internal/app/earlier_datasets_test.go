@@ -196,7 +196,19 @@ func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, ada.storedKB())
 
-	res, body = ada.post(ada.earlier(path)["september.xlsx"]+"/delete", nil)
+	confirmPage := ada.earlier(path)["september.xlsx"] + "/delete"
+	_, body = ada.get(path)
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body = ada.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	if n := ada.storedFiles(); n != 2 {
+		t.Fatalf("%d stored files after an unconfirmed delete, want 2", n)
+	}
+	res, body = ada.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete the earlier Dataset “september.xlsx”? Its file goes too. This cannot be undone.")
+	expectAll(t, body, `href="`+path+`"`)
+
+	res, body = ada.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := ada.storedFiles(); n != 1 {
 		t.Fatalf("%d stored files, want the current one", n)
@@ -209,6 +221,8 @@ func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
 	if !strings.Contains(ada.rowsOf(path+"/view/"), "Gula") {
 		t.Fatal("deleting an earlier Dataset changed the current one")
 	}
-	res, body = ada.post(path+"/datasets/999999/delete", nil)
+	res, body = ada.post(path+"/datasets/999999/delete", confirming)
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	res, body = ada.get(path + "/datasets/999999/delete")
 	expectStatus(t, res, body, http.StatusNotFound, "")
 }

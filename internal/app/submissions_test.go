@@ -273,7 +273,7 @@ func TestALearnerWhoLeftTheCourseKeepsTheirFilesReadOnly(t *testing.T) {
 func TestDeletingAnAssignmentOrALearnerDeletesTheirFilesFromStorage(t *testing.T) {
 	admin, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
-	admin.post("/admin/assignments/"+strings.Split(path, "/")[4]+"/delete", nil)
+	admin.post("/admin/assignments/"+strings.Split(path, "/")[4]+"/delete", confirming)
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after deleting the Assignment, want 0", n)
 	}

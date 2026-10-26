@@ -56,7 +56,7 @@ func TestTheCourseFormErrorsAreInMalay(t *testing.T) {
 	s.createCourse("Asas Go", "Belajar Go.", "")
 	id := s.onlyCourseID()
 	s.addTextLesson(id, "Pemboleh ubah", "", "Isi.", false)
-	res, body := s.post("/admin/courses/"+id+"/delete", nil)
+	res, body := s.post("/admin/courses/"+id+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusConflict, "Kursus ini tidak boleh dipadam")
 }
 
@@ -135,7 +135,7 @@ func TestTheAdminGalleryScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	_, body = s.get("/admin" + item + "/edit")
 	expectLanguage(t, body, "ms", "Sunting Item Galeri")
 	_, body = s.get("/admin" + item + "/delete")
-	expectLanguage(t, body, "ms", "Padam &ldquo;Rajah Go&rdquo; dan failnya?")
+	expectLanguage(t, body, "ms", "Padam “Rajah Go” dan failnya?")
 
 	res, body := s.upload(titleFields("", "everyone"), pngFile)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Masukkan tajuk (sehingga 200 aksara).")
@@ -146,7 +146,7 @@ func TestTheAdminGalleryScreensAndTheirErrorsAreInMalay(t *testing.T) {
 
 	s.createCourse("Asas Go", "Belajar Go.", "")
 	s.addItemLesson(s.onlyCourseID(), item[len("/gallery/"):], "Rajah", false)
-	res, body = s.post("/admin"+item+"/delete", nil)
+	res, body = s.post("/admin"+item+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusConflict, "Item ini tidak boleh dipadam")
 
 	s.switchLanguage("en", "/")

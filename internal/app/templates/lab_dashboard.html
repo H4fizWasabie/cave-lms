@@ -205,7 +205,7 @@
             {{- range .}}
             <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.w.confirmed" .Confirmed}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}}</span></div>
               <form method="post" action="{{$url}}/datasets/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form>
-              <form method="post" action="{{$url}}/datasets/{{.ID}}/delete"><button class="btn btn-quiet">{{t $.Lang "lab.w.delete"}}</button></form></li>
+              <a class="btn btn-quiet" href="{{$url}}/datasets/{{.ID}}/delete">{{t $.Lang "lab.w.delete"}}</a></li>
             {{- end}}
           </ul>
           {{- end}}
@@ -228,14 +228,6 @@
         <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.d.save"}}</button></div>
       </form>
 
-      {{- else if eq .Tab "delete"}}
-      <div class="card lab-narrow">
-        <p>{{t .Lang "lab.d.delete-ask" .Dashboard.Name}}</p>
-        <div class="form-foot">
-          <a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a>
-          <form method="post" action="{{$url}}/delete"><button class="btn btn-danger-solid">{{t .Lang "lab.d.delete"}}</button></form>
-        </div>
-      </div>
       {{- else if not .Dashboard.Dataset}}
       <p class="empty">{{t .Lang "lab.d.upload-first-p"}} <a href="{{$url}}">{{t .Lang "lab.d.go-dataset"}}</a>.</p>
 

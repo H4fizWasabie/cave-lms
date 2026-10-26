@@ -336,7 +336,7 @@ func TestDeletingACourseRemovesItsExam(t *testing.T) {
 	id := s.onlyCourseID()
 	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Going question text", [5]string{"A", "B", "", "", ""}, "0", false)
 
-	res, body := s.post("/admin/courses/"+id+"/delete", nil)
+	res, body := s.post("/admin/courses/"+id+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get("/admin/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusNotFound, "There is no Course at this address.")

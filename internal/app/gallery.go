@@ -545,29 +545,29 @@ func (a *App) updateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/gallery", http.StatusSeeOther)
 }
 
-func (a *App) confirmDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
-	item, ok := a.galleryItemFor(w, r)
-	if !ok {
-		return
-	}
-	a.render(w, r, http.StatusOK, "delete_gallery_item", page{Item: &item})
+// deleteGalleryItemPage is the confirmation page for deleting item, refused with the catalog key errKey when not "".
+func deleteGalleryItemPage(item galleryItem, errKey string) confirmation {
+	return confirmation{pageBase: pageBase{Error: errKey}, Side: "gallery", Heading: "adm.gallery.delete", Question: "adm.gallery.delete-ask",
+		Cancel: "/admin/gallery", Action: "/admin/gallery/" + strconv.FormatInt(item.ID, 10) + "/delete"}
 }
 
-// deleteGalleryItem removes the row, then its stored file.
+// confirmDeleteGalleryItem asks the Admin to confirm deleting a Gallery item.
+func (a *App) confirmDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
+	if item, ok := a.galleryItemFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, deleteGalleryItemPage(item, ""), item.Title)
+	}
+}
+
+// deleteGalleryItem removes the row, then its stored file, once its confirmation page is posted.
 func (a *App) deleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	item, ok := a.galleryItemFor(w, r)
-	if !ok {
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	// A Lesson holds ON DELETE RESTRICT on its item, so the database refuses the delete while one uses it.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM gallery_items WHERE id = $1`, item.ID)
 	if isForeignKeyError(err) {
-		lang, err := a.language(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		a.render(w, r, http.StatusConflict, "delete_gallery_item", page{Item: &item, Error: text.T(lang, "adm.gallery.err.in-use")})
+		a.confirm(w, r, http.StatusConflict, deleteGalleryItemPage(item, "adm.gallery.err.in-use"), item.Title)
 		return
 	}
 	if err != nil {

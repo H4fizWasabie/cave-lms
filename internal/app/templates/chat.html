@@ -9,7 +9,7 @@
       {{- else}}
       <div class="chat-intro">
         <h1>{{t .Lang "community.chat"}}</h1>
-        {{if not .Learner.IsAdmin}}<form method="post" action="/community/leave"><button class="btn btn-ghost btn-sm"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-sign-out"/></svg>{{t .Lang "community.leave"}}</button></form>{{end}}
+        {{if not .Learner.IsAdmin}}<a class="btn btn-ghost btn-sm" href="/community/leave"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-sign-out"/></svg>{{t .Lang "community.leave"}}</a>{{end}}
       </div>
       <p class="chat-about"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "community.privacy"}}</span></p>
       {{- end}}
@@ -86,10 +86,10 @@
                       </details>
                       {{- end}}{{end}}
                       {{- if .ViewerAdmin}}
-                      <form method="post" action="/admin/chat/{{.ID}}/hide"><button><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-eye-slash"/></svg>{{t .Lang "chat.hide"}}</button></form>
+                      <form method="get" action="/admin/chat/{{.ID}}/hide"><button><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-eye-slash"/></svg>{{t .Lang "chat.hide"}}</button></form>
                       {{- end}}
                       {{- if .Mine}}
-                      <form method="post" action="{{.Path}}/{{.ID}}/delete"><button><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg>{{t .Lang "chat.delete"}}</button></form>
+                      <form method="get" action="{{.Path}}/{{.ID}}/delete"><button><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg>{{t .Lang "chat.delete"}}</button></form>
                       {{- end}}
                     </div>
                   </details>

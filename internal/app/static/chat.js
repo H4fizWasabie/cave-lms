@@ -73,6 +73,7 @@
   document.addEventListener("submit", function (e) {
     var form = e.target;
     if (form !== compose && !(list.contains(form) && !form.closest(".msg-report"))) return; // Reports post as they are
+    if (form.method === "get") return; // Delete and Hide open their confirmation page
     e.preventDefault();
     var data = new URLSearchParams(new FormData(form));
     if (e.submitter && e.submitter.name) data.append(e.submitter.name, e.submitter.value);

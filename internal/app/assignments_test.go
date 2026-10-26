@@ -116,16 +116,23 @@ func TestTheAdminEditsReordersAndDeletesAssignments(t *testing.T) {
 		t.Fatalf("Second did not move above Prompt one: %s", body)
 	}
 
-	res, body = admin.get("/admin/assignments/" + second + "/delete")
-	expectStatus(t, res, body, http.StatusOK, "Learners&#39; Submissions to it are deleted with it")
-	res, body = admin.post("/admin/assignments/"+second+"/delete", nil)
+	confirmPage := "/admin/assignments/" + second + "/delete"
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body = admin.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = admin.get("/admin/courses/" + id + "/assignments")
+	expectAll(t, body, "Second")
+	res, body = admin.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “Second”? Learners&#39; Submissions to it are deleted with it. This cannot be undone.")
+	expectAll(t, body, `href="/admin/courses/`+id+`/assignments"`)
+	res, body = admin.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = admin.get("/admin/courses/" + id + "/assignments")
 	if strings.Contains(body, "Second") {
 		t.Fatalf("the deleted Assignment is still listed: %s", body)
 	}
 
-	if res, _ := ada.post("/admin/assignments/"+first+"/delete", nil); res.StatusCode != http.StatusForbidden {
+	if res, _ := ada.post("/admin/assignments/"+first+"/delete", confirming); res.StatusCode != http.StatusForbidden {
 		t.Fatalf("a Learner deleted an Assignment: %d", res.StatusCode)
 	}
 }

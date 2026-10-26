@@ -81,7 +81,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Deployments awake")
 
 	_, page := admin.get("/admin/plans/periods?email=ada@example.com")
-	admin.post(endPeriodButton.FindStringSubmatch(page)[1], nil)
+	admin.post(endPeriodButton.FindStringSubmatch(page)[1], confirming)
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
 }

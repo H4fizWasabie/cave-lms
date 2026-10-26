@@ -29,7 +29,7 @@ func (s *site) proAction(email, action string) string {
 	s.t.Helper()
 	res, body := s.get("/admin/cavetext")
 	expectStatus(s.t, res, body, http.StatusOK, "CaveText Learners")
-	m := regexp.MustCompile(regexp.QuoteMeta(email) + `[\s\S]*?action="(/admin/cavetext/learners/\d+/` + action + `)"`).FindStringSubmatch(body)
+	m := regexp.MustCompile(regexp.QuoteMeta(email) + `[\s\S]*?(?:action|href)="(/admin/cavetext/learners/\d+/` + action + `)"`).FindStringSubmatch(body)
 	if m == nil {
 		s.t.Fatalf("no %s button for %s: %s", action, email, body)
 	}
@@ -44,7 +44,7 @@ func (s *site) givePro(email string) {
 
 func (s *site) endPro(email string) {
 	s.t.Helper()
-	res, body := s.post(s.proAction(email, "end-pro"), nil)
+	res, body := s.post(s.proAction(email, "end-pro"), confirming)
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 }
 
@@ -276,6 +276,28 @@ func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "No CaveText Learner")
 	res, body = s.post("/admin/cavetext/learners/x/end-pro", nil)
 	expectStatus(t, res, body, http.StatusNotFound, "No CaveText Learner")
+}
+
+func TestEndingProAsksOnTheConfirmationPageFirst(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.givePro("ada@example.com")
+	confirmPage := s.proAction("ada@example.com", "end-pro")
+
+	res, body := s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	if !ada.me(token).Pro {
+		t.Fatalf("an unconfirmed End Pro ended it")
+	}
+	res, body = s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "End Pro for ada@example.com now?")
+	expectAll(t, body, "This cannot be undone", `href="/admin/cavetext"`)
+
+	res, body = s.post(confirmPage, confirming)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if ada.me(token).Pro {
+		t.Fatalf("a confirmed End Pro left Pro running")
+	}
 }
 
 func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {

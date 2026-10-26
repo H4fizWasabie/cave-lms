@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -147,12 +148,43 @@ func givePro(ctx context.Context, db execer, learnerID int64) error {
 // endCaveTextPro ends a Learner's Pro at once: the running period and any given to follow it. Their Plan periods
 // are left as they are.
 func (a *App) endCaveTextPro(w http.ResponseWriter, r *http.Request) {
+	if _, ok := a.caveTextLearnerEmail(w, r); !ok || unconfirmed(w, r) {
+		return
+	}
 	a.changePro(w, r, func(id int64) error {
 		_, err := a.db.ExecContext(r.Context(), `
 			UPDATE cavetext_pro_periods SET ended_early_at = now()
 			WHERE learner_id = $1 AND ended_early_at IS NULL AND ends_at > now()`, id)
 		return err
 	})
+}
+
+// confirmEndCaveTextPro asks the Admin to confirm ending a Learner's Pro.
+func (a *App) confirmEndCaveTextPro(w http.ResponseWriter, r *http.Request) {
+	if email, ok := a.caveTextLearnerEmail(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Side: "cavetext", Heading: "ctadmin.learners.end", Question: "ctadmin.learners.end-ask",
+			Cancel: "/admin/cavetext", Action: r.URL.Path}, email)
+	}
+}
+
+// caveTextLearnerEmail loads the email of the CaveText Learner named by {id}. When there is none it writes the Not
+// found page and returns false.
+func (a *App) caveTextLearnerEmail(w http.ResponseWriter, r *http.Request) (string, bool) {
+	var email string
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err == nil {
+		err = a.db.QueryRowContext(r.Context(), `SELECT l.email FROM cavetext_accounts c JOIN learners l ON l.id = c.learner_id
+			WHERE c.learner_id = $1`, id).Scan(&email)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		a.adminNotFound(w, r, "ctadmin.learners.not-found.title", "ctadmin.learners.not-found")
+		return "", false
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return "", false
+	}
+	return email, true
 }
 
 // changePro runs change for the CaveText Learner named by the {id} path value, then goes back to the Learners page.

@@ -201,7 +201,7 @@ func TestDeletingACourseRemovesItsPicture(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
-	res, body := s.post("/admin/courses/"+s.onlyCourseID()+"/delete", nil)
+	res, body := s.post("/admin/courses/"+s.onlyCourseID()+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := s.storedFiles(); n != 0 {
 		t.Fatalf("%d files stored, want 0", n)
