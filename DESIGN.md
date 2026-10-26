@@ -244,7 +244,7 @@ Squared, confident, one weight (600, `--fs-ui`). `.btn` plus one variant:
 `.callout` (gold tint, icon + text) for a note the reader must not miss; `.result` with `.result-valid` / `.result-revoked` for a verdict; `.up-err` for an upload error.
 
 ### Tables
-`.table-wrap` (scrolls sideways inside itself) around `.table`: meta-size heads on paper, UI-size cells, row hover tint, `.actions` right-aligned. `td small` for a second line.
+`.table-wrap` (scrolls sideways inside itself, with a soft shadow at each edge that has more to scroll to) around `.table`: meta-size heads on paper, UI-size cells, row hover tint, `.actions` right-aligned. `td small` for a second line; `td.when` keeps a date on one line, its time in the `small` under it.
 
 ### Tabs
 `.lab-tabs` / `.lab-tab` with `aria-current="page"`: a gold bar under the current tab. Shared by the Lab and the Course tabs (`course-tabs` template).
@@ -256,7 +256,7 @@ The eight sections stay as the client specified (`.scratch/top-nav-spec.md`): Ho
 - The account (`.hdr-account`) is Log in + Register (`.btn-solid.btn-sm`) for a Visitor, or the Learner's name opening their menu.
 
 ### Footer
-A charcoal band: brand column, then Learn / Account / Contact columns with gold uppercase meta headings, on-dark links, muted address, a hairline above the copyright.
+A charcoal band: brand column, then Learn / Account / Contact columns with gold uppercase meta headings, on-dark links, muted address, a hairline above the copyright. A logged-in Learner's Account column ends with Log out, a form button styled as one of the links.
 
 ### Confirmation page ("Are you sure?")
 Destructive actions (delete, leave, remove, revoke) go to a page of their own; no JavaScript, no modal. The pattern is Delete course:
