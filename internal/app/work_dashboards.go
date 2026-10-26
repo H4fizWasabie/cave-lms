@@ -401,7 +401,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	// Add to data on a page Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
 	// ponytail: combined with the Dataset current at upload; a restore before the confirm is undone by it.
 	if r.FormValue("mode") == "add" && d.Page != nil && d.Dataset != nil {
-		combined, same, err := lab.Add(d.Dataset, res.Dataset)
+		combined, same, changes, err := lab.Add(d.Dataset, res.Dataset)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 			page.Error = problem.In(lang)
@@ -410,6 +410,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		kept.Added = &addition{Rows: len(res.Dataset.Rows), Had: len(d.Dataset.Rows), Same: same}
 		kept.Dataset = combined
+		kept.Changes = append(kept.Changes, changes...)
 	}
 	size, used, err := a.keepPending(r, d, acc, kept, name)
 	if errors.Is(err, errStorageFull) {

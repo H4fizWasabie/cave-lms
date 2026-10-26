@@ -66,6 +66,29 @@ func TestAddingToAPageDashboardsDataCombinesTheRowsAndRestoringUndoesIt(t *testi
 	}
 }
 
+// Added rows keep the current Dataset's column types: a cell that does not fit its column is left empty and the
+// preview says so, as Clean-up does.
+func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
+	_, ada := labLearner(t)
+	path, link := pageWithData(t, ada)
+	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	texty := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+		[]any{day, "Gula", "Dapur", "Keluar", "banyak"},
+		[]any{day, "Garam", "Dapur", "Keluar", 70.0})
+	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", texty, adding)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Cells in Jumlah that were not numbers, left empty: 1.")
+	ada.switchLanguage("ms", path)
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Sel dalam Jumlah yang bukan nombor, dibiarkan kosong: 1.")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.second().get(link + "data.json")
+	expectAll(t, body, `"Perkara": "Gula", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": null`,
+		`"Perkara": "Garam", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 70`)
+}
+
 func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)

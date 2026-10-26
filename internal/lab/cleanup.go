@@ -392,15 +392,17 @@ func columnChanges(was, now []Column) (gone, added []string) {
 	return gone, added
 }
 
-// Add is d's rows followed by more's, put in d's columns, and how many of more's rows exactly match one of d's.
-// more needs d's columns by name, in any order, and the two at most MaxCleanRows rows; else a Problem names the
-// columns missing and extra, or the row counts. d's column types stay, whatever more's cells are.
-func Add(d, more *Dataset) (*Dataset, int, error) {
+// Add is d's rows followed by more's, put in d's columns, how many of more's rows exactly match one of d's, and
+// the changes it made to more's cells. more needs d's columns by name, in any order, and the two at most MaxCleanRows
+// rows; else a Problem names the columns missing and extra, or the row counts. d's column types stay: a cell of more
+// read as another type is read again as its column's, as typed reads one, and one that does not fit is left empty
+// and listed as a change, once per column.
+func Add(d, more *Dataset) (*Dataset, int, []Change, error) {
 	if gone, added := columnChanges(d.Columns, more.Columns); gone != nil || added != nil {
-		return nil, 0, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
+		return nil, 0, nil, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
 	}
 	if n := len(d.Rows) + len(more.Rows); n > MaxCleanRows {
-		return nil, 0, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(len(d.Rows)), thousands(n), thousands(MaxCleanRows)}}
+		return nil, 0, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(len(d.Rows)), thousands(n), thousands(MaxCleanRows)}}
 	}
 	at := make([]int, len(d.Columns)) // each column's index in more
 	for i, c := range d.Columns {
@@ -412,18 +414,46 @@ func Add(d, more *Dataset) (*Dataset, int, error) {
 		had[key(row)] = true
 	}
 	out := &Dataset{Columns: d.Columns, Rows: slices.Clone(d.Rows)}
-	same := 0
+	same, misfits := 0, make([]int, len(d.Columns))
 	for _, vals := range more.Rows {
 		row := make([]any, len(at))
 		for i, j := range at {
 			row[i] = vals[j]
+			if typ := d.Columns[i].Type; row[i] != nil && more.Columns[j].Type != typ {
+				var ok bool
+				if row[i], ok = retyped(row[i], typ); !ok {
+					misfits[i]++
+				}
+			}
 		}
 		if had[key(row)] {
 			same++
 		}
 		out.Rows = append(out.Rows, row)
 	}
-	return out, same, nil
+	var changes []Change
+	for i, n := range misfits {
+		if n > 0 {
+			changes = append(changes, Change{Key: "lab.clean.not-" + string(d.Columns[i].Type) + "s", Args: []int{n}, Column: d.Columns[i].Name})
+		}
+	}
+	return out, same, changes, nil
+}
+
+// retyped is v, a Dataset value of another type, read as typ as typed reads a cell; nil and false when it does not
+// fit.
+func retyped(v any, typ Type) (any, bool) {
+	s, ok := v.(string)
+	if !ok {
+		s = strconv.FormatFloat(v.(float64), 'f', -1, 64)
+	}
+	if s == "-" && typ == Number {
+		return 0.0, true
+	}
+	if day, ok := otherDate(s); ok && typ == Date {
+		return day, true
+	}
+	return parse(cell{v: s}, typ)
 }
 
 // columnList is names as a Problem lists them, or the word for none.
