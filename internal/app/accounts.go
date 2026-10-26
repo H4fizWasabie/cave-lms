@@ -365,10 +365,9 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		hash     string
 		verified bool
 		saved    string
-		admin    bool
 	)
 	err := a.db.QueryRowContext(r.Context(),
-		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, ''), is_admin FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &saved, &admin)
+		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &saved)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -417,12 +416,8 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	if saved != "" {
 		setLanguageCookie(w, saved) // so the site stays in it after logging out
 	}
-	// Without a next, each lands where they work: a Learner on My courses, an Admin on the admin area.
-	switch {
-	case next != "":
-	case admin:
-		next = "/admin"
-	default:
+	// Without a next, everyone lands on My courses, an Admin too: the admin area is a click away in the menu.
+	if next == "" {
 		next = "/my-courses"
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
