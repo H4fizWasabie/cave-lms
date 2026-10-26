@@ -42,7 +42,7 @@ type App struct {
 	db                   *sql.DB
 	handler              http.Handler
 	mailer               mailer.Mailer
-	writer               aiwriter.Writer // writes Exam questions and marks Written answers
+	writer               aiwriter.Writer // writes Exam questions and Lesson text and marks Written answers
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
@@ -125,6 +125,7 @@ type page struct {
 	Settings      *certificateSettings
 	Next          string         // where the login page goes after logging in
 	DuplicateOf   int64          // the Course the Course form duplicates into a Live Course, 0 when none
+	AILanguage    string         // the language the Lesson form's Generate writes in
 	Organisations []organisation // the Live Course form's choices
 }
 
@@ -338,6 +339,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/down", a.admin(a.moveLesson(1)))
 	mux.HandleFunc("GET /admin/lessons/{lessonID}/edit", a.admin(a.editLessonForm))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}", a.admin(a.updateLesson))
+	mux.HandleFunc("POST /admin/lessons/{lessonID}/generate", a.admin(a.generateLessonText))
 	mux.HandleFunc("GET /admin/lessons/{lessonID}/delete", a.admin(a.confirmDeleteLesson))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/delete", a.admin(a.deleteLesson))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/publish", a.admin(a.setLessonPublished(true)))
@@ -345,6 +347,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses/{id}/lessons/publish-all", a.admin(a.publishAllLessons))
 	mux.HandleFunc("GET /admin/courses/{id}/lessons/new", a.admin(a.newLessonForm))
 	mux.HandleFunc("POST /admin/courses/{id}/lessons", a.admin(a.createLesson))
+	mux.HandleFunc("POST /admin/courses/{id}/lessons/generate", a.admin(a.generateNewLesson))
 	mux.HandleFunc("GET /admin/courses/{id}/assignments", a.admin(a.adminAssignments))
 	mux.HandleFunc("GET /admin/courses/{id}/assignments/new", a.admin(a.newAssignmentForm))
 	mux.HandleFunc("POST /admin/courses/{id}/assignments", a.admin(a.createAssignment))

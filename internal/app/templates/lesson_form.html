@@ -19,10 +19,18 @@
             </div>
             <div class="field"><label for="body">{{t .Lang "adm.lessons.markdown"}}</label><textarea id="body" name="body" rows="12" maxlength="20000">{{.Lesson.Body}}</textarea></div>
             {{if not .Lesson.ID}}
-            <label class="check"><input type="checkbox" name="draft" value="on"> {{t .Lang "adm.lessons.keep-draft"}}</label>
+            <label class="check"><input type="checkbox" name="draft" value="on"{{if not .Lesson.Published}} checked{{end}}> {{t .Lang "adm.lessons.keep-draft"}}</label>
             {{end}}
-            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.cancel"}}</a><button class="btn btn-solid">{{t .Lang "adm.save"}}</button></div>
+            {{/* Save comes first, so Enter in a field saves rather than asking the AI. */}}
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/courses/{{.Course.ID}}/lessons">{{t .Lang "adm.cancel"}}</a>
+              <div class="form-actions"><button class="btn btn-solid">{{t .Lang "adm.save"}}</button>
+                {{$gen := or .AILanguage .Lang}}<select name="language" aria-label="{{t .Lang "adm.lessons.gen.language"}}"><option value="ms"{{if eq $gen "ms"}} selected{{end}}>{{t .Lang "bank.lang.ms"}}</option><option value="en"{{if eq $gen "en"}} selected{{end}}>{{t .Lang "bank.lang.en"}}</option></select>
+                <button class="btn btn-ghost" formaction="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}/generate{{else}}/admin/courses/{{.Course.ID}}/lessons/generate{{end}}" data-confirm="{{t .Lang "adm.lessons.gen.confirm"}}" data-confirm-if="body">{{t .Lang "adm.lessons.gen.button"}}</button>
+              </div>
+            </div>
+            <p class="hint">{{t .Lang "adm.lessons.gen.hint"}}</p>
           </form>
+          <script src="{{static "forms.js"}}" defer></script>
         </div>
       </div>
     </div>

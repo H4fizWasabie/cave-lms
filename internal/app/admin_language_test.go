@@ -71,6 +71,10 @@ func TestTheLessonScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	expectAll(t, body, "Pemboleh ubah", "Guna :=")
 	_, body = s.get("/admin/courses/" + id + "/lessons/new")
 	expectLanguage(t, body, "ms", "(sehingga lima, satu ayat setiap baris, pilihan)")
+	expectAll(t, body, "Jana teks", "Gantikan teks dalam kotak Teks dengan teks baharu daripada AI?", "Tiada apa yang disimpan sehingga anda klik Simpan.",
+		`<option value="ms" selected>`)
+	res, body := s.post("/admin/courses/"+id+"/lessons/generate", url.Values{"title": {"Pemboleh ubah"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tulis sekurang-kurangnya satu Objektif sebelum menjana teks.")
 	_, body = s.get("/admin/lessons/" + lesson + "/edit")
 	expectLanguage(t, body, "ms", "Sunting Pelajaran")
 

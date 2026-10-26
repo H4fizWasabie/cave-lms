@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yuin/goldmark"
@@ -82,7 +83,7 @@ func (a *App) newLessonForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.renderLessonForm(w, r, http.StatusOK, page{Course: &c, Lesson: &lesson{CourseID: c.ID}})
+	a.renderLessonForm(w, r, http.StatusOK, page{Course: &c, Lesson: &lesson{CourseID: c.ID, Published: true}})
 }
 
 // renderLessonForm fills in the Gallery items the Lesson form can pick from.
@@ -121,7 +122,7 @@ func lessonFromForm(r *http.Request, lang string) (l lesson, msg string) {
 		msg = text.T(lang, "adm.err.title-200")
 	case !ok:
 		msg = text.T(lang, "adm.lessons.err.objective")
-	case utf8.RuneCountInString(l.Body) > 20000:
+	case utf8.RuneCountInString(l.Body) > aiwriter.MaxLessonText:
 		msg = text.T(lang, "adm.lessons.err.body")
 	}
 	return l, msg
@@ -174,6 +175,81 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, lessonsPath(c.ID), http.StatusSeeOther)
+}
+
+// generateNewLesson has the AI write the text of the Lesson on the new Lesson form, saving nothing. The form comes
+// back with Keep as Draft ticked, so Learners never see AI-written text the Admin has not published.
+func (a *App) generateNewLesson(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	a.generateLesson(w, r, c, lesson{CourseID: c.ID})
+}
+
+// generateLessonText has the AI write the text of the Lesson on its edit form, saving nothing.
+func (a *App) generateLessonText(w http.ResponseWriter, r *http.Request) {
+	existing, ok := a.lessonByPath(w, r)
+	if !ok {
+		return
+	}
+	c, err := a.courseByID(r.Context(), existing.CourseID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.generateLesson(w, r, c, existing)
+}
+
+// generateLesson re-renders the Lesson form as posted with the AI's text in the Text box, in the posted language
+// (the admin screen's when none or an unknown one is posted), written from the Course title, the Lesson's title and
+// Objectives and the Course's other Lessons' titles. A missing title or Objective asks no AI.
+func (a *App) generateLesson(w http.ResponseWriter, r *http.Request, c course, existing lesson) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	l, _ := lessonFromForm(r, lang)
+	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
+	data := page{Course: &c, Lesson: &l, AILanguage: r.PostFormValue("language")}
+	if !text.Supported(data.AILanguage) {
+		data.AILanguage = lang
+	}
+	objectives, ok := objectivesFromForm(r.PostFormValue("objective"))
+	switch {
+	case l.Title == "" || utf8.RuneCountInString(l.Title) > 200:
+		data.Error = text.T(lang, "adm.err.title-200")
+	case !ok:
+		data.Error = text.T(lang, "adm.lessons.err.objective")
+	case len(objectives) == 0:
+		data.Error = text.T(lang, "adm.lessons.gen.err.objective")
+	}
+	if data.Error != "" {
+		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, data)
+		return
+	}
+	others, err := a.lessonsOf(r.Context(), c.ID, true)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	var titles []string
+	for _, o := range others {
+		if o.ID != l.ID {
+			titles = append(titles, o.Title)
+		}
+	}
+	body, err := aiwriter.Lesson(r.Context(), a.writer, aiwriter.LessonRequest{CourseTitle: c.Title, Title: l.Title,
+		Objectives: objectives, OtherTitles: titles, Language: data.AILanguage})
+	if msg := aiProblem(err); msg != "" {
+		a.logError(r, err)
+		data.Error = text.T(lang, "adm.lessons."+msg)
+		a.renderLessonForm(w, r, http.StatusServiceUnavailable, data)
+		return
+	}
+	l.Body = strings.TrimSpace(body)
+	a.renderLessonForm(w, r, http.StatusOK, data)
 }
 
 // nullID maps the zero ID to SQL NULL, which is how a text Lesson has no Gallery item.

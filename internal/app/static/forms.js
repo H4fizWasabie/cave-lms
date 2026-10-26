@@ -1,9 +1,11 @@
-// Asks before sending a form with data-confirm. A form with data-busy is sent once: its buttons are disabled and
+// Asks before sending a form with data-confirm, or through a button with data-confirm; with data-confirm-if, only
+// when the form field it names is not empty. A form with data-busy is sent once: its buttons are disabled and
 // its cave-loader shows, rotating the lines in its data-lines. Without JavaScript both forms send as they are.
 (function () {
   document.addEventListener("submit", function (e) {
-    var form = e.target;
-    if (form.dataset.confirm && !window.confirm(form.dataset.confirm)) {
+    var form = e.target, asker = e.submitter && e.submitter.dataset.confirm ? e.submitter : form;
+    var field = asker.dataset.confirmIf && form.elements[asker.dataset.confirmIf];
+    if (asker.dataset.confirm && (!field || field.value.trim()) && !window.confirm(asker.dataset.confirm)) {
       e.preventDefault();
       return;
     }
