@@ -19,7 +19,7 @@ func (s *site) expectLoginLandsOn(email, password, next, want string) {
 	}
 }
 
-func TestLoggingInTakesALearnerOrAnAdminToMyCoursesUnlessNextSaysOtherwise(t *testing.T) {
+func TestLoggingInTakesALearnerToMyCoursesAndAnAdminToTheHomePageUnlessNextSaysOtherwise(t *testing.T) {
 	s := newSite(t)
 	const password = "correct horse battery"
 	s.loginAsNewLearner("Ada", "ada@example.com", password)
@@ -30,14 +30,14 @@ func TestLoggingInTakesALearnerOrAnAdminToMyCoursesUnlessNextSaysOtherwise(t *te
 
 	s.expectLoginLandsOn("ada@example.com", password, "", "/my-courses")
 	s.logOut()
-	s.expectLoginLandsOn("admin@example.com", password, "", "/my-courses")
+	s.expectLoginLandsOn("admin@example.com", password, "", "/")
 	s.logOut()
 
 	s.expectLoginLandsOn("ada@example.com", password, "/courses?level=1", "/courses?level=1")
 	s.logOut()
 	s.expectLoginLandsOn("admin@example.com", password, "/courses?level=1", "/courses?level=1")
 	s.logOut()
-	s.expectLoginLandsOn("admin@example.com", password, "//evil.example/", "/my-courses") // an off-site next is dropped
+	s.expectLoginLandsOn("admin@example.com", password, "//evil.example/", "/") // an off-site next is dropped
 }
 
 var myCourseNextStep = regexp.MustCompile(`data-next-step([^>]*)>\s*([^<]+?)\s*<`)
