@@ -534,14 +534,14 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		p.Blocks = newBlocksView(d, lang, p.Open, p.Saved)
 	}
-	if p.Tab == "dataset" && p.Pending == nil && !p.ReadOnly {
+	if p.Tab == dataTab(d) && p.Pending == nil && !p.ReadOnly {
 		var err error
 		if p.Pending, err = a.pendingOf(r.Context(), d); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 	}
-	if p.Pending != nil && d.Config == nil { // the first confirm opens the picked Template with these choices
+	if p.Pending != nil && d.Config == nil && d.Page == nil { // the first confirm opens the picked Template with these choices
 		p.pickOffer(d, r.URL.Query().Get("template"))
 	}
 	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
@@ -550,7 +550,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.AskHeader = p.Pending.HeaderRow
 		}
 	}
-	if p.Tab == "dataset" && !p.ReadOnly {
+	if p.Tab == dataTab(d) && !p.ReadOnly {
 		var err error
 		if p.Pending != nil {
 			var room storageRoom
@@ -605,7 +605,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 	}
 	name := ""
 	refuse := func(problem string) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem, Upload: name})
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem, Upload: name})
 	}
 	tooBig := text.T(lang, "lab.err.too-big")
 	r.Body = http.MaxBytesReader(w, r.Body, maxDatasetUpload)

@@ -27,7 +27,13 @@ var restoreAction = regexp.MustCompile(`action="/lab/dashboards/\d+/datasets/(\d
 // path, which /restore and /delete follow.
 func (s *site) earlier(path string) map[string]string {
 	s.t.Helper()
-	res, body := s.get(path)
+	return s.earlierOn(path, path)
+}
+
+// earlierOn is earlier for the Dashboard at path, its earlier Datasets listed on the screen at screen.
+func (s *site) earlierOn(screen, path string) map[string]string {
+	s.t.Helper()
+	res, body := s.get(screen)
 	expectStatus(s.t, res, body, http.StatusOK, "")
 	out := map[string]string{}
 	for _, m := range restoreAction.FindAllStringSubmatchIndex(body, -1) {

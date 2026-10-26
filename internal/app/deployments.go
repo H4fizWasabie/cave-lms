@@ -236,6 +236,14 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			a.servePage(w, r, d.Page)
 			return
 		}
+		if d != nil && name == "data.json" {
+			if d.Page == nil { // an engine Dashboard's data is at data/<key>
+				a.notFound(w, r)
+				return
+			}
+			a.servePageData(w, r, d)
+			return
+		}
 		if d != nil {
 			if name == "data" {
 				w.Header().Set("Access-Control-Allow-Origin", "*")

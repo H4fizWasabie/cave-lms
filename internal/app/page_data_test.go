@@ -1,0 +1,98 @@
+package app_test
+
+import (
+	"net/http"
+	"strings"
+	"testing"
+)
+
+func TestAPageDashboardsDataIsUploadedConfirmedAndServedAtDataJSON(t *testing.T) {
+	admin, ada := labLearner(t)
+	path := ada.createPage("Kedai", myPage)
+	link := ada.deployAs(path, "kedai-ada")
+	visitor := ada.second()
+
+	res, body := visitor.get(link + "data.json")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+
+	res, body = ada.postFile(path+"/dataset", "september.xlsx", shopReport(t, "Beras", 120))
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.get(path + "/data")
+	expectStatus(t, res, body, http.StatusOK, "september.xlsx")
+	expectAll(t, body, "Columns: Tarikh, Perkara, Kategori, Jenis, Jumlah",
+		"Upload all your rows", `action="`+path+`/dataset/confirm"`)
+	if strings.Contains(body, `name="template"`) || strings.Contains(body, "/lab/samples/") {
+		t.Fatalf("a page Dashboard's preview offers Templates or Samples: %s", body)
+	}
+
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+	res, body = visitor.get(link + "data.json")
+	expectStatus(t, res, body, http.StatusOK, `"Perkara": "Beras"`)
+	for h, want := range map[string]string{
+		"Access-Control-Allow-Origin": "*",
+		"Cache-Control":               "public, max-age=300",
+		"Content-Type":                "application/json",
+	} {
+		if got := res.Header.Get(h); got != want {
+			t.Fatalf("data.json %s = %q, want %q", h, got, want)
+		}
+	}
+
+	// A second upload with the same columns still shows the preview, without the first-upload note or a Template.
+	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopReport(t, "Gula", 80))
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "oktober.xlsx", "Columns: Tarikh")
+	if strings.Contains(body, "Upload all your rows") || strings.Contains(body, `name="template"`) {
+		t.Fatalf("a later upload shows the first-upload note or a Template: %s", body)
+	}
+	ada.post(path+"/dataset/confirm", nil)
+	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, `"Perkara": "Gula"`) {
+		t.Fatalf("after the second confirm data.json = %s", body)
+	}
+
+	// Sleeping, the link serves no rows.
+	admin.ageAllPeriods(31)
+	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Perkara") {
+		t.Fatalf("an asleep Deployment's data.json = %s", body)
+	}
+	admin.assignPlan("ada@example.com", admin.onlyPlanID())
+
+	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
+	res, body = ada.post(september+"/restore", nil)
+	expectRedirect(t, res, body, path+"/data")
+	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, `"Perkara": "Beras"`) {
+		t.Fatalf("after restoring data.json = %s", body)
+	}
+}
+
+func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createPage("Kedai", myPage)
+	for _, c := range []struct{ lang, sentence, copy, readsOnly string }{
+		{"en", "Load the rows from ./data.json when it exists, using the Excel header names", ">Copy<", "Your page changes only if it reads data.json."},
+		{"ms", "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel", ">Salin<", "Halaman anda hanya berubah jika ia membaca data.json."},
+	} {
+		ada.switchLanguage(c.lang, path)
+		for _, screen := range []string{path, path + "/data"} {
+			res, body := ada.get(screen)
+			expectStatus(t, res, body, http.StatusOK, c.sentence)
+			expectAll(t, body, `data-copy="data-sentence"`, c.copy)
+		}
+		_, body := ada.get(path + "/data")
+		expectAll(t, body, c.readsOnly)
+	}
+	res, body := ada.postFile(path+"/dataset", "september.xlsx", shopReport(t, "Beras", 120))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Muat naik semua baris anda", "Lajur: Tarikh")
+}
+
+func TestAPageDashboardsDataOverTheStorageAllowanceIsRefused(t *testing.T) {
+	_, ada, _ := storageSite(t, "1")
+	path := ada.createPage("Besar", strings.Repeat("z", 900<<10))
+	res, body := ada.postFile(path+"/dataset", "data.xlsx", bigFinance(t, 1))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
+	expectAll(t, body, `action="`+path+`/dataset"`, "Upload your data")
+}

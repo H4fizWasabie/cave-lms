@@ -1095,6 +1095,33 @@ var catalog = map[string]entry{
 	"lab.d.reading":       {en: "Reading your file. A large one can take a minute.", ms: "Sedang membaca fail anda. Fail yang besar boleh mengambil masa seminit."},
 	"lab.d.reading-lines": {en: "Opening the workbook|Finding the header row|Tidying the columns", ms: "Membuka buku kerja|Mencari baris tajuk lajur|Mengemas lajur"},
 
+	// A page Dashboard's data screen (ADR 0018)
+	"lab.data.tab":    {en: "Data", ms: "Data"},
+	"lab.data.upload": {en: "Upload your data", ms: "Muat naik data anda"},
+	"lab.data.upload-body": {
+		en: "Your Excel file. Cave cleans it and shows you a preview; once you confirm, your page's link serves it at data.json.",
+		ms: "Fail Excel anda. Cave membersihkannya dan menunjukkan pratonton; sebaik anda mengesahkan, pautan halaman anda menyajikannya di data.json.",
+	},
+	"lab.data.columns": {en: "Columns: %s", ms: "Lajur: %s"},
+	"lab.data.all-rows": {
+		en: "Upload all your rows, not only the new ones: once your page reads this data, it shows only what you upload here.",
+		ms: "Muat naik semua baris anda, bukan yang baharu sahaja: sebaik halaman anda membaca data ini, ia hanya menunjukkan apa yang anda muat naik di sini.",
+	},
+	"lab.data.sentence-title": {en: "Sentence for your chatbot", ms: "Ayat untuk chatbot anda"},
+	"lab.data.sentence-body": {
+		en: "Add this to your prompt, so your page shows the data you upload here.",
+		ms: "Tambah ayat ini pada prompt anda, supaya halaman anda menunjukkan data yang anda muat naik di sini.",
+	},
+	"lab.data.sentence": {
+		en: "Load the rows from ./data.json when it exists, using the Excel header names as the field names; otherwise use the data in the page.",
+		ms: "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel sebagai nama medan; jika tidak, gunakan data dalam halaman.",
+	},
+	"lab.data.copy": {en: "Copy", ms: "Salin"},
+	"lab.data.reads-only": {
+		en: "Your page changes only if it reads data.json. A page with its data written into it stays as it is; to change it, upload a new page.",
+		ms: "Halaman anda hanya berubah jika ia membaca data.json. Halaman yang datanya ditulis di dalamnya kekal seperti asal; untuk mengubahnya, muat naik halaman baharu.",
+	},
+
 	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {
 		en: "Cave cleans each upload and shows you a preview. Your Dashboard and its link keep the current Dataset until you confirm.",

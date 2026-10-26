@@ -259,6 +259,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab("dataset"))
 	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.dashboardTab("preview"))
+	mux.HandleFunc("GET /lab/dashboards/{id}/data", a.dashboardTab("data"))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))
 	mux.HandleFunc("POST /lab/dashboards/{id}/page", a.withDashboardRow(a.uploadPage))
 	mux.HandleFunc("POST /lab/dashboards/{id}/pages/{pg}/restore", a.withDashboardRow(a.restorePage))
@@ -283,6 +284,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/charts.js", a.deploymentFile("charts.js"))
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data.json", a.deploymentFile("data.json"))
 	// A shared link missing its slash redirects for good; ServeMux's own redirect is a temporary 307 on current Go.
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
