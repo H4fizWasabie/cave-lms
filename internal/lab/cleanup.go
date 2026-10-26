@@ -90,7 +90,7 @@ type CleanUp struct {
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
 // sheet (s.Sheet, else the first flat list with no number for a column name, else the first flat list, else the
 // first readable sheet), combine the sheets with the same columns into one Dataset, type each column from its
-// cells (- as 0, more date forms), guess the Template's blanks by name, and find the Templates to offer. Every step that changes something lists it in Changes. A file it cannot read gives one Problem.
+// cells (- left empty, more date forms), guess the Template's blanks by name, and find the Templates to offer. Every step that changes something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	f, err := openWorkbook(r)
 	if err != nil {
@@ -450,7 +450,7 @@ func retyped(v any, typ Type) (any, bool) {
 		s = strconv.FormatFloat(v.(float64), 'f', -1, 64)
 	}
 	if s == "-" && typ == Number {
-		return 0.0, true
+		return nil, true
 	}
 	if day, ok := otherDate(s); ok && typ == Date {
 		return day, true
@@ -902,8 +902,8 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 	return raw[:n], rowNo[:n]
 }
 
-// typed fills d's rows from raw, each column typed by its cells. Unlike Read, a lone - in a Number column reads
-// as 0, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
+// typed fills d's rows from raw, each column typed by its cells. Unlike Read, a lone - in a Number column is
+// left empty, as a blank is, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
 // left empty; each is listed as a change, the last once per column.
 func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
@@ -926,8 +926,7 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 			if c.v == "" {
 				continue
 			}
-			if c.v == "-" && typ == Number {
-				row[ci] = 0.0
+			if c.v == "-" && typ == Number { // not known, so left empty: 0 would say none
 				dashes++
 				continue
 			}
@@ -947,7 +946,7 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	}
 	d.RowNumbers = rowNo
 	if dashes > 0 {
-		res.change("lab.clean.dash-zero", dashes)
+		res.change("lab.clean.dash-empty", dashes)
 	}
 	if others > 0 {
 		res.change("lab.clean.other-dates", others)

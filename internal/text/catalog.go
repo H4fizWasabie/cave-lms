@@ -938,7 +938,7 @@ var catalog = map[string]entry{
 	"lab.clean.header-chosen":  {en: "Read row %d as the header, as you chose.", ms: "Baris %d dibaca sebagai tajuk lajur, seperti pilihan anda."},
 	"lab.clean.two-row-header": {en: "Joined header rows %d and %d into one name per column.", ms: "Baris tajuk %d dan %d digabung menjadi satu nama bagi setiap lajur."},
 	"lab.clean.merged-down":    {en: "Merged cells filled down: %d.", ms: "Sel bergabung diisi ke bawah: %d."},
-	"lab.clean.dash-zero":      {en: "Cells holding - read as 0: %d.", ms: "Sel berisi - dibaca sebagai 0: %d."},
+	"lab.clean.dash-empty":     {en: "Cells holding - kept empty (null), not read as 0: %d.", ms: "Sel berisi - dibiarkan kosong (null), tidak dibaca sebagai 0: %d."},
 	"lab.clean.not-numbers":    {en: "Cells in %[2]s that were not numbers, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan nombor, dibiarkan kosong: %[1]d."},
 	"lab.clean.serial-dates": {
 		en: "Numbers in %[2]s read as Excel dates, as its name says it holds dates: %[1]d.",
