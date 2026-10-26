@@ -94,6 +94,7 @@ p { margin: 0; text-wrap: pretty; }
    push the page sideways. Headings above; these lines repeat a title under one. */
 .adm-head p, .confirm p { overflow-wrap: anywhere; }
 a { color: inherit; text-underline-offset: .2em; }
+:where(.lab-page) a { text-underline-offset: auto; } /* the Lab keeps main's underline; weighs no more than the rule above */
 button, input, select, textarea { font: inherit; color: inherit; }
 .i { width: 1.15em; height: 1.15em; flex-shrink: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -1607,7 +1608,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
    pages use, scoped to .lab-page (the Lab templates' wrapper) so the refreshed components elsewhere stay as they are.
    The values are main's, off the token scale: stylesheet_test.go exempts this section from the token checks. Add nothing
    new here; when the Lab gets its own redesign, delete the section. */
-:where(.lab-page) a { text-underline-offset: auto; } /* main's underline; weighs no more than the global a rule it undoes */
 .lab-page .i { width: 1.15em; height: 1.15em; flex-shrink: 0; }
 .lab-page .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; padding: .62rem 1.15rem; border-radius: var(--radius); border: 1px solid transparent; font-weight: 600; font-size: .95rem; line-height: 1.2; text-decoration: none; cursor: pointer; white-space: nowrap; background: none; }
 .lab-page .btn-solid { background: var(--brand-ink); color: #f8f8f4; border-color: var(--brand-ink); }
