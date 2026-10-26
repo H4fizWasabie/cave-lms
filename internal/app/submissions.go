@@ -309,6 +309,7 @@ func (a *App) saveSubmissionFiles(ctx context.Context, lang string, assignmentID
 type storedSubmissionFile struct {
 	LearnerID, AssignmentID, CourseID int64
 	Name, ContentType, Key            string
+	AssignmentTitle                   string
 	Published                         bool // its Assignment's
 }
 
@@ -326,9 +327,9 @@ func (a *App) submissionFileByPath(w http.ResponseWriter, r *http.Request, anyFo
 		return storedSubmissionFile{}, nil, false
 	}
 	var f storedSubmissionFile
-	err = a.db.QueryRowContext(r.Context(), `SELECT f.learner_id, f.assignment_id, a.course_id, f.name, f.content_type, f.storage_key, a.published
+	err = a.db.QueryRowContext(r.Context(), `SELECT f.learner_id, f.assignment_id, a.course_id, f.name, f.content_type, f.storage_key, a.title, a.published
 		FROM submission_files f JOIN assignments a ON a.id = f.assignment_id WHERE f.id = $1`, id).
-		Scan(&f.LearnerID, &f.AssignmentID, &f.CourseID, &f.Name, &f.ContentType, &f.Key, &f.Published)
+		Scan(&f.LearnerID, &f.AssignmentID, &f.CourseID, &f.Name, &f.ContentType, &f.Key, &f.AssignmentTitle, &f.Published)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && f.LearnerID != learner.ID && !(anyForAdmin && learner.IsAdmin)) {
 		a.notFound(w, r)
 		return storedSubmissionFile{}, nil, false
@@ -358,28 +359,47 @@ func (a *App) downloadSubmissionFile(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// deleteSubmissionFile deletes one of the enrolled Learner's files from their Submission and from the store.
-func (a *App) deleteSubmissionFile(w http.ResponseWriter, r *http.Request) {
+// deletableSubmissionFile loads the file named by {fid} for its Learner to delete: their own, in a published
+// Assignment of a Course they are still in. Otherwise it writes the refusal and returns false.
+func (a *App) deletableSubmissionFile(w http.ResponseWriter, r *http.Request) (storedSubmissionFile, bool) {
 	f, learner, ok := a.submissionFileByPath(w, r, false)
 	if !ok {
-		return
+		return f, false
 	}
 	c, err := a.courseByID(r.Context(), f.CourseID)
 	if err != nil {
 		a.serverError(w, r, err)
-		return
+		return f, false
 	}
 	enrolled, err := a.enrolled(r.Context(), learner.ID, f.CourseID)
 	if err != nil {
 		a.serverError(w, r, err)
-		return
+		return f, false
 	}
 	if !f.Published {
 		a.notFound(w, r)
-		return
+		return f, false
 	}
 	if !enrolled {
 		a.refuseNotEnrolled(w, r, c)
+		return f, false
+	}
+	return f, true
+}
+
+// confirmDeleteSubmissionFile asks the Learner to confirm deleting one of their files.
+func (a *App) confirmDeleteSubmissionFile(w http.ResponseWriter, r *http.Request) {
+	if f, ok := a.deletableSubmissionFile(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Heading: "submission.delete", Question: "submission.delete-ask",
+			Cancel: assignmentPath(f.CourseID, f.AssignmentID), CancelLabel: "submission.keep", Action: r.URL.Path}, f.Name, f.AssignmentTitle)
+	}
+}
+
+// deleteSubmissionFile deletes one of the enrolled Learner's files from their Submission and from the store, once
+// its confirmation page is posted.
+func (a *App) deleteSubmissionFile(w http.ResponseWriter, r *http.Request) {
+	f, ok := a.deletableSubmissionFile(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM submission_files WHERE storage_key = $1`, f.Key); err != nil {

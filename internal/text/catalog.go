@@ -235,6 +235,20 @@ var catalog = map[string]entry{
 	"adm.home.no-results":     {en: "No Results released yet.", ms: "Belum ada Keputusan dikeluarkan."},
 	// ---- Premium refresh: admin tidy-up (#313): end ----
 
+	// ---- Premium refresh: confirmation pages (QA) ----
+	"adm.exam.delete-q":             {en: "Delete question", ms: "Padam soalan"},
+	"adm.exam.delete-q-ask":         {en: "Delete the question “%s” from the Exam for “%s”? This cannot be undone.", ms: "Padam soalan “%s” daripada Peperiksaan untuk “%s”? Tindakan ini tidak boleh dibuat asal."},
+	"adm.course.remove-learner":     {en: "Remove Learner", ms: "Buang Pelajar"},
+	"adm.course.remove-learner-ask": {en: "Remove %s from “%s”? They lose its Lessons, Exams and Chat at once. Their progress is kept if they join again.", ms: "Buang %s daripada “%s”? Mereka serta-merta hilang akses kepada Pelajaran, Peperiksaan dan Sembangnya. Kemajuan mereka disimpan jika mereka menyertainya semula."},
+	"bank.delete-ask":               {en: "Delete “%s” from the Question bank? Exam copies of it stay. This cannot be undone.", ms: "Padam “%s” daripada Bank Soalan? Salinannya dalam Peperiksaan kekal. Tindakan ini tidak boleh dibuat asal."},
+	"adm.delete-ask":                {en: "Delete “%s”? This cannot be undone.", ms: "Padam “%s”? Tindakan ini tidak boleh dibuat asal."},
+	"orgs.delete":                   {en: "Delete Organisation", ms: "Padam Organisasi"},
+	"programmes.delete":             {en: "Delete Programme", ms: "Padam Program"},
+	"submission.delete":             {en: "Delete file", ms: "Padam fail"},
+	"submission.delete-ask":         {en: "Delete “%s” from your Submission for “%s”? You cannot get it back.", ms: "Padam “%s” daripada Serahan anda untuk “%s”? Anda tidak boleh mendapatkannya semula."},
+	"submission.keep":               {en: "Keep the file", ms: "Simpan fail"},
+	// ---- Premium refresh: confirmation pages (QA): end ----
+
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----
 	// Shared by these Admin screens
 	"adm.title-suffix": {en: "Admin", ms: "Pentadbir"},

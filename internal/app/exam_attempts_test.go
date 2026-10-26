@@ -246,7 +246,7 @@ func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.
 	s.login("admin@example.com", examPassword)
 	examPath := "/admin/courses/" + id + "/exam"
 	s.saveQuestion(examPath+"/questions/"+drawn[0], "Edited prompt", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
-	s.post(examPath+"/questions/"+drawn[1]+"/delete", nil)
+	s.post(examPath+"/questions/"+drawn[1]+"/delete", confirming)
 	s.logOut()
 	s.login("ada@example.com", examPassword)
 

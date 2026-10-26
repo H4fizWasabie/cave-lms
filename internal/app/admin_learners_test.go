@@ -39,7 +39,7 @@ func TestAdminSeesTheLearnersEnrolledInACourse(t *testing.T) {
 	}
 }
 
-var removeLearnerLink = regexp.MustCompile(`action="/admin/courses/\d+/learners/(\d+)/remove"`)
+var removeLearnerLink = regexp.MustCompile(`href="/admin/courses/\d+/learners/(\d+)/remove"`)
 
 func TestAdminRemovesALearnerWhoLosesAccessAtOnce(t *testing.T) {
 	s := newSite(t)
@@ -55,7 +55,17 @@ func TestAdminRemovesALearnerWhoLosesAccessAtOnce(t *testing.T) {
 		t.Fatalf("Course page has no remove button for Ada: %s", body)
 	}
 
-	res, body := s.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", nil)
+	confirmPage := "/admin/courses/" + id + "/learners/" + m[1] + "/remove"
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Remove Ada Lovelace from “Go Basics”? They lose its Lessons, Exams and Chat at once. Their progress is kept if they join again.")
+	expectAll(t, body, `href="/admin/courses/`+id+`"`, `name="confirm" value="yes"`)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("Enrollments after an unconfirmed removal = %d, want 1", n)
+	}
+
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/admin/courses/"+id {
 		t.Fatalf("remove redirected to %q, want /admin/courses/%s", loc, id)
@@ -97,7 +107,7 @@ func TestOnlyTheAdminSeesOrRemovesEnrolledLearners(t *testing.T) {
 	if loc := res.Header.Get("Location"); loc != "/login" {
 		t.Fatalf("Visitor list redirected to %q, want /login", loc)
 	}
-	res, body = visitor.post(removePath, nil)
+	res, body = visitor.post(removePath, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/login" {
 		t.Fatalf("Visitor removal redirected to %q, want /login", loc)
@@ -105,7 +115,7 @@ func TestOnlyTheAdminSeesOrRemovesEnrolledLearners(t *testing.T) {
 
 	res, body = ada.get("/admin/courses/" + id)
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
-	res, body = ada.post(removePath, nil)
+	res, body = ada.post(removePath, confirming)
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
 
 	if n := s.enrollmentCount("ada@example.com", id); n != 1 {

@@ -536,7 +536,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotDownloadACourseMembersFile(t *testing.T
 	if m == nil {
 		t.Fatalf("Admin Course page has no remove button for Grace: %s", body)
 	}
-	s.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", nil)
+	s.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", confirming)
 	res, body = grace.get(file)
 	expectStatus(t, res, body, http.StatusForbidden, "only for members of its Courses")
 }

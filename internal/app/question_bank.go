@@ -218,11 +218,21 @@ func (a *App) updateBankQuestion(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, bankCardPath(r, q.ID), http.StatusSeeOther)
 }
 
-// deleteBankQuestion removes a bank question and returns to the card after it under the same filters. Exam copies
-// are left alone.
-func (a *App) deleteBankQuestion(w http.ResponseWriter, r *http.Request) {
+// confirmDeleteBankQuestion asks the Admin to confirm deleting a bank question, keeping the list's filters.
+func (a *App) confirmDeleteBankQuestion(w http.ResponseWriter, r *http.Request) {
 	q, ok := a.bankQuestionFor(w, r)
 	if !ok {
+		return
+	}
+	a.confirm(w, r, http.StatusOK, confirmation{Side: "question-bank", Heading: "adm.exam.delete-q", Question: "bank.delete-ask",
+		Cancel: bankCardPath(r, q.ID), Action: r.URL.Path + string(bankQuery(r))}, q.Prompt)
+}
+
+// deleteBankQuestion removes a bank question once its confirmation page is posted and returns to the card after it
+// under the same filters. Exam copies are left alone.
+func (a *App) deleteBankQuestion(w http.ResponseWriter, r *http.Request) {
+	q, ok := a.bankQuestionFor(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	list, err := a.filteredBankQuestions(r)

@@ -38,9 +38,9 @@ func TestEachActionOnAnExamQuestionReturnsToItsCard(t *testing.T) {
 	res, body = s.post(exam+"/questions/"+q[1]+"/down", nil)
 	expectRedirect(t, res, body, exam+"#q-"+q[1])
 
-	res, body = s.post(exam+"/questions/"+q[1]+"/delete", nil)
+	res, body = s.post(exam+"/questions/"+q[1]+"/delete", confirming)
 	expectRedirect(t, res, body, exam+"#q-"+q[2])
-	res, body = s.post(exam+"/questions/"+q[2]+"/delete", nil)
+	res, body = s.post(exam+"/questions/"+q[2]+"/delete", confirming)
 	expectRedirect(t, res, body, exam+"#questions")
 }
 
@@ -55,6 +55,11 @@ func TestActionsOnAWrittenExamQuestionKeepTheFormat(t *testing.T) {
 
 	res, body := s.post("/admin/courses/"+id+"/exam/questions/"+qid+"/up?format=written", nil)
 	expectRedirect(t, res, body, writtenExam(id)+"#q-"+qid)
+	confirmPage := "/admin/courses/" + id + "/exam/questions/" + qid + "/delete?format=written"
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get(confirmPage)
+	expectAll(t, body, `action="/admin/courses/`+id+`/exam/questions/`+qid+`/delete?format=written"`)
 }
 
 func TestEachActionOnABankQuestionReturnsToItsCardUnderTheSameFilters(t *testing.T) {
@@ -80,11 +85,19 @@ func TestEachActionOnABankQuestionReturnsToItsCardUnderTheSameFilters(t *testing
 	form := url.Values{"topic": {"Excel"}, "language": {"ms"}, "prompt": {"Excel one, edited"}, "correct": {"0"}, "option": {"Right", "Wrong", "", "", ""}}
 	res, body = s.post("/admin/question-bank/"+b[0]+"?format=multiple-choice&topic=Excel", form)
 	expectRedirect(t, res, body, filtered+"#q-"+b[0])
-	res, body = s.post("/admin/question-bank/"+b[1]+"/delete?format=multiple-choice&topic=Excel", nil)
+	confirmPage := "/admin/question-bank/" + b[1] + "/delete?format=multiple-choice&topic=Excel"
+	_, body = s.get(filtered)
+	expectAll(t, body, `href="/admin/question-bank/`+b[1]+`/delete?format=multiple-choice&amp;topic=Excel"`)
+	_, body = s.get(confirmPage)
+	expectAll(t, body, `action="/admin/question-bank/`+b[1]+`/delete?format=multiple-choice&amp;topic=Excel"`,
+		`href="/admin/question-bank?format=multiple-choice&amp;topic=Excel#q-`+b[1]+`"`)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	res, body = s.post(confirmPage, confirming)
 	expectRedirect(t, res, body, filtered+"#q-"+b[2])
-	res, body = s.post("/admin/question-bank/"+b[2]+"/delete?format=multiple-choice&topic=Excel", nil)
+	res, body = s.post("/admin/question-bank/"+b[2]+"/delete?format=multiple-choice&topic=Excel", confirming)
 	expectRedirect(t, res, body, filtered+"#questions")
-	res, body = s.post("/admin/question-bank/"+b[0]+"/delete?evil=https://example.com", nil)
+	res, body = s.post("/admin/question-bank/"+b[0]+"/delete?evil=https://example.com", confirming)
 	expectRedirect(t, res, body, "/admin/question-bank#questions")
 }
 
