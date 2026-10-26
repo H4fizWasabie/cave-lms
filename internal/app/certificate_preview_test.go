@@ -21,23 +21,18 @@ func certArt(t *testing.T, body string) string {
 func TestTheCertificatePreviewShowsTheLearnersNameOrAPlaceholderAndNeverAnIC(t *testing.T) {
 	s := newSite(t)
 	courseID, _ := s.adaEarns() // Ada's IC is ADAEXAMPLECOM
-	for _, path := range []string{"/", "/courses/" + courseID, "/my-certificates"} {
+	for _, path := range []string{"/courses/" + courseID, "/my-certificates"} {
 		_, body := s.get(path)
 		art := certArt(t, body)
-		expectAll(t, art, "CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT", ">Ada<", "demonstrated throughout")
+		expectAll(t, art, "CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT", ">Ada<", "demonstrated throughout", ">Go Basics<")
 		expectNone(t, art, "ADAEXAMPLECOM", "Your name here")
-		if path != "/" {
-			expectAll(t, art, ">Go Basics<")
-		}
 	}
 
 	s.logOut()
-	for _, path := range []string{"/", "/courses/" + courseID} {
-		_, body := s.get(path)
-		expectAll(t, certArt(t, body), "Your name here")
-		_, body = s.getAsking(path, "ms")
-		expectAll(t, certArt(t, body), "Nama anda di sini", "CERTIFICATE") // the artwork itself stays English
-	}
+	_, body := s.get("/courses/" + courseID)
+	expectAll(t, certArt(t, body), "Your name here")
+	_, body = s.getAsking("/courses/"+courseID, "ms")
+	expectAll(t, certArt(t, body), "Nama anda di sini", "CERTIFICATE") // the artwork itself stays English
 }
 
 func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBuiltInArtwork(t *testing.T) {
@@ -49,7 +44,7 @@ func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBu
 
 	background := regexp.MustCompile(`<image href="(/certificate-background/[^"]+)" x="0" y="0" width="210" height="297"`)
 	var src string
-	for _, path := range []string{"/", "/courses/" + courseID, "/my-certificates"} {
+	for _, path := range []string{"/courses/" + courseID, "/my-certificates"} {
 		_, body := s.get(path)
 		art := certArt(t, body)
 		m := background.FindStringSubmatch(art)
@@ -61,7 +56,7 @@ func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBu
 		expectNone(t, art, "THIS IS TO CERTIFY THAT", "demonstrated throughout", "cert-seal", "cert-signature")
 	}
 
-	s.logOut() // a Visitor sees the home page's preview, so the background is theirs to load
+	s.logOut() // a Visitor sees the Course page's preview, so the background is theirs to load
 	res, body := s.get(src)
 	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/png" || body != string(pngOfSize(t, 3, 5)) {
 		t.Fatalf("GET %s = %d %q, want the uploaded PNG", src, res.StatusCode, res.Header.Get("Content-Type"))
