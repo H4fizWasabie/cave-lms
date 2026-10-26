@@ -1158,10 +1158,9 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .home-hero :focus-visible, .home-close :focus-visible { outline-color: var(--brand-gold); }
 .home-hero-more { display: inline-block; margin-top: var(--space-5); font-size: var(--fs-ui); font-weight: 600; color: var(--surface); text-decoration-color: var(--brand-gold); text-decoration-thickness: 2px; text-underline-offset: .3em; }
 
-/* The Certificate beside the headline (#317 draws its artwork). */
-.cert-preview { margin: 0; justify-self: center; width: min(100%, 22rem); }
-.cert-preview figcaption { margin-top: var(--space-3); font-size: var(--fs-meta); color: var(--on-dark-muted); }
-.cert-preview figcaption a { color: var(--on-dark); text-decoration-color: var(--brand-gold); }
+/* People building a dashboard beside the headline. */
+.home-hero-photo { margin: 0; }
+.home-hero-photo img { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); }
 
 .trust { background: var(--bg); }
 .trust-in { list-style: none; margin-block: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
@@ -1262,7 +1261,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .trust-in li:nth-child(2) { border-top: 1px solid var(--line); }
   .pcc-path { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-6); }
   .pcc-path::before { display: none; }
-  .cert-preview { width: min(100%, 18rem); }
   .home-learn-pair { grid-template-columns: minmax(0, 1fr); }
   .home-essay .home-path { font-size: var(--fs-title); }
 }

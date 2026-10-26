@@ -2115,9 +2115,11 @@ var catalog = map[string]entry{
 	"home.cta.classes":   {en: "Join Online Classes", ms: "Sertai Kelas Dalam Talian"},
 	"home.cta.ebooks":    {en: "Explore eBooks", ms: "Terokai eBook"},
 	"home.cta.dashboard": {en: "Learn AI Dashboard Development", ms: "Belajar Membina Dashboard AI"},
+	"home.dashboard-alt": {en: "A team building a procurement dashboard together on a large screen", ms: "Satu pasukan membina dashboard perolehan bersama pada skrin besar"},
 	"home.coach-alt":     {en: "Portrait of Coach Adam Daniel", ms: "Potret Coach Adam Daniel"},
 	// ---- Premium refresh: home page (#314) ----
 	"home.trust":             {en: "Accreditations", ms: "Pentauliahan"},
+	"home.trust.tcc":         {en: "A platform by The Cave Consult", ms: "Platform oleh The Cave Consult"},
 	"home.trust.jpk":         {en: "JPK certified trainer, Department of Skills Development", ms: "Jurulatih Bertauliah JPK, Jabatan Pembangunan Kemahiran"},
 	"home.trust.placeholder": {en: "Placeholder, hidden on the live site", ms: "Pemegang tempat, tersembunyi di laman sebenar"},
 	"home.trust.learners":    {en: "learners trained", ms: "peserta dilatih"},
@@ -2166,7 +2168,6 @@ var catalog = map[string]entry{
 	"cost.not-needed":       {en: "Not needed (subdomain)", ms: "Tidak perlu (subdomain)"},
 	"cert-preview.name":     {en: "Your name here", ms: "Nama anda di sini"},
 	"cert-preview.course":   {en: "Your Course", ms: "Kursus anda"},
-	"cert-preview.caption":  {en: "A sample Certificate. Each one has a number anyone can check.", ms: "Contoh Sijil. Setiap Sijil mempunyai nombor yang boleh disemak sesiapa."},
 	// ---- end home page (#314) ----
 	"home.intro.1": {
 		en: "CAVELMS is a digital learning platform built by The Cave Consult (TCC) to help educators, civil servants, professionals and organisations master Generative Artificial Intelligence (Generative AI) in a way that is practical, systematic and easy to understand.",
