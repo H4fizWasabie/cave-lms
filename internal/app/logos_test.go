@@ -23,14 +23,17 @@ func (s *site) expectImage(body, alt string) {
 	}
 }
 
-func TestTheHeaderFooterAdminBarAndFaviconShowTheCaveConsultLogoInBothLanguages(t *testing.T) {
+func TestTheHeaderAndAdminBarShowTheCAVELMSLogoAndTheFooterAndFaviconTheCaveConsultLogoInBothLanguages(t *testing.T) {
 	s := newSite(t)
-	for lang, alt := range map[string]string{"en": "The Cave Consult logo", "ms": "Logo The Cave Consult"} {
+	brand := map[string]string{"en": "CAVELMS, your digital learning hub", "ms": "CAVELMS, hab pembelajaran digital anda"}
+	for lang, tcc := range map[string]string{"en": "The Cave Consult logo", "ms": "Logo The Cave Consult"} {
 		_, body := s.getAsking("/", lang)
 		head, page, _ := strings.Cut(body, `<main id="main">`)
-		s.expectImage(head, alt)
-		expectAll(t, head, `<a class="brand" href="/"><img src="/static/cave-consult-logo.webp`)
-		s.expectImage(page, alt)
+		s.expectImage(head, brand[lang])
+		expectAll(t, head, `<a class="brand" href="/"><img src="/static/cavelms-logo.webp`)
+		expectNone(t, head, "cave-consult-logo")
+		_, footer, _ := strings.Cut(page, `<footer`)
+		s.expectImage(footer, tcc)
 		expectNone(t, body, "cavelms.svg", "logo-light.svg")
 		m := regexp.MustCompile(`<link rel="icon" href="(/static/[^"]+)">`).FindStringSubmatch(body)
 		if m == nil {
@@ -43,8 +46,25 @@ func TestTheHeaderFooterAdminBarAndFaviconShowTheCaveConsultLogoInBothLanguages(
 
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	_, body := s.getAsking("/admin", "ms")
-	s.expectImage(body, "Logo The Cave Consult")
+	s.expectImage(body, brand["ms"])
+	expectAll(t, body, `<a class="adm-brand" href="/admin"><img src="/static/cavelms-logo-light.webp`)
 	expectNone(t, body, "logo-light.svg")
+}
+
+func TestTheTrustStripShowsALogoBesideEachHeadingInBothLanguages(t *testing.T) {
+	s := newSite(t)
+	for lang, alts := range map[string][]string{
+		"en": {"The Cave Consult logo", "TCC", "HRD Corp logo", "HRD Corp", "ePerolehan logo", "MOF", "JPK logo", "JPK"},
+		"ms": {"Logo The Cave Consult", "TCC", "Logo HRD Corp", "HRD Corp", "Logo ePerolehan", "MOF", "Logo JPK", "JPK"},
+	} {
+		_, body := s.getAsking("/", lang)
+		_, trust, _ := strings.Cut(body, `class="trust"`)
+		trust, _, _ = strings.Cut(trust, `</section>`)
+		for i := 0; i < len(alts); i += 2 {
+			s.expectImage(trust, alts[i])
+		}
+		expectInOrder(t, trust, alts...)
+	}
 }
 
 func TestCoachAdamsCardShowsHisPhotoThenTheIssuerLogosWithTheHRDCorpBadgeInOneRowInBothLanguages(t *testing.T) {

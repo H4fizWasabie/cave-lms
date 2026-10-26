@@ -2,8 +2,8 @@
    read it before adding a rule. Rules use only the tokens below: no hard-coded colours, font sizes, spacing or radii. */
 
 /* ============================ BRAND =====================
-   Swap the client's brand here: two colours, two fonts, and the logo files (static/cave-consult-logo.webp
-   in the header, static/cave-consult-logo-light.webp on dark backgrounds). Everything else derives from these. */
+   Swap the client's brand here: two colours, two fonts, and the logo files (static/cavelms-logo.webp
+   in the header, static/cavelms-logo-light.webp in the Admin sidebar; static/cave-consult-logo-light.webp in the footer). Everything else derives from these. */
 :root {
   --brand-ink: #1f2124;        /* charcoal: text, primary buttons, dark bands */
   --brand-gold: #d2a649;       /* gold from the logo's arch: fills and accents, never text on light */
@@ -548,7 +548,7 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
 .adm-side { background: var(--brand-ink); color: var(--line-strong); display: flex; flex-direction: column; position: sticky; top: 0; height: 100dvh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--on-dark-line) transparent; padding: var(--space-4); }
 .adm-side-top { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-2) var(--space-5); border-bottom: 1px solid var(--on-dark-line); margin-bottom: var(--space-4); }
 .adm-brand { display: grid; gap: var(--space-2); text-decoration: none; color: var(--on-dark-muted); font-size: var(--fs-meta); font-weight: 600; }
-.adm-brand img { height: 2.4rem; width: auto; }
+.adm-brand img { width: min(100%, 13rem); height: auto; }
 .adm-nav { display: grid; gap: 2px; }
 .adm-nav a, .adm-side-foot > a { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); color: var(--line-strong); text-decoration: none; font-weight: 600; font-size: var(--fs-ui); }
 .adm-nav a:hover, .adm-side-foot > a:hover, .adm-nav a[aria-current="page"] { background: color-mix(in srgb, var(--brand-gold) 16%, transparent); color: var(--surface); }
@@ -1207,9 +1207,11 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .trust-in { list-style: none; margin-block: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .trust-in li { padding: var(--space-5) var(--space-5) var(--space-5) 0; font-size: var(--fs-ui); color: var(--muted); }
 .trust-in li + li { padding-left: var(--space-5); border-left: 1px solid var(--line); }
-.trust-in strong { display: block; margin-bottom: var(--space-1); font-family: var(--font-display); font-size: var(--fs-title); color: var(--brand-ink); }
+.trust-in strong { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); white-space: nowrap; margin-bottom: var(--space-1); font-family: var(--font-display); font-size: var(--fs-title); color: var(--brand-ink); }
 /* A number the client has not supplied: dashed and labelled, and never rendered in production. */
 .trust-in .trust-ph { color: var(--brand-gold-deep); background: color-mix(in srgb, var(--brand-gold) 8%, transparent); outline: 1px dashed var(--brand-gold-deep); outline-offset: calc(-1 * var(--space-1)); }
+/* Each registration's logo sits before its name, all at one height; in a narrow cell the name drops below it whole. */
+.trust-in strong img { height: 2rem; width: auto; }
 .trust-ph strong { color: var(--brand-gold-deep); }
 .trust-ph-tag { display: block; margin-bottom: var(--space-1); font-size: var(--fs-meta); font-weight: 600; }
 

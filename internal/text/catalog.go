@@ -4,6 +4,7 @@ package text
 var catalog = map[string]entry{
 	// Layout: header
 	"logo-alt":            {en: "%s logo", ms: "Logo %s"},
+	"brand-alt":           {en: "CAVELMS, your digital learning hub", ms: "CAVELMS, hab pembelajaran digital anda"},
 	"header.main-nav":     {en: "Main", ms: "Utama"},
 	"header.menu":         {en: "Menu", ms: "Menu"},
 	"header.skip":         {en: "Skip to content", ms: "Langkau ke kandungan"},
