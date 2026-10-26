@@ -58,13 +58,26 @@ func TestTheHomePageShowsThePCCPathwayAndTheLatestCourseCards(t *testing.T) {
 	expectInOrder(t, content(body), "Laluan pensijilan PCC", "1 hari", "4 atau 5 hari", "Kursus terkini")
 }
 
-func TestTheCostComparisonIsATableInBothLanguages(t *testing.T) {
+func TestTheHomePageLeavesTheCostComparisonToPricingWhichShowsTheStoredProPlanPrice(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
-	expectInOrder(t, content(body), "What a year costs", "<table", "Yearly cost", "CAVELMS", "RM99", "Supabase Pro", "RM1,300+", "</table>")
+	expectNone(t, content(body), "What a year costs", "cost-table", "Supabase Pro")
 	_, body = s.getAsking("/", "ms")
-	expectInOrder(t, content(body), "Kos setahun", "<table", "Perkhidmatan", "RM99", "</table>")
+	expectNone(t, content(body), "Kos setahun", "cost-table")
 
+	s = promoSite(t) // Pro Plan RM249, CAVE99 at RM99 running
+	comparison := func(lang string) string {
+		_, body := s.getAsking("/pricing", lang)
+		_, c, _ := strings.Cut(content(body), `id="comparison"`)
+		return c
+	}
+	expectInOrder(t, comparison("en"), "CAVELMS", "RM249/year", "RM99 with a promo code", "TextExpander Pro", "Total Annual Cost", "RM249", "RM258")
+	expectInOrder(t, comparison("ms"), "CAVELMS", "RM249/tahun", "RM99 dengan kod promosi", "TextExpander Pro")
+	expectNone(t, comparison("en"), "RM99/year", "CAVE99")
+
+	s.endPromo("CAVE99")
+	expectInOrder(t, comparison("en"), "CAVELMS", "RM249/year", "TextExpander Pro")
+	expectNone(t, comparison("en"), "with a promo code")
 }
 
 func TestTheHomeHeroCarriesTheClientsTaglineInBothLanguages(t *testing.T) {

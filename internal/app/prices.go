@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -199,5 +200,6 @@ func (a *App) pricing(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "pricing", &struct {
 		pageBase
 		Offers []offer
-	}{pageBase: pageBase{Learner: learner}, Offers: offers})
+		Pro    offer // the comparison's CAVELMS column
+	}{pageBase: pageBase{Learner: learner}, Offers: offers, Pro: offers[slices.Index(products, proPlanProduct)]})
 }
