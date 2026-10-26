@@ -8,8 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/go-pdf/fpdf"
 )
 
 // pngOfSize is a placeholder for the client's artwork, w by h pixels, so a test can tell which image a PDF carries.
@@ -85,6 +89,37 @@ func TestSelfPacedCertificateHasNoBadgeAndALongTitleWraps(t *testing.T) {
 	pdf := s.pdfBody("/certificates/" + certificateIDs(body)[0] + "/pdf")
 	expectAll(t, pdf, "Pengintegrasian", "Pegawai")
 	expectNone(t, pdf, title, imageSize(904, 1280), "/Width 904\n") // no PCC badge, of any Level
+}
+
+// certTitleLine is a Course title line in a Certificate preview: its font size in mm and its text.
+var certTitleLine = regexp.MustCompile(`<text class="cert-art-title"[^>]* font-size="([\d.]+)"[^>]*>([^<]*)</text>`)
+
+func TestALongUnbrokenWordInACourseTitleBreaksInsideTheTitleBoxOnThePDFAndThePreview(t *testing.T) {
+	s := newSite(t)
+	title := strings.Repeat("Kompetensi", 12) // 120 characters, no space
+	id := s.learnerEnrolledIn(title, "Variables")
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	_, body := s.get("/my-certificates")
+	pdf := s.pdfBody("/certificates/" + certificateIDs(body)[0] + "/pdf")
+	_, body = s.get("/courses/" + id)
+
+	lines := certTitleLine.FindAllStringSubmatch(certArt(t, body), -1)
+	measure := fpdf.New("P", "mm", "A4", "")
+	var joined string
+	for _, l := range lines {
+		mm, _ := strconv.ParseFloat(l[1], 64)
+		measure.SetFont("Times", "B", mm*72/25.4)
+		if w := measure.GetStringWidth(l[2]); w > 150.01 { // the title box is 150 mm wide, from 30 mm
+			t.Errorf("the preview's title line %q is %.1f mm wide, want at most 150", l[2], w)
+		}
+		if _, left := nameOnPDF(t, pdf, l[2]); left < 29.99 {
+			t.Errorf("the PDF's title line %q starts at %.1f mm, want inside the box from 30 mm", l[2], left)
+		}
+		joined += l[2]
+	}
+	if joined != title {
+		t.Fatalf("the title lines %q do not spell the title", lines)
+	}
 }
 
 // The built-in artwork's wording and its image assets: the CAVE logo (drawn from its SVG at 1200 pixels wide), the seal,

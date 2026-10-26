@@ -123,6 +123,31 @@ func TestWhenTimeIsUpBlankAnswersAreSubmittedWithoutAsking(t *testing.T) {
 	expectAll(t, body, "Score: 50%")
 }
 
+// Asking about blank answers costs a round trip; with under a minute left before the server stops taking the
+// submission (the time limit plus its 30 s grace), the answers are submitted as they are instead.
+func TestWithUnderAMinuteLeftBlankAnswersAreSubmittedWithoutAsking(t *testing.T) {
+	for _, c := range []struct {
+		age    int // seconds into the one-minute limit
+		status int
+	}{{20, http.StatusOK}, {40, http.StatusSeeOther}} { // 70 s left, then 50 s, counting the grace
+		s := newSite(t)
+		id, _ := s.examCourse("50", "1", "", "Q1", "Q2")
+		res, _ := s.startExam(id)
+		attempt := res.Header.Get("Location")
+		_, body := s.get(attempt)
+		qids := attemptQuestionIDs(body)
+		s.ageAttempt(attempt, c.age)
+
+		res, body = s.post(attempt+"/submit", url.Values{"answer-" + qids[0]: {"0"}})
+		if res.StatusCode != c.status {
+			t.Fatalf("%d s in, a submission with a blank answer answers %d, want %d: %s", c.age, res.StatusCode, c.status, body)
+		}
+		if c.status == http.StatusOK {
+			expectAll(t, body, "You have not answered 1 of 2 questions.")
+		}
+	}
+}
+
 func TestTheAttemptPageWarnsAtFiveAndOneMinutesInAPoliteLiveRegionAndCountsTheAnswers(t *testing.T) {
 	s := newSite(t)
 	id, _ := s.examCourse("50", "30", "", "Q1", "Q2")

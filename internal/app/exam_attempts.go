@@ -522,9 +522,9 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 			q.Chosen = slot
 		}
 	}
-	// Blank answers are asked about first, the answers given shown again. Once time is up (the timer submits at zero)
-	// the attempt is submitted as it is.
-	if !confirmed(r) && (att.TimeLimit == 0 || att.SecondsLeft > 0) {
+	// Blank answers are asked about first, the answers given shown again. With under a minute left before the grace
+	// runs out (the timer submits at zero), the attempt is submitted as it is: the extra round trip could lose it.
+	if !confirmed(r) && (att.TimeLimit == 0 || att.SecondsLeft+examGraceSeconds >= 60) {
 		if att.Blank = att.blanks(); att.Blank > 0 {
 			a.render(w, r, http.StatusOK, "exam_attempt", page{Course: &c, Exam: &e, Learner: learner, Attempt: &att})
 			return

@@ -35,6 +35,52 @@ func TestAdminAddsACoursePictureThatTheCourseListShows(t *testing.T) {
 	}
 }
 
+// The Course picture route serves Course pictures only: a Gallery item's file, members-only or not, keeps its own
+// access check, and a picture is never sniffed as something else.
+func TestTheCoursePictureRouteServesOnlyCoursePicturesUnsniffed(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	res, body := s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.uploadAs("Poster", "everyone", pngFile)
+	members := s.uploadAs("Members' poster", "everyone", pngFile)
+	if _, err := s.db.Exec(`UPDATE gallery_items SET visibility = 'course_members' WHERE id = $1`,
+		strings.TrimPrefix(members, "/gallery/")); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := s.db.Query(`SELECT storage_key FROM gallery_items`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		keys = append(keys, k)
+	}
+	if err := rows.Close(); err != nil || len(keys) != 2 {
+		t.Fatalf("Gallery keys %v, %v", keys, err)
+	}
+
+	s.logOut()
+	_, body = s.get("/courses")
+	m := coursePictureSrc.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("the Course list shows no Course picture: %s", body)
+	}
+	res, body = s.get(m[1])
+	expectStatus(t, res, body, http.StatusOK, "")
+	if got := res.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("a Course picture is served with X-Content-Type-Options %q, want nosniff", got)
+	}
+	for _, k := range keys {
+		res, body = s.get("/course-pictures/" + k)
+		expectStatus(t, res, body, http.StatusNotFound, "")
+	}
+}
+
 var drawnCover = regexp.MustCompile(`(?s)<div class="course-cover course-cover-drawn.*?</div>`)
 
 // drawnCoverIn returns the first drawn cover in html, failing when there is none.

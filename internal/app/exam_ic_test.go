@@ -194,3 +194,18 @@ func TestTheExamStartPageTellsOnlyALearnerWithoutAnICTheyWillAddItBeforeStarting
 	_, body = s.getAsking(exam, "en")
 	expectNone(t, mainOf(body), line)
 }
+
+func TestADirectStartWithoutAnICUsesNoAttempt(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("50", "", "2", "Which is right?")
+	if _, err := s.db.Exec(`UPDATE learners SET ic = NULL WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 { // posted straight to the start, past the Exam page's IC step
+		res, body := s.startExam(id)
+		expectRedirect(t, res, body, "/courses/"+id+"/exam/ic")
+	}
+	_, body := s.get("/courses/" + id + "/exam")
+	expectAll(t, mainOf(body), "Starting uses 1 of your 2 attempts.")
+	expectNone(t, mainOf(body), "You have used")
+}
