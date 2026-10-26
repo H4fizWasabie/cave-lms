@@ -247,6 +247,20 @@ var catalog = map[string]entry{
 	"submission.delete":             {en: "Delete file", ms: "Padam fail"},
 	"submission.delete-ask":         {en: "Delete “%s” from your Submission for “%s”? You cannot get it back.", ms: "Padam “%s” daripada Serahan anda untuk “%s”? Anda tidak boleh mendapatkannya semula."},
 	"submission.keep":               {en: "Keep the file", ms: "Simpan fail"},
+	"chat.delete-title":             {en: "Delete Message", ms: "Padam Mesej"},
+	"chat.delete-ask":               {en: "Delete your Message? Everyone in the Chat sees “Message deleted” in its place. This cannot be undone.", ms: "Padam Mesej anda? Semua dalam Sembang akan melihat “Mesej dipadam” di tempatnya. Tindakan ini tidak boleh dibuat asal."},
+	"chat.hide-title":               {en: "Hide Message", ms: "Sembunyikan Mesej"},
+	"chat.hide-ask":                 {en: "Hide this Message from the Chat and from Reports? You can unhide it later.", ms: "Sembunyikan Mesej ini daripada Sembang dan Laporan? Anda boleh menyahsembunyikannya kemudian."},
+	"community.leave-ask":           {en: "Leave the Community Chat? Your Messages stay. You can join again at any time.", ms: "Keluar dari Sembang Komuniti? Mesej anda kekal. Anda boleh menyertainya semula pada bila-bila masa."},
+	"lab.w.delete-title":            {en: "Delete earlier Dataset", ms: "Padam Set data terdahulu"},
+	"lab.w.delete-ask":              {en: "Delete the earlier Dataset “%s”? Its file goes too. This cannot be undone.", ms: "Padam Set data terdahulu “%s”? Failnya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
+	"ctadmin.learners.end-ask":      {en: "End Pro for %s now? Their running Pro and any given to follow it end at once; their Plan periods stay. This cannot be undone, but you can give Pro again.", ms: "Tamatkan Pro untuk %s sekarang? Pro mereka yang berjalan dan yang diberikan selepasnya tamat serta-merta; Tempoh Pelan mereka kekal. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh memberikan Pro semula."},
+	"plans.period.end":              {en: "End Plan period", ms: "Tamatkan Tempoh Pelan"},
+	"plans.period.end-ask":          {en: "End the %[2]s period for %[1]s now? It stops at once. This cannot be undone, but you can assign a Plan again.", ms: "Tamatkan tempoh %[2]s bagi %[1]s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan semula."},
+	"promos.end-title":              {en: "End Promo", ms: "Tamatkan Promosi"},
+	"promos.end-ask":                {en: "End the Promo %s now? Its price stops at once. This cannot be undone.", ms: "Tamatkan Promosi %s sekarang? Harganya berhenti serta-merta. Tindakan ini tidak boleh dibuat asal."},
+	"adm.assignments.delete-ask":    {en: "Delete “%s”? Learners' Submissions to it are deleted with it. This cannot be undone.", ms: "Padam “%s”? Serahan Pelajar kepadanya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
+	"adm.gallery.delete-ask":        {en: "Delete “%s” and its file? This cannot be undone.", ms: "Padam “%s” dan failnya? Tindakan ini tidak boleh dibuat asal."},
 	// ---- Premium refresh: confirmation pages (QA): end ----
 
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----

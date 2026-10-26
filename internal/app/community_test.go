@@ -50,10 +50,18 @@ func TestALearnerJoinsLeavesAndJoinsTheCommunityChatAgain(t *testing.T) {
 	ada, admin, _, _ := communitySite(t)
 	res, body := ada.get("/community")
 	expectStatus(t, res, body, http.StatusOK, `data-stream="/community/events"`)
-	expectInOrder(t, body, `action="/community/leave"`)
+	expectInOrder(t, body, `href="/community/leave"`)
 	ada.say(community, "Bye all")
 
 	res, body = ada.post("/community/leave", nil)
+	expectRedirect(t, res, body, "/community/leave")
+	_, body = ada.get("/community")
+	expectInOrder(t, body, "Bye all")
+	res, body = ada.get("/community/leave")
+	expectStatus(t, res, body, http.StatusOK, "Leave the Community Chat? Your Messages stay. You can join again at any time.")
+	expectAll(t, body, `href="/community"`)
+
+	res, body = ada.post("/community/leave", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get("/community")
 	expectInOrder(t, body, `action="/community/join"`)
@@ -78,7 +86,7 @@ func TestAMemberPostsRepliesReactsDeletesAndReportsInTheCommunityChat(t *testing
 
 	gone := ada.say(community, "Oops")
 	expectStatus(t, must(ben.post("/community/"+gone+"/delete", nil)), "", http.StatusForbidden, "")
-	expectStatus(t, must(ada.post("/community/"+gone+"/delete", nil)), "", http.StatusSeeOther, "")
+	expectStatus(t, must(ada.post("/community/"+gone+"/delete", confirming)), "", http.StatusSeeOther, "")
 	expectInOrder(t, ben.messageHTML(community, gone), "Message deleted")
 
 	expectStatus(t, must(ada.report(community, mid, "Spam")), "", http.StatusSeeOther, "")
@@ -97,11 +105,11 @@ func TestTheAdminReadsPostsAndHidesInTheCommunityChatWithoutJoining(t *testing.T
 	mid := ada.say(community, "Something nasty")
 	res, body := admin.get("/community")
 	expectStatus(t, res, body, http.StatusOK, "Something nasty")
-	expectNone(t, body, `action="/community/leave"`)
+	expectNone(t, body, `href="/community/leave"`)
 	aid := admin.say(community, "Welcome all")
 	expectInOrder(t, ada.messageHTML(community, aid), "Abah", "Admin", "Welcome all")
 
-	expectStatus(t, must(admin.post("/admin/chat/"+mid+"/hide", nil)), "", http.StatusSeeOther, "")
+	expectStatus(t, must(admin.post("/admin/chat/"+mid+"/hide", confirming)), "", http.StatusSeeOther, "")
 	expectInOrder(t, ada.messageHTML(community, mid), "Message removed")
 	res, _ = admin.post("/admin/chat/"+mid+"/unhide", nil)
 	if loc := res.Header.Get("Location"); loc != "/community#m"+mid {

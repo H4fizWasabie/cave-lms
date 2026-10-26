@@ -33,9 +33,18 @@ func (a *App) communityMember(ctx context.Context, learnerID int64) (bool, error
 	return member, err
 }
 
-// setMember returns the handler with which a Learner joins the Community Chat, or leaves it. Their Messages stay.
+// confirmLeaveCommunity asks the Learner to confirm leaving the Community Chat.
+func (a *App) confirmLeaveCommunity(w http.ResponseWriter, r *http.Request) {
+	a.confirm(w, r, http.StatusOK, confirmation{Heading: "community.leave", Question: "community.leave-ask", Cancel: "/community", Action: r.URL.Path})
+}
+
+// setMember returns the handler with which a Learner joins the Community Chat, or leaves it once its confirmation
+// page is posted. Their Messages stay.
 func (a *App) setMember(join bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !join && unconfirmed(w, r) {
+			return
+		}
 		l, err := a.currentLearner(r)
 		if err != nil {
 			a.serverError(w, r, err)
