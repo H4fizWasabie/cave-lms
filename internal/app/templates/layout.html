@@ -13,7 +13,7 @@
   {{- if not .Shell}}{{/* an Admin's admin pages have only the Admin sidebar (#332) */}}
   <header class="site-header">
     <div class="wrap site-header-in">
-      <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
+      <a class="brand" href="/"><img src="{{static "cave-consult-logo.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" class="brand-logo" width="387" height="160"></a>
       <nav class="site-nav hdr-wide" aria-label="{{t .Lang "header.main-nav"}}">{{template "nav-links" .}}</nav>
       <div class="site-header-right">
         <form class="lang-switch" method="post" action="/language" aria-label="{{t .Lang "header.language"}}">
@@ -25,7 +25,7 @@
         <div class="hdr-wide hdr-account">
           {{- if .Learner}}
           <details class="hdr-drop" name="hdr">
-            <summary class="hdr-link"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{.Learner.Name}}</span></summary>
+            <summary class="hdr-link">{{template "avatar" .Learner}}<span>{{.Learner.Name}}</span></summary>
             <div class="hdr-panel">{{template "account-links" .}}</div>
           </details>
           {{- else}}
@@ -50,7 +50,7 @@
   <footer class="site-footer">
     <div class="wrap footer-in">
       <div class="footer-brand">
-        <img src="{{static "logo-light.svg"}}" alt="The Cave Consult" class="footer-logo">
+        <img src="{{static "cave-consult-logo-light.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" class="footer-logo" width="387" height="160">
         <p><strong>CAVELMS</strong>: Learn AI • Build Skills • Create Impact</p>
         <p>{{t .Lang "footer.powered-by"}}</p>
       </div>
@@ -132,6 +132,8 @@
         <a class="hdr-link" href="/community">{{t .Lang "nav.community"}}</a>
 {{- end}}
 {{/* account-links are Log in and Register for a Visitor, or the logged-in Learner's links. */}}
+{{/* avatar is a Learner's profile picture, or a circle with their initials when they have none. */}}
+{{define "avatar"}}{{if .PictureKey}}<img class="avatar" src="/learner-pictures/{{.PictureKey}}" alt="" width="28" height="28">{{else}}<span class="avatar" aria-hidden="true">{{.Initials}}</span>{{end}}{{end}}
 {{define "account-links"}}
           {{- with .Learner}}
           <span class="hdr-who">{{t $.Lang "header.logged-in-as" .Name}}</span>
@@ -148,7 +150,7 @@ On wide screens it is a column; below 1000px it folds into a Menu button that na
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
-          <a class="adm-brand" href="/admin"><img src="{{static "logo-light.svg"}}" alt="The Cave Consult"><span>{{t .Lang "admin.brand"}}</span></a>
+          <a class="adm-brand" href="/admin"><img src="{{static "cave-consult-logo-light.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" width="387" height="160"><span>{{t .Lang "admin.brand"}}</span></a>
         </div>
         <nav class="adm-nav adm-wide" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}</nav>
         <details class="adm-menu">
@@ -251,7 +253,7 @@ images and the places of the details come from Go (certificate_artwork.go), shar
 logo, ornament and QR sketch are drawn here and in drawArtwork, so change those two together. With an uploaded
 background it draws that in place of the built-in artwork, as the PDF does. It shows a name and never an IC; the QR
 code is only sketched. It is decorative: the page says in words what it shows. */}}
-{{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
+{{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" style="{{.Palette}}" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
   <defs>
     <linearGradient id="{{.ID}}-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
     <linearGradient id="{{.ID}}-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
@@ -261,7 +263,7 @@ code is only sketched. It is decorative: the page says in words what it shows. *
   {{- if .Background}}
   <image href="{{.Background}}" x="0" y="0" width="210" height="297" preserveAspectRatio="none"/>
   {{- else}}
-  <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".07" transform="rotate(-90 160 150)"/>
+  <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".2" transform="rotate(-90 160 150)"/>
   <rect class="cert-art-rule" x="5" y="5" width="200" height="287" stroke-width=".35"/>
   <rect class="cert-art-rule" x="6.4" y="6.4" width="197.2" height="284.2" stroke-width=".15"/>
   <path fill="url(#{{$.ID}}-g1)" d="M0 0V82C3.5 36.9 31.5 3.28 70 0Z"/>
@@ -272,16 +274,17 @@ code is only sketched. It is decorative: the page says in words what it shows. *
     <path fill="url(#{{$.ID}}-g2)" d="M0 0V96C2.5 43.2 22.5 3.84 50 0Z"/>
     <path class="cert-art-shine" d="M0 96C2.5 43.2 22.5 3.84 50 0" stroke-width=".6"/>
   </g>
-  <image href="{{static "logo-dark.svg"}}" x="79" y="17" width="52" height="23.37"/>
+  <image href="{{static "logo-dark.svg"}}" x="107" y="17" width="42" height="18.88"/>
   {{- range .Rules}}
   <path class="cert-art-rule" d="M{{printf "%.2f %.2f" .X1 .Y}}H{{printf "%.2f" .X2}}" stroke-width="{{.Width}}"/>{{end}}
-  <path class="cert-art-ornament" d="M105 155.2 107.6 157 105 158.8 102.4 157Z"/>
-  <circle class="cert-art-ornament" cx="100.6" cy="157" r=".55"/><circle class="cert-art-ornament" cx="109.4" cy="157" r=".55"/>
+  <path class="cert-art-ornament" d="M105 161.6 107.6 163.4 105 165.2 102.4 163.4Z"/>
+  <circle class="cert-art-ornament" cx="100.6" cy="163.4" r=".55"/><circle class="cert-art-ornament" cx="109.4" cy="163.4" r=".55"/>
   {{- range .Texts}}
   <text{{with .Class}} class="{{.}}"{{end}} x="{{printf "%.2f" .X}}" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" .SizeMM}}"{{with .Track}} letter-spacing="{{.}}"{{end}} text-anchor="middle">{{.Text}}</text>{{end}}
   {{- range .Images}}
   <image href="{{static .Name}}" x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}"/>{{end}}
   {{- end}}
+  <text class="cert-art-sans" x="{{$at.NumberX}}" y="{{$at.LabelY}}" font-size="{{printf "%.2f" $at.LabelSize}}" text-anchor="middle">{{$at.Label}}</text>
   {{- with .Number}}
   <text class="cert-art-sans cert-art-number" x="{{$at.NumberX}}" y="{{$at.NumberY}}" font-size="{{printf "%.2f" $at.NumberSize}}" text-anchor="middle">{{.}}</text>{{end}}
   <g class="cert-art-qr" transform="translate({{$at.QRX}} {{$at.QRY}})">

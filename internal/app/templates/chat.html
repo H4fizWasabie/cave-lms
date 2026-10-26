@@ -42,7 +42,7 @@
    (React, Reply and the More menu) show on hover or focus, and always on touch screens. */}}
 {{define "chat-message"}}
           <li class="msg{{if .Mine}} is-mine{{end}}{{if .ByAdmin}} is-admin{{end}}{{if .Follows}} follows{{end}}{{if and .Hidden .ViewerAdmin (not .Deleted)}} is-hidden{{end}}" id="m{{.ID}}">
-            <span class="msg-avatar" aria-hidden="true">{{.Initial}}</span>
+            {{if .WriterPicture}}<img class="msg-avatar" src="/learner-pictures/{{.WriterPicture}}" alt="" width="34" height="34" loading="lazy">{{else}}<span class="msg-avatar" aria-hidden="true">{{.Initials}}</span>{{end}}
             <div class="msg-main">
               <p class="msg-head"><strong>{{.Writer}}</strong>{{if .ByAdmin}} <span class="msg-badge">{{t .Lang "chat.admin"}}</span>{{end}} <time datetime="{{.At.UTC.Format "2006-01-02T15:04:05Z"}}" title="{{.When}}">{{.Clock}}</time></p>
               <div class="msg-bubble">

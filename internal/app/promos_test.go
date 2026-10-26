@@ -188,7 +188,8 @@ func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	main := content(body)
 	expectInOrder(t, main, "Pro Plan", "RM249 a year", "RM99 with a promo code")
 	expectNone(t, main, "CAVE99")
-	if n := strings.Count(main, "with a promo code"); n != 1 {
+	cards, _, _ := strings.Cut(main, `id="comparison"`)
+	if n := strings.Count(cards, "with a promo code"); n != 1 {
 		t.Errorf("%d promo lines, want 1 (only the Pro Plan has a Promo)", n)
 	}
 	_, body = visitor.getAsking("/pricing", "ms")

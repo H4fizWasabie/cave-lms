@@ -31,8 +31,9 @@ func formatIC(ic string) string {
 // myProfilePage is the logged-in Learner's profile: their IC or passport number, formatted, or a form to set it.
 type myProfilePage struct {
 	pageBase
-	IC    string
-	Typed string // what the Learner typed, kept when it is refused
+	IC           string
+	Typed        string // what the Learner typed, kept when it is refused
+	PictureError string // why the picture just uploaded was refused
 }
 
 func (a *App) myProfile(w http.ResponseWriter, r *http.Request) {
@@ -41,12 +42,17 @@ func (a *App) myProfile(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	a.renderMyProfile(w, r, http.StatusOK, learner, "")
+}
+
+// renderMyProfile writes the Learner's profile page, with pictureError the reason a picture was refused, if one was.
+func (a *App) renderMyProfile(w http.ResponseWriter, r *http.Request, status int, learner *learner, pictureError string) {
 	ic, err := a.learnerIC(r.Context(), learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner}, IC: formatIC(ic)})
+	a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner}, IC: formatIC(ic), PictureError: pictureError})
 }
 
 // setMyIC is the Learner setting their IC or passport number, once. After that only the Admin can change it.

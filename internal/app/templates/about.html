@@ -16,7 +16,10 @@
     </section>
 
     <section class="wrap about-body">
-      <h2>{{t .Lang "about.heading"}}</h2>
+      <div class="about-side">
+        <h2>{{t .Lang "about.heading"}}</h2>
+        <img src="{{static "kpm-crest.webp"}}" alt="{{t .Lang "about.kpm-alt"}}" class="about-crest" width="540" height="320" loading="lazy">
+      </div>
       <div class="prose">
         <p>{{t .Lang "about.p1"}}</p>
         <p>{{t .Lang "about.p2"}}</p>

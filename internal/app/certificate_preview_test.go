@@ -98,3 +98,11 @@ func TestEveryCertificatePreviewOnMyCertificatesHasItsOwnIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestTheCertificatePreviewPrintsInThePDFsPalette(t *testing.T) {
+	s := newSite(t)
+	courseID, _ := s.adaEarns()
+	_, body := s.get("/courses/" + courseID)
+	// The sample's metallic gold and the orange of its Certificate No., as the PDF prints them.
+	expectAll(t, certArt(t, body), "--cert-gold:#cca428", "--cert-number:#d6841c")
+}

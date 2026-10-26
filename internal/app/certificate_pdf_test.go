@@ -122,11 +122,12 @@ func TestALongUnbrokenWordInACourseTitleBreaksInsideTheTitleBoxOnThePDFAndThePre
 	}
 }
 
-// The built-in artwork's wording and its image assets: the CAVE logo (drawn from its SVG at 1200 pixels wide), the seal,
+// The built-in artwork's wording and its image assets ("(CERTIFICATE)" as fpdf writes the line, so it doesn't match the
+// "CERTIFICATE NO." label every Certificate prints): the CAVE logo (drawn from its SVG at 1200 pixels wide), the seal,
 // the HRD Corp badge and the two signatures.
-var builtInArtwork = []string{"CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT",
+var builtInArtwork = []string{"(CERTIFICATE)", "OF COMPETENCY", "THIS IS TO CERTIFY THAT",
 	"has successfully completed the competency requirements of", "Professional Competency Credential",
-	"the competencies demonstrated throughout the programme", "ADAM BIN YUSUF", "DINOR SABUDIN", "CERTIFICATE NO.",
+	"the competencies demonstrated throughout the programme", "ADAM BIN YUSUF", "DINOR SABUDIN",
 	imageSize(1200, 539), imageSize(316, 312), imageSize(206, 200), imageSize(284, 76), imageSize(146, 90)}
 
 func TestACertificatePDFDrawsTheBuiltInArtworkUntilABackgroundIsUploaded(t *testing.T) {
@@ -134,14 +135,14 @@ func TestACertificatePDFDrawsTheBuiltInArtworkUntilABackgroundIsUploaded(t *test
 	_, certID := s.adaEarns()
 	path := "/certificates/" + certID + "/pdf"
 	pdf := s.pdfBody(path)
-	expectAll(t, pdf, builtInArtwork...)
+	expectAll(t, pdf, append(builtInArtwork, "CERTIFICATE NO.")...)
 	expectNone(t, pdf, "demonsrated", "throughtout", "KEMENTERIAN")
 
 	s.loginAdmin()
 	s.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
 	pdf = s.pdfBody(path)
-	expectAll(t, pdf, imageSize(3, 5), "Ada", "Go Basics")
-	expectNone(t, pdf, builtInArtwork...) // the upload carries its own
+	expectAll(t, pdf, imageSize(3, 5), "Ada", "Go Basics", "CERTIFICATE NO.") // the uploaded artwork has no label
+	expectNone(t, pdf, builtInArtwork...)                                     // the upload carries its own
 }
 
 // orgCertificate has Ada pass a 2-day Live Course run for an Organisation with logo ("" logo for none) and returns
@@ -228,21 +229,21 @@ func nameOnPDF(t *testing.T, pdf, name string) (size, left float64) {
 	return size, left / 72 * 25.4
 }
 
-func TestTheLearnersNameIsTheCertificatesLargestLineAndShrinksToFitItsRule(t *testing.T) {
+func TestTheLearnersNamePrintsAt14PtAsOnTheSampleAndShrinksToFitItsRule(t *testing.T) {
 	admin, ada, _, certID := orgCertificate(t, nil)
-	if size, _ := nameOnPDF(t, ada.pdfBody("/certificates/"+certID+"/pdf"), "Ada"); size != 28 {
-		t.Fatalf("a short name prints at %v pt, want 28", size)
+	if size, _ := nameOnPDF(t, ada.pdfBody("/certificates/"+certID+"/pdf"), "Ada"); size != 14 {
+		t.Fatalf("a short name prints at %v pt, want 14", size)
 	}
 
-	long := "Puteri Nur Aisyah Humaira binti Mohd Shahrizal Abdul Wahhabi" // 60 characters
+	long := "Puteri Nur Aisyah Humaira binti Mohd Shahrizal Abdul Wahhabi Al-Haddad Syed Zainal Abidin" // 89 characters
 	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
 	res, body := admin.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {long}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get("/my-certificates")
 	ids := certificateIDs(body)
 	size, left := nameOnPDF(t, ada.pdfBody("/certificates/"+ids[len(ids)-1]+"/pdf"), long)
-	if size >= 28 || left < 19 { // the rule under the name runs from 19 mm to 191 mm, centred on the page
-		t.Fatalf("a 60-character name prints at %v pt from %.1f mm, want it shrunk to start on the rule", size, left)
+	if size >= 14 || left < 21 { // the rule under the name runs from 21 mm to 189 mm, centred on the page
+		t.Fatalf("an 89-character name prints at %v pt from %.1f mm, want it shrunk to start on the rule", size, left)
 	}
 }
 
