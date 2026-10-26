@@ -487,7 +487,7 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	if n := ada.storedFiles(); n != 2 {
 		t.Fatalf("%d stored files, want current and pending", n)
 	}
-	res, body = ada.post(path+"/delete", nil)
+	res, body = ada.post(path+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after deleting the Dashboard", n)

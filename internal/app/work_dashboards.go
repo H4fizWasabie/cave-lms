@@ -568,27 +568,45 @@ func (a *App) restoreDataset(w http.ResponseWriter, r *http.Request, d *dashboar
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
 
-// deleteDataset deletes an earlier Dataset and its stored data, freeing its bytes from the Storage allowance.
-func (a *App) deleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
+// earlierDatasetFor applies the Lab access rule and loads the id and file name of Dashboard d's earlier Dataset
+// named by {ds}. ok is false when it has answered.
+func (a *App) earlierDatasetFor(w http.ResponseWriter, r *http.Request, d *dashboard) (id int64, file string, ok bool) {
 	if _, ok := a.labOpen(w, r); !ok {
-		return
+		return 0, "", false
 	}
 	id, err := strconv.ParseInt(r.PathValue("ds"), 10, 64)
-	if err != nil {
-		a.notFound(w, r)
-		return
-	}
-	res, err := a.db.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`, id, d.ID)
-	var n int64
 	if err == nil {
-		n, err = res.RowsAffected()
+		err = a.db.QueryRowContext(r.Context(), `SELECT file_name FROM datasets WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`,
+			id, d.ID).Scan(&file)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		a.notFound(w, r)
+		return 0, "", false
 	}
 	if err != nil {
 		a.serverError(w, r, err)
+		return 0, "", false
+	}
+	return id, file, true
+}
+
+// confirmDeleteDataset asks before deleting an earlier Dataset.
+func (a *App) confirmDeleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, file, ok := a.earlierDatasetFor(w, r, d); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Heading: "lab.w.delete-title", Question: "lab.w.delete-ask", Cancel: dashboardURL(d),
+			Action: r.URL.Path}, file)
+	}
+}
+
+// deleteDataset deletes an earlier Dataset and its stored data once its confirmation page is posted, freeing its
+// bytes from the Storage allowance.
+func (a *App) deleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	id, _, ok := a.earlierDatasetFor(w, r, d)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
-	if n == 0 {
-		a.notFound(w, r)
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1 AND state = 'earlier'`, id); err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)

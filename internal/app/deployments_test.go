@@ -204,7 +204,7 @@ func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingFreesASlot(t *testing.T)
 		t.Fatalf("deployed beyond the allowance: %s", body)
 	}
 
-	res, body = ada.post(first+"/delete", nil)
+	res, body = ada.post(first+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if res, _ := ada.get(first); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("the deleted Dashboard still opens: %d", res.StatusCode)
@@ -243,11 +243,11 @@ func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *t
 	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Awake now: 3 of the 1 your Plan allows.")
 
-	ada.post(paths[0]+"/delete", nil)
-	ada.post(paths[1]+"/delete", nil)
+	ada.post(paths[0]+"/delete", confirming)
+	ada.post(paths[1]+"/delete", confirming)
 	res, body = ada.post(fourth+"/deploy", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Awake now: 1 of the 1 your Plan allows.")
-	ada.post(paths[2]+"/delete", nil)
+	ada.post(paths[2]+"/delete", confirming)
 	ada.deploy(fourth)
 }
 
@@ -275,9 +275,18 @@ func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
 		}
 	}
 
-	res, body = ada.get(path + "/delete")
-	expectStatus(t, res, body, http.StatusOK, "Delete “Kedai 2026”?")
+	if res, _ := bob.get(path + "/delete"); res.StatusCode != http.StatusNotFound {
+		t.Errorf("Bob got %d for GET /delete, want 404", res.StatusCode)
+	}
+
 	res, body = ada.post(path+"/delete", nil)
+	expectRedirect(t, res, body, path+"/delete")
+	res, body = ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, "Kedai 2026")
+	res, body = ada.get(path + "/delete")
+	expectStatus(t, res, body, http.StatusOK, "Delete “Kedai 2026”? Its Dataset goes too.")
+	expectAll(t, body, "This cannot be undone.", `href="/lab"`)
+	res, body = ada.post(path+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "No Dashboards yet.")
@@ -325,7 +334,7 @@ func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
 	admin, ada := labLearner(t)
 	taken := ada.readyDashboard("Lama")
 	ada.deployAs(taken, "kedai-lama")
-	ada.post(taken+"/delete", nil) // the name stays taken after its Dashboard is deleted
+	ada.post(taken+"/delete", confirming) // the name stays taken after its Dashboard is deleted
 	path := ada.readyDashboard("Kewangan")
 	for _, c := range []struct{ name, want string }{
 		{"ab", "3 to 40 characters"},
