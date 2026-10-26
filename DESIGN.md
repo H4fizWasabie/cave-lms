@@ -150,6 +150,8 @@ A warm-neutral paper palette with one metal: logo gold, used sparingly against c
 ### Named Rules
 **The Eleven Rule.** The stylesheet has eleven colour values, all in `:root`. A new shade is mixed from them in the rule (`color-mix(in srgb, var(--brand-ink) 6%, transparent)` for a hover tint), never typed as hex, rgb or hsl. The stylesheet test enforces it.
 
+The one exception is the Certificate's print palette: its metallic gold, ink and the orange of the Certificate No., after the client's sample, are set in Go (`certificate_artwork.go`) for the PDF and passed to the preview as `--cert-*` properties on its `<svg>`, so the stylesheet's `.cert-art` rules only reference them.
+
 **The Gold Is Not Text Rule.** Logo Gold never sets text on paper or surface. Use Deep Gold for gold text.
 
 ## Typography
