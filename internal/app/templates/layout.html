@@ -330,10 +330,11 @@ Visitors see the cards without buttons. */}}
         </li>
         {{- end}}
         {{- range .Offers}}{{if and (eq .Product "pro-plan") .Promo}}
-        <li class="offer">
+        <li class="offer offer-combo">
+          <span class="offer-tag">{{t $.Lang "offers.combo.tag"}}</span>
           <img class="offer-logo" src="{{static "logo-pro-plan.svg"}}" width="48" height="48" alt="">
-          <h3>{{t $.Lang "offers.promo-plan"}}</h3>
-          <p class="offer-tagline">{{t $.Lang "offers.promo-plan.tagline"}}</p>
+          <h3 class="offer-combo-name">{{t $.Lang "offers.combo"}}</h3>
+          <p class="offer-tagline">{{t $.Lang "offers.combo.tagline"}}</p>
           <p class="offer-price"><strong>{{t $.Lang "offers.price" .Promo}}</strong></p>
           <ul class="offer-benefits">
             {{- range .PromoBenefits}}
@@ -341,7 +342,7 @@ Visitors see the cards without buttons. */}}
             {{- end}}
           </ul>
           {{- if and $.Learner .PaymentLink}}
-          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang "offers.buy" (t $.Lang "offers.promo-plan")}}</a>
+          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang "offers.buy" (t $.Lang "offers.combo")}}</a>
           {{- end}}
         </li>
         {{- end}}{{end}}

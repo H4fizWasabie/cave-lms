@@ -56,10 +56,10 @@ var offerBenefits = map[string][]string{
 	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.deploy", "offers.pro-plan.storage", "offers.pro-plan.both"},
 }
 
-// promoBenefits are listed on the Promo Pro Plan card, shown beside the Pro Plan's while a Promo runs: the Pro Plan's
-// benefits and the Ebooks its card leaves out.
-var promoBenefits = []string{"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.ebooks", "offers.pro-plan.deploy",
-	"offers.pro-plan.storage", "offers.pro-plan.both"}
+// promoBenefits are listed on the COMBO Pro Plan card, shown beside the Pro Plan's while a Promo runs: the Pro Plan's
+// benefits, CaveText Pro's Snippets and characters, and the Ebooks the Pro Plan card leaves out.
+var promoBenefits = []string{"offers.pro-plan.cavetext", "offers.cavetext-pro.unlimited", "offers.combo.characters", "offers.pro-plan.lab",
+	"offers.pro-plan.ebooks", "offers.pro-plan.deploy", "offers.pro-plan.storage", "offers.pro-plan.both"}
 
 func (o offer) Benefits() []string      { return offerBenefits[o.Product] }
 func (o offer) PromoBenefits() []string { return promoBenefits }

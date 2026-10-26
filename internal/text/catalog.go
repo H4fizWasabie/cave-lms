@@ -1967,8 +1967,10 @@ var catalog = map[string]entry{
 	"offers.pro-plan.ebooks":        {en: "Ebooks", ms: "Ebook"},
 	"offers.pro-plan.deploy":        {en: "Your own Dashboard deployment", ms: "Deployment Dashboard anda sendiri"},
 	"offers.pro-plan.storage":       {en: "0.5 GB of storage", ms: "Had storan 0.5 GB"},
-	"offers.promo-plan":             {en: "Promo Pro Plan", ms: "Pelan Pro Promo"},
-	"offers.promo-plan.tagline":     {en: "The Pro Plan at its promo price.", ms: "Pelan Pro pada harga promosi."},
+	"offers.combo":                  {en: "COMBO Pro Plan", ms: "Pelan Pro COMBO"},
+	"offers.combo.tag":              {en: "Promo", ms: "Promo"},
+	"offers.combo.characters":       {en: "Unlimited characters", ms: "Aksara tanpa had"},
+	"offers.combo.tagline":          {en: "The Pro Plan at its promo price.", ms: "Pelan Pro pada harga promosi."},
 	"offers.pro-plan.both":          {en: "One payment a year for both", ms: "Satu bayaran setahun untuk kedua-duanya"},
 
 	"offers.fee": {
