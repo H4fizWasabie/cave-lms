@@ -249,7 +249,7 @@ func TestEditingAPlanLeavesAssignedPeriodsAlone(t *testing.T) {
 	}
 }
 
-var endPeriodButton = regexp.MustCompile(`action="(/admin/plans/periods/\d+/end)"`)
+var endPeriodButton = regexp.MustCompile(`href="(/admin/plans/periods/\d+/end)"`)
 
 func TestAdminEndsAPeriodEarly(t *testing.T) {
 	s, id := adminWithPlanAndLearner(t)
@@ -261,7 +261,17 @@ func TestAdminEndsAPeriodEarly(t *testing.T) {
 		t.Fatalf("want an end button per period: %s", body)
 	}
 
-	res, body := s.post(buttons[0][1], nil)
+	confirmPage := buttons[0][1]
+	res, body := s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	if p := s.periodsOf("ada@example.com"); p[0].status != "Active" {
+		t.Fatalf("periods = %+v after an unconfirmed end, want the first Active", p)
+	}
+	res, body = s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "End the “Lab Monthly” period for ada@example.com now? It stops at once. This cannot be undone")
+	expectAll(t, body, `href="/admin/plans/periods?email=ada%40example.com"`)
+
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != "/admin/plans/periods?email=ada%40example.com" {
 		t.Fatalf("end redirected to %q", loc)

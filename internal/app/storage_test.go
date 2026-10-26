@@ -107,7 +107,7 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 	res, body = ada.get(second + "/view/")
 	expectStatus(t, res, body, http.StatusNotFound, "")
 
-	res, body = ada.post(first+"/delete", nil)
+	res, body = ada.post(first+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmFile(second, "two.xlsx", bigFinance(t, 2))
 }

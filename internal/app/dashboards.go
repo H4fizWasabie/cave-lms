@@ -360,10 +360,18 @@ func (a *App) saveTheme(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	http.Redirect(w, r, to, http.StatusSeeOther)
 }
 
-// deleteDashboard deletes a Dashboard and its Dataset, from the store too; the delete tab asks first. Its Deployment's link
-// then answers "not found"; the Deployment is never awake again, so it frees a slot, and its name stays taken.
+// confirmDeleteDashboard asks before deleting a Dashboard.
+func (a *App) confirmDeleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, ok := a.labOpen(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Heading: "lab.d.delete", Question: "lab.d.delete-ask", Cancel: "/lab", Action: r.URL.Path}, d.Name)
+	}
+}
+
+// deleteDashboard deletes a Dashboard and its Dataset, from the store too, once its confirmation page is posted. Its
+// Deployment's link then answers "not found"; the Deployment is never awake again, so it frees a slot, and its name
+// stays taken.
 func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if _, ok := a.labOpen(w, r); !ok {
+	if _, ok := a.labOpen(w, r); !ok || unconfirmed(w, r) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
@@ -388,7 +396,7 @@ func (a *App) labSample(w http.ResponseWriter, r *http.Request) {
 }
 
 // dashboardPage is the Dashboard page: tabs Dataset, Blocks, Preview, Under the hood and Deploy,
-// plus Rename and Delete.
+// plus Rename.
 type dashboardPage struct {
 	pageBase
 	Dashboard *dashboard

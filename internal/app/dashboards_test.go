@@ -424,7 +424,7 @@ func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testi
 		t.Fatalf("%d stored files after a re-upload, want 2: the current Dataset and the earlier one", n)
 	}
 
-	res, body := ada.post(path+"/delete", nil)
+	res, body := ada.post(path+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after deleting the Dashboard, want 0", n)

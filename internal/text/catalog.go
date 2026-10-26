@@ -246,6 +246,20 @@ var catalog = map[string]entry{
 	"submission.delete":             {en: "Delete file", ms: "Padam fail"},
 	"submission.delete-ask":         {en: "Delete “%s” from your Submission for “%s”? You cannot get it back.", ms: "Padam “%s” daripada Serahan anda untuk “%s”? Anda tidak boleh mendapatkannya semula."},
 	"submission.keep":               {en: "Keep the file", ms: "Simpan fail"},
+	"chat.delete-title":             {en: "Delete Message", ms: "Padam Mesej"},
+	"chat.delete-ask":               {en: "Delete your Message? Everyone in the Chat sees “Message deleted” in its place. This cannot be undone.", ms: "Padam Mesej anda? Semua dalam Sembang akan melihat “Mesej dipadam” di tempatnya. Tindakan ini tidak boleh dibuat asal."},
+	"chat.hide-title":               {en: "Hide Message", ms: "Sembunyikan Mesej"},
+	"chat.hide-ask":                 {en: "Hide this Message from the Chat and from Reports? You can unhide it later.", ms: "Sembunyikan Mesej ini daripada Sembang dan Laporan? Anda boleh menyahsembunyikannya kemudian."},
+	"community.leave-ask":           {en: "Leave the Community Chat? Your Messages stay. You can join again at any time.", ms: "Keluar dari Sembang Komuniti? Mesej anda kekal. Anda boleh menyertainya semula pada bila-bila masa."},
+	"lab.w.delete-title":            {en: "Delete earlier Dataset", ms: "Padam Set data terdahulu"},
+	"lab.w.delete-ask":              {en: "Delete the earlier Dataset “%s”? Its file goes too. This cannot be undone.", ms: "Padam Set data terdahulu “%s”? Failnya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
+	"ctadmin.learners.end-ask":      {en: "End Pro for %s now? Their running Pro and any given to follow it end at once; their Plan periods stay. This cannot be undone, but you can give Pro again.", ms: "Tamatkan Pro untuk %s sekarang? Pro mereka yang berjalan dan yang diberikan selepasnya tamat serta-merta; Tempoh Pelan mereka kekal. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh memberikan Pro semula."},
+	"plans.period.end":              {en: "End Plan period", ms: "Tamatkan Tempoh Pelan"},
+	"plans.period.end-ask":          {en: "End the “%[2]s” period for %[1]s now? It stops at once. This cannot be undone, but you can assign a Plan again.", ms: "Tamatkan tempoh “%[2]s” bagi %[1]s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan semula."},
+	"promos.end-title":              {en: "End Promo", ms: "Tamatkan Promosi"},
+	"promos.end-ask":                {en: "End the Promo “%s” now? Its price stops at once. This cannot be undone.", ms: "Tamatkan Promosi “%s” sekarang? Harganya berhenti serta-merta. Tindakan ini tidak boleh dibuat asal."},
+	"adm.assignments.delete-ask":    {en: "Delete “%s”? Learners' Submissions to it are deleted with it. This cannot be undone.", ms: "Padam “%s”? Serahan Pelajar kepadanya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
+	"adm.gallery.delete-ask":        {en: "Delete “%s” and its file? This cannot be undone.", ms: "Padam “%s” dan failnya? Tindakan ini tidak boleh dibuat asal."},
 	// ---- Premium refresh: confirmation pages (QA): end ----
 
 	// ---- Admin area part 1: Courses, Lessons, Exams, Gallery, Learners (#91) ----
@@ -272,7 +286,6 @@ var catalog = map[string]entry{
 	"adm.learners":     {en: "Learners", ms: "Pelajar"},
 	"adm.only.title":   {en: "Admin only", ms: "Pentadbir sahaja"},
 	"adm.only":         {en: "Only the Admin can open this page.", ms: "Hanya Pentadbir boleh membuka halaman ini."},
-	"adm.not-undone":   {en: "This cannot be undone.", ms: "Tindakan ini tidak boleh dibuat asal."},
 
 	// The Admin area's home
 	"adm.gallery.upload": {en: "Upload to the Gallery", ms: "Muat naik ke Galeri"},
@@ -297,8 +310,6 @@ var catalog = map[string]entry{
 	"adm.gallery.do-upload":       {en: "Upload", ms: "Muat naik"},
 	"adm.gallery.edit":            {en: "Edit Gallery item", ms: "Sunting Item Galeri"},
 	"adm.gallery.delete":          {en: "Delete Gallery item", ms: "Padam Item Galeri"},
-	"adm.gallery.and-file":        {en: "and its file?", ms: "dan failnya?"},
-	"adm.gallery.delete-item":     {en: "Delete item", ms: "Padam item"},
 	"adm.gallery.unread.title":    {en: "Upload not read", ms: "Muat naik tidak dapat dibaca"},
 	"adm.gallery.unread":          {en: "The upload form could not be read. Try again.", ms: "Borang muat naik tidak dapat dibaca. Cuba lagi."},
 	"adm.gallery.err.one-file":    {en: "Upload one file at a time.", ms: "Muat naik satu fail pada satu masa."},
@@ -372,7 +383,6 @@ var catalog = map[string]entry{
 	"adm.assignments.instructions-hint": {en: "Plain text. Line breaks are kept.", ms: "Teks biasa. Baris baharu dikekalkan."},
 	"adm.assignments.starts-draft":      {en: "A new Assignment is a Draft: Learners see it once you publish it.", ms: "Tugasan baharu ialah Draf: Pelajar melihatnya setelah anda menerbitkannya."},
 	"adm.assignments.delete":            {en: "Delete Assignment", ms: "Padam Tugasan"},
-	"adm.assignments.delete-warning":    {en: "Learners' Submissions to it are deleted with it.", ms: "Serahan Pelajar kepadanya turut dipadam."},
 	"adm.assignments.err.instructions":  {en: "Write the instructions (up to 20,000 characters).", ms: "Tulis arahan (sehingga 20,000 aksara)."},
 	"adm.submissions.title":             {en: "Submissions", ms: "Serahan"},
 	"adm.submissions.lede":              {en: "Every Learner in %s, and anyone who left with files. Assignments earn no mark.", ms: "Setiap Pelajar dalam %s, dan sesiapa yang telah keluar dengan fail. Tugasan tidak diberi markah."},
@@ -1609,8 +1619,9 @@ var catalog = map[string]entry{
 	"exam.result":                  {en: "Result", ms: "Keputusan"},
 	"exam.score":                   {en: "Score: %d%%", ms: "Markah: %d%%"},
 	"exam.passed":                  {en: "Passed (pass mark %d%%)", ms: "Lulus (markah lulus %d%%)"},
+	"exam.passed-congrats":         {en: "Congratulations, you passed (pass mark %d%%)", ms: "Tahniah, anda lulus (markah lulus %d%%)"},
 	"exam.failed":                  {en: "Failed (pass mark %d%%)", ms: "Gagal (markah lulus %d%%)"},
-	"exam.submitted":               {en: "Congratulations, your answers are in", ms: "Tahniah, jawapan anda telah dihantar"},
+	"exam.submitted":               {en: "Your answers are in", ms: "Jawapan anda telah dihantar"},
 	"exam.ready-at":                {en: "Your Result is ready at %s. It will be emailed to you too.", ms: "Keputusan anda sedia pada %s. Ia juga akan dihantar kepada anda melalui e-mel."},
 	"exam.ready-written":           {en: "Written answers are marked first, so if marking runs late, your Result follows as soon as it is done.", ms: "Jawapan subjektif ditanda terlebih dahulu, jadi jika penandaan lewat, Keputusan anda menyusul sebaik sahaja ia selesai."},
 	"exam.find-result":             {en: "Once it is released, you will find it on this page and in My exams.", ms: "Setelah dikeluarkan, anda boleh melihatnya di halaman ini dan di Peperiksaan saya."},
@@ -2168,7 +2179,6 @@ var catalog = map[string]entry{
 	"cost.usage":            {en: "Depends on usage", ms: "Bergantung penggunaan"},
 	"cost.paid":             {en: "Paid add-on", ms: "Add-on berbayar"},
 	"cost.not-needed":       {en: "Not needed (subdomain)", ms: "Tidak perlu (subdomain)"},
-	"cert-preview.name":     {en: "Your name here", ms: "Nama anda di sini"},
 	"cert-preview.course":   {en: "Your Course", ms: "Kursus anda"},
 	// ---- end home page (#314) ----
 	"home.intro.1": {

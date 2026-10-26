@@ -346,28 +346,30 @@ func (a *App) setCourseOpen(open bool) http.HandlerFunc {
 	}
 }
 
-func (a *App) confirmDeleteCourse(w http.ResponseWriter, r *http.Request) {
-	c, ok := a.courseFor(w, r)
-	if !ok {
-		return
-	}
-	a.render(w, r, http.StatusOK, "delete_course", page{Course: &c})
+// deleteCoursePage is the confirmation page for deleting c, refused with the catalog key errKey when not "".
+func deleteCoursePage(c course, errKey string) confirmation {
+	id := strconv.FormatInt(c.ID, 10)
+	return confirmation{pageBase: pageBase{Error: errKey}, Side: "courses", Heading: "adm.courses.delete", Question: "adm.delete-ask",
+		Cancel: "/admin/courses/" + id + "/edit", Action: "/admin/courses/" + id + "/delete"}
 }
 
+// confirmDeleteCourse asks the Admin to confirm deleting a Course.
+func (a *App) confirmDeleteCourse(w http.ResponseWriter, r *http.Request) {
+	if c, ok := a.courseFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, deleteCoursePage(c, ""), c.Title)
+	}
+}
+
+// deleteCourse deletes a Course nothing holds on to, once its confirmation page is posted.
 func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
-	if !ok {
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	// Enrollments, Lessons, Assignments, Exam attempts and Certificates hold ON DELETE RESTRICT, so the database refuses the delete.
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM courses WHERE id = $1`, c.ID)
 	if isForeignKeyError(err) {
-		lang, err := a.language(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		a.render(w, r, http.StatusConflict, "delete_course", page{Course: &c, Error: text.T(lang, "adm.courses.err.in-use")})
+		a.confirm(w, r, http.StatusConflict, deleteCoursePage(c, "adm.courses.err.in-use"), c.Title)
 		return
 	}
 	if err != nil {

@@ -62,7 +62,7 @@ func (s *site) emailsTo(to string) []mailer.Message {
 	return got
 }
 
-func TestSubmittingShowsCongratulationsAndWhenTheResultIsReadyButNoMark(t *testing.T) {
+func TestSubmittingSaysTheAnswersAreInAndWhenTheResultIsReadyButNoMarkAndNoCongratulations(t *testing.T) {
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Right one", "Wrong one")
 	res, _ := s.startExam(id)
@@ -77,9 +77,9 @@ func TestSubmittingShowsCongratulationsAndWhenTheResultIsReadyButNoMark(t *testi
 	s.setSubmitTime(attempt, "2099-01-02 03:04:00+00")
 
 	res, body = s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Congratulations")
+	expectStatus(t, res, body, http.StatusOK, "Your answers are in")
 	expectAll(t, body, "Your Result is ready at 2 January 2099, 11:14", "emailed to you")
-	expectNone(t, body, "Score", "50%", "Passed", "Failed", "Right one", "Wrong one", "Right answer", "Wrong answer")
+	expectNone(t, body, "Congratulations", "Score", "50%", "Passed", "Failed", "Right one", "Wrong one", "Right answer", "Wrong answer")
 
 	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Submitted, your Result is ready at 2 January 2099, 11:14.")
@@ -102,8 +102,8 @@ func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearners
 		t.Fatalf("%d emails before 10 minutes, want %d", n, before)
 	}
 	_, body := s.getAsking(attempt, "en")
-	expectAll(t, body, "Tahniah")
-	expectNone(t, body, "Markah: ")
+	expectAll(t, body, "Jawapan anda telah dihantar")
+	expectNone(t, body, "Tahniah", "Markah: ")
 
 	s.ageSubmit(attempt, 10*60+1)
 	s.runReleaseJob()
@@ -116,7 +116,7 @@ func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearners
 	expectAll(t, emails[0].Body, "Gagal (markah lulus 100%)", "https://cave.example.invalid"+attempt)
 
 	res, body = s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Markah: 50%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">50%<`)
 	expectAll(t, body, "Gagal (markah lulus 100%)")
 	for _, shown := range []string{content(body), emails[0].Body} {
 		expectNone(t, shown, "Right one", "Wrong one", "Right answer", "Wrong answer", "Jawapan")
@@ -173,7 +173,7 @@ func TestTheReleaseJobSubmitsAnAttemptLeftOpenPastItsTimeLimitWithNoAnswers(t *t
 
 	s.releaseResults()
 	res, body = s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">0%<`)
 	expectAll(t, body, "Failed (pass mark 50%)")
 	// Ada never picked a language, so the email is in Malay, the default.
 	expectEmail(t, s.lastEmailTo("ada@example.com"), "Keputusan Peperiksaan Objektif anda untuk Go Basics", "Markah: 0%")
@@ -247,4 +247,48 @@ func TestALearnerWhoSitsBothExamsGetsResultsThatNameEachExamInTheirLanguage(t *t
 	admin.saveMarks(written, map[string]string{wqids[0]: "0"}) // the AI's pass becomes a fail
 	email := s.lastEmailTo("ada@example.com")
 	expectEmail(t, email, "Your corrected Written Exam Result for Go Basics", "Your Result for the Written Exam for Go Basics is ready.")
+}
+
+// A passed Result is the peak: it congratulates the Learner, shows the score once and, once the Course's Certificate
+// is issued to them, leads to it with its number and a thumbnail. Until it is issued, or once it is revoked, there
+// is no Certificate to show.
+func TestAPassedResultShowsTheScoreOnceAndLeadsToTheIssuedCertificate(t *testing.T) {
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "Right one", "Wrong one")
+	res, _ := s.startExam(id)
+	attempt := res.Header.Get("Location")
+	s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "0"})
+	admin := s.adminSite()
+	admin.addTextLesson(id, "Loops", "", "Use `for`.", false) // Ada has not finished it, so no Certificate yet
+	s.releaseResults()
+
+	_, body := s.getAsking(attempt, "en")
+	main := content(body)
+	expectAll(t, main, "Congratulations, you passed (pass mark 50%)")
+	if n := strings.Count(main, "100%"); n != 1 {
+		t.Fatalf("passed Result shows the score %d times, want once: %s", n, main)
+	}
+	expectNone(t, main, "Score: ", "cert-art", "/pdf", "PCC-")
+
+	s.markLesson(id, s.lessonIDByTitle("Loops"), true) // the Certificate is issued now
+	_, mine := s.get("/my-certificates")
+	certID := certificateIDs(mine)[0]
+	for lang, want := range map[string][]string{
+		"en": {"Congratulations, you passed", "Certificate No. PCC-", "View your Certificate"},
+		"ms": {"Tahniah, anda lulus", "No. Sijil PCC-", "Lihat Sijil anda"},
+	} {
+		_, body = s.getAsking(attempt, lang)
+		main = content(body)
+		expectInOrder(t, main, append([]string{`class="x-score"`, "x-verdict", "cert-art"}, want[1:]...)...)
+		expectAll(t, main, want[0], `href="/certificates/`+certID+`/pdf"`)
+		if n := strings.Count(main, "btn-solid"); n != 1 {
+			t.Errorf("%s passed Result has %d primary buttons, want only the Certificate's", lang, n)
+		}
+	}
+
+	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
+	_, body = s.getAsking(attempt, "en")
+	main = content(body)
+	expectAll(t, main, "Congratulations, you passed")
+	expectNone(t, main, "cert-art", certID)
 }

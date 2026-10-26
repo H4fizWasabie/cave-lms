@@ -150,7 +150,7 @@ func TestAWrittenAttemptDrawsTenQuestionsAndTakesTextAnswersWithoutShowingModelA
 	res, body = s.post(strings.Replace(attempt, "?", "/submit?", 1), form)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = s.get(attempt)
-	expectAll(t, body, "Congratulations")
+	expectAll(t, body, "Your answers are in")
 	expectNone(t, body, "Model answer", "My own words")
 
 	_, body = s.adminSite().get("/admin/results/" + attemptID(strings.TrimSuffix(attempt, "?format=written")))
@@ -232,7 +232,7 @@ func TestAWrittenAttemptWithNoAnswersNeedsNoMarking(t *testing.T) {
 	attempt, _ := s.sitWritten(id, "")
 	s.releaseResults()
 	res, body := s.get(attempt)
-	expectStatus(t, res, body, http.StatusOK, "Score: 0%")
+	expectStatus(t, res, body, http.StatusOK, `class="x-score">0%<`)
 	expectAll(t, body, "Failed (pass mark 50%)")
 	expectNone(t, body, "Model answer")
 	expectNone(t, s.lastEmailTo("ada@example.com").Body, "Model answer", "Jawapan contoh")
@@ -253,7 +253,7 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 
 	admin.saveMarks(attempt, map[string]string{qids[0]: "3"}) // still a fail
 	_, body := s.get(attempt)
-	expectAll(t, body, "Score: 35%", "Failed (pass mark 50%)")
+	expectAll(t, body, `class="x-score">35%<`, "Failed (pass mark 50%)")
 	if n := len(s.resultEmailsTo("ada@example.com")); n != sent {
 		t.Fatalf("%d emails after a change that kept the fail, want %d", n, sent)
 	}

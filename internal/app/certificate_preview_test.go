@@ -18,7 +18,7 @@ func certArt(t *testing.T, body string) string {
 	return art
 }
 
-func TestTheCertificatePreviewShowsTheLearnersNameOrAPlaceholderAndNeverAnIC(t *testing.T) {
+func TestTheCertificatePreviewShowsTheLearnersNameAndNeverAnICAndVisitorsSeeNone(t *testing.T) {
 	s := newSite(t)
 	courseID, _ := s.adaEarns() // Ada's IC is ADAEXAMPLECOM
 	for _, path := range []string{"/courses/" + courseID, "/my-certificates"} {
@@ -28,11 +28,11 @@ func TestTheCertificatePreviewShowsTheLearnersNameOrAPlaceholderAndNeverAnIC(t *
 		expectNone(t, art, "ADAEXAMPLECOM", "Your name here")
 	}
 
-	s.logOut()
-	_, body := s.get("/courses/" + courseID)
-	expectAll(t, certArt(t, body), "Your name here")
-	_, body = s.getAsking("/courses/"+courseID, "ms")
-	expectAll(t, certArt(t, body), "Nama anda di sini", "CERTIFICATE") // the artwork itself stays English
+	s.logOut() // the client shows no Certificate to the public, not even a sample
+	for _, lang := range []string{"en", "ms"} {
+		_, body := s.getAsking("/courses/"+courseID, lang)
+		expectNone(t, body, "cert-art", "Your name here", "Nama anda di sini")
+	}
 }
 
 func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBuiltInArtwork(t *testing.T) {
@@ -56,7 +56,7 @@ func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBu
 		expectNone(t, art, "THIS IS TO CERTIFY THAT", "demonstrated throughout", "cert-seal", "cert-signature")
 	}
 
-	s.logOut() // a Visitor sees the Course page's preview, so the background is theirs to load
+	s.logOut() // the background is public, like the rest of the artwork's images
 	res, body := s.get(src)
 	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/png" || body != string(pngOfSize(t, 3, 5)) {
 		t.Fatalf("GET %s = %d %q, want the uploaded PNG", src, res.StatusCode, res.Header.Get("Content-Type"))

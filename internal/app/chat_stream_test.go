@@ -118,7 +118,7 @@ func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
 	expectInOrder(t, stream.next(), `id="m`+rid+`"`, "Live hello", "Hi Ben")
 	adminStream.next()
 
-	admin.post("/admin/chat/"+mid+"/hide", nil)
+	admin.post("/admin/chat/"+mid+"/hide", confirming)
 	for _, e := range []string{stream.next(), stream.next()} { // the Message, and the reply quoting it
 		if strings.Contains(e, "Live hello") {
 			t.Fatalf("a Learner's stream carries a hidden Message's text: %s", e)
@@ -128,7 +128,7 @@ func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
 	expectInOrder(t, e, `is-hidden" id="m`+mid+`"`, "Live hello")
 
 	ben.post("/courses/"+id+"/chat/"+rid+"/delete", url.Values{}) // not Ben's: refused, nothing sent
-	ada.post("/courses/"+id+"/chat/"+rid+"/delete", nil)
+	ada.post("/courses/"+id+"/chat/"+rid+"/delete", confirming)
 	if e := stream.next(); !strings.Contains(e, "Message deleted") || strings.Contains(e, "Hi Ben") {
 		t.Fatalf("a Learner's stream does not show a deleted Message as deleted: %s", e)
 	}
@@ -197,11 +197,11 @@ func TestDeletingAnAlreadyDeletedMessageSendsNothingToOpenStreams(t *testing.T) 
 	ada.reply(id, mid, "Hi Ben")
 	stream.next() // the Message, then the reply
 	stream.next()
-	ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 	stream.next() // the Message, and the reply quoting it
 	stream.next()
 
-	res, body := ben.post("/courses/"+id+"/chat/"+mid+"/delete", nil)
+	res, body := ben.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); !strings.HasSuffix(loc, "#m"+mid) {
 		t.Fatalf("a second delete redirected to %q, want the Chat at the Message", loc)

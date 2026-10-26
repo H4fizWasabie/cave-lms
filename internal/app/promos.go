@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"net/http"
 	"slices"
 	"strconv"
@@ -114,11 +116,36 @@ func (a *App) addPromo(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/promos", http.StatusSeeOther)
 }
 
-// endPromo ends a running Promo now; it stays listed.
-func (a *App) endPromo(w http.ResponseWriter, r *http.Request) {
+// promoFor loads the id and code of the Promo named by {id}. When there is none it writes the Not found page and
+// returns false.
+func (a *App) promoFor(w http.ResponseWriter, r *http.Request) (id int64, code string, ok bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
+	if err == nil {
+		err = a.db.QueryRowContext(r.Context(), `SELECT code FROM promos WHERE id = $1`, id).Scan(&code)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
 		a.notFound(w, r)
+		return 0, "", false
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return 0, "", false
+	}
+	return id, code, true
+}
+
+// confirmEndPromo asks the Admin to confirm ending a Promo now.
+func (a *App) confirmEndPromo(w http.ResponseWriter, r *http.Request) {
+	if _, code, ok := a.promoFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Side: "promos", Heading: "promos.end-title", Question: "promos.end-ask",
+			Cancel: "/admin/promos", Action: r.URL.Path}, code)
+	}
+}
+
+// endPromo ends a running Promo now, once its confirmation page is posted; it stays listed.
+func (a *App) endPromo(w http.ResponseWriter, r *http.Request) {
+	id, _, ok := a.promoFor(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE promos SET ended_at = now() WHERE id = $1 AND ended_at IS NULL`, id); err != nil {

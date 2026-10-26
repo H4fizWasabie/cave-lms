@@ -411,21 +411,45 @@ func (a *App) chatMessageFor(w http.ResponseWriter, r *http.Request, c course, v
 	return list[0], true
 }
 
-// deleteMessage is a writer deleting their own Message: its text is emptied and it shows "Message deleted".
-func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
+// deletableMessage loads the Message named by the path for its writer. For anyone else it writes the refusal and
+// returns false.
+func (a *App) deletableMessage(w http.ResponseWriter, r *http.Request) (course, chatViewer, chatMessage, bool) {
 	c, v, ok := a.chatFor(w, r)
 	if !ok {
-		return
+		return c, v, chatMessage{}, false
 	}
 	m, ok := a.chatMessageFor(w, r, c, v)
 	if !ok {
-		return
+		return c, v, m, false
 	}
 	if !m.Mine {
-		if refuseInPlace(w, r, http.StatusForbidden, text.T(v.lang, "chat.not-yours")) {
-			return
+		if !refuseInPlace(w, r, http.StatusForbidden, text.T(v.lang, "chat.not-yours")) {
+			a.render(w, r, http.StatusForbidden, "message", page{Title: text.T(v.lang, "chat.not-yours.title"), Message: text.T(v.lang, "chat.not-yours")})
 		}
-		a.render(w, r, http.StatusForbidden, "message", page{Title: text.T(v.lang, "chat.not-yours.title"), Message: text.T(v.lang, "chat.not-yours")})
+		return c, v, m, false
+	}
+	return c, v, m, true
+}
+
+// confirmDeleteMessage asks the writer to confirm deleting their Message.
+func (a *App) confirmDeleteMessage(w http.ResponseWriter, r *http.Request) {
+	_, _, m, ok := a.deletableMessage(w, r)
+	if !ok {
+		return
+	}
+	back, err := a.messageLink(r.Context(), m)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.confirm(w, r, http.StatusOK, confirmation{Heading: "chat.delete-title", Question: "chat.delete-ask", Cancel: back, Action: r.URL.Path})
+}
+
+// deleteMessage is a writer deleting their own Message, once its confirmation page is posted: its text is emptied
+// and it shows "Message deleted".
+func (a *App) deleteMessage(w http.ResponseWriter, r *http.Request) {
+	c, v, m, ok := a.deletableMessage(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	if !a.chatBudget(v, c.ID, "delete", messagesPerMinute, time.Minute) {
@@ -526,10 +550,41 @@ func (a *App) reportMessage(w http.ResponseWriter, r *http.Request) {
 	a.answer(w, r, v, m)
 }
 
-// setHidden returns the handler with which the Admin hides or unhides a Message. Hiding closes every open Report on
-// it. The form's back field "reports" returns to the Reports page, else to the Chat at the Message.
+// confirmHide asks the Admin to confirm hiding a Message. Cancel returns to the Reports page when back is "reports",
+// else to the Chat at the Message.
+func (a *App) confirmHide(w http.ResponseWriter, r *http.Request) {
+	var m chatMessage
+	mid, err := strconv.ParseInt(r.PathValue("mid"), 10, 64)
+	if err == nil {
+		err = a.db.QueryRowContext(r.Context(), `SELECT id, coalesce(course_id, 0) FROM chat_messages WHERE id = $1`, mid).Scan(&m.ID, &m.CourseID)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	c := confirmation{Side: "reports", Heading: "chat.hide-title", Question: "chat.hide-ask", Cancel: "/admin/reports", Action: r.URL.RequestURI()}
+	if r.FormValue("back") != "reports" {
+		c.Side = ""
+		if c.Cancel, err = a.messageLink(r.Context(), m); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	a.confirm(w, r, http.StatusOK, c)
+}
+
+// setHidden returns the handler with which the Admin hides or unhides a Message; hiding waits for its confirmation
+// page. Hiding closes every open Report on it. back "reports" returns to the Reports page, else to the Chat at the
+// Message.
 func (a *App) setHidden(hidden bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if hidden && unconfirmed(w, r) {
+			return
+		}
 		mid, err := strconv.ParseInt(r.PathValue("mid"), 10, 64)
 		if err != nil {
 			a.notFound(w, r)
@@ -553,7 +608,7 @@ func (a *App) setHidden(hidden bool) http.HandlerFunc {
 			}
 		}
 		a.changed(r.Context(), m, true)
-		if r.PostFormValue("back") == "reports" {
+		if r.FormValue("back") == "reports" {
 			http.Redirect(w, r, "/admin/reports", http.StatusSeeOther)
 			return
 		}
@@ -579,16 +634,24 @@ func (a *App) closeReports(ctx context.Context, id int64) error {
 
 // backToMessage redirects to the Chat page that shows m: the latest, or an earlier one ending with it.
 func (a *App) backToMessage(w http.ResponseWriter, r *http.Request, m chatMessage) {
-	var newer int
-	err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM (SELECT 1 FROM chat_messages m WHERE `+inChat(m.CourseID)+`
-		AND m.id > $1 LIMIT $2) n`, m.ID, chatPageSize, m.CourseID).Scan(&newer)
+	to, err := a.messageLink(r.Context(), m)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	to := fmt.Sprintf("%s#m%d", m.Path(), m.ID)
-	if newer >= chatPageSize {
-		to = fmt.Sprintf("%s?before=%d#m%d", m.Path(), m.ID+1, m.ID)
-	}
 	http.Redirect(w, r, to, http.StatusSeeOther)
+}
+
+// messageLink is the address of Message m in its Chat, on the earlier page that shows it when it is not on the latest.
+func (a *App) messageLink(ctx context.Context, m chatMessage) (string, error) {
+	var newer int
+	err := a.db.QueryRowContext(ctx, `SELECT count(*) FROM (SELECT 1 FROM chat_messages m WHERE `+inChat(m.CourseID)+`
+		AND m.id > $1 LIMIT $2) n`, m.ID, chatPageSize, m.CourseID).Scan(&newer)
+	if err != nil {
+		return "", err
+	}
+	if newer >= chatPageSize {
+		return fmt.Sprintf("%s?before=%d#m%d", m.Path(), m.ID+1, m.ID), nil
+	}
+	return fmt.Sprintf("%s#m%d", m.Path(), m.ID), nil
 }

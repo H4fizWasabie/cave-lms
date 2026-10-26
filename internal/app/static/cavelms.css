@@ -402,6 +402,13 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .x-submit { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; flex-wrap: wrap; }
 .x-submit p { color: var(--muted); }
 .x-score { font-family: var(--font-display); font-size: var(--fs-display); font-weight: 700; line-height: 1; }
+.x-cert { display: grid; grid-template-columns: 7rem auto; gap: var(--space-4); align-items: center; text-align: start; }
+.x-cert-body { display: grid; justify-items: start; gap: var(--space-3); }
+@media (max-width: 720px) {
+  .x-cert { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+  .x-cert .cert-art { width: 7rem; }
+  .x-cert-body { justify-items: center; }
+}
 .is-pass .x-score { color: var(--ok); }
 .is-fail .x-score { color: var(--bad); }
 
@@ -1054,6 +1061,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .cp-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-5); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 .cp-card form { margin: 0; }
 .cp-card .callout { margin: 0; } /* the IC reminder (#316) */
+.cp-card .cp-cert { order: -1; } /* the art tops the card; phones put Join first (#332) */
+.cp-card-cover { display: none; }
 .cp-note { font-size: var(--fs-ui); color: var(--muted); text-align: center; }
 .cp-leave { text-align: center; margin-top: var(--space-3); }
 
@@ -1087,6 +1096,9 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 }
 @media (max-width: 720px) {
   .cp-hero-in { padding-block: var(--space-6) var(--space-7); }
+  .cp-hero-media { display: none; }
+  .cp-card-cover { display: block; }
+  .cp-card .cp-cert { order: 0; }
   .cp-outcomes { grid-template-columns: minmax(0, 1fr); }
   .cp-side { max-width: none; }
   /* Each Lesson's Mark complete moves under its title, so the title keeps the row's width. */
