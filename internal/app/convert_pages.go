@@ -79,30 +79,19 @@ func (a *App) convertEngineDashboard(ctx context.Context, id int64) error {
 		return fmt.Errorf("the engine page loads charts.js %d times, want 1", bytes.Count(html, tag))
 	}
 	html = bytes.Replace(html, tag, append(append([]byte("<script>"), lab.ChartScript...), "</script>"...), 1)
-	key, err := newPageKey()
-	if err != nil {
-		return err
-	}
-	if err := a.datasets.Put(ctx, key, html); err != nil {
-		return fmt.Errorf("put page %s: %w", key, err)
-	}
-	err = a.inTx(ctx, func(tx *sql.Tx) error {
+	// Counted like an uploaded page but never refused for the allowance: no period to check.
+	_, err = a.storePage(ctx, nil, html, nil, func(tx *sql.Tx) (int64, error) {
 		// Locking the Dashboard makes two starts at once take turns, so it gets one page.
 		var paged bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM dashboard_pages WHERE dashboard_id = d.id)
 			FROM dashboards d WHERE d.id = $1 FOR UPDATE`, id).Scan(&paged); err != nil {
-			return err
+			return 0, err
 		}
 		if paged {
-			return errPaged
+			return 0, errPaged
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO dashboard_pages (dashboard_id, storage_key, size, current) VALUES ($1, $2, $3, true)`,
-			id, key, len(html))
-		return err
+		return id, nil
 	})
-	if err != nil {
-		a.dropDataset(ctx, nil, key)
-	}
 	if errors.Is(err, errPaged) {
 		return nil
 	}

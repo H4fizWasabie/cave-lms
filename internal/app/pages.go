@@ -115,6 +115,46 @@ func pageOf(r *http.Request, lang string, tooBig bool) (html []byte, problem str
 	return html, "", nil
 }
 
+// errPageStore is storePage's error when the store refuses the page.
+var errPageStore = errors.New("the store refused the page")
+
+// storePage puts html in the store as a new page, then, in one transaction, runs claim, which locks what it must and
+// gives the Dashboard the page is for, checks period's Storage allowance unless period is nil, and makes the page that
+// Dashboard's current one. Whatever fails leaves the page out of the store; used is the bytes the Learner's files took
+// when the allowance refused it with errStorageFull.
+func (a *App) storePage(ctx context.Context, r *http.Request, html []byte, period *activePeriod,
+	claim func(tx *sql.Tx) (dashboardID int64, err error)) (used int64, err error) {
+	key, err := newPageKey()
+	if err != nil {
+		return 0, err
+	}
+	if err := a.datasets.Put(ctx, key, html); err != nil {
+		a.logError(r, fmt.Errorf("put page %s: %w", key, err))
+		return 0, errPageStore
+	}
+	err = a.inTx(ctx, func(tx *sql.Tx) error {
+		id, err := claim(tx)
+		if err != nil {
+			return err
+		}
+		if period != nil {
+			if err := tx.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, id).Scan(&used); err != nil {
+				return err
+			}
+			if used+int64(len(html)) > period.Storage() {
+				return errStorageFull
+			}
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO dashboard_pages (dashboard_id, storage_key, size, current) VALUES ($1, $2, $3, true)`,
+			id, key, len(html))
+		return err
+	})
+	if err != nil {
+		a.dropDataset(ctx, r, key)
+	}
+	return used, err
+}
+
 // createPageDashboard makes a Dashboard from a name and its page, if the page fits the Learner's Storage allowance.
 // Anything refused saves nothing.
 func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc labAccess, tooBig bool) {
@@ -149,45 +189,27 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 		a.serverError(w, r, err)
 		return
 	}
-	key, err := newPageKey()
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if err := a.datasets.Put(r.Context(), key, html); err != nil {
-		a.logError(r, fmt.Errorf("put page %s: %w", key, err))
-		refuse(text.T(lang, "lab.d.upload-failed"))
-		return
-	}
-	var id, used int64
-	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		if period := acc.CountedPeriod(); period != nil {
+	var id int64
+	used, err := a.storePage(r.Context(), r, html, acc.CountedPeriod(), func(tx *sql.Tx) (int64, error) {
+		if acc.CountedPeriod() != nil {
 			// Locking the Learner makes this take turns with uploads and confirms, so none slips under the allowance.
 			if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learner.ID); err != nil {
-				return err
-			}
-			if err := tx.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("$1"), learner.ID).Scan(&used); err != nil {
-				return err
-			}
-			if used+int64(len(html)) > period.Storage() {
-				return errStorageFull
+				return 0, err
 			}
 		}
 		// template is the engine's; General, as it reads none of a page Dashboard's, until the engine goes (#376).
-		if err := tx.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', 'general', $2)
-			RETURNING id`, learner.ID, p.Name).Scan(&id); err != nil {
-			return err
-		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO dashboard_pages (dashboard_id, storage_key, size, current) VALUES ($1, $2, $3, true)`,
-			id, key, len(html))
-		return err
+		err := tx.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', 'general', $2)
+			RETURNING id`, learner.ID, p.Name).Scan(&id)
+		return id, err
 	})
-	if err != nil {
-		a.dropDataset(r.Context(), r, key)
-		if errors.Is(err, errStorageFull) {
-			refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(html))), sizeText(used), sizeText(acc.Period.Storage())))
-			return
-		}
+	switch {
+	case errors.Is(err, errPageStore):
+		refuse(text.T(lang, "lab.d.upload-failed"))
+		return
+	case errors.Is(err, errStorageFull):
+		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(html))), sizeText(used), sizeText(acc.Period.Storage())))
+		return
+	case err != nil:
 		a.serverError(w, r, err)
 		return
 	}
@@ -244,52 +266,32 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		refuse(problem)
 		return
 	}
-	key, err := newPageKey()
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if err := a.datasets.Put(r.Context(), key, html); err != nil {
-		a.logError(r, fmt.Errorf("put page %s: %w", key, err))
-		refuse(text.T(lang, "lab.d.upload-failed"))
-		return
-	}
-	var used int64
-	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+	used, err := a.storePage(r.Context(), r, html, acc.CountedPeriod(), func(tx *sql.Tx) (int64, error) {
 		// Locking the Learner makes this take turns with other uploads and confirms, so none slips under the allowance.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
-			return err
+			return 0, err
 		}
-		// The current page turns earlier, so keepEarlier-1 of the earlier ones stay.
+		// The current page turns earlier, so keepEarlier-1 of the earlier ones stay; their bytes are freed before the
+		// allowance is checked.
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dashboard_pages WHERE id IN (SELECT id FROM dashboard_pages
 			WHERE dashboard_id = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC OFFSET $2)`, d.ID, keepEarlier-1); err != nil {
-			return err
+			return 0, err
 		}
-		if period := acc.CountedPeriod(); period != nil {
-			if err := tx.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&used); err != nil {
-				return err
-			}
-			if used+int64(len(html)) > period.Storage() {
-				return errStorageFull
-			}
-		}
-		// Two statements, as the one-current index is checked row by row.
+		// Two statements, as the one-current index is checked row by row: this one, then storePage's insert.
 		if _, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = false WHERE dashboard_id = $1 AND current`, d.ID); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO dashboard_pages (dashboard_id, storage_key, size, current) VALUES ($1, $2, $3, true)`,
-			d.ID, key, len(html)); err != nil {
-			return err
+			return 0, err
 		}
 		_, err := tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
-		return err
+		return d.ID, err
 	})
-	if err != nil {
-		a.dropDataset(r.Context(), r, key)
-		if errors.Is(err, errStorageFull) {
-			refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(html))), sizeText(used), sizeText(acc.Period.Storage())))
-			return
-		}
+	switch {
+	case errors.Is(err, errPageStore):
+		refuse(text.T(lang, "lab.d.upload-failed"))
+		return
+	case errors.Is(err, errStorageFull):
+		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(html))), sizeText(used), sizeText(acc.Period.Storage())))
+		return
+	case err != nil:
 		a.serverError(w, r, err)
 		return
 	}
