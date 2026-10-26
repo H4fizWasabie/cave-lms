@@ -13,16 +13,15 @@
           </div>
           <a class="home-hero-more" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
         </div>
-        {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
-        <figure class="cert-preview">
-          {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) (t .Lang "cert-preview.course") "" .CertBackground)}}
-          <figcaption>{{t .Lang "cert-preview.caption"}} <a href="/certificates">{{t .Lang "nav.check-cert"}}</a></figcaption>
+        <figure class="home-hero-photo">
+          <img src="{{static "home-dashboard.webp"}}" alt="{{t .Lang "home.dashboard-alt"}}" width="1280" height="720" fetchpriority="high">
         </figure>
       </div>
     </section>
 
     <section class="trust" aria-label="{{t .Lang "home.trust"}}">
       <ul class="wrap trust-in">
+        <li><strong>TCC</strong>{{t .Lang "home.trust.tcc"}}</li>
         <li><strong>HRD Corp</strong>{{t .Lang "about.hrd"}}</li>
         <li><strong>MOF</strong>{{t .Lang "about.mof"}}</li>
         <li><strong>JPK</strong>{{t .Lang "home.trust.jpk"}}</li>
@@ -33,7 +32,21 @@
       </ul>
     </section>
 
-    <section class="section section-alt">
+    <section class="section section-alt" id="about">
+      <div class="wrap home-essay">
+        <div>
+          <h2>{{t .Lang "nav.about"}}</h2>
+          <blockquote class="home-pull">{{t .Lang "home.pull"}}</blockquote>
+        </div>
+        <div class="prose">
+          <p>{{t .Lang "home.intro.1"}}</p>
+          <p>{{t .Lang "home.intro.2"}} {{t .Lang "home.intro.3"}}</p>
+          <p>{{t .Lang "home.intro.4"}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
       <div class="wrap">
         <div class="home-head">
           <h2>{{t .Lang "home.path.title"}}</h2>
@@ -49,7 +62,7 @@
     </section>
 
     {{- if .Latest}}
-    <section class="section">
+    <section class="section section-alt">
       <div class="wrap">
         <div class="home-head home-head-row">
           <h2>{{t .Lang "home.courses.title"}}</h2>
@@ -62,7 +75,7 @@
     </section>
     {{- end}}
 
-    <section class="section section-alt" id="coach">
+    <section class="section" id="coach">
       <div class="wrap home-coach">
         <div class="coach-photo"><img src="{{static "coach-adam-daniel.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="1280" height="1008" loading="lazy"></div>
         <div>
@@ -75,20 +88,6 @@
             <li><strong>Department of Skills Development (JPK) Certified Trainer</strong><span>Jabatan Pembangunan Kemahiran, Malaysia</span></li>
             <li><strong>Sustainability &amp; ESG Reporting Professional (SERP)</strong><span>Completed through an Exemplar Global RTP Certified Training Programme</span></li>
           </ul>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="about">
-      <div class="wrap home-essay">
-        <div>
-          <h2>{{t .Lang "nav.about"}}</h2>
-          <blockquote class="home-pull">{{t .Lang "home.pull"}}</blockquote>
-        </div>
-        <div class="prose">
-          <p>{{t .Lang "home.intro.1"}}</p>
-          <p>{{t .Lang "home.intro.2"}} {{t .Lang "home.intro.3"}}</p>
-          <p>{{t .Lang "home.intro.4"}}</p>
         </div>
       </div>
     </section>

@@ -13,9 +13,9 @@ import (
 func TestTheHomePagesTrustStripShowsPlaceholdersForMissingNumbersOnlyOutsideProduction(t *testing.T) {
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
-	expectInOrder(t, content(body), "HRD Corp", "MOF", "JPK", "Placeholder", "learners trained")
+	expectInOrder(t, content(body), "TCC", "A platform by The Cave Consult", "HRD Corp", "MOF", "JPK", "Placeholder", "learners trained")
 	_, body = s.getAsking("/", "ms")
-	expectInOrder(t, content(body), "HRD Corp", "MOF", "JPK", "Pemegang tempat", "peserta dilatih")
+	expectInOrder(t, content(body), "TCC", "Platform oleh The Cave Consult", "HRD Corp", "MOF", "JPK", "Pemegang tempat", "peserta dilatih")
 
 	live := newSite(t, func(c *config.Config) { c.Production = true })
 	_, body = live.getAsking("/", "en")
@@ -74,6 +74,21 @@ func TestTheHomeHeroCarriesTheClientsTaglineInBothLanguages(t *testing.T) {
 		_, hero, _ := strings.Cut(content(body), `<section class="home-hero"`)
 		hero, _, _ = strings.Cut(hero, "</section>")
 		expectInOrder(t, hero, "CAVELMS · Learn AI • Build Skills • Create Impact", "<h1")
+	}
+}
+
+// The client keeps Certificates off the public front page: the hero shows people building a dashboard, and About CAVELMS comes
+// straight after the trust strip so visitors read about the company first.
+func TestTheHomeHeroShowsADashboardPhotoAndAboutFollowsTheTrustStripInBothLanguages(t *testing.T) {
+	s := newSite(t)
+	for lang, about := range map[string]string{"en": "CAVELMS is a digital learning platform", "ms": "CAVELMS ialah platform pembelajaran digital"} {
+		_, body := s.getAsking("/", lang)
+		main := content(body)
+		_, hero, _ := strings.Cut(main, `<section class="home-hero"`)
+		hero, _, _ = strings.Cut(hero, "</section>")
+		expectAll(t, hero, "home-dashboard.webp", `alt="`+text.T(lang, "home.dashboard-alt")+`"`)
+		expectNone(t, hero, "cert-preview", "/certificates")
+		expectInOrder(t, main, `class="trust"`, `id="about"`, about, "pcc-basic.jpg")
 	}
 }
 
