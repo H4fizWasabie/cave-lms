@@ -525,7 +525,7 @@ var catalog = map[string]entry{
 	"results.intro":           {en: "Every Exam attempt, newest first.", ms: "Setiap percubaan Peperiksaan, yang terbaru dahulu."},
 	"results.all-courses":     {en: "All courses", ms: "Semua kursus"},
 	"results.exam":            {en: "Exam", ms: "Peperiksaan"},
-	"results.all-exams":       {en: "All Exams", ms: "Semua Peperiksaan"},
+	"results.all-exams":       {en: "All exams", ms: "Semua peperiksaan"},
 	"results.attempt":         {en: "Attempt", ms: "Percubaan"},
 	"results.mark":            {en: "Mark", ms: "Markah"},
 	"results.result":          {en: "Result", ms: "Keputusan"},
