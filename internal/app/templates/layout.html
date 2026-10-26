@@ -63,7 +63,10 @@
         <h2>{{t .Lang "header.account"}}</h2>
         {{- if .Learner}}
         <a href="/my-courses">{{t .Lang "nav.my-courses"}}</a>
+        <a href="/my-exams">{{t .Lang "nav.my-exams"}}</a>
         <a href="/my-certificates">{{t .Lang "footer.my-certificates"}}</a>
+        <a href="/my-profile">{{t .Lang "nav.my-profile"}}</a>
+        <form method="post" action="/logout"><button>{{t .Lang "header.log-out"}}</button></form>
         {{- else}}
         <a href="/login">{{t .Lang "header.log-in"}}</a>
         <a href="/register">{{t .Lang "header.register"}}</a>

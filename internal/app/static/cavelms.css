@@ -160,8 +160,8 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .site-nav a, .hdr-link { text-decoration: none; white-space: nowrap; }
 .site-nav > a, .site-nav > .hdr-drop > summary, .hdr-account > .hdr-link, .hdr-account > .hdr-drop > summary { color: var(--ink-2); }
 /* The gold rule under a link grows on hover, and stays under a menu while it is open. */
-.site-nav > a, .hdr-link, .footer-col a { background: linear-gradient(var(--brand-gold), var(--brand-gold)) no-repeat 0 100% / 0 2px; padding-block: var(--space-1); }
-.site-nav > a:hover, .hdr-link:hover, .hdr-drop[open] > .hdr-link, .footer-col a:hover, .site-nav > a:focus-visible, .footer-col a:focus-visible { background-size: 100% 2px; color: var(--brand-ink); }
+.site-nav > a, .hdr-link, .footer-col :is(a, button) { background: linear-gradient(var(--brand-gold), var(--brand-gold)) no-repeat 0 100% / 0 2px; padding-block: var(--space-1); }
+.site-nav > a:hover, .hdr-link:hover, .hdr-drop[open] > .hdr-link, .footer-col :is(a, button):hover, .site-nav > a:focus-visible, .footer-col :is(a, button):focus-visible { background-size: 100% 2px; color: var(--brand-ink); }
 .site-header-right { display: flex; align-items: center; gap: var(--space-4); font-size: var(--fs-ui); padding-left: var(--space-5); border-left: 1px solid var(--line); }
 .site-header-right form { margin: 0; }
 .hdr-account { display: flex; align-items: center; gap: var(--space-4); }
@@ -212,8 +212,9 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .footer-brand p { max-width: 24rem; }
 .footer-col { display: flex; flex-direction: column; gap: var(--space-2); }
 .footer-col h2 { font-family: var(--font-body); font-size: var(--fs-meta); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-gold); margin-bottom: var(--space-1); }
-.footer-col a { color: var(--on-dark); text-decoration: none; align-self: flex-start; padding-block: 2px; }
-.footer-col a:hover { color: var(--surface); }
+.footer-col :is(a, button) { color: var(--on-dark); text-decoration: none; align-self: flex-start; padding-block: 2px; }
+.footer-col :is(a, button):hover { color: var(--surface); }
+.footer-col button { border: 0; padding-inline: 0; cursor: pointer; } /* Log out posts a form, but reads as a footer link */
 .footer-col address { font-style: normal; color: var(--on-dark-muted); margin-top: var(--space-2); }
 .footer-base { background: linear-gradient(var(--on-dark-line), var(--on-dark-line)) no-repeat 50% 0 / calc(100% - 2 * var(--gutter)) 1px; padding-top: var(--space-4); font-size: var(--fs-meta); color: var(--on-dark-muted); }
 
@@ -426,7 +427,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 /* ============================ Motion ============================
    Colour fades run for everyone; movement only without prefers-reduced-motion. Page changes
    use cross-document View Transitions (no JavaScript); browsers without them load normally. */
-.btn, .site-nav a, .hdr-link, .footer-col a, .lab-tab, .x-opt, .check-card, .icon-btn,
+.btn, .site-nav a, .hdr-link, .footer-col :is(a, button), .lab-tab, .x-opt, .check-card, .icon-btn,
 .lesson-list > li > a, .adm-nav a, .table tbody tr td { transition: background-color var(--duration-quick) ease, border-color var(--duration-quick) ease, color var(--duration-quick) ease, transform var(--duration-quick) ease; }
 input, select, textarea, .search { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-quick) ease, background-color var(--duration-quick) ease; }
 .tp-card, .tp-show, .g-plate { transition: border-color var(--duration-quick) ease, box-shadow var(--duration-fast) var(--ease-smooth-out); }
@@ -446,7 +447,7 @@ input, select, textarea, .search { transition: border-color var(--duration-quick
   ::view-transition-old(*):only-child, ::view-transition-new(*):only-child { animation-duration: var(--duration-quick); }
   ::view-transition-old(*), ::view-transition-new(*) { height: 100%; object-fit: cover; overflow: clip; }
 
-  .site-nav a, .hdr-link, .footer-col a { transition: color var(--duration-quick) ease, background-size var(--duration-fast) var(--ease-smooth-out); }
+  .site-nav a, .hdr-link, .footer-col :is(a, button) { transition: color var(--duration-quick) ease, background-size var(--duration-fast) var(--ease-smooth-out); }
   .btn:active { transform: scale(.96); }
   .hdr-narrow .hdr-caret { transition: transform var(--duration-quick) var(--ease-smooth-out); } /* turns as its group opens; under reduced motion it just snaps */
   .g-plate img { transition: transform var(--duration-very-slow) var(--ease-smooth-out); }
