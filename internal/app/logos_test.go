@@ -47,20 +47,24 @@ func TestTheHeaderFooterAdminBarAndFaviconShowTheCaveConsultLogoInBothLanguages(
 	expectNone(t, body, "logo-light.svg")
 }
 
-func TestCoachAdamsCardShowsTheIssuerLogosAndTheHRDCorpBadgeInBothLanguages(t *testing.T) {
+func TestCoachAdamsCardShowsHisPhotoThenTheIssuerLogosWithTheHRDCorpBadgeInOneRowInBothLanguages(t *testing.T) {
 	s := newSite(t)
 	for lang, alts := range map[string][]string{
-		"en": {"HRD Corp Registered Training Provider badge", "UMPSA logo", "ICTC logo", "HRD Corp logo", "JPK logo", "Exemplar Global logo"},
-		"ms": {"Lencana Penyedia Latihan Berdaftar HRD Corp", "Logo UMPSA", "Logo ICTC", "Logo HRD Corp", "Logo JPK", "Logo Exemplar Global"},
+		"en": {"Coach Adam Daniel speaking at a podium", "UMPSA logo", "ICTC logo", "HRD Corp logo", "HRD Corp Registered Training Provider badge", "JPK logo", "Exemplar Global logo"},
+		"ms": {"Coach Adam Daniel berucap di podium", "Logo UMPSA", "Logo ICTC", "Logo HRD Corp", "Lencana Penyedia Latihan Berdaftar HRD Corp", "Logo JPK", "Logo Exemplar Global"},
 	} {
 		_, body := s.getAsking("/", lang)
 		_, coach, _ := strings.Cut(body, `id="coach"`)
 		coach, _, _ = strings.Cut(coach, `</section>`)
-		for _, alt := range alts {
-			s.expectImage(coach, alt)
+		s.expectImage(coach, alts[0])
+		_, issuers, _ := strings.Cut(coach, `class="coach-issuers"`)
+		issuers, _, _ = strings.Cut(issuers, `</ul>`)
+		for _, alt := range alts[1:] {
+			s.expectImage(issuers, alt)
 		}
 		expectInOrder(t, coach, alts[0], `class="coach-creds"`, `class="coach-issuers"`)
-		expectNone(t, body, "Claimable", "CLAIMABLE")
+		expectInOrder(t, issuers, alts[1:]...)
+		expectNone(t, body, "Claimable", "CLAIMABLE", "coach-accredited")
 	}
 }
 
