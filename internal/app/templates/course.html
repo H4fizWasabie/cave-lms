@@ -65,7 +65,7 @@
         <section>
           <h2>{{t .Lang "course.outcomes"}}</h2>
           <ul class="cp-outcomes">
-            {{range .Lessons}}{{with .Objective}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{.}}</li>{{end}}{{end}}
+            {{range .Lessons}}{{range .Objectives}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{.}}</li>{{end}}{{end}}
           </ul>
         </section>
         {{end}}

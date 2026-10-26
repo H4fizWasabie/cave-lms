@@ -406,11 +406,9 @@ var catalog = map[string]entry{
 	"adm.lessons.back":                  {en: "Back to the Lessons", ms: "Kembali ke Pelajaran"},
 	"adm.lessons.edit-for":              {en: "Edit Lesson for %s", ms: "Sunting Pelajaran untuk %s"},
 	"adm.lessons.new-for":               {en: "New Lesson for %s", ms: "Pelajaran Baharu untuk %s"},
-	"adm.lessons.content":               {en: "Lesson content", ms: "Kandungan Pelajaran"},
-	"adm.lessons.kind-item":             {en: "One Gallery item", ms: "Satu Item Galeri"},
 	"adm.lessons.markdown":              {en: "Text (Markdown)", ms: "Teks (Markdown)"},
-	"adm.lessons.objective":             {en: "Objective", ms: "Objektif"},
-	"adm.lessons.objective-hint":        {en: "(one sentence, optional)", ms: "(satu ayat, pilihan)"},
+	"adm.lessons.objective":             {en: "Objectives", ms: "Objektif"},
+	"adm.lessons.objective-hint":        {en: "(up to five, one sentence per line, optional)", ms: "(sehingga lima, satu ayat setiap baris, pilihan)"},
 	"adm.lessons.item":                  {en: "Gallery item", ms: "Item Galeri"},
 	"adm.lessons.choose-item":           {en: "Choose an item", ms: "Pilih item"},
 	"adm.lessons.item-hint": {
@@ -419,9 +417,8 @@ var catalog = map[string]entry{
 	},
 	"adm.lessons.keep-draft":    {en: "Keep as Draft (Learners will not see it)", ms: "Simpan sebagai Draf (Pelajar tidak akan melihatnya)"},
 	"adm.lessons.err.item":      {en: "Choose a Gallery item.", ms: "Pilih Item Galeri."},
-	"adm.lessons.err.text":      {en: "Write the text of the Lesson.", ms: "Tulis teks Pelajaran ini."},
-	"adm.lessons.err.kind":      {en: "Choose whether the Lesson is a Gallery item or text.", ms: "Pilih sama ada Pelajaran ini Item Galeri atau teks."},
-	"adm.lessons.err.objective": {en: "Write the Objective as one sentence of at most 200 characters.", ms: "Tulis Objektif sebagai satu ayat yang paling banyak 200 aksara."},
+	"adm.lessons.err.content":   {en: "Write the text of the Lesson or choose a Gallery item.", ms: "Tulis teks Pelajaran ini atau pilih Item Galeri."},
+	"adm.lessons.err.objective": {en: "Write at most five Objectives, one sentence of at most 200 characters per line.", ms: "Tulis paling banyak lima Objektif, satu ayat yang paling banyak 200 aksara setiap baris."},
 	"adm.lessons.err.body":      {en: "Use text of at most 20000 characters.", ms: "Gunakan teks yang paling banyak 20000 aksara."},
 
 	// Exams
@@ -1541,7 +1538,7 @@ var catalog = map[string]entry{
 	"course.needs-ic.passed": {en: "Set your IC so we can issue your Certificate", ms: "Tetapkan No. KP anda supaya Sijil anda dapat dikeluarkan"},
 
 	"lesson.draft":          {en: "Draft: Learners cannot see this Lesson.", ms: "Draf: Pelajar tidak dapat melihat Pelajaran ini."},
-	"lesson.objective":      {en: "Objective:", ms: "Objektif:"},
+	"lesson.objectives":     {en: "Objectives", ms: "Objektif"},
 	"lesson.download-ebook": {en: "Download the ebook", ms: "Muat turun e-buku"},
 	"lesson.back":           {en: "Back to the Course", ms: "Kembali ke Kursus"},
 	// ---- Premium refresh: Lesson page (#315) ----

@@ -35,7 +35,7 @@ func searchableCourses(t *testing.T) *site {
 		t.Fatalf("want 3 Courses, got %d", len(ids))
 	}
 	// The Admin list is ordered by start date then id, so the Courses come back in creation order.
-	s.addTextLesson(ids[1][1], "Tanah dan baja", "Memahami tanah.", "Gunakan kompos untuk menyuburkan cili.", false)
+	s.addTextLesson(ids[1][1], "Tanah dan baja", "Memahami tanah.\nMenyiram anak benih.", "Gunakan kompos untuk menyuburkan cili.", false)
 	s.addTextLesson(ids[1][1], "Rahsia lama", "", "Sekam padi mengelakkan kulat.", true)
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
@@ -73,7 +73,7 @@ func TestCourseSearchFindsTheCourseOfALessonByTitleOrObjectiveWhoeverAsks(t *tes
 		if visitor {
 			s.logOut()
 		}
-		for _, q := range []string{"baja", "memahami"} {
+		for _, q := range []string{"baja", "memahami", "menyiram"} {
 			body := s.searchCourses(q)
 			if !strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Garden Basics") {
 				t.Errorf("search %q (visitor %v): want only Kebun Sayur: %s", q, visitor, body)

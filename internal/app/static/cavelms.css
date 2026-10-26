@@ -431,6 +431,8 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .mc-main p { margin-bottom: var(--space-2); }
 .cert-revoked { color: var(--bad); font-size: var(--fs-meta); margin-top: var(--space-1); }
 .lesson-objective { color: var(--ink-2); margin-bottom: var(--space-5); }
+.lesson-objective h2 { font-size: var(--fs-ui); margin: 0 0 var(--space-2); }
+.lesson-objective ul { margin: 0; padding-left: var(--space-5); }
 .ebook-plain { grid-template-columns: 1fr; }
 
 /* ============================ Motion ============================

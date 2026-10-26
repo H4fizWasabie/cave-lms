@@ -17,7 +17,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 )
 
-// lesson is one step of a Course: one Gallery item (GalleryItemID set) or text (Body set).
+// lesson is one step of a Course: text (Body set), a Gallery item (GalleryItemID set), or both.
 // Draft Lessons (Published false) are shown to the Admin only.
 type lesson struct {
 	ID            int64
@@ -31,6 +31,14 @@ type lesson struct {
 	Published     bool
 	Completed     bool          // set on the Course page for the enrolled Learner
 	HTML          template.HTML // the Body rendered as sanitised Markdown, for the Lesson page
+}
+
+// Objectives lists the Lesson's Objectives, stored one per line.
+func (l lesson) Objectives() []string {
+	if l.Objective == "" {
+		return nil
+	}
+	return strings.Split(l.Objective, "\n")
 }
 
 const lessonColumns = `l.id, l.course_id, l.position, l.title, l.objective, l.body, COALESCE(l.gallery_item_id, 0), COALESCE(g.title, ''), l.published`
@@ -93,36 +101,44 @@ func (a *App) renderLessonForm(w http.ResponseWriter, r *http.Request, status in
 	a.render(w, r, status, "lesson_form", data)
 }
 
-// lessonFromForm reads the Lesson form for the given kind ("item" or "text"). msg is the first problem, in lang, empty when valid.
-func lessonFromForm(r *http.Request, lang, kind string) (l lesson, msg string) {
+// lessonFromForm reads the Lesson form: text, a Gallery item, or both. msg is the first problem, in lang, empty when valid.
+func lessonFromForm(r *http.Request, lang string) (l lesson, msg string) {
 	l.Title = strings.TrimSpace(r.PostFormValue("title"))
-	l.Objective = strings.TrimSpace(r.PostFormValue("objective"))
 	l.Body = strings.TrimSpace(r.PostFormValue("body"))
-	switch kind {
-	case "item":
-		id, err := strconv.ParseInt(r.PostFormValue("gallery_item_id"), 10, 64)
+	objectives, ok := objectivesFromForm(r.PostFormValue("objective"))
+	l.Objective = strings.Join(objectives, "\n")
+	if v := strings.TrimSpace(r.PostFormValue("gallery_item_id")); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || id <= 0 {
-			msg = text.T(lang, "adm.lessons.err.item")
+			return l, text.T(lang, "adm.lessons.err.item")
 		}
 		l.GalleryItemID = id
-		l.Body = ""
-	case "text":
-		if l.Body == "" {
-			msg = text.T(lang, "adm.lessons.err.text")
-		}
-	default:
-		msg = text.T(lang, "adm.lessons.err.kind")
 	}
 	switch {
-	case msg != "":
+	case l.Body == "" && l.GalleryItemID == 0:
+		msg = text.T(lang, "adm.lessons.err.content")
 	case l.Title == "" || utf8.RuneCountInString(l.Title) > 200:
 		msg = text.T(lang, "adm.err.title-200")
-	case utf8.RuneCountInString(l.Objective) > 200 || strings.ContainsAny(l.Objective, "\r\n"):
+	case !ok:
 		msg = text.T(lang, "adm.lessons.err.objective")
 	case utf8.RuneCountInString(l.Body) > 20000:
 		msg = text.T(lang, "adm.lessons.err.body")
 	}
 	return l, msg
+}
+
+// objectivesFromForm splits the Objectives box into its non-blank lines. ok is false for more than five lines or a
+// line over 200 characters; none is valid.
+func objectivesFromForm(v string) (lines []string, ok bool) {
+	for _, line := range strings.Split(strings.ReplaceAll(v, "\r", ""), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
+			if utf8.RuneCountInString(line) > 200 {
+				return lines, false
+			}
+		}
+	}
+	return lines, len(lines) <= 5
 }
 
 func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +151,7 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	l, msg := lessonFromForm(r, lang, r.PostFormValue("kind"))
+	l, msg := lessonFromForm(r, lang)
 	l.CourseID = c.ID
 	l.Published = r.PostFormValue("draft") != "on"
 	if msg != "" {
@@ -341,7 +357,8 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data.Item = &item
-	} else {
+	}
+	if l.Body != "" {
 		l.HTML = renderMarkdown(l.Body)
 	}
 	a.render(w, r, http.StatusOK, "lesson", data)
@@ -360,22 +377,18 @@ func (a *App) editLessonForm(w http.ResponseWriter, r *http.Request) {
 	a.renderLessonForm(w, r, http.StatusOK, page{Course: &c, Lesson: &l})
 }
 
-// updateLesson saves the Admin's edits. A Lesson keeps its kind: an item stays an item, text stays text.
+// updateLesson saves the Admin's edits, which may add or remove the Lesson's text or Gallery item.
 func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	existing, ok := a.lessonByPath(w, r)
 	if !ok {
 		return
-	}
-	kind := "text"
-	if existing.GalleryItemID != 0 {
-		kind = "item"
 	}
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	l, msg := lessonFromForm(r, lang, kind)
+	l, msg := lessonFromForm(r, lang)
 	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
 	c, err := a.courseByID(r.Context(), l.CourseID)
 	if err != nil {

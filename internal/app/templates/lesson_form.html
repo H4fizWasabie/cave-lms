@@ -8,16 +8,8 @@
         <div class="card">
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
           <form class="form" method="post" action="{{if .Lesson.ID}}/admin/lessons/{{.Lesson.ID}}{{else}}/admin/courses/{{.Course.ID}}/lessons{{end}}">
-            {{if not .Lesson.ID}}
-            <div class="field field-half"><label for="kind">{{t .Lang "adm.lessons.content"}}</label>
-              <select id="kind" name="kind">
-                <option value="item">{{t .Lang "adm.lessons.kind-item"}}</option>
-                <option value="text">{{t .Lang "adm.lessons.markdown"}}</option>
-              </select>
-            </div>
-            {{end}}
             <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Lesson.Title}}" maxlength="200" required></div>
-            <div class="field"><label for="objective">{{t .Lang "adm.lessons.objective"}} <span class="opt">{{t .Lang "adm.lessons.objective-hint"}}</span></label><input id="objective" type="text" name="objective" value="{{.Lesson.Objective}}" maxlength="200"></div>
+            <div class="field"><label for="objective">{{t .Lang "adm.lessons.objective"}} <span class="opt">{{t .Lang "adm.lessons.objective-hint"}}</span></label><textarea id="objective" name="objective" rows="5">{{.Lesson.Objective}}</textarea></div>
             <div class="field"><label for="gallery_item_id">{{t .Lang "adm.lessons.item"}}</label>
               <select id="gallery_item_id" name="gallery_item_id">
                 <option value="">{{t .Lang "adm.lessons.choose-item"}}</option>
