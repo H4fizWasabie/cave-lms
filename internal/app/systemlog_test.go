@@ -157,3 +157,15 @@ func TestAPanicInABackgroundJobIsLoggedNotRaised(t *testing.T) {
 
 	expectAll(t, s.lastLogLine("panicked"), "Result release panicked: bad record")
 }
+
+func TestNotFoundAndForbiddenPagesOfferTheHomePage(t *testing.T) {
+	s := newSite(t)
+	res, body := s.getAsking("/no-such-page", "en")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	expectAll(t, mainOf(body), `href="/">Go to the home page</a>`)
+
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	res, body = s.getAsking("/admin", "ms")
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	expectAll(t, mainOf(body), `href="/">Pergi ke laman utama</a>`)
+}

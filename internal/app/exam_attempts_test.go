@@ -412,6 +412,16 @@ func TestExamIsForEnrolledLearnersAndTheirOwnAttempts(t *testing.T) {
 	}
 }
 
+func TestAnUnknownAttemptLeadsBackToItsCourse(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("50", "", "", "Q1")
+	for _, attempt := range []string{"999999", "nope"} {
+		res, body := s.getAsking("/courses/"+id+"/exam/attempts/"+attempt, "en")
+		expectStatus(t, res, body, http.StatusNotFound, "There is no Exam attempt at this address.")
+		expectInOrder(t, mainOf(body), `href="/courses/`+id+`">Back to the Course</a>`, `href="/">Go to the home page</a>`)
+	}
+}
+
 func TestStartingAgainResumesTheOpenAttempt(t *testing.T) {
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "1", "Q1")

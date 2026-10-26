@@ -91,8 +91,9 @@ type page struct {
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
-	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set
+	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set; render sets it on a 403 or 404
 	Retry         string
+	BackToCourse  string // a 403 or 404 inside a Course: its page, offered before Go to the home page
 	Items         []galleryItem
 	Item          *galleryItem
 	Format        string // Gallery filters
@@ -638,6 +639,9 @@ func parsePages() (map[string]*template.Template, error) {
 func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
 	if p, ok := data.(page); ok {
 		data = &p
+	}
+	if p, ok := data.(*page); ok && name == "message" && (status == http.StatusNotFound || status == http.StatusForbidden) {
+		p.OfferHome = true // every not-found or refused page leads somewhere
 	}
 	withLearner, ok := data.(interface{ learnerField() **learner })
 	if !ok {

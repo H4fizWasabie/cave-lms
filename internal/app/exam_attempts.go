@@ -452,7 +452,7 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	att, ok := a.attemptFor(w, r, learner.ID, e.ID)
+	att, ok := a.attemptFor(w, r, learner.ID, e)
 	if !ok {
 		return
 	}
@@ -490,7 +490,7 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	att, ok := a.attemptFor(w, r, learner.ID, e.ID)
+	att, ok := a.attemptFor(w, r, learner.ID, e)
 	if !ok {
 		return
 	}
@@ -547,15 +547,17 @@ func (a *App) submitAttempt(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, attemptPath(e, att.ID), http.StatusSeeOther)
 }
 
-// attemptFor loads the Learner's attempt named by {attemptID} on the Exam. Other Learners' attempts are not found.
-func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID, examID int64) (examAttempt, bool) {
+// attemptFor loads the Learner's attempt named by {attemptID} on the Exam. Other Learners' attempts are not found,
+// and the not-found page leads back to the Exam's Course.
+func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID int64, e exam) (examAttempt, bool) {
 	notFound := func() (examAttempt, bool) {
 		lang, err := a.language(r)
 		if err != nil {
 			a.serverError(w, r, err)
 			return examAttempt{}, false
 		}
-		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "exam.attempt-not-found.title"), Message: text.T(lang, "exam.attempt-not-found")})
+		a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "exam.attempt-not-found.title"), Message: text.T(lang, "exam.attempt-not-found"),
+			BackToCourse: "/courses/" + strconv.FormatInt(e.CourseID, 10)})
 		return examAttempt{}, false
 	}
 	id, err := strconv.ParseInt(r.PathValue("attemptID"), 10, 64)
@@ -563,7 +565,7 @@ func (a *App) attemptFor(w http.ResponseWriter, r *http.Request, learnerID, exam
 		return notFound()
 	}
 	att, err := scanAttempt(a.db.QueryRowContext(r.Context(), `SELECT `+attemptColumns+` FROM exam_attempts
-		WHERE id = $1 AND learner_id = $2 AND exam_id = $3`, id, learnerID, examID))
+		WHERE id = $1 AND learner_id = $2 AND exam_id = $3`, id, learnerID, e.ID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return notFound()
 	}
