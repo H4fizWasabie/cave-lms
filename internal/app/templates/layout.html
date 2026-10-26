@@ -13,7 +13,7 @@
   {{- if not .Shell}}{{/* an Admin's admin pages have only the Admin sidebar (#332) */}}
   <header class="site-header">
     <div class="wrap site-header-in">
-      <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
+      <a class="brand" href="/"><img src="{{static "cave-consult-logo.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" class="brand-logo" width="387" height="160"></a>
       <nav class="site-nav hdr-wide" aria-label="{{t .Lang "header.main-nav"}}">{{template "nav-links" .}}</nav>
       <div class="site-header-right">
         <form class="lang-switch" method="post" action="/language" aria-label="{{t .Lang "header.language"}}">
@@ -50,7 +50,7 @@
   <footer class="site-footer">
     <div class="wrap footer-in">
       <div class="footer-brand">
-        <img src="{{static "logo-light.svg"}}" alt="The Cave Consult" class="footer-logo">
+        <img src="{{static "cave-consult-logo-light.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" class="footer-logo" width="387" height="160">
         <p><strong>CAVELMS</strong>: Learn AI • Build Skills • Create Impact</p>
         <p>{{t .Lang "footer.powered-by"}}</p>
       </div>
@@ -148,7 +148,7 @@ On wide screens it is a column; below 1000px it folds into a Menu button that na
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
-          <a class="adm-brand" href="/admin"><img src="{{static "logo-light.svg"}}" alt="The Cave Consult"><span>{{t .Lang "admin.brand"}}</span></a>
+          <a class="adm-brand" href="/admin"><img src="{{static "cave-consult-logo-light.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" width="387" height="160"><span>{{t .Lang "admin.brand"}}</span></a>
         </div>
         <nav class="adm-nav adm-wide" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}</nav>
         <details class="adm-menu">

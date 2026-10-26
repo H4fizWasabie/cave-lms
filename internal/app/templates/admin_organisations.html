@@ -16,7 +16,7 @@
               <tr><th>{{t .Lang "orgs.logo"}}</th><th>{{t .Lang "orgs.name"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Organisations}}
               <tr>
-                <td><img class="org-logo" src="/admin/organisations/{{.ID}}/logo?v={{.LogoKey}}" alt="{{t $.Lang "orgs.logo-alt" .Name}}" height="40"></td>
+                <td><img class="org-logo" src="/admin/organisations/{{.ID}}/logo?v={{.LogoKey}}" alt="{{t $.Lang "logo-alt" .Name}}" height="40"></td>
                 <td>{{.Name}}</td>
                 <td class="actions"><a class="btn btn-quiet btn-sm" href="{{.LogoSearch}}" target="_blank" rel="noopener">{{t $.Lang "orgs.search"}}</a> <a class="btn btn-quiet btn-sm" href="/admin/organisations/{{.ID}}/edit">{{t $.Lang "admin.common.edit"}}</a></td>
               </tr>

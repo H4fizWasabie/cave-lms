@@ -2,8 +2,8 @@
    read it before adding a rule. Rules use only the tokens below: no hard-coded colours, font sizes, spacing or radii. */
 
 /* ============================ BRAND =====================
-   Swap the client's brand here: two colours, two fonts, and the logo files (static/cavelms.svg
-   in the header, static/logo-light.svg on dark backgrounds). Everything else derives from these. */
+   Swap the client's brand here: two colours, two fonts, and the logo files (static/cave-consult-logo.webp
+   in the header, static/cave-consult-logo-light.webp on dark backgrounds). Everything else derives from these. */
 :root {
   --brand-ink: #1f2124;        /* charcoal: text, primary buttons, dark bands */
   --brand-gold: #d2a649;       /* gold from the logo's arch: fills and accents, never text on light */
@@ -1621,6 +1621,24 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .cert-item.is-revoked .cert-art { opacity: .55; filter: grayscale(1); }
 @media (max-width: 720px) {
   .cp-cert .cert-art { max-width: 12rem; } /* a shorter sheet keeps the next step nearer the top */
+}
+
+/* === Page: Logos (#343) === */
+/* Coach Adam's card: the HRD Corp badge beside the credentials, then each issuer's logo in a row that wraps. */
+.coach-accredited { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--space-5); align-items: center; margin-top: var(--space-6); }
+.coach-accredited .coach-creds { margin-top: 0; }
+.coach-badge { width: 100%; height: auto; }
+.coach-issuers { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); }
+.coach-issuers img { height: 2.5rem; width: auto; max-width: 100%; object-fit: contain; }
+/* About: the KPM crest under the heading; the heading and crest stick together. */
+.about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
+.about-side h2 { position: static; }
+.about-crest { width: min(100%, 16rem); height: auto; }
+@media (max-width: 999px) {
+  .about-side { position: static; }
+}
+@media (max-width: 720px) {
+  .coach-accredited { grid-template-columns: 5rem minmax(0, 1fr); gap: var(--space-4); }
 }
 
 /* === Lab: as on main (QA, #307) ===
