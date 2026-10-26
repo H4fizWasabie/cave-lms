@@ -1859,6 +1859,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .lab-page .dep-facts li { display: flex; gap: .8rem; align-items: flex-start; }
 .lab-page .dep-facts .i { flex: none; width: 1.4rem; height: 1.4rem; margin-top: .1rem; color: var(--brand-gold-deep); }
 .lab-page .dep-link { display: flex; gap: .6rem; align-items: center; }
+.lab-page .data-sentence { display: grid; gap: .5rem; justify-items: start; margin-top: 1.5rem; }
+.lab-page .data-sentence textarea { width: 100%; font: inherit; resize: vertical; }
 .lab-page .dep-link input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; font-size: .9rem; }
 .lab-page .row-actions { display: flex; gap: .4rem; align-items: center; }
 .lab-page .tp-grid { list-style: none; margin: 0 0 2.6rem; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }

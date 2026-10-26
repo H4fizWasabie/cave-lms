@@ -377,7 +377,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	res, err := a.clean(r, file, d.Template, settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Problem: problem.In(lang), Upload: name})
+		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem.In(lang), Upload: name})
 		return
 	}
 	if err != nil {
@@ -386,13 +386,13 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	}
 	size, used, err := a.keepPending(r, d, acc, res, settings, name)
 	if errors.Is(err, errStorageFull) {
-		page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Upload: name}
+		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 		page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		return
 	}
 	if errors.Is(err, errDatasetStore) {
-		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Failed: true})
+		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Failed: true})
 		return
 	}
 	if err != nil {
@@ -414,7 +414,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			return
 		}
 	}
-	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 }
 
 // confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and roomFor's earlier
@@ -440,11 +440,13 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	if p == nil {
-		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
 	}
 	t, c, cfg := d.Template, d.Choices, d.Config
-	if cfg == nil {
+	switch {
+	case d.Page != nil: // a page Dashboard has no blocks: its page reads the Dataset at data.json (ADR 0018)
+	case cfg == nil:
 		if picked := lab.TemplateByKey(r.FormValue("template")); picked != nil {
 			t = picked
 		}
@@ -455,7 +457,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			}
 		}
 		cfg = t.Open(c, p.Dataset) // a blank left empty, or naming no column, leaves out the blocks that need it
-	} else {
+	default:
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -467,10 +469,12 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.serverError(w, r, err)
 		return
 	}
-	config, err := json.Marshal(cfg)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
+	var config []byte // NULL for a page Dashboard
+	if cfg != nil {
+		if config, err = json.Marshal(cfg); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {
@@ -512,13 +516,13 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return err
 	})
 	if errors.Is(err, errStorageFull) {
-		page := &dashboardPage{Dashboard: d, Tab: "dataset", Access: acc, Pending: p, Upload: p.File}
+		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Pending: p, Upload: p.File}
 		page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(room.Used), sizeText(acc.Period.Storage()))
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		return
 	}
 	if errors.Is(err, replaced) { // the new upload's preview
-		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
 	}
 	if err != nil {
@@ -526,6 +530,10 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
+	if d.Page != nil {
+		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, dashboardURL(d)+"/preview", http.StatusSeeOther)
 }
 
@@ -565,7 +573,7 @@ func (a *App) restoreDataset(w http.ResponseWriter, r *http.Request, d *dashboar
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 }
 
 // earlierDatasetFor applies the Lab access rule and loads the id and file name of Dashboard d's earlier Dataset
@@ -593,7 +601,7 @@ func (a *App) earlierDatasetFor(w http.ResponseWriter, r *http.Request, d *dashb
 // confirmDeleteDataset asks before deleting an earlier Dataset.
 func (a *App) confirmDeleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, file, ok := a.earlierDatasetFor(w, r, d); ok {
-		a.confirm(w, r, http.StatusOK, confirmation{Heading: "lab.w.delete-title", Question: "lab.w.delete-ask", Cancel: dashboardURL(d),
+		a.confirm(w, r, http.StatusOK, confirmation{Heading: "lab.w.delete-title", Question: "lab.w.delete-ask", Cancel: dataURL(d),
 			Action: r.URL.Path}, file)
 	}
 }
@@ -610,5 +618,5 @@ func (a *App) deleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
-	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 }
