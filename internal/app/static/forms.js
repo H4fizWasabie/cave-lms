@@ -33,6 +33,11 @@
       }, 250);
     }, 4000);
   });
+  // A button with data-copy copies the text of the field with that id.
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-copy]");
+    if (b && navigator.clipboard) navigator.clipboard.writeText(document.getElementById(b.dataset.copy).value);
+  });
   // Coming back to the page from the history shows the form ready again.
   window.addEventListener("pageshow", function (e) {
     if (!e.persisted) return;

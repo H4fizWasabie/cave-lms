@@ -56,8 +56,9 @@ func expectInOrder(t *testing.T, body string, wants ...string) {
 	}
 }
 
+// A Plan holder's header has eight sections; a Visitor's has seven, without the Lab.
 func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
-	s := newSite(t)
+	_, s := labLearner(t)
 	for _, path := range []string{"/", "/courses", "/certificates"} {
 		_, body := s.getAsking(path, "en")
 		head := header(t, body)
@@ -66,13 +67,17 @@ func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
 		head = header(t, body)
 		expectInOrder(t, head, ">Utama<", ">Kursus<", ">Lab<", ">Kelas<", ">Harga<", ">Program<", ">Pensijilan<", ">Komuniti<")
 	}
+	_, body := newSite(t).getAsking("/", "en")
+	head := header(t, body)
+	expectInOrder(t, head, ">Home<", ">Courses<", ">Classroom<", ">Pricing<", ">Program<", ">Certification<", ">Community<")
+	expectNone(t, head, ">Lab<")
 }
 
 func TestTheCoursesMenuListsTheThreeLatestOpenCoursesThenAllCourses(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	s.createCourse("Alpha", "First.", "")
-	_, body := s.get("/lab")
+	_, body := s.get("/gallery")
 	expectInOrder(t, header(t, body), ">Alpha<", ">All courses<")
 	for _, title := range []string{"Beta", "Gamma", "Delta", "Epsilon"} {
 		s.createCourse(title, "More.", "")
@@ -80,7 +85,7 @@ func TestTheCoursesMenuListsTheThreeLatestOpenCoursesThenAllCourses(t *testing.T
 	s.post("/admin/courses/"+s.courseIDByTitle("Epsilon")+"/close", nil)
 	s.logOut()
 
-	_, body = s.get("/lab")
+	_, body = s.get("/gallery")
 	head := header(t, body)
 	expectInOrder(t, head, ">Delta<", ">Gamma<", ">Beta<", ">All courses<")
 	expectNone(t, head, "Alpha", "Epsilon")
@@ -120,7 +125,7 @@ func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
 
 func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPage(t *testing.T) {
 	s := newSite(t)
-	_, body := s.getAsking("/lab", "en")
+	_, body := s.getAsking("/gallery", "en")
 	head := header(t, body)
 	expectInOrder(t, head, `href="/#welcome"`, `href="/about"`, `href="/#coach"`, `href="/#about"`, `href="/gallery"`)
 	expectAll(t, head, ">Company background<")
@@ -132,19 +137,15 @@ func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPage(t *testing.T) {
 }
 
 // The header holds the nav twice: once for wide screens and once in the narrow-screen Menu.
-func TestLabIsAPlainLinkInTheHeaderAndItsHeroLineStaysOnTheLabPage(t *testing.T) {
-	s := newSite(t)
-	for lang, hero := range map[string]string{
-		"en": "From static dashboard to hosted dashboard",
-		"ms": "Daripada dashboard statik kepada dashboard yang dihoskan",
-	} {
-		_, body := s.getAsking("/lab", lang)
+func TestLabIsAPlainLinkInTheHeader(t *testing.T) {
+	_, s := labLearner(t)
+	for _, lang := range []string{"en", "ms"} {
+		_, body := s.getAsking("/gallery", lang)
 		head := header(t, body)
 		if n := strings.Count(head, `<a class="hdr-link" href="/lab">Lab</a>`); n != 2 {
 			t.Errorf("%s: header has %d plain Lab links, want 2 (wide and Menu); header:\n%s", lang, n, head)
 		}
-		expectNone(t, head, `<summary class="hdr-link">Lab</summary>`, hero)
-		expectAll(t, content(body), "<h1>"+hero+"</h1>")
+		expectNone(t, head, `<summary class="hdr-link">Lab</summary>`)
 	}
 }
 

@@ -66,21 +66,14 @@ func TestTheNotFoundAndErrorPagesAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheLabIsInMalayAndEnglish(t *testing.T) {
-	visitor := newSite(t)
-	_, body := visitor.getAsking("/lab", "ms")
-	expectLanguage(t, body, "ms", "Daripada dashboard statik kepada dashboard yang dihoskan")
-	expectAll(t, body, "Daftar untuk bermula", "Templat, dipaparkan dengan Sampelnya")
-	_, body = visitor.getAsking("/lab", "en")
-	expectLanguage(t, body, "en", "From static dashboard to hosted dashboard")
-
 	admin, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
-	_, body = ada.get("/lab")
+	_, body := ada.get("/lab")
 	expectLanguage(t, body, "ms", "Deployment aktif")
 	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
 	_, body = ada.get("/lab/new")
-	expectLanguage(t, body, "ms", "Namakan Dashboard anda, kemudian muat naik fail Excel anda atau cuba Sampel.")
-	expectAll(t, body, "Cipta Dashboard")
+	expectLanguage(t, body, "ms", "Namakan Dashboard anda, kemudian tampal HTML yang ditulis oleh chatbot AI anda")
+	expectAll(t, body, "Cipta Dashboard", "Tampal HTML", "Atau pilih fail .html")
 	res, body := ada.post("/lab/dashboards", url.Values{"name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan nama kepada Dashboard.")
 
@@ -109,10 +102,7 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.switchLanguage("ms", "/")
-	_, body := s.get("/lab")
-	expectLanguage(t, body, "ms", "Hubungi kami untuk membeli Pelan Lab")
-	expectAll(t, body, "RM89 setahun", "Hubungi kami untuk membeli Pelan Pro", `<s><span class="sr">Harga biasa </span>RM119</s>`)
-	res, body := s.get("/lab/new")
+	res, body := s.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {"<p>hi</p>"}})
 	expectStatus(t, res, body, http.StatusForbidden, "Lab dikunci")
 }
 
@@ -127,16 +117,10 @@ func TestTheLabsFileErrorsAreInMalay(t *testing.T) {
 }
 
 func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T) {
-	visitor := newSite(t)
-	_, body := visitor.getAsking("/lab", "ms")
-	expectAll(t, body, "<h3>Kewangan</h3>", "Adakah saya berbelanja lebih daripada pendapatan saya?", "Wang masuk dan keluar: jumlah, baki, perbelanjaan mengikut bulan dan kategori.")
-	_, body = visitor.getAsking("/lab", "en")
-	expectAll(t, body, "<h3>Finance</h3>", "Am I spending more than I earn?", "Money in and out: totals, balance, spending by month and category.")
-
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
 	ada.createWork("finance", "Duit saya")
-	_, body = ada.get("/lab")
+	_, body := ada.get("/lab")
 	expectAll(t, body, "Templat Kewangan")
 	expectNone(t, body, "Templat Finance")
 }

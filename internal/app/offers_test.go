@@ -45,27 +45,3 @@ func TestTheCaveTextPageOffersCaveTextProAndTheProPlanWithTheirPrices(t *testing
 	expectAll(t, body, "RM25 a year", "RM99 a year")
 	expectNone(t, body, "Buy CaveText Pro", "Buy Pro Plan")
 }
-
-func TestTheLabsUpgradeOffersTheLabPlanAndTheProPlanWithTheirPrices(t *testing.T) {
-	s := newSite(t)
-	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
-	ada := s.second()
-	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
-
-	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
-	expectAll(t, body, "RM89 a year", "RM99 a year", `<s><span class="sr">Normal price </span>RM119</s>`,
-		`href="mailto:adam.caveconsult@gmail.com?subject=Lab%20Plan">Contact us to buy Lab Plan</a>`,
-		`href="mailto:adam.caveconsult@gmail.com?subject=Pro%20Plan">Contact us to buy Pro Plan</a>`)
-	expectNone(t, body, "Register to get started", "RM25", "CaveText Pro</a>", "processing fee")
-	if n := strings.Count(body, "<s>"); n != 1 {
-		t.Errorf("%d crossed-out prices, want 1", n)
-	}
-
-	s.savePrices(map[string]string{"lab-plan_price": "79", "lab-plan_normal": "89", "lab-plan_link": "https://pay.example.com/lab",
-		"pro-plan_normal": "", "pro-plan_link": "https://pay.example.com/pro"})
-	_, body = ada.get("/lab")
-	expectAll(t, body, "RM79 a year", `<s><span class="sr">Normal price </span>RM89</s>`, "processing fee",
-		`href="https://pay.example.com/lab">Buy Lab Plan</a>`, `href="https://pay.example.com/pro">Buy Pro Plan</a>`)
-	expectNone(t, body, "RM119", "Contact us to buy")
-}

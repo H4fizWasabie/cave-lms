@@ -22,13 +22,48 @@ func TestCoursesNoLongerOfferTheLab(t *testing.T) {
 	}
 }
 
-func TestVisitorSeesWhatTheLabIsWithRegister(t *testing.T) {
+func TestAVisitorSeesNoLabLinkAndTheLabGoesToPricing(t *testing.T) {
 	s := newSite(t)
-	res, body := s.get("/")
-	expectStatus(t, res, body, http.StatusOK, `<a href="/lab">Lab</a>`)
-	res, body = s.get("/lab")
-	for _, want := range []string{"From static dashboard to hosted dashboard", "Register to get started", `href="/register"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
+	for _, path := range []string{"/", "/gallery", "/pricing"} {
+		res, body := s.get(path)
+		expectStatus(t, res, body, http.StatusOK, "")
+		expectNone(t, body, `href="/lab"`)
+	}
+	for _, path := range []string{"/lab", "/lab/new", "/lab/dashboards/1", "/lab/dashboards/1/data"} {
+		res, body := s.get(path)
+		expectRedirect(t, res, body, "/pricing")
+	}
+}
+
+// expectLabLinks fails unless the page at path links to the Lab in the header twice (wide and Menu) and in the footer.
+func expectLabLinks(t *testing.T, s *site, path string) {
+	t.Helper()
+	_, body := s.getAsking(path, "en")
+	head := header(t, body)
+	if n := strings.Count(head, `<a class="hdr-link" href="/lab">Lab</a>`); n != 2 {
+		t.Errorf("%s: header has %d Lab links, want 2 (wide and Menu); header:\n%s", path, n, head)
+	}
+	_, foot, _ := strings.Cut(content(body), "</main>")
+	expectAll(t, foot, `<a href="/lab">Lab</a>`)
+}
+
+// The Lab link shows only to those the Lab is open to: a Learner in an active Plan period, and the Admin (ADR 0018).
+func TestTheLabLinkShowsOnlyToAPlanHolderAndTheAdmin(t *testing.T) {
+	admin, ada, planID, _ := labSetup(t)
+	for _, path := range []string{"/", "/my-courses"} {
+		_, body := ada.get(path)
+		expectNone(t, body, `href="/lab"`)
+	}
+
+	admin.assignPlan("ada@example.com", planID)
+	expectLabLinks(t, ada, "/")
+	expectLabLinks(t, ada, "/my-courses")
+	expectLabLinks(t, admin, "/")
+
+	admin.ageAllPeriods(31)
+	for _, path := range []string{"/", "/my-courses"} {
+		_, body := ada.get(path)
+		expectNone(t, body, `href="/lab"`)
 	}
 }
 
@@ -57,15 +92,12 @@ func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
 	}
 }
 
-func TestLearnerInACourseWithoutAPlanSeesOnlyTheDemo(t *testing.T) {
+func TestLearnerInACourseWithoutAPlanGoesToPricing(t *testing.T) {
 	_, ada, _, courseID := labSetup(t)
 	ada.post("/courses/"+courseID+"/join", nil)
 
 	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
-	if strings.Contains(body, "Deployments left this period") {
-		t.Fatalf("a Learner without a Plan has the Lab: %s", body)
-	}
+	expectRedirect(t, res, body, "/pricing")
 }
 
 func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
@@ -74,7 +106,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 
 	admin.ageAllPeriods(31)
 	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
+	expectRedirect(t, res, body, "/pricing")
 
 	admin.assignPlan("ada@example.com", planID)
 	res, body = ada.get("/lab")
@@ -83,7 +115,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 	_, page := admin.get("/admin/plans/periods?email=ada@example.com")
 	admin.post(endPeriodButton.FindStringSubmatch(page)[1], confirming)
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
+	expectRedirect(t, res, body, "/pricing")
 }
 
 func TestLeavingACourseNeverWarnsAboutTheLab(t *testing.T) {

@@ -148,11 +148,10 @@ func TestADeploymentIsAwakeWhileThePlanIsActiveSleepsWhenItEndsAndWakesOnRenewal
 			t.Fatalf("an asleep link still shows the data: %s", body)
 		}
 	}
-	res, body := ada.get(path + "/deploy")
-	expectStatus(t, res, body, http.StatusOK, "Asleep")
-	expectStatus(t, res, body, http.StatusOK, "wakes at the same link")
+	res, body := ada.get(path + "/deploy") // the Lab is closed to a lapsed Plan holder, their Deploy tabs too
+	expectRedirect(t, res, body, "/pricing")
 	res, body = ada.get(other + "/deploy")
-	expectStatus(t, res, body, http.StatusOK, "Deploying needs a Plan")
+	expectRedirect(t, res, body, "/pricing")
 	res, body = ada.post(other+"/deploy", url.Values{"confirm": {"yes"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 
@@ -269,6 +268,7 @@ func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
 
 	bob := admin.second()
 	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	admin.assignPlan("bob@example.com", admin.onlyPlanID()) // without a Plan the Lab sends him to /pricing first
 	for _, p := range []string{"/rename", "/delete"} {
 		if res, _ := bob.post(path+p, url.Values{"name": {"Mine"}}); res.StatusCode != http.StatusNotFound {
 			t.Errorf("Bob got %d for POST %s, want 404", res.StatusCode, p)

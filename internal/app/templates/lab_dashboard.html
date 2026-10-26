@@ -2,7 +2,7 @@
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
     <div class="wrap page-pad lab-page">
-      <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
+      <p class="crumbs"><a href="/lab">Lab</a>{{if not .Dashboard.Page}} / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}{{end}}</p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>
         {{- if .Dashboard.Dataset}}
@@ -13,6 +13,11 @@
       <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>{{t .Lang "lab.d.read-only"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p></div>
       {{- end}}
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
+        {{- if .Dashboard.Page}}
+        <a class="lab-tab" href="{{$url}}"{{if eq .Tab "page"}} aria-current="page"{{end}}>{{t .Lang "lab.page.tab"}}</a>
+        <a class="lab-tab" href="{{$url}}/data"{{if eq .Tab "data"}} aria-current="page"{{end}}>{{t .Lang "lab.data.tab"}}</a>
+        <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
+        {{- else}}
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
         {{- if .Dashboard.Dataset}}
         <a class="lab-tab" href="{{$url}}/blocks"{{if eq .Tab "blocks"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.blocks"}}</a>
@@ -25,9 +30,49 @@
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.hood"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.deploy"}}</span>
         {{- end}}
+        {{- end}}
       </nav>
 
-      {{- if eq .Tab "dataset"}}
+      {{- if and (not .Dashboard.Page) (not .Dashboard.Config) (not .ReadOnly) (eq .Tab "dataset")}}
+      <section class="lab-narrow">
+        <h2 class="h-md">{{t .Lang "lab.page.add"}}</h2>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        <form class="form" method="post" action="{{$url}}/page" enctype="multipart/form-data">
+          <div class="field"><label for="page-html">{{t .Lang "lab.new.paste"}}</label><textarea id="page-html" name="html" rows="6" spellcheck="false" autocapitalize="none"></textarea></div>
+          <div class="field"><label for="page-file">{{t .Lang "lab.new.file"}}</label><input id="page-file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
+          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.page.upload"}}</button></div>
+        </form>
+      </section>
+      {{- end}}
+      {{- if and .Dashboard.Page (eq .Tab "page")}}{{with .Dashboard.Page}}
+      <section class="lab-narrow">
+        <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div></div>
+        {{- if not $.ReadOnly}}
+        <p><a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a></p>
+        <h2 class="h-md">{{t $.Lang "lab.page.new"}}</h2>
+        <p class="muted">{{t $.Lang "lab.page.new-body"}}</p>
+        {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        <form class="form" method="post" action="{{$url}}/page" enctype="multipart/form-data">
+          <div class="field"><label for="html">{{t $.Lang "lab.new.paste"}}</label><textarea id="html" name="html" rows="6" spellcheck="false" autocapitalize="none"></textarea></div>
+          <div class="field"><label for="file">{{t $.Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t $.Lang "lab.new.page-hint"}}</small></div>
+          <div class="form-foot"><button class="btn btn-solid">{{t $.Lang "lab.page.upload"}}</button></div>
+        </form>
+        {{- with $.Pages}}
+        <h2 class="h-md">{{t $.Lang "lab.page.earlier"}}</h2>
+        <p class="muted">{{t $.Lang "lab.page.earlier-body"}}</p>
+        <ul class="ds-earlier">
+          {{- range .}}
+          <li><div><strong>{{t $.Lang "lab.page.uploaded" .Uploaded}}</strong><span class="muted">{{.SizeText}}</span></div>
+            <form method="post" action="{{$url}}/pages/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form></li>
+          {{- end}}
+        </ul>
+        {{- end}}
+        {{- end}}
+        {{template "dataSentence" $.Lang}}
+        <script src="{{static "forms.js"}}" defer></script>
+      </section>
+      {{- end}}
+      {{- else if or (eq .Tab "dataset") (eq .Tab "data")}}
       <div class="lab-split">
         <section>
           {{- if .ReadOnly}}
@@ -42,10 +87,13 @@
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.upload-body"}}</p>
+          {{- else}}{{if .Dashboard.Page}}
+          <h2 class="h-md">{{t .Lang "lab.data.upload"}}</h2>
+          <p class="muted">{{t .Lang "lab.data.upload-body"}}</p>
           {{- else}}
           <h2 class="h-md">{{t .Lang "lab.d.upload-yours"}}</h2>
           <p class="muted">{{t .Lang "lab.d.upload-yours-body"}}</p>
-          {{- end}}
+          {{- end}}{{end}}
           {{- with .Problem}}
           <div class="ds-err" role="alert">
             <p><strong>{{if $.Upload}}{{t $.Lang "lab.d.not-read" $.Upload}}{{else}}{{t $.Lang "lab.d.not-read-file"}}{{end}}</strong></p>
@@ -63,8 +111,27 @@
           <section class="card ds-preview">
             <div>
               <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
+              {{- with .Added}}
+              <p class="muted">{{tn $.Lang "lab.data.adds" .Rows .Had (len $.Pending.Dataset.Rows)}}</p>
+              {{- if .Same}}
+              <p><strong>{{tn $.Lang "lab.data.same" .Same}}</strong></p>
+              {{- end}}
+              {{- else}}
               <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
+              {{- end}}
               <p class="muted">{{t $.Lang "lab.w.used" .UsedList}}</p>
+              {{- if $.Dashboard.Page}}
+              <p>{{t $.Lang "lab.data.columns" .ColumnList}}</p>
+              {{- if $.Gone}}
+              <div class="ds-err" role="alert">
+                <p><strong>{{t $.Lang "lab.data.columns-changed"}}</strong></p>
+                <p>{{t $.Lang "lab.data.gone" $.Gone}}{{with $.New}} {{t $.Lang "lab.data.new" .}}{{end}}</p>
+              </div>
+              {{- end}}
+              {{- if not $.Dashboard.Key}}
+              <p><strong>{{t $.Lang "lab.data.all-rows"}}</strong></p>
+              {{- end}}
+              {{- end}}
             </div>
             {{- with $.AskHeader}}
             <div class="ds-err" role="alert">
@@ -80,12 +147,12 @@
             {{- else}}
             <p>{{t $.Lang "lab.w.no-changes"}}</p>
             {{- end}}
-            {{- with .Notes}}
+            {{- if not $.Dashboard.Page}}{{with .Notes}}
             <div>
               <h3 class="h-sm">{{t $.Lang "lab.w.notes"}}</h3>
               <ul>{{range .}}<li>{{.In $.Lang}}</li>{{end}}</ul>
             </div>
-            {{- end}}
+            {{- end}}{{end}}
             <div class="table-wrap"><table class="table">
               <thead><tr>{{range .Dataset.Columns}}<th scope="col">{{.Name}}<br><small class="muted">{{t $.Lang (print "lab.type." .Type)}}</small></th>{{end}}</tr></thead>
               <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
@@ -190,6 +257,16 @@
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
+            {{- if and .Dashboard.Page .Dashboard.Key}}
+            {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            <fieldset class="field">
+              <legend>{{t .Lang "lab.data.mode"}}</legend>
+              <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>
+              <small>{{t .Lang "lab.data.replace-help"}}</small>
+              <label class="check"><input type="radio" name="mode" value="add"{{if $add}} checked{{end}}> {{t .Lang "lab.data.add"}}</label>
+              <small>{{t .Lang "lab.data.add-help"}}</small>
+            </fieldset>
+            {{- end}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
             <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
             {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
@@ -212,11 +289,16 @@
           {{- end}}
         </section>
         <aside class="panel">
+          {{- if .Dashboard.Page}}
+          {{template "dataSentence" .Lang}}
+          <p class="muted">{{t .Lang "lab.data.reads-only"}}</p>
+          {{- else}}
           <span class="panel-k">{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</span>
           <h2 class="h-sm">{{t .Lang "lab.d.start-sample"}}</h2>
           <p class="panel-msg">{{t .Lang "lab.d.start-sample-body"}}</p>
           <a class="btn btn-ghost btn-block" href="/lab/samples/{{.Dashboard.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "lab.d.download-sample"}}</a>
           <p class="muted">{{t .Lang "lab.d.dates-amounts"}}</p>
+          {{- end}}
         </aside>
       </div>
 
@@ -228,7 +310,7 @@
         <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.d.save"}}</button></div>
       </form>
 
-      {{- else if not .Dashboard.Dataset}}
+      {{- else if and (not .Dashboard.Dataset) (not .Dashboard.Page)}}
       <p class="empty">{{t .Lang "lab.d.upload-first-p"}} <a href="{{$url}}">{{t .Lang "lab.d.go-dataset"}}</a>.</p>
 
       {{- else if and .ReadOnly (eq .Tab "blocks")}}
@@ -400,10 +482,12 @@
           <input id="dep-url" type="text" readonly value="{{.Link}}" title="{{t $.Lang "lab.dep.select-link"}}">
           <a class="btn btn-ghost btn-sm" href="{{.Path}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.open"}}</a>
         </div>
-        {{- if not .Awake}}
+        {{- if and (not .Awake) (not $.Dashboard.Page)}}
         <p><a class="btn btn-ghost" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.d.zip"}}</a></p>
         {{- end}}
-        {{- if .Awake}}
+        {{- if and .Awake $.Dashboard.Page}}
+        <p class="muted">{{t $.Lang "lab.page.share"}}</p>
+        {{- else if .Awake}}
         <p class="muted">{{t $.Lang "lab.dep.share"}} <a href="{{$url}}">{{t $.Lang "lab.dep.share-upload"}}</a>.</p>
         {{- end}}{{end}}
         {{- else if not .Access.Open}}
@@ -436,7 +520,9 @@
         <ul class="dep-facts">
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-link"}}</strong> {{t .Lang "lab.dep.fact-link-body"}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{if .Access.Admin}}<strong>{{t .Lang "lab.dep.fact-days-admin"}}</strong> {{t .Lang "lab.dep.fact-days-admin-body"}}{{else}}<strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body"}}{{end}}</span></li>
+          {{- if not .Dashboard.Page}}
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-current"}}</strong> {{t .Lang "lab.dep.fact-current-body"}}</span></li>
+          {{- end}}
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-once"}}</strong> {{t .Lang "lab.dep.fact-once-body"}}{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.fact-uses" .DeploymentsLeft}}{{end}}</span></li>
         </ul>
         <p><a class="btn btn-solid btn-lg" href="{{$url}}/deploy?confirm">{{t .Lang "lab.d.tab.deploy"}}</a></p>
@@ -445,4 +531,12 @@
       {{- end}}
     </div>
 {{end}}
+{{define "dataSentence"}}
+        <div class="data-sentence">
+          <h2 class="h-sm">{{t . "lab.data.sentence-title"}}</h2>
+          <p class="muted">{{t . "lab.data.sentence-body"}}</p>
+          <textarea id="data-sentence" readonly rows="4">{{t . "lab.data.sentence"}}</textarea>
+          <button class="btn btn-ghost btn-sm" type="button" data-copy="data-sentence">{{t . "lab.data.copy"}}</button>
+        </div>
+{{- end}}
 {{define "hoodRow"}}<div class="hood-row"><pre><code>{{.Code}}</code></pre><div class="hood-note"><span class="step-n">{{.N}}</span><div><strong>{{.Title}}</strong><p>{{.Note}}</p></div></div></div>{{end}}

@@ -127,7 +127,7 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	if !ok {
 		return
 	}
-	if d.Dataset == nil {
+	if d.Dataset == nil && d.Page == nil {
 		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 		return
 	}
@@ -208,10 +208,15 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 // The sandbox gives the page an opaque origin, where some browsers match nothing to 'self', so Cave's address
 // is named too, by its origin alone, as a source with a path would match only that exact path.
 func (a *App) deploymentCSP() string {
-	u, _ := url.Parse(a.publicBaseURL) // config.Load has checked it
-	origin := u.Scheme + "://" + u.Host
+	origin := a.origin()
 	return "sandbox allow-scripts; default-src 'none'; script-src 'self' " + origin + " 'unsafe-inline'; " +
 		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' " + origin + "; frame-ancestors 'none'"
+}
+
+// origin is Cave's address by its origin alone: scheme and host.
+func (a *App) origin() string {
+	u, _ := url.Parse(a.publicBaseURL) // config.Load has checked it
+	return u.Scheme + "://" + u.Host
 }
 
 // deploymentFile serves a Deployment's files at /<prefix>/<name>/ to anyone while it is awake. The page is
@@ -225,6 +230,18 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			WHERE dep.name = $1 AND `+deploymentAwakeSQL+`)`, depName)
 		if err != nil {
 			a.serverError(w, r, err)
+			return
+		}
+		if d != nil && d.Page != nil && name == "index.html" {
+			a.servePage(w, r, d.Page)
+			return
+		}
+		if d != nil && name == "data.json" {
+			if d.Page == nil { // an engine Dashboard's data is at data/<key>
+				a.notFound(w, r)
+				return
+			}
+			a.servePageData(w, r, d)
 			return
 		}
 		if d != nil {
@@ -289,7 +306,8 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	if msgKey != "" {
 		msg = text.T(lang, msgKey)
 	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), COALESCE(d.template, ''), l.name, l.email,
+	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''),
+		CASE WHEN EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id) THEN '' ELSE COALESCE(d.template, '') END, l.name, l.email,
 		`+deploymentColumns+`
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id

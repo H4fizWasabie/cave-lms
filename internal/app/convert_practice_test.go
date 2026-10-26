@@ -105,16 +105,14 @@ func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAnd
 	if gotTheme != "midnight" || !slices.Equal(gotBlocks, blocks) {
 		t.Fatalf("after: the Deployment draws theme %q, blocks\n%q\nwant midnight,\n%q", gotTheme, gotBlocks, blocks)
 	}
-	if got := visitor.dataOf(link); got != dataAt {
-		t.Fatalf("after: the Deployment fetches %s, want %s", got, dataAt)
-	}
-	res, got := visitor.get(link + dataAt)
+	// Converted on to a page (#375), the Deployment reads the same rows at data.json.
+	res, got := visitor.get(link + "data.json")
 	expectStatus(t, res, got, http.StatusOK, "")
 	if got != data {
 		t.Fatalf("after: the Deployment's data is\n%.300s\nwant\n%.300s", got, data)
 	}
-	if n := ada.storedFiles(); n != files {
-		t.Fatalf("%d stored files after converting, want %d", n, files)
+	if n := ada.storedFiles(); n != files+2 {
+		t.Fatalf("%d stored files after converting, want %d: the same Datasets and two pages", n, files+2)
 	}
 	// The blocks are the Dashboard's own now, and its Dataset is current: nothing to re-upload.
 	if _, got := ada.drawn(general + "/view/"); len(generalBlocks) == 0 || !slices.Equal(got, generalBlocks) {
@@ -124,7 +122,7 @@ func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAnd
 	for _, want := range []string{"Edit blocks", blocks[0][strings.Index(blocks[0], ": ")+2:]} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
-	res, body = ada.get(path)
+	res, body = ada.get(path + "/data") // a page Dashboard now (#375), its Dataset on the data screen
 	expectStatus(t, res, body, http.StatusOK, "finance-sample.xlsx")
 	if theme, _ := ada.drawn(path + "/view/"); theme != "midnight" {
 		t.Fatalf("after: the Dashboard draws theme %q, want midnight", theme)

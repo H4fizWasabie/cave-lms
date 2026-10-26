@@ -675,10 +675,10 @@ var catalog = map[string]entry{
 		ms: "CAVELMS menghadapi masalah dan tidak dapat memaparkan halaman ini. Cuba lagi dalam beberapa minit.",
 	},
 	// The Lab's own screens; its Templates, Samples and Dashboards stay English (internal/lab).
-	"lab.sub":          {en: "Build Dashboards from your own Excel data or a Sample, and put them online.", ms: "Bina Dashboard daripada data Excel anda sendiri atau Sampel, dan letakkannya dalam talian."},
+	"lab.sub":          {en: "Put the Dashboards you made online, and keep their data up to date.", ms: "Letakkan Dashboard yang anda buat dalam talian, dan pastikan datanya terkini."},
 	"lab.storage":      {en: "Storage", ms: "Storan"},
 	"lab.storage-of":   {en: "%s of %s", ms: "%s daripada %s"},
-	"lab.storage-what": {en: "Your Datasets, by uploaded file size", ms: "Set data anda, mengikut saiz fail yang dimuat naik"},
+	"lab.storage-what": {en: "Your Datasets and pages", ms: "Set data dan halaman anda"},
 	"lab.new":          {en: "New Dashboard", ms: "Dashboard baharu"},
 	"lab.plan":         {en: "Plan", ms: "Pelan"},
 	"lab.ends":         {en: "Ends %s", ms: "Tamat %s"},
@@ -766,7 +766,7 @@ var catalog = map[string]entry{
 	"lab.delete":                       {en: "Delete", ms: "Padam"},
 	"lab.cancel":                       {en: "Cancel", ms: "Batal"},
 	"lab.none":                         {en: "No Dashboards yet.", ms: "Belum ada Dashboard."},
-	"lab.none-start":                   {en: "Start one from a Template", ms: "Mulakan satu daripada Templat"},
+	"lab.none-start":                   {en: "Create one from your page", ms: "Cipta satu daripada halaman anda"},
 	"lab.templates":                    {en: "Templates, shown with their Samples", ms: "Templat, dipaparkan dengan Sampelnya"},
 	"lab.template-preview":             {en: "%s Template preview", ms: "Pratonton Templat %s"},
 	"lab.full-preview":                 {en: "Open the full preview", ms: "Buka pratonton penuh"},
@@ -777,11 +777,40 @@ var catalog = map[string]entry{
 	"lab.type.text":                    {en: "text", ms: "teks"},
 
 	"lab.new.sub": {
-		en: "Name your Dashboard, then upload your Excel file or try a Sample. Cave cleans it, builds the blocks from your data and shows you a preview before your Dashboard uses it.",
-		ms: "Namakan Dashboard anda, kemudian muat naik fail Excel anda atau cuba Sampel. Cave membersihkannya, membina blok daripada data anda dan menunjukkan pratonton sebelum Dashboard anda menggunakannya.",
+		en: "Name your Dashboard, then paste the HTML your AI chatbot wrote, or pick the .html file you saved.",
+		ms: "Namakan Dashboard anda, kemudian tampal HTML yang ditulis oleh chatbot AI anda, atau pilih fail .html yang anda simpan.",
 	},
 	"lab.new.name":   {en: "Dashboard name", ms: "Nama Dashboard"},
 	"lab.new.create": {en: "Create Dashboard", ms: "Cipta Dashboard"},
+	"lab.new.paste":  {en: "Paste the HTML", ms: "Tampal HTML"},
+	"lab.new.file":   {en: "Or pick a .html file", ms: "Atau pilih fail .html"},
+	"lab.new.page-hint": {
+		en: "One page of at most 5 MB. It counts against your Storage allowance.",
+		ms: "Satu halaman, paling besar 5 MB. Ia dikira dalam had storan anda.",
+	},
+	"lab.page.tab":          {en: "Page", ms: "Halaman"},
+	"lab.page.current":      {en: "Your page", ms: "Halaman anda"},
+	"lab.page.uploaded":     {en: "Uploaded %s", ms: "Dimuat naik %s"},
+	"lab.page.share":        {en: "Select the link to copy it, then share it on WhatsApp or email.", ms: "Pilih pautan untuk menyalinnya, kemudian kongsikan di WhatsApp atau e-mel."},
+	"lab.page.not-deployed": {en: "Not deployed", ms: "Belum di-deploy"},
+	"lab.page.new":          {en: "Upload a new page", ms: "Muat naik halaman baharu"},
+	"lab.page.new-body": {
+		en: "It goes live at the same link. Cave keeps your 3 earlier pages.",
+		ms: "Ia disiarkan pada pautan yang sama. Cave menyimpan 3 halaman terdahulu anda.",
+	},
+	"lab.page.upload":       {en: "Upload page", ms: "Muat naik halaman"},
+	"lab.page.add":          {en: "Add a page", ms: "Tambah halaman"},
+	"lab.page.earlier":      {en: "Earlier pages", ms: "Halaman terdahulu"},
+	"lab.page.earlier-body": {en: "Restore one to put it live again at once.", ms: "Pulihkan satu untuk menyiarkannya semula serta-merta."},
+	"lab.page.err.empty":    {en: "Paste your page's HTML or pick a .html file.", ms: "Tampal HTML halaman anda atau pilih fail .html."},
+	"lab.page.err.too-big": {
+		en: "The page is over 5 MB. The Lab takes pages up to 5 MB. Ask your chatbot for a smaller page and try again.",
+		ms: "Halaman ini melebihi 5 MB. Lab menerima halaman sehingga 5 MB. Minta chatbot anda halaman yang lebih kecil dan cuba lagi.",
+	},
+	"lab.page.err.not-html": {
+		en: "%s is not a .html file. Pick the page saved as .html, or paste its HTML.",
+		ms: "%s bukan fail .html. Pilih halaman yang disimpan sebagai .html, atau tampal HTMLnya.",
+	},
 	"lab.new.upload": {en: "Upload your file", ms: "Muat naik fail anda"},
 	"lab.new.upload-body": {
 		en: "Create the Dashboard, then upload your Excel file on its Dataset tab.",
@@ -817,8 +846,8 @@ var catalog = map[string]entry{
 		ms: "Buku kerja ini mempunyai terlalu banyak sel bergabung: Lab membaca sehingga %s julat bergabung. Nyahgabung sel yang tidak diperlukan (Home, Merge & Center), dan muat naik semula.",
 	},
 	"lab.err.storage-full": {
-		en: "This %s file would take you over your Storage allowance: your Datasets use %s of your %s. Delete a Dashboard you no longer need, or upload a smaller file.",
-		ms: "Fail %s ini akan melebihi had storan anda: Set data anda menggunakan %s daripada %s. Padam Dashboard yang tidak diperlukan lagi, atau muat naik fail yang lebih kecil.",
+		en: "This %s file would take you over your Storage allowance: your Datasets and pages use %s of your %s. Delete a Dashboard you no longer need, or upload a smaller file.",
+		ms: "Fail %s ini akan melebihi had storan anda: Set data dan halaman anda menggunakan %s daripada %s. Padam Dashboard yang tidak diperlukan lagi, atau muat naik fail yang lebih kecil.",
 	},
 	"lab.d.upload-failed": {en: "The upload failed. Try again in a few minutes.", ms: "Muat naik gagal. Cuba lagi dalam beberapa minit."},
 	"lab.err.choose-file": {en: "Choose an Excel file (.xlsx) to upload.", ms: "Pilih fail Excel (.xlsx) untuk dimuat naik."},
@@ -1082,6 +1111,76 @@ var catalog = map[string]entry{
 	// Shown while the upload waits its turn and is read.
 	"lab.d.reading":       {en: "Reading your file. A large one can take a minute.", ms: "Sedang membaca fail anda. Fail yang besar boleh mengambil masa seminit."},
 	"lab.d.reading-lines": {en: "Opening the workbook|Finding the header row|Tidying the columns", ms: "Membuka buku kerja|Mencari baris tajuk lajur|Mengemas lajur"},
+
+	// A page Dashboard's data screen (ADR 0018)
+	"lab.data.tab":    {en: "Data", ms: "Data"},
+	"lab.data.upload": {en: "Upload your data", ms: "Muat naik data anda"},
+	"lab.data.upload-body": {
+		en: "Your Excel file. Cave cleans it and shows you a preview; once you confirm, your page's link serves it at data.json.",
+		ms: "Fail Excel anda. Cave membersihkannya dan menunjukkan pratonton; sebaik anda mengesahkan, pautan halaman anda menyajikannya di data.json.",
+	},
+	"lab.data.columns": {en: "Columns: %s", ms: "Lajur: %s"},
+	"lab.data.all-rows": {
+		en: "Upload all your rows, not only the new ones: once your page reads this data, it shows only what you upload here.",
+		ms: "Muat naik semua baris anda, bukan yang baharu sahaja: sebaik halaman anda membaca data ini, ia hanya menunjukkan apa yang anda muat naik di sini.",
+	},
+	"lab.data.sentence-title": {en: "Sentence for your chatbot", ms: "Ayat untuk chatbot anda"},
+	"lab.data.sentence-body": {
+		en: "Add this to your prompt, so your page shows the data you upload here.",
+		ms: "Tambah ayat ini pada prompt anda, supaya halaman anda menunjukkan data yang anda muat naik di sini.",
+	},
+	"lab.data.sentence": {
+		en: "Load the rows from ./data.json when it exists, using the Excel header names as the field names; otherwise use the data in the page.",
+		ms: "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel sebagai nama medan; jika tidak, gunakan data dalam halaman.",
+	},
+	"lab.data.copy": {en: "Copy", ms: "Salin"},
+	"lab.data.reads-only": {
+		en: "Your page changes only if it reads data.json. A page with its data written into it stays as it is; to change it, upload a new page.",
+		ms: "Halaman anda hanya berubah jika ia membaca data.json. Halaman yang datanya ditulis di dalamnya kekal seperti asal; untuk mengubahnya, muat naik halaman baharu.",
+	},
+	"lab.data.mode":         {en: "This upload", ms: "Muat naik ini"},
+	"lab.data.replace":      {en: "Replace data", ms: "Gantikan data"},
+	"lab.data.replace-help": {en: "Your page shows only this file's rows.", ms: "Halaman anda hanya menunjukkan baris fail ini."},
+	"lab.data.add":          {en: "Add to data", ms: "Tambah pada data"},
+	"lab.data.add-help": {
+		en: "This file's rows join the rows you have. It needs the same columns, in any order.",
+		ms: "Baris fail ini disertakan bersama baris yang anda ada. Ia perlu mempunyai lajur yang sama, dalam apa jua susunan.",
+	},
+	"lab.data.adds.one": {
+		en: "Adding %d row to your %d: %d rows in all. The new row is below, as Cave will keep it.",
+		ms: "Menambah %d baris pada %d baris anda: %d baris semuanya. Baris baharu di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.data.adds.other": {
+		en: "Adding %d rows to your %d: %d rows in all. The first new rows are below, as Cave will keep them.",
+		ms: "Menambah %d baris pada %d baris anda: %d baris semuanya. Baris baharu pertama di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.data.same.one": {
+		en: "%d new row exactly matches a row already in your data. Check you are not adding the same rows twice.",
+		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
+	},
+	"lab.data.same.other": {
+		en: "%d new rows exactly match rows already in your data. Check you are not adding the same rows twice.",
+		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
+	},
+	"lab.data.columns-changed": {
+		en: "Your page may stop working: these columns differ from your current data's.",
+		ms: "Halaman anda mungkin berhenti berfungsi: lajur ini berbeza daripada lajur data semasa anda.",
+	},
+	"lab.data.gone": {en: "Gone or renamed: %s.", ms: "Hilang atau ditukar nama: %s."},
+	"lab.data.new":  {en: "New: %s.", ms: "Baharu: %s."},
+	"lab.err.add-columns": {
+		en: "To add to your data, the file needs the same columns, in any order. Missing: %s. Not in your data: %s. Fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai lajur yang sama, dalam apa jua susunan. Hilang: %s. Tiada dalam data anda: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+	},
+	"lab.err.add-too-many-rows": {
+		en: "Adding these %s rows to your %s makes %s. A Dataset holds up to %s rows. Upload fewer rows, or choose Replace data.",
+		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Set data memuatkan sehingga %s baris. Muat naik lebih sedikit baris, atau pilih Gantikan data.",
+	},
+	"lab.err.add-stale": {
+		en: "Your data changed after you uploaded %s, so adding it now would undo that change. Nothing was added: upload the file again to add it to your data as it is now.",
+		ms: "Data anda berubah selepas anda memuat naik %s, jadi menambahnya sekarang akan membatalkan perubahan itu. Tiada apa yang ditambah: muat naik fail itu sekali lagi untuk menambahnya pada data anda sekarang.",
+	},
+	"lab.add.none": {en: "none", ms: "tiada"},
 
 	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {

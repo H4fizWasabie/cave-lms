@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"path"
 	"regexp"
@@ -371,6 +372,98 @@ func sameColumns(a, b []Column) bool {
 		return out
 	}
 	return slices.Equal(keys(a), keys(b))
+}
+
+// columnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
+// Ignoring case and spaces is safe for Add, which keeps was's names, so a page reading data.json finds the same keys;
+// the Replace warning in the app matches names exactly instead, as a Replace serves now's names as they are.
+func columnChanges(was, now []Column) (gone, added []string) {
+	in := func(cols []Column, c Column) bool {
+		return slices.ContainsFunc(cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
+	}
+	for _, c := range was {
+		if !in(now, c) {
+			gone = append(gone, c.Name)
+		}
+	}
+	for _, c := range now {
+		if !in(was, c) {
+			added = append(added, c.Name)
+		}
+	}
+	return gone, added
+}
+
+// Add is d's rows followed by more's, put in d's columns, how many of more's rows exactly match one of d's, and
+// the changes it made to more's cells. more needs d's columns by name, in any order, and the two at most MaxCleanRows
+// rows; else a Problem names the columns missing and extra, or the row counts. d's column types stay: a cell of more
+// read as another type is read again as its column's, as typed reads one, and one that does not fit is left empty
+// and listed as a change, once per column.
+func Add(d, more *Dataset) (*Dataset, int, []Change, error) {
+	if gone, added := columnChanges(d.Columns, more.Columns); gone != nil || added != nil {
+		return nil, 0, nil, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
+	}
+	if n := len(d.Rows) + len(more.Rows); n > MaxCleanRows {
+		return nil, 0, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(len(d.Rows)), thousands(n), thousands(MaxCleanRows)}}
+	}
+	at := make([]int, len(d.Columns)) // each column's index in more
+	for i, c := range d.Columns {
+		at[i] = slices.IndexFunc(more.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
+	}
+	key := func(row []any) string { return fmt.Sprintf("%#v", row) } // typed, so 1 and "1" differ
+	had := map[string]bool{}
+	for _, row := range d.Rows {
+		had[key(row)] = true
+	}
+	out := &Dataset{Columns: d.Columns, Rows: slices.Clone(d.Rows)}
+	same, misfits := 0, make([]int, len(d.Columns))
+	for _, vals := range more.Rows {
+		row := make([]any, len(at))
+		for i, j := range at {
+			row[i] = vals[j]
+			if typ := d.Columns[i].Type; row[i] != nil && more.Columns[j].Type != typ {
+				var ok bool
+				if row[i], ok = retyped(row[i], typ); !ok {
+					misfits[i]++
+				}
+			}
+		}
+		if had[key(row)] {
+			same++
+		}
+		out.Rows = append(out.Rows, row)
+	}
+	var changes []Change
+	for i, n := range misfits {
+		if n > 0 {
+			changes = append(changes, Change{Key: "lab.clean.not-" + string(d.Columns[i].Type) + "s", Args: []int{n}, Column: d.Columns[i].Name})
+		}
+	}
+	return out, same, changes, nil
+}
+
+// retyped is v, a Dataset value of another type, read as typ as typed reads a cell; nil and false when it does not
+// fit.
+func retyped(v any, typ Type) (any, bool) {
+	s, ok := v.(string)
+	if !ok {
+		s = strconv.FormatFloat(v.(float64), 'f', -1, 64)
+	}
+	if s == "-" && typ == Number {
+		return 0.0, true
+	}
+	if day, ok := otherDate(s); ok && typ == Date {
+		return day, true
+	}
+	return parse(cell{v: s}, typ)
+}
+
+// columnList is names as a Problem lists them, or the word for none.
+func columnList(names []string) any {
+	if len(names) == 0 {
+		return Problem{"lab.add.none", nil}
+	}
+	return strings.Join(names, ", ")
 }
 
 // sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.
