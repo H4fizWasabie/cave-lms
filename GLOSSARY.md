@@ -64,7 +64,7 @@ _Malay_: Tahap PCC
 _Avoid_: Grade, tier, rank
 
 **Certificate No.**:
-A Certificate's running number, shown as `PCC-` + year + `-` + five digits, such as `PCC-2026-00509`. It runs in issue order, restarts at 00001 each year and is never reused.
+A Certificate's running number, shown as `PCC-LMS-` + the year's last two digits + four digits, such as `PCC-LMS-260001`; a year past 9999 Certificates gets a fifth digit. It runs in issue order, restarts at 0001 each year and is never reused. `LMS` sets it apart from the certificates the client issues outside CAVELMS (`PCC-2026-00509`). Certificates from before this format show the new one; the check page still finds them by the old `PCC-2026-00001`.
 _Malay_: No. Sijil
 _Avoid_: Certificate ID (that is the unguessable ID in its link), serial
 

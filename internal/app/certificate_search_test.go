@@ -63,7 +63,7 @@ func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
 func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.T) {
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
-	number := regexp.MustCompile(`PCC-\d{4}-\d{5}`).FindString(body)
+	number := regexp.MustCompile(`PCC-LMS-\d{6}`).FindString(body)
 
 	for _, q := range []string{number, strings.ToLower(number)} {
 		res, body := search(ada, q)
@@ -75,6 +75,19 @@ func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.
 		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 		expectNone(t, body, certID)
 	}
+}
+
+// A printed Certificate from before PCC-LMS carries its number in the old form, which still finds it.
+func TestACertificateIsStillFoundByItsNumberAsCertificatesShowedItBeforePCCLMS(t *testing.T) {
+	_, ada, _, certID := passedLiveCourse(t)
+	_, body := ada.get("/certificates/" + certID)
+	expectAll(t, body, "PCC-LMS-260001") // Ada's is the first of 2026
+	for _, q := range []string{"PCC-2026-00001", "pcc 2026 00001"} {
+		res, body := search(ada, q)
+		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+	}
+	res, body := search(ada, "PCC-LMS-2600001") // the shown number with a zero too many
+	expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 }
 
 // The search matches the IC the Certificate was issued with, not the Learner's IC now.
@@ -105,7 +118,7 @@ func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
 	}
 	res, body := search(s, "951206085555")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
-	res, body = searchAsking(s, "PCC-2026-00001", "ms")
+	res, body = searchAsking(s, "PCC-LMS-260001", "ms")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak cubaan")
 
 	res, body = s.get("/certificates") // the plain check page and ID box are not searches

@@ -38,6 +38,10 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 	if m := certificateNumber.FindStringSubmatch(q); m != nil {
 		year, _ = strconv.Atoi(m[1])
 		number, _ = strconv.Atoi(m[2])
+		year += 2000 // the 2000s: the century the numbers are issued in
+	} else if m := oldCertificateNumber.FindStringSubmatch(q); m != nil {
+		year, _ = strconv.Atoi(m[1])
+		number, _ = strconv.Atoi(m[2])
 	}
 	list, err := a.queryCertificates(r.Context(), `SELECT `+certificateColumns+` FROM certificates
 		WHERE learner_ic = $1 OR (year = $2 AND number = $3) ORDER BY issued_at DESC, year DESC, number DESC`, q, year, number)
@@ -48,8 +52,12 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list, Query: q})
 }
 
-// certificateNumber is a Certificate No. after normaliseIC: PCC-2026-00509 becomes PCC202600509.
-var certificateNumber = regexp.MustCompile(`^PCC(\d{4})(\d{5,9})$`)
+// certificateNumber is a Certificate No. after normaliseIC: PCC-LMS-260001 becomes PCCLMS260001. oldCertificateNumber
+// is one as Certificates showed it before, PCC-2026-00001, which a printed Certificate may still carry.
+var (
+	certificateNumber    = regexp.MustCompile(`^PCCLMS(\d{2})(\d{4}|[1-9]\d{4,8})$`)
+	oldCertificateNumber = regexp.MustCompile(`^PCC(\d{4})(\d{5,9})$`)
+)
 
 // verifyCertificate is public. It shows the name, Course, PCC Level, issue date and status of a Certificate, and
 // nothing else.

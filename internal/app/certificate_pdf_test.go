@@ -74,7 +74,7 @@ func TestLiveCourseCertificatePDFPrintsItsDetailsAndPCCBadge(t *testing.T) {
 	admin.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
 
 	pdf := ada.pdfBody("/certificates/" + certID + "/pdf")
-	expectAll(t, pdf, "PCC-2026-00001", "Ada", "951206-08-5555", "Go for Acme",
+	expectAll(t, pdf, "PCC-LMS-260001", "Ada", "951206-08-5555", "Go for Acme",
 		"Issued on: 15 July 2026", "https://cave.example.invalid/certificates/"+certID,
 		imageSize(3, 5), imageSize(904, 1280)) // the background and the Professional badge
 }
