@@ -120,7 +120,7 @@ type page struct {
 	Certificate   *certificate // the one a verification page shows
 	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
 	PassedNoIC    bool         // NeedsIC, and the Learner already passed the Course's Exam: only the Certificate waits
-	Query         string       // the Admin's Certificate search
+	Query         string       // what the Admin's Certificate search or the Course list's search was asked for
 	Settings      *certificateSettings
 	Next          string         // where the login page goes after logging in
 	DuplicateOf   int64          // the Course the Course form duplicates into a Live Course, 0 when none
