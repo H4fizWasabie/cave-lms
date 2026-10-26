@@ -102,7 +102,7 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.switchLanguage("ms", "/")
-	res, body := s.get("/lab/new")
+	res, body := s.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {"<p>hi</p>"}})
 	expectStatus(t, res, body, http.StatusForbidden, "Lab dikunci")
 }
 

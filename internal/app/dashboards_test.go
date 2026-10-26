@@ -100,7 +100,7 @@ func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
 		t.Fatalf("New Dashboard offered without access: %s", body)
 	}
 	res, body = ada.get("/lab/new")
-	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
+	expectRedirect(t, res, body, "/pricing")
 	res, body = ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Mine"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 

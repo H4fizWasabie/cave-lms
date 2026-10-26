@@ -214,7 +214,11 @@ func TestWithoutAPlanTheLabAndTheDemoGoToPricingButTheAdminKeepsTheLab(t *testin
 			expectRedirect(t, res, body, "/pricing")
 		}
 	}
-	res, body := admin.get("/lab")
+	res, body := ada.get("/lab/new")
+	expectRedirect(t, res, body, "/pricing")
+	res, body = ada.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {myPage}})
+	expectStatus(t, res, body, http.StatusForbidden, "")
+	res, body = admin.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "My Dashboards")
 	admin.deployAs(admin.createPage("Admin", myPage), "admin-jualan")
 }

@@ -22,7 +22,7 @@ func TestVisitorCannotBuild(t *testing.T) {
 func TestLearnerWithoutAccessCannotBuild(t *testing.T) {
 	_, ada, _, _ := labSetup(t)
 	res, body := ada.get("/lab/new")
-	expectStatus(t, res, body, http.StatusForbidden, "The Lab is locked")
+	expectRedirect(t, res, body, "/pricing")
 	res, body = ada.post("/lab/dashboards", url.Values{"name": {"Staf"}, "html": {myPage}})
 	expectStatus(t, res, body, http.StatusForbidden, "The Lab is locked")
 }

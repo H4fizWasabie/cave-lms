@@ -273,8 +273,15 @@ func newDashboard(name string) *newDashboardPage {
 	return p
 }
 
+// newDashboardForm is GET /lab/new; without the Lab it goes to /pricing, as /lab does.
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
-	if _, ok := a.labOpen(w, r); !ok {
+	acc, err := a.learnerAccess(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if !acc.Open() {
+		http.Redirect(w, r, "/pricing", http.StatusSeeOther)
 		return
 	}
 	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
