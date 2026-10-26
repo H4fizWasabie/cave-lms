@@ -23,24 +23,28 @@ func (s *site) expectImage(body, alt string) {
 	}
 }
 
-func TestTheHeaderAndAdminBarShowTheCAVELMSLogoAndTheFooterAndFaviconTheCaveConsultLogoInBothLanguages(t *testing.T) {
+func TestTheHeaderFooterAndAdminBarShowTheCAVELMSLogoAndTheFaviconStaysTheCaveConsultsInBothLanguages(t *testing.T) {
 	s := newSite(t)
 	brand := map[string]string{"en": "CAVELMS, your digital learning hub", "ms": "CAVELMS, hab pembelajaran digital anda"}
-	for lang, tcc := range map[string]string{"en": "The Cave Consult logo", "ms": "Logo The Cave Consult"} {
+	for lang, alt := range brand {
 		_, body := s.getAsking("/", lang)
 		head, page, _ := strings.Cut(body, `<main id="main">`)
-		s.expectImage(head, brand[lang])
+		s.expectImage(head, alt)
 		expectAll(t, head, `<a class="brand" href="/"><img src="/static/cavelms-logo.webp`)
-		expectNone(t, head, "cave-consult-logo")
 		_, footer, _ := strings.Cut(page, `<footer`)
-		s.expectImage(footer, tcc)
-		expectNone(t, body, "cavelms.svg", "logo-light.svg")
+		s.expectImage(footer, alt)
+		expectAll(t, footer, `<img src="/static/cavelms-logo-light.webp`)
+		// The Cave Consult logo is left only in the trust strip's TCC cell.
+		_, trust, _ := strings.Cut(page, `class="trust"`)
+		trust, rest, _ := strings.Cut(trust, `</section>`)
+		expectAll(t, trust, "cave-consult-logo.webp")
+		expectNone(t, head+rest, "cave-consult-logo", "cavelms.svg", "logo-light.svg")
 		m := regexp.MustCompile(`<link rel="icon" href="(/static/[^"]+)">`).FindStringSubmatch(body)
 		if m == nil {
 			t.Fatalf("page has no favicon")
 		}
-		if res, _ := s.get(m[1]); res.StatusCode != http.StatusOK {
-			t.Errorf("GET %s = %d, want the favicon", m[1], res.StatusCode)
+		if res, _ := s.get(m[1]); res.StatusCode != http.StatusOK || !strings.HasPrefix(m[1], "/static/favicon.png") {
+			t.Errorf("GET %s = %d, want The Cave Consult favicon", m[1], res.StatusCode)
 		}
 	}
 

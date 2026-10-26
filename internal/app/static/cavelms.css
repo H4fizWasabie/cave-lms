@@ -3,7 +3,7 @@
 
 /* ============================ BRAND =====================
    Swap the client's brand here: two colours, two fonts, and the logo files (static/cavelms-logo.webp
-   in the header, static/cavelms-logo-light.webp in the Admin sidebar; static/cave-consult-logo-light.webp in the footer). Everything else derives from these. */
+   in the header, static/cavelms-logo-light.webp on dark backgrounds). Everything else derives from these. */
 :root {
   --brand-ink: #1f2124;        /* charcoal: text, primary buttons, dark bands */
   --brand-gold: #d2a649;       /* gold from the logo's arch: fills and accents, never text on light */
@@ -208,7 +208,7 @@ html { accent-color: var(--brand-ink); caret-color: var(--brand-ink); scrollbar-
 .site-footer ::selection { background: var(--brand-gold); color: var(--brand-ink); }
 .site-footer :focus-visible { outline-color: var(--brand-gold); }
 .footer-in { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.3fr; gap: var(--space-7); margin-bottom: var(--space-7); }
-.footer-logo { height: 3rem; width: auto; margin-bottom: var(--space-3); }
+.footer-logo { width: min(100%, 17rem); height: auto; margin-bottom: var(--space-3); }
 .footer-brand { display: grid; gap: var(--space-2); align-content: start; }
 .footer-brand p { max-width: 24rem; }
 .footer-col { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -1207,11 +1207,11 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .trust-in { list-style: none; margin-block: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .trust-in li { padding: var(--space-5) var(--space-5) var(--space-5) 0; font-size: var(--fs-ui); color: var(--muted); }
 .trust-in li + li { padding-left: var(--space-5); border-left: 1px solid var(--line); }
+/* Each registration's logo sits before its name, all at one height; in a narrow cell the name drops below it whole. */
 .trust-in strong { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); white-space: nowrap; margin-bottom: var(--space-1); font-family: var(--font-display); font-size: var(--fs-title); color: var(--brand-ink); }
+.trust-in strong img { height: 2rem; width: auto; }
 /* A number the client has not supplied: dashed and labelled, and never rendered in production. */
 .trust-in .trust-ph { color: var(--brand-gold-deep); background: color-mix(in srgb, var(--brand-gold) 8%, transparent); outline: 1px dashed var(--brand-gold-deep); outline-offset: calc(-1 * var(--space-1)); }
-/* Each registration's logo sits before its name, all at one height; in a narrow cell the name drops below it whole. */
-.trust-in strong img { height: 2rem; width: auto; }
 .trust-ph strong { color: var(--brand-gold-deep); }
 .trust-ph-tag { display: block; margin-bottom: var(--space-1); font-size: var(--fs-meta); font-weight: 600; }
 
