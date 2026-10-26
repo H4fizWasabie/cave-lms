@@ -250,7 +250,7 @@ Squared, confident, one weight (600, `--fs-ui`). `.btn` plus one variant:
 `.lab-tabs` / `.lab-tab` with `aria-current="page"`: a gold bar under the current tab. Shared by the Lab and the Course tabs (`course-tabs` template).
 
 ### Header
-The eight menus stay as the client specified (`.scratch/top-nav-spec.md`): Home, Courses, Lab (a link), Classroom, Pricing, Program, Certification, Community. Each is a `<details class="hdr-drop" name="hdr">` with a `summary.hdr-link`, so opening one closes the others; `header.js` closes the open one on Escape and returns focus to its button.
+The eight sections stay as the client specified (`.scratch/top-nav-spec.md`): Home, Courses, Lab, Classroom, Pricing, Program, Certification, Community. A section with one link is that link (`a.hdr-link`): Lab, Program, Community, and Certification for a Visitor. Each other is a `<details class="hdr-drop" name="hdr">` with a `summary.hdr-link`, so opening one closes the others; `header.js` closes the open one on Escape and returns focus to its button.
 - **Wide (1280px and up):** surface bar, logo 44px tall, menus in `--fs-ui` ink-2. A gold 2px rule grows under a link on hover and stays under an open menu's button. The menu (`.hdr-panel`) is a surface card with `--shadow-pop`; its links are full-width rows tinted on hover; a Courses menu's last link (All courses) sits under a rule.
 - **Phone and tablet (below 1280px):** BM | EN and a Menu button; the Menu is a sheet across the screen under the header, each site menu a full-width row with a caret (`.hdr-caret`) that turns when its group opens, then the account links.
 - The account (`.hdr-account`) is Log in + Register (`.btn-solid.btn-sm`) for a Visitor, or the Learner's name opening their menu.

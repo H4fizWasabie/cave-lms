@@ -31,7 +31,6 @@ var catalog = map[string]entry{
 	"nav.classroom":       {en: "Classroom", ms: "Kelas"},
 	"nav.pricing":         {en: "Pricing", ms: "Harga"},
 	"nav.program":         {en: "Program", ms: "Program"},
-	"nav.programmes":      {en: "Upcoming Programmes", ms: "Program akan datang"},
 	"nav.certification":   {en: "Certification", ms: "Pensijilan"},
 	"nav.community":       {en: "Community", ms: "Komuniti"},
 
