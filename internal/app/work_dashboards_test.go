@@ -496,13 +496,8 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	}
 }
 
-func TestTheSalesAndRosterTemplatesOpenAsTheirSamplesShow(t *testing.T) {
+func TestTheSalesTemplateOpensAsItsSampleShows(t *testing.T) {
 	_, ada := labLearner(t)
-	_, demo := ada.get("/lab/demo/roster/")
-	if !strings.Contains(demo, `"by": "day"`) {
-		t.Fatalf("the Roster demo is not drawn by day:\n%s", demo)
-	}
-
 	path := ada.createWork("sales", "Kafe")
 	_, sample := ada.get("/lab/samples/sales.xlsx")
 	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))

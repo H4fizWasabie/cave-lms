@@ -158,14 +158,14 @@ func TestLabPlanPaymentsUnderThePriceNamingNoLearnerOrWithNoLabPlanMarkedWaitAsU
 	}
 }
 
-// expectOnlyTheLabDemo checks the Learner has no Plan period and sees only the Lab's demo.
-func expectOnlyTheLabDemo(t *testing.T, s, l *site, email string) {
+// expectNoLab checks the Learner has no Plan period and is sent from the Lab to /pricing.
+func expectNoLab(t *testing.T, s, l *site, email string) {
 	t.Helper()
 	if periods := s.periodsOf(email); len(periods) != 0 {
 		t.Fatalf("periods = %+v, want none", periods)
 	}
 	res, body := l.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
+	expectRedirect(t, res, body, "/pricing")
 }
 
 func TestACaveTextProPaymentGivesAYearOfCaveTextProAndNoPlanPeriod(t *testing.T) {
@@ -173,12 +173,12 @@ func TestACaveTextProPaymentGivesAYearOfCaveTextProAndNoPlanPeriod(t *testing.T)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paid("LINK-1", "ada@example.com"))
 	until := expectProForAYear(t, ada, token)
-	expectOnlyTheLabDemo(t, s, ada, "ada@example.com")
+	expectNoLab(t, s, ada, "ada@example.com")
 
 	// Paying while CaveText Pro runs queues the next year after it.
 	s.bclPay(paid("LINK-2", "ada@example.com"))
 	near(t, "Pro until after a second order", *ada.me(token).ProUntil, until.AddDate(1, 0, 0))
-	expectOnlyTheLabDemo(t, s, ada, "ada@example.com")
+	expectNoLab(t, s, ada, "ada@example.com")
 }
 
 func TestTheAdminsGiveProGivesCaveTextProOnly(t *testing.T) {
@@ -186,7 +186,7 @@ func TestTheAdminsGiveProGivesCaveTextProOnly(t *testing.T) {
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
 	expectProForAYear(t, ada, token)
-	expectOnlyTheLabDemo(t, s, ada, "ada@example.com")
+	expectNoLab(t, s, ada, "ada@example.com")
 }
 
 func TestEndingProEarlyLeavesAPlanPeriodRunning(t *testing.T) {
