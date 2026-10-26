@@ -25,7 +25,7 @@
               {{with .Lesson.ImageKey}}<img class="lesson-image-current" src="/lesson-images/{{.}}" alt="{{$.Lesson.ImageDescription}}">{{end}}
               <input id="picture" type="file" name="picture" accept="image/jpeg,image/png,image/webp">
               <small>{{t .Lang "adm.lessons.image-hint"}}</small>
-              {{if .Lesson.ImageKey}}<label class="check"><input type="checkbox" name="remove_image" value="on"> {{t .Lang "adm.lessons.image-remove"}}</label>{{end}}
+              {{if .Lesson.ImageKey}}<label class="check"><input type="checkbox" name="remove_image" value="on"{{if .Lesson.RemoveImage}} checked{{end}}> {{t .Lang "adm.lessons.image-remove"}}</label>{{end}}
             </div>
             <div class="field"><label for="image_description">{{t .Lang "adm.lessons.image-description"}}</label><input id="image_description" type="text" name="image_description" value="{{.Lesson.ImageDescription}}" maxlength="200"></div>
             {{if not .Lesson.ID}}

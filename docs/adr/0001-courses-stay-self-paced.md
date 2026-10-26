@@ -4,4 +4,4 @@ Courses stay self-paced: Learners join any time, open Lessons in any order, and 
 
 **Update, 24 Oct 2026:** the AI-drafting chain is dropped. The client chose topic-based question writing instead: the Admin types a topic, optional key points, a format and a Difficulty, and the AI writes Draft Exam questions for the Admin to proofread. The AI no longer writes Briefs, Course Outlines or Lesson text (specs #23, #25-#27 closed). The rest of this decision stands.
 
-**Update, 26 Oct 2026:** the AI writes Lesson text again, one Lesson at a time. The Admin gives a Lesson its title (the topic) and up to five Objectives, and the AI writes its text as a Draft for the Admin to edit and publish. Briefs and Course Outlines stay dropped: the Admin still adds each Lesson.
+**Update, 26 Oct 2026:** the AI writes Lesson text again, one Lesson at a time. The Admin gives a Lesson its title (the topic) and up to five Objectives, and the AI writes its text into the Lesson form for the Admin to edit before saving. A new Lesson saves as a Draft; a published Lesson stays published. Briefs and Course Outlines stay dropped: the Admin still adds each Lesson.

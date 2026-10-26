@@ -24,7 +24,7 @@ func TestGenerateWritesANewLessonsTextIntoTheFormAndSavesItOnlyAsADraft(t *testi
 	expectAll(t, body, `formaction="/admin/courses/`+id+`/lessons/generate"`, `<option value="en" selected>`)
 	expectAll(t, body, `name="draft" value="on" checked`) // a new Lesson saves as a Draft unless the Admin unticks it
 
-	form := url.Values{"title": {" Variables "}, "objective": {"Declare a variable.\n\nUse := inside functions."}, "body": {""}, "language": {"ms"}}
+	form := url.Values{"title": {" Variables "}, "objective": {"Declare a variable.\n\nUse := inside functions."}, "body": {""}, "language": {"ms"}, "draft": {"on"}}
 	res, body := s.post("/admin/courses/"+id+"/lessons/generate", form)
 	expectStatus(t, res, body, http.StatusOK, "AI lesson text")
 	expectAll(t, body, `value="Variables"`, "Declare a variable.\nUse := inside functions.", `<option value="ms" selected>`,
@@ -40,11 +40,30 @@ func TestGenerateWritesANewLessonsTextIntoTheFormAndSavesItOnlyAsADraft(t *testi
 	}
 
 	form.Set("body", testutil.FakeLessonText)
-	form.Set("draft", "on")
 	res, body = s.post("/admin/courses/"+id+"/lessons", form)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = s.get("/admin/courses/" + id + "/lessons")
 	expectAll(t, body, `Variables <span class="badge badge-draft">`)
+}
+
+func TestGenerateOnANewLessonKeepsKeepAsDraftAsTheAdminLeftIt(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	id := s.onlyCourseID()
+	form := url.Values{"title": {"Variables"}, "objective": {"Declare a variable."}, "body": {""}, "language": {"en"}}
+	res, body := s.post("/admin/courses/"+id+"/lessons/generate", form)
+	expectStatus(t, res, body, http.StatusOK, "AI lesson text")
+	expectAll(t, body, `name="draft" value="on">`)
+}
+
+func TestGenerateKeepsTheRemoveLessonImageTick(t *testing.T) {
+	admin, _, lessonID := imageLessonCourse(t, false)
+	form := url.Values{"title": {"Variables"}, "objective": {"Declare a variable."}, "body": {"Use `:=`."},
+		"image_description": {"A box labelled x"}, "remove_image": {"on"}, "language": {"en"}}
+	res, body := admin.post("/admin/lessons/"+lessonID+"/generate", form)
+	expectStatus(t, res, body, http.StatusOK, "AI lesson text")
+	expectAll(t, body, `name="remove_image" value="on" checked`)
 }
 
 func TestGenerateRewritesAPublishedLessonsTextWhichStaysPublishedOnSave(t *testing.T) {

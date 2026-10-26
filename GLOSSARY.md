@@ -129,9 +129,9 @@ _Malay_: Keterlihatan
 _Avoid_: Permission, access level
 
 **Lesson**:
-One step of a Course: a title naming its topic, up to five Objectives, and its content: text, a Gallery item, or text with either a Gallery item or a Lesson image above it. The AI can write the text from the title and Objectives as a Draft. A Course is its ordered Lessons.
+One step of a Course: a title naming its topic, up to five Objectives, and its content: text, a Gallery item, or text with either a Gallery item or a Lesson image above it. The AI can write the text from the title and Objectives, for the Admin to check before saving. A Course is its ordered Lessons.
 _Malay_: Pelajaran
-_Avoid_: Chapter, unit, module, lesson plan, topic
+_Avoid_: Chapter, unit, module, lesson plan
 
 **Lesson image**:
 A picture the Admin uploads to one Lesson, with a short description for Learners who cannot see it. It belongs to that Lesson alone, is never a Gallery item, and goes when the Lesson goes.
@@ -144,7 +144,7 @@ _Malay_: Objektif
 _Avoid_: Learning outcome, goal, aim
 
 **Draft**:
-Course content the Admin has not yet published, such as anything the AI writes. Learners never see a Draft.
+Course content the Admin has not yet published. A new Lesson saves as a Draft unless the Admin publishes it at once; Exam questions the AI writes are Drafts. AI-written Lesson text goes into the Lesson form for the Admin to check before saving. Learners never see a Draft.
 _Malay_: Draf
 _Avoid_: Unpublished, pending, suggestion
 

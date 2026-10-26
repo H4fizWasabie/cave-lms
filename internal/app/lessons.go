@@ -34,6 +34,7 @@ type lesson struct {
 	imageType        string
 	ImageDescription string
 	Published        bool
+	RemoveImage      bool          // the edit form's Remove the Lesson image tick, kept when Generate re-renders it
 	Completed        bool          // set on the Course page for the enrolled Learner
 	HTML             template.HTML // the Body rendered as sanitised Markdown, for the Lesson page
 }
@@ -48,6 +49,11 @@ func (l lesson) Objectives() []string {
 
 const lessonColumns = `l.id, l.course_id, l.position, l.title, l.objective, l.body, COALESCE(l.gallery_item_id, 0), COALESCE(g.title, ''), l.image_key, l.image_type, l.image_description, l.published`
 
+// scanLesson reads one row of lessonColumns into l.
+func scanLesson(row interface{ Scan(...any) error }, l *lesson) error {
+	return row.Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.ImageKey, &l.imageType, &l.ImageDescription, &l.Published)
+}
+
 // lessonsOf lists a Course's Lessons in order. Learners get only the published ones.
 func (a *App) lessonsOf(ctx context.Context, courseID int64, includeDrafts bool) ([]lesson, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT `+lessonColumns+` FROM lessons l
@@ -60,7 +66,7 @@ func (a *App) lessonsOf(ctx context.Context, courseID int64, includeDrafts bool)
 	var list []lesson
 	for rows.Next() {
 		var l lesson
-		if err := rows.Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.ImageKey, &l.imageType, &l.ImageDescription, &l.Published); err != nil {
+		if err := scanLesson(rows, &l); err != nil {
 			return nil, err
 		}
 		list = append(list, l)
@@ -167,7 +173,7 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 	l, msg := lessonFromForm(r, lang)
 	l.CourseID = c.ID
 	l.Published = r.PostFormValue("draft") != "on"
-	if m := lessonImageProblem(r, lang, &l); m != "" {
+	if m := applyLessonImage(r, lang, &l); m != "" {
 		msg = m
 	}
 	if msg == "" {
@@ -204,7 +210,7 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 // generateNewLesson has the AI write the text of the Lesson on the new Lesson form, saving nothing. The form comes
-// back with Keep as Draft ticked, so Learners never see AI-written text the Admin has not published.
+// back with Keep as Draft as the Admin left it; it starts ticked, so a new Lesson saves as a Draft unless unticked.
 func (a *App) generateNewLesson(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
@@ -250,7 +256,11 @@ func (a *App) generateLesson(w http.ResponseWriter, r *http.Request, c course, e
 	}
 	l, _ := lessonFromForm(r, lang)
 	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
+	if l.ID == 0 {
+		l.Published = r.PostFormValue("draft") != "on"
+	}
 	l.ImageKey, l.imageType = existing.ImageKey, existing.imageType
+	l.RemoveImage = r.PostFormValue("remove_image") != ""
 	data.Lesson = &l
 	if !text.Supported(data.AILanguage) {
 		data.AILanguage = lang
@@ -303,10 +313,10 @@ func readLessonForm(w http.ResponseWriter, r *http.Request) (status int, msgKey 
 	return status, msgKey
 }
 
-// lessonImageProblem applies the Lesson form's remove_image to l and checks the Lesson image it would then have: the
-// one sent, else the one l keeps. msg is the first problem, in lang, empty when there is none. Without an image the
-// description is dropped.
-func lessonImageProblem(r *http.Request, lang string, l *lesson) (msg string) {
+// applyLessonImage applies the Lesson form's remove_image to l, dropping l's description when l is left without an
+// image, and checks the Lesson image l would then have: the one sent, else the one l keeps. msg is the first problem,
+// in lang, empty when there is none.
+func applyLessonImage(r *http.Request, lang string, l *lesson) (msg string) {
 	if r.PostFormValue("remove_image") != "" {
 		l.ImageKey, l.imageType = "", ""
 	}
@@ -420,9 +430,8 @@ func (a *App) lessonByPath(w http.ResponseWriter, r *http.Request) (lesson, bool
 		return lesson{}, false
 	}
 	var l lesson
-	err = a.db.QueryRowContext(r.Context(), `SELECT `+lessonColumns+` FROM lessons l
-		LEFT JOIN gallery_items g ON g.id = l.gallery_item_id WHERE l.id = $1`, id).
-		Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.ImageKey, &l.imageType, &l.ImageDescription, &l.Published)
+	err = scanLesson(a.db.QueryRowContext(r.Context(), `SELECT `+lessonColumns+` FROM lessons l
+		LEFT JOIN gallery_items g ON g.id = l.gallery_item_id WHERE l.id = $1`, id), &l)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return lesson{}, false
@@ -607,7 +616,7 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	l, msg := lessonFromForm(r, lang)
 	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
 	l.ImageKey, l.imageType = existing.ImageKey, existing.imageType
-	if m := lessonImageProblem(r, lang, &l); m != "" {
+	if m := applyLessonImage(r, lang, &l); m != "" {
 		msg = m
 	}
 	if msg == "" {
