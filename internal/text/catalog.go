@@ -1969,7 +1969,6 @@ var catalog = map[string]entry{
 	"offers.pro-plan.storage":       {en: "0.5 GB of storage", ms: "Had storan 0.5 GB"},
 	"offers.promo-plan":             {en: "Promo Pro Plan", ms: "Pelan Pro Promo"},
 	"offers.promo-plan.tagline":     {en: "The Pro Plan at its promo price.", ms: "Pelan Pro pada harga promosi."},
-	"offers.promo-plan.storage":     {en: "1 GB of storage", ms: "Had storan 1 GB"},
 	"offers.pro-plan.both":          {en: "One payment a year for both", ms: "Satu bayaran setahun untuk kedua-duanya"},
 
 	"offers.fee": {

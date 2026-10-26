@@ -312,8 +312,8 @@ Visitors see the cards without buttons. */}}
           <h3>{{t $.Lang (print "prices." .Product)}}</h3>
           <p class="offer-tagline">{{t $.Lang (print "offers." .Product)}}</p>
           <p class="offer-price"><strong>{{t $.Lang "offers.price" .Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
-          {{- with .Promo}}
-          <p class="offer-promo">{{t $.Lang "offers.promo" .}}</p>
+          {{- if and .Promo (ne .Product "pro-plan")}}{{/* the Pro Plan's promo has its own card, below */}}
+          <p class="offer-promo">{{t $.Lang "offers.promo" .Promo}}</p>
           {{- end}}
           <ul class="offer-benefits">
             {{- range .Benefits}}
