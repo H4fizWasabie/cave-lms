@@ -56,7 +56,7 @@
               <div class="field"><label for="gen-count">{{t .Lang "bank.count"}}</label><input id="gen-count" type="number" name="count" min="1" max="50" value="10" required></div>
             </div>
             <div class="field"><label for="gen-key-points">{{t .Lang "gen.key-points"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><textarea id="gen-key-points" name="key_points" rows="3" maxlength="{{maxKeyPoints}}"></textarea><p class="hint">{{t .Lang "gen.key-points-hint"}}</p></div>
-            <div class="form-actions"><button class="btn btn-solid">{{t .Lang "gen.button"}}</button></div>
+            <div class="form-actions"><button class="btn btn-ghost">{{t .Lang "gen.button"}}</button></div>
             {{template "cave-loader" (loader (t .Lang "gen.busy") (t .Lang "gen.busy-lines"))}}
           </form>
         </div>

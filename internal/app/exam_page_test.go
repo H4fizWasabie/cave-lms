@@ -146,6 +146,18 @@ func TestGenerateHasItsOwnCardAboveAddFromTheBankWithABusyIndicator(t *testing.T
 	expectAll(t, body, `src="/static/forms.js`)
 }
 
+func TestTheAdminExamPageHasOnePrimaryButtonSaveExam(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Excel", "A Course.", "")
+	_, body := s.get("/admin/courses/" + s.onlyCourseID() + "/exam")
+	m := mainOf(body)
+	if n := strings.Count(m, "btn-solid"); n != 1 {
+		t.Fatalf("Exam page has %d btn-solid, want 1 (Save Exam); body:\n%s", n, m)
+	}
+	expectAll(t, m, `<button class="btn btn-solid">Save Exam</button>`)
+}
+
 func TestTheExamStartPageSaysWhenTheResultIsReleased(t *testing.T) {
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1")
