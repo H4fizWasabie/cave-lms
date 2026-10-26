@@ -375,6 +375,8 @@ func sameColumns(a, b []Column) bool {
 }
 
 // columnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
+// Ignoring case and spaces is safe for Add, which keeps was's names, so a page reading data.json finds the same keys;
+// the Replace warning in the app matches names exactly instead, as a Replace serves now's names as they are.
 func columnChanges(was, now []Column) (gone, added []string) {
 	in := func(cols []Column, c Column) bool {
 		return slices.ContainsFunc(cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })

@@ -563,7 +563,9 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 	}
 	if p.Pending != nil && p.Pending.Added == nil && d.Page != nil && d.Dataset != nil {
-		// By exact name, as data.json's keys are: a page reading Jumlah breaks on jumlah.
+		// By exact name, as data.json's keys are: a Replace serves the new names as they are, so a page reading Jumlah
+		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.columnChanges) as it keeps the
+		// current names, so data.json's keys stay.
 		lacking := func(cols, others []lab.Column) string {
 			var out []string
 			for _, c := range cols {
