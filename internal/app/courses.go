@@ -383,7 +383,7 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 // takePicture stores the Course form's new picture, if one was sent, as c's picture. msg is the problem, in lang,
 // when the file is not a picture.
 func (a *App) takePicture(r *http.Request, lang string, c *course) (msg string, err error) {
-	key, mimeType, bad, err := a.storePicture(r)
+	key, mimeType, bad, err := a.storePicture(r, "")
 	switch {
 	case err != nil:
 		return "", err

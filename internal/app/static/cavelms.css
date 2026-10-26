@@ -419,6 +419,7 @@ body[data-chrome="auth"] { padding-bottom: 0; background: var(--surface); }
 .auth-box .form + p, .auth-box p + p { margin-top: var(--space-4); }
 .g-media { margin: var(--space-5) 0 var(--space-6); }
 .g-media video, .g-media img { width: 100%; border-radius: var(--radius); background: var(--brand-ink); }
+.lesson-image-current { display: block; max-width: 16rem; height: auto; border-radius: var(--radius); margin-bottom: var(--space-2); }
 .result p + p { margin-top: var(--space-1); }
 
 .lesson-list { counter-reset: ls; }

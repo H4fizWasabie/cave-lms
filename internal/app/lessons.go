@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"html/template"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,20 +19,23 @@ import (
 	"github.com/yuin/goldmark/extension"
 )
 
-// lesson is one step of a Course: text (Body set), a Gallery item (GalleryItemID set), or both.
-// Draft Lessons (Published false) are shown to the Admin only.
+// lesson is one step of a Course: text (Body set), a Gallery item (GalleryItemID set), or both; or text with a
+// Lesson image (ImageKey set) instead of the Gallery item. Draft Lessons (Published false) are shown to the Admin only.
 type lesson struct {
-	ID            int64
-	CourseID      int64
-	Position      int
-	Title         string
-	Objective     string
-	Body          string
-	GalleryItemID int64
-	ItemTitle     string
-	Published     bool
-	Completed     bool          // set on the Course page for the enrolled Learner
-	HTML          template.HTML // the Body rendered as sanitised Markdown, for the Lesson page
+	ID               int64
+	CourseID         int64
+	Position         int
+	Title            string
+	Objective        string
+	Body             string
+	GalleryItemID    int64
+	ItemTitle        string
+	ImageKey         string // the Lesson image's storage key, "" when there is none
+	imageType        string
+	ImageDescription string
+	Published        bool
+	Completed        bool          // set on the Course page for the enrolled Learner
+	HTML             template.HTML // the Body rendered as sanitised Markdown, for the Lesson page
 }
 
 // Objectives lists the Lesson's Objectives, stored one per line.
@@ -42,7 +46,7 @@ func (l lesson) Objectives() []string {
 	return strings.Split(l.Objective, "\n")
 }
 
-const lessonColumns = `l.id, l.course_id, l.position, l.title, l.objective, l.body, COALESCE(l.gallery_item_id, 0), COALESCE(g.title, ''), l.published`
+const lessonColumns = `l.id, l.course_id, l.position, l.title, l.objective, l.body, COALESCE(l.gallery_item_id, 0), COALESCE(g.title, ''), l.image_key, l.image_type, l.image_description, l.published`
 
 // lessonsOf lists a Course's Lessons in order. Learners get only the published ones.
 func (a *App) lessonsOf(ctx context.Context, courseID int64, includeDrafts bool) ([]lesson, error) {
@@ -56,7 +60,7 @@ func (a *App) lessonsOf(ctx context.Context, courseID int64, includeDrafts bool)
 	var list []lesson
 	for rows.Next() {
 		var l lesson
-		if err := rows.Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.Published); err != nil {
+		if err := rows.Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.ImageKey, &l.imageType, &l.ImageDescription, &l.Published); err != nil {
 			return nil, err
 		}
 		list = append(list, l)
@@ -83,7 +87,7 @@ func (a *App) newLessonForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	a.renderLessonForm(w, r, http.StatusOK, page{Course: &c, Lesson: &lesson{CourseID: c.ID, Published: true}})
+	a.renderLessonForm(w, r, http.StatusOK, page{Course: &c, Lesson: &lesson{CourseID: c.ID}}) // Keep as Draft starts ticked
 }
 
 // renderLessonForm fills in the Gallery items the Lesson form can pick from.
@@ -106,6 +110,7 @@ func (a *App) renderLessonForm(w http.ResponseWriter, r *http.Request, status in
 func lessonFromForm(r *http.Request, lang string) (l lesson, msg string) {
 	l.Title = strings.TrimSpace(r.PostFormValue("title"))
 	l.Body = strings.TrimSpace(r.PostFormValue("body"))
+	l.ImageDescription = strings.TrimSpace(r.PostFormValue("image_description"))
 	objectives, ok := objectivesFromForm(r.PostFormValue("objective"))
 	l.Objective = strings.Join(objectives, "\n")
 	if v := strings.TrimSpace(r.PostFormValue("gallery_item_id")); v != "" {
@@ -152,17 +157,38 @@ func (a *App) createLesson(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	if status, key := readLessonForm(w, r); status != 0 {
+		a.renderLessonForm(w, r, status, page{Course: &c, Lesson: &lesson{CourseID: c.ID}, Error: text.T(lang, key)})
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
 	l, msg := lessonFromForm(r, lang)
 	l.CourseID = c.ID
 	l.Published = r.PostFormValue("draft") != "on"
+	if m := lessonImageProblem(r, lang, &l); m != "" {
+		msg = m
+	}
+	if msg == "" {
+		if msg, err = a.takeLessonImage(r, lang, &l); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
 	if msg != "" {
+		l.ImageKey = ""
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: msg})
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(), `
-		INSERT INTO lessons (course_id, position, title, objective, body, gallery_item_id, published)
-		VALUES ($1, (SELECT COALESCE(max(position), 0) + 1 FROM lessons WHERE course_id = $1), $2, $3, $4, $5, $6)`,
-		c.ID, l.Title, l.Objective, l.Body, nullID(l.GalleryItemID), l.Published)
+		INSERT INTO lessons (course_id, position, title, objective, body, gallery_item_id, image_key, image_type, image_description, published)
+		VALUES ($1, (SELECT COALESCE(max(position), 0) + 1 FROM lessons WHERE course_id = $1), $2, $3, $4, $5, $6, $7, $8, $9)`,
+		c.ID, l.Title, l.Objective, l.Body, nullID(l.GalleryItemID), l.ImageKey, l.imageType, l.ImageDescription, l.Published)
+	if err != nil {
+		a.dropPicture(r, l.ImageKey)
+		l.ImageKey = ""
+	}
 	if isForeignKeyError(err) {
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: text.T(lang, "adm.lessons.err.item")})
 		return
@@ -210,9 +236,22 @@ func (a *App) generateLesson(w http.ResponseWriter, r *http.Request, c course, e
 		a.serverError(w, r, err)
 		return
 	}
+	if status, key := readLessonForm(w, r); status != 0 {
+		a.renderLessonForm(w, r, status, page{Course: &c, Lesson: &existing, Error: text.T(lang, key)})
+		return
+	}
+	data := page{Course: &c, AILanguage: r.PostFormValue("language")}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+		// A chosen file cannot come back in the re-rendered form.
+		if len(r.MultipartForm.File["picture"]) > 0 {
+			data.Message = text.T(lang, "adm.lessons.image-again")
+		}
+	}
 	l, _ := lessonFromForm(r, lang)
 	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
-	data := page{Course: &c, Lesson: &l, AILanguage: r.PostFormValue("language")}
+	l.ImageKey, l.imageType = existing.ImageKey, existing.imageType
+	data.Lesson = &l
 	if !text.Supported(data.AILanguage) {
 		data.AILanguage = lang
 	}
@@ -250,6 +289,95 @@ func (a *App) generateLesson(w http.ResponseWriter, r *http.Request, c course, e
 	}
 	l.Body = strings.TrimSpace(body)
 	a.renderLessonForm(w, r, http.StatusOK, data)
+}
+
+// maxLessonImage caps a Lesson image, well below the picture form's limit.
+const maxLessonImage = 5 << 20
+
+// readLessonForm is readPictureForm for the Lesson form, whose too-large message names the Lesson image's limit.
+func readLessonForm(w http.ResponseWriter, r *http.Request) (status int, msgKey string) {
+	status, msgKey = readPictureForm(w, r)
+	if status == http.StatusRequestEntityTooLarge {
+		msgKey = "adm.lessons.err.image-size"
+	}
+	return status, msgKey
+}
+
+// lessonImageProblem applies the Lesson form's remove_image to l and checks the Lesson image it would then have: the
+// one sent, else the one l keeps. msg is the first problem, in lang, empty when there is none. Without an image the
+// description is dropped.
+func lessonImageProblem(r *http.Request, lang string, l *lesson) (msg string) {
+	if r.PostFormValue("remove_image") != "" {
+		l.ImageKey, l.imageType = "", ""
+	}
+	var sent []*multipart.FileHeader
+	if r.MultipartForm != nil {
+		sent = r.MultipartForm.File["picture"]
+	}
+	switch {
+	case len(sent) == 0 && l.ImageKey == "":
+		l.ImageDescription = ""
+		return ""
+	case len(sent) > 0 && sent[0].Size > maxLessonImage:
+		return text.T(lang, "adm.lessons.err.image-size")
+	case l.ImageDescription == "" || utf8.RuneCountInString(l.ImageDescription) > 200:
+		return text.T(lang, "adm.lessons.err.image-description")
+	case l.GalleryItemID != 0:
+		return text.T(lang, "adm.lessons.err.image-and-item")
+	case l.Body == "":
+		return text.T(lang, "adm.lessons.err.image-text")
+	}
+	return ""
+}
+
+// takeLessonImage stores the Lesson form's picture, if one was sent, as l's Lesson image. msg is the problem, in lang,
+// when the file is not a picture. The caller drops the image it replaces once the Lesson is saved.
+func (a *App) takeLessonImage(r *http.Request, lang string, l *lesson) (msg string, err error) {
+	key, mimeType, bad, err := a.storePicture(r, "lesson-")
+	switch {
+	case err != nil:
+		return "", err
+	case bad:
+		return text.T(lang, "picture.err.type"), nil
+	case key != "":
+		l.ImageKey, l.imageType = key, mimeType
+	}
+	return "", nil
+}
+
+// lessonImage serves a Lesson image by its storage key, by the Lesson page's rule: to the Admin, or to a Learner
+// enrolled in its Course when the Lesson is published. Gallery files are not served here.
+func (a *App) lessonImage(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	var courseID int64
+	var published bool
+	var contentType string
+	err = a.db.QueryRowContext(r.Context(), `SELECT course_id, published, image_type FROM lessons WHERE image_key = $1 AND image_key <> ''`,
+		r.PathValue("key")).Scan(&courseID, &published, &contentType)
+	if errors.Is(err, sql.ErrNoRows) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if !learner.IsAdmin {
+		enrolled, err := a.enrolled(r.Context(), learner.ID, courseID)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if !enrolled || !published {
+			a.notFound(w, r)
+			return
+		}
+	}
+	a.serveStored(w, r, r.PathValue("key"), contentType)
 }
 
 // nullID maps the zero ID to SQL NULL, which is how a text Lesson has no Gallery item.
@@ -294,7 +422,7 @@ func (a *App) lessonByPath(w http.ResponseWriter, r *http.Request) (lesson, bool
 	var l lesson
 	err = a.db.QueryRowContext(r.Context(), `SELECT `+lessonColumns+` FROM lessons l
 		LEFT JOIN gallery_items g ON g.id = l.gallery_item_id WHERE l.id = $1`, id).
-		Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.Published)
+		Scan(&l.ID, &l.CourseID, &l.Position, &l.Title, &l.Objective, &l.Body, &l.GalleryItemID, &l.ItemTitle, &l.ImageKey, &l.imageType, &l.ImageDescription, &l.Published)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return lesson{}, false
@@ -464,19 +592,42 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	l, msg := lessonFromForm(r, lang)
-	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
-	c, err := a.courseByID(r.Context(), l.CourseID)
+	c, err := a.courseByID(r.Context(), existing.CourseID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
+	if status, key := readLessonForm(w, r); status != 0 {
+		a.renderLessonForm(w, r, status, page{Course: &c, Lesson: &existing, Error: text.T(lang, key)})
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+	l, msg := lessonFromForm(r, lang)
+	l.ID, l.CourseID, l.Position, l.Published = existing.ID, existing.CourseID, existing.Position, existing.Published
+	l.ImageKey, l.imageType = existing.ImageKey, existing.imageType
+	if m := lessonImageProblem(r, lang, &l); m != "" {
+		msg = m
+	}
+	if msg == "" {
+		if msg, err = a.takeLessonImage(r, lang, &l); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
 	if msg != "" {
+		l.ImageKey, l.imageType = existing.ImageKey, existing.imageType
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: msg})
 		return
 	}
-	_, err = a.db.ExecContext(r.Context(), `UPDATE lessons SET title = $2, objective = $3, body = $4, gallery_item_id = $5 WHERE id = $1`,
-		l.ID, l.Title, l.Objective, l.Body, nullID(l.GalleryItemID))
+	_, err = a.db.ExecContext(r.Context(), `UPDATE lessons SET title = $2, objective = $3, body = $4, gallery_item_id = $5,
+		image_key = $6, image_type = $7, image_description = $8 WHERE id = $1`,
+		l.ID, l.Title, l.Objective, l.Body, nullID(l.GalleryItemID), l.ImageKey, l.imageType, l.ImageDescription)
+	if err != nil && l.ImageKey != existing.ImageKey {
+		a.dropPicture(r, l.ImageKey)
+		l.ImageKey, l.imageType = existing.ImageKey, existing.imageType
+	}
 	if isForeignKeyError(err) {
 		a.renderLessonForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Lesson: &l, Error: text.T(lang, "adm.lessons.err.item")})
 		return
@@ -487,6 +638,9 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if existing.ImageKey != l.ImageKey {
+		a.dropPicture(r, existing.ImageKey)
 	}
 	http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
 }
@@ -517,6 +671,7 @@ func (a *App) deleteLesson(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM lessons WHERE id = $1`, l.ID)
 	if err == nil {
+		a.dropPicture(r, l.ImageKey)
 		err = a.issueEarnedCertificates(r.Context(), 0, l.CourseID)
 	}
 	if err != nil {

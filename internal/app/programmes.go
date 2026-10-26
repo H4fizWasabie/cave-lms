@@ -167,7 +167,7 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 		return
 	}
 
-	newKey, mimeType, bad, err := a.storePicture(r)
+	newKey, mimeType, bad, err := a.storePicture(r, "")
 	if err != nil {
 		a.serverError(w, r, err)
 		return

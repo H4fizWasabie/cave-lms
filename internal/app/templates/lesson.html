@@ -11,6 +11,9 @@
           <ul aria-labelledby="objectives">{{range .}}<li>{{.}}</li>{{end}}</ul>
         </div>
         {{end}}
+        {{if .Lesson.ImageKey}}
+        <div class="g-media"><img src="/lesson-images/{{.Lesson.ImageKey}}" alt="{{.Lesson.ImageDescription}}"></div>
+        {{end}}
         {{with .Item}}
         <div class="g-media">
           {{if eq .Format "video"}}

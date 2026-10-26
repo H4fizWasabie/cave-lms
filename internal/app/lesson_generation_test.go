@@ -22,9 +22,7 @@ func TestGenerateWritesANewLessonsTextIntoTheFormAndSavesItOnlyAsADraft(t *testi
 
 	_, body := s.get("/admin/courses/" + id + "/lessons/new")
 	expectAll(t, body, `formaction="/admin/courses/`+id+`/lessons/generate"`, `<option value="en" selected>`)
-	if strings.Contains(body, `value="on" checked`) {
-		t.Fatalf("a new Lesson form starts with Keep as Draft ticked: %s", body)
-	}
+	expectAll(t, body, `name="draft" value="on" checked`) // a new Lesson saves as a Draft unless the Admin unticks it
 
 	form := url.Values{"title": {" Variables "}, "objective": {"Declare a variable.\n\nUse := inside functions."}, "body": {""}, "language": {"ms"}}
 	res, body := s.post("/admin/courses/"+id+"/lessons/generate", form)

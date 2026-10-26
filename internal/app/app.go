@@ -332,6 +332,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/courses/{id}/duplicate", a.admin(a.duplicateCourseForm))
 	mux.HandleFunc("POST /admin/courses/{id}/duplicate", a.admin(a.duplicateCourse))
 	mux.HandleFunc("GET /courses/{id}/lessons/{lessonID}", a.requireLearner(a.showLesson))
+	mux.HandleFunc("GET /lesson-images/{key}", a.requireLearner(a.lessonImage))
 	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/complete", a.requireLearner(a.setLessonComplete(true)))
 	mux.HandleFunc("POST /courses/{id}/lessons/{lessonID}/incomplete", a.requireLearner(a.setLessonComplete(false)))
 	mux.HandleFunc("GET /admin/courses/{id}/lessons", a.admin(a.adminLessons))

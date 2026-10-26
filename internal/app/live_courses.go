@@ -59,6 +59,8 @@ func (a *App) copyCourse(ctx context.Context, from int64, c course) (int64, erro
 		c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID).Scan(&id); err != nil {
 		return 0, err
 	}
+	// ponytail: a copied Lesson keeps its text but not its Lesson image; copy the stored file under a new key if
+	// copies need it. Never copy image_key alone: two Lessons sharing a file lose it when either drops it.
 	if _, err := tx.ExecContext(ctx, `INSERT INTO lessons (course_id, position, title, objective, body, gallery_item_id, published)
 		SELECT $2, position, title, objective, body, gallery_item_id, published FROM lessons WHERE course_id = $1`, from, id); err != nil {
 		return 0, err
