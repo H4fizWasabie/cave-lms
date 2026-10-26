@@ -2,8 +2,8 @@
    read it before adding a rule. Rules use only the tokens below: no hard-coded colours, font sizes, spacing or radii. */
 
 /* ============================ BRAND =====================
-   Swap the client's brand here: two colours, two fonts, and the logo files (static/cavelms.svg
-   in the header, static/logo-light.svg on dark backgrounds). Everything else derives from these. */
+   Swap the client's brand here: two colours, two fonts, and the logo files (static/cave-consult-logo.webp
+   in the header, static/cave-consult-logo-light.webp on dark backgrounds). Everything else derives from these. */
 :root {
   --brand-ink: #1f2124;        /* charcoal: text, primary buttons, dark bands */
   --brand-gold: #d2a649;       /* gold from the logo's arch: fills and accents, never text on light */
@@ -1226,6 +1226,12 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .coach-creds li { display: grid; gap: var(--space-1); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
 .coach-creds strong { font-weight: 600; color: var(--brand-ink); }
 .coach-creds span { font-size: var(--fs-ui); color: var(--muted); }
+/* The HRD Corp badge beside the credentials, then each issuer's logo in a row that wraps. */
+.coach-accredited { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--space-5); align-items: center; margin-top: var(--space-6); }
+.coach-accredited .coach-creds { margin-top: 0; }
+.coach-badge { width: 100%; height: auto; }
+.coach-issuers { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); }
+.coach-issuers img { height: 2.5rem; width: auto; max-width: 100%; object-fit: contain; }
 
 .home-pull { margin: var(--space-5) 0 0; padding-top: var(--space-5); border-top: 1px solid var(--brand-gold); font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.35; color: var(--ink-2); }
 .home-essay .prose { font-size: var(--fs-lede); color: var(--ink-2); }
@@ -1283,6 +1289,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .trust-in li:nth-child(-n+2) { border-top: 0; }
   .trust-in .trust-ph { padding-inline: var(--space-3); }
   .coach-photo { width: min(100%, 22rem); }
+  .coach-accredited { grid-template-columns: 5rem minmax(0, 1fr); gap: var(--space-4); }
   .home-learn > li { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -1316,7 +1323,9 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .about-trust strong { font-family: var(--font-display); font-size: var(--fs-title); }
 .about-trust span { font-size: var(--fs-ui); color: var(--muted); }
 .about-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 42rem); gap: var(--space-7); padding-block: var(--space-8); align-items: start; }
-.about-body h2 { font-size: var(--fs-heading); font-weight: 400; max-width: 16ch; position: sticky; top: 6rem; }
+.about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
+.about-body h2 { font-size: var(--fs-heading); font-weight: 400; max-width: 16ch; }
+.about-crest { width: min(100%, 16rem); height: auto; }
 
 .pricing-cta { margin-top: var(--space-7); }
 
@@ -1382,7 +1391,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 @media (max-width: 999px) {
   .about-body { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
-  .about-body h2 { position: static; max-width: none; }
+  .about-side { position: static; }
+  .about-body h2 { max-width: none; }
   .ct-gives { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {

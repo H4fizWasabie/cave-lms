@@ -3,7 +3,7 @@ package text
 // catalog holds every text, by key. Domain words follow the Malay in GLOSSARY.md; product names stay English.
 var catalog = map[string]entry{
 	// Layout: header
-	"header.logo-alt":     {en: "CAVELMS, your digital learning hub", ms: "CAVELMS, hab pembelajaran digital anda"},
+	"logo-alt":            {en: "%s logo", ms: "Logo %s"},
 	"header.main-nav":     {en: "Main", ms: "Utama"},
 	"header.menu":         {en: "Menu", ms: "Menu"},
 	"header.skip":         {en: "Skip to content", ms: "Langkau ke kandungan"},
@@ -52,6 +52,7 @@ var catalog = map[string]entry{
 	"about.lede":       {en: "Practical, industry-focused training and consultancy for government agencies, GLCs, educational institutions and private organisations.", ms: "Latihan dan perundingan praktikal berfokuskan industri untuk agensi kerajaan, GLC, institusi pendidikan dan organisasi swasta."},
 	"about.creds":      {en: "Registrations", ms: "Pendaftaran"},
 	"about.hrd":        {en: "HRD Corp Registered Training Provider", ms: "Penyedia Latihan Berdaftar HRD Corp"},
+	"about.kpm-alt":    {en: "Crest of the Ministry of Education Malaysia (KPM)", ms: "Jata Kementerian Pendidikan Malaysia (KPM)"},
 	"about.mof":        {en: "Registered with the Ministry of Finance (MOF)", ms: "Berdaftar dengan Kementerian Kewangan (MOF)"},
 	"about.heading":    {en: "A Malaysian professional training and consultancy company", ms: "Syarikat latihan dan perundingan profesional Malaysia"},
 	"about.coach-link": {en: "Coach Adam's profile", ms: "Profil Coach Adam"},
@@ -2110,7 +2111,6 @@ var catalog = map[string]entry{
 	"orgs.back":            {en: "All Organisations", ms: "Semua Organisasi"},
 	"orgs.name":            {en: "Name", ms: "Nama"},
 	"orgs.logo":            {en: "Logo", ms: "Logo"},
-	"orgs.logo-alt":        {en: "%s logo", ms: "Logo %s"},
 	"orgs.logo-hint":       {en: "PNG, JPG or SVG, up to 2 MB. A new logo replaces the current one on later Certificates.", ms: "PNG, JPG atau SVG, sehingga 2 MB. Logo baharu menggantikan logo semasa pada Sijil seterusnya."},
 	"orgs.search":          {en: "Search the web for this logo", ms: "Cari logo ini di web"},
 	"orgs.err.unread":      {en: "The form could not be read. Try again.", ms: "Borang tidak dapat dibaca. Cuba lagi."},
@@ -2131,6 +2131,7 @@ var catalog = map[string]entry{
 	"home.dashboard-alt": {en: "A team building a procurement dashboard together on a large screen", ms: "Satu pasukan membina dashboard perolehan bersama pada skrin besar"},
 	"home.coach-alt":     {en: "Portrait of Coach Adam Daniel", ms: "Potret Coach Adam Daniel"},
 	// ---- Premium refresh: home page (#314) ----
+	"home.coach-badge-alt":   {en: "HRD Corp Registered Training Provider badge", ms: "Lencana Penyedia Latihan Berdaftar HRD Corp"},
 	"home.trust":             {en: "Accreditations", ms: "Pentauliahan"},
 	"home.trust.tcc":         {en: "A platform by The Cave Consult", ms: "Platform oleh The Cave Consult"},
 	"home.trust.jpk":         {en: "JPK certified trainer, Department of Skills Development", ms: "Jurulatih Bertauliah JPK, Jabatan Pembangunan Kemahiran"},
