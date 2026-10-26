@@ -42,7 +42,7 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 		`src="/static/logo-cavetext-pro.svg`, "CaveText Pro", "Text expansion for up to 2,000 Snippets", "RM25 a year", `<ul class="offer-benefits">`, "Up to 2,000 Snippets", "Image and Dashboard master prompts",
 		`src="/static/logo-lab-plan.svg`, "Lab Plan", "Live Dashboards, hosted for you", "RM89 a year", `<ul class="offer-benefits">`, "Deploy it online at a link you can share",
 		`src="/static/logo-pro-plan.svg`, "Pro Plan", "Everything, one payment", "RM99 a year", `<s><span class="sr">Normal price </span>RM119</s>`, `<ul class="offer-benefits">`, "Everything in CaveText Pro", "Everything in the Lab Plan", "Your own Dashboard deployment", "0.5 GB of storage", "One payment a year for both")
-	// Ebooks and 1 GB are the Promo Pro Plan's, a card shown only while a Promo runs.
+	// Ebooks are the Promo Pro Plan's, a card shown only while a Promo runs.
 	cards, _, _ := strings.Cut(main, `id="comparison"`)
 	expectNone(t, cards, "Ebooks", "1 GB of storage", "Promo Pro Plan")
 	if n := strings.Count(main, "<s>"); n != 1 {

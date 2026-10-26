@@ -186,17 +186,18 @@ func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	visitor := s.second()
 	_, body := visitor.getAsking("/pricing", "en")
 	main := content(body)
-	expectInOrder(t, main, "Pro Plan", "RM249 a year", "RM99 with a promo code")
 	expectNone(t, main, "CAVE99")
-	cards, _, _ := strings.Cut(main, `id="comparison"`)
-	if n := strings.Count(cards, "with a promo code"); n != 1 {
-		t.Errorf("%d promo lines, want 1 (only the Pro Plan has a Promo)", n)
-	}
-	// A fourth card sells the Pro Plan at its promo price, with Ebooks and 1 GB the Pro Plan card leaves out.
+	// The cards carry no promo line: the Promo Pro Plan card shows the promo price. The comparison still notes it.
+	cards, comparison, _ := strings.Cut(main, `id="comparison"`)
+	expectInOrder(t, cards, "Pro Plan", "RM249 a year")
+	expectNone(t, cards, "with a promo code")
+	expectAll(t, comparison, "RM99 with a promo code")
+	// A fourth card sells the Pro Plan at its promo price, with the Ebooks the Pro Plan card leaves out; both have 0.5 GB.
 	expectInOrder(t, cards, "Pro Plan", "0.5 GB of storage", "Promo Pro Plan", "RM99 a year",
-		"Everything in CaveText Pro", "Everything in the Lab Plan", "Ebooks", "Your own Dashboard deployment", "1 GB of storage", "One payment a year for both")
+		"Everything in CaveText Pro", "Everything in the Lab Plan", "Ebooks", "Your own Dashboard deployment", "0.5 GB of storage", "One payment a year for both")
+	expectNone(t, cards, "1 GB")
 	_, body = visitor.getAsking("/pricing", "ms")
-	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro Promo", "Had storan 1 GB")
+	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro Promo", "Had storan 0.5 GB")
 
 	s.endPromo("CAVE99")
 	_, body = visitor.getAsking("/pricing", "en")
