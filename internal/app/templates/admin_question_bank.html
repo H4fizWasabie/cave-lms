@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "bank.heading"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "question-bank" $.Learner $.Lang)}}
+      {{template "admin-side" (side "question-bank" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>

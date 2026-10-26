@@ -11,7 +11,7 @@
 {{define "content"}}
     {{if .Side}}
     <div class="adm">
-      {{template "admin-side" (side .Side $.Learner $.Lang)}}
+      {{template "admin-side" (side .Side $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <div class="adm-head"><h1>{{t .Lang .Heading}}</h1></div>
         {{template "confirm-card" .}}

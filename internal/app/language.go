@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"fmt"
 	"net/http"
 	"time"
@@ -18,6 +19,7 @@ const (
 type chrome struct {
 	Lang           string
 	Here           string   // path and query of this page for the language switch to come back to, or "" for home
+	Admin          bool     // the page is in the admin area, which an Admin sees in the admin shell
 	Latest         []course // the 3 newest open Courses
 	CertBackground string   // the uploaded Certificate background's address, "" for the built-in artwork
 }
@@ -27,7 +29,7 @@ func (c *chrome) chromeField() *chrome { return c }
 // newChrome is the header data for a page in lang. When the Courses menu cannot be loaded it is left
 // empty and the error returned, so the error page can still show the rest of the header.
 func (a *App) newChrome(r *http.Request, lang string) (chrome, error) {
-	c := chrome{Lang: lang, Here: here(r)}
+	c := chrome{Lang: lang, Here: here(r), Admin: strings.HasPrefix(r.URL.Path, "/admin")}
 	latest, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE is_open AND published ORDER BY created_at DESC, id DESC LIMIT 3`)
 	if err != nil {
 		return c, err

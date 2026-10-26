@@ -562,11 +562,12 @@ type adminSidebar struct {
 	Section string
 	Owner   bool
 	Lang    string
+	Here    string // the page's address, for the language switch to come back to
 }
 
-// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner $.Lang)}}.
-func adminSide(section string, l *learner, lang string) adminSidebar {
-	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
+// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner $.Lang $.Here)}}.
+func adminSide(section string, l *learner, lang, here string) adminSidebar {
+	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang, Here: here}
 }
 
 // SectionKey is the catalog key of the current section's sidebar label, which the phone menu's button shows.

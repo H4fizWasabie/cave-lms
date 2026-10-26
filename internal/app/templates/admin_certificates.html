@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "admin.side.certificates"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "certificates" $.Learner $.Lang)}}
+      {{template "admin-side" (side "certificates" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>

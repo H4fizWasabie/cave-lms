@@ -1,7 +1,7 @@
 {{define "title"}}{{if .Programme.ID}}{{t .Lang "programmes.edit"}}{{else}}{{t .Lang "programmes.new"}}{{end}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "programmes" $.Learner $.Lang)}}
+      {{template "admin-side" (side "programmes" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/programmes">{{t .Lang "programmes.back"}}</a></p>
         <div class="adm-head"><h1>{{if .Programme.ID}}{{t .Lang "programmes.edit"}}{{else}}{{t .Lang "programmes.new"}}{{end}}</h1></div>

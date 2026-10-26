@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "bank.edit-q"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "question-bank" $.Learner $.Lang)}}
+      {{template "admin-side" (side "question-bank" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/question-bank{{.Query}}#q-{{.Question.ID}}">{{t .Lang "bank.back"}}</a></p>
         <div class="adm-head"><h1>{{t .Lang "bank.edit-q"}}</h1><p>{{t .Lang (print "bank.format." .Question.Format)}}</p></div>

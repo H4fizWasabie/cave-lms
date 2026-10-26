@@ -1,7 +1,7 @@
 {{define "title"}}{{.Course.Title}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
+      {{template "admin-side" (side "courses" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/courses">{{t .Lang "adm.courses.all"}}</a></p>
         <div class="adm-head">

@@ -1,7 +1,7 @@
 {{define "title"}}{{if .DuplicateOf}}{{t .Lang "adm.courses.duplicate"}}{{else if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "courses" $.Learner $.Lang)}}
+      {{template "admin-side" (side "courses" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/courses">{{t .Lang "adm.courses.back"}}</a></p>
         <div class="adm-head"><h1>{{if .DuplicateOf}}{{t .Lang "adm.courses.duplicate"}}{{else if .Course.ID}}{{t .Lang "adm.courses.edit"}}{{else}}{{t .Lang "adm.courses.new"}}{{end}}</h1></div>

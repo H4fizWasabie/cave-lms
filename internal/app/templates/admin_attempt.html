@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "exam.attempt"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "results" $.Learner $.Lang)}}
+      {{template "admin-side" (side "results" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         {{with .Attempt}}
         <div class="adm-head">
