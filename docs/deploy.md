@@ -257,6 +257,81 @@ Verification and password reset emails go through [Resend](https://resend.com) w
 
 A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
 
+## Query statistics
+
+`pg_stat_statements` records per-query timing, so index decisions rest on evidence (spec #321). It is a one-time step on the VPS's Postgres 16, done as the `postgres` superuser. It is not a goose migration: the extension is not trusted, so the app's `cave` role cannot create it, and a migration that tried would stop the app starting.
+
+The preload setting is for the whole Postgres cluster, which production, staging and the other apps on the VPS share, so there is **one restart for all of them**, not one each, and staging cannot soak it first. Pick a quiet hour: connections drop for a few seconds, for the other apps too. Staging comes first only for the extension: its database gets it, and is checked, before production's does.
+
+Run as root on the VPS:
+
+1. Read the current setting, which is empty on a fresh Ubuntu install, so the new value keeps anything already there:
+
+   ```sh
+   sudo -u postgres psql -Atc 'SHOW shared_preload_libraries'
+   ```
+
+   If it prints nothing, set it to `pg_stat_statements`. If it prints a list, set it to that list with `pg_stat_statements` added, for example `'pg_cron,pg_stat_statements'`. If it already contains `pg_stat_statements`, skip to step 3.
+
+   ```sh
+   sudo -u postgres psql -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements'"
+   ```
+
+   `ALTER SYSTEM` writes `postgresql.auto.conf` in the data directory, which wins over `postgresql.conf` and `conf.d`.
+2. Restart, then check the cluster and both apps are back (`pg_lsclusters` shows the cluster name; Ubuntu's is `16/main`):
+
+   ```sh
+   systemctl restart postgresql@16-main
+   pg_lsclusters
+   systemctl is-active cave-lms cave-lms-staging
+   sudo -u postgres psql -Atc 'SHOW shared_preload_libraries'
+   ```
+
+   Open `staging.cavelms.com` and `cavelms.com` and check a page loads; `journalctl -u cave-lms -u cave-lms-staging -n 50` shows any database error from the restart.
+3. Create the extension in staging first, then production. It is once per database and needs no restart, so production's can wait until staging has shown rows (below):
+
+   ```sh
+   sudo -u postgres psql -d cave_staging -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
+   # after staging has shown rows:
+   sudo -u postgres psql -d cave -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
+   ```
+
+**Confirm it works.** Click around staging as a few users, then list its most-called statements: the app's own queries should be there, with `calls` growing as you click.
+
+```sh
+sudo -u postgres psql -d cave_staging -c "SELECT calls, left(query, 80) AS query FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AND query NOT LIKE '%pg_stat_statements%' ORDER BY calls DESC LIMIT 10"
+```
+
+`pg_stat_statements must be loaded via "shared_preload_libraries"` means the restart (or the setting) did not happen. `relation "pg_stat_statements" does not exist` means step 3 was skipped for that database.
+
+**Read the slowest queries**, per database (`-d cave` or `-d cave_staging`). The view holds every database in the cluster, so keep the `dbid` filter. Times are milliseconds. Slowest on average, ignoring one-off queries:
+
+```sql
+SELECT round(mean_exec_time::numeric, 1) AS mean_ms, calls,
+       round(total_exec_time::numeric) AS total_ms, left(query, 100) AS query
+FROM pg_stat_statements
+WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AND calls >= 5
+ORDER BY mean_exec_time DESC LIMIT 20;
+```
+
+Most total time, which is where an index pays most:
+
+```sql
+SELECT round(total_exec_time::numeric) AS total_ms, calls,
+       round(mean_exec_time::numeric, 1) AS mean_ms, left(query, 100) AS query
+FROM pg_stat_statements
+WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+ORDER BY total_exec_time DESC LIMIT 20;
+```
+
+To clear this database's counters, for a clean before and after around a new index (superuser; the three zeros mean every user, every query):
+
+```sql
+SELECT pg_stat_statements_reset(0, (SELECT oid FROM pg_database WHERE datname = current_database()), 0);
+```
+
+**Grants.** None are needed. As `postgres` the whole view is readable. `cave` and `cave_staging` can read it too, and see `query` text for their own statements, which is every statement the app runs. Only `GRANT pg_read_all_stats TO cave` would show other roles' text.
+
 ## Backups
 
 Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bin/cave-lms-backup` (`deploy/backup.sh`). It dumps the `cave` database with `pg_dump`, mirrors the Datasets bucket `cave-lms-datasets` (ADR 0008, Datasets and Assignment Submission files) into `/var/backups/cave-lms/datasets` with `rclone sync` using the app's R2 settings in `/etc/cave-lms/env`, and backs up the dump, `/var/lib/cave-lms/uploads` and that mirror with [restic](https://restic.net) to two encrypted repositories:
@@ -310,7 +385,7 @@ Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot resto
 
 The Datasets are at `/tmp/cave-restore/var/backups/cave-lms/datasets`; copy them back with `rclone copy` (below).
 
-Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database.
+Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database. Once Query statistics is on, the dump also holds `CREATE EXTENSION pg_stat_statements`: a restore as `cave` reports errors for that and loads everything else; as `postgres` on Postgres 16 it restores in full.
 
 ### Restoring one deleted Dashboard's Datasets
 
