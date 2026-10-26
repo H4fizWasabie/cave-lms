@@ -261,9 +261,14 @@ _Malay_: Pembersihan
 _Avoid_: Sanitise, normalise, transform, fix
 
 **Dashboard**:
-A Learner's dashboard page, made outside Cave such as with an AI chatbot and brought to the Lab as one HTML file, with the Dataset it may read. Cave keeps it, its earlier pages and its Dataset, and puts it online as a Deployment.
+A Learner's dashboard in the Lab, with the Dataset it reads: either built by Cave from its Dataset and drawn in a Theme, or a page the Learner made, such as with an AI chatbot, and brought as one HTML file. Cave keeps it, its earlier pages or Datasets, and puts it online as a Deployment.
 _Malay_: Dashboard (kept in English)
 _Avoid_: Report, chart, app, web app, Template, Practice Dashboard and Work Dashboard (former kinds)
+
+**Theme**:
+How a Dashboard Cave builds looks: its colours, fonts and chart styles, one of five such as Corporate Executive or Midnight Intelligence, picked by the Learner and changeable at any time. Changing it never changes what the Dashboard shows.
+_Malay_: Tema
+_Avoid_: Template, skin, style, look
 
 **Deployment**:
 A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.

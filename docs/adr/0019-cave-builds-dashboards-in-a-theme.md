@@ -1,0 +1,7 @@
+# Cave builds Dashboards in a Theme, beside Learners' own pages
+
+Amends ADR 0018. The client wants Learners to get a Dashboard in one of the five Themes without copying a prompt into a chatbot, and without AI. Cave's builder already does this: it builds a Dashboard's blocks from its Dataset by fixed rules (ADR 0014) and draws them in the Theme the Learner picks. So New Dashboard offers two ways. **Build from Excel**: upload Excel, Clean-up, confirm, Cave builds the Dashboard, the Learner picks a Theme and deploys; a new Dataset updates it, and the Theme can be changed at any time. **Paste your own page**: the HTML a Learner made with an AI chatbot, as ADR 0017 and ADR 0018 say. Both are Plan-only and deploy the same way.
+
+Only the builder and the Themes come back. Templates, Samples, block editing, Under the hood, the zip download and the public demo stay removed: the class needs "upload, pick a Theme, deploy", and less to maintain. The start-up conversion of ADR 0018 stops, since a built Dashboard is no longer turned into a page; the six Dashboards production converted on 2026-10-27 become built Dashboards again, unless their owner has since uploaded a page of their own.
+
+Rejected: (1) Cave sending the Theme prompt and sample rows to an AI to write the page, which costs per build, varies between runs and sends Learner data out (ADR 0009 keeps that to Written answers); (2) copy-paste only, which the client found too many steps; (3) restoring the whole engine, including Templates and block editing, which the class doesn't use.
