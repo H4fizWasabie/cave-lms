@@ -199,6 +199,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
+	a.convertEngineDashboards(ctx)
 	a.dailyPrune(ctx)
 	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)

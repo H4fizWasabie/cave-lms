@@ -33,6 +33,17 @@
         {{- end}}
       </nav>
 
+      {{- if and (not .Dashboard.Page) (not .Dashboard.Dataset) (not .ReadOnly) (eq .Tab "dataset")}}
+      <section class="lab-narrow">
+        <h2 class="h-md">{{t .Lang "lab.page.add"}}</h2>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        <form class="form" method="post" action="{{$url}}/page" enctype="multipart/form-data">
+          <div class="field"><label for="page-html">{{t .Lang "lab.new.paste"}}</label><textarea id="page-html" name="html" rows="6" spellcheck="false" autocapitalize="none"></textarea></div>
+          <div class="field"><label for="page-file">{{t .Lang "lab.new.file"}}</label><input id="page-file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
+          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.page.upload"}}</button></div>
+        </form>
+      </section>
+      {{- end}}
       {{- if and .Dashboard.Page (eq .Tab "dataset")}}{{with .Dashboard.Page}}
       <section class="lab-narrow">
         <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div></div>

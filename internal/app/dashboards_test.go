@@ -468,8 +468,8 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	if got != want {
 		t.Fatalf("after the move the data is\n%.300s\nwant\n%.300s", got, want)
 	}
-	if n := ada.storedFiles(); n != 1 {
-		t.Fatalf("%d stored files after the move, want 1", n)
+	if n := ada.storedFiles(); n != 2 {
+		t.Fatalf("%d stored files after the move, want 2: the Dataset and the page it is converted to (#375)", n)
 	}
 	var column bool
 	if err := ada.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
