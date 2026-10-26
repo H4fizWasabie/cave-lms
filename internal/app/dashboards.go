@@ -567,10 +567,14 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		if err == nil {
 			p.Earlier, err = a.earlierOf(r.Context(), d)
 		}
-		if err == nil && d.Page != nil {
-			p.Pages, err = a.earlierPages(r.Context(), d.ID)
-		}
 		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	if d.Page != nil && p.Tab == "dataset" && !p.ReadOnly { // a page Dashboard's Page screen lists its earlier pages
+		var err error
+		if p.Pages, err = a.earlierPages(r.Context(), d.ID); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
