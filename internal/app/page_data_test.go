@@ -89,6 +89,39 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 		`"Perkara": "Garam", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 70`)
 }
 
+// An Add is put together with the data current at upload: once that changed, confirming it would undo the change,
+// so it is refused and the Learner is asked to upload again.
+func TestAnAddIsRefusedWhenTheDataChangedSinceItsUpload(t *testing.T) {
+	_, ada := labLearner(t)
+	path, link := pageWithData(t, ada)
+	res, body := ada.postFile(path+"/dataset", "ogos.xlsx", shopReport(t, "Tepung", 50))
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
+	expectRedirect(t, res, body, path+"/data")
+	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
+	res, body = ada.post(september+"/restore", nil)
+	expectRedirect(t, res, body, path+"/data")
+
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectStatus(t, res, body, http.StatusConflict, "Your data changed after you uploaded oktober.xlsx")
+	if strings.Contains(body, `action="`+path+`/dataset/confirm"`) {
+		t.Fatalf("the refused Add is still offered: %s", body)
+	}
+	if _, body = ada.second().get(link + "data.json"); strings.Contains(body, "Gula") || strings.Contains(body, "Tepung") || !strings.Contains(body, "Beras") {
+		t.Fatalf("after the refused Add data.json = %s", body)
+	}
+
+	ada.switchLanguage("ms", path)
+	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.post(ada.earlierOn(path+"/data", path)["ogos.xlsx"]+"/restore", nil)
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectStatus(t, res, body, http.StatusConflict, "Data anda berubah selepas anda memuat naik oktober.xlsx")
+}
+
 func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)

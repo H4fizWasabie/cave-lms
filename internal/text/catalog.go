@@ -1176,6 +1176,10 @@ var catalog = map[string]entry{
 		en: "Adding these %s rows to your %s makes %s. A Dataset holds up to %s rows. Upload fewer rows, or choose Replace data.",
 		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Set data memuatkan sehingga %s baris. Muat naik lebih sedikit baris, atau pilih Gantikan data.",
 	},
+	"lab.err.add-stale": {
+		en: "Your data changed after you uploaded %s, so adding it now would undo that change. Nothing was added: upload the file again to add it to your data as it is now.",
+		ms: "Data anda berubah selepas anda memuat naik %s, jadi menambahnya sekarang akan membatalkan perubahan itu. Tiada apa yang ditambah: muat naik fail itu sekali lagi untuk menambahnya pada data anda sekarang.",
+	},
 	"lab.add.none": {en: "none", ms: "tiada"},
 
 	// The Dataset tab: Clean-up's preview

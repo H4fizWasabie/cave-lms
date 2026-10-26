@@ -32,11 +32,13 @@ type cleaned struct {
 }
 
 // addition is what an Add to data put together: the upload's rows, the current Dataset's before them, and how
-// many of the upload's exactly match one of those.
+// many of the upload's exactly match one of those. On is where that current Dataset is in the store, as confirming
+// is refused once another is current.
 type addition struct {
-	Rows int `json:"rows"`
-	Had  int `json:"had"`
-	Same int `json:"same"`
+	Rows int    `json:"rows"`
+	Had  int    `json:"had"`
+	Same int    `json:"same"`
+	On   string `json:"on"`
 }
 
 // pendingDataset is a Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
@@ -399,7 +401,6 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
 	// Add to data on a page Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
-	// ponytail: combined with the Dataset current at upload; a restore before the confirm is undone by it.
 	if r.FormValue("mode") == "add" && d.Page != nil && d.Dataset != nil {
 		combined, same, changes, err := lab.Add(d.Dataset, res.Dataset)
 		if errors.As(err, &problem) {
@@ -408,7 +409,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 			return
 		}
-		kept.Added = &addition{Rows: len(res.Dataset.Rows), Had: len(d.Dataset.Rows), Same: same}
+		kept.Added = &addition{Rows: len(res.Dataset.Rows), Had: len(d.Dataset.Rows), Same: same, On: d.Key}
 		kept.Dataset = combined
 		kept.Changes = append(kept.Changes, changes...)
 	}
@@ -451,7 +452,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 // its blocks are left out (ADR 0014). Later confirms keep the blocks,
 // swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
 // pauses its blocks. A confirm that would take the Learner over their Storage allowance even with every earlier
-// Dataset of this Dashboard gone is refused and the Dataset stays pending.
+// Dataset of this Dashboard gone is refused and the Dataset stays pending. An Add to data whose current Dataset is no
+// longer current, after a restore or another confirm, is refused and dropped, so it never undoes that change.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -511,6 +513,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	var room storageRoom
 	replaced := errors.New("pending Dataset replaced")
+	stale := false
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		// Locking the Learner makes confirms and uploads take turns, so none slips under the allowance.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
@@ -524,6 +527,19 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 		if err != nil {
 			return err
+		}
+		if p.Added != nil {
+			// Locking the current Dataset holds off a restore until this confirm is done.
+			var on string
+			err := tx.QueryRowContext(r.Context(), `SELECT storage_key FROM datasets WHERE dashboard_id = $1 AND state = 'current' FOR UPDATE`,
+				d.ID).Scan(&on)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+			if stale = on != p.Added.On; stale {
+				_, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1`, p.ID)
+				return err
+			}
 		}
 		if room, err = roomFor(r.Context(), tx, d, p.Size, acc); err != nil || !room.Fits {
 			return cmp.Or(err, errStorageFull)
@@ -558,6 +574,16 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
+	if stale {
+		if err := a.readDataset(r.Context(), d); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc}
+		page.Error = text.T(lang, "lab.err.add-stale", p.File)
+		a.renderDashboard(w, r, http.StatusConflict, page)
+		return
+	}
 	if d.Page != nil {
 		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
