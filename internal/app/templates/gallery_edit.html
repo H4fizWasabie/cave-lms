@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "adm.gallery.edit"}} · {{t .Lang "adm.title-suffix"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "gallery" $.Learner $.Lang)}}
+      {{template "admin-side" (side "gallery" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/gallery">{{t .Lang "adm.gallery.back"}}</a></p>
         <div class="adm-head"><h1>{{t .Lang "adm.gallery.edit"}}</h1></div>

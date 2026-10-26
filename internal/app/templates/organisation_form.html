@@ -1,7 +1,7 @@
 {{define "title"}}{{if .Organisation.ID}}{{t .Lang "orgs.edit"}}{{else}}{{t .Lang "orgs.new"}}{{end}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "organisations" $.Learner $.Lang)}}
+      {{template "admin-side" (side "organisations" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <p class="crumbs"><a href="/admin/organisations">{{t .Lang "orgs.back"}}</a></p>
         <div class="adm-head"><h1>{{if .Organisation.ID}}{{t .Lang "orgs.edit"}}{{else}}{{t .Lang "orgs.new"}}{{end}}</h1></div>

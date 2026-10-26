@@ -10,6 +10,7 @@
 </head>
 <body>
   <a class="skip" href="#main">{{t .Lang "header.skip"}}</a>
+  {{- if not .Shell}}{{/* an Admin's admin pages have only the Admin sidebar (#332) */}}
   <header class="site-header">
     <div class="wrap site-header-in">
       <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
@@ -41,9 +42,11 @@
       </div>
     </div>
   </header>
+  {{- end}}
   <main id="main">
     {{template "content" .}}
   </main>
+  {{- if not .Shell}}
   <footer class="site-footer">
     <div class="wrap footer-in">
       <div class="footer-brand">
@@ -84,6 +87,7 @@
     </div>
     <div class="wrap footer-base">© 2026 The Cave Consult</div>
   </footer>
+  {{- end}}
   <script src="{{static "header.js"}}"></script>
 </body>
 </html>
@@ -139,7 +143,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "organisations", "design", "plans", "prices", "promos", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only.
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang $.Here), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "organisations", "design", "plans", "prices", "promos", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only.
 On wide screens it is a column; below 1000px it folds into a Menu button that names the current section and opens the same grouped links. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
@@ -149,14 +153,23 @@ On wide screens it is a column; below 1000px it folds into a Menu button that na
         <nav class="adm-nav adm-wide" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}</nav>
         <details class="adm-menu">
           <summary><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.menu"}}<small>{{t .Lang .SectionKey}}</small></span><svg class="i adm-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary>
-          <nav class="adm-nav" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}
-            <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>{{t .Lang "admin.side.view-site"}}</span></a>
-          </nav>
+          <nav class="adm-nav" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}</nav>
+          <div class="adm-side-foot">{{template "admin-account" .}}</div>
         </details>
-        <div class="adm-side-foot">
-          <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>{{t .Lang "admin.side.view-site"}}</span></a>
-        </div>
+        <div class="adm-side-foot adm-wide">{{template "admin-account" .}}</div>
       </aside>
+{{end}}
+{{/* admin-account is the foot of the Admin sidebar, in place of the public header: back to the site, the language
+switch and Log out. */}}
+{{define "admin-account"}}
+          <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>{{t .Lang "admin.side.view-site"}}</span></a>
+          <form class="lang-switch" method="post" action="/language" aria-label="{{t .Lang "header.language"}}">
+            <input type="hidden" name="next" value="{{or .Here "/admin"}}">
+            <button name="lang" value="ms" lang="ms" title="Bahasa Melayu"{{if eq .Lang "ms"}} aria-pressed="true"{{end}}>BM</button>
+            <span aria-hidden="true">|</span>
+            <button name="lang" value="en" lang="en" title="English"{{if eq .Lang "en"}} aria-pressed="true"{{end}}>EN</button>
+          </form>
+          <form method="post" action="/logout"><button class="adm-logout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-sign-out"/></svg><span>{{t .Lang "header.log-out"}}</span></button></form>
 {{end}}
 {{/* admin-links are the Admin sidebar's links: the Dashboard, then each group under its heading. No icon is used twice. */}}
 {{define "admin-links"}}

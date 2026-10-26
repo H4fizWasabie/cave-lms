@@ -18,6 +18,7 @@ const (
 type chrome struct {
 	Lang           string
 	Here           string   // path and query of this page for the language switch to come back to, or "" for home
+	Shell          bool     // the page is in the admin shell: an Admin's admin page, with the sidebar in place of the header and footer
 	Latest         []course // the 3 newest open Courses
 	CertBackground string   // the uploaded Certificate background's address, "" for the built-in artwork
 }

@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "admin.side.promos"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="adm">
-      {{template "admin-side" (side "promos" $.Learner $.Lang)}}
+      {{template "admin-side" (side "promos" $.Learner $.Lang $.Here)}}
       <div class="adm-main">
         <div class="adm-head">
           <div>

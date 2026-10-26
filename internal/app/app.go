@@ -562,11 +562,12 @@ type adminSidebar struct {
 	Section string
 	Owner   bool
 	Lang    string
+	Here    string // the page's address, for the language switch to come back to
 }
 
-// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner $.Lang)}}.
-func adminSide(section string, l *learner, lang string) adminSidebar {
-	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
+// adminSide is the template function behind {{template "admin-side" (side "courses" $.Learner $.Lang $.Here)}}.
+func adminSide(section string, l *learner, lang, here string) adminSidebar {
+	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang, Here: here}
 }
 
 // SectionKey is the catalog key of the current section's sidebar label, which the phone menu's button shows.
@@ -674,6 +675,9 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			a.serverError(w, r, err)
 			return
 		}
+		// A message page (not found, refused, an error) has no sidebar, so it keeps the site's header to lead somewhere.
+		l := *withLearner.learnerField()
+		c.chromeField().Shell = l != nil && l.IsAdmin && strings.HasPrefix(r.URL.Path, "/admin") && name != "message"
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {
