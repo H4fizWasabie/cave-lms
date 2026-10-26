@@ -287,7 +287,6 @@ var catalog = map[string]entry{
 	"adm.learners":     {en: "Learners", ms: "Pelajar"},
 	"adm.only.title":   {en: "Admin only", ms: "Pentadbir sahaja"},
 	"adm.only":         {en: "Only the Admin can open this page.", ms: "Hanya Pentadbir boleh membuka halaman ini."},
-	"adm.not-undone":   {en: "This cannot be undone.", ms: "Tindakan ini tidak boleh dibuat asal."},
 
 	// The Admin area's home
 	"adm.gallery.upload": {en: "Upload to the Gallery", ms: "Muat naik ke Galeri"},
@@ -312,8 +311,6 @@ var catalog = map[string]entry{
 	"adm.gallery.do-upload":       {en: "Upload", ms: "Muat naik"},
 	"adm.gallery.edit":            {en: "Edit Gallery item", ms: "Sunting Item Galeri"},
 	"adm.gallery.delete":          {en: "Delete Gallery item", ms: "Padam Item Galeri"},
-	"adm.gallery.and-file":        {en: "and its file?", ms: "dan failnya?"},
-	"adm.gallery.delete-item":     {en: "Delete item", ms: "Padam item"},
 	"adm.gallery.unread.title":    {en: "Upload not read", ms: "Muat naik tidak dapat dibaca"},
 	"adm.gallery.unread":          {en: "The upload form could not be read. Try again.", ms: "Borang muat naik tidak dapat dibaca. Cuba lagi."},
 	"adm.gallery.err.one-file":    {en: "Upload one file at a time.", ms: "Muat naik satu fail pada satu masa."},
@@ -387,7 +384,6 @@ var catalog = map[string]entry{
 	"adm.assignments.instructions-hint": {en: "Plain text. Line breaks are kept.", ms: "Teks biasa. Baris baharu dikekalkan."},
 	"adm.assignments.starts-draft":      {en: "A new Assignment is a Draft: Learners see it once you publish it.", ms: "Tugasan baharu ialah Draf: Pelajar melihatnya setelah anda menerbitkannya."},
 	"adm.assignments.delete":            {en: "Delete Assignment", ms: "Padam Tugasan"},
-	"adm.assignments.delete-warning":    {en: "Learners' Submissions to it are deleted with it.", ms: "Serahan Pelajar kepadanya turut dipadam."},
 	"adm.assignments.err.instructions":  {en: "Write the instructions (up to 20,000 characters).", ms: "Tulis arahan (sehingga 20,000 aksara)."},
 	"adm.submissions.title":             {en: "Submissions", ms: "Serahan"},
 	"adm.submissions.lede":              {en: "Every Learner in %s, and anyone who left with files. Assignments earn no mark.", ms: "Setiap Pelajar dalam %s, dan sesiapa yang telah keluar dengan fail. Tugasan tidak diberi markah."},

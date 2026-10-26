@@ -452,7 +452,7 @@ func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 	s.loginAdmin()
 	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", confirming)
 
-	res, body := s.post("/admin/courses/"+id+"/delete", nil)
+	res, body := s.post("/admin/courses/"+id+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusConflict,
 		"This Course cannot be deleted while it has Lessons, Learners, Exam attempts or Certificates.")
 	res, body = s.get("/courses/" + id)

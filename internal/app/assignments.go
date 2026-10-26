@@ -231,16 +231,16 @@ func (a *App) setAssignmentPublished(published bool) http.HandlerFunc {
 
 // confirmDeleteAssignment asks before deleting, warning that the Learners' Submissions go with it.
 func (a *App) confirmDeleteAssignment(w http.ResponseWriter, r *http.Request) {
-	p, ok := a.adminAssignmentFor(w, r)
-	if !ok {
-		return
+	if as, ok := a.assignmentByPath(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Side: "courses", Heading: "adm.assignments.delete", Question: "adm.assignments.delete-ask",
+			Cancel: assignmentsPath(as.CourseID), Action: r.URL.Path}, as.Title)
 	}
-	a.render(w, r, http.StatusOK, "delete_assignment", &p)
 }
 
+// deleteAssignment deletes an Assignment and its Submissions once its confirmation page is posted.
 func (a *App) deleteAssignment(w http.ResponseWriter, r *http.Request) {
 	as, ok := a.assignmentByPath(w, r)
-	if !ok {
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM assignments WHERE id = $1`, as.ID); err != nil {
