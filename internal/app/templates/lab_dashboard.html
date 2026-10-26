@@ -33,7 +33,7 @@
         {{- end}}
       </nav>
 
-      {{- if and (not .Dashboard.Page) (not .Dashboard.Dataset) (not .ReadOnly) (eq .Tab "dataset")}}
+      {{- if and (not .Dashboard.Page) (not .Dashboard.Config) (not .ReadOnly) (eq .Tab "dataset")}}
       <section class="lab-narrow">
         <h2 class="h-md">{{t .Lang "lab.page.add"}}</h2>
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}

@@ -120,5 +120,28 @@ func TestEngineDashboardsBecomePagesAtStartupAtTheSameLinkReadingDataJSON(t *tes
 	expectStatus(t, res, body, http.StatusOK, "Your page")
 }
 
+// An engine Dashboard with a Dataset but no blocks has no engine page to convert: it gets no page, as one without a
+// Dataset, offers to add one, and logs no error at start-up.
+func TestAnEngineDashboardWithoutBlocksGetsNoPageAndLogsNoError(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.readyDashboard("Kewangan")
+	if _, err := ada.db.Exec(`UPDATE dashboards SET config = NULL WHERE id = $1`, idOf(path)); err != nil {
+		t.Fatal(err)
+	}
+
+	ada.restart()
+
+	var pages, errors int
+	if err := ada.db.QueryRow(`SELECT (SELECT count(*) FROM dashboard_pages),
+		(SELECT count(*) FROM system_log WHERE level = 'error' AND message LIKE '%Dashboard ' || $1 || '%')`, idOf(path)).Scan(&pages, &errors); err != nil {
+		t.Fatal(err)
+	}
+	if pages != 0 || errors != 0 {
+		t.Fatalf("after: %d pages and %d error lines, want none", pages, errors)
+	}
+	res, body := ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "Add a page")
+}
+
 // idOf is the id at the end of a Dashboard's path.
 func idOf(path string) string { return path[strings.LastIndex(path, "/")+1:] }

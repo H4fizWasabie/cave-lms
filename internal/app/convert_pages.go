@@ -10,15 +10,16 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
-// convertEngineDashboards is a step at every start (#375, ADR 0018): each engine Dashboard with a Dataset gets the
-// engine's page as its first current page, its chart script inlined, as the page policy allows no script from Cave,
-// and its rows read from data.json beside it. The page is stored and counted like an uploaded one, over the allowance
-// too. A Dashboard that has a page is skipped, so starting again changes nothing; one without a Dataset gets none.
+// convertEngineDashboards is a step at every start (#375, ADR 0018): each engine Dashboard with a Dataset and blocks
+// gets the engine's page as its first current page, its chart script inlined, as the page policy allows no script
+// from Cave, and its rows read from data.json beside it. The page is stored and counted like an uploaded one, over the
+// allowance too. A Dashboard that has a page is skipped, so starting again changes nothing; one without a Dataset or
+// blocks has no engine page and gets none, so it offers to add one.
 // Its Deployment, name and awake state are untouched. One that fails is logged and left to the engine until the next
 // start. It goes with the engine (#376), once it has run on production.
 func (a *App) convertEngineDashboards(ctx context.Context) {
 	rows, err := a.db.QueryContext(ctx, `SELECT d.id FROM dashboards d
-		WHERE NOT EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id)
+		WHERE NOT EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id) AND jsonb_typeof(d.config) = 'object'
 		AND EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current') ORDER BY d.id`)
 	if err != nil {
 		a.logError(nil, fmt.Errorf("list engine Dashboards: %w", err))
@@ -59,8 +60,8 @@ func (a *App) convertEngineDashboard(ctx context.Context, id int64) error {
 	if err != nil || d == nil {
 		return err
 	}
-	if d.Config == nil {
-		return fmt.Errorf("it has a Dataset but no blocks")
+	if d.Config == nil { // its blocks went since the list
+		return nil
 	}
 	if err := a.readDataset(ctx, d); err != nil {
 		return err
