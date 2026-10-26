@@ -5,14 +5,12 @@ import (
 	"crypto/rand"
 	"errors"
 	"image"
-	"image/jpeg"
 	"io"
 	"net/http"
 	"strings"
 	"unicode"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
-	"golang.org/x/image/draw"
 )
 
 const (
@@ -112,19 +110,18 @@ func (a *App) storeLearnerPicture(w http.ResponseWriter, r *http.Request) (statu
 	if header.Size > maxLearnerPicture {
 		return http.StatusRequestEntityTooLarge, "learner-picture.err.too-large", "", nil
 	}
-	head := make([]byte, 512)
-	n, err := io.ReadFull(file, head)
-	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+	whole, mimeType, err := sniffPicture(file)
+	if err != nil {
 		return 0, "", "", err
 	}
-	if mimeType, ok := sniffType(head[:n]); !ok || allowedTypes[mimeType] != "picture" {
+	if mimeType == "" {
 		return http.StatusUnprocessableEntity, "picture.err.type", "", nil
 	}
-	picture, err := squareJPEG(io.MultiReader(bytes.NewReader(head[:n]), file))
+	picture, err := squareJPEG(whole)
 	if err != nil {
 		return http.StatusUnprocessableEntity, "learner-picture.err.unreadable", "", nil
 	}
-	key = "avatar-" + rand.Text()
+	key = "profile-" + rand.Text()
 	return 0, "", key, a.store.Put(r.Context(), key, picture)
 }
 
@@ -136,28 +133,14 @@ func squareJPEG(file io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	if cfg.Width*cfg.Height > thumbMaxPixels {
-		return nil, errors.New("too many pixels to decode")
-	}
-	src, _, err := image.Decode(bytes.NewReader(data))
+	src, err := decodePicture(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
 	b := src.Bounds()
 	side := min(b.Dx(), b.Dy())
 	crop := image.Rect(0, 0, side, side).Add(b.Min).Add(image.Pt((b.Dx()-side)/2, (b.Dy()-side)/2))
-	dst := image.NewRGBA(image.Rect(0, 0, learnerPictureSide, learnerPictureSide))
-	draw.Draw(dst, dst.Bounds(), image.White, image.Point{}, draw.Src)
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, crop, draw.Over, nil)
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 85}); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return scaleToJPEG(src, crop, learnerPictureSide, learnerPictureSide)
 }
 
 // learnerPicture serves a Learner's profile picture, to logged-in users only, by its storage key; other stored files

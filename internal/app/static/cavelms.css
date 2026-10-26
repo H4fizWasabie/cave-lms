@@ -1136,7 +1136,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .profile-picture { margin-bottom: var(--space-5); }
 .profile-picture-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); }
 .profile-picture-row > .avatar { width: 6rem; height: 6rem; font-size: var(--fs-heading); }
-.profile-picture-row form { display: grid; gap: var(--space-2); min-width: 0; }
+.profile-picture-row > .form { min-width: 0; }
 
 /* My exams and My folder */
 .mc-main h2 { font-size: var(--fs-lede); margin-bottom: var(--space-2); }
