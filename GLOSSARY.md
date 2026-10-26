@@ -271,7 +271,7 @@ _Malay_: Blok
 _Avoid_: Widget, tile, panel, chart (a chart is one kind of block), builder, pivot
 
 **Dataset**:
-The table Cave keeps from a Learner's Excel upload, their own data or a Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
+The table Cave keeps from a Learner's Excel upload, their own data or a Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, either replacing the rows or, with the same columns, adding to them, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
 
@@ -286,7 +286,7 @@ _Malay_: Dashboard (kept in English)
 _Avoid_: Report, chart, app, Practice Dashboard and Work Dashboard (the two former kinds), dashboard engine
 
 **Deployment**:
-A page the Learner made themselves, such as with an AI chatbot, uploaded as one HTML file on one of their Dashboards and put online for anyone with its link. A Dashboard has at most one. Uploading a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
+A page the Learner made themselves, such as with an AI chatbot, uploaded as one HTML file on one of their Dashboards and put online for anyone with its link. A Dashboard has at most one, and its page may read the Dashboard's current Dataset, so a new Dataset updates it. Uploading a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site, web app
 
