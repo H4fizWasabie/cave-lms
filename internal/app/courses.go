@@ -88,8 +88,8 @@ const courseColumns = `id, title, description, COALESCE(start_date::text, ''), C
 // courses lists every published Course for Visitors and Learners, or the ones matching the words in ?q: in the Course's
 // title or description, or in the title or objective of one of its published Lessons, or in the body of one when the
 // Learner is enrolled in the Course or is the Admin, who can open every Lesson (a word found in a body the searcher
-// cannot open would leak what it says). Nothing
-// else changes who sees what, so a Draft Course and a Draft Lesson are never found.
+// cannot open would leak what it says). Nothing else changes who sees what, so a Draft Course and a Draft Lesson are
+// never found.
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	query, args := `SELECT `+courseColumns+` FROM courses WHERE published ORDER BY start_date NULLS LAST, id`, []any(nil)
