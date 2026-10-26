@@ -1,3 +1,5 @@
 # One kind of Dashboard: Practice Dashboards are closed
 
+Superseded by ADR 0018: Cave no longer builds Dashboards; the Lab deploys pages Learners made.
+
 Supersedes ADR 0013. The Lab has one kind of Dashboard, built from the data as ADR 0014 says, with blocks the Learner can change. Practice Dashboards are closed: no new ones are made, and the existing ones (3 Dashboards, 2 Deployments when this was decided) are converted, their Template's blocks becoming their editable blocks and their Deployments keeping the same link. Two kinds meant two readers, two generators and two sets of rules, and the real-data kind is the one Learners need; the Courses keep what they relied on, as every Dashboard can start from a Template's Sample and shows its code under the hood. Rejected: freezing Practice Dashboards read-only, which keeps a second code path alive for three Dashboards; deleting them, which breaks two live links.

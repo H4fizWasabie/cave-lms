@@ -2,7 +2,7 @@
 
 CAVELMS is the product's public name ("Learn AI • Build Skills • Create Impact", powered by The Cave Consult). "Cave LMS" is the repo's working name. The Malay home page uses the client's own marketing copy word for word, and the English one translates it, so it says "online classes" for Courses and "programmes" for The Cave Consult's past in-person programmes, which are not Courses.
 
-A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Learners also build dashboards in the Lab from sample spreadsheets; paying Learners use their own and put pages they made online.
+A website where anyone can register, join self-paced online courses made of lessons, sit an exam and earn a certificate, and browse a gallery of videos, ebooks, pictures and promotional material. Paying Learners also put dashboards they made with an AI chatbot online in the Lab, and keep their data up to date.
 
 The site is written in Malay and English. Each term gives the Malay word the site uses for it; product names stay in English, and Coach Adam may override any of them.
 
@@ -206,12 +206,12 @@ _Avoid_: Course, event, module
 ### Lab
 
 **Lab**:
-The area where Learners build Dashboards. Open to every logged-in Learner; without an active Plan they build from Samples only and cannot deploy. Always open to the Admin.
+The area where Learners put their Dashboards online and upload their data. Open to a Learner with an active Plan, and always to the Admin.
 _Malay_: Lab (kept in English)
 _Avoid_: Workspace, studio, builder
 
 **Plan**:
-Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. Building Dashboards is unlimited. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; It adds the Learner's own uploads and Deployments; a Learner without one builds from Samples only. Courses stay free to join.
+Paid access to the Lab for a set period, such as a year, with limits such as how many Deployments a Learner may have awake at once and their Storage allowance. A Learner gets one by buying the Lab Plan or the Pro Plan, or the Admin assigns one by hand; a Learner without one has no Lab. Courses stay free to join.
 _Malay_: Pelan
 _Avoid_: Tier, subscription, package, free plan
 
@@ -245,33 +245,8 @@ How much Dataset data and Deployment pages a Learner may keep while they have an
 _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
-**Template**:
-A dashboard design for one kind of data, such as Finance, Inventory, HR, Sales or Roster, with blanks for the columns it needs. A Learner may start a Dashboard from one when Cave finds its main columns; a blank no column fills only leaves out the blocks that need it. General is the Template with no blanks, whose blocks Cave builds from the Dataset itself, and where every Dashboard starts unless the Learner picks another.
-_Malay_: Templat
-_Avoid_: Theme, layout, preset
-
-**Theme**:
-How a Dashboard looks: its colours, fonts and chart styles, such as Corporate Executive or Midnight Intelligence. Changing it never changes what the Dashboard shows.
-_Malay_: Tema
-_Avoid_: Template, skin, style, look
-
-**Dashboard question**:
-The one thing a Template's Dashboard answers, shown under its name. General has none. Unrelated to the questions in an Exam.
-_Malay_: Soalan Dashboard
-_Avoid_: Goal, purpose, insight
-
-**Sample**:
-The Excel file Cave provides for a Template, showing the shape of data it expects. A Learner may start a Dashboard from it instead of their own file, or edit it and upload it.
-_Malay_: Sampel
-_Avoid_: Example file, demo data
-
-**Block**:
-One card, chart or table on a Dashboard. A Dashboard starts with the blocks General builds from its Dataset, or a Template's, and the Learner can add, remove and change them, and reset them.
-_Malay_: Blok
-_Avoid_: Widget, tile, panel, chart (a chart is one kind of block), builder, pivot
-
 **Dataset**:
-The table Cave keeps from a Learner's Excel upload, their own data or a Sample, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, either replacing the rows or, with the same columns, adding to them, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
+The table Cave keeps from a Learner's Excel upload to a Dashboard, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, either replacing the rows or, with the same columns, adding to them, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
 
@@ -281,12 +256,12 @@ _Malay_: Pembersihan
 _Avoid_: Sanitise, normalise, transform, fix
 
 **Dashboard**:
-One Learner's Dataset drawn as blocks the Learner can change, which Cave turns into a page whose code they can look at under the hood and download. There is one kind.
+A Learner's dashboard page, made outside Cave such as with an AI chatbot and brought to the Lab as one HTML file, with the Dataset it may read. Cave keeps it, its earlier pages and its Dataset, and puts it online as a Deployment.
 _Malay_: Dashboard (kept in English)
-_Avoid_: Report, chart, app, Practice Dashboard and Work Dashboard (the two former kinds), dashboard engine
+_Avoid_: Report, chart, app, web app, Template, Practice Dashboard and Work Dashboard (former kinds)
 
 **Deployment**:
-A page the Learner made themselves, such as with an AI chatbot, uploaded as one HTML file on one of their Dashboards and put online for anyone with its link. A Dashboard has at most one, and its page may read the Dashboard's current Dataset, so a new Dataset updates it. Uploading a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
+A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site, web app
 
@@ -303,7 +278,7 @@ _Avoid_: Snippet app, plugin
 **Snippet**:
 A saved prompt in CaveText: a name, a shortcut and a body, sitting in a Folder. Each Learner keeps their own, up to their Snippet cap.
 _Malay_: Snippet (kept in English)
-_Avoid_: Template (that is for the Lab), prompt
+_Avoid_: Template, prompt
 
 **Folder**:
 A named group a Learner puts their Snippets in.
