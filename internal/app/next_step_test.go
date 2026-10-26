@@ -257,11 +257,13 @@ func TestAPassedResultLeadsToTheCertificate(t *testing.T) {
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	attempt := s.sitExamAt(id, "0") // passed, and the Certificate is issued
 
+	_, mine := s.get("/my-certificates")
+	pdf := "/certificates/" + certificateIDs(mine)[0] + "/pdf"
 	_, body := s.get(attempt)
-	expectAll(t, body, "Passed (pass mark 50%)", "Back to the Exam")
-	expectPrimaries(t, body, "View your Certificate > /my-certificates")
+	expectAll(t, body, "Congratulations, you passed (pass mark 50%)", "Back to the Exam")
+	expectPrimaries(t, body, "View your Certificate > "+pdf)
 	_, body = s.getAsking(attempt, "ms")
-	expectPrimaries(t, body, "Lihat Sijil anda > /my-certificates")
+	expectPrimaries(t, body, "Lihat Sijil anda > "+pdf)
 }
 
 func TestAfterAPassTheExamPageLeadsToTheCertificateWithTheAnswerSheetSecond(t *testing.T) {

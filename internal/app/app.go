@@ -117,7 +117,7 @@ type page struct {
 	Assignments   []assignment // the Course's, on its page for an enrolled Learner or the Admin
 	Enrollees     []enrollee
 	Certificates  []certificate
-	Certificate   *certificate // the one a verification page shows
+	Certificate   *certificate // the one a verification page shows, or a passed Result leads to
 	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
 	PassedNoIC    bool         // NeedsIC, and the Learner already passed the Course's Exam: only the Certificate waits
 	Query         string       // what the Admin's Certificate search or the Course list's search was asked for

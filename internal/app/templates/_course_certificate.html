@@ -1,10 +1,9 @@
 {{/* course-certificate is the Certificate a Course leads to, at the top of the Course page's side card: its artwork
-with the Learner's name (a placeholder for a Visitor), the Course title and its PCC badge. It reads the Course page's
-data (.Course, .Learner, .Lang). */}}
+with the Learner's name, the Course title and its PCC badge. Visitors see none. It reads the Course page's data
+(.Course, .Learner, .Lang). */}}
 {{define "course-certificate"}}
-          {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
           <figure class="cp-cert">
-            {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) .Course.Title .Course.Badge .CertBackground)}}
+            {{template "certificate-preview" (certPreview .Learner.Name .Course.Title .Course.Badge .CertBackground)}}
             <figcaption>{{t .Lang "course.cert-caption"}}</figcaption>
           </figure>
 {{end}}

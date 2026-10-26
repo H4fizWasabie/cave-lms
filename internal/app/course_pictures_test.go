@@ -255,3 +255,25 @@ func TestACourseCardShowsItsLessonCountExamAndCertificate(t *testing.T) {
 	expectInOrder(t, workshop, "PCC Level:")
 	expectNone(t, workshop, "Lesson")
 }
+
+// On a phone the side card leads with the call to action: Join or Register comes before the Course picture, which
+// the card repeats for phones, and before a Learner's Certificate art. Desktop keeps the art at the top by CSS alone.
+func TestTheCoursePagesSideCardPutsJoinOrRegisterBeforeThePictureAndTheCertificateArt(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
+	id := s.onlyCourseID()
+	s.logOut()
+
+	card := func(body string) string {
+		_, card, _ := strings.Cut(body, `<div class="cp-card">`)
+		card, _, _ = strings.Cut(card, "</aside>")
+		return card
+	}
+	_, body := s.get("/courses/" + id)
+	expectInOrder(t, card(body), "Register to join", `class="cp-card-cover"`, `<img class="course-cover" src="/course-pictures/`)
+	expectNone(t, card(body), "cp-cert") // no Certificate, even a sample, for Visitors
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	_, body = s.getAsking("/courses/"+id, "ms")
+	expectInOrder(t, card(body), "Sertai Kursus ini", `class="cp-card-cover"`, `class="cp-cert"`)
+}

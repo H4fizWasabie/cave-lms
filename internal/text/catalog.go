@@ -1617,8 +1617,9 @@ var catalog = map[string]entry{
 	"exam.result":                  {en: "Result", ms: "Keputusan"},
 	"exam.score":                   {en: "Score: %d%%", ms: "Markah: %d%%"},
 	"exam.passed":                  {en: "Passed (pass mark %d%%)", ms: "Lulus (markah lulus %d%%)"},
+	"exam.passed-congrats":         {en: "Congratulations, you passed (pass mark %d%%)", ms: "Tahniah, anda lulus (markah lulus %d%%)"},
 	"exam.failed":                  {en: "Failed (pass mark %d%%)", ms: "Gagal (markah lulus %d%%)"},
-	"exam.submitted":               {en: "Congratulations, your answers are in", ms: "Tahniah, jawapan anda telah dihantar"},
+	"exam.submitted":               {en: "Your answers are in", ms: "Jawapan anda telah dihantar"},
 	"exam.ready-at":                {en: "Your Result is ready at %s. It will be emailed to you too.", ms: "Keputusan anda sedia pada %s. Ia juga akan dihantar kepada anda melalui e-mel."},
 	"exam.ready-written":           {en: "Written answers are marked first, so if marking runs late, your Result follows as soon as it is done.", ms: "Jawapan subjektif ditanda terlebih dahulu, jadi jika penandaan lewat, Keputusan anda menyusul sebaik sahaja ia selesai."},
 	"exam.find-result":             {en: "Once it is released, you will find it on this page and in My exams.", ms: "Setelah dikeluarkan, anda boleh melihatnya di halaman ini dan di Peperiksaan saya."},
@@ -2176,7 +2177,6 @@ var catalog = map[string]entry{
 	"cost.usage":            {en: "Depends on usage", ms: "Bergantung penggunaan"},
 	"cost.paid":             {en: "Paid add-on", ms: "Add-on berbayar"},
 	"cost.not-needed":       {en: "Not needed (subdomain)", ms: "Tidak perlu (subdomain)"},
-	"cert-preview.name":     {en: "Your name here", ms: "Nama anda di sini"},
 	"cert-preview.course":   {en: "Your Course", ms: "Kursus anda"},
 	// ---- end home page (#314) ----
 	"home.intro.1": {

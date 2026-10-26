@@ -76,7 +76,7 @@ func TestSubmittingWithBlankAnswersAsksFirstAndKeepsTheAnswersGiven(t *testing.T
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.releaseResults()
 	_, body = s.get(attempt)
-	expectAll(t, body, "Score: 0%")
+	expectAll(t, body, `class="x-score">0%<`)
 }
 
 func TestAnsweringEveryQuestionSubmitsWithoutAsking(t *testing.T) {
@@ -120,7 +120,7 @@ func TestWhenTimeIsUpBlankAnswersAreSubmittedWithoutAsking(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.releaseResults()
 	_, body = s.get(attempt)
-	expectAll(t, body, "Score: 50%")
+	expectAll(t, body, `class="x-score">50%<`)
 }
 
 // Asking about blank answers costs a round trip; with under a minute left before the server stops taking the

@@ -25,7 +25,6 @@
     <div class="wrap cp-body">
       <aside class="cp-side">
         <div class="cp-card">
-          {{template "course-certificate" .}}
           {{- if .Learner}}
             {{- if .Enrolled}}
             <p class="cp-joined"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{t .Lang "course.joined"}}</p>
@@ -55,6 +54,8 @@
           {{- else}}
           <p class="cp-note">{{t .Lang "course.closed"}}</p>
           {{- end}}
+          <div class="cp-card-cover">{{template "course-cover" (card .Course .Lang)}}</div>{{/* the hero's picture, here on phones so Join comes first */}}
+          {{if .Learner}}{{template "course-certificate" .}}{{end}}{{/* no Certificate, even a sample, for Visitors (#332) */}}
         </div>
         {{if .Enrolled}}<p class="cp-leave"><a class="btn btn-quiet btn-sm" href="/courses/{{.Course.ID}}/leave">{{t .Lang "course.leave"}}</a></p>{{end}}
       </aside>
