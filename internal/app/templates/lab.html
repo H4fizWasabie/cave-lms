@@ -1,7 +1,6 @@
 {{define "title"}}Lab · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad lab-page">
-      {{- if .Access.Open}}
       <div class="page-head">
         <div><h1>Lab</h1><p>{{t .Lang "lab.sub"}}</p></div>
       </div>
@@ -11,81 +10,37 @@
       {{- with .Access.CountedPeriod}}
       <div class="lab-plan">
         <div><span class="panel-k">{{t $.Lang "lab.plan"}}</span><strong>{{.PlanName}}</strong><span class="muted">{{t $.Lang "lab.ends" .Ends}}</span></div>
-        <div><span class="panel-k">{{t $.Lang "lab.awake"}}</span><strong>{{t $.Lang "lab.of" .Awake .Deployments}}</strong><span class="muted">{{t $.Lang "lab.unlimited"}}</span></div>
+        <div><span class="panel-k">{{t $.Lang "lab.awake"}}</span><strong>{{t $.Lang "lab.of" .Awake .Deployments}}</strong></div>
         <div><span class="panel-k">{{t $.Lang "lab.storage"}}</span><strong>{{t $.Lang "lab.storage-of" (size .Used) (size .Storage)}}</strong><span class="muted">{{t $.Lang "lab.storage-what"}}</span></div>
       </div>
       {{- end}}
-      {{- else if .Dashboards}}
-      <div class="page-head"><h1>Lab</h1></div>
-      <div class="callout">
-        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg>
-        <div>
-          <p>{{t .Lang "lab.plan-ended"}} {{t .Lang "lab.safe"}}</p>
-          {{- template "offers" .}}
-        </div>
-      </div>
-      {{- template "labTemplates" .}}
-      {{- else}}
-      <section class="lab-hero">
-        <div>
-          <p class="lab-kicker">Lab</p>
-          <h1>{{t .Lang "lab.hero"}}</h1>
-          <p class="lede">{{t .Lang "lab.hero-lede"}}</p>
-          {{- if not .Learner}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "lab.why-visitor"}}</span></p>
-          <div class="cta-row">
-            <a class="btn btn-solid btn-lg" href="/register">{{t .Lang "lab.register"}}</a>
-            <a class="btn btn-ghost btn-lg" href="/login">{{t .Lang "header.log-in"}}</a>
-          </div>
-          {{- else}}
-          <p class="lab-why"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "lab.why-plan"}}</span></p>
-          {{- template "offers" .}}
-          {{- end}}
-        </div>
-      </section>
-      <ol class="lab-steps">
-        <li><span class="step-n">1</span><strong>{{t .Lang "lab.step1"}}</strong><span>{{t .Lang "lab.step1-body"}}</span></li>
-        <li><span class="step-n">2</span><strong>{{t .Lang "lab.step2"}}</strong><span>{{t .Lang "lab.step2-body"}}</span></li>
-        <li><span class="step-n">3</span><strong>{{t .Lang "lab.step3"}}</strong><span>{{t .Lang "lab.step3-body"}}</span></li>
-        <li><span class="step-n">4</span><strong>{{t .Lang "lab.step4"}}</strong><span>{{t .Lang "lab.step4-body"}}</span></li>
-      </ol>
-      {{- template "labTemplates" .}}
-      {{- end}}
-      {{- if or .Access.Open .Dashboards}}
       <h2 class="h-md">{{t .Lang "lab.mine"}}</h2>
       <ul class="mc-list">
         {{- range .Dashboards}}
         <li class="mc-row mc-row-plain">
           <div class="mc-main">
             <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
-            <ul class="meta"><li>{{t $.Lang "lab.template-name" .Template}}</li><li>{{t $.Lang "lab.changed" .Updated}}</li>{{with .TakenDown}}<li><span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .}}</span></li>{{end}}</ul>
+            <ul class="meta">
+              {{- if .Page}}
+              {{- with .Deployment}}<li><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></li><li>{{if .TakenDown}}<span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .TakenDown}}</span>{{else if .Awake}}{{t $.Lang "lab.dep.online"}}{{else}}{{t $.Lang "lab.dep.asleep"}}{{end}}</li>
+              {{- else}}<li>{{t $.Lang "lab.page.not-deployed"}}</li>{{end}}
+              {{- else}}<li>{{t $.Lang "lab.template-name" .Template}}</li>{{with .Deployment}}{{with .TakenDown}}<li><span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .}}</span></li>{{end}}{{end}}
+              {{- end}}
+              <li>{{t $.Lang "lab.changed" .Updated}}</li>
+            </ul>
           </div>
           <div class="row-actions">
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">{{t $.Lang "lab.open"}}</a>
             {{- if .HasData}}
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.download"}}</a>
             {{- end}}
-            {{- if $.Access.Open}}
             <a class="btn btn-quiet btn-sm" href="/lab/dashboards/{{.ID}}/rename" title="{{t $.Lang "lab.rename"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-pencil-simple"/></svg><span class="sr">{{t $.Lang "lab.rename"}}</span></a>
             <a class="btn btn-danger btn-sm" href="/lab/dashboards/{{.ID}}/delete" title="{{t $.Lang "lab.delete"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">{{t $.Lang "lab.delete"}}</span></a>
-            {{- end}}
           </div>
         </li>
         {{- else}}
         <li class="empty">{{t .Lang "lab.none"}} <a href="/lab/new">{{t .Lang "lab.none-start"}}</a>.</li>
         {{- end}}
       </ul>
-      {{- end}}
     </div>
 {{end}}
-{{define "labTemplates"}}
-      <h2 class="h-md">{{t .Lang "lab.templates"}}</h2>
-      <ul class="tp-grid">
-        {{- range .Templates}}
-        <li class="tp-show">
-          <div class="tp-frame"><iframe src="/lab/demo/{{.Key}}/" title="{{t $.Lang "lab.template-preview" (t $.Lang (print "lab.tpl." .Key ".name"))}}" loading="lazy" tabindex="-1" scrolling="no"></iframe></div>
-          <div class="tp-body"><h3>{{t $.Lang (print "lab.tpl." .Key ".name")}}</h3>{{if .Question}}<p class="tp-q">{{t $.Lang (print "lab.tpl." .Key ".question")}}</p>{{end}}<p>{{t $.Lang (print "lab.tpl." .Key ".blurb")}}</p><a href="/lab/demo/{{.Key}}/" target="_blank"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.full-preview"}}</a></div>
-        </li>
-        {{- end}}
-      </ul>
-{{- end}}

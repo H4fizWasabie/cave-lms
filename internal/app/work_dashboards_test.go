@@ -16,10 +16,11 @@ import (
 )
 
 // createWork creates a Dashboard with template pre-chosen, as a Sample's Template is, and returns its path.
-// The New Dashboard form makes it on General; any other Template is set in the database.
+// The New Dashboard form makes a page Dashboard on General; its page is dropped, so it is an engine Dashboard until
+// the engine goes (#376), and any other Template is set in the database.
 func (s *site) createWork(template, name string) string {
 	s.t.Helper()
-	res, body := s.post("/lab/dashboards", url.Values{"name": {name}})
+	res, body := s.post("/lab/dashboards", url.Values{"name": {name}, "html": {myPage}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	loc := res.Header.Get("Location")
 	m := dashboardPath.FindStringSubmatch(loc)
@@ -29,6 +30,7 @@ func (s *site) createWork(template, name string) string {
 	if _, err := s.db.Exec(`UPDATE dashboards SET template = $2 WHERE id = $1`, m[1], template); err != nil {
 		s.t.Fatal(err)
 	}
+	s.dropPage(m[1])
 	return loc
 }
 

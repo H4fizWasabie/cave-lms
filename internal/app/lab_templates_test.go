@@ -7,30 +7,8 @@ import (
 	"testing"
 )
 
-var labKeys = []string{"finance", "inventory", "hr", "sales", "roster", "general"}
-
-// expectDemoPreviews checks the Lab page previews every Template on its Sample, and that each preview is served.
-func expectDemoPreviews(t *testing.T, s *site) {
-	t.Helper()
-	res, body := s.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Templates, shown with their Samples")
-	for _, key := range labKeys {
-		expectStatus(t, res, body, http.StatusOK, `src="/lab/demo/`+key+`/"`)
-		expectStatus(t, res, body, http.StatusOK, `href="/lab/demo/`+key+`/"`)
-	}
-	for key, row := range map[string]string{"finance": "Sewa pejabat", "inventory": "Kertas A4 (rim)", "hr": "Aiman", "general": "Nasi lemak"} {
-		res, body := s.get("/lab/demo/" + key + "/")
-		expectStatus(t, res, body, http.StatusOK, `<script src="charts.js"></script>`)
-		res, body = s.get("/lab/demo/" + key + "/data.json")
-		expectStatus(t, res, body, http.StatusOK, row)
-		res, body = s.get("/lab/demo/" + key + "/charts.js")
-		expectStatus(t, res, body, http.StatusOK, "drawDashboard")
-	}
-}
-
-func TestVisitorSeesEveryTemplatePreviewedButCannotBuild(t *testing.T) {
+func TestVisitorCannotBuild(t *testing.T) {
 	s := newSite(t)
-	expectDemoPreviews(t, s)
 	res, _ := s.get("/lab/new")
 	if res.StatusCode == http.StatusOK {
 		t.Fatalf("a Visitor opened New Dashboard")
@@ -41,19 +19,12 @@ func TestVisitorSeesEveryTemplatePreviewedButCannotBuild(t *testing.T) {
 	}
 }
 
-func TestLearnerWithoutAccessSeesEveryTemplatePreviewedButCannotBuild(t *testing.T) {
+func TestLearnerWithoutAccessCannotBuild(t *testing.T) {
 	_, ada, _, _ := labSetup(t)
-	expectDemoPreviews(t, ada)
 	res, body := ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusForbidden, "The Lab is locked")
-	res, body = ada.post("/lab/dashboards", url.Values{"template": {"hr"}, "name": {"Staf"}})
+	res, body = ada.post("/lab/dashboards", url.Values{"name": {"Staf"}, "html": {myPage}})
 	expectStatus(t, res, body, http.StatusForbidden, "The Lab is locked")
-}
-
-func TestUnknownDemoIsNotFound(t *testing.T) {
-	s := newSite(t)
-	res, body := s.get("/lab/demo/payroll/")
-	expectStatus(t, res, body, http.StatusNotFound, "")
 }
 
 // buildFromSample creates a Dashboard on a Template, uploads its Sample and returns the Dashboard's path and the

@@ -6,8 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"time"
-
-	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
 // labAccess is what the Lab access rule finds for one Learner: access needs an active Plan
@@ -50,12 +48,14 @@ func (p *activePeriod) DeploymentsLeft() int { return max(p.Deployments-p.Awake,
 // Full reports whether the Learner already has as many awake Deployments as the period allows.
 func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
 
-// storageUsedSQL is an SQL expression for the bytes a Learner's Datasets take against the Storage allowance, learner
-// being an SQL expression for their id: their Dashboards' confirmed Datasets by saved size. Pending ones count only
-// when keepPending checks an upload.
+// storageUsedSQL is an SQL expression for the bytes a Learner's Datasets and pages take against the Storage
+// allowance, learner being an SQL expression for their id: their Dashboards' confirmed Datasets by saved size, and
+// their pages. Pending Datasets count only when keepPending checks an upload.
 func storageUsedSQL(learner string) string {
-	return `(SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds JOIN dashboards owner ON owner.id = ds.dashboard_id
-			WHERE owner.learner_id = ` + learner + ` AND ds.state <> 'pending')`
+	return `((SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds JOIN dashboards owner ON owner.id = ds.dashboard_id
+			WHERE owner.learner_id = ` + learner + ` AND ds.state <> 'pending') +
+		(SELECT COALESCE(sum(pg.size), 0) FROM dashboard_pages pg JOIN dashboards pg_owner ON pg_owner.id = pg.dashboard_id
+			WHERE pg_owner.learner_id = ` + learner + `))`
 }
 
 // labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
@@ -81,39 +81,34 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 	return acc, nil
 }
 
-// labPage is /lab: the demo for Visitors and Learners without access, the Lab itself for those with it.
+// labPage is /lab: the Learner's Plan and Dashboards.
 type labPage struct {
 	pageBase
 	Access     labAccess
-	Offers     []offer // Upgrade: the Lab Plan and the Pro Plan, for a Learner without access
 	Dashboards []dashboardRow
-	Templates  []*lab.Template // previewed on their Samples in the demo
 }
 
+// lab is the Lab for those it is open to; Visitors and Learners without a Plan go to /pricing (ADR 0018).
 func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}, Templates: lab.Templates}
+	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}}
 	if learner != nil {
 		if p.Access, err = a.labAccessOf(r.Context(), learner); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		// Only a Learner who once had access has Dashboards, so without access they are listed read-only.
-		if p.Dashboards, err = a.labDashboards(r, learner.ID); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		if !p.Access.Open() {
-			p.Offers, err = a.offersOf(r.Context(), labPlanProduct, proPlanProduct)
-		}
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
+	}
+	if !p.Access.Open() {
+		http.Redirect(w, r, "/pricing", http.StatusSeeOther)
+		return
+	}
+	if p.Dashboards, err = a.labDashboards(r, learner.ID); err != nil {
+		a.serverError(w, r, err)
+		return
 	}
 	a.render(w, r, http.StatusOK, "lab", p)
 }

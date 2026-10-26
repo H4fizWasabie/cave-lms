@@ -51,8 +51,8 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 	if line := admin.lastLogLine("Datasets"); line != "Daily prune deleted 1 Datasets" {
 		t.Fatalf("System log line = %q", line)
 	}
-	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`"`)
+	res, body := ada.get(path)
+	expectStatus(t, res, body, http.StatusOK, "Kewangan")
 	if strings.Contains(body, `href="`+path+`/download"`) {
 		t.Fatalf("the Dashboard still has a Dataset to download: %s", body)
 	}

@@ -251,9 +251,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/reports/{id}/dismiss", a.admin(a.dismissReport))
 	mux.HandleFunc("GET /lab", a.lab)
 	mux.HandleFunc("GET /lab/samples/{file}", a.labSample)
-	mux.HandleFunc("GET /lab/demo/{key}/{$}", a.demoFile("index.html"))
-	mux.HandleFunc("GET /lab/demo/{key}/data.json", a.demoFile("data.json"))
-	mux.HandleFunc("GET /lab/demo/{key}/charts.js", a.demoFile("charts.js"))
+	// The public demo went with the Lab's Samples (ADR 0018); old links land on the Plans.
+	mux.HandleFunc("GET /lab/demo/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/pricing", http.StatusSeeOther)
+	})
 	mux.HandleFunc("GET /lab/new", a.requireLearner(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}", a.dashboardTab("dataset"))

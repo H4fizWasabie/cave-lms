@@ -140,12 +140,6 @@ func TestEveryPageCarriesTheContentSecurityPolicy(t *testing.T) {
 			t.Errorf("GET %s has an inline script, which the policy blocks", path)
 		}
 	}
-	// A Dashboard page writes its own inline script, so it replaces the site's policy with its own.
-	recorder := httptest.NewRecorder()
-	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/lab/demo/finance/", nil))
-	if got := recorder.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'self' 'unsafe-inline'") || !strings.Contains(got, "font-src data:") {
-		t.Errorf("the demo Dashboard's Content-Security-Policy = %q, want its own, allowing its inline script and Inter from charts.js", got)
-	}
 }
 
 func TestTheHomePageShowsCoachAdamDanielsCardWithHisCredentialsAsText(t *testing.T) {

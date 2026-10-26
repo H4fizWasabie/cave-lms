@@ -10,7 +10,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-func TestANewDashboardAsksOnlyForANameAndStartsFromAnUpload(t *testing.T) {
+func TestANewDashboardAsksOnlyForANameAndItsPage(t *testing.T) {
 	_, ada := labLearner(t)
 	res, body := ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusOK, `name="name"`)
@@ -20,15 +20,16 @@ func TestANewDashboardAsksOnlyForANameAndStartsFromAnUpload(t *testing.T) {
 		}
 	}
 
-	// Whatever the form says, the Dashboard is one whose blocks the Learner shapes: it has a Blocks tab, no Columns tab.
+	// Whatever else the form says, the Dashboard is its page.
 	for _, form := range []url.Values{{"name": {"Kedai"}}, {"name": {"Lama"}, "template": {"finance"}}, {"name": {"Kerja"}, "kind": {"practice"}}} {
+		form.Set("html", myPage)
 		res, body = ada.post("/lab/dashboards", form)
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 		path := res.Header.Get("Location")
 		res, body = ada.get(path + "/columns")
 		expectStatus(t, res, body, http.StatusNotFound, "")
 		res, body = ada.get(path)
-		expectStatus(t, res, body, http.StatusOK, `enctype="multipart/form-data"`)
+		expectStatus(t, res, body, http.StatusOK, "Your page")
 	}
 }
 
@@ -85,12 +86,6 @@ func TestConfirmingATemplateOnDataWithoutItsAmountLeavesOutTheBlocksThatNeedIt(t
 
 func TestALearnerStartsADashboardFromEachTemplatesSampleWithItsTemplateChosen(t *testing.T) {
 	_, ada := labLearner(t)
-	res, body := ada.get("/lab/new")
-	for _, key := range []string{"finance", "inventory", "hr", "sales", "roster"} {
-		for _, want := range []string{`name="sample" value="` + key + `"`, `href="/lab/samples/` + key + `.xlsx"`} {
-			expectStatus(t, res, body, http.StatusOK, want)
-		}
-	}
 	for _, key := range []string{"finance", "inventory", "hr", "sales", "roster"} {
 		res, body := ada.post("/lab/dashboards", url.Values{"name": {"Cuba " + key}, "sample": {key}})
 		expectStatus(t, res, body, http.StatusSeeOther, "")

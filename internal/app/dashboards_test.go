@@ -353,12 +353,9 @@ func TestAfterAccessEndsTheLabIsReadOnly(t *testing.T) {
 	admin.ageAllPeriods(31)
 
 	res, body := ada.get("/lab")
-	for _, want := range []string{"Your Dashboards are safe", `src="/lab/demo/finance/"`, `href="` + path + `"`, `href="` + path + `/download"`, `href="` + empty + `"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	if strings.Contains(body, `href="/lab/new"`) || strings.Contains(body, `href="`+empty+`/download"`) {
-		t.Fatalf("read-only Lab offers New Dashboard, or a zip of a Dashboard with no Dataset: %s", body)
-	}
+	expectRedirect(t, res, body, "/pricing")
+	res, body = ada.get(empty)
+	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")
 
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "this Dashboard is read-only")

@@ -2,7 +2,7 @@
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
     <div class="wrap page-pad lab-page">
-      <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
+      <p class="crumbs"><a href="/lab">Lab</a>{{if not .Dashboard.Page}} / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}{{end}}</p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>
         {{- if .Dashboard.Dataset}}
@@ -13,6 +13,10 @@
       <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>{{t .Lang "lab.d.read-only"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p></div>
       {{- end}}
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
+        {{- if .Dashboard.Page}}
+        <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.page.tab"}}</a>
+        <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
+        {{- else}}
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
         {{- if .Dashboard.Dataset}}
         <a class="lab-tab" href="{{$url}}/blocks"{{if eq .Tab "blocks"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.blocks"}}</a>
@@ -25,9 +29,18 @@
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.hood"}}</span>
         <span class="lab-tab is-off" title="{{t .Lang "lab.d.upload-first"}}">{{t .Lang "lab.d.tab.deploy"}}</span>
         {{- end}}
+        {{- end}}
       </nav>
 
-      {{- if eq .Tab "dataset"}}
+      {{- if and .Dashboard.Page (eq .Tab "dataset")}}{{with .Dashboard.Page}}
+      <section class="lab-narrow">
+        <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div></div>
+        {{- if not $.ReadOnly}}
+        <p><a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a></p>
+        {{- end}}
+      </section>
+      {{- end}}
+      {{- else if eq .Tab "dataset"}}
       <div class="lab-split">
         <section>
           {{- if .ReadOnly}}
@@ -228,7 +241,7 @@
         <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.d.save"}}</button></div>
       </form>
 
-      {{- else if not .Dashboard.Dataset}}
+      {{- else if and (not .Dashboard.Dataset) (not .Dashboard.Page)}}
       <p class="empty">{{t .Lang "lab.d.upload-first-p"}} <a href="{{$url}}">{{t .Lang "lab.d.go-dataset"}}</a>.</p>
 
       {{- else if and .ReadOnly (eq .Tab "blocks")}}
@@ -400,10 +413,12 @@
           <input id="dep-url" type="text" readonly value="{{.Link}}" title="{{t $.Lang "lab.dep.select-link"}}">
           <a class="btn btn-ghost btn-sm" href="{{.Path}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.open"}}</a>
         </div>
-        {{- if not .Awake}}
+        {{- if and (not .Awake) (not $.Dashboard.Page)}}
         <p><a class="btn btn-ghost" href="{{$url}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.d.zip"}}</a></p>
         {{- end}}
-        {{- if .Awake}}
+        {{- if and .Awake $.Dashboard.Page}}
+        <p class="muted">{{t $.Lang "lab.page.share"}}</p>
+        {{- else if .Awake}}
         <p class="muted">{{t $.Lang "lab.dep.share"}} <a href="{{$url}}">{{t $.Lang "lab.dep.share-upload"}}</a>.</p>
         {{- end}}{{end}}
         {{- else if not .Access.Open}}
@@ -436,7 +451,9 @@
         <ul class="dep-facts">
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-link"}}</strong> {{t .Lang "lab.dep.fact-link-body"}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{if .Access.Admin}}<strong>{{t .Lang "lab.dep.fact-days-admin"}}</strong> {{t .Lang "lab.dep.fact-days-admin-body"}}{{else}}<strong>{{t .Lang "lab.dep.fact-days"}}</strong>{{t .Lang "lab.dep.fact-days-body"}}{{end}}</span></li>
+          {{- if not .Dashboard.Page}}
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-current"}}</strong> {{t .Lang "lab.dep.fact-current-body"}}</span></li>
+          {{- end}}
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-once"}}</strong> {{t .Lang "lab.dep.fact-once-body"}}{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.fact-uses" .DeploymentsLeft}}{{end}}</span></li>
         </ul>
         <p><a class="btn btn-solid btn-lg" href="{{$url}}/deploy?confirm">{{t .Lang "lab.d.tab.deploy"}}</a></p>

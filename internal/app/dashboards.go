@@ -56,10 +56,11 @@ type dashboard struct {
 	Config   *lab.Config  // its blocks and filter bar; nil until its first confirm
 	Settings lab.Settings // what it remembers for its next upload
 	Dataset  *lab.Dataset
-	Key      string // where the Dataset is in the Dataset store; empty until the first confirm
-	File     string // the uploaded Dataset's file name
-	Size     int64  // the Dataset's saved size, against the Storage allowance
-	Updated  string // formatted as periodTime
+	Key      string    // where the Dataset is in the Dataset store; empty until the first confirm
+	File     string    // the uploaded Dataset's file name
+	Size     int64     // the Dataset's saved size, against the Storage allowance
+	Updated  string    // formatted as periodTime
+	Page     *htmlPage // its current page, the HTML its Learner made (ADR 0018); nil for an engine Dashboard
 }
 
 // generate writes the Dashboard's index.html and data.json, its data fetched from dataURL.
@@ -69,15 +70,17 @@ func (d *dashboard) generate(dataURL string) (index, data []byte, err error) {
 
 // dashboardRow is a Dashboard in the Lab list.
 type dashboardRow struct {
-	ID        int64
-	Name      string
-	Template  string
-	Updated   string
-	HasData   bool   // a Dataset is uploaded, so it can be downloaded
-	TakenDown string // when Cave took its Deployment down; empty if it was not
+	ID         int64
+	Name       string
+	Template   string
+	Updated    string
+	HasData    bool        // a Dataset is uploaded, so it can be downloaded
+	Page       bool        // it has a page: a page Dashboard, not an engine one
+	Deployment *deployment // nil until deployed
 }
 
 // labDashboards lists a Learner's Dashboards, most recently changed first.
+// ponytail: one query per deployed Dashboard; join the Deployment's columns in if a Learner's list gets long.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
 	lang, err := a.language(r)
 	if err != nil {
@@ -85,29 +88,39 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 	}
 	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at,
 			EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current'),
-			dep.taken_down_at
-		FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id
-		WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
+			EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id AND pg.current),
+			EXISTS (SELECT 1 FROM deployments dep WHERE dep.dashboard_id = d.id)
+		FROM dashboards d WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var list []dashboardRow
+	var deployed []int // indexes into list
 	for rows.Next() {
 		var d dashboardRow
 		var key string
 		var updated time.Time
-		var takenDown sql.NullTime
-		if err := rows.Scan(&d.ID, &d.Name, &key, &updated, &d.HasData, &takenDown); err != nil {
+		var dep bool
+		if err := rows.Scan(&d.ID, &d.Name, &key, &updated, &d.HasData, &d.Page, &dep); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		if takenDown.Valid {
-			d.TakenDown = takenDown.Time.UTC().Format(periodTime)
+		if dep {
+			deployed = append(deployed, len(list))
 		}
 		d.Template, d.Updated = templateName(lang, key), updated.UTC().Format(periodTime)
 		list = append(list, d)
 	}
-	return list, rows.Err()
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for _, i := range deployed {
+		if list[i].Deployment, err = a.deploymentOf(r, list[i].ID); err != nil {
+			return nil, err
+		}
+	}
+	return list, nil
 }
 
 // templateName is the name of the Template with key in lang, or key itself for one Cave no longer has.
@@ -138,11 +151,17 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	var key string
 	var choices, config, settings []byte
 	var updated time.Time
+	var pageKey sql.NullString
+	var pageSize sql.NullInt64
+	var pageUploaded sql.NullTime
 	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.template, d.name, d.theme, d.choices, d.config, d.upload_settings,
-			COALESCE(ds.storage_key, ''), COALESCE(ds.file_name, ''), COALESCE(ds.saved_size, 0), d.updated_at
+			COALESCE(ds.storage_key, ''), COALESCE(ds.file_name, ''), COALESCE(ds.saved_size, 0), d.updated_at,
+			pg.storage_key, pg.size, pg.uploaded_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
-		LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'`, args...).
-		Scan(&d.ID, &key, &d.Name, &d.Theme, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated)
+		LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'
+		LEFT JOIN dashboard_pages pg ON pg.dashboard_id = d.id AND pg.current`, args...).
+		Scan(&d.ID, &key, &d.Name, &d.Theme, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated,
+			&pageKey, &pageSize, &pageUploaded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -153,6 +172,9 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 		return nil, fmt.Errorf("dashboard %d has unknown template %q", d.ID, key)
 	}
 	d.Updated = updated.UTC().Format(periodTime)
+	if pageKey.Valid {
+		d.Page = &htmlPage{Key: pageKey.String, Size: pageSize.Int64, Uploaded: pageUploaded.Time.UTC().Format(periodTime)}
+	}
 	if err := errors.Join(json.Unmarshal(choices, &d.Choices), json.Unmarshal(settings, &d.Settings)); err != nil {
 		return nil, err
 	}
@@ -237,6 +259,7 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 type newDashboardPage struct {
 	pageBase
 	Name    string
+	HTML    string          // the pasted page, kept when the form is refused
 	Samples []*lab.Template // the Templates whose Sample the Learner may try
 }
 
@@ -257,10 +280,25 @@ func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
 }
 
-// createDashboard makes a Dashboard with General's blocks to come (ADR 0015). With sample, a Template's key, the
-// Dashboard starts on that Template with its Sample, cleaned at start-up, as its pending Dataset.
+// createDashboard makes a Dashboard from a name and the page its Learner made (createPageDashboard). With sample, a
+// Template's key, it makes an engine Dashboard instead, on that Template with its Sample, cleaned at start-up, as its
+// pending Dataset, until the engine goes (#376).
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
-	if _, ok := a.labOpen(w, r); !ok {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxPageUpload)
+	// ParseForm first: ParseMultipartForm hides its error on a form that is not multipart, as a pasted page may be.
+	err := r.ParseForm()
+	if err == nil {
+		err = r.ParseMultipartForm(maxPageUpload)
+	}
+	var over *http.MaxBytesError
+	tooBig := errors.As(err, &over)
+	key := r.FormValue("sample")
+	if key == "" {
+		a.createPageDashboard(w, r, acc, tooBig)
 		return
 	}
 	lang, err := a.language(r)
@@ -268,13 +306,10 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	key := r.FormValue("sample")
-	t, sample := lab.General, a.samples[key]
-	if key != "" {
-		if t = lab.TemplateByKey(key); t == nil || t == lab.General || sample == nil {
-			a.notFound(w, r)
-			return
-		}
+	t, sample := lab.TemplateByKey(key), a.samples[key]
+	if t == nil || t == lab.General || sample == nil {
+		a.notFound(w, r)
+		return
 	}
 	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
 	if p.Error = dashboardNameError(lang, p.Name); p.Error != "" {
@@ -796,21 +831,6 @@ func (a *App) dashboardFile(name string) http.HandlerFunc {
 // connections, to the fonts written into charts.js, and to framing by Cave. The preview needs the session
 // cookie for data.json, so no sandbox.
 const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src data:; frame-ancestors 'self'"
-
-// demoFile serves a Template's demo, /lab/demo/{key}/: the Template opened on its Sample, cleaned at start-up,
-// with Cave's guesses, open to anyone. Nothing is stored, so a Visitor sees the Lab without building anything.
-func (a *App) demoFile(name string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		t := lab.TemplateByKey(r.PathValue("key"))
-		if t == nil {
-			a.notFound(w, r)
-			return
-		}
-		res := a.samples[t.Key]
-		d := &dashboard{Template: t, Name: t.Name + " Template", Config: t.Open(res.Guess, res.Dataset), Dataset: res.Dataset}
-		a.serveDashboardFile(w, r, d, name, previewCSP, "")
-	}
-}
 
 // dataPath is where a Dashboard's page fetches its data, relative to the page: the Dataset's key, so a
 // re-upload changes the address and no cache ever serves an old Dataset. The preview's data is cached for good

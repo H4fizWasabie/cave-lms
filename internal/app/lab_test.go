@@ -22,14 +22,12 @@ func TestCoursesNoLongerOfferTheLab(t *testing.T) {
 	}
 }
 
-func TestVisitorSeesWhatTheLabIsWithRegister(t *testing.T) {
+func TestAVisitorFollowingTheLabLinkLandsOnPricing(t *testing.T) {
 	s := newSite(t)
 	res, body := s.get("/")
 	expectStatus(t, res, body, http.StatusOK, `<a href="/lab">Lab</a>`)
 	res, body = s.get("/lab")
-	for _, want := range []string{"From static dashboard to hosted dashboard", "Register to get started", `href="/register"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
+	expectRedirect(t, res, body, "/pricing")
 }
 
 // labSetup logs in the Admin, creates a 30-day Plan with 3 Deployments and a Course, and returns the Admin,
@@ -57,15 +55,12 @@ func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
 	}
 }
 
-func TestLearnerInACourseWithoutAPlanSeesOnlyTheDemo(t *testing.T) {
+func TestLearnerInACourseWithoutAPlanGoesToPricing(t *testing.T) {
 	_, ada, _, courseID := labSetup(t)
 	ada.post("/courses/"+courseID+"/join", nil)
 
 	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
-	if strings.Contains(body, "Deployments left this period") {
-		t.Fatalf("a Learner without a Plan has the Lab: %s", body)
-	}
+	expectRedirect(t, res, body, "/pricing")
 }
 
 func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
@@ -74,7 +69,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 
 	admin.ageAllPeriods(31)
 	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
+	expectRedirect(t, res, body, "/pricing")
 
 	admin.assignPlan("ada@example.com", planID)
 	res, body = ada.get("/lab")
@@ -83,7 +78,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 	_, page := admin.get("/admin/plans/periods?email=ada@example.com")
 	admin.post(endPeriodButton.FindStringSubmatch(page)[1], confirming)
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, "Building, uploading and deploying need a Plan")
+	expectRedirect(t, res, body, "/pricing")
 }
 
 func TestLeavingACourseNeverWarnsAboutTheLab(t *testing.T) {
