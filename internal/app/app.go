@@ -675,6 +675,9 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 			a.serverError(w, r, err)
 			return
 		}
+		// A message page (not found, refused, an error) has no sidebar, so it keeps the site's header to lead somewhere.
+		l := *withLearner.learnerField()
+		c.chromeField().Shell = l != nil && l.IsAdmin && strings.HasPrefix(r.URL.Path, "/admin") && name != "message"
 	}
 	var buf bytes.Buffer
 	if err := a.pages[name].ExecuteTemplate(&buf, "layout", data); err != nil {

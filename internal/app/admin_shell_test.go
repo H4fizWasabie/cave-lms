@@ -22,9 +22,13 @@ func TestAdminPagesRenderInTheAdminShellWithoutThePublicHeaderAndFooter(t *testi
 		}
 	}
 
+	// A not-found or error page under /admin has no sidebar, so it keeps the site's header to lead somewhere.
+	res, body := s.get("/admin/courses/999999/edit")
+	expectStatus(t, res, body, http.StatusNotFound, `class="site-header"`)
+
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
-	_, body := s.get("/admin")
+	_, body = s.get("/admin")
 	expectNone(t, body, `class="adm-side"`)
 	_, body = s.get("/courses")
 	expectAll(t, body, `class="site-header"`, `class="site-footer"`)

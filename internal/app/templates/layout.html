@@ -10,8 +10,7 @@
 </head>
 <body>
   <a class="skip" href="#main">{{t .Lang "header.skip"}}</a>
-  {{- $shell := and .Admin .Learner .Learner.IsAdmin}}{{/* an Admin's admin pages have only the Admin sidebar (#332) */}}
-  {{- if not $shell}}
+  {{- if not .Shell}}{{/* an Admin's admin pages have only the Admin sidebar (#332) */}}
   <header class="site-header">
     <div class="wrap site-header-in">
       <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
@@ -47,7 +46,7 @@
   <main id="main">
     {{template "content" .}}
   </main>
-  {{- if not $shell}}
+  {{- if not .Shell}}
   <footer class="site-footer">
     <div class="wrap footer-in">
       <div class="footer-brand">
