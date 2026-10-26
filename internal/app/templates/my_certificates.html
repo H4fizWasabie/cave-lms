@@ -5,22 +5,28 @@
         <h1>{{t .Lang "my-certificates.title"}}</h1>
         <p>{{t .Lang "my-certificates.intro"}}</p>
       </div>
-      {{if .NeedsIC}}<p class="callout">{{t .Lang "my-certificates.needs-ic"}} <a href="/my-profile">{{t .Lang "my-profile.title"}}</a></p>{{end}}
-      <ul class="cert-list">
+      {{if .NeedsIC}}<div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><p>{{t .Lang "my-certificates.needs-ic"}} <a class="link-more" href="/my-profile">{{t .Lang "my-profile.title"}}</a></p></div>{{end}}
+      {{- if .Certificates}}
+      <ul class="cert-shelf">
         {{range .Certificates}}
-        <li class="cert-chip">
-          <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
-          <div class="cert-chip-main">
-            <strong>{{.CourseTitle}}</strong>
+        <li class="cert-item{{if .Revoked}} is-revoked{{end}}">
+          {{template "certificate-preview" (.Preview $.CertBackground)}}
+          <div class="cert-item-main">
+            <h2>{{.CourseTitle}}</h2>
             <small>{{t $.Lang "certificate.number" .Number}} · {{t $.Lang "certificate.issued" (.IssuedIn $.Lang)}}</small>
             {{if .Revoked}}<p class="cert-revoked"><strong>{{t $.Lang "certificate.revoked"}}</strong>: {{t $.Lang "my-certificates.revoked"}}</p>{{end}}
+            <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
           </div>
-          <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
         </li>
-        {{else}}
-        <li class="empty">{{t .Lang "my-certificates.none"}}</li>
         {{end}}
       </ul>
       <p class="mc-more"><a class="link-more" href="/my-courses">{{t .Lang "my-courses.title"}}</a></p>
+      {{- else}}
+      <div class="empty-state">
+        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>
+        <p>{{t .Lang "my-certificates.none"}}</p>
+        <a class="btn btn-solid" href="/my-courses">{{t .Lang "my-courses.title"}}</a>
+      </div>
+      {{- end}}
     </div>
 {{end}}

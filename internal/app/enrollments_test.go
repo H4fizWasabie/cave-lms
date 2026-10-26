@@ -20,6 +20,11 @@ func (s *site) courseIDByTitle(title string) string {
 	return m[1]
 }
 
+// leaveCourse is the logged-in Learner leaving a Course through its confirmation page.
+func (s *site) leaveCourse(courseID string) (*http.Response, string) {
+	return s.post("/courses/"+courseID+"/leave", confirming)
+}
+
 // enrollmentCount counts the Enrollments of a Learner in a Course, read straight from the database.
 func (s *site) enrollmentCount(learnerEmail, courseID string) int {
 	s.t.Helper()
@@ -131,9 +136,25 @@ func TestLearnerLeavesACourse(t *testing.T) {
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.post("/courses/"+id+"/join", nil)
 	res, body := s.get("/courses/" + id)
-	expectStatus(t, res, body, http.StatusOK, `action="/courses/`+id+`/leave"`)
+	expectStatus(t, res, body, http.StatusOK, `href="/courses/`+id+`/leave"`)
 
-	res, body = s.post("/courses/"+id+"/leave", nil)
+	res, body = s.get("/courses/" + id + "/leave")
+	expectStatus(t, res, body, http.StatusOK, "Leave “Go Basics”?")
+	expectAll(t, body, `action="/courses/`+id+`/leave"`, "Stay in this Course")
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("the confirmation page alone left the Course: %d Enrollments", n)
+	}
+
+	res, body = s.post("/courses/"+id+"/leave", nil) // not confirmed, as from an old Course page
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != "/courses/"+id+"/leave" {
+		t.Fatalf("unconfirmed leave went to %q, want the confirmation page", loc)
+	}
+	if n := s.enrollmentCount("ada@example.com", id); n != 1 {
+		t.Fatalf("an unconfirmed leave left the Course: %d Enrollments", n)
+	}
+
+	res, body = s.post("/courses/"+id+"/leave", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := s.enrollmentCount("ada@example.com", id); n != 0 {
 		t.Fatalf("Enrollments after leaving = %d, want 0", n)
@@ -161,16 +182,16 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Go Basics")
 	expectStatus(t, res, body, http.StatusOK, "Rust Basics")
 	if strings.Contains(content(body), "Java Basics") { // the header's Courses menu lists it
-		t.Fatalf("My Courses lists a Course Ada has not joined: %s", body)
+		t.Fatalf("My courses lists a Course Ada has not joined: %s", body)
 	}
 	if strings.Contains(body, "You have not joined any Courses yet.") {
-		t.Fatalf("My Courses shows the empty message to a Learner with Courses: %s", body)
+		t.Fatalf("My courses shows the empty message to a Learner with Courses: %s", body)
 	}
 
-	s.post("/courses/"+goID+"/leave", nil)
+	s.leaveCourse(goID)
 	res, body = s.get("/my-courses")
 	if strings.Contains(content(body), "Go Basics") {
-		t.Fatalf("My Courses still lists a Course Ada left: %s", body)
+		t.Fatalf("My courses still lists a Course Ada left: %s", body)
 	}
 }
 
@@ -180,7 +201,7 @@ func TestVisitorIsSentToLogInFromMyCourses(t *testing.T) {
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	loginURL := res.Header.Get("Location")
 	if loginURL != "/login?next=%2Fmy-courses%3Ftab%3Dall" {
-		t.Fatalf("Visitor My Courses redirected to %q, want the login page with next", loginURL)
+		t.Fatalf("Visitor My courses redirected to %q, want the login page with next", loginURL)
 	}
 	res, body = s.get(loginURL)
 	expectStatus(t, res, body, http.StatusOK, `name="next" value="/my-courses?tab=all"`)
@@ -191,7 +212,7 @@ func TestVisitorIsSentToLogInFromMyCourses(t *testing.T) {
 	res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {"/my-courses?tab=all"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if got := res.Header.Get("Location"); got != "/my-courses?tab=all" {
-		t.Fatalf("login redirected to %q, want back to My Courses", got)
+		t.Fatalf("login redirected to %q, want back to My courses", got)
 	}
 }
 

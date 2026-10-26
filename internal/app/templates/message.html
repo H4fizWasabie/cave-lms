@@ -1,9 +1,9 @@
 {{define "title"}}{{.Title}} · CAVELMS{{end}}
 {{define "content"}}
-    <div class="wrap auth-page">
-      <div class="auth-box">
+    <div class="wrap notice-page">
+      <div class="notice">
         <h1>{{.Title}}</h1>
-        <p class="auth-sub">{{.Message}}</p>
+        <p class="notice-msg">{{.Message}}</p>
         {{if .OfferResend}}
         <form class="form" method="post" action="/verify/resend">
           <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
@@ -11,6 +11,7 @@
         </form>
         {{end}}
         {{if .OfferLogin}}<p><a class="btn btn-solid" href="/login">{{t .Lang "header.log-in"}}</a></p>{{end}}
+        {{if .OfferHome}}<p class="cta-row">{{with .Retry}}<a class="btn btn-solid" href="{{.}}">{{t $.Lang "error.retry"}}</a>{{end}}<a class="btn {{if .Retry}}btn-ghost{{else}}btn-solid{{end}}" href="/">{{t .Lang "error.home"}}</a></p>{{end}}
         {{if .OfferReset}}<p><a class="btn btn-ghost" href="/forgot-password">{{t .Lang "message.new-reset"}}</a></p>{{end}}
       </div>
     </div>

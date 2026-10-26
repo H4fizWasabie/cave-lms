@@ -17,7 +17,7 @@ import (
 func (a *App) CreateAdmin(ctx context.Context, name, email, password string) error {
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
-	if msg := accountFieldError("en", name, email, password); msg != "" { // the command line speaks English
+	if _, msg := accountFieldError("en", name, email, password); msg != "" { // the command line speaks English
 		return errors.New(msg)
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -78,8 +78,4 @@ func (a *App) admin(h http.HandlerFunc) http.HandlerFunc {
 		}
 		h(w, r)
 	}
-}
-
-func (a *App) adminHome(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "admin", page{})
 }

@@ -19,14 +19,14 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 
 	_, body := s.getAsking("/courses", "ms")
 	expectLanguage(t, body, "ms", "Mula bila-bila masa dan sertai dengan satu klik.")
-	expectAll(t, body, "Go Basics", "Learn Go from scratch.", "Dibuka untuk penyertaan baharu", "Tarikh mula: 3 November 2026", "Lihat Kursus")
+	expectAll(t, body, "Go Basics", "Learn Go from scratch.", "Dibuka untuk penyertaan baharu", "Tarikh mula: 3 November 2026", "2 Pelajaran")
 	_, body = s.getAsking("/courses", "en")
 	expectLanguage(t, body, "en", "Start any time and join in one click.")
-	expectAll(t, body, "Open to new joins", "Start date: 3 November 2026", "View course")
+	expectAll(t, body, "Open to new joins", "Start date: 3 November 2026", "2 Lessons")
 
 	_, body = s.getAsking("/courses/"+id, "ms")
-	expectLanguage(t, body, "ms", `atau <a href="/register">daftar</a> untuk menyertai Kursus ini.`)
-	expectAll(t, body, "Go Basics", "Variables", "Pelajaran")
+	expectLanguage(t, body, "ms", "Daftar untuk menyertai")
+	expectAll(t, body, "Go Basics", "Variables", "Pelajaran", "Sudah mendaftar?", "Kandungan Kursus", "Nama anda")
 
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
 	s.switchLanguage("ms", "/")
@@ -34,10 +34,13 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	_, body = s.getAsking("/courses/"+id, "en")
 	expectLanguage(t, body, "ms", "Kemajuan: 1 daripada 2 Pelajaran selesai")
-	expectAll(t, body, "Anda telah menyertai Kursus ini", "Tandakan belum selesai", "Tandakan selesai", "Tinggalkan Kursus ini", "Peperiksaan")
+	expectAll(t, body, "Anda telah menyertai Kursus ini", "Tandakan belum selesai", "Tandakan selesai", "Tinggalkan Kursus ini", "Peperiksaan", "1 daripada 2 Pelajaran", "Teruskan ke Pelajaran 2")
+	_, body = s.getAsking("/courses/"+id+"/leave", "en")
+	expectLanguage(t, body, "ms", "Tinggalkan “Go Basics”?")
+	expectAll(t, body, "Kekal dalam Kursus ini")
 	_, body = s.getAsking("/my-courses", "en")
 	expectLanguage(t, body, "ms", "Kursus yang telah anda sertai.")
-	expectAll(t, body, "Go Basics", "Sijil Saya", "Tarikh mula: 3 November 2026")
+	expectAll(t, body, "Go Basics", "Sijil saya", "Tarikh mula: 3 November 2026")
 
 	s.switchLanguage("en", "/")
 	_, body = s.getAsking("/courses/"+id, "ms")
@@ -150,15 +153,13 @@ func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
 	issuedMS, issuedEN := text.Date("ms", issued.In(time.FixedZone("MYT", 8*3600))), text.Date("en", issued.In(time.FixedZone("MYT", 8*3600)))
 
 	_, body := s.getAsking("/my-certificates", "ms")
-	expectLanguage(t, body, "ms", "Sijil Saya")
+	expectLanguage(t, body, "ms", "Sijil saya")
 	expectAll(t, body, "Go Basics", "Dikeluarkan "+issuedMS, "Muat turun PDF", "Setiap sijil mempunyai ID")
 
 	s.switchLanguage("ms", "/")
 	pdf := s.pdfBody("/certificates/" + certID + "/pdf")
-	expectAll(t, pdf, "Ada", "Go Basics", "Dikeluarkan pada: "+issuedMS)
-	s.switchLanguage("en", "/")
-	pdf = s.pdfBody("/certificates/" + certID + "/pdf")
-	expectAll(t, pdf, "Issued on: "+issuedEN)
+	expectAll(t, pdf, "Ada", "Go Basics", "Issued on: "+issuedEN) // the Certificate itself is English-only, like its artwork
+	expectNone(t, pdf, "Dikeluarkan")
 	s.logOut()
 
 	_, body = s.getAsking("/certificates", "ms")
@@ -175,7 +176,7 @@ func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
 	expectStatus(t, res, body, http.StatusNotFound, "Sijil tidak dijumpai")
 
 	s.loginAdmin()
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body = other.getAsking("/certificates/"+certID, "ms")
-	expectLanguage(t, body, "ms", "Status: Dibatalkan")
+	expectLanguage(t, body, "ms", "Status: Ditarik balik")
 }

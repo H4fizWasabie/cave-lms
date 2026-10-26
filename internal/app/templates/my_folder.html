@@ -21,7 +21,11 @@
         {{end}}
       </section>
       {{else}}
-      <p class="empty">{{t .Lang "my-folder.none"}}</p>
+      <div class="empty-state">
+        <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>
+        <p>{{t .Lang "my-folder.none"}}</p>
+        <a class="btn btn-solid" href="/my-courses">{{t .Lang "my-courses.title"}}</a>
+      </div>
       {{end}}
     </div>
 {{end}}

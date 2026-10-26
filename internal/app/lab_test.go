@@ -91,7 +91,7 @@ func TestLeavingACourseNeverWarnsAboutTheLab(t *testing.T) {
 	admin.assignPlan("ada@example.com", planID)
 	ada.post("/courses/"+courseID+"/join", nil)
 
-	res, body := ada.post("/courses/"+courseID+"/leave", nil)
+	res, body := ada.leaveCourse(courseID)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "Deployments awake")

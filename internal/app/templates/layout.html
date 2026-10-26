@@ -9,6 +9,7 @@
   <title>{{block "title" .}}CAVELMS{{end}}</title>
 </head>
 <body>
+  <a class="skip" href="#main">{{t .Lang "header.skip"}}</a>
   <header class="site-header">
     <div class="wrap site-header-in">
       <a class="brand" href="/"><img src="{{static "cavelms.svg"}}" alt="{{t .Lang "header.logo-alt"}}" class="brand-logo"></a>
@@ -40,7 +41,7 @@
       </div>
     </div>
   </header>
-  <main>
+  <main id="main">
     {{template "content" .}}
   </main>
   <footer class="site-footer">
@@ -87,41 +88,41 @@
 {{/* nav-links are the main site menus, shown in the header on wide screens and in its Menu on narrow ones.
    They share the account menu's name, so the browser closes the others when one opens: no script needed. */}}
 {{define "nav-links"}}
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.home"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.home"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/#welcome">{{t .Lang "nav.welcome"}}</a>
           <a href="/about">{{t .Lang "about.menu"}}</a>
           <a href="/#coach">Coach Adam</a>
           <a href="/#about">{{t .Lang "nav.about"}}</a>
           <a href="/gallery">{{t .Lang "nav.gallery"}}</a>
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.courses"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.courses"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           {{- range .Latest}}
           <a href="/courses/{{.ID}}">{{.Title}}</a>
           {{- end}}
           <a href="/courses">{{t .Lang "footer.all-courses"}}</a>
         </div></details>
         <a class="hdr-link" href="/lab">{{t .Lang "nav.lab"}}</a>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.classroom"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.classroom"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/my-courses">{{t .Lang "nav.my-courses"}}</a>
           <a href="/my-exams">{{t .Lang "nav.my-exams"}}</a>
           <a href="/my-folder">{{t .Lang "nav.my-folder"}}</a>
           <a href="/my-profile">{{t .Lang "nav.my-profile"}}</a>
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.pricing"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.pricing"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/pricing">{{t .Lang "nav.plans"}}</a>
           <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
           <a href="/my-membership">{{t .Lang "nav.my-membership"}}</a>
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.program"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.program"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/programmes">{{t .Lang "nav.programmes"}}</a>
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.certification"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.certification"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
           {{- if .Learner}}
           <a href="/my-certificates">{{t .Lang "footer.my-certificates"}}</a>
           {{- end}}
         </div></details>
-        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.community"}}</summary><div class="hdr-panel">
+        <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.community"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/community">{{t .Lang "community.chat"}}</a>
         </div></details>
 {{- end}}
@@ -137,37 +138,61 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "design", "plans", "prices", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only. */}}
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "organisations", "design", "plans", "prices", "promos", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only.
+On wide screens it is a column; below 1000px it folds into a Menu button that names the current section and opens the same grouped links. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
         <div class="adm-side-top">
           <a class="adm-brand" href="/admin"><img src="{{static "logo-light.svg"}}" alt="The Cave Consult"><span>{{t .Lang "admin.brand"}}</span></a>
         </div>
-        <nav class="adm-nav" aria-label="{{t .Lang "admin.nav"}}">
-          <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>{{t .Lang "admin.side.dashboard"}}</span></a>
-          <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span></a>
-          <a href="/admin/question-bank"{{if eq .Section "question-bank"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.side.question-bank"}}</span></a>
-          <a href="/admin/results"{{if eq .Section "results"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.side.results"}}</span></a>
-          <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "admin.side.gallery"}}</span></a>
-          <a href="/admin/programmes"{{if eq .Section "programmes"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-clock"/></svg><span>{{t .Lang "admin.side.programmes"}}</span></a>
-          <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span></a>
-          <a href="/admin/organisations"{{if eq .Section "organisations"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "admin.side.organisations"}}</span></a>
-          <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span></a>
-          <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>
-          <a href="/admin/prices"{{if eq .Section "prices"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.prices"}}</span></a>
-          <a href="/admin/promos"{{if eq .Section "promos"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.promos"}}</span></a>
-          <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span></a>
-          <a href="/admin/reports"{{if eq .Section "reports"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span>{{t .Lang "admin.side.reports"}}</span></a>
-          <a href="/admin/cavetext"{{if eq .Section "cavetext"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "admin.side.cavetext"}}</span></a>
-          <a href="/admin/cavetext/settings"{{if eq .Section "cavetext-settings"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-set"}}</span></a>
-          {{if .Owner}}<a href="/admin/cavetext/caps"{{if eq .Section "cavetext-caps"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-caps"}}</span></a>{{end}}
-          {{if .Owner}}<a href="/admin/log"{{if eq .Section "log"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.side.log"}}</span></a>{{end}}
-        </nav>
+        <nav class="adm-nav adm-wide" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}</nav>
+        <details class="adm-menu">
+          <summary><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list"/></svg><span>{{t .Lang "admin.menu"}}<small>{{t .Lang .SectionKey}}</small></span><svg class="i adm-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary>
+          <nav class="adm-nav" aria-label="{{t .Lang "admin.nav"}}">{{template "admin-links" .}}
+            <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>{{t .Lang "admin.side.view-site"}}</span></a>
+          </nav>
+        </details>
         <div class="adm-side-foot">
           <a href="/"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg><span>{{t .Lang "admin.side.view-site"}}</span></a>
         </div>
       </aside>
 {{end}}
+{{/* admin-links are the Admin sidebar's links: the Dashboard, then each group under its heading. No icon is used twice. */}}
+{{define "admin-links"}}
+          <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>{{t .Lang "admin.side.dashboard"}}</span></a>
+          <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.teach"}}">
+            <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.teach"}}</span>
+            <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span></a>
+            <a href="/admin/question-bank"{{if eq .Section "question-bank"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-stack"/></svg><span>{{t .Lang "admin.side.question-bank"}}</span></a>
+            <a href="/admin/results"{{if eq .Section "results"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list-checks"/></svg><span>{{t .Lang "admin.side.results"}}</span></a>
+            <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "admin.side.gallery"}}</span></a>
+            <a href="/admin/programmes"{{if eq .Section "programmes"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-calendar-dots"/></svg><span>{{t .Lang "admin.side.programmes"}}</span></a>
+          </div>
+          <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.certify"}}">
+            <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.certify"}}</span>
+            <a href="/admin/certificates"{{if eq .Section "certificates"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg><span>{{t .Lang "admin.side.certificates"}}</span></a>
+            <a href="/admin/organisations"{{if eq .Section "organisations"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-buildings"/></svg><span>{{t .Lang "admin.side.organisations"}}</span></a>
+            <a href="/admin/certificate-settings"{{if eq .Section "design"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-sliders-horizontal"/></svg><span>{{t .Lang "admin.side.cert-details"}}</span></a>
+          </div>
+          <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.sell"}}">
+            <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.sell"}}</span>
+            <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>
+            <a href="/admin/prices"{{if eq .Section "prices"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-tag"/></svg><span>{{t .Lang "admin.side.prices"}}</span></a>
+            <a href="/admin/promos"{{if eq .Section "promos"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-seal-percent"/></svg><span>{{t .Lang "admin.side.promos"}}</span></a>
+          </div>
+          <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.cavetext"}}">
+            <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.cavetext"}}</span>
+            <a href="/admin/cavetext"{{if eq .Section "cavetext"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-cursor-text"/></svg><span>{{t .Lang "admin.side.cavetext"}}</span></a>
+            <a href="/admin/cavetext/settings"{{if eq .Section "cavetext-settings"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gear-six"/></svg><span>{{t .Lang "admin.side.cavetext-set"}}</span></a>
+            {{if .Owner}}<a href="/admin/cavetext/caps"{{if eq .Section "cavetext-caps"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-gauge"/></svg><span>{{t .Lang "admin.side.cavetext-caps"}}</span></a>{{end}}
+          </div>
+          <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.system"}}">
+            <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.system"}}</span>
+            <a href="/admin/deployments"{{if eq .Section "deployments"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg><span>{{t .Lang "admin.side.deployments"}}</span></a>
+            <a href="/admin/reports"{{if eq .Section "reports"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-flag"/></svg><span>{{t .Lang "admin.side.reports"}}</span></a>
+            {{if .Owner}}<a href="/admin/log"{{if eq .Section "log"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-terminal-window"/></svg><span>{{t .Lang "admin.side.log"}}</span></a>{{end}}
+          </div>
+{{- end}}
 
 {{/* course-tabs are the tabs of a Course's pages, for those who may open them all; pass (courseTab .Course.ID "<tab>" .Lang),
 the tab being "course" or "chat". */}}
@@ -177,6 +202,87 @@ the tab being "course" or "chat". */}}
         <a class="lab-tab" href="/courses/{{.ID}}/chat"{{if eq .Tab "chat"}} aria-current="page"{{end}}>{{t .Lang "course.tab.chat"}}</a>
       </nav>
 {{end}}
+
+{{/* course-card is one Course in a list of Course cards (ul.catalogue): its picture or drawn cover, title, status,
+description, dates, Lesson count, Exam and the Certificate it leads to. Pass (card . $.Lang) for a course. */}}
+{{define "course-card"}}
+        <li class="catalogue-card{{if not .Joinable}} is-closed{{end}}">
+          {{template "course-cover" .}}
+          <div class="catalogue-card-body">
+            <h2><a href="/courses/{{.ID}}">{{.Title}}</a></h2>
+            {{if .Ended}}<span class="badge badge-closed">{{t .Lang "course.ended"}}</span>{{else if .Open}}<span class="badge badge-open">{{t .Lang "course.open"}}</span>{{else}}<span class="badge badge-closed">{{t .Lang "course.closed-badge"}}</span>{{end}}
+            <p class="catalogue-card-desc">{{.Description}}</p>
+            {{if .Live}}<ul class="meta"><li>{{t .Lang "course.dates" (.StartOn .Lang) (.EndOn .Lang)}}</li></ul>
+            {{else}}{{with .StartOn .Lang}}<ul class="meta"><li>{{t $.Lang "course.start-date" .}}</li></ul>{{end}}{{end}}
+            <ul class="catalogue-flags">
+              {{if .LessonCount}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span class="num">{{tn .Lang "courses.card.lessons" .LessonCount}}</span></li>{{end}}
+              {{if .HasExam}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>{{t .Lang "courses.card.exam"}}</li>{{end}}
+              {{if .Live}}<li><img class="catalogue-badge" src="{{static .Badge}}" alt="" width="113" height="160">{{t .Lang "course.pcc-level" .Level}}</li>
+              {{else if .HasExam}}<li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{t .Lang "courses.card.certificate"}}</li>{{end}}
+            </ul>
+          </div>
+        </li>
+{{end}}
+
+{{/* course-cover is a Course's picture or, without one, a drawn cover. It is decorative: the title is said next to it.
+Pass (card .Course .Lang); it fills its container's width at 16:9. */}}
+{{define "course-cover"}}{{if .PictureKey}}<img class="course-cover" src="/course-pictures/{{.PictureKey}}" alt="" loading="lazy">{{else -}}
+<div class="course-cover course-cover-drawn{{if .Live}} is-live{{end}}" aria-hidden="true">
+            <svg class="course-cover-mark" viewBox="0 0 64 64"><path d="M14 52 32 12l18 40h-9l-9-20-9 20z" fill="currentColor"/></svg>            <span class="course-cover-level">{{with .Level}}PCC {{.}}{{else}}{{t $.Lang "courses.card.self-paced"}}{{end}}</span>
+          </div>{{end}}{{end}}
+
+{{/* certificate-preview draws a Certificate as the PDF prints it, from a certPreview: (certPreview <name> <Course title>
+<badge> .CertBackground), or a Certificate's (.Preview $.CertBackground). The same A4 page in mm: the wording, rules,
+images and the places of the details come from Go (certificate_artwork.go), shared with the PDF; the frame, corners,
+logo, ornament and QR sketch are drawn here and in drawArtwork, so change those two together. With an uploaded
+background it draws that in place of the built-in artwork, as the PDF does. It shows a name and never an IC; the QR
+code is only sketched. It is decorative: the page says in words what it shows. */}}
+{{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="{{.ID}}-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
+    <linearGradient id="{{.ID}}-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
+    <clipPath id="{{.ID}}-badge-edge" clipPathUnits="objectBoundingBox"><rect x=".0088" y=".0062" width=".9825" height=".9876"/></clipPath>
+  </defs>
+  <rect class="cert-art-paper" width="210" height="297"/>
+  {{- if .Background}}
+  <image href="{{.Background}}" x="0" y="0" width="210" height="297" preserveAspectRatio="none"/>
+  {{- else}}
+  <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".07" transform="rotate(-90 160 150)"/>
+  <rect class="cert-art-rule" x="5" y="5" width="200" height="287" stroke-width=".35"/>
+  <rect class="cert-art-rule" x="6.4" y="6.4" width="197.2" height="284.2" stroke-width=".15"/>
+  <path fill="url(#{{$.ID}}-g1)" d="M0 0V82C3.5 36.9 31.5 3.28 70 0Z"/>
+  <path fill="url(#{{$.ID}}-g2)" d="M0 0V67C2.85 30.15 25.65 2.68 57 0Z"/>
+  <path class="cert-art-shine" d="M0 67C2.85 30.15 25.65 2.68 57 0" stroke-width=".6"/>
+  <g transform="rotate(180 105 148.5)">
+    <path fill="url(#{{$.ID}}-g1)" d="M0 0V112C3.1 50.4 27.9 4.48 62 0Z"/>
+    <path fill="url(#{{$.ID}}-g2)" d="M0 0V96C2.5 43.2 22.5 3.84 50 0Z"/>
+    <path class="cert-art-shine" d="M0 96C2.5 43.2 22.5 3.84 50 0" stroke-width=".6"/>
+  </g>
+  <image href="{{static "logo-dark.svg"}}" x="79" y="17" width="52" height="23.37"/>
+  {{- range .Rules}}
+  <path class="cert-art-rule" d="M{{printf "%.2f %.2f" .X1 .Y}}H{{printf "%.2f" .X2}}" stroke-width="{{.Width}}"/>{{end}}
+  <path class="cert-art-ornament" d="M105 155.2 107.6 157 105 158.8 102.4 157Z"/>
+  <circle class="cert-art-ornament" cx="100.6" cy="157" r=".55"/><circle class="cert-art-ornament" cx="109.4" cy="157" r=".55"/>
+  {{- range .Texts}}
+  <text{{with .Class}} class="{{.}}"{{end}} x="{{printf "%.2f" .X}}" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" .SizeMM}}"{{with .Track}} letter-spacing="{{.}}"{{end}} text-anchor="middle">{{.Text}}</text>{{end}}
+  {{- range .Images}}
+  <image href="{{static .Name}}" x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}"/>{{end}}
+  {{- end}}
+  {{- with .Number}}
+  <text class="cert-art-sans cert-art-number" x="{{$at.NumberX}}" y="{{$at.NumberY}}" font-size="{{printf "%.2f" $at.NumberSize}}" text-anchor="middle">{{.}}</text>{{end}}
+  <g class="cert-art-qr" transform="translate({{$at.QRX}} {{$at.QRY}})">
+    <rect width="{{$at.QR}}" height="{{$at.QR}}"/>
+    <path d="M1.4 1.4h4.6v4.6h-4.6zM13.4 1.4h4.6v4.6h-4.6zM1.4 13.4h4.6v4.6h-4.6z" stroke-width=".77"/>
+    <path class="cert-art-qr-core" d="M2.7 2.7h2v2h-2zM14.7 2.7h2v2h-2zM2.7 14.7h2v2h-2z"/>
+  </g>
+  <text class="cert-art-name" x="105" y="{{$at.NameY}}" font-size="{{printf "%.2f" .NameSize}}" text-anchor="middle">{{.Name}}</text>
+  {{- range .Title}}
+  <text class="cert-art-title" x="{{$at.TitleX}}" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" $.TitleSize}}" text-anchor="middle">{{.Text}}</text>{{end}}
+  {{- with .Badge}}
+  <image class="cert-art-badge" href="{{static .}}" clip-path="url(#{{$.ID}}-badge-edge)" x="{{$at.BadgeX}}" y="{{$at.BadgeY}}" width="{{$at.BadgeW}}" height="{{$at.BadgeH}}"/>{{end}}
+  {{- with .Issued}}
+  <text class="cert-art-sans cert-art-issued" x="{{$at.IssuedX}}" y="{{$at.IssuedY}}" font-size="{{printf "%.2f" $at.IssuedSize}}">{{.}}</text>{{end}}
+</svg>{{end}}
 
 {{/* offers lists a Learner page's .Offers side by side as pricing cards: each product's logo, name, tagline, price, its Normal
 price crossed out when set, its benefits, and at the bottom Buy to its payment link, or Contact us without one.
@@ -199,7 +305,7 @@ Visitors see the cards without buttons. */}}
           </ul>
           {{- if $.Learner}}
           {{- if .PaymentLink}}
-          <a class="btn btn-gold" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
+          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
           {{- else}}
           <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang (print "offers.contact-" (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
           {{- end}}

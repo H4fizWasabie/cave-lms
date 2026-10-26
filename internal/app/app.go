@@ -57,6 +57,7 @@ type App struct {
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
 	bclAPIToken          string        // a BCL API Read token to confirm orders with; empty confirms none
 	bclAPIURL            string        // BCL's API, without a trailing slash
+	production           bool          // the live site: hides the home page's placeholders (CAVE_ENV)
 	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
 	// releasing is held by a run of releaseResults, so two runs never release at once.
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
@@ -85,10 +86,13 @@ type page struct {
 	Title         string
 	Message       string
 	Error         string
+	ErrorField    string // the id of the form field Error is about, shown next to it; "" puts it above the form
 	Name          string
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
+	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set
+	Retry         string
 	Items         []galleryItem
 	Item          *galleryItem
 	Format        string // Gallery filters
@@ -99,7 +103,8 @@ type page struct {
 	Courses       []course
 	Course        *course
 	Exam          *exam
-	WrittenExam   *exam       // the Course's on its page, when the Learner has joined and it is usable
+	Exams         []exam      // the Course's usable Exams, Multiple-choice first, on its page
+	Step          *nextStep   // the enrolled Learner's next step, on the Course page and a done Lesson's page
 	Status        *examStatus // the Learner's Exam
 	Attempt       *examAttempt
 	Question      *examQuestion
@@ -108,11 +113,13 @@ type page struct {
 	Total         int // published Lessons in the Course
 	Lessons       []lesson
 	Lesson        *lesson
+	Place         *lessonPlace // where the Lesson stands in its Course, on its page
 	Assignments   []assignment // the Course's, on its page for an enrolled Learner or the Admin
 	Enrollees     []enrollee
 	Certificates  []certificate
 	Certificate   *certificate // the one a verification page shows
 	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
+	PassedNoIC    bool         // NeedsIC, and the Learner already passed the Course's Exam: only the Certificate waits
 	Query         string       // the Admin's Certificate search
 	Settings      *certificateSettings
 	Next          string         // where the login page goes after logging in
@@ -183,7 +190,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, err
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, done: make(chan struct{}), now: time.Now,
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
 	if a.samples, err = cleanedSamples(); err != nil {
 		return nil, err
@@ -216,6 +223,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses", a.courses)
 	mux.HandleFunc("GET /courses/{id}", a.showCourse)
 	mux.HandleFunc("POST /courses/{id}/join", a.requireLearner(a.joinCourse))
+	mux.HandleFunc("GET /courses/{id}/leave", a.requireLearner(a.confirmLeaveCourse))
 	mux.HandleFunc("POST /courses/{id}/leave", a.requireLearner(a.leaveCourse))
 	mux.HandleFunc("GET /my-courses", a.requireLearner(a.myCourses))
 	mux.HandleFunc("GET /courses/{id}/chat", a.requireLearner(a.chat))
@@ -284,11 +292,14 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /gallery/{id}/thumb", a.galleryThumb)
 	mux.HandleFunc("GET /programmes", a.programmes)
 	mux.HandleFunc("GET /programmes/pictures/{key}", a.programmePicture)
+	mux.HandleFunc("GET /course-pictures/{key}", a.coursePicture)
+	mux.HandleFunc("GET /certificate-background/{key}", a.certificateBackground)
 	mux.HandleFunc("GET /admin/programmes", a.admin(a.adminProgrammes))
 	mux.HandleFunc("GET /admin/programmes/new", a.admin(a.newProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes", a.admin(a.createProgramme))
 	mux.HandleFunc("GET /admin/programmes/{id}/edit", a.admin(a.editProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes/{id}", a.admin(a.updateProgramme))
+	mux.HandleFunc("GET /admin/programmes/{id}/delete", a.admin(a.confirmDeleteProgramme))
 	mux.HandleFunc("POST /admin/programmes/{id}/delete", a.admin(a.deleteProgramme))
 	mux.HandleFunc("GET /admin/organisations", a.admin(a.adminOrganisations))
 	mux.HandleFunc("GET /admin/organisations/new", a.admin(a.newOrganisationForm))
@@ -296,11 +307,13 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/organisations/{id}/edit", a.admin(a.editOrganisationForm))
 	mux.HandleFunc("GET /admin/organisations/{id}/logo", a.admin(a.organisationLogo))
 	mux.HandleFunc("POST /admin/organisations/{id}", a.admin(a.updateOrganisation))
+	mux.HandleFunc("GET /admin/organisations/{id}/delete", a.admin(a.confirmDeleteOrganisation))
 	mux.HandleFunc("POST /admin/organisations/{id}/delete", a.admin(a.deleteOrganisation))
 	mux.HandleFunc("GET /admin/courses", a.admin(a.adminCourses))
 	mux.HandleFunc("GET /admin/courses/new", a.admin(a.newCourseForm))
 	mux.HandleFunc("POST /admin/courses", a.admin(a.createCourse))
 	mux.HandleFunc("GET /admin/courses/{id}", a.admin(a.adminCourse))
+	mux.HandleFunc("GET /admin/courses/{id}/learners/{learnerID}/remove", a.admin(a.confirmRemoveLearner))
 	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/remove", a.admin(a.removeLearner))
 	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/ic", a.admin(a.correctIC))
 	mux.HandleFunc("POST /admin/courses/{id}/learners/{learnerID}/certificate", a.admin(a.giveCertificate))
@@ -319,6 +332,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/down", a.admin(a.moveLesson(1)))
 	mux.HandleFunc("GET /admin/lessons/{lessonID}/edit", a.admin(a.editLessonForm))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}", a.admin(a.updateLesson))
+	mux.HandleFunc("GET /admin/lessons/{lessonID}/delete", a.admin(a.confirmDeleteLesson))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/delete", a.admin(a.deleteLesson))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/publish", a.admin(a.setLessonPublished(true)))
 	mux.HandleFunc("POST /admin/lessons/{lessonID}/unpublish", a.admin(a.setLessonPublished(false)))
@@ -341,6 +355,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses/{id}/assignments/{aid}", a.requireLearner(a.showAssignment))
 	mux.HandleFunc("POST /courses/{id}/assignments/{aid}/files", a.requireLearner(a.uploadSubmission))
 	mux.HandleFunc("GET /submission-files/{fid}", a.requireLearner(a.downloadSubmissionFile))
+	mux.HandleFunc("GET /submission-files/{fid}/delete", a.requireLearner(a.confirmDeleteSubmissionFile))
 	mux.HandleFunc("POST /submission-files/{fid}/delete", a.requireLearner(a.deleteSubmissionFile))
 	mux.HandleFunc("GET /admin/courses/{id}/delete", a.admin(a.confirmDeleteCourse))
 	mux.HandleFunc("POST /admin/courses/{id}/delete", a.admin(a.deleteCourse))
@@ -352,12 +367,14 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}", a.admin(a.updateExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/up", a.admin(a.moveExamQuestion(false)))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/down", a.admin(a.moveExamQuestion(true)))
+	mux.HandleFunc("GET /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.confirmDeleteExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/delete", a.admin(a.deleteExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/questions/{qid}/publish", a.admin(a.publishExamQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/publish-drafts", a.admin(a.publishExamDrafts))
 	mux.HandleFunc("GET /admin/question-bank", a.admin(a.adminQuestionBank))
 	mux.HandleFunc("GET /admin/question-bank/{qid}/edit", a.admin(a.editBankQuestionForm))
 	mux.HandleFunc("POST /admin/question-bank/{qid}", a.admin(a.updateBankQuestion))
+	mux.HandleFunc("GET /admin/question-bank/{qid}/delete", a.admin(a.confirmDeleteBankQuestion))
 	mux.HandleFunc("POST /admin/question-bank/{qid}/delete", a.admin(a.deleteBankQuestion))
 	mux.HandleFunc("POST /admin/question-bank/{qid}/publish", a.admin(a.publishBankQuestion))
 	mux.HandleFunc("POST /admin/courses/{id}/exam/from-bank", a.admin(a.addFromBank))
@@ -368,6 +385,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/results/{attemptID}/marks", a.admin(a.saveMarks))
 	mux.HandleFunc("GET /courses/{id}/exam", a.requireLearner(a.learnerExam))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts", a.requireLearner(a.startAttempt))
+	mux.HandleFunc("GET /courses/{id}/exam/ic", a.requireLearner(a.examIC))
+	mux.HandleFunc("POST /courses/{id}/exam/ic", a.requireLearner(a.setExamIC))
 	mux.HandleFunc("GET /courses/{id}/exam/attempts/{attemptID}", a.requireLearner(a.showAttempt))
 	mux.HandleFunc("POST /courses/{id}/exam/attempts/{attemptID}/submit", a.requireLearner(a.submitAttempt))
 	mux.HandleFunc("GET /courses/{id}/exam/answer-sheet", a.requireLearner(a.downloadAnswerSheet))
@@ -384,6 +403,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /certificates", a.searchCertificates)
 	mux.HandleFunc("GET /certificates/{id}", a.verifyCertificate)
 	mux.HandleFunc("GET /admin/certificates", a.admin(a.adminCertificates))
+	mux.HandleFunc("GET /admin/certificates/{id}/revoke", a.admin(a.confirmRevokeCertificate))
 	mux.HandleFunc("POST /admin/certificates/{id}/revoke", a.admin(a.revokeCertificate))
 	mux.HandleFunc("POST /admin/certificates/{id}/reissue", a.admin(a.reissueCertificate))
 	mux.HandleFunc("POST /admin/certificate-settings", a.admin(a.saveCertificateSettings))
@@ -464,7 +484,15 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "home", page{PublicBaseURL: a.publicBaseURL, Learner: learner, Items: promo})
+	a.render(w, r, http.StatusOK, "home", &homePage{pageBase: pageBase{Learner: learner}, PublicBaseURL: a.publicBaseURL, Items: promo, Placeholders: !a.production})
+}
+
+// homePage is the home page's data; its Course cards are the header's Latest Courses.
+type homePage struct {
+	pageBase
+	PublicBaseURL string
+	Items         []galleryItem // promotional Gallery items the viewer may see
+	Placeholders  bool          // show marked placeholders for numbers the client has not supplied (never in production)
 }
 
 // about is The Cave Consult's company background, in the client's words.
@@ -532,6 +560,17 @@ func adminSide(section string, l *learner, lang string) adminSidebar {
 	return adminSidebar{Section: section, Owner: l != nil && l.IsOwner, Lang: lang}
 }
 
+// SectionKey is the catalog key of the current section's sidebar label, which the phone menu's button shows.
+func (s adminSidebar) SectionKey() string {
+	switch s.Section {
+	case "design":
+		return "admin.side.cert-details"
+	case "cavetext-settings":
+		return "admin.side.cavetext-set"
+	}
+	return "admin.side." + s.Section
+}
+
 // busyLoader is what the cave-loader template reads: what it says to screen readers, and the lines it rotates,
 // separated by "|".
 type busyLoader struct{ Label, Lines string }
@@ -557,11 +596,21 @@ type galleryTile struct {
 // tile is the template function behind {{template "gallery-tile" (tile . $.Lang)}}.
 func tile(item galleryItem, lang string) galleryTile { return galleryTile{item, lang} }
 
-// parsePages pairs each page template with layout.html, keyed by file name without extension.
+// courseCard is what the course-card and course-cover templates read: a Course and the page's language.
+type courseCard struct {
+	course
+	Lang string
+}
+
+// card is the template function behind {{template "course-card" (card . $.Lang)}}.
+func card(c course, lang string) courseCard { return courseCard{c, lang} }
+
+// parsePages pairs each page template with layout.html and the partials in _*.html, keyed by file name without
+// extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText,
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "inc": func(i int) int { return i + 1 },
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
-		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html")
+		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
@@ -572,7 +621,7 @@ func parsePages() (map[string]*template.Template, error) {
 	pages := map[string]*template.Template{}
 	for _, file := range files {
 		name := strings.TrimSuffix(path.Base(file), ".html")
-		if name == "layout" {
+		if name == "layout" || strings.HasPrefix(name, "_") { // _name.html holds partials, parsed with the layout
 			continue
 		}
 		t, err := template.Must(layout.Clone()).ParseFS(appFiles, file)

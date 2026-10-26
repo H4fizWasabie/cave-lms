@@ -31,7 +31,7 @@ func (s *site) examQuestionIDs(courseID string) []string {
 }
 
 // examCourse makes a Course with one text Lesson, an Exam with the given settings and one published question per
-// prompt, then logs in as a Learner who has joined and completed the Lesson. It returns the Course ID and the
+// prompt, then logs in as a Learner who has set her IC, joined and completed the Lesson. It returns the Course ID and the
 // question IDs. Each question's correct option is "Right answer" (slot 0), its wrong option "Wrong answer" (slot 1).
 func (s *site) examCourse(passMark, timeLimit, maxAttempts string, prompts ...string) (string, []string) {
 	s.t.Helper()
@@ -46,6 +46,7 @@ func (s *site) examCourse(passMark, timeLimit, maxAttempts string, prompts ...st
 	qids := s.examQuestionIDs(id)
 	s.logOut()
 	s.loginAsNewLearner("Ada", "ada@example.com", examPassword)
+	s.setICFor("ada@example.com")
 	s.post("/courses/"+id+"/join", nil)
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	return id, qids
@@ -56,9 +57,10 @@ func (s *site) startExam(courseID string) (*http.Response, string) {
 	return s.post("/courses/"+courseID+"/exam/attempts", nil)
 }
 
-// submitExam posts answers keyed by question ID; the value is the option slot picked.
+// submitExam posts answers keyed by question ID; the value is the option slot picked. Any question left out is
+// submitted blank, confirmed (submitting blanks is otherwise asked about first).
 func (s *site) submitExam(attemptPath string, answers map[string]string) (*http.Response, string) {
-	form := url.Values{}
+	form := url.Values{"confirm": {"yes"}}
 	for qid, slot := range answers {
 		form.Set("answer-"+qid, slot)
 	}
@@ -121,6 +123,20 @@ func TestExamPageShowsTimeLimitPassMarkAndAttemptsLeft(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Time limit: 30 minutes")
 	expectStatus(t, res, body, http.StatusOK, "Attempts left: 3")
 	expectStatus(t, res, body, http.StatusOK, "Start the Exam")
+}
+
+func TestTheExamFactsShowEachValueOverItsBareLabelAndSayBothOnce(t *testing.T) {
+	s := newSite(t)
+	id, _ := s.examCourse("70", "30", "3", "What is Go?")
+
+	_, body := s.getAsking("/courses/"+id+"/exam", "en")
+	expectInOrder(t, mainOf(body),
+		`<span aria-hidden="true">Pass mark</span><span class="sr">Pass mark: 70%</span>`,
+		`<span aria-hidden="true">Time limit</span><span class="sr">Time limit: 30 minutes</span>`,
+		`<span aria-hidden="true">Attempts left</span><span class="sr">Attempts left: 3</span>`,
+		`<span aria-hidden="true">Best score</span><span class="sr">No score yet</span>`)
+	_, body = s.getAsking("/courses/"+id+"/exam", "ms")
+	expectInOrder(t, mainOf(body), `<span aria-hidden="true">Soalan</span>`, `<span aria-hidden="true">Markah lulus</span>`)
 }
 
 func TestDraftQuestionsAreNeverAsked(t *testing.T) {
@@ -224,20 +240,20 @@ func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.
 	drawn := attemptQuestionIDs(body)
 	s.submitExam(first, nil)
 	s.releaseResults()
-	deletedPrompt := "<legend>Q" + strconv.Itoa(slices.Index(qids, drawn[1])+1) + "</legend>"
+	deletedPrompt := "</span>Q" + strconv.Itoa(slices.Index(qids, drawn[1])+1) + "</legend>" // after its "Question n of N"
 
 	s.logOut()
 	s.login("admin@example.com", examPassword)
 	examPath := "/admin/courses/" + id + "/exam"
 	s.saveQuestion(examPath+"/questions/"+drawn[0], "Edited prompt", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
-	s.post(examPath+"/questions/"+drawn[1]+"/delete", nil)
+	s.post(examPath+"/questions/"+drawn[1]+"/delete", confirming)
 	s.logOut()
 	s.login("ada@example.com", examPassword)
 
 	res, _ = s.startExam(id)
 	retry := res.Header.Get("Location")
 	res, body = s.get(retry)
-	expectStatus(t, res, body, http.StatusOK, "<legend>Edited prompt</legend>")
+	expectStatus(t, res, body, http.StatusOK, "</span>Edited prompt</legend>")
 	expectStatus(t, res, body, http.StatusOK, deletedPrompt)
 	if got := attemptQuestionIDs(body); strings.Join(got, ",") != strings.Join(drawn, ",") {
 		t.Fatalf("retry asks %v, want the first attempt's %v", got, drawn)
@@ -432,9 +448,9 @@ func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 	id, qids := s.examCourse("50", "", "", "What is a slice?")
 	res, _ := s.startExam(id)
 	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "1"}) // failed, so no Certificate
-	s.post("/courses/"+id+"/leave", nil)
+	s.leaveCourse(id)
 	s.loginAdmin()
-	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", nil)
+	s.post("/admin/lessons/"+s.lessonIDByTitle("Variables")+"/delete", confirming)
 
 	res, body := s.post("/admin/courses/"+id+"/delete", nil)
 	expectStatus(t, res, body, http.StatusConflict,

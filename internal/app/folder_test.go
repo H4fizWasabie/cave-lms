@@ -23,7 +23,7 @@ func TestTheFolderListsALearnersSubmissionsByCourseWithComments(t *testing.T) {
 	admin.post("/admin/assignments/"+chart+"/publish", nil)
 	ada.post("/courses/"+other+"/join", nil)
 	ada.postFiles("/courses/"+other+"/assignments/"+chart+"/files", upload{"chart.png", pngHandIn})
-	ada.post("/courses/"+other+"/leave", nil)
+	ada.leaveCourse(other)
 
 	bea := admin.second()
 	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", "correct horse battery")

@@ -21,11 +21,15 @@ type course struct {
 	StartDate      string
 	EndDate        string
 	Days           int
-	OrganisationID int64 // the Organisation a Live Course is run for, 0 when none
-	Open           bool  // the Admin's open or closed to new joins
-	Published      bool  // false for a Draft, which only the Admin sees
-	Ended          bool  // a Live Course past the end of its end date, Malaysia time
-	Upcoming       bool  // before the start of its start date, Malaysia time
+	OrganisationID int64  // the Organisation a Live Course is run for, 0 when none
+	Open           bool   // the Admin's open or closed to new joins
+	Published      bool   // false for a Draft, which only the Admin sees
+	Ended          bool   // a Live Course past the end of its end date, Malaysia time
+	Upcoming       bool   // before the start of its start date, Malaysia time
+	PictureKey     string // the optional picture's storage key, empty when the Course has none
+	pictureType    string
+	LessonCount    int  // published Lessons
+	HasExam        bool // an Exam with a published question, which Learners can take
 }
 
 // Live reports whether the Course is a Live Course.
@@ -77,7 +81,9 @@ func (c course) StartOn(lang string) string {
 }
 
 const courseColumns = `id, title, description, COALESCE(start_date::text, ''), COALESCE(end_date::text, ''),
-	COALESCE(days, 0), is_open, published, COALESCE(organisation_id, 0)`
+	COALESCE(days, 0), is_open, published, COALESCE(organisation_id, 0), picture_key, picture_type,
+	(SELECT count(*) FROM lessons l WHERE l.course_id = courses.id AND l.published),
+	EXISTS (SELECT 1 FROM exams e JOIN exam_questions q ON q.exam_id = e.id WHERE e.course_id = courses.id AND NOT q.is_draft)`
 
 // courses lists every Course for Visitors and Learners.
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
@@ -138,14 +144,39 @@ func (a *App) showCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if enrolled {
-		e, err := a.loadExam(r.Context(), c.ID, written)
+	// Everyone sees the Exams the Course leads to; only members open them.
+	for _, format := range []string{multipleChoice, written} {
+		e, err := a.loadExam(r.Context(), c.ID, format)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 		if e.Usable {
-			p.WrittenExam = &e
+			p.Exams = append(p.Exams, e)
+		}
+	}
+	if enrolled {
+		step, err := a.nextStep(r.Context(), learner, c, nil)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Step = &step
+		if len(p.Exams) > 0 { // the IC is asked for before the first Exam attempt; remind until it is set
+			ic, err := a.learnerIC(r.Context(), learner.ID)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			p.NeedsIC = ic == ""
+			if p.NeedsIC {
+				err = a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM exam_attempts t JOIN exams x ON x.id = t.exam_id
+					WHERE t.learner_id = $1 AND x.course_id = $2 AND t.passed)`, learner.ID, c.ID).Scan(&p.PassedNoIC)
+				if err != nil {
+					a.serverError(w, r, err)
+					return
+				}
+			}
 		}
 	}
 	a.render(w, r, http.StatusOK, "course", p)
@@ -188,15 +219,29 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	if status, key := readPictureForm(w, r); status != 0 {
+		a.render(w, r, status, "course_form", page{Course: &course{}, Error: text.T(lang, key)})
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
 	c, msg := courseFromForm(r, lang, false)
+	if msg == "" {
+		if msg, err = a.takePicture(r, lang, &c); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
 	if msg != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`INSERT INTO courses (title, description, start_date) VALUES ($1, $2, NULLIF($3, '')::date)`,
-		c.Title, c.Description, c.StartDate)
+		`INSERT INTO courses (title, description, start_date, picture_key, picture_type) VALUES ($1, $2, NULLIF($3, '')::date, $4, $5)`,
+		c.Title, c.Description, c.StartDate, c.PictureKey, c.pictureType)
 	if err != nil {
+		a.dropPicture(r, c.PictureKey)
 		a.serverError(w, r, err)
 		return
 	}
@@ -213,22 +258,47 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	if status, key := readPictureForm(w, r); status != 0 {
+		a.renderCourseForm(w, r, status, page{Course: &existing, Error: text.T(lang, key)})
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
 	c, msg := courseFromForm(r, lang, existing.Live())
-	c.ID = existing.ID
+	c.ID, c.PictureKey, c.pictureType = existing.ID, existing.PictureKey, existing.pictureType
+	if r.PostFormValue("remove_picture") != "" {
+		c.PictureKey, c.pictureType = "", ""
+	}
+	if msg == "" {
+		if msg, err = a.takePicture(r, lang, &c); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
 	if msg != "" {
+		c.PictureKey, c.pictureType = existing.PictureKey, existing.pictureType
 		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Error: msg})
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(), `UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date,
-		end_date = NULLIF($5, '')::date, days = NULLIF($6, 0), organisation_id = NULLIF($7, 0) WHERE id = $1`,
-		c.ID, c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID)
+		end_date = NULLIF($5, '')::date, days = NULLIF($6, 0), organisation_id = NULLIF($7, 0), picture_key = $8, picture_type = $9
+		WHERE id = $1`,
+		c.ID, c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID, c.PictureKey, c.pictureType)
+	if err != nil && c.PictureKey != existing.PictureKey {
+		a.dropPicture(r, c.PictureKey)
+	}
 	if isForeignKeyError(err) { // the Organisation was deleted while the form was open
+		c.PictureKey, c.pictureType = existing.PictureKey, existing.pictureType
 		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, Error: text.T(lang, "adm.courses.err.organisation")})
 		return
 	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if existing.PictureKey != c.PictureKey {
+		a.dropPicture(r, existing.PictureKey)
 	}
 	http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
 }
@@ -276,7 +346,33 @@ func (a *App) deleteCourse(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	a.dropPicture(r, c.PictureKey)
 	http.Redirect(w, r, "/admin/courses", http.StatusSeeOther)
+}
+
+// takePicture stores the Course form's new picture, if one was sent, as c's picture. msg is the problem, in lang,
+// when the file is not a picture.
+func (a *App) takePicture(r *http.Request, lang string, c *course) (msg string, err error) {
+	key, mimeType, bad, err := a.storePicture(r)
+	switch {
+	case err != nil:
+		return "", err
+	case bad:
+		return text.T(lang, "picture.err.type"), nil
+	case key != "":
+		c.PictureKey, c.pictureType = key, mimeType
+	}
+	return "", nil
+}
+
+// dropPicture removes a picture no longer used. A picture left behind is logged, not shown to the Admin.
+func (a *App) dropPicture(r *http.Request, key string) {
+	if key == "" {
+		return
+	}
+	if err := a.store.Delete(r.Context(), key); err != nil {
+		a.logError(r, err)
+	}
 }
 
 // courseFor loads the Course named by the {id} path value. When there is none it writes
@@ -307,7 +403,8 @@ func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
 // scanCourse reads one row of courseColumns.
 func (a *App) scanCourse(row interface{ Scan(...any) error }) (course, error) {
 	var c course
-	err := row.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.EndDate, &c.Days, &c.Open, &c.Published, &c.OrganisationID)
+	err := row.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.EndDate, &c.Days, &c.Open, &c.Published, &c.OrganisationID,
+		&c.PictureKey, &c.pictureType, &c.LessonCount, &c.HasExam)
 	if end, perr := time.ParseInLocation(time.DateOnly, c.EndDate, malaysia); perr == nil {
 		c.Ended = !a.now().Before(end.AddDate(0, 0, 1))
 	}

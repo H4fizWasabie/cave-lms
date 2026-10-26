@@ -1,7 +1,7 @@
 {{define "title"}}{{.Dashboard.Name}} · Lab · CAVELMS{{end}}
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
-    <div class="wrap page-pad">
+    <div class="wrap page-pad lab-page">
       <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>

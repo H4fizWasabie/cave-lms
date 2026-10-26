@@ -14,6 +14,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 )
 
 // lesson is one step of a Course: one Gallery item (GalleryItemID set) or text (Body set).
@@ -164,19 +165,31 @@ func nullID(id int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: id, Valid: id != 0}
 }
 
+// confirmed reports whether the post came from a confirmation page, which sends confirm=yes with its button. A
+// destructive action posted without it does nothing.
+func confirmed(r *http.Request) bool { return r.PostFormValue("confirm") == "yes" }
+
 // isForeignKeyError reports whether err is a violated foreign key (23503).
 func isForeignKeyError(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23503"
 }
 
+// lessonMarkdown is CommonMark plus GitHub-style tables, aligned with the align attribute (the CSP keeps inline styles
+// for view transitions only).
+var lessonMarkdown = goldmark.New(goldmark.WithExtensions(
+	extension.NewTable(extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute))))
+
 // renderMarkdown turns Lesson text into HTML. Raw HTML and dangerous link targets are dropped, never passed through.
+// A table is wrapped in .table-wrap so a wide one scrolls inside its own box; raw HTML is escaped, so every "<table>"
+// in the output is the renderer's own.
 func renderMarkdown(src string) template.HTML {
 	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(src), &buf); err != nil {
+	if err := lessonMarkdown.Convert([]byte(src), &buf); err != nil {
 		return template.HTML(template.HTMLEscapeString(src))
 	}
-	return template.HTML(buf.String())
+	html := strings.ReplaceAll(buf.String(), "<table>", `<div class="table-wrap"><table>`)
+	return template.HTML(strings.ReplaceAll(html, "</table>", "</table></div>"))
 }
 
 // lessonByPath loads the Lesson named by the {lessonID} path value. When there is none it writes the Not found page and returns false.
@@ -288,7 +301,30 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 		a.notFound(w, r)
 		return
 	}
-	data := page{Learner: learner, Course: &c, Lesson: &l}
+	place, err := a.lessonPlaceOf(r.Context(), c.ID, l.ID, learner.IsAdmin)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	data := page{Learner: learner, Course: &c, Lesson: &l, Place: &place, Enrolled: enrolled}
+	if enrolled {
+		done, err := a.completedLessons(r.Context(), learner.ID, c.ID)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		l.Completed = done[l.ID]
+		// A done Lesson's one way on is the pager's next Lesson; only the last Lesson offers the Course's next step,
+		// which can point elsewhere (an earlier Lesson not done, the Exam).
+		if l.Completed && place.Next == nil {
+			step, err := a.nextStep(r.Context(), learner, c, nil)
+			if err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+			data.Step = &step
+		}
+	}
 	if l.GalleryItemID != 0 {
 		item, err := a.loadGalleryItem(r.Context(), l.GalleryItemID)
 		if err != nil {
@@ -366,9 +402,28 @@ func (a *App) updateLesson(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, lessonsPath(l.CourseID), http.StatusSeeOther)
 }
 
+// confirmDeleteLesson asks the Admin to confirm removing a Lesson.
+func (a *App) confirmDeleteLesson(w http.ResponseWriter, r *http.Request) {
+	l, ok := a.lessonByPath(w, r)
+	if !ok {
+		return
+	}
+	c, err := a.courseByID(r.Context(), l.CourseID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "remove_lesson", page{Lesson: &l, Course: &c})
+}
+
+// deleteLesson removes a Lesson once its confirmation page is posted; a post without it goes to that page instead.
 func (a *App) deleteLesson(w http.ResponseWriter, r *http.Request) {
 	l, ok := a.lessonByPath(w, r)
 	if !ok {
+		return
+	}
+	if !confirmed(r) {
+		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM lessons WHERE id = $1`, l.ID)

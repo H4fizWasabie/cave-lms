@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"html"
 	"net/http"
 	"strings"
 	"testing"
@@ -59,7 +60,7 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 	main = content(body)
 	expectInOrder(t, main, "Image and Dashboard master prompts", `href="https://pay.example.com/cavetext">Buy CaveText Pro</a>`,
 		"Deploy it online at a link you can share", `href="https://pay.example.com/lab">Buy Lab Plan</a>`,
-		"Everything in the Lab Plan", `href="https://pay.example.com/pro">Buy Pro Plan</a>`, "processing fee", `<img src="/static/cost-comparison.webp"`)
+		"Everything in the Lab Plan", `href="https://pay.example.com/pro">Buy Pro Plan</a>`, "processing fee", `id="comparison"`)
 	expectNone(t, main, "<s>", "Contact us to buy")
 
 	_, body = ada.getAsking("/pricing", "ms")
@@ -75,4 +76,37 @@ func TestThePricingPageOffersToRenewCaveTextProWhileItRuns(t *testing.T) {
 	s.givePro("ada@example.com")
 	_, body := ada.getAsking("/pricing", "en")
 	expectAll(t, content(body), `href="https://pay.example.com/cavetext">Renew CaveText Pro</a>`, ">Buy Lab Plan</a>", ">Buy Pro Plan</a>")
+}
+
+// The comparison transcribes the client's picture (static/cost-comparison.webp): its Malay word for word, its English a translation.
+func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
+	s := newSite(t)
+	for lang, want := range map[string][]string{
+		"ms": {"Perbandingan Kos Tahunan", "<table",
+			"Fungsi / Komponen", "CAVELMS", "RM99/tahun", "TextExpander Pro", "RM258/tahun", "Hostinger Premium", "RM119.88/tahun",
+			"Cloudflare Paid", "RM258/tahun", "Render Starter", "RM361.2/tahun", "Netlify Personal", "RM464.4/tahun",
+			"Vercel Pro", "RM1,000/tahun", "Supabase Pro", "RM1,300/tahun",
+			"Text Expansion", "Prompt Library KPM", "AI Prompt Templates", "Subdomain peribadi", "(domain promosi)",
+			"Web hosting / deployment", "SSL / HTTPS", "Static to dynamic dashboard (tanpa coding)", "Upload Excel sebagai data",
+			"Storan pengguna", "1 GB", "~10 GB", "Bergantung pelan", "Penyelenggaraan aplikasi",
+			"Anggaran Add-on (jika perlu)", "Domain sendiri (.com)", "Tidak perlu", "(subdomain)", "~RM50/tahun",
+			"Storan tambahan", "Termasuk", "~RM80/tahun", "(20 GB)", "Bergantung penggunaan", "~RM91/tahun", "(100 GB)",
+			"Back-up tambahan", "Termasuk", "~RM40/tahun", "Bergantung penggunaan",
+			"Sokongan teknikal", "Termasuk", "Add-on berbayar",
+			"Jumlah Kos Tahunan", "(termasuk fungsi asas + anggaran add-on)",
+			"RM99", "RM258", "RM269.88", "RM258+", "RM361.2+", "RM464.4+", "RM1,000+", "RM1,300+", "</table>"},
+		"en": {"Annual Cost Comparison", "<table",
+			"Feature / Component", "CAVELMS", "RM99/year", "TextExpander Pro", "RM258/year", "Render Starter", "RM361.2/year", "Supabase Pro", "RM1,300/year",
+			"Text Expansion", "KPM Prompt Library", "AI Prompt Templates", "Personal subdomain", "(promotional domain)",
+			"Web hosting / deployment", "Static to dynamic dashboard (no coding)", "Upload Excel as data",
+			"User storage", "Depends on plan", "App maintenance",
+			"Add-on estimate (if needed)", "Own domain (.com)", "Not needed", "~RM50/year",
+			"Extra storage", "Included", "~RM80/year", "Depends on usage", "Extra backups", "~RM40/year", "Technical support", "Paid add-on",
+			"Total Annual Cost", "(includes basic features + add-on estimate)",
+			"RM99", "RM269.88", "RM361.2+", "RM464.4+", "RM1,300+", "</table>"},
+	} {
+		_, body := s.getAsking("/pricing", lang)
+		expectInOrder(t, html.UnescapeString(mainOf(body)), want...)
+		expectNone(t, body, "cost-comparison.webp")
+	}
 }

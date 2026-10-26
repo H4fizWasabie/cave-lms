@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -145,13 +144,24 @@ func TestAdminEditsAProgramme(t *testing.T) {
 	expectNone(t, body, "AI Bootcamp")
 }
 
-func TestAdminDeletesAProgrammeAndItsPicture(t *testing.T) {
+func TestAdminDeletesAProgrammeAndItsPictureOnlyAfterConfirming(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days.", "", pngFile)
 	id := s.onlyProgrammeID()
+	confirmPage := "/admin/programmes/" + id + "/delete"
 
-	res, body := s.post("/admin/programmes/"+id+"/delete", url.Values{})
+	_, body := s.get("/admin/programmes/" + id + "/edit")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “AI Bootcamp”? This cannot be undone.")
+	expectAll(t, body, `href="/admin/programmes/`+id+`/edit"`)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get("/admin/programmes")
+	expectAll(t, body, "AI Bootcamp")
+
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = s.get("/admin/programmes")
 	expectNone(t, body, "AI Bootcamp")
@@ -174,7 +184,7 @@ func TestDeletingAProgrammeSucceedsEvenWhenItsPictureCannotBeRemoved(t *testing.
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(s.storageDir, 0o700) })
-	res, body := s.post("/admin/programmes/"+id+"/delete", url.Values{})
+	res, body := s.post("/admin/programmes/"+id+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = s.get("/admin/programmes")
 	expectNone(t, body, "AI Bootcamp")

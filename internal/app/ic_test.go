@@ -83,6 +83,8 @@ func TestAnICThatIsNotLettersAndDigitsIsRefused(t *testing.T) {
 	for _, ic := range []string{" - ", "95/1206", "123456789012345678901"} {
 		res, body := s.setIC(ic)
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, "letters and digits")
+		expectFieldError(t, body, "ic", "letters and digits", "</button>")
+		expectInOrder(t, mainOf(body), `id="ic"`, `value="`+ic+`"`)
 	}
 }
 

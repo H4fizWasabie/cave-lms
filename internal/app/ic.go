@@ -31,7 +31,8 @@ func formatIC(ic string) string {
 // myProfilePage is the logged-in Learner's profile: their IC or passport number, formatted, or a form to set it.
 type myProfilePage struct {
 	pageBase
-	IC string
+	IC    string
+	Typed string // what the Learner typed, kept when it is refused
 }
 
 func (a *App) myProfile(w http.ResponseWriter, r *http.Request) {
@@ -60,41 +61,135 @@ func (a *App) setMyIC(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	refuse := func(status int, key string) {
-		a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, key)}})
-	}
-	ic := normaliseIC(r.PostFormValue("ic"))
-	if !validIC.MatchString(ic) {
-		refuse(http.StatusUnprocessableEntity, "ic.invalid")
-		return
-	}
-	res, err := a.db.ExecContext(r.Context(), `UPDATE learners SET ic = $1 WHERE id = $2 AND ic IS NULL`, ic, learner.ID)
-	if isUniqueViolation(err) {
-		refuse(http.StatusConflict, "ic.taken")
-		return
-	}
+	status, refusal, err := a.storeIC(r, learner.ID, r.PostFormValue("ic"))
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if n == 0 { // already set
+	switch refusal {
+	case "":
+		http.Redirect(w, r, "/my-profile", http.StatusSeeOther)
+	case "ic.set-once":
 		ic, err := a.learnerIC(r.Context(), learner.ID)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		a.render(w, r, http.StatusConflict, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, "ic.set-once")}, IC: formatIC(ic)})
+		a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, refusal)}, IC: formatIC(ic)})
+	default:
+		a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner, Error: text.T(lang, refusal)}, Typed: r.PostFormValue("ic")})
+	}
+}
+
+// storeIC sets the Learner's IC or passport number, once, to what they typed, normalised, and issues any Certificate
+// that was waiting for it. When it is refused it returns the response status and the catalog key of the reason:
+// ic.invalid, ic.taken, or ic.set-once when the IC is already set.
+func (a *App) storeIC(r *http.Request, learnerID int64, typed string) (status int, refusal string, err error) {
+	ic := normaliseIC(typed)
+	if !validIC.MatchString(ic) {
+		return http.StatusUnprocessableEntity, "ic.invalid", nil
+	}
+	res, err := a.db.ExecContext(r.Context(), `UPDATE learners SET ic = $1 WHERE id = $2 AND ic IS NULL`, ic, learnerID)
+	if isUniqueViolation(err) {
+		return http.StatusConflict, "ic.taken", nil
+	}
+	if err != nil {
+		return 0, "", err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, "", err
+	}
+	if n == 0 {
+		return http.StatusConflict, "ic.set-once", nil
+	}
+	if err := a.issueEarnedCertificates(r.Context(), learnerID, 0); err != nil {
+		a.logError(r, fmt.Errorf("issue Certificates on setting learner %d's IC: %w", learnerID, err))
+	}
+	return 0, "", nil
+}
+
+// examICPage is the IC step a Learner without an IC is sent to on starting an Exam: the IC typed twice.
+type examICPage struct {
+	pageBase
+	ErrorField string // the id of the field Error is about
+	Course     *course
+	Exam       *exam
+	IC, Again  string // what the Learner typed, kept when it is refused
+}
+
+// examICStep loads the IC step's page, with its Learner, Course and Exam. When the Learner already has an IC it sends
+// them on to the Exam and returns false: the IC is set once, so the step only ever leads to the Exam.
+func (a *App) examICStep(w http.ResponseWriter, r *http.Request) (*examICPage, bool) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return nil, false
+	}
+	c, e, ok := a.publishedExamFor(w, r, learner)
+	if !ok {
+		return nil, false
+	}
+	// Only a Learner who could start the Exam reaches the step: anyone else goes back to the Course, saving nothing.
+	st, err := a.examStatusFor(r.Context(), learner, c, e)
+	if err != nil {
+		a.serverError(w, r, err)
+		return nil, false
+	}
+	if !st.CanStart() {
+		http.Redirect(w, r, "/courses/"+strconv.FormatInt(c.ID, 10), http.StatusSeeOther)
+		return nil, false
+	}
+	ic, err := a.learnerIC(r.Context(), learner.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return nil, false
+	}
+	if ic != "" {
+		http.Redirect(w, r, e.Path(""), http.StatusSeeOther)
+		return nil, false
+	}
+	return &examICPage{pageBase: pageBase{Learner: learner}, Course: &c, Exam: &e}, true
+}
+
+func (a *App) examIC(w http.ResponseWriter, r *http.Request) {
+	if p, ok := a.examICStep(w, r); ok {
+		a.render(w, r, http.StatusOK, "exam_ic", p)
+	}
+}
+
+// setExamIC sets the IC from the IC step, with the same checks as My profile and the two entries matching, then
+// goes on to the Exam the Learner was starting.
+func (a *App) setExamIC(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.examICStep(w, r)
+	if !ok {
 		return
 	}
-	if err := a.issueEarnedCertificates(r.Context(), learner.ID, 0); err != nil {
-		a.logError(r, fmt.Errorf("issue Certificates on setting learner %d's IC: %w", learner.ID, err))
+	typed, again := r.PostFormValue("ic"), r.PostFormValue("ic-confirm")
+	status, field, refusal := http.StatusUnprocessableEntity, "ic", ""
+	var err error
+	switch {
+	case !validIC.MatchString(normaliseIC(typed)):
+		refusal = "ic.invalid"
+	case normaliseIC(typed) != normaliseIC(again):
+		field, refusal = "ic-confirm", "ic.mismatch"
+	default:
+		if status, refusal, err = a.storeIC(r, p.Learner.ID, typed); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
-	http.Redirect(w, r, "/my-profile", http.StatusSeeOther)
+	if refusal == "" || refusal == "ic.set-once" { // set once, here or in another tab
+		http.Redirect(w, r, p.Exam.Path(""), http.StatusSeeOther)
+		return
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p.Error, p.ErrorField, p.IC, p.Again = text.T(lang, refusal), field, typed, again
+	a.render(w, r, status, "exam_ic", p)
 }
 
 // learnerIC returns a Learner's stored IC or passport number, or "" when unset.

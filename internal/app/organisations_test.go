@@ -181,13 +181,26 @@ func TestAnOrganisationIsDeletedOnlyWhenNoLiveCourseUsesIt(t *testing.T) {
 	org := s.addOrganisation("PDRM", pngFile)
 	course := s.liveCourseFor(org)
 
-	res, body := s.post("/admin/organisations/"+org+"/delete", nil)
+	confirmPage := "/admin/organisations/" + org + "/delete"
+	_, body := s.get("/admin/organisations/" + org + "/edit")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete “PDRM”? This cannot be undone.")
+	expectAll(t, body, `href="/admin/organisations/`+org+`/edit"`)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusConflict, "A Live Course uses this Organisation")
+	expectNone(t, body, "btn-danger-solid")
 
 	res, body = s.post("/admin/courses/"+course, url.Values{"title": {"Go for PDRM"}, "description": {"For PDRM."},
 		"start_date": {"2027-02-01"}, "end_date": {"2027-02-03"}, "days": {"2"}, "organisation_id": {""}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = s.post("/admin/organisations/"+org+"/delete", nil)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get("/admin/organisations")
+	expectAll(t, body, "PDRM")
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = s.get("/admin/organisations")
 	expectNone(t, body, "PDRM")
@@ -233,7 +246,7 @@ func TestTheLiveCourseFormRefusesAnOrganisationThatIsNotThere(t *testing.T) {
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	org := s.addOrganisation("PDRM", pngFile)
 	course := s.liveCourseFor("")
-	s.post("/admin/organisations/"+org+"/delete", nil) // deleted while the form was open
+	s.post("/admin/organisations/"+org+"/delete", confirming) // deleted while the form was open
 	live := url.Values{"title": {"Go for PDRM"}, "description": {"For PDRM."}, "start_date": {"2027-02-01"}, "end_date": {"2027-02-03"}, "days": {"2"}}
 	for _, id := range []string{org, "x"} {
 		live.Set("organisation_id", id)

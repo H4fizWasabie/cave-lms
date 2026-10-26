@@ -8,19 +8,27 @@
         {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
         {{with .Status}}
         <ul class="x-facts">
-          <li><strong>{{.Exam.PassMark}}%</strong>{{t $.Lang "exam.pass-mark" .Exam.PassMark}}</li>
-          <li><strong>{{with .Exam.TimeLimit}}{{t $.Lang "exam.minutes-short" .}}{{else}}{{t $.Lang "exam.none"}}{{end}}</strong>{{with .Exam.TimeLimit}}{{t $.Lang "exam.time-limit" .}}{{else}}{{t $.Lang "exam.no-time-limit"}}{{end}}</li>
-          <li><strong>{{.AttemptsLeft $.Lang}}</strong>{{t $.Lang "exam.attempts-left" (.AttemptsLeft $.Lang)}}</li>
-          <li><strong>{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong>{{if .HasBest}}{{t $.Lang "exam.best" .Best}}{{else}}{{t $.Lang "exam.no-score"}}{{end}}</li>
+          {{- /* Each fact shows its value over a bare label; a screen reader hears the one sentence instead. */}}
+          <li><strong class="num" aria-hidden="true">{{.Asked}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.questions"}}</span><span class="sr">{{t $.Lang "exam.questions" .Asked}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{.Exam.PassMark}}%</strong><span aria-hidden="true">{{t $.Lang "exam.fact.pass-mark"}}</span><span class="sr">{{t $.Lang "exam.pass-mark" .Exam.PassMark}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{with .Exam.TimeLimit}}{{t $.Lang "exam.minutes-short" .}}{{else}}{{t $.Lang "exam.none"}}{{end}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.time-limit"}}</span><span class="sr">{{with .Exam.TimeLimit}}{{t $.Lang "exam.time-limit" .}}{{else}}{{t $.Lang "exam.no-time-limit"}}{{end}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{.AttemptsLeft $.Lang}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.attempts-left"}}</span><span class="sr">{{t $.Lang "exam.attempts-left" (.AttemptsLeft $.Lang)}}</span></li>
+          <li><strong class="num" aria-hidden="true">{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.best"}}</span><span class="sr">{{if .HasBest}}{{t $.Lang "exam.best" .Best}}{{else}}{{t $.Lang "exam.no-score"}}{{end}}</span></li>
         </ul>
         {{if .Open}}
         <a class="btn btn-solid btn-lg" href="{{.Exam.Path (printf "/attempts/%d" .Open.ID)}}">{{t $.Lang "exam.continue"}}</a>
         {{else}}
         {{with .Blocker $.Lang}}<p class="x-help">{{.}}</p>{{else}}
+        {{with .StartNote $.Lang}}<p class="x-help">{{.}}</p>{{end}}
+        {{if $.NeedsIC}}<p class="x-help">{{t $.Lang "exam.ic-first"}}</p>{{end}}
         <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}
-        {{if .Passed}}<a class="btn btn-solid btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>{{end}}
+        {{if .Passed}}
+        {{- /* After a pass the Course's next step is the primary; the Answer sheet is the primary only when none leads anywhere. */}}
+        {{with $.Step}}{{if .URL}}<a id="next-step" class="btn btn-solid btn-lg" href="{{.URL}}">{{.Label $.Lang}}</a>{{else if eq .Kind "upcoming"}}<p id="next-step" class="x-help step-upcoming">{{.Label $.Lang}}</p>{{end}}{{end}}
+        <a class="btn {{if and $.Step $.Step.URL}}btn-ghost{{else}}btn-solid{{end}} btn-lg" href="{{.Exam.Path "/answer-sheet"}}">{{t $.Lang "exam.answer-sheet.download"}}</a>
+        {{end}}
         {{end}}
       </div>
       <p class="mc-more"><a class="link-more" href="/courses/{{.Course.ID}}">{{t .Lang "lesson.back"}}</a></p>

@@ -110,7 +110,7 @@ func TestAddingOrPublishingLessonsLowersProgressAndRemovingOneStopsCounting(t *t
 	res, body = ada.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "Progress: 1 of 3 Lessons complete")
 
-	admin.post("/admin/lessons/"+admin.lessonIDByTitle("Variables")+"/delete", nil)
+	admin.post("/admin/lessons/"+admin.lessonIDByTitle("Variables")+"/delete", confirming)
 	res, body = ada.get("/courses/" + id)
 	expectStatus(t, res, body, http.StatusOK, "Progress: 0 of 2 Lessons complete")
 }
@@ -148,7 +148,7 @@ func TestLeavingAndRejoiningKeepsCompletions(t *testing.T) {
 	s.post("/courses/"+id+"/join", nil)
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 
-	s.post("/courses/"+id+"/leave", nil)
+	s.leaveCourse(id)
 	res, body := s.markLesson(id, s.lessonIDByTitle("Functions"), true)
 	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to mark its Lessons complete.")
 	s.post("/courses/"+id+"/join", nil)
@@ -169,7 +169,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotOpenLessons(t *testing.T) {
 	res, body := ada.get(lessonPath)
 	expectStatus(t, res, body, http.StatusOK, "<h1>Variables</h1>")
 
-	ada.post("/courses/"+id+"/leave", nil)
+	ada.leaveCourse(id)
 	res, body = ada.get(lessonPath)
 	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to open its Lessons.")
 
@@ -181,7 +181,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotOpenLessons(t *testing.T) {
 	if m == nil {
 		t.Fatalf("Course page has no remove button for Ada: %s", body)
 	}
-	admin.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", nil)
+	admin.post("/admin/courses/"+id+"/learners/"+m[1]+"/remove", confirming)
 	res, body = ada.get(lessonPath)
 	expectStatus(t, res, body, http.StatusForbidden, "Join this Course to open its Lessons.")
 }

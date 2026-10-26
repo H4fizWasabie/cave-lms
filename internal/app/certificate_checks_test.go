@@ -72,13 +72,13 @@ func TestOnlyAdminCanRevokeOrReissue(t *testing.T) {
 	s := newSite(t)
 	certID := s.earnedCertificate()
 
-	res, body := s.post("/admin/certificates/"+certID+"/revoke", nil)
+	res, body := s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Hijack"}})
 	expectStatus(t, res, body, http.StatusForbidden, "Only the Admin can open this page.")
 
 	s.logOut()
-	res, body = s.post("/admin/certificates/"+certID+"/revoke", nil)
+	res, body = s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
 	s.logOut()
@@ -86,11 +86,63 @@ func TestOnlyAdminCanRevokeOrReissue(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Status: Valid")
 }
 
+func TestAdminRevokesACertificateOnlyAfterConfirming(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	confirmPage := "/admin/certificates/" + certID + "/revoke"
+
+	_, body := s.get("/admin/certificates")
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Revoke Ada’s Certificate for “Go Basics” (PCC-")
+
+	res, body = s.post(confirmPage, nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if loc := res.Header.Get("Location"); loc != confirmPage {
+		t.Fatalf("a post without confirming went to %q, want the confirmation page", loc)
+	}
+	_, body = s.get("/certificates/" + certID)
+	expectAll(t, body, "Status: Valid")
+
+	res, body = s.post(confirmPage, confirming)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/certificates/" + certID)
+	expectAll(t, body, "Status: Revoked")
+
+	res, body = s.get("/admin/certificates/no-such-id/revoke")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+}
+
+func TestTheRevokeConfirmationOfARevokedCertificateGoesBackToTheListSayingSo(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	confirmPage := "/admin/certificates/" + certID + "/revoke"
+	s.post(confirmPage, confirming)
+
+	for lang, notice := range map[string]string{
+		"en": "This Certificate is already revoked.",
+		"ms": "Sijil ini sudah ditarik balik.",
+	} {
+		s.switchLanguage(lang, "/")
+		res, body := s.get(confirmPage)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+		loc := res.Header.Get("Location")
+		if !strings.HasPrefix(loc, "/admin/certificates?") {
+			t.Fatalf("%s: the confirmation of a revoked Certificate went to %q, want the Certificates list", lang, loc)
+		}
+		_, body = s.get(loc)
+		expectAll(t, content(body), notice)
+		expectNone(t, content(body), `action="`+confirmPage+`"`)
+	}
+}
+
 func TestRevokedCertificateShowsRevokedOnTheCheckPageTheListAndThePDF(t *testing.T) {
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
-	res, body := s.post("/admin/certificates/"+certID+"/revoke", nil)
+	res, body := s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
 	s.logOut()
@@ -133,7 +185,7 @@ func TestRevokedCertificateIsNotIssuedAgainAutomatically(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.loginAdmin()
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 
 	s.login("ada@example.com", certPassword)
 	lessonID := s.lessonIDByTitle("Variables")
@@ -150,7 +202,7 @@ func TestAdminIssuesACorrectedCertificateWithANewID(t *testing.T) {
 	s := newSite(t)
 	oldID := s.earnedCertificate()
 	s.loginAdmin()
-	s.post("/admin/certificates/"+oldID+"/revoke", nil)
+	s.post("/admin/certificates/"+oldID+"/revoke", confirming)
 
 	res, body := s.post("/admin/certificates/"+oldID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -187,7 +239,7 @@ func TestReissueNeedsARevokedCertificateAndOneValidAtATime(t *testing.T) {
 	res, body := s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Revoke the Certificate before issuing a corrected one.")
 
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"  "}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter a name for the Certificate")
 
@@ -226,10 +278,10 @@ func TestReissueFormIsPrefilledWithTheLearnersCurrentName(t *testing.T) {
 	s := newSite(t)
 	oldID := s.earnedCertificate()
 	s.loginAdmin()
-	s.post("/admin/certificates/"+oldID+"/revoke", nil)
+	s.post("/admin/certificates/"+oldID+"/revoke", confirming)
 	res, _ := s.post("/admin/certificates/"+oldID+"/reissue", url.Values{"learner_name": {"Ada Lovelace"}})
 	newID := strings.TrimPrefix(res.Header.Get("Location"), "/admin/certificates?q=")
-	s.post("/admin/certificates/"+newID+"/revoke", nil)
+	s.post("/admin/certificates/"+newID+"/revoke", confirming)
 
 	res, body := s.get("/admin/certificates")
 	expectStatus(t, res, body, http.StatusOK, "Issue corrected Certificate")

@@ -1,10 +1,8 @@
 package app
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,9 +45,6 @@ type programmeFormPage struct {
 }
 
 const programmeColumns = `id, title, starts_on, blurb, link, picture_key, picture_type`
-
-// maxProgrammeUpload caps the Programme form, picture included, well below the Gallery's limit.
-const maxProgrammeUpload = 20 << 20
 
 // scanProgramme reads one row selected with programmeColumns.
 func scanProgramme(row interface{ Scan(...any) error }) (programme, error) {
@@ -145,14 +140,8 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 	fail := func(status int, key string) {
 		a.render(w, r, status, "programme_form", &programmeFormPage{pageBase{Error: text.T(lang, key)}, p})
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxProgrammeUpload)
-	if err := r.ParseMultipartForm(1 << 20); err != nil && !errors.Is(err, http.ErrNotMultipart) {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			fail(http.StatusRequestEntityTooLarge, "programmes.err.too-large")
-			return
-		}
-		fail(http.StatusBadRequest, "adm.gallery.unread")
+	if status, key := readPictureForm(w, r); status != 0 {
+		fail(status, key)
 		return
 	}
 	if r.MultipartForm != nil {
@@ -178,29 +167,17 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 		return
 	}
 
-	var newKey string
-	file, _, err := r.FormFile("picture")
-	if err == nil {
-		defer file.Close()
-		head := make([]byte, 512)
-		n, err := io.ReadFull(file, head)
-		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-			a.serverError(w, r, err)
-			return
-		}
-		mimeType, ok := sniffType(head[:n])
-		if !ok || allowedTypes[mimeType] != "picture" {
-			fail(http.StatusUnprocessableEntity, "programmes.err.picture")
-			return
-		}
-		if newKey, _, err = a.store.Save(io.MultiReader(bytes.NewReader(head[:n]), file)); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		p.PictureKey, p.pictureType = newKey, mimeType
-	} else if !errors.Is(err, http.ErrMissingFile) {
+	newKey, mimeType, bad, err := a.storePicture(r)
+	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if bad {
+		fail(http.StatusUnprocessableEntity, "picture.err.type")
+		return
+	}
+	if newKey != "" {
+		p.PictureKey, p.pictureType = newKey, mimeType
 	}
 
 	if p.ID == 0 {
@@ -225,10 +202,19 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 	http.Redirect(w, r, "/admin/programmes", http.StatusSeeOther)
 }
 
-// deleteProgramme removes the row, then its picture. A picture left behind is logged, not shown to the Admin.
+// confirmDeleteProgramme asks the Admin to confirm deleting a Programme.
+func (a *App) confirmDeleteProgramme(w http.ResponseWriter, r *http.Request) {
+	if p, ok := a.programmeFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Side: "programmes", Heading: "programmes.delete", Question: "adm.delete-ask",
+			Cancel: "/admin/programmes/" + r.PathValue("id") + "/edit", Action: r.URL.Path}, p.Title)
+	}
+}
+
+// deleteProgramme removes the row, then its picture, once its confirmation page is posted. A picture left behind is
+// logged, not shown to the Admin.
 func (a *App) deleteProgramme(w http.ResponseWriter, r *http.Request) {
 	p, ok := a.programmeFor(w, r)
-	if !ok {
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM programmes WHERE id = $1`, p.ID); err != nil {

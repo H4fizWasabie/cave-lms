@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -171,10 +172,10 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	expectLanguage(t, body, "ms", "Imej latar (JPEG atau PNG)")
 
 	res, body := s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {"Ada"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Batalkan Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan.")
-	s.post("/admin/certificates/"+certID+"/revoke", nil)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Tarik balik Sijil ini sebelum mengeluarkan Sijil yang diperbetulkan.")
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body = s.get("/admin/certificates")
-	expectAll(t, body, "<td>Dibatalkan</td>", "Keluarkan Sijil yang diperbetulkan")
+	expectAll(t, body, "<td>Ditarik balik</td>", "Keluarkan Sijil yang diperbetulkan")
 	res, body = s.post("/admin/certificates/"+certID+"/reissue", url.Values{"learner_name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Masukkan nama untuk Sijil")
 
@@ -185,6 +186,54 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 	_, body = s.get("/admin/certificates")
 	expectLanguage(t, body, "en", "Search by name or ID")
 	expectAll(t, body, "<td>Revoked</td>")
+}
+
+// On a Malay confirmation page "Batal" is the way out, so neither the action nor its warning uses that word.
+func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	courseID := s.onlyCourseID()
+	s.addAssignment(courseID, "Esei", "Tulis satu perenggan.")
+	item := s.uploadAs("Rajah Go", "everyone", pngFile)
+	s.saveQuestion("/admin/courses/"+courseID+"/exam/questions", "Apakah Go?", [5]string{"Bahasa", "Minuman", "", "", ""}, "0", false)
+	org := s.addOrganisation("PDRM", pngFile)
+	s.addProgramme("Kem AI", "2099-03-01", "Dua hari.", "", nil)
+	_, body := s.get("/admin/courses/" + courseID)
+	ada := removeLearnerLink.FindStringSubmatch(body)[1]
+	s.switchLanguage("ms", "/")
+
+	for _, path := range []string{
+		"/admin/certificates/" + certID + "/revoke",
+		"/admin/courses/" + courseID + "/delete",
+		"/admin/lessons/" + s.lessonIDByTitle("Variables") + "/delete",
+		"/admin/assignments/" + s.assignmentIDByTitle("Esei") + "/delete",
+		"/admin" + item + "/delete",
+		"/admin/courses/" + courseID + "/exam/questions/" + s.examQuestionIDs(courseID)[0] + "/delete",
+		"/admin/courses/" + courseID + "/learners/" + ada + "/remove",
+		"/admin/question-bank/" + s.bankQuestionIDs("/admin/question-bank")[0] + "/delete",
+		"/admin/organisations/" + org + "/delete",
+		"/admin/programmes/" + s.onlyProgrammeID() + "/delete",
+	} {
+		res, body := s.get(path)
+		expectStatus(t, res, body, http.StatusOK, ">Batal</a>")
+		if n := strings.Count(strings.ToLower(mainOf(body)), "batal"); n != 1 {
+			t.Errorf("%s says batal %d times, want once (the Cancel link):\n%s", path, n, mainOf(body))
+		}
+	}
+	_, body = s.get("/admin/certificates/" + certID + "/revoke")
+	expectAll(t, mainOf(body), "<h1>Tarik balik Sijil</h1>", ">Tarik balik Sijil</button>")
+
+	// The Learner's own confirmation keeps their file rather than cancelling.
+	s.post("/admin/assignments/"+s.assignmentIDByTitle("Esei")+"/publish", nil)
+	learner := s.second()
+	learner.login("ada@example.com", certPassword)
+	learner.switchLanguage("ms", "/")
+	path := "/courses/" + courseID + "/assignments/" + s.assignmentIDByTitle("Esei")
+	learner.postFiles(path+"/files", upload{"esei.pdf", pdfHandIn})
+	res, body := learner.get(learner.fileLinks(path)[0] + "/delete")
+	expectStatus(t, res, body, http.StatusOK, ">Simpan fail</a>")
+	expectNone(t, strings.ToLower(mainOf(body)), "batal")
 }
 
 func TestTheAdminOnlyAndQuestionNotFoundPagesAreInMalay(t *testing.T) {

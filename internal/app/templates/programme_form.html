@@ -18,7 +18,7 @@
             <div class="field"><label for="picture">{{t .Lang "programmes.form.picture"}} <span class="opt">{{t .Lang "admin.common.optional"}}</span></label><input id="picture" type="file" name="picture" accept="image/jpeg,image/png,image/webp"><small>{{t .Lang "programmes.form.picture-hint"}}</small></div>
             <div class="form-foot"><a class="btn btn-quiet" href="/admin/programmes">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>
-          {{if .Programme.ID}}<form method="post" action="/admin/programmes/{{.Programme.ID}}/delete"><button class="btn btn-danger btn-sm">{{t .Lang "adm.delete"}}</button></form>{{end}}
+          {{if .Programme.ID}}<p class="danger-row"><a class="btn btn-danger btn-sm" href="/admin/programmes/{{.Programme.ID}}/delete">{{t .Lang "adm.delete"}}</a></p>{{end}}
         </div>
       </div>
     </div>

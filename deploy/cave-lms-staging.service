@@ -9,6 +9,8 @@ User=cave_staging
 Group=cave_staging
 # Staging's own settings (docs/deploy.md, Staging). Mode 0600, owned by root.
 EnvironmentFile=/etc/cave-lms/staging.env
+# Not production: the home page shows its marked placeholders for numbers the client has not supplied.
+Environment=CAVE_ENV=staging
 ExecStart=/usr/local/bin/cave-lms-staging
 Restart=on-failure
 RestartSec=5

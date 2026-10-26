@@ -163,3 +163,12 @@ func TestDuplicatingACourseCopiesItsAssignmentsWithoutSubmissions(t *testing.T) 
 		t.Fatalf("the copy has the original's Submission: %s", body)
 	}
 }
+
+func TestTheAssignmentsPageWithNoneYetKeepsItsHeadingsInOrder(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go.", "")
+	path := "/admin/courses/" + s.onlyCourseID() + "/assignments"
+	_, body := s.get(path)
+	expectHeadingsInOrder(t, path, body)
+}

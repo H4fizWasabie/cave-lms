@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -9,7 +10,7 @@ import (
 // header is the part of a page above its content: the site header.
 func header(t *testing.T, body string) string {
 	t.Helper()
-	head, _, ok := strings.Cut(body, "<main>")
+	head, _, ok := strings.Cut(body, `<main id="main">`)
 	if !ok {
 		t.Fatalf("page has no <main>; body:\n%s", body)
 	}
@@ -18,8 +19,28 @@ func header(t *testing.T, body string) string {
 
 // content is the part of a page below its header.
 func content(body string) string {
-	_, c, _ := strings.Cut(body, "<main>")
+	_, c, _ := strings.Cut(body, `<main id="main">`)
 	return c
+}
+
+// mainOf is a page's own content: between its header and its footer.
+func mainOf(body string) string {
+	c, _, _ := strings.Cut(content(body), "</main>")
+	return c
+}
+
+// expectFieldError fails unless the form's field with id is marked invalid and want is said once, after that field and
+// before next (the field after it, or the form's button).
+func expectFieldError(t *testing.T, body, id, want, next string) {
+	t.Helper()
+	m := mainOf(body)
+	if n := strings.Count(m, want); n != 1 {
+		t.Fatalf("says %q %d times, want once; body:\n%s", want, n, m)
+	}
+	if !regexp.MustCompile(`<(input|textarea)[^>]*\bid="` + id + `"[^>]*aria-invalid="true"`).MatchString(m) {
+		t.Fatalf("field %q is not marked invalid; body:\n%s", id, m)
+	}
+	expectInOrder(t, m, `id="`+id+`"`, want, next)
 }
 
 // expectInOrder fails unless each of wants appears in body after the one before it.
@@ -125,4 +146,12 @@ func TestLabIsAPlainLinkInTheHeaderAndItsHeroLineStaysOnTheLabPage(t *testing.T)
 		expectNone(t, head, `<summary class="hdr-link">Lab</summary>`, hero)
 		expectAll(t, content(body), "<h1>"+hero+"</h1>")
 	}
+}
+
+func TestEveryPageOpensWithALinkThatSkipsTheHeaderToTheContent(t *testing.T) {
+	s := newSite(t)
+	_, body := s.getAsking("/", "en")
+	expectInOrder(t, body, "<body>", `<a class="skip" href="#main">Skip to content</a>`, `<header class="site-header">`, `<main id="main">`)
+	_, body = s.getAsking("/courses", "ms")
+	expectInOrder(t, body, `<a class="skip" href="#main">Langkau ke kandungan</a>`, `<main id="main">`)
 }

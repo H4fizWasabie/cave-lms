@@ -225,20 +225,29 @@ func (a *App) organisationLogo(w http.ResponseWriter, r *http.Request) {
 	a.serveImage(w, r, o.LogoKey)
 }
 
-// deleteOrganisation removes an Organisation no Live Course uses. Its logo file is kept for the Certificates that print it.
+// deleteOrganisationPage is the confirmation page for deleting o, refused with the catalog key errKey when not "".
+func deleteOrganisationPage(o organisation, errKey string) confirmation {
+	return confirmation{pageBase: pageBase{Error: errKey}, Side: "organisations", Heading: "orgs.delete", Question: "adm.delete-ask",
+		Cancel: "/admin/organisations/" + strconv.FormatInt(o.ID, 10) + "/edit", Action: "/admin/organisations/" + strconv.FormatInt(o.ID, 10) + "/delete"}
+}
+
+// confirmDeleteOrganisation asks the Admin to confirm deleting an Organisation.
+func (a *App) confirmDeleteOrganisation(w http.ResponseWriter, r *http.Request) {
+	if o, ok := a.organisationFor(w, r); ok {
+		a.confirm(w, r, http.StatusOK, deleteOrganisationPage(o, ""), o.Name)
+	}
+}
+
+// deleteOrganisation removes an Organisation no Live Course uses, once its confirmation page is posted. Its logo
+// file is kept for the Certificates that print it.
 func (a *App) deleteOrganisation(w http.ResponseWriter, r *http.Request) {
 	o, ok := a.organisationFor(w, r)
-	if !ok {
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM organisations WHERE id = $1`, o.ID)
 	if isForeignKeyError(err) {
-		lang, err := a.language(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		a.render(w, r, http.StatusConflict, "organisation_form", &organisationFormPage{pageBase{Error: text.T(lang, "orgs.err.in-use")}, o})
+		a.confirm(w, r, http.StatusConflict, deleteOrganisationPage(o, "orgs.err.in-use"), o.Name)
 		return
 	}
 	if err != nil {

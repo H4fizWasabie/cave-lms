@@ -225,7 +225,7 @@ func TestAdminReordersQuestionsWithUpAndDown(t *testing.T) {
 	}
 }
 
-func TestAdminDeletesAQuestion(t *testing.T) {
+func TestAdminDeletesAQuestionOnlyAfterConfirming(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -238,8 +238,18 @@ func TestAdminDeletesAQuestion(t *testing.T) {
 	if len(ids) != 2 {
 		t.Fatalf("want 2 questions on the Exam page: %s", body)
 	}
+	confirmPage := examPath + "/questions/" + ids[0][1] + "/delete"
+	expectAll(t, body, `href="`+confirmPage+`"`)
+	res, body := s.get(confirmPage)
+	expectStatus(t, res, body, http.StatusOK, "Delete the question “Doomed question text” from the Exam for “Go Basics”? This cannot be undone.")
+	expectAll(t, body, `href="`+examPath+`#q-`+ids[0][1]+`"`, `name="confirm" value="yes"`)
 
-	res, body := s.post(examPath+"/questions/"+ids[0][1]+"/delete", nil)
+	res, body = s.post(confirmPage, nil)
+	expectRedirect(t, res, body, confirmPage)
+	_, body = s.get(examPath)
+	expectAll(t, body, "Doomed question text")
+
+	res, body = s.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = s.get(examPath)
 	expectStatus(t, res, body, http.StatusOK, "Kept question text")
@@ -374,5 +384,33 @@ func TestAnExamOfAnUnknownFormatIsNotFound(t *testing.T) {
 	for _, path := range []string{"/admin/courses/" + id + "/exam?format=essay", "/courses/" + id + "/exam?format=essay"} {
 		res, body = s.get(path)
 		expectStatus(t, res, body, http.StatusNotFound, "")
+	}
+}
+
+func TestExamSettingsWarnWhenTheDrawCountIsMoreThanThePublishedQuestions(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	examPath := "/admin/courses/" + id + "/exam"
+	for _, p := range []string{"Q1", "Q2"} {
+		s.saveQuestion(examPath+"/questions", p, [5]string{"Yes", "No", "", "", ""}, "0", false)
+	}
+	s.saveQuestion(examPath+"/questions", "Draft question", [5]string{"Yes", "No", "", "", ""}, "0", true)
+
+	res, body := s.saveExamDraw(id, "50", "", "", "30")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Questions per attempt: 30")
+	expectStatus(t, res, body, http.StatusOK, "Only 2 questions are published, so each attempt asks those 2, not 30.")
+	s.switchLanguage("ms", examPath)
+	res, body = s.get(examPath)
+	expectStatus(t, res, body, http.StatusOK, "Hanya 2 soalan diterbitkan, jadi setiap percubaan bertanya 2 soalan itu, bukan 30.")
+	s.switchLanguage("en", examPath)
+
+	s.saveExamDraw(id, "50", "", "", "2")
+	_, body = s.get(examPath)
+	if strings.Contains(body, "Only 2 questions are published") {
+		t.Fatalf("Exam warns although the draw count equals the published questions: %s", body)
 	}
 }

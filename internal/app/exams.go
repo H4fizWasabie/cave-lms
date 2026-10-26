@@ -109,6 +109,15 @@ func (e exam) Drafts() int {
 	return n
 }
 
+// DrawsFewer is how many questions an attempt really asks when fewer are published than the draw count, else 0.
+func (e exam) DrawsFewer() int {
+	n, _ := strconv.Atoi(e.DrawCount)
+	if published := len(e.Questions) - e.Drafts(); published > 0 && published < n {
+		return published
+	}
+	return 0
+}
+
 // cardPath is the address of question id's card on the Exam's Admin page, or of the question list when id is 0.
 func (e exam) cardPath(id int64) string {
 	if id == 0 {
@@ -498,10 +507,20 @@ func (a *App) swapQuestion(ctx context.Context, examID, questionID int64, down b
 	return tx.Commit()
 }
 
-// deleteExamQuestion removes a question, Draft or published, with its options.
-func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
+// confirmDeleteExamQuestion asks the Admin to confirm deleting a question.
+func (a *App) confirmDeleteExamQuestion(w http.ResponseWriter, r *http.Request) {
 	c, e, q, ok := a.examQuestionFor(w, r)
 	if !ok {
+		return
+	}
+	a.confirm(w, r, http.StatusOK, confirmation{Side: "courses", Heading: "adm.exam.delete-q", Question: "adm.exam.delete-q-ask",
+		Cancel: e.cardPath(q.ID), Action: r.URL.RequestURI()}, q.Prompt, c.Title)
+}
+
+// deleteExamQuestion removes a question, Draft or published, with its options, once its confirmation page is posted.
+func (a *App) deleteExamQuestion(w http.ResponseWriter, r *http.Request) {
+	c, e, q, ok := a.examQuestionFor(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	_, err := a.db.ExecContext(r.Context(), `DELETE FROM exam_questions WHERE id = $1 AND exam_id = $2`, q.ID, e.ID)

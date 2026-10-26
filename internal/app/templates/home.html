@@ -4,117 +4,156 @@
     <section class="home-hero" id="welcome">
       <div class="wrap home-hero-in">
         <div class="home-hero-copy">
-          <p class="home-kicker">CAVELMS · Learn AI • Build Skills • Create Impact</p>
-          <h1>{{t .Lang "home.title"}}</h1>
-          <p class="lede">{{t .Lang "home.lede"}}</p>
+          <p class="home-tagline">CAVELMS · Learn AI • Build Skills • Create Impact</p>
+          <h1 class="display">{{t .Lang "home.title"}}</h1>
+          <p class="home-hero-lede">{{t .Lang "home.lede"}}</p>
           <div class="cta-row">
-            <a class="btn btn-solid btn-lg" href="/courses">{{t .Lang "home.cta.classes"}}</a>
+            <a class="btn btn-gold btn-lg" href="/courses">{{t .Lang "home.cta.classes"}}</a>
             <a class="btn btn-ghost btn-lg" href="/gallery?format=ebook">{{t .Lang "home.cta.ebooks"}}</a>
-            <a class="btn btn-ghost btn-lg" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
           </div>
+          <a class="home-hero-more" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
         </div>
-        <figure class="coach" id="coach">
-          <img src="{{static "coach-adam-daniel.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="1280" height="1008" fetchpriority="high">
-          <figcaption class="sr" lang="en">
-            <strong>Coach Adam Daniel</strong>, Strategic Intelligence Architect. Founder &amp; Chief Consultant, The Cave Consult.
-            <ul>
-              <li>Executive Master in Business Management with Honours (EMBM), Universiti Malaysia Pahang Al-Sultan Abdullah (UMPSA)</li>
-              <li>Certified Generative AI (Associates With Distinction), International Council for Technology Certifications (ICTC)</li>
-              <li>HRDC Accredited Trainer, Human Resource Development Corporation (HRD Corp)</li>
-              <li>Department of Skills Development (JPK) Certified Trainer, Jabatan Pembangunan Kemahiran, Malaysia</li>
-              <li>Sustainability &amp; ESG Reporting Professional (SERP), completed through an Exemplar Global RTP Certified Training Programme</li>
-            </ul>
-          </figcaption>
+        {{- $name := ""}}{{with .Learner}}{{$name = .Name}}{{end}}
+        <figure class="cert-preview">
+          {{template "certificate-preview" (certPreview (or $name (t .Lang "cert-preview.name")) (t .Lang "cert-preview.course") "" .CertBackground)}}
+          <figcaption>{{t .Lang "cert-preview.caption"}} <a href="/certificates">{{t .Lang "nav.check-cert"}}</a></figcaption>
         </figure>
       </div>
     </section>
 
-    <section class="section">
-      <div class="wrap home-intro" id="about">
-        <div class="prose">
-          <p>{{t .Lang "home.intro.1"}}</p>
-          <p>{{t .Lang "home.intro.2"}}</p>
-          <p>{{t .Lang "home.intro.3"}}</p>
-          <p>{{t .Lang "home.intro.4"}}</p>
-        </div>
-        <blockquote class="home-pull">{{t .Lang "home.pull"}}</blockquote>
-      </div>
+    <section class="trust" aria-label="{{t .Lang "home.trust"}}">
+      <ul class="wrap trust-in">
+        <li><strong>HRD Corp</strong>{{t .Lang "about.hrd"}}</li>
+        <li><strong>MOF</strong>{{t .Lang "about.mof"}}</li>
+        <li><strong>JPK</strong>{{t .Lang "home.trust.jpk"}}</li>
+        {{- if .Placeholders}}
+        <li class="trust-ph"><span class="trust-ph-tag">{{t .Lang "home.trust.placeholder"}}</span><strong>[N]</strong>{{t .Lang "home.trust.learners"}}</li>
+        <li class="trust-ph"><span class="trust-ph-tag">{{t .Lang "home.trust.placeholder"}}</span><strong>[N]</strong>{{t .Lang "home.trust.clients"}}</li>
+        {{- end}}
+      </ul>
     </section>
 
     <section class="section section-alt">
       <div class="wrap">
-        <div class="section-head">
-          <h2>{{t .Lang "home.learn.title"}}</h2>
+        <div class="home-head">
+          <h2>{{t .Lang "home.path.title"}}</h2>
+          <p>{{t .Lang "home.path.lede"}}</p>
         </div>
-        <ol class="learn-grid">
-          <li>
-            <span class="step-n">1</span>
-            <h3>{{t .Lang "home.learn.1.title"}}</h3>
-            <p>{{t .Lang "home.learn.1.p1"}}</p>
-            <p>{{t .Lang "home.learn.1.p2"}}</p>
-          </li>
-          <li>
-            <span class="step-n">2</span>
-            <h3>{{t .Lang "home.learn.2.title"}}</h3>
-            <p>{{t .Lang "home.learn.2.p1"}}</p>
-            <p>{{t .Lang "home.learn.2.p2"}}</p>
-          </li>
-          <li>
-            <span class="step-n">3</span>
-            <h3>{{t .Lang "home.learn.3.title"}}</h3>
-            <p>{{t .Lang "home.learn.3.p1"}}</p>
-            <p>{{t .Lang "home.learn.3.p2"}}</p>
-          </li>
-          <li class="learn-wide">
-            <span class="step-n">4</span>
-            <h3>{{t .Lang "home.learn.4.title"}}</h3>
-            <p>{{t .Lang "home.learn.4.p1"}}</p>
-            <p>{{t .Lang "home.learn.4.p2"}}</p>
-            <div class="learn-pair">
-              <div>
-                <h4>{{t .Lang "home.static.title"}}</h4>
-                <p>{{t .Lang "home.static.p1"}}</p>
-                <p>{{t .Lang "home.static.p2"}}</p>
-                <p>{{t .Lang "home.static.p3"}}</p>
-              </div>
-              <div>
-                <h4>{{t .Lang "home.dynamic.title"}}</h4>
-                <p>{{t .Lang "home.dynamic.p1"}}</p>
-                <p>{{t .Lang "home.dynamic.p2"}}</p>
-                <p>{{t .Lang "home.dynamic.p3"}}</p>
-                <p>{{t .Lang "home.dynamic.p4"}}</p>
-              </div>
-            </div>
-          </li>
-          <li>
-            <span class="step-n">5</span>
-            <h3>{{t .Lang "home.learn.5.title"}}</h3>
-            <p>{{t .Lang "home.learn.5.p1"}}</p>
-            <p>{{t .Lang "home.learn.5.p2"}}</p>
-          </li>
+        <ol class="pcc-path">
+          <li><img src="{{static "pcc-basic.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Basic</strong><span>{{tn .Lang "home.path.days" 1}}</span></li>
+          <li><img src="{{static "pcc-foundation.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Foundation</strong><span>{{tn .Lang "home.path.days" 2}}</span></li>
+          <li><img src="{{static "pcc-practitioner.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Practitioner</strong><span>{{tn .Lang "home.path.days" 3}}</span></li>
+          <li><img src="{{static "pcc-professional.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Professional</strong><span>{{t .Lang "home.path.days-pro"}}</span></li>
         </ol>
       </div>
     </section>
 
+    {{- if .Latest}}
     <section class="section">
       <div class="wrap">
-        <div class="section-head">
-          <h2>{{t .Lang "home.apply.title"}}</h2>
-          <p>{{t .Lang "home.apply.p1"}}</p>
-          <p>{{t .Lang "home.apply.p2"}}</p>
+        <div class="home-head home-head-row">
+          <h2>{{t .Lang "home.courses.title"}}</h2>
+          <a class="link-more" href="/courses">{{t .Lang "footer.all-courses"}}</a>
         </div>
-        <p class="path">LEARN → APPLY → BUILD → SUSTAIN</p>
-        <p class="path-note">{{t .Lang "home.apply.note"}}</p>
+        <ul class="catalogue">
+          {{range .Latest}}{{template "course-card" (card . $.Lang)}}{{end}}
+        </ul>
+      </div>
+    </section>
+    {{- end}}
+
+    <section class="section section-alt" id="coach">
+      <div class="wrap home-coach">
+        <div class="coach-photo"><img src="{{static "coach-adam-daniel.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="1280" height="1008" loading="lazy"></div>
+        <div>
+          <h2>Coach Adam Daniel</h2>
+          <p class="home-coach-role" lang="en">Strategic Intelligence Architect. Founder &amp; Chief Consultant, The Cave Consult.</p>
+          <ul class="coach-creds" lang="en">
+            <li><strong>Executive Master in Business Management with Honours (EMBM)</strong><span>Universiti Malaysia Pahang Al-Sultan Abdullah (UMPSA)</span></li>
+            <li><strong>Certified Generative AI (Associates With Distinction)</strong><span>International Council for Technology Certifications (ICTC)</span></li>
+            <li><strong>HRDC Accredited Trainer</strong><span>Human Resource Development Corporation (HRD Corp)</span></li>
+            <li><strong>Department of Skills Development (JPK) Certified Trainer</strong><span>Jabatan Pembangunan Kemahiran, Malaysia</span></li>
+            <li><strong>Sustainability &amp; ESG Reporting Professional (SERP)</strong><span>Completed through an Exemplar Global RTP Certified Training Programme</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="wrap home-essay">
+        <div>
+          <h2>{{t .Lang "nav.about"}}</h2>
+          <blockquote class="home-pull">{{t .Lang "home.pull"}}</blockquote>
+        </div>
+        <div class="prose">
+          <p>{{t .Lang "home.intro.1"}}</p>
+          <p>{{t .Lang "home.intro.2"}} {{t .Lang "home.intro.3"}}</p>
+          <p>{{t .Lang "home.intro.4"}}</p>
+        </div>
       </div>
     </section>
 
     <section class="section section-alt">
       <div class="wrap">
-        <div class="section-head">
+        <div class="home-head">
+          <h2>{{t .Lang "home.learn.title"}}</h2>
+        </div>
+        <ul class="home-learn">
+          <li>
+            <h3>{{t .Lang "home.learn.1.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.1.p1"}}</p><p>{{t .Lang "home.learn.1.p2"}}</p></div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.2.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.2.p1"}}</p><p>{{t .Lang "home.learn.2.p2"}}</p></div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.3.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.3.p1"}}</p><p>{{t .Lang "home.learn.3.p2"}}</p></div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.4.title"}}</h3>
+            <div>
+              <p>{{t .Lang "home.learn.4.p1"}}</p><p>{{t .Lang "home.learn.4.p2"}}</p>
+              <div class="home-learn-pair">
+                <div>
+                  <h4>{{t .Lang "home.static.title"}}</h4>
+                  <p>{{t .Lang "home.static.p1"}}</p><p>{{t .Lang "home.static.p2"}}</p><p>{{t .Lang "home.static.p3"}}</p>
+                </div>
+                <div>
+                  <h4>{{t .Lang "home.dynamic.title"}}</h4>
+                  <p>{{t .Lang "home.dynamic.p1"}}</p><p>{{t .Lang "home.dynamic.p2"}}</p><p>{{t .Lang "home.dynamic.p3"}}</p><p>{{t .Lang "home.dynamic.p4"}}</p>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h3>{{t .Lang "home.learn.5.title"}}</h3>
+            <div><p>{{t .Lang "home.learn.5.p1"}}</p><p>{{t .Lang "home.learn.5.p2"}}</p></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap home-essay">
+        <h2>{{t .Lang "home.apply.title"}}</h2>
+        <div class="prose">
+          <p>{{t .Lang "home.apply.p1"}}</p>
+          <p>{{t .Lang "home.apply.p2"}}</p>
+          <p class="home-path" lang="en">LEARN → APPLY → BUILD → SUSTAIN</p>
+          <p class="home-path-note">{{t .Lang "home.apply.note"}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="wrap">
+        <div class="home-head">
           <h2>{{t .Lang "home.programmes.title"}}</h2>
           <p>{{t .Lang "home.programmes.lede"}}</p>
         </div>
-        <ul class="programmes" lang="en">
+        <ul class="past-programmes" lang="en">
           <li>Accreditation Slot for HRD Corp Trainer</li>
           <li>Content Marketing With AI Secret Weapon</li>
           <li>Website in Minutes With AI + Ecommerce</li>
@@ -128,10 +167,35 @@
       </div>
     </section>
 
-    {{if .Items}}
     <section class="section">
+      <div class="wrap home-cost">
+        <div class="home-head">
+          <h2>{{t .Lang "home.cost.title"}}</h2>
+          <p>{{t .Lang "plans.comparison-caption"}}</p>
+          <a class="link-more" href="/pricing#comparison">{{t .Lang "home.cost.more"}}</a>
+        </div>
+        <div class="table-wrap">
+          <table class="table cost-table">
+            <thead><tr><th scope="col">{{t .Lang "cost.service"}}</th><th scope="col">{{t .Lang "cost.total"}}</th></tr></thead>
+            <tbody>
+              <tr class="is-ours"><th scope="row">CAVELMS</th><td class="num">RM99</td></tr>
+              <tr><th scope="row">TextExpander Pro</th><td class="num">RM258</td></tr>
+              <tr><th scope="row">Hostinger Premium</th><td class="num">RM269.88</td></tr>
+              <tr><th scope="row">Cloudflare Paid</th><td class="num">RM258+</td></tr>
+              <tr><th scope="row">Render Starter</th><td class="num">RM361.2+</td></tr>
+              <tr><th scope="row">Netlify Personal</th><td class="num">RM464.4+</td></tr>
+              <tr><th scope="row">Vercel Pro</th><td class="num">RM1,000+</td></tr>
+              <tr><th scope="row">Supabase Pro</th><td class="num">RM1,300+</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    {{- if .Items}}
+    <section class="section section-alt">
       <div class="wrap">
-        <div class="section-head section-head-row">
+        <div class="home-head home-head-row">
           <div>
             <h2>{{t .Lang "home.gallery.title"}}</h2>
             <p>{{t .Lang "home.gallery.lede"}}</p>
@@ -143,18 +207,17 @@
         </ul>
       </div>
     </section>
-    {{end}}
+    {{- end}}
 
-    <section class="verify-band">
-      <div class="wrap verify-band-in">
+    <section class="home-close">
+      <div class="wrap home-close-in">
         <div>
           <h2>{{t .Lang "home.start.title"}}</h2>
           <p>{{t .Lang "home.start.p"}}</p>
         </div>
         <div class="cta-row">
-          <a class="btn btn-gold" href="/gallery?format=ebook">{{t .Lang "home.cta.ebooks"}}</a>
-          <a class="btn btn-gold" href="/courses">{{t .Lang "home.cta.classes"}}</a>
-          <a class="btn btn-gold" href="/courses">{{t .Lang "home.cta.dashboard"}}</a>
+          <a class="btn btn-gold btn-lg" href="/courses">{{t .Lang "home.cta.classes"}}</a>
+          <a class="btn btn-ghost btn-lg" href="/gallery?format=ebook">{{t .Lang "home.cta.ebooks"}}</a>
         </div>
       </div>
     </section>

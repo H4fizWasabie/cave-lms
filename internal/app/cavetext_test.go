@@ -134,8 +134,8 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 		}
 		res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {next}})
 		expectStatus(t, res, body, http.StatusSeeOther, "")
-		if got := res.Header.Get("Location"); got != "/" {
-			t.Fatalf("next=%q redirected to %q, want /", next, got)
+		if got := res.Header.Get("Location"); got != "/my-courses" {
+			t.Fatalf("next=%q redirected to %q, want /my-courses", next, got)
 		}
 	}
 }

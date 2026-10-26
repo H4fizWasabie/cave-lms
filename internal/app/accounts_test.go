@@ -284,6 +284,28 @@ func TestRegisterRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestRegisterSaysWhatIsWrongNextToTheFieldAndKeepsWhatWasTyped(t *testing.T) {
+	s := newSite(t)
+	for _, tc := range []struct{ name, email, password, field, want, next string }{
+		{"", "a@example.com", "long enough", "name", "Enter your name", `for="email"`},
+		{"Ada", "not an email", "long enough", "email", "Enter a valid email", `for="password"`},
+		{"Ada", "a@example.com", "short", "password", "at least 8 characters", "</button>"},
+	} {
+		res, body := s.register(tc.name, tc.email, tc.password)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, tc.want)
+		expectFieldError(t, body, tc.field, tc.want, tc.next)
+		expectInOrder(t, mainOf(body), `id="name"`, `value="`+tc.name+`"`, `id="email"`, `value="`+tc.email+`"`)
+	}
+}
+
+func TestAWrongLoginSaysSoUnderThePasswordAndKeepsTheEmail(t *testing.T) {
+	s := newSite(t)
+	res, body := s.login("ada@example.com", "wrong password")
+	expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect.")
+	expectFieldError(t, body, "password", "Email or password is incorrect.", "</button>")
+	expectInOrder(t, mainOf(body), `id="email"`, `value="ada@example.com"`)
+}
+
 func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"

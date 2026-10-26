@@ -54,6 +54,7 @@ func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {
 	s.logOut()
 
 	s.loginAsNewLearner("Ada", "ada@example.com", examPassword)
+	s.setICFor("ada@example.com")
 	for id, title := range map[string]string{fresh: "Fresh", passed: "Passer", failed: "Failer", none: "Examless"} {
 		s.joinAndFinish(id, title)
 	}
@@ -86,10 +87,10 @@ func TestMyExamsWithNoExamsSaysSoAndLinksToTheCourses(t *testing.T) {
 	s.joinAndFinish(id, "Examless")
 
 	_, body := s.getAsking("/my-exams", "en")
-	expectInOrder(t, content(body), "None of your Courses has an Exam yet.", `<a href="/courses">Browse the Courses</a>`)
+	expectInOrder(t, content(body), "None of your Courses has an Exam yet.", `href="/courses">Browse the Courses</a>`)
 	expectNone(t, content(body), "Examless")
 	_, body = s.getAsking("/my-exams", "ms")
-	expectInOrder(t, content(body), "Belum ada Kursus anda yang mempunyai Peperiksaan.", `<a href="/courses">Lihat senarai Kursus</a>`)
+	expectInOrder(t, content(body), "Belum ada Kursus anda yang mempunyai Peperiksaan.", `href="/courses">Lihat senarai Kursus</a>`)
 }
 
 func TestMyExamsIsInTheClassroomMenuAndSendsAVisitorToLogIn(t *testing.T) {

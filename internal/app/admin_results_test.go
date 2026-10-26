@@ -63,6 +63,7 @@ func TestAdminResultsFilterByCourseAndExam(t *testing.T) {
 	sqlID := admin.examOnlyCourse("SQL Basics", "50")
 	bea := s.second()
 	bea.loginAsNewLearner("Bea", "bea@example.com", examPassword)
+	bea.setICFor("bea@example.com")
 	bea.joinAndFinish(sqlID, "SQL Basics")
 	res, _ = bea.startExam(sqlID)
 	beaAttempt := res.Header.Get("Location")

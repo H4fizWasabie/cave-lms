@@ -80,8 +80,8 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	form := page{Name: name, Email: email, Error: accountFieldError(lang, name, email, password)}
-	if form.Error != "" {
+	form := page{Name: name, Email: email}
+	if form.ErrorField, form.Error = accountFieldError(lang, name, email, password); form.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "register", form)
 		return
 	}
@@ -363,9 +363,10 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		hash     string
 		verified bool
 		saved    string
+		admin    bool
 	)
 	err := a.db.QueryRowContext(r.Context(),
-		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, '') FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &saved)
+		`SELECT id, password_hash, verified_at IS NOT NULL, coalesce(language, ''), is_admin FROM learners WHERE lower(email) = lower($1)`, email).Scan(&id, &hash, &verified, &saved, &admin)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -414,8 +415,13 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	if saved != "" {
 		setLanguageCookie(w, saved) // so the site stays in it after logging out
 	}
-	if next == "" {
-		next = "/"
+	// Without a next, each lands where they work: a Learner on My courses, an Admin on the admin area.
+	switch {
+	case next != "":
+	case admin:
+		next = "/admin"
+	default:
+		next = "/my-courses"
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -443,15 +449,19 @@ func setSessionCookie(w http.ResponseWriter, token string, maxAge int) {
 	})
 }
 
-// accountFieldError returns a message in lang for the first invalid name, email or password, or "".
-func accountFieldError(lang, name, email, password string) string {
+// accountFieldError returns the first invalid field of name, email and password, and a message in lang saying why,
+// or "", "".
+func accountFieldError(lang, name, email, password string) (field, msg string) {
 	switch {
 	case name == "" || len(name) > 200:
-		return text.T(lang, "account.err.name")
+		return "name", text.T(lang, "account.err.name")
 	case !validEmail(email):
-		return text.T(lang, "account.err.email")
+		return "email", text.T(lang, "account.err.email")
 	}
-	return passwordProblem(lang, password)
+	if msg := passwordProblem(lang, password); msg != "" {
+		return "password", msg
+	}
+	return "", ""
 }
 
 // passwordProblem says in lang why a password is unacceptable, or returns "" if it is fine.

@@ -83,10 +83,35 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
 }
 
-// removeLearner is the Admin removing a Learner from a Course. Access ends on the next request.
-func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
+// confirmRemoveLearner asks the Admin to confirm removing a Learner who joined the Course.
+func (a *App) confirmRemoveLearner(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.courseFor(w, r)
 	if !ok {
+		return
+	}
+	var name string
+	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
+	if err == nil {
+		err = a.db.QueryRowContext(r.Context(), `SELECT l.name FROM enrollments e JOIN learners l ON l.id = e.learner_id
+			WHERE e.learner_id = $1 AND e.course_id = $2`, learnerID, c.ID).Scan(&name)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.confirm(w, r, http.StatusOK, confirmation{Side: "courses", Heading: "adm.course.remove-learner", Question: "adm.course.remove-learner-ask",
+		Cancel: "/admin/courses/" + r.PathValue("id"), Action: r.URL.Path}, name, c.Title)
+}
+
+// removeLearner is the Admin removing a Learner from a Course once its confirmation page is posted. Access ends on
+// the next request.
+func (a *App) removeLearner(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok || unconfirmed(w, r) {
 		return
 	}
 	learnerID, err := strconv.ParseInt(r.PathValue("learnerID"), 10, 64)
@@ -211,6 +236,31 @@ func (a *App) joinCourse(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
+// confirmLeaveCourse asks the Learner to confirm leaving a Course they have joined.
+func (a *App) confirmLeaveCourse(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if !enrolled {
+		http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
+		return
+	}
+	a.render(w, r, http.StatusOK, "leave_course", page{Course: &c, Learner: learner})
+}
+
+// leaveCourse leaves a Course once the Learner has confirmed it on the confirmation page; a post without that
+// confirmation, such as from an old Course page, goes to the confirmation page instead.
 func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -221,6 +271,10 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !confirmed(r) {
+		http.Redirect(w, r, "/courses/"+r.PathValue("id")+"/leave", http.StatusSeeOther)
+		return
+	}
 	if _, err := a.db.ExecContext(r.Context(),
 		`DELETE FROM enrollments WHERE learner_id = $1 AND course_id = $2`, learner.ID, c.ID); err != nil {
 		a.serverError(w, r, err)
@@ -229,7 +283,23 @@ func (a *App) leaveCourse(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/courses/"+r.PathValue("id"), http.StatusSeeOther)
 }
 
-// myCourses lists the Courses the logged-in Learner has joined.
+// myCourse is one joined Course on My courses: the Learner's progress, next step and standing on each Exam.
+type myCourse struct {
+	Course      course
+	Done, Total int
+	Step        nextStep
+	Exams       []courseExam
+}
+
+// myCoursesPage is the Learner's home: their Courses and the Certificates they have earned.
+type myCoursesPage struct {
+	pageBase
+	Courses      []myCourse
+	Certificates []certificate
+}
+
+// myCourses lists the Courses the logged-in Learner has joined, each with its progress, next step and Exam status,
+// then their valid Certificates.
 func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -243,5 +313,25 @@ func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "my_courses", page{Learner: learner, Courses: list})
+	p := myCoursesPage{pageBase: pageBase{Learner: learner}}
+	ctx := r.Context()
+	for _, c := range list {
+		mc := myCourse{Course: c}
+		if mc.Done, mc.Total, err = a.courseProgress(ctx, learner.ID, c.ID); err == nil {
+			if mc.Exams, err = a.courseExams(ctx, learner, c, mc.Done, mc.Total); err == nil {
+				mc.Step, err = a.nextStep(ctx, learner, c, mc.Exams)
+			}
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		p.Courses = append(p.Courses, mc)
+	}
+	if p.Certificates, err = a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates
+		WHERE learner_id = $1 AND revoked_at IS NULL ORDER BY issued_at, year, number`, learner.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "my_courses", &p)
 }
