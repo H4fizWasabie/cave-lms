@@ -2141,7 +2141,7 @@ var catalog = map[string]entry{
 	"home.cta.ebooks":    {en: "Explore eBooks", ms: "Terokai eBook"},
 	"home.cta.dashboard": {en: "Learn AI Dashboard Development", ms: "Belajar Membina Dashboard AI"},
 	"home.dashboard-alt": {en: "A team building a procurement dashboard together on a large screen", ms: "Satu pasukan membina dashboard perolehan bersama pada skrin besar"},
-	"home.coach-alt":     {en: "Portrait of Coach Adam Daniel", ms: "Potret Coach Adam Daniel"},
+	"home.coach-alt":     {en: "Coach Adam Daniel speaking at a podium", ms: "Coach Adam Daniel berucap di podium"},
 	// ---- Premium refresh: home page (#314) ----
 	"home.coach-badge-alt":   {en: "HRD Corp Registered Training Provider badge", ms: "Lencana Penyedia Latihan Berdaftar HRD Corp"},
 	"home.trust":             {en: "Accreditations", ms: "Pentauliahan"},

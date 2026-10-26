@@ -1215,20 +1215,19 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .home-head p { max-width: 44rem; color: var(--muted); }
 .home-head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-4); padding-bottom: var(--space-3); border-bottom: 1px solid var(--brand-ink); }
 
-/* The four PCC Levels on one gold line, each badge masking the line behind it. */
-.pcc-path { position: relative; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); }
-.pcc-path::before { content: ""; position: absolute; left: 12.5%; right: 12.5%; top: 5rem; border-top: 1px solid var(--brand-gold); }
-.pcc-path li { position: relative; display: grid; justify-items: center; gap: var(--space-1); text-align: center; }
-.pcc-path img { width: auto; height: 10rem; padding-inline: var(--space-3); margin-bottom: var(--space-3); background: var(--surface); }
+/* One PCC badge, the four Levels stacked beside it, each with its length. */
+.pcc-path { display: grid; grid-template-columns: auto minmax(0, 32rem); justify-content: start; gap: var(--space-8); align-items: center; }
+.pcc-path img { width: 12rem; height: auto; }
+.pcc-path ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--brand-gold); }
+.pcc-path li { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-4); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
 .pcc-path strong { font-family: var(--font-display); font-size: var(--fs-title); font-weight: 400; }
 .pcc-path span { font-size: var(--fs-ui); color: var(--muted); }
 
 .home-coach, .home-essay { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-8); }
 .home-coach { align-items: center; }
 .home-essay { align-items: start; }
-/* The photo is the Coach's profile card: crop to his portrait so none of its printed text shows. */
-.coach-photo { position: relative; aspect-ratio: 4 / 5; overflow: hidden; border-radius: var(--radius-lg); background: var(--line); }
-.coach-photo img { position: absolute; left: -17.6%; top: -18.8%; width: 301.2%; max-width: none; height: auto; }
+.coach-photo { aspect-ratio: 4 / 5; overflow: hidden; border-radius: var(--radius-lg); background: var(--line); }
+.coach-photo img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .home-coach-role { margin-top: var(--space-2); color: var(--muted); }
 .coach-creds { list-style: none; margin: var(--space-6) 0 0; padding: 0; border-top: 1px solid var(--line-strong); }
 .coach-creds li { display: grid; gap: var(--space-1); padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
@@ -1291,8 +1290,8 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 @media (max-width: 720px) {
   .trust-in { grid-template-columns: minmax(0, 1fr); }
   .trust-in li:nth-child(2) { border-top: 1px solid var(--line); }
-  .pcc-path { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-6); }
-  .pcc-path::before { display: none; }
+  .pcc-path { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .pcc-path img { width: 9rem; }
   .home-learn-pair { grid-template-columns: minmax(0, 1fr); }
   .home-essay .home-path { font-size: var(--fs-title); }
 }
@@ -1626,21 +1625,15 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 }
 
 /* === Page: Logos (#343) === */
-/* Coach Adam's card: the HRD Corp badge beside the credentials, then each issuer's logo in a row that wraps. */
-.coach-accredited { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: var(--space-5); align-items: center; margin-top: var(--space-6); }
-.coach-accredited .coach-creds { margin-top: 0; }
-.coach-badge { width: 100%; height: auto; }
-.coach-issuers { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); }
-.coach-issuers img { height: 2.5rem; width: auto; max-width: 100%; object-fit: contain; }
+/* Coach Adam's card: each issuer's logo and the HRD Corp badge in a row that wraps, all one height on one bottom line. */
+.coach-issuers { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4); }
+.coach-issuers img { display: block; height: 2.5rem; width: auto; max-width: 100%; object-fit: contain; }
 /* About: the KPM crest under the heading; the heading and crest stick together. */
 .about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
 .about-side h2 { position: static; }
 .about-crest { width: min(100%, 16rem); height: auto; }
 @media (max-width: 999px) {
   .about-side { position: static; }
-}
-@media (max-width: 720px) {
-  .coach-accredited { grid-template-columns: 5rem minmax(0, 1fr); gap: var(--space-4); }
 }
 
 /* === Lab: as on main (QA, #307) ===

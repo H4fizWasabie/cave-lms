@@ -52,12 +52,15 @@
           <h2>{{t .Lang "home.path.title"}}</h2>
           <p>{{t .Lang "home.path.lede"}}</p>
         </div>
-        <ol class="pcc-path">
-          <li><img src="{{static "pcc-basic.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Basic</strong><span>{{tn .Lang "home.path.days" 1}}</span></li>
-          <li><img src="{{static "pcc-foundation.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Foundation</strong><span>{{tn .Lang "home.path.days" 2}}</span></li>
-          <li><img src="{{static "pcc-practitioner.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Practitioner</strong><span>{{tn .Lang "home.path.days" 3}}</span></li>
-          <li><img src="{{static "pcc-professional.jpg"}}" alt="" width="113" height="160" loading="lazy"><strong>Professional</strong><span>{{t .Lang "home.path.days-pro"}}</span></li>
-        </ol>
+        <div class="pcc-path">
+          <img src="{{static "pcc-badge.webp"}}" alt="" width="343" height="468" loading="lazy">
+          <ol>
+            <li><strong>Basic</strong><span>{{tn .Lang "home.path.days" 1}}</span></li>
+            <li><strong>Foundation</strong><span>{{tn .Lang "home.path.days" 2}}</span></li>
+            <li><strong>Practitioner</strong><span>{{tn .Lang "home.path.days" 3}}</span></li>
+            <li><strong>Professional</strong><span>{{t .Lang "home.path.days-pro"}}</span></li>
+          </ol>
+        </div>
       </div>
     </section>
 
@@ -77,24 +80,22 @@
 
     <section class="section" id="coach">
       <div class="wrap home-coach">
-        <div class="coach-photo"><img src="{{static "coach-adam-daniel.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="1280" height="1008" loading="lazy"></div>
+        <div class="coach-photo"><img src="{{static "coach-adam-daniel.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="768" height="960" loading="lazy"></div>
         <div>
           <h2>Coach Adam Daniel</h2>
           <p class="home-coach-role" lang="en">Strategic Intelligence Architect. Founder &amp; Chief Consultant, The Cave Consult.</p>
-          <div class="coach-accredited">
-            <img src="{{static "hrd-corp-rtp-badge.webp"}}" alt="{{t .Lang "home.coach-badge-alt"}}" class="coach-badge" width="252" height="240" loading="lazy">
-            <ul class="coach-creds" lang="en">
-              <li><strong>Executive Master in Business Management with Honours (EMBM)</strong><span>Universiti Malaysia Pahang Al-Sultan Abdullah (UMPSA)</span></li>
-              <li><strong>Certified Generative AI (Associates With Distinction)</strong><span>International Council for Technology Certifications (ICTC)</span></li>
-              <li><strong>HRDC Accredited Trainer</strong><span>Human Resource Development Corporation (HRD Corp)</span></li>
-              <li><strong>Department of Skills Development (JPK) Certified Trainer</strong><span>Jabatan Pembangunan Kemahiran, Malaysia</span></li>
-              <li><strong>Sustainability &amp; ESG Reporting Professional (SERP)</strong><span>Completed through an Exemplar Global RTP Certified Training Programme</span></li>
-            </ul>
-          </div>
+          <ul class="coach-creds" lang="en">
+            <li><strong>Executive Master in Business Management with Honours (EMBM)</strong><span>Universiti Malaysia Pahang Al-Sultan Abdullah (UMPSA)</span></li>
+            <li><strong>Certified Generative AI (Associates With Distinction)</strong><span>International Council for Technology Certifications (ICTC)</span></li>
+            <li><strong>HRDC Accredited Trainer</strong><span>Human Resource Development Corporation (HRD Corp)</span></li>
+            <li><strong>Department of Skills Development (JPK) Certified Trainer</strong><span>Jabatan Pembangunan Kemahiran, Malaysia</span></li>
+            <li><strong>Sustainability &amp; ESG Reporting Professional (SERP)</strong><span>Completed through an Exemplar Global RTP Certified Training Programme</span></li>
+          </ul>
           <ul class="coach-issuers">
             <li><img src="{{static "umpsa-logo.webp"}}" alt="{{t .Lang "logo-alt" "UMPSA"}}" width="131" height="96" loading="lazy"></li>
             <li><img src="{{static "ictc-logo.webp"}}" alt="{{t .Lang "logo-alt" "ICTC"}}" width="772" height="96" loading="lazy"></li>
             <li><img src="{{static "hrd-corp-logo.webp"}}" alt="{{t .Lang "logo-alt" "HRD Corp"}}" width="334" height="96" loading="lazy"></li>
+            <li><img src="{{static "hrd-corp-rtp-badge.webp"}}" alt="{{t .Lang "home.coach-badge-alt"}}" width="252" height="240" loading="lazy"></li>
             <li><img src="{{static "jpk-logo.webp"}}" alt="{{t .Lang "logo-alt" "JPK"}}" width="54" height="96" loading="lazy"></li>
             <li><img src="{{static "exemplar-global-logo.webp"}}" alt="{{t .Lang "logo-alt" "Exemplar Global"}}" width="107" height="96" loading="lazy"></li>
           </ul>

@@ -49,8 +49,13 @@ func TestTheHomePageShowsThePCCPathwayAndTheLatestCourseCards(t *testing.T) {
 	s.logOut()
 	_, body := s.getAsking("/", "en")
 	main := content(body)
-	expectInOrder(t, main, "pcc-basic.jpg", "Basic", "1 day", "pcc-foundation.jpg", "Foundation", "2 days",
-		"pcc-practitioner.jpg", "Practitioner", "3 days", "pcc-professional.jpg", "Professional", "4 or 5 days")
+	// One PCC badge beside the four Levels, each with its length.
+	_, path, _ := strings.Cut(main, `class="pcc-path"`)
+	path, _, _ = strings.Cut(path, "</section>")
+	if n := strings.Count(path, "<img"); n != 1 {
+		t.Errorf("the PCC pathway has %d images, want one badge", n)
+	}
+	expectInOrder(t, path, "pcc-badge.webp", "Basic", "1 day", "Foundation", "2 days", "Practitioner", "3 days", "Professional", "4 or 5 days")
 	expectAll(t, courseCard(t, main, "Go Basics"), `href="/courses/`)
 	expectHeadingsInOrder(t, "/ en", body)
 	_, body = s.getAsking("/", "ms")
@@ -101,7 +106,7 @@ func TestTheHomeHeroShowsADashboardPhotoAndAboutFollowsTheTrustStripInBothLangua
 		hero, _, _ = strings.Cut(hero, "</section>")
 		expectAll(t, hero, "home-dashboard.webp", `alt="`+text.T(lang, "home.dashboard-alt")+`"`)
 		expectNone(t, hero, "cert-preview", "/certificates")
-		expectInOrder(t, main, `class="trust"`, `id="about"`, about, "pcc-basic.jpg")
+		expectInOrder(t, main, `class="trust"`, `id="about"`, about, "pcc-badge.webp")
 	}
 }
 
