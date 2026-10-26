@@ -64,9 +64,8 @@ func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
 	number := regexp.MustCompile(`PCC-LMS-\d{6}`).FindString(body)
-	old := "PCC-20" + number[8:10] + "-0" + number[10:] // as Certificates showed it before PCC-LMS
 
-	for _, q := range []string{number, strings.ToLower(number), old} {
+	for _, q := range []string{number, strings.ToLower(number)} {
 		res, body := search(ada, q)
 		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
 		expectNone(t, body, "951206", "IC or passport No.")
@@ -76,6 +75,19 @@ func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.
 		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 		expectNone(t, body, certID)
 	}
+}
+
+// A printed Certificate from before PCC-LMS carries its number in the old form, which still finds it.
+func TestACertificateIsStillFoundByItsNumberAsCertificatesShowedItBeforePCCLMS(t *testing.T) {
+	_, ada, _, certID := passedLiveCourse(t)
+	_, body := ada.get("/certificates/" + certID)
+	expectAll(t, body, "PCC-LMS-260001") // Ada's is the first of 2026
+	for _, q := range []string{"PCC-2026-00001", "pcc 2026 00001"} {
+		res, body := search(ada, q)
+		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+	}
+	res, body := search(ada, "PCC-LMS-2600001") // the shown number with a zero too many
+	expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 }
 
 // The search matches the IC the Certificate was issued with, not the Learner's IC now.

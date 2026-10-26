@@ -38,7 +38,7 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 	if m := certificateNumber.FindStringSubmatch(q); m != nil {
 		year, _ = strconv.Atoi(m[1])
 		number, _ = strconv.Atoi(m[2])
-		year += 2000
+		year += 2000 // the 2000s: the century the numbers are issued in
 	} else if m := oldCertificateNumber.FindStringSubmatch(q); m != nil {
 		year, _ = strconv.Atoi(m[1])
 		number, _ = strconv.Atoi(m[2])
@@ -55,7 +55,7 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 // certificateNumber is a Certificate No. after normaliseIC: PCC-LMS-260001 becomes PCCLMS260001. oldCertificateNumber
 // is one as Certificates showed it before, PCC-2026-00001, which a printed Certificate may still carry.
 var (
-	certificateNumber    = regexp.MustCompile(`^PCCLMS(\d{2})(\d{4,9})$`)
+	certificateNumber    = regexp.MustCompile(`^PCCLMS(\d{2})(\d{4}|[1-9]\d{4,8})$`)
 	oldCertificateNumber = regexp.MustCompile(`^PCC(\d{4})(\d{5,9})$`)
 )
 

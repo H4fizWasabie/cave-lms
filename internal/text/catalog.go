@@ -1713,7 +1713,7 @@ var catalog = map[string]entry{
 	"check.valid":         {en: "Valid", ms: "Sah"},
 	"check.search":        {en: "Or search by full IC or passport number, or Certificate No.", ms: "Atau cari dengan No. KP atau pasport penuh, atau No. Sijil"},
 	"check.search-button": {en: "Search", ms: "Cari"},
-	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-2026-00509.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-2026-00509."},
+	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-LMS-260001.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-LMS-260001."},
 	"check.ic":            {en: "IC or passport No. %s", ms: "No. KP atau pasport %s"},
 	// ---- end Courses (#89) ----
 
