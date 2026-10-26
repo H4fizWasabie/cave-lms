@@ -176,3 +176,21 @@ func TestTheExamICStepCanBeCancelledBackToTheExam(t *testing.T) {
 	_, body = s.getAsking(step, "ms")
 	expectInOrder(t, mainOf(body), `href="`+exam+`">Batal</a>`, "Simpan dan pergi ke Peperiksaan</button>")
 }
+
+func TestTheExamStartPageTellsOnlyALearnerWithoutAnICTheyWillAddItBeforeStarting(t *testing.T) {
+	const line = "Before the Exam starts, you will add your IC or passport number."
+	s := newSite(t)
+	id := s.examCourseForBea()
+	exam := "/courses/" + id + "/exam"
+	_, body := s.getAsking(exam, "en")
+	expectInOrder(t, mainOf(body), line, "Start the Exam</button>")
+	_, body = s.getAsking(exam, "ms")
+	expectInOrder(t, mainOf(body), "Sebelum Peperiksaan bermula, anda akan menambah No. KP atau pasport anda.", "Mulakan Peperiksaan</button>")
+
+	_, body = s.getAsking(exam+"/ic", "en") // the set-once warning is a callout, not a hint
+	expectInOrder(t, mainOf(body), `class="callout"`, "you can set it only once", `id="ic"`)
+
+	s.setIC("951206085555")
+	_, body = s.getAsking(exam, "en")
+	expectNone(t, mainOf(body), line)
+}

@@ -20,6 +20,7 @@
         {{else}}
         {{with .Blocker $.Lang}}<p class="x-help">{{.}}</p>{{else}}
         {{with .StartNote $.Lang}}<p class="x-help">{{.}}</p>{{end}}
+        {{if $.NeedsIC}}<p class="x-help">{{t $.Lang "exam.ic-first"}}</p>{{end}}
         <form method="post" action="{{.Exam.Path "/attempts"}}"><button class="btn btn-solid btn-lg">{{t $.Lang "exam.start"}}</button></form>
         {{end}}
         {{end}}

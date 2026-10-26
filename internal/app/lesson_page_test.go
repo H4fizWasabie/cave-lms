@@ -74,6 +74,26 @@ func TestLessonPageSaysWhereItIsAndLinksThePreviousAndNextLessonsInOrder(t *test
 	}
 }
 
+func TestADoneLessonHasOneNextTheFollowingLessonOrOnTheLastLessonTheCoursesNextStep(t *testing.T) {
+	ada, id := lessonPageCourse(t)
+	lesson := func(title string) string { return "/courses/" + id + "/lessons/" + ada.lessonIDByTitle(title) }
+	ada.markLesson(id, ada.lessonIDByTitle("Functions"), true) // Variables, before it, is not done
+	ada.markLesson(id, ada.lessonIDByTitle("Loops"), true)
+
+	res, body := ada.get(lesson("Functions"))
+	expectStatus(t, res, body, http.StatusOK, "You have done this Lesson.")
+	if _, next := lessonPager(body); next != lesson("Loops") {
+		t.Fatalf("done Functions links next %q, want Loops", next)
+	}
+	expectNone(t, body, `id="next-step"`)
+
+	res, body = ada.get(lesson("Loops")) // no next Lesson: the Course's next step is the one way on
+	expectStatus(t, res, body, http.StatusOK, `id="next-step" href="`+lesson("Variables")+`"`)
+	if _, next := lessonPager(body); next != "" {
+		t.Fatalf("the last Lesson links a next Lesson %q", next)
+	}
+}
+
 func TestMarkDoneControlsAreNamedForTheirLesson(t *testing.T) {
 	ada, id := lessonPageCourse(t)
 	path := "/courses/" + id + "/lessons/" + ada.lessonIDByTitle("Functions")
@@ -92,7 +112,6 @@ func TestMarkDoneControlsAreNamedForTheirLesson(t *testing.T) {
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, `action="`+path+`/incomplete"`)
 	expectStatus(t, res, body, http.StatusOK, `Mark incomplete<span class="sr">: Functions</span>`)
-	expectStatus(t, res, body, http.StatusOK, `id="next-step" href="/courses/`+id+`/lessons/`+ada.lessonIDByTitle("Variables")+`"`)
 
 	res, body = ada.post(path+"/incomplete", url.Values{"then": {"lesson"}})
 	if loc := res.Header.Get("Location"); res.StatusCode != http.StatusSeeOther || loc != path {

@@ -432,6 +432,7 @@ var catalog = map[string]entry{
 	"adm.exam.max-attempts":      {en: "Maximum attempts", ms: "Percubaan maksimum"},
 	"adm.exam.draw-is":           {en: "Questions per attempt: %s", ms: "Soalan setiap percubaan: %s"},
 	"adm.exam.draw-count":        {en: "Questions per attempt", ms: "Soalan setiap percubaan"},
+	"adm.exam.draws-fewer":       {en: "Only %d questions are published, so each attempt asks those %d, not %s.", ms: "Hanya %d soalan diterbitkan, jadi setiap percubaan bertanya %d soalan itu, bukan %s."},
 	"adm.exam.save":              {en: "Save Exam", ms: "Simpan Peperiksaan"},
 	"adm.exam.questions":         {en: "Questions", ms: "Soalan"},
 	"adm.exam.add":               {en: "Add question", ms: "Tambah soalan"},
@@ -640,6 +641,8 @@ var catalog = map[string]entry{
 		ms: "Tiada apa-apa di alamat ini. Mungkin ia telah dipindahkan, atau pautan itu tersalah salin.",
 	},
 	"error.title": {en: "Something went wrong", ms: "Berlaku masalah"},
+	"error.retry": {en: "Try again", ms: "Cuba lagi"},
+	"error.home":  {en: "Go to the home page", ms: "Pergi ke laman utama"},
 	"error": {
 		en: "CAVELMS had a problem and could not show this page. Try again in a few minutes.",
 		ms: "CAVELMS menghadapi masalah dan tidak dapat memaparkan halaman ini. Cuba lagi dalam beberapa minit.",
@@ -1473,7 +1476,7 @@ var catalog = map[string]entry{
 	"reports.reason":           {en: "Reason: %s", ms: "Sebab: %s"},
 	"reports.dismiss":          {en: "Dismiss", ms: "Tolak"},
 	"reports.none":             {en: "No open Reports.", ms: "Tiada Laporan terbuka."},
-	"my-courses.title":         {en: "My Courses", ms: "Kursus Saya"},
+	"my-courses.title":         {en: "My courses", ms: "Kursus saya"},
 	"my-courses.intro":         {en: "Courses you have joined. Continue any time.", ms: "Kursus yang telah anda sertai. Teruskan bila-bila masa."},
 	"my-courses.open":          {en: "Open", ms: "Buka"},
 	"my-courses.none":          {en: "You have not joined any Courses yet.", ms: "Anda belum menyertai mana-mana Kursus."},
@@ -1520,6 +1523,7 @@ var catalog = map[string]entry{
 	"exam-ic.again":          {en: "Type it again", ms: "Taip sekali lagi"},
 	"exam-ic.save":           {en: "Save and go to the Exam", ms: "Simpan dan pergi ke Peperiksaan"},
 	"exam-ic.cancel":         {en: "Cancel", ms: "Batal"},
+	"exam.ic-first":          {en: "Before the Exam starts, you will add your IC or passport number.", ms: "Sebelum Peperiksaan bermula, anda akan menambah No. KP atau pasport anda."},
 	"course.needs-ic":        {en: "Set your IC or passport number before your first Exam attempt, so your Certificate can be issued when you pass.", ms: "Tetapkan No. KP atau pasport anda sebelum cubaan Peperiksaan pertama anda, supaya Sijil anda dapat dikeluarkan apabila anda lulus."},
 	"course.needs-ic.passed": {en: "Set your IC so we can issue your Certificate", ms: "Tetapkan No. KP anda supaya Sijil anda dapat dikeluarkan"},
 
@@ -1637,7 +1641,7 @@ var catalog = map[string]entry{
 	"answer-sheet.reason":         {en: "Reason: %s", ms: "Sebab: %s"},
 	"answer-sheet.correct-answer": {en: "Correct answer: %s", ms: "Jawapan betul: %s"},
 
-	"my-certificates.title":       {en: "My Certificates", ms: "Sijil Saya"},
+	"my-certificates.title":       {en: "My certificates", ms: "Sijil saya"},
 	"my-certificates.intro":       {en: "Each certificate has an ID that anyone can check on this site.", ms: "Setiap sijil mempunyai ID yang boleh disemak oleh sesiapa sahaja di laman ini."},
 	"my-certificates.revoked":     {en: "this Certificate is no longer valid.", ms: "Sijil ini tidak lagi sah."},
 	"my-certificates.download":    {en: "Download PDF", ms: "Muat turun PDF"},

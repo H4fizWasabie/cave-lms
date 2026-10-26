@@ -277,6 +277,12 @@ func (a *App) learnerExam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := page{Course: &c, Learner: learner, Status: &st}
+	ic, err := a.learnerIC(r.Context(), learner.ID) // starting sends a Learner without one to the IC step first
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p.NeedsIC = ic == ""
 	if st.Passed && st.Enrolled { // the Exam is behind them: their next step on the Course comes first
 		step, err := a.nextStep(r.Context(), learner, c, nil)
 		if err != nil {

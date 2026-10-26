@@ -228,9 +228,7 @@ description, dates, Lesson count, Exam and the Certificate it leads to. Pass (ca
 Pass (card .Course .Lang); it fills its container's width at 16:9. */}}
 {{define "course-cover"}}{{if .PictureKey}}<img class="course-cover" src="/course-pictures/{{.PictureKey}}" alt="" loading="lazy">{{else -}}
 <div class="course-cover course-cover-drawn{{if .Live}} is-live{{end}}" aria-hidden="true">
-            <svg class="course-cover-mark" viewBox="0 0 64 64"><path d="M14 52 32 12l18 40h-9l-9-20-9 20z" fill="currentColor"/></svg>
-            <span class="course-cover-title">{{.Title}}</span>
-            <span class="course-cover-level">{{with .Level}}PCC {{.}}{{else}}{{t $.Lang "courses.card.self-paced"}}{{end}}</span>
+            <svg class="course-cover-mark" viewBox="0 0 64 64"><path d="M14 52 32 12l18 40h-9l-9-20-9 20z" fill="currentColor"/></svg>            <span class="course-cover-level">{{with .Level}}PCC {{.}}{{else}}{{t $.Lang "courses.card.self-paced"}}{{end}}</span>
           </div>{{end}}{{end}}
 
 {{/* certificate-preview draws a Certificate as the PDF prints it, from a certPreview: (certPreview <name> <Course title>
