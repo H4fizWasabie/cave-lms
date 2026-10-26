@@ -324,23 +324,24 @@ func (a *App) downloadCertificate(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(pdf)
 }
 
-// The Certificate's layout on A4 portrait, in mm, after the client's sample PCC-2026-00509. Baselines are where the
-// built-in artwork leaves room for the details; it prints every fixed word itself.
+// The Certificate's layout on A4 portrait, in mm, after the client's blank background for sample PCC-2026-00509.
+// Baselines are where the artwork, built-in or uploaded, leaves room for the details.
 const (
-	certNumberX, certNumberY   = 183.0, 19.9 // centre and baseline of the Certificate No., under the artwork's label
+	certNumberX, certNumberY   = 183.0, 19.9 // centre and baseline of the Certificate No., under its label
+	certLabelY, certLabelPt    = 15.0, 7.5   // the label's baseline and font size
 	certQRX, certQRY, certQR   = 173.2, 21.1, 19.3
-	certNameY, certICY         = 103.0, 109.0 // centred on the page, over the rule
-	certNameW                  = 160.0        // a longer name shrinks to this width, inside the 172 mm rule
-	certTitleX, certTitleW     = 30.0, 150.0  // the title box, under "has successfully completed..."
-	certTitleY, certTitleH     = 124.5, 24.0  // three lines at 16 pt; the title is centred in it, shrunk until it fits
-	certBadgeX, certBadgeY     = 99.6, 206.4  // the badge image's top left; it carries its own label
-	certBadgeW, certBadgeH     = 39.9, 56.6   // the badge files are 904 by 1280
-	certIssuedX, certIssuedY   = 18.2, 281.7  // "Issued on" bottom left
-	certNumberPt, certIssuedPt = 8.0, 6.5     // the Certificate No.'s and the issue date's font sizes
-	// The Organisation's logo is scaled to fit this box and centred in it. A first guess on the plain page, clear of
-	// its heading and the Certificate No. and QR: tune it once the client's artwork with the top-left space blank arrives.
-	certLogoX, certLogoY = 18.0, 12.0
-	certLogoW, certLogoH = 50.0, 35.0
+	certNameY, certICY         = 96.0, 101.0 // centred on the page, over the rule at 104.7
+	certNameW                  = 160.0       // a longer name shrinks to this width, inside the 168 mm rule
+	certTitleX, certTitleW     = 30.0, 150.0 // the title box, under "has successfully completed..."
+	certTitleY, certTitleH     = 115.0, 44.0 // above the ornament; the title is centred in it, shrunk until it fits
+	certBadgeX, certBadgeY     = 99.6, 206.4 // the badge image's top left; it carries its own label
+	certBadgeW, certBadgeH     = 39.9, 56.6  // the badge files are 904 by 1280
+	certIssuedX, certIssuedY   = 18.2, 281.7 // "Issued on" bottom left
+	certNumberPt, certIssuedPt = 8.0, 6.5    // the Certificate No.'s and the issue date's font sizes
+	// The Organisation's logo is scaled to fit this box and centred in it: left of the CAVE logo, where the client's
+	// blank leaves room for a partner's logo, 7 mm clear of it.
+	certLogoX, certLogoY = 45.0, 10.0
+	certLogoW, certLogoH = 55.0, 30.0
 )
 
 // certificatePDF prints the Certificate's details on one portrait A4 page, in English like the artwork, over the
@@ -372,6 +373,8 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 		pdf.Text(x-pdf.GetStringWidth(s)/2, y, s)
 	}
 
+	pdf.SetTextColor(artInk[0], artInk[1], artInk[2])
+	centred(certNumberX, certLabelY, "Helvetica", "B", certLabelPt, certNumberLabel)
 	pdf.SetTextColor(214, 132, 28) // the sample's gold
 	centred(certNumberX, certNumberY, "Helvetica", "", certNumberPt, c.Number())
 	pdf.SetTextColor(artInk[0], artInk[1], artInk[2])
@@ -383,7 +386,7 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 
 	centred(pageW/2, certNameY, "Times", "B", certNameSize(pdf, c.LearnerName), c.LearnerName)
 	if c.LearnerIC != "" {
-		centred(pageW/2, certICY, "Times", "", 11, formatIC(c.LearnerIC))
+		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
 	}
 	size, lines := certTitleLines(pdf, c.CourseTitle)
 	for _, l := range lines {

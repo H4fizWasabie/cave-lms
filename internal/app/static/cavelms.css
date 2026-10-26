@@ -1582,22 +1582,24 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* === Page: Certificate artwork (#317) === */
 /* The Certificate preview (template certificate-preview): the PDF's artwork drawn in SVG on the A4 page in mm, so its
    font sizes are the SVG's own, set on the text as the PDF prints them, not type-scale tokens. Colours as the PDF's. */
-.cert-art { display: block; width: 100%; height: auto; border: 1px solid var(--line); user-select: none; }
+/* The Certificate's own palette, after the client's sample PCC-2026-00509: a brighter metallic gold than the brand's,
+   mirrored in certificate_artwork.go. */
+.cert-art { --cert-ink: #141414; --cert-ink-2: #282828; --cert-gold: #cca428; --cert-gold-deep: #b08010; --cert-gold-light: #ead85c; --cert-gold-text: #967840; display: block; width: 100%; height: auto; border: 1px solid var(--line); user-select: none; }
 /* Source Serif runs wider than the PDF's Times: matching Times' x-height brings its line lengths close to the PDF's. */
-.cert-art text { font-family: var(--font-display); font-size-adjust: .45; fill: var(--brand-ink); }
+.cert-art text { font-family: var(--font-display); font-size-adjust: .45; fill: var(--cert-ink); }
 .cert-art .cert-art-sans { font-family: var(--font-body); font-weight: 700; }
-.cert-art .cert-art-muted { fill: var(--ink-2); }
-.cert-art .cert-art-gold, .cert-art .cert-art-number { fill: color-mix(in srgb, var(--brand-gold) 60%, var(--brand-gold-deep)); }
+.cert-art .cert-art-muted { fill: var(--cert-ink-2); }
+.cert-art .cert-art-gold, .cert-art .cert-art-number { fill: var(--cert-gold-text); }
 .cert-art .cert-art-number, .cert-art .cert-art-issued { font-weight: 400; }
 .cert-art-name, .cert-art-title { font-weight: 700; }
 .cert-art-award { font-style: italic; }
 .cert-art-paper { fill: var(--surface); }
-.cert-art-rule { fill: none; stroke: var(--brand-gold); }
+.cert-art-rule { fill: none; stroke: var(--cert-gold); }
 .cert-art-shine { fill: none; stroke: var(--surface); }
-.cert-art-ornament { fill: var(--brand-gold); }
-.cert-art-s-deep { stop-color: var(--brand-gold-deep); }
-.cert-art-s-gold { stop-color: var(--brand-gold); }
-.cert-art-s-light { stop-color: color-mix(in srgb, var(--brand-gold) 60%, var(--surface)); }
+.cert-art-ornament { fill: var(--cert-gold); }
+.cert-art-s-deep { stop-color: var(--cert-gold-deep); }
+.cert-art-s-gold { stop-color: var(--cert-gold); }
+.cert-art-s-light { stop-color: var(--cert-gold-light); }
 .cert-art-qr rect { fill: color-mix(in srgb, var(--brand-ink) 6%, transparent); }
 .cert-art-qr path { fill: none; stroke: var(--brand-ink); }
 .cert-art-qr .cert-art-qr-core { fill: var(--brand-ink); stroke: none; }

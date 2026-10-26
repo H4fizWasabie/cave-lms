@@ -14,22 +14,23 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
-// The built-in Certificate artwork: the client's design (sample PCC-2026-00509) drawn at print quality on A4 portrait,
+// The built-in Certificate artwork: the client's design (sample PCC-2026-00509, laid out as its blank background)
+// drawn at print quality on A4 portrait,
 // in English only (ADR 0016). drawArtwork draws the constant layer; certificatePDF fills in the details on top, at the
 // same places as on an uploaded background. The web preview, template certificate-preview in layout.html, draws the
 // same artwork in SVG in the same millimetre coordinates: its wording, rules, images and the places of the details come
 // from artTexts, artRules, artImages and the layout constants in certificates.go, so the two can't drift. Only the
 // frame, the gold corners, the logo, the ornament and the sketched QR code are drawn twice: change those together.
 
-// Colours, as the stylesheet's tokens: charcoal, ink 2, logo gold, deep gold, light gold (60% logo gold on surface)
-// and the text gold (60% logo gold, 40% deep gold).
+// Colours, after the client's sample PCC-2026-00509 rather than the brand's tokens, as the stylesheet's --cert-* under
+// .cert-art: near-black ink, ink 2, a metallic gold, its deep and light ends, and the bronze of the gold wording.
 var (
-	artInk       = [3]int{31, 33, 36}
-	artInk2      = [3]int{57, 60, 65}
-	artGold      = [3]int{210, 166, 73}
-	artGoldDeep  = [3]int{134, 97, 15}
-	artGoldLight = [3]int{227, 201, 144}
-	artGoldText  = [3]int{180, 138, 50}
+	artInk       = [3]int{20, 20, 20}
+	artInk2      = [3]int{40, 40, 40}
+	artGold      = [3]int{204, 164, 40}
+	artGoldDeep  = [3]int{176, 128, 16}
+	artGoldLight = [3]int{234, 216, 92}
+	artGoldText  = [3]int{150, 120, 64}
 )
 
 // artworkLogo is the CAVE logo for the artwork, drawn once from its SVG at 1200 pixels wide (about 600 ppi as printed).
@@ -42,15 +43,17 @@ var artworkLogo = sync.OnceValues(func() ([]byte, error) {
 })
 
 // The Certificate's fixed wording besides the artwork's own (artTexts), in English only like the artwork (ADR 0016):
-// certificatePDF prints it on any artwork, built-in or uploaded.
+// certificatePDF prints it on any artwork, built-in or uploaded, as the client's blank has none of it.
 const (
+	certNumberLabel = "CERTIFICATE NO."
 	certIssuedOn    = "Issued on: "
 	certRevoked     = "REVOKED"
 	certRevokedNote = "This Certificate has been revoked and is no longer valid."
 )
 
-// certMid is the page's centre line, which most of the artwork is centred on.
-const certMid = 105.0
+// certMid is the page's centre line, which most of the artwork is centred on; certOrnamentY is the line of the
+// ornament under the Course title, which the preview draws at the same place.
+const certMid, certOrnamentY = 105.0, 163.4
 
 // ptMM is a font size in points as millimetres, the preview's unit.
 func ptMM(pt float64) float64 { return pt * 25.4 / 72 }
@@ -72,11 +75,10 @@ func (t artText) SizeMM() float64 { return ptMM(t.Size) }
 // artTexts is every line of wording the built-in artwork prints.
 var artTexts = func() []artText {
 	l := []artText{
-		{"CERTIFICATE NO.", certNumberX, 15, 7.5, .2, "Helvetica", "B", artInk, "cert-art-sans"},
-		{"CERTIFICATE", certMid, 63.6, 40, 1.6, "Times", "", artInk, ""},
-		{"OF COMPETENCY", certMid, 72.7, 20, .9, "Times", "", artGoldText, "cert-art-gold"},
-		{"THIS IS TO CERTIFY THAT", certMid, 88, 11, .6, "Times", "", artInk2, "cert-art-muted"},
-		{"has successfully completed the competency requirements of", certMid, 119.5, 11, 0, "Times", "", artInk2, "cert-art-muted"},
+		{"CERTIFICATE", certMid, 62.6, 40, 1.6, "Times", "", artInk, ""},
+		{"OF COMPETENCY", certMid, 71.7, 20, .9, "Times", "", artGoldText, "cert-art-gold"},
+		{"THIS IS TO CERTIFY THAT", certMid, 84.1, 11, .6, "Times", "", artInk2, "cert-art-muted"},
+		{"has successfully completed the competency requirements of", certMid, 110.3, 11, 0, "Times", "", artInk2, "cert-art-muted"},
 	}
 	// The awarding paragraph, as the sample sets its lines, with its typos fixed, under the Course title's ornament.
 	for i, s := range []string{
@@ -85,7 +87,7 @@ var artTexts = func() []artText {
 		"in recognition of the knowledge, skills, and ability to apply",
 		"the competencies demonstrated throughout the programme",
 	} {
-		l = append(l, artText{s, certMid, 165.5 + float64(i)*5.65, 13, 0, "Times", "I", artInk, "cert-art-award"})
+		l = append(l, artText{s, certMid, 170.2 + float64(i)*4.75, 11, 0, "Times", "I", artInk, "cert-art-award"})
 	}
 	// The signatories under the two signatures: a name, then their credentials, the first and last lines larger.
 	for i, sig := range [][]string{
@@ -109,9 +111,9 @@ type artRule struct{ X1, X2, Y, Width float64 }
 // artRules are the rules either side of "OF COMPETENCY", the one the name stands on, and the two either side of the
 // ornament under the Course title.
 var artRules = []artRule{
-	{45, 66.3, 70.4, .5}, {143.7, 165, 70.4, .5},
-	{19, 191, 112.5, .3},
-	{30.5, certMid - 6, 157, .3}, {certMid + 6, 179.5, 157, .3},
+	{45, 66.3, 69, .5}, {143.7, 165, 69, .5},
+	{21, 189, 104.7, .3},
+	{30.5, certMid - 6, certOrnamentY, .3}, {certMid + 6, 179.5, certOrnamentY, .3},
 }
 
 // artImage is a static PNG the artwork places at X, Y, W by H mm.
@@ -177,7 +179,7 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	}
 	opt := fpdf.ImageOptions{ImageType: "png"}
 	pdf.RegisterImageOptionsReader("logo-dark", opt, bytes.NewReader(logo))
-	pdf.SetAlpha(.07, "Normal")
+	pdf.SetAlpha(.2, "Normal")
 	pdf.TransformBegin()
 	pdf.TransformRotate(90, 160, 150)
 	pdf.ImageOptions("logo-dark", 85, 116.3, 150, 67.4, false, opt, 0, "")
@@ -209,7 +211,8 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	corner(62, 112, 50, 96)
 	pdf.TransformEnd()
 
-	pdf.ImageOptions("logo-dark", 79, 17, 52, 0, false, opt, 0, "")
+	// Right of centre, where the client's blank has it, leaving the Organisation's logo room on its left.
+	pdf.ImageOptions("logo-dark", 107, 17, 42, 0, false, opt, 0, "")
 
 	draw(artGold)
 	for _, l := range artRules {
@@ -217,7 +220,7 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 		pdf.Line(l.X1, l.Y, l.X2, l.Y)
 	}
 	// The ornament under the Course title: a diamond between the rules, with a dot either side.
-	const orn = 157
+	const orn = certOrnamentY
 	fill(artGold)
 	pdf.Polygon([]fpdf.PointType{{X: certMid, Y: orn - 1.8}, {X: certMid + 2.6, Y: orn}, {X: certMid, Y: orn + 1.8}, {X: certMid - 2.6, Y: orn}}, "F")
 	pdf.Circle(certMid-4.4, orn, .55, "F")
@@ -235,10 +238,11 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	return pdf.Error()
 }
 
-// certNameSize is the size in points the Learner's name prints at: 28, or smaller so a long name fits its line.
+// certNameSize is the size in points the Learner's name prints at: 14, as on the sample, or smaller so a long name
+// fits its line.
 func certNameSize(pdf *fpdf.Fpdf, name string) float64 {
-	pdf.SetFont("Times", "B", 28)
-	return min(28, 28*certNameW/pdf.GetStringWidth(pdf.UnicodeTranslatorFromDescriptor("")(name)))
+	pdf.SetFont("Times", "B", 14)
+	return min(14, 14*certNameW/pdf.GetStringWidth(pdf.UnicodeTranslatorFromDescriptor("")(name)))
 }
 
 // badgeCutouts are the PCC badges as the Certificate prints them, PNGs keyed by static file name: each JPEG with the
@@ -399,12 +403,15 @@ func (c certificate) Preview(background string) certPreview {
 type certPlaces struct {
 	NumberX, NumberY, NumberSize, QRX, QRY, QR, NameY, TitleX    float64
 	BadgeX, BadgeY, BadgeW, BadgeH, IssuedX, IssuedY, IssuedSize float64
+	LabelY, LabelSize                                            float64
+	Label                                                        string
 }
 
 // At is where the preview draws the details, as certificatePDF prints them.
 func (certPreview) At() certPlaces {
 	return certPlaces{certNumberX, certNumberY, ptMM(certNumberPt), certQRX, certQRY, certQR, certNameY,
-		certTitleX + certTitleW/2, certBadgeX, certBadgeY, certBadgeW, certBadgeH, certIssuedX, certIssuedY, ptMM(certIssuedPt)}
+		certTitleX + certTitleW/2, certBadgeX, certBadgeY, certBadgeW, certBadgeH, certIssuedX, certIssuedY, ptMM(certIssuedPt),
+		certLabelY, ptMM(certLabelPt), certNumberLabel}
 }
 
 // Texts, Rules and Images are the built-in artwork's, for the preview to draw.
