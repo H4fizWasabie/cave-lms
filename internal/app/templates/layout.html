@@ -25,7 +25,7 @@
         <div class="hdr-wide hdr-account">
           {{- if .Learner}}
           <details class="hdr-drop" name="hdr">
-            <summary class="hdr-link"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-user-circle"/></svg><span>{{.Learner.Name}}</span></summary>
+            <summary class="hdr-link">{{template "avatar" .Learner}}<span>{{.Learner.Name}}</span></summary>
             <div class="hdr-panel">{{template "account-links" .}}</div>
           </details>
           {{- else}}
@@ -132,6 +132,8 @@
         <a class="hdr-link" href="/community">{{t .Lang "nav.community"}}</a>
 {{- end}}
 {{/* account-links are Log in and Register for a Visitor, or the logged-in Learner's links. */}}
+{{/* avatar is a Learner's profile picture, or a circle with their initials when they have none. */}}
+{{define "avatar"}}{{if .PictureKey}}<img class="avatar" src="/learner-pictures/{{.PictureKey}}" alt="" width="28" height="28">{{else}}<span class="avatar" aria-hidden="true">{{.Initials}}</span>{{end}}{{end}}
 {{define "account-links"}}
           {{- with .Learner}}
           <span class="hdr-who">{{t $.Lang "header.logged-in-as" .Name}}</span>

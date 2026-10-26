@@ -18,6 +18,11 @@ A person with an account on the site. Anyone can become one.
 _Malay_: Pelajar
 _Avoid_: User, member, student
 
+**Profile picture**:
+A Learner's own picture, shown beside their name in the header and in Chats; without one, a circle with their initials shows. Stored as a 256px square JPEG; it does not count against the Storage allowance.
+_Malay_: Gambar profil
+_Avoid_: Avatar, photo, display picture
+
 **Admin**:
 A person who runs the site: builds Courses, uploads Gallery items, sells Plans and takes down Deployments. Can use the Lab without a Plan.
 _Malay_: Pentadbir

@@ -38,17 +38,26 @@ func (a *App) storePicture(r *http.Request) (key, mimeType string, bad bool, err
 		return "", "", false, err
 	}
 	defer file.Close()
+	whole, mimeType, err := sniffPicture(file)
+	if err != nil || mimeType == "" {
+		return "", "", err == nil, err
+	}
+	key, _, err = a.store.Save(whole)
+	return key, mimeType, false, err
+}
+
+// sniffPicture reads file's first bytes to tell whether it is a JPEG, PNG or WebP picture. mimeType is "" when it
+// is not; whole reads the file from its start.
+func sniffPicture(file io.Reader) (whole io.Reader, mimeType string, err error) {
 	head := make([]byte, 512)
 	n, err := io.ReadFull(file, head)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		return "", "", false, err
+		return nil, "", err
 	}
-	mimeType, ok := sniffType(head[:n])
-	if !ok || allowedTypes[mimeType] != "picture" {
-		return "", "", true, nil
+	if mimeType, ok := sniffType(head[:n]); ok && allowedTypes[mimeType] == "picture" {
+		return io.MultiReader(bytes.NewReader(head[:n]), file), mimeType, nil
 	}
-	key, _, err = a.store.Save(io.MultiReader(bytes.NewReader(head[:n]), file))
-	return key, mimeType, false, err
+	return nil, "", nil
 }
 
 // coursePicture serves a Course's picture by its storage key; Gallery files are not served here.

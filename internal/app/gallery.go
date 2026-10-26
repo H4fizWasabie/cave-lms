@@ -329,29 +329,44 @@ func (a *App) makeThumb(item galleryItem) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
+	src, err := decodePicture(f)
+	if err != nil {
+		return nil, err
+	}
+	w, h := src.Bounds().Dx(), src.Bounds().Dy()
+	if w > thumbWidth {
+		w, h = thumbWidth, max(1, h*thumbWidth/w)
+	}
+	return encodeJPEG(scaleOnWhite(src, src.Bounds(), w, h))
+}
+
+// decodePicture decodes a JPEG, PNG or WebP picture of at most thumbMaxPixels.
+func decodePicture(f io.ReadSeeker) (image.Image, error) {
 	cfg, _, err := image.DecodeConfig(f)
 	if err != nil {
 		return nil, err
 	}
 	if cfg.Width*cfg.Height > thumbMaxPixels {
-		return nil, fmt.Errorf("%dx%d is too large to thumbnail", cfg.Width, cfg.Height)
+		return nil, fmt.Errorf("%dx%d is too large to decode", cfg.Width, cfg.Height)
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	src, _, err := image.Decode(f)
-	if err != nil {
-		return nil, err
-	}
-	w, h := cfg.Width, cfg.Height
-	if w > thumbWidth {
-		w, h = thumbWidth, max(1, h*thumbWidth/w)
-	}
+	return src, err
+}
+
+// scaleOnWhite scales the part from of src to w x h, on white for transparent pictures.
+func scaleOnWhite(src image.Image, from image.Rectangle, w, h int) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(dst, dst.Bounds(), image.White, image.Point{}, draw.Src)
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, from, draw.Over, nil)
+	return dst
+}
+
+func encodeJPEG(img image.Image) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 80}); err != nil {
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
