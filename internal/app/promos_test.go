@@ -187,21 +187,28 @@ func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
 	_, body := visitor.getAsking("/pricing", "en")
 	main := content(body)
 	expectNone(t, main, "CAVE99")
-	// The cards carry no promo line: the Promo Pro Plan card shows the promo price. The comparison still notes it.
+	// The cards carry no promo line: the COMBO Pro Plan card shows the promo price. The comparison still notes it.
 	cards, comparison, _ := strings.Cut(main, `id="comparison"`)
 	expectInOrder(t, cards, "Pro Plan", "RM249 a year")
 	expectNone(t, cards, "with a promo code")
 	expectAll(t, comparison, "RM99 with a promo code")
 	// A fourth card sells the Pro Plan at its promo price, with the Ebooks the Pro Plan card leaves out; both have 0.5 GB.
-	expectInOrder(t, cards, "Pro Plan", "0.5 GB of storage", "Promo Pro Plan", "RM99 a year",
-		"Everything in CaveText Pro", "Everything in the Lab Plan", "Ebooks", "Your own Dashboard deployment", "0.5 GB of storage", "One payment a year for both")
-	expectNone(t, cards, "1 GB")
+	// It is the COMBO Pro Plan, tagged Promo at its top right, with the Snippets and characters CaveText Pro gives.
+	expectInOrder(t, cards, "Pro Plan", "0.5 GB of storage", `<li class="offer offer-combo">`, `<span class="offer-tag">Promo</span>`,
+		`<h3 class="offer-combo-name">COMBO Pro Plan</h3>`, "RM99 a year",
+		"Everything in CaveText Pro", "Up to 2,000 Snippets", "Unlimited characters", "Everything in the Lab Plan", "Ebooks",
+		"Your own Dashboard deployment", "0.5 GB of storage", "One payment a year for both")
+	expectNone(t, cards, "1 GB", "Promo Pro Plan")
+	// A Learner buys it on the Pro Plan's form, where the promo code goes.
+	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	_, body = ada.getAsking("/pricing", "en")
+	expectAll(t, content(body), `href="`+proPlanFormURL+`">Buy COMBO Pro Plan</a>`)
 	_, body = visitor.getAsking("/pricing", "ms")
-	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro Promo", "Had storan 0.5 GB")
+	expectAll(t, content(body), "RM99 dengan kod promosi", "Pelan Pro COMBO", "Aksara tanpa had", "Had storan 0.5 GB")
 
 	s.endPromo("CAVE99")
 	_, body = visitor.getAsking("/pricing", "en")
-	expectNone(t, content(body), "with a promo code", "Promo Pro Plan")
+	expectNone(t, content(body), "with a promo code", "COMBO Pro Plan")
 }
 
 // couponProPlan is a paid Pro Plan order as BCL sends one with a coupon: the subtotal before it, the discount apart.
