@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -39,6 +40,21 @@ func (c snippetCap) Full(have int) bool { return have >= c.most() }
 
 // Keep is how many of n Snippets an import keeps.
 func (c snippetCap) Keep(n int) int { return min(n, c.most()) }
+
+// freeSnippetBody bounds a Snippet's body without CaveText Pro, about 700 words; with Pro there is no limit.
+// ponytail: the copy in internal/text/catalog.go says "4,500" and "about 700 words" as written; change them with it.
+const freeSnippetBody = 4500
+
+// bodyProblem says, in lang, why a free Learner can't save this body, or "". had is the stored body's length when
+// the Snippet is being updated, else -1: one kept from a Pro period may stay as long as it was, or get shorter, so
+// renaming its folder or fixing a typo still works.
+func (c snippetCap) bodyProblem(lang, body string, had int) string {
+	n := utf8.RuneCountInString(body)
+	if c.Pro || n <= freeSnippetBody || n <= had {
+		return ""
+	}
+	return text.T(lang, "cavetext.api.body-free", thousands(freeSnippetBody), thousands(n))
+}
 
 type rowQueryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row

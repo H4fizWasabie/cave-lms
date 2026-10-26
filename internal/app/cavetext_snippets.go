@@ -106,11 +106,9 @@ func otherSnippets(r *http.Request, tx *sql.Tx, l *caveTextLearner, except int64
 	return others, rows.Err()
 }
 
-// A Snippet's name, folder and shortcut have up to maxSnippetField characters each, its body up to maxSnippetBody.
-const (
-	maxSnippetField = 100
-	maxSnippetBody  = 20000
-)
+// A Snippet's name, folder and shortcut have up to maxSnippetField characters each. Its body has no limit with
+// CaveText Pro (only the request size bounds it) and freeSnippetBody without.
+const maxSnippetField = 100
 
 // snippetProblem says, in lang, why a Snippet can't be saved beside the others, or "".
 func snippetProblem(lang string, s caveTextSnippet, others []caveTextSnippet) string {
@@ -118,8 +116,8 @@ func snippetProblem(lang string, s caveTextSnippet, others []caveTextSnippet) st
 		return text.T(lang, "cavetext.api.name-needed")
 	}
 	if utf8.RuneCountInString(s.Name) > maxSnippetField || utf8.RuneCountInString(s.Folder) > maxSnippetField ||
-		utf8.RuneCountInString(s.Shortcut) > maxSnippetField || utf8.RuneCountInString(s.Body) > maxSnippetBody {
-		return text.T(lang, "cavetext.api.too-long", thousands(maxSnippetField), thousands(maxSnippetBody))
+		utf8.RuneCountInString(s.Shortcut) > maxSnippetField {
+		return text.T(lang, "cavetext.api.too-long", thousands(maxSnippetField))
 	}
 	return shortcutProblem(lang, s.Shortcut, others)
 }
@@ -160,6 +158,11 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 	}
 	if c.Full(len(others)) {
 		writeJSONError(w, http.StatusForbidden, overCapMessage(l.Lang, len(others), c))
+		return
+	}
+	// 422, not 403: CaveText reads a 403 as the Snippet cap and stops uploading a Learner's old snippets there.
+	if problem := c.bodyProblem(l.Lang, s.Body, -1); problem != "" {
+		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
 	if err := tx.QueryRowContext(r.Context(), `
@@ -208,6 +211,25 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		return
 	}
 	if problem := snippetProblem(l.Lang, s, clashList(reserved, others)); problem != "" {
+		writeJSONError(w, http.StatusUnprocessableEntity, problem)
+		return
+	}
+	c, err := learnerSnippetCap(r.Context(), tx, l.ID)
+	if err != nil {
+		fail(err)
+		return
+	}
+	var had int
+	err = tx.QueryRowContext(r.Context(), `SELECT char_length(body) FROM cavetext_snippets WHERE id = $1 AND learner_id = $2`, id, l.ID).Scan(&had)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSONError(w, http.StatusNotFound, text.T(l.Lang, "cavetext.api.snippet-gone"))
+		return
+	}
+	if err != nil {
+		fail(err)
+		return
+	}
+	if problem := c.bodyProblem(l.Lang, s.Body, had); problem != "" {
 		writeJSONError(w, http.StatusUnprocessableEntity, problem)
 		return
 	}
@@ -267,7 +289,10 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		}
 		list[i] = in.Snippets[i].snippet()
 		if problem == "" {
-			if problem = snippetProblem(l.Lang, list[i], reserved); problem != "" {
+			if problem = snippetProblem(l.Lang, list[i], reserved); problem == "" {
+				problem = c.bodyProblem(l.Lang, list[i].Body, -1)
+			}
+			if problem != "" {
 				bad = i
 			}
 		}
