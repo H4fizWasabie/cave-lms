@@ -100,10 +100,23 @@
           <section class="card ds-preview">
             <div>
               <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
+              {{- with .Added}}
+              <p class="muted">{{tn $.Lang "lab.data.adds" .Rows .Had (len $.Pending.Dataset.Rows)}}</p>
+              {{- if .Same}}
+              <p><strong>{{tn $.Lang "lab.data.same" .Same}}</strong></p>
+              {{- end}}
+              {{- else}}
               <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
+              {{- end}}
               <p class="muted">{{t $.Lang "lab.w.used" .UsedList}}</p>
               {{- if $.Dashboard.Page}}
               <p>{{t $.Lang "lab.data.columns" .ColumnList}}</p>
+              {{- if $.Gone}}
+              <div class="ds-err" role="alert">
+                <p><strong>{{t $.Lang "lab.data.columns-changed"}}</strong></p>
+                <p>{{t $.Lang "lab.data.gone" $.Gone}}{{with $.New}} {{t $.Lang "lab.data.new" .}}{{end}}</p>
+              </div>
+              {{- end}}
               {{- if not $.Dashboard.Key}}
               <p><strong>{{t $.Lang "lab.data.all-rows"}}</strong></p>
               {{- end}}
@@ -233,6 +246,16 @@
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
+            {{- if and .Dashboard.Page .Dashboard.Key}}
+            {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            <fieldset class="field">
+              <legend>{{t .Lang "lab.data.mode"}}</legend>
+              <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>
+              <small>{{t .Lang "lab.data.replace-help"}}</small>
+              <label class="check"><input type="radio" name="mode" value="add"{{if $add}} checked{{end}}> {{t .Lang "lab.data.add"}}</label>
+              <small>{{t .Lang "lab.data.add-help"}}</small>
+            </fieldset>
+            {{- end}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
             <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
             {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
