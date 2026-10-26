@@ -106,6 +106,21 @@ func TestCourseSearchMatchesLessonBodiesOnlyForALearnerEnrolledInThatCourse(t *t
 	}
 }
 
+func TestCourseSearchMatchesLessonBodiesForTheAdminWithoutEnrolling(t *testing.T) {
+	s := searchableCourses(t)
+	// A Learner who is not enrolled still does not.
+	if body := s.searchCourses("kompos"); strings.Contains(body, "Kebun Sayur") {
+		t.Errorf("a Learner not enrolled found a Lesson body word: %s", body)
+	}
+	// The Admin can open every Lesson, so every body is searched, enrolled or not.
+	s.logOut()
+	res, body := s.login("admin@example.com", "correct horse battery")
+	expectStatus(s.t, res, body, http.StatusSeeOther, "")
+	if body := s.searchCourses("kompos"); !strings.Contains(body, "Kebun Sayur") || strings.Contains(body, "Garden Basics") {
+		t.Errorf("the Admin should find only Kebun Sayur by a Lesson body word: %s", body)
+	}
+}
+
 func TestCourseSearchIgnoresUnpublishedLessons(t *testing.T) {
 	s := searchableCourses(t)
 	s.post("/courses/"+s.courseIDByTitle("Kebun Sayur")+"/join", nil) // enrolled, so bodies are searched

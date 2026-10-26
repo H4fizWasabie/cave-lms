@@ -87,7 +87,8 @@ const courseColumns = `id, title, description, COALESCE(start_date::text, ''), C
 
 // courses lists every published Course for Visitors and Learners, or the ones matching the words in ?q: in the Course's
 // title or description, or in the title or objective of one of its published Lessons, or in the body of one when the
-// Learner is enrolled in the Course (a word found in a body the searcher cannot open would leak what it says). Nothing
+// Learner is enrolled in the Course or is the Admin, who can open every Lesson (a word found in a body the searcher
+// cannot open would leak what it says). Nothing
 // else changes who sees what, so a Draft Course and a Draft Lesson are never found.
 func (a *App) courses(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
@@ -98,7 +99,8 @@ func (a *App) courses(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		var learnerID int64 // 0 for a Visitor: no Enrollment has it
+		var learnerID int64                        // 0 for a Visitor: no Enrollment has it
+		admin := learner != nil && learner.IsAdmin // as showLesson lets the Admin in
 		if learner != nil {
 			learnerID = learner.ID
 		}
@@ -109,9 +111,9 @@ func (a *App) courses(w http.ResponseWriter, r *http.Request) {
 			OR EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = courses.id AND l.published AND (
 				l.search @@ websearch_to_tsquery('simple', $1)
 				OR (l.body_search @@ websearch_to_tsquery('simple', $1)
-					AND EXISTS (SELECT 1 FROM enrollments e WHERE e.learner_id = $2 AND e.course_id = courses.id)))))
+					AND ($3 OR EXISTS (SELECT 1 FROM enrollments e WHERE e.learner_id = $2 AND e.course_id = courses.id))))))
 			ORDER BY start_date NULLS LAST, id`
-		args = []any{q, learnerID}
+		args = []any{q, learnerID, admin}
 	}
 	list, err := a.queryCourses(r, query, args...)
 	if err != nil {
