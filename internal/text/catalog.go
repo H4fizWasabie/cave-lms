@@ -2135,7 +2135,6 @@ var catalog = map[string]entry{
 	"home.path.days.one":   {en: "%d day", ms: "%d hari"},
 	"home.path.days.other": {en: "%d days", ms: "%d hari"},
 	"home.path.days-pro":   {en: "4 or 5 days", ms: "4 atau 5 hari"},
-	"home.courses.title":   {en: "Latest courses", ms: "Kursus terkini"},
 	// The cost comparison on /pricing, from the client's Malay picture: CAVELMS against the services it replaces.
 	"cost.title":            {en: "Annual Cost Comparison", ms: "Perbandingan Kos Tahunan"},
 	"cost.feature":          {en: "Feature / Component", ms: "Fungsi / Komponen"},

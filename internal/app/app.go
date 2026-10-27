@@ -501,7 +501,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "home", &homePage{pageBase: pageBase{Learner: learner}, PublicBaseURL: a.publicBaseURL, Items: promo, Placeholders: !a.production})
 }
 
-// homePage is the home page's data; its Course cards are the header's Latest Courses.
+// homePage is the home page's data.
 type homePage struct {
 	pageBase
 	PublicBaseURL string
