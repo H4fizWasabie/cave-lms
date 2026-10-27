@@ -38,10 +38,10 @@ type Settings struct {
 type Recipe struct {
 	Sheet        string            `json:"sheet"`
 	HeaderRow    int               `json:"headerRow"`
-	HeaderTyped  bool              `json:"headerTyped,omitempty"`  // HeaderRow was typed by hand, not found by Cave
-	Columns      []Column          `json:"-"`                      // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
-	MonthColumns []string          `json:"monthColumns,omitempty"` // the Dataset's number columns that month names are read in: those of its first Part that held whole 1 to 12 only (CleanUp.MonthColumns); AddPart reads a Part's month names in them
-	Map          map[string]string `json:"map,omitempty"`          // a Part's column the Learner chose to read as the Dataset's: its name to the Dataset column's (MapColumns)
+	HeaderTyped  bool              `json:"headerTyped,omitempty"` // HeaderRow was typed by hand, not found by Cave
+	Columns      []Column          `json:"-"`                     // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+	MonthColumns []string          `json:"monthColumns"`          // the Dataset's number columns that month names are read in: those that held whole 1 to 12 only (CleanUp.MonthColumns, or MonthScan); AddPart reads a Part's month names in them. nil when never found, as on a Dataset from before they were kept; empty when found and there are none
+	Map          map[string]string `json:"map,omitempty"`         // a Part's column the Learner chose to read as the Dataset's: its name to the Dataset column's (MapColumns)
 }
 
 // fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
@@ -613,6 +613,41 @@ func AddPart(cols []Column, had int, more *Dataset, limit int, monthColumns ...s
 		}
 	}
 	return out, changes, nil
+}
+
+// MonthScan finds a Dataset's month columns from its Parts, one Part at a time: its Number columns whose every filled
+// value, across all the Parts, is a whole number from 1 to 12. It holds no more than the Part it is given.
+type MonthScan struct {
+	cols   []Column
+	other  []bool // the column has a value that is not a month number
+	filled []bool // the column has a value
+}
+
+// NewMonthScan starts a scan of a Dataset with the columns cols.
+func NewMonthScan(cols []Column) *MonthScan {
+	return &MonthScan{cols: cols, other: make([]bool, len(cols)), filled: make([]bool, len(cols))}
+}
+
+// Add looks at the rows of a Part, read with the Dataset's columns.
+func (m *MonthScan) Add(part *Dataset) {
+	for j, c := range m.cols {
+		if c.Type != Number || m.other[j] {
+			continue
+		}
+		m.other[j] = !wholeMonths(part, j)
+		m.filled[j] = m.filled[j] || slices.ContainsFunc(part.Rows, func(vals []any) bool { return vals[j] != nil })
+	}
+}
+
+// Columns are the names of the month columns found so far: empty, never nil, when there are none.
+func (m *MonthScan) Columns() []string {
+	out := []string{}
+	for j, c := range m.cols {
+		if m.filled[j] && !m.other[j] {
+			out = append(out, c.Name)
+		}
+	}
+	return out
 }
 
 // wholeMonths reports whether every number in column j of d is a whole number from 1 to 12. Cells that are not numbers

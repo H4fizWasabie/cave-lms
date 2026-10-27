@@ -367,7 +367,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		}
 		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, date_source, sha256)
 			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, (SELECT sha256 FROM workbooks WHERE id = $7))`,
-				d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
+			d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
 		return err
 	})
 	if err != nil {
@@ -643,6 +643,13 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		if settings.Recipe != nil { // the Learner's sheet pick is for this Part only
 			kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
 		}
+		if recipe := kept.Settings.Recipe; recipe != nil && recipe.MonthColumns == nil {
+			// A Dataset from before month columns were kept: found once from its Parts, kept with the recipe on confirm.
+			if recipe.MonthColumns, err = a.findMonthColumns(r.Context(), d); err != nil {
+				a.serverError(w, r, err)
+				return
+			}
+		}
 		missing, err := kept.joinDataset(d, replacing, r.Form)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
@@ -683,6 +690,28 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 	}
 	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
+}
+
+// findMonthColumns are the month columns of Dashboard d's Dataset, found by reading its current Parts from the store one
+// at a time; empty when it has none.
+func (a *App) findMonthColumns(ctx context.Context, d *dashboard) ([]string, error) {
+	_, keys, err := a.partKeys(ctx, d.ID)
+	if err != nil {
+		return nil, err
+	}
+	scan := lab.NewMonthScan(d.Columns)
+	for _, k := range keys {
+		data, err := a.datasets.Get(ctx, k)
+		if err != nil {
+			return nil, fmt.Errorf("get Part %s: %w", k, err)
+		}
+		part, err := lab.PartDataset(data, d.Columns)
+		if err != nil {
+			return nil, fmt.Errorf("read Part %s: %w", k, err)
+		}
+		scan.Add(part)
+	}
+	return scan.Columns(), nil
 }
 
 // confirmWork makes the pending Part current. An Add to data puts it last in the Dataset's order; a Replace of the data
@@ -744,7 +773,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	mode := p.mode()
 	if !mode.intoDataset() { // the first Part, and Replace data, set the recipe every later Part is read with
-		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped, MonthColumns: p.MonthColumns}
+		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped, MonthColumns: append([]string{}, p.MonthColumns...)} // empty, not nil: found, and none
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {
