@@ -59,7 +59,7 @@ func TestConfirmingAnAddCreatesASecondPartAndDataJSONReturnsBothPartsInOrderEach
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
 	_, body := ada.get(path + "/data")
-	expectAll(t, body, `name="mode" value="replace" checked`, `name="mode" value="add"`, "Replace data", "Add to data")
+	expectAll(t, body, `name="mode" value="add" checked`, `name="mode" value="replace"`, "Replace data", "Add to data")
 
 	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
 	expectRedirect(t, res, body, path+"/data")
@@ -214,7 +214,10 @@ func TestAPageDashboardsDataIsUploadedConfirmedAndServedAtDataJSON(t *testing.T)
 	res, body = ada.get(path + "/data")
 	expectStatus(t, res, body, http.StatusOK, "september.xlsx")
 	expectAll(t, body, "Columns: Tarikh, Perkara, Kategori, Jenis, Jumlah",
-		"Upload all your rows", `action="`+path+`/dataset/confirm"`)
+		`action="`+path+`/dataset/confirm"`)
+	if strings.Contains(body, "Upload all your rows") {
+		t.Fatalf("the preview shows the outdated all-rows hint: %s", body)
+	}
 	if strings.Contains(body, `name="template"`) || strings.Contains(body, "/lab/samples/") {
 		t.Fatalf("a page Dashboard's preview offers Templates or Samples: %s", body)
 	}
@@ -287,7 +290,10 @@ func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.
 	res, body := ada.postFile(path+"/dataset", "september.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get(path + "/data")
-	expectAll(t, body, "Muat naik semua baris anda", "Lajur: Tarikh")
+	expectAll(t, body, "Lajur: Tarikh")
+	if strings.Contains(body, "Muat naik semua baris anda") {
+		t.Fatalf("the Malay preview shows the outdated all-rows hint: %s", body)
+	}
 }
 
 func TestAPageDashboardsDataOverTheStorageAllowanceIsRefused(t *testing.T) {
