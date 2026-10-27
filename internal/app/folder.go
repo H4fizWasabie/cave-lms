@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"net/http"
@@ -42,6 +43,8 @@ type folderPageFile struct {
 
 type folderPage struct {
 	pageBase
+	Owner      *learner          // whose Folder the Admin is reading, nil for the Learner's own
+	LabPart    bool              // the Folder's owner has the Lab part: their Plan, not the viewer's
 	Workbooks  []workbook        // a Learner with none sees no Workbooks part
 	Dashboards []folderDashboard // with pages, only while the Lab is open to the Learner
 	Courses    []folderCourse
@@ -58,22 +61,43 @@ func (a *App) myFolderRedirect(w http.ResponseWriter, r *http.Request) {
 }
 
 // myFolder is the Learner's Folder: their Workbooks, if they have any, and their Submissions by Course, with the
-// Admin's comments. It is always their own: at any other Username's address they are sent to theirs.
+// Admin's comments. A Learner is sent from any other Username's address to their own; the Admin reads that Learner's
+// Folder there, or gets Not found for a Username nobody has.
 func (a *App) myFolder(w http.ResponseWriter, r *http.Request) {
-	learner, err := a.currentLearner(r)
+	viewer, err := a.currentLearner(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if r.PathValue("username") != learner.Username {
-		http.Redirect(w, r, "/my-folder/"+learner.Username, http.StatusFound)
-		return
+	owner := viewer
+	if username := r.PathValue("username"); username != viewer.Username {
+		if !viewer.IsAdmin {
+			http.Redirect(w, r, "/my-folder/"+viewer.Username, http.StatusFound)
+			return
+		}
+		owner = &learner{}
+		err = a.db.QueryRowContext(r.Context(), `SELECT id, name, is_admin, username FROM learners WHERE username = $1`, username).
+			Scan(&owner.ID, &owner.Name, &owner.IsAdmin, &owner.Username)
+		if errors.Is(err, sql.ErrNoRows) {
+			a.notFound(w, r)
+			return
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
-	a.renderFolder(w, r, learner, http.StatusOK, "")
+	a.renderFolder(w, r, owner, http.StatusOK, "")
 }
 
-// renderFolder shows the Learner's Folder with status, and problem above the upload form when not "".
+// renderFolder shows owner's Folder to the logged-in viewer, who is the owner or the Admin, with status, and problem
+// above the upload form when not "". It is read only for the Admin in someone else's.
 func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *learner, status int, problem string) {
+	viewer, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	list, err := a.folder(r.Context(), learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -84,9 +108,13 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 		a.serverError(w, r, err)
 		return
 	}
-	page := &folderPage{pageBase: pageBase{Learner: learner, Error: problem}, Workbooks: books, Courses: list}
+	page := &folderPage{pageBase: pageBase{Learner: viewer, Error: problem}, Workbooks: books, Courses: list}
+	if viewer.ID != learner.ID {
+		page.Owner = learner
+	}
 	acc, err := a.labAccessOf(r.Context(), learner)
-	if err == nil && acc.Open() { // the Dashboards open only with the Lab
+	page.LabPart = acc.Open()
+	if err == nil && page.LabPart { // the Dashboards open only with the Lab
 		page.Dashboards, err = a.folderDashboards(r.Context(), learner.ID)
 	}
 	if err != nil {
