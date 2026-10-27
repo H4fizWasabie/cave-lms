@@ -47,7 +47,7 @@ func shopReport(t *testing.T, item string, amount float64) []byte {
 	)
 }
 
-// dashReport is shopReport with item's amount a dash, read as 0: a kind of change shopReport never needs, so
+// dashReport is shopReport with item's amount a dash, kept empty: a kind of change shopReport never needs, so
 // its upload shows the preview.
 func dashReport(t *testing.T, item string) []byte {
 	t.Helper()

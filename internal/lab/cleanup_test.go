@@ -82,10 +82,12 @@ func TestCleanUpOfATidySheetChangesNothing(t *testing.T) {
 	}
 }
 
-func TestCleanUpReadsADashAsZeroInANumberColumn(t *testing.T) {
+// A - is "not known", not 0: a Learner's page tells unknown stock from none, so it stays empty, like a blank.
+func TestCleanUpKeepsADashOrBlankInANumberColumnEmpty(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Barang", "Baki"},
 		[]any{"Gula", 12},
 		[]any{"Tepung", "-"},
+		[]any{"Garam", ""},
 		[]any{"Beras", " - "},
 	)
 	res := clean(t, file, template(t, "inventory"))
@@ -93,11 +95,11 @@ func TestCleanUpReadsADashAsZeroInANumberColumn(t *testing.T) {
 	if got := res.Dataset.Columns[1].Type; got != lab.Number {
 		t.Fatalf("Baki is %s, want number", got)
 	}
-	want := [][]any{{"Gula", 12.0}, {"Tepung", 0.0}, {"Beras", 0.0}}
+	want := [][]any{{"Gula", 12.0}, {"Tepung", nil}, {"Garam", nil}, {"Beras", nil}}
 	if !reflect.DeepEqual(res.Dataset.Rows, want) {
 		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, want)
 	}
-	if got, want := changesIn(res, "en"), []string{"Cells holding - read as 0: 2."}; !reflect.DeepEqual(got, want) {
+	if got, want := changesIn(res, "en"), []string{"Cells holding - kept empty (null), not read as 0: 2."}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("changes = %q, want %q", got, want)
 	}
 }
@@ -876,5 +878,21 @@ func TestCleanUpOfAnUnreadableSheetDoesNotFormatItsCellText(t *testing.T) {
 	// Read as formatted, this file allocates about 2.4 GB in about 0.8 s.
 	if mb := (after.TotalAlloc - before.TotalAlloc) >> 20; mb > 50 || took > time.Second {
 		t.Fatalf("Clean of a %d-byte file allocated %d MB in %v, want under 50 MB and 1s", b.Len(), mb, took)
+	}
+}
+
+// Added rows whose column was read as Text keep a - empty in the Dataset's Number column, as Clean-up does.
+func TestAddKeepsADashEmptyInANumberColumn(t *testing.T) {
+	d := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Number}}, Rows: [][]any{{"Gula", 12.0}}}
+	more := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Text}}, Rows: [][]any{{"Tepung", "-"}, {"Beras", "7"}}}
+	out, _, changes, err := lab.Add(d, more)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := [][]any{{"Gula", 12.0}, {"Tepung", nil}, {"Beras", 7.0}}; !reflect.DeepEqual(out.Rows, want) {
+		t.Fatalf("rows = %v, want %v", out.Rows, want)
+	}
+	if len(changes) != 0 {
+		t.Fatalf("changes = %v, want none", changes)
 	}
 }
