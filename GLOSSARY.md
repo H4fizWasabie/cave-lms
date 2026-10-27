@@ -276,7 +276,7 @@ _Malay_: Buku kerja
 _Avoid_: Upload, spreadsheet, data file, Dataset
 
 **Clean-up**:
-What Cave changes in an upload to turn it into a Dataset, such as skipping title rows, leaving `-` empty in a number column or leaving empty the few cells that don't fit their column, shown to the Learner before they confirm.
+What Cave changes in an upload to turn it into a Dataset, such as skipping title rows, leaving `-` empty in a number column, reading a month name as 1 to 12 in a column that holds whole 1 to 12 only, or leaving empty the few cells that don't fit their column, shown to the Learner before they confirm.
 _Malay_: Pembersihan
 _Avoid_: Sanitise, normalise, transform, fix
 
