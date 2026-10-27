@@ -14,9 +14,14 @@ _Malay_: Pelawat
 _Avoid_: Guest, anonymous user
 
 **Learner**:
-A person with an account on the site. Anyone can become one.
+A person with an account on the site. Anyone can become one. Their name is their real name, printed on their Certificates; their Username stands for them in links.
 _Malay_: Pelajar
 _Avoid_: User, member, student
+
+**Username**:
+The name a Learner picks to stand for them in links, such as their folder and their Deployments, so their real name stays private. Unique; picked when registering, and can be changed later, when their old links lead to the new one.
+_Malay_: Nama pengguna
+_Avoid_: Handle, slug, display name
 
 **Profile picture**:
 A Learner's own picture, shown beside their name in the header and in Chats; without one, a circle with their initials shows. Stored as a 256px square JPEG; it does not count against the Storage allowance.
@@ -291,7 +296,7 @@ _Malay_: Tema
 _Avoid_: Template, skin, style, look
 
 **Deployment**:
-A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries a name the Learner picks when deploying; the name never changes and is never given to another Deployment.
+A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link carries the Learner's Username and a name the Learner picks when deploying; that name never changes and is never given to another Deployment.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site, web app
 

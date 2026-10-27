@@ -41,7 +41,7 @@ func TestAccountFormErrorsAndAnswersAreInMalay(t *testing.T) {
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	register := func(name, email, password string) (*http.Response, string) {
-		return s.postAsking("/register", "ms", url.Values{"name": {name}, "email": {email}, "password": {password}})
+		return s.postAsking("/register", "ms", url.Values{"name": {name}, "username": {usernameFor(email)}, "email": {email}, "password": {password}})
 	}
 	for _, c := range []struct{ name, email, password, want string }{
 		{"", email, password, "Masukkan nama anda"},
@@ -114,7 +114,7 @@ func TestVerifyAndResetEmailsComeInTheSavedLanguageElseTheRequests(t *testing.T)
 	const ada, cy, password = "ada@example.com", "cy@example.com", "correct horse battery"
 
 	// No account yet, so no saved language: the email follows the page it was asked from.
-	s.postAsking("/register", "ms", url.Values{"name": {"Ada"}, "email": {ada}, "password": {password}})
+	s.postAsking("/register", "ms", url.Values{"name": {"Ada"}, "username": {usernameFor(ada)}, "email": {ada}, "password": {password}})
 	expectEmail(t, s.lastEmailTo(ada), "Sahkan akaun CAVELMS anda", "Hai,")
 	s.postAsking("/verify/resend", "en", url.Values{"email": {ada}})
 	expectEmail(t, s.lastEmailTo(ada), "Confirm your CAVELMS account", "Hi,")

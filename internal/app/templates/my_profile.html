@@ -23,6 +23,15 @@
           {{- end}}
         </div>
       </section>
+      <form class="card form acct-form" method="post" action="/my-profile/username">
+        <div class="field">
+          <label for="username">{{t .Lang "account.username"}}</label>
+          <input id="username" name="username" value="{{if .TypedUsername}}{{.TypedUsername}}{{else}}{{.Learner.Username}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" required{{if .UsernameError}} aria-invalid="true" aria-describedby="username-err"{{end}}>
+          {{with .UsernameError}}<p class="field-err" id="username-err" role="alert">{{.}}</p>{{end}}
+          <small>{{t .Lang "my-profile.username-hint"}}</small>
+        </div>
+        <div><button class="btn btn-solid">{{t .Lang "my-profile.save"}}</button></div>
+      </form>
       {{- if .IC}}
       {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
       <dl class="acct-list">

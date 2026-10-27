@@ -79,8 +79,14 @@ func (s *site) post(path string, form url.Values) (*http.Response, string) {
 	return s.do(req)
 }
 
+// usernameFor is the Username the test helpers give the Learner with email: its lowercase letters and digits, dashes between,
+// so every email in a test has a different one.
+func usernameFor(email string) string {
+	return strings.Trim(regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(strings.ToLower(email), "-"), "-")
+}
+
 func (s *site) register(name, email, password string) (*http.Response, string) {
-	return s.post("/register", url.Values{"name": {name}, "email": {email}, "password": {password}})
+	return s.post("/register", url.Values{"name": {name}, "username": {usernameFor(email)}, "email": {email}, "password": {password}})
 }
 
 func (s *site) login(email, password string) (*http.Response, string) {
@@ -287,7 +293,7 @@ func TestRegisterRejectsInvalidInput(t *testing.T) {
 func TestRegisterSaysWhatIsWrongNextToTheFieldAndKeepsWhatWasTyped(t *testing.T) {
 	s := newSite(t)
 	for _, tc := range []struct{ name, email, password, field, want, next string }{
-		{"", "a@example.com", "long enough", "name", "Enter your name", `for="email"`},
+		{"", "a@example.com", "long enough", "name", "Enter your name", `for="username"`},
 		{"Ada", "not an email", "long enough", "email", "Enter a valid email", `for="password"`},
 		{"Ada", "a@example.com", "short", "password", "at least 8 characters", "</button>"},
 	} {
@@ -370,7 +376,7 @@ func TestVerificationEmailsToOneAddressStopAfterThreeADay(t *testing.T) {
 
 func TestFormsRefuseCrossOriginPosts(t *testing.T) {
 	s := newSite(t)
-	form := url.Values{"name": {"Mallory"}, "email": {"m@example.com"}, "password": {"password123"}}
+	form := url.Values{"name": {"Mallory"}, "username": {"mallory"}, "email": {"m@example.com"}, "password": {"password123"}}
 	for _, path := range []string{"/register", "/login", "/logout", "/verify/resend"} {
 		for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
 			req, _ := http.NewRequest(http.MethodPost, s.server.URL+path, strings.NewReader(form.Encode()))

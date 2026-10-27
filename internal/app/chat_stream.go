@@ -314,7 +314,7 @@ func (a *App) loadViewers(ctx context.Context, change *chatChange, s *loadedChan
 	for rows.Next() {
 		var token []byte
 		var who access
-		if err := rows.Scan(&token, &who.l.ID, &who.l.Name, &who.l.IsAdmin, &who.l.IsOwner, &who.l.Lang, &who.l.PictureKey, &who.allowed); err != nil {
+		if err := rows.Scan(&token, &who.l.ID, &who.l.Name, &who.l.IsAdmin, &who.l.IsOwner, &who.l.Lang, &who.l.PictureKey, &who.l.Username, &who.allowed); err != nil {
 			return err
 		}
 		s.viewers[string(token)] = who

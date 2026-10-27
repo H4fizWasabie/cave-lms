@@ -84,6 +84,7 @@ type page struct {
 	Error         string
 	ErrorField    string // the id of the form field Error is about, shown next to it; "" puts it above the form
 	Name          string
+	Username      string
 	Email         string
 	OfferResend   bool
 	OfferLogin    bool
@@ -274,14 +275,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.labScreen(a.withDashboard(a.confirmDeleteDashboard)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
-	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
-	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))
-	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/charts.js", a.deploymentFile("charts.js"))
-	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data.json", a.deploymentFile("data.json"))
-	// A shared link missing its slash redirects for good; ServeMux's own redirect is a temporary 307 on current Go.
-	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
-	})
+	mux.HandleFunc("GET /"+deploymentPrefix+"/{rest...}", a.deploymentRoute)
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/learners", a.admin(a.adminLearners))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
@@ -403,10 +397,12 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /courses/{id}/exam/answer-sheet", a.requireLearner(a.downloadAnswerSheet))
 	mux.HandleFunc("GET /my-certificates", a.requireLearner(a.myCertificates))
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
-	mux.HandleFunc("GET /my-folder", a.requireLearner(a.myFolder))
+	mux.HandleFunc("GET /my-folder", a.requireLearner(a.myFolderRedirect))
+	mux.HandleFunc("GET /my-folder/{username}", a.requireLearner(a.myFolder))
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
 	mux.HandleFunc("GET /my-profile", a.requireLearner(a.myProfile))
 	mux.HandleFunc("POST /my-profile/ic", a.requireLearner(a.setMyIC))
+	mux.HandleFunc("POST /my-profile/username", a.requireLearner(a.setMyUsername))
 	mux.HandleFunc("POST /my-profile/picture", a.requireLearner(a.setMyPicture))
 	mux.HandleFunc("POST /my-profile/picture/remove", a.requireLearner(a.removeMyPicture))
 	mux.HandleFunc("GET /learner-pictures/{key}", a.requireLearner(a.learnerPicture))
