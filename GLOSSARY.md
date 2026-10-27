@@ -133,6 +133,11 @@ The right to open and download the Gallery's ebooks, beyond the ones that are Pr
 _Malay_: Akses Ebook
 _Avoid_: Ebook subscription, premium ebooks
 
+**COMBO Pro Plan**:
+The Pro Plan bought with the code of a Promo that comes with Ebooks, or given so by the Admin: the Pro Plan with Ebook access for its year. It is the one place "combo" names something; the Pro Plan alone is never a combo.
+_Malay_: Pelan Pro COMBO
+_Avoid_: Bundle, Pro Plan promo
+
 **Lesson**:
 One step of a Course: a title naming its topic, up to five Objectives, and its content: text, a Gallery item, or text with either a Gallery item or a Lesson image above it. The AI can write the text from the title and Objectives, for the Admin to check before saving. A Course is its ordered Lessons.
 _Malay_: Pelajaran

@@ -49,13 +49,17 @@ func lowestPromoSen(ctx context.Context, q rowQueryer, product string) (int, err
 	return sen, err
 }
 
-// ebooksPromoCode reports whether code, as a payer typed it, is the code of a running Pro Plan Promo that comes with
-// Ebooks.
-func ebooksPromoCode(ctx context.Context, q rowQueryer, code string) (bool, error) {
+// isEbooksPromoCode reports whether code, as a payer typed it, is the code of a running Pro Plan Promo that comes
+// with Ebooks.
+func isEbooksPromoCode(ctx context.Context, q rowQueryer, code string) (bool, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return false, nil
+	}
 	var ok bool
 	err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM promos WHERE ebooks AND product = $1 AND upper(code) = upper($2) AND `+
-		runningPromoSQL+`)`, proPlanProduct, strings.TrimSpace(code)).Scan(&ok)
-	return ok && code != "", err
+		runningPromoSQL+`)`, proPlanProduct, code).Scan(&ok)
+	return ok, err
 }
 
 // adminPromos lists every Promo, running and past, latest start first, above the form that adds one.

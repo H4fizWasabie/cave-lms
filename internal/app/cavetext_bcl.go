@@ -515,7 +515,7 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 		planned, err = giveLabPlan(ctx, tx, learnerID)
 	case proPlanProduct:
 		var ebooks bool
-		if ebooks, err = ebooksPromoCode(ctx, tx, b.Data.Main.Coupon.String()); err != nil {
+		if ebooks, err = isEbooksPromoCode(ctx, tx, b.Data.Main.Coupon.String()); err != nil {
 			return "", fmt.Errorf("read Promos: %w", err)
 		}
 		planned, err = giveProPlan(ctx, tx, learnerID, ebooks)

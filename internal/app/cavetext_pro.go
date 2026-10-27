@@ -95,7 +95,7 @@ func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
 	a.changePro(w, r, func(id int64) error { return givePro(r.Context(), a.db, id, false) })
 }
 
-// giveCaveTextProPlan gives a CaveText Learner the Pro Plan, as giveProPlan does, in one transaction.
+// giveCaveTextProPlan gives a CaveText Learner the Pro Plan, as giveProPlan does.
 func (a *App) giveCaveTextProPlan(w http.ResponseWriter, r *http.Request) {
 	a.giveCaveTextPlan(w, r, false)
 }
@@ -105,6 +105,7 @@ func (a *App) giveCaveTextCombo(w http.ResponseWriter, r *http.Request) {
 	a.giveCaveTextPlan(w, r, true)
 }
 
+// giveCaveTextPlan gives a CaveText Learner the Pro Plan, with Ebook access when ebooks is set, in one transaction.
 func (a *App) giveCaveTextPlan(w http.ResponseWriter, r *http.Request, ebooks bool) {
 	a.changePro(w, r, func(id int64) error {
 		tx, err := a.db.BeginTx(r.Context(), nil)
@@ -124,8 +125,9 @@ func (a *App) giveCaveTextPlan(w http.ResponseWriter, r *http.Request, ebooks bo
 }
 
 // giveProPlan gives the Learner the Pro Plan: a year of CaveText Pro, as givePro does, and a period of the Lab Plan,
-// as giveLabPlan does. With ebooks, that year of CaveText Pro gives Ebook access: the COMBO Pro Plan. planned is false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the
-// caller writes warnNoLabPlan once its transaction has committed.
+// as giveLabPlan does. With ebooks, that year of CaveText Pro gives Ebook access: the COMBO Pro Plan. planned is
+// false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the caller writes warnNoLabPlan once
+// its transaction has committed.
 func giveProPlan(ctx context.Context, db execer, learnerID int64, ebooks bool) (planned bool, err error) {
 	if err := givePro(ctx, db, learnerID, ebooks); err != nil {
 		return false, err
