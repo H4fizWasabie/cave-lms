@@ -34,32 +34,38 @@
       </nav>
 
       {{- if and .Dashboard.Page (eq .Tab "page")}}{{with .Dashboard.Page}}
-      <section class="lab-narrow">
-        <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div></div>
-        {{- if not $.ReadOnly}}
-        <p><a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a></p>
-        <h2 class="h-md">{{t $.Lang "lab.page.new"}}</h2>
-        <p class="muted">{{t $.Lang "lab.page.new-body"}}</p>
-        {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-        <form class="form" method="post" action="{{$url}}/page" enctype="multipart/form-data">
-          <div class="field"><label for="html">{{t $.Lang "lab.new.paste"}}</label><textarea id="html" name="html" rows="6" spellcheck="false" autocapitalize="none"></textarea></div>
-          <div class="field"><label for="file">{{t $.Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t $.Lang "lab.new.page-hint"}}</small></div>
-          <div class="form-foot"><button class="btn btn-solid">{{t $.Lang "lab.page.upload"}}</button></div>
-        </form>
-        {{- with $.Pages}}
-        <h2 class="h-md">{{t $.Lang "lab.page.earlier"}}</h2>
-        <p class="muted">{{t $.Lang "lab.page.earlier-body"}}</p>
-        <ul class="ds-earlier">
-          {{- range .}}
-          <li><div><strong>{{t $.Lang "lab.page.uploaded" .Uploaded}}</strong><span class="muted">{{.SizeText}}</span></div>
-            <form method="post" action="{{$url}}/pages/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form></li>
+      <div class="lab-split">
+        <div class="lab-stack">
+          <div class="ds-now lab-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div>
+            {{- if not $.ReadOnly}}<a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a>{{end}}</div>
+          {{- if not $.ReadOnly}}
+          <section class="card lab-card">
+            <h2 class="h-md">{{t $.Lang "lab.page.new"}}</h2>
+            <p class="muted">{{t $.Lang "lab.page.new-body"}}</p>
+            {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+            <form class="form" method="post" action="{{$url}}/page" enctype="multipart/form-data">
+              <div class="field"><label for="html">{{t $.Lang "lab.new.paste"}}</label><textarea class="lab-code" id="html" name="html" rows="8" spellcheck="false" autocapitalize="none"></textarea></div>
+              <div class="field lab-drop"><label for="file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t $.Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t $.Lang "lab.new.page-hint"}}</small></div>
+              <div class="form-foot"><button class="btn btn-solid">{{t $.Lang "lab.page.upload"}}</button></div>
+            </form>
+          </section>
+          {{- with $.Pages}}
+          <section>
+            <h2 class="h-md">{{t $.Lang "lab.page.earlier"}}</h2>
+            <p class="muted">{{t $.Lang "lab.page.earlier-body"}}</p>
+            <ul class="ds-earlier">
+              {{- range .}}
+              <li><div><strong>{{t $.Lang "lab.page.uploaded" .Uploaded}}</strong><span class="muted">{{.SizeText}}</span></div>
+                <form method="post" action="{{$url}}/pages/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form></li>
+              {{- end}}
+            </ul>
+          </section>
           {{- end}}
-        </ul>
-        {{- end}}
-        {{- end}}
-        {{template "dataSentence" $.Lang}}
-        <script src="{{static "forms.js"}}" defer></script>
-      </section>
+          {{- end}}
+        </div>
+        <aside class="card lab-card">{{template "dataSentence" $.Lang}}</aside>
+      </div>
+      <script src="{{static "forms.js"}}" defer></script>
       {{- end}}
       {{- else if or (eq .Tab "dataset") (eq .Tab "data")}}
       <div class="lab-split">
@@ -522,12 +528,4 @@
       {{- end}}
     </div>
 {{end}}
-{{define "dataSentence"}}
-        <div class="data-sentence">
-          <h2 class="h-sm">{{t . "lab.data.sentence-title"}}</h2>
-          <p class="muted">{{t . "lab.data.sentence-body"}}</p>
-          <textarea id="data-sentence" readonly rows="4">{{t . "lab.data.sentence"}}</textarea>
-          <button class="btn btn-ghost btn-sm" type="button" data-copy="data-sentence">{{t . "lab.data.copy"}}</button>
-        </div>
-{{- end}}
 {{define "hoodRow"}}<div class="hood-row"><pre><code>{{.Code}}</code></pre><div class="hood-note"><span class="step-n">{{.N}}</span><div><strong>{{.Title}}</strong><p>{{.Note}}</p></div></div></div>{{end}}
