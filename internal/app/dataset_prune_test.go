@@ -29,13 +29,13 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
 	admin.readyDashboard("Demo") // the Admin's Datasets are never pruned
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("%d stored files, want 2", n)
 	}
 
 	admin.ageAllPeriods(30 + 89) // the 30-day period ended 89 days ago
 	admin.prune()
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("at 89 days %d stored files, want 2", n)
 	}
 	if line := admin.lastLogLine("Datasets"); line != "Daily prune deleted 0 Datasets" {
@@ -44,7 +44,7 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 
 	admin.ageAllPeriods(2) // 91 days
 	admin.prune()
-	if n := ada.storedFiles(); n != 1 {
+	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("at 91 days %d stored files, want the Admin's 1", n)
 	}
 	if line := admin.lastLogLine("Datasets"); line != "Daily prune deleted 1 Datasets" {
@@ -74,14 +74,43 @@ func TestALearnerWhoRenewedOrHasAnUpcomingPeriodKeepsTheirDatasets(t *testing.T)
 		t.Fatal(err)
 	}
 	admin.prune()
-	if n := ada.storedFiles(); n != 1 {
+	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("with an upcoming period %d stored files, want 1", n)
 	}
 
 	admin.ageAllPeriods(400) // both periods long over
 	admin.assignPlan("ada@example.com", admin.onlyPlanID())
 	admin.prune()
-	if n := ada.storedFiles(); n != 1 {
+	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("after renewing %d stored files, want 1", n)
+	}
+}
+
+func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersWorkbooksAreDeletedToo(t *testing.T) {
+	admin, ada := labLearner(t)
+	ada.readyDashboard("Kewangan")
+	link := ada.workbookPath()
+	admin.readyDashboard("Demo") // the Admin's Workbooks are never pruned
+	workbooks := func() (adas, admins int) {
+		t.Helper()
+		if err := admin.db.QueryRow(`SELECT count(*) FILTER (WHERE l.email = 'ada@example.com'), count(*) FILTER (WHERE l.email <> 'ada@example.com')
+			FROM workbooks wb JOIN learners l ON l.id = wb.learner_id`).Scan(&adas, &admins); err != nil {
+			t.Fatal(err)
+		}
+		return adas, admins
+	}
+
+	admin.ageAllPeriods(30 + 89)
+	admin.prune()
+	if adas, admins := workbooks(); adas != 1 || admins != 1 {
+		t.Fatalf("at 89 days Ada has %d Workbooks and the Admin %d, want 1 and 1", adas, admins)
+	}
+	admin.ageAllPeriods(2) // 91 days
+	admin.prune()
+	if adas, admins := workbooks(); adas != 0 || admins != 1 {
+		t.Fatalf("at 91 days Ada has %d Workbooks and the Admin %d, want 0 and 1", adas, admins)
+	}
+	if res, body := admin.get(link); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("Ada's pruned Workbook: status %d, body %.200s", res.StatusCode, body)
 	}
 }

@@ -194,7 +194,7 @@ _Malay_: Serahan
 _Avoid_: Upload, hand-in, entry
 
 **Folder**:
-A Learner's private page listing their Submissions by Course, with the Admin's comments. Only they and the Admin see it.
+A Learner's private page listing their Submissions by Course, with the Admin's comments, and, with a Plan, their Workbooks and their Dashboards' pages. Only they and the Admin see it.
 _Malay_: Folder
 _Avoid_: Dashboard (which means a Lab Dashboard), drive, locker
 
@@ -251,19 +251,24 @@ _Malay_: Promosi
 _Avoid_: Coupon, voucher, discount
 
 **Plan period**:
-One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Datasets and Deployment pages are kept for 90 days, then deleted unless a new period has started.
+One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Workbooks, Datasets and Deployment pages are kept for 90 days, then deleted unless a new period has started.
 _Malay_: Tempoh Pelan
 _Avoid_: Subscription, term, cycle
 
 **Storage allowance**:
-How much Dataset data and Deployment pages a Learner may keep while they have an active Plan period, such as 1 GB.
+How much Workbook, Dataset and Deployment page data a Learner may keep while they have an active Plan period, such as 1 GB.
 _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
 **Dataset**:
-The table Cave keeps from a Learner's Excel upload to a Dashboard, after Clean-up and the Learner's confirmation; the uploaded file itself is not kept. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, either replacing the rows or, with the same columns, adding to them, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
+The table Cave keeps for a Dashboard from a Workbook, after Clean-up and the Learner's confirmation. Two Dashboards using one Workbook each have their own Dataset, and deleting the Workbook leaves them as they are. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, either replacing the rows or, with the same columns, adding to them, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
+
+**Workbook**:
+A Learner's Excel file, kept as uploaded in their Folder, whether uploaded there or to a Dashboard. A Dashboard's Dataset is cleaned from a Workbook. Only a Learner with an active Plan can add one.
+_Malay_: Buku kerja
+_Avoid_: Upload, spreadsheet, data file, Dataset
 
 **Clean-up**:
 What Cave changes in an upload to turn it into a Dataset, such as skipping title rows, leaving `-` empty in a number column or leaving empty the few cells that don't fit their column, shown to the Learner before they confirm.

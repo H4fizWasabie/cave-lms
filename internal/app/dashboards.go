@@ -1,11 +1,13 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -278,8 +280,9 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 
 // buildDashboard makes a Dashboard by Build from Excel (ADR 0019), POST /lab/dashboards/build: Clean-up reads the
 // Learner's .xlsx and keeps it as the new Dashboard's pending Dataset, whose preview the Dashboard opens on; the
-// confirm builds its blocks by the General rules. Anything refused, the name, the file or a Dataset over the Storage
-// allowance, saves nothing.
+// confirm builds its blocks by the General rules. A name or file refused, or a file whose Workbook does not fit the
+// Storage allowance, saves nothing; once the Workbook is kept (ADR 0021) it stays if Clean-up fails or the Dataset
+// does not fit, but no Dashboard is made.
 func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -305,17 +308,35 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(msg)
 		return
 	}
-	res, err := a.clean(r, file, lab.Settings{})
-	var unread lab.Problem
-	if errors.As(err, &unread) {
-		refuse(text.T(lang, "lab.d.not-read", upload) + ". " + unread.In(lang))
-		return
-	}
+	data, err := io.ReadAll(file)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
+	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, upload, data)
+	switch {
+	case errors.Is(err, errStorageFull):
+		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
+		return
+	case errors.Is(err, errDatasetStore):
+		refuse(text.T(lang, "lab.d.upload-failed"))
+		return
+	case err != nil:
+		a.serverError(w, r, err)
+		return
+	}
+	res, err := a.clean(r, bytes.NewReader(data), lab.Settings{})
+	var unread lab.Problem
+	if errors.As(err, &unread) {
+		refuse(text.T(lang, "lab.d.not-read", upload) + ". " + unread.In(lang))
+		return
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -326,7 +347,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload)
+	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload, workbook)
 	// ponytail: a compensating delete, not one transaction, as keepPending runs its own; a crash between the insert and
 	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into keepPending
 	// if that turns up.
@@ -614,9 +635,9 @@ const lapsedSQL = `NOT l.is_admin AND NOT EXISTS (SELECT 1 FROM plan_periods pp
 	WHERE pp.learner_id = l.id AND LEAST(pp.ends_at, COALESCE(pp.ended_early_at, pp.ends_at)) > now() - make_interval(days => $1))`
 
 // pruneDatasets deletes the Datasets of every Learner with no Plan period active, upcoming, or ended within
-// datasetKeepDays, from the store and the records, and returns how many it deleted. The Dashboards and their
-// Deployments stay, the Deployments asleep. The Admin's Datasets are never pruned. Datasets left pending
-// past pendingKeepHours go too, the Admin's included.
+// datasetKeepDays, with their Workbooks, from the store and the records, and returns how many Datasets it deleted. The
+// Dashboards and their Deployments stay, the Deployments asleep. The Admin's Datasets are never pruned. Datasets left
+// pending past pendingKeepHours go too, the Admin's included.
 func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 	work, err := a.db.ExecContext(ctx, `DELETE FROM datasets ds USING dashboards d JOIN learners l ON l.id = d.learner_id
 		WHERE d.id = ds.dashboard_id AND (ds.state = 'pending' AND ds.uploaded_at < now() - make_interval(hours => $2) OR `+lapsedSQL+`)`,
@@ -626,6 +647,11 @@ func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 	}
 	deleted, err := work.RowsAffected()
 	if err != nil {
+		return 0, err
+	}
+	// Their Workbooks go on the same day (ADR 0021); the trigger queues the files.
+	if _, err = a.db.ExecContext(ctx, `DELETE FROM workbooks wb USING learners l WHERE l.id = wb.learner_id AND `+lapsedSQL,
+		datasetKeepDays); err != nil {
 		return 0, err
 	}
 	a.dropDeletedFiles(ctx, nil)
