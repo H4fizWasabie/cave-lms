@@ -177,6 +177,8 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{day, "Kopi", "Dapur", "Keluar", 4321.5})
 	res, body := ada.postFile(path+"/dataset", "new.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	// A Replace of a Dataset with Parts always shows its preview first, so it goes live on confirm.
+	ada.confirmWork(path, nil)
 	_, data := ada.second().get(link + ada.second().dataOf(link))
 	if !strings.Contains(data, "4321.5") || strings.Count(data, "Tarikh") != 1 {
 		t.Fatalf("the Deployment does not show the new Dataset: %s", data)
