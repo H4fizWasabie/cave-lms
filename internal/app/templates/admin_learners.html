@@ -1,0 +1,28 @@
+{{define "title"}}{{t .Lang "admin.side.learners"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "learners" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "admin.side.learners"}}</h1>
+            <p>{{t .Lang "adm.all-learners.intro"}}</p>
+          </div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "adm.all-learners.verified"}}</th><th>{{t .Lang "adm.all-learners.joined"}}</th></tr>
+              {{range .Accounts}}
+              <tr>
+                <td>{{.Name}}{{if .IsAdmin}} <span class="badge">{{t $.Lang "admin.common.admin"}}</span>{{end}}<br><span class="muted">{{.Email}}</span></td>
+                <td>{{if .Verified}}{{t $.Lang "adm.yes"}}{{else}}{{t $.Lang "adm.no"}}{{end}}</td>
+                <td>{{.JoinedOn $.Lang}}</td>
+              </tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

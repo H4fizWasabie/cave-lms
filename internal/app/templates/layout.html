@@ -149,7 +149,7 @@
           <a class="btn btn-solid btn-sm" href="/register">{{t $.Lang "header.register"}}</a>
           {{- end}}
 {{- end}}
-{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang $.Here), the section being "dashboard", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "organisations", "design", "plans", "prices", "promos", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only.
+{{/* admin-side is the Admin sidebar; pass (side "<section>" $.Learner $.Lang $.Here), the section being "dashboard", "learners", "courses", "question-bank", "results", "gallery", "programmes", "certificates", "organisations", "design", "plans", "prices", "promos", "deployments", "reports", "cavetext", "cavetext-settings", "cavetext-caps" or "log". The CaveText caps and System log items show for the Owner only.
 On wide screens it is a column; below 1000px it folds into a Menu button that names the current section and opens the same grouped links. */}}
 {{define "admin-side"}}
       <aside class="adm-side">
@@ -182,6 +182,7 @@ switch and Log out. */}}
           <a href="/admin"{{if eq .Section "dashboard"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-house"/></svg><span>{{t .Lang "admin.side.dashboard"}}</span></a>
           <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.teach"}}">
             <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.teach"}}</span>
+            <a href="/admin/learners"{{if eq .Section "learners"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-users"/></svg><span>{{t .Lang "admin.side.learners"}}</span></a>
             <a href="/admin/courses"{{if eq .Section "courses"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-book-open"/></svg><span>{{t .Lang "admin.side.courses"}}</span></a>
             <a href="/admin/question-bank"{{if eq .Section "question-bank"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-stack"/></svg><span>{{t .Lang "admin.side.question-bank"}}</span></a>
             <a href="/admin/results"{{if eq .Section "results"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list-checks"/></svg><span>{{t .Lang "admin.side.results"}}</span></a>
