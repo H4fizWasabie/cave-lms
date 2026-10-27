@@ -884,7 +884,7 @@ var catalog = map[string]entry{
 	// The Dashboard page
 	"lab.d.steps":       {en: "Dashboard steps", ms: "Langkah Dashboard"},
 	"lab.d.tab.dataset": {en: "1. Dataset", ms: "1. Set data"},
-	"lab.d.tab.preview": {en: "3. Preview", ms: "3. Pratonton"},
+	"lab.d.tab.preview": {en: "2. Preview", ms: "2. Pratonton"},
 	"lab.d.tab.deploy":  {en: "Deploy", ms: "Deploy"},
 
 	// Lab: a Dashboard's Dataset tab
