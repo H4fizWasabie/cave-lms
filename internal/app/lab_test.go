@@ -84,9 +84,10 @@ func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
 	ends := admin.periodsOf("ada@example.com")[0].ends.Format("2006-01-02 15:04 UTC")
 
 	res, body := ada.get("/lab")
-	for _, want := range []string{"Lab Monthly", "Ends " + ends, "Deployments awake", "0 of 3", "My Dashboards"} {
+	for _, want := range []string{"Lab Plan", "Ends " + ends, "Deployments awake", "0 of 3", "My Dashboards"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
+	expectNone(t, body, "Lab Monthly") // the Admin's name for the Plan stays in admin
 	if strings.Contains(body, "Upgrade") || strings.Contains(body, "Turn a spreadsheet") {
 		t.Fatalf("a Learner with access sees the demo: %s", body)
 	}

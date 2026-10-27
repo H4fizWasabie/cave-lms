@@ -33,7 +33,6 @@ const activePeriodSQL = `pp.starts_at <= now() AND pp.ends_at > now() AND pp.end
 // activePeriod is the Plan period a Learner is in now.
 type activePeriod struct {
 	ID               int64
-	PlanName         string
 	Ends             string // formatted as periodTime
 	Deployments      int    // the period's allowance: how many Deployments may be awake at once
 	Awake            int    // the Learner's awake Deployments
@@ -66,12 +65,12 @@ func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
 	var p activePeriod
 	var ends time.Time
 	err := a.db.QueryRowContext(ctx, `
-		SELECT pp.id, p.name, pp.ends_at, pp.deployments, pp.storage_mb,
+		SELECT pp.id, pp.ends_at, pp.deployments, pp.storage_mb,
 			(SELECT count(*) FROM deployments dep WHERE dep.learner_id = pp.learner_id AND `+deploymentAwakeSQL+`),
 			`+storageUsedSQL("pp.learner_id")+`
-		FROM plan_periods pp JOIN plans p ON p.id = pp.plan_id
+		FROM plan_periods pp
 		WHERE pp.learner_id = $1 AND `+activePeriodSQL+`
-		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &p.PlanName, &ends, &p.Deployments, &p.StorageMB, &p.Awake, &p.Used)
+		ORDER BY pp.starts_at LIMIT 1`, l.ID).Scan(&p.ID, &ends, &p.Deployments, &p.StorageMB, &p.Awake, &p.Used)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 	case err != nil:

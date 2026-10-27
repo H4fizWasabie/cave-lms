@@ -40,15 +40,15 @@ func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T
 	s.assignPlan("ada@example.com", id)
 	ends := s.periodsOf("ada@example.com")[0].ends
 	_, body := ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "Lab Monthly", "Until "+text.Date("en", ends))
-	expectNone(t, content(body), "No Plan")
+	expectInOrder(t, content(body), "Lab Plan", "Until "+text.Date("en", ends))
+	expectNone(t, content(body), "No Plan", "Lab Monthly") // the Admin's name for the Plan stays in admin
 
 	s.assignPlan("ada@example.com", id)
 	last := s.periodsOf("ada@example.com")[1].ends
 	_, body = ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "Lab Monthly", "Until "+text.Date("en", last))
+	expectInOrder(t, content(body), "Lab Plan", "Until "+text.Date("en", last))
 	_, body = ada.getAsking("/my-membership", "ms")
-	expectInOrder(t, content(body), "Lab Monthly", "Hingga "+text.Date("ms", last))
+	expectInOrder(t, content(body), "Pelan Lab", "Hingga "+text.Date("ms", last))
 }
 
 func TestMyMembershipShowsCaveTextProAndTheSnippetCapButNoPlanFromCaveTextProAlone(t *testing.T) {
