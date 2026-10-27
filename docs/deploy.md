@@ -188,6 +188,28 @@ A Dashboard never uploaded to has no blocks until its first confirm, as for a ne
 
 The start-up step that gave each engine Dashboard with a Dataset the engine's page as its own ran on production on 2026-10-27 and is gone (ADR 0019, #388): a start converts nothing now, so a Dashboard Cave builds stays built. #389 turns the Dashboards it converted back into built ones.
 
+**Migration 00124 (#389)** deletes the page record of every Dashboard that still has its engine settings (`config` a JSON object) and exactly one page record, the converted one. Each is a built Dashboard again, served by the engine at the same link, in its Theme, with its Dataset. The `dashboard_pages` delete trigger queues the page's file in `stored_file_deletions`, the start-up prune deletes it from the store, and the Storage totals drop by its size. A Dashboard whose owner has since uploaded a page of their own (more than one record) stays a page Dashboard; a pasted one (no `config`) is untouched. On a database with no converted Dashboards it deletes nothing. Its Down does nothing: a converted page cannot be rebuilt in SQL.
+
+The deploy backs up production first, as the release adds a migration. Checks, on staging then production (`sudo -u postgres psql cave`), before and after:
+
+```sql
+-- before: the six converted Dashboards, one page each; after: none of these rows
+SELECT d.id, d.name, d.theme, dep.name AS deployment, count(pg.id) AS pages
+  FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id
+  LEFT JOIN deployments dep ON dep.dashboard_id = d.id
+  WHERE jsonb_typeof(d.config) = 'object' GROUP BY d.id, dep.name HAVING count(pg.id) = 1 ORDER BY d.id;
+-- the page records left: after, the before count less the six
+SELECT count(*) FROM dashboard_pages;
+SELECT count(*) FROM stored_file_deletions;   -- after the start-up prune: 0
+```
+
+After, `/d/try/` and `/d/inv2/` answer 200 with the engine's settings, their Theme and block labels, not the converted page, and each of the six Dashboards' Preview draws its Theme and blocks:
+
+```sh
+curl -s "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
+curl -s "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
+```
+
 ## Changing the domain
 
 The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in `/etc/cave-lms/env`.
