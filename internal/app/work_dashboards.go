@@ -120,6 +120,18 @@ type addition struct {
 // Total is the Dataset's rows once the Add is confirmed.
 func (a addition) Total() int { return a.Rows + a.Had }
 
+// otherRows is the rows the Dataset keeps besides this Part's once it is confirmed: 0 for a Part that is the whole
+// Dataset.
+func (c cleaned) otherRows() int {
+	switch {
+	case c.Added != nil:
+		return c.Added.Had
+	case c.Replaces != nil:
+		return c.Replaces.Had
+	}
+	return 0
+}
+
 // pendingDataset is a Dashboard's upload after Clean-up, a pending Part waiting for its Learner to confirm the preview.
 // Until then the Dashboard and its Deployment keep the current Dataset. Dataset holds the upload's rows alone.
 type pendingDataset struct {
@@ -304,7 +316,8 @@ func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.Clean
 	return lab.Clean(file, s)
 }
 
-// errDatasetStore is keepPending's and keepWorkbook's error when the store refuses the Dataset or the Workbook.
+// errDatasetStore is keepPending's and keepWorkbook's error when the store refuses the Dataset or the Workbook, and
+// findMonthColumns's when it cannot give a Part.
 var errDatasetStore = errors.New("the store refused the Dataset")
 
 // keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Part, replacing any earlier
@@ -367,7 +380,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		}
 		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, date_source, sha256)
 			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, (SELECT sha256 FROM workbooks WHERE id = $7))`,
-				d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
+			d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
 		return err
 	})
 	if err != nil {
@@ -399,7 +412,7 @@ func uploadSettings(r *http.Request, d *dashboard, name string, mode uploadMode)
 	if recipe := d.Settings.Recipe; mode.intoDataset() && recipe != nil {
 		// A Part is read with the recipe: its sheet alone, found by name, and its header row if the Learner typed it. A
 		// remembered sheet or tick belongs to the Dataset's first Part; only the Learner's pick below counts.
-		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns, Map: recipe.Map}
+		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns, MonthColumns: recipe.MonthColumns, Map: recipe.Map}
 		settings.Sheet, settings.Alone, settings.Ticked = "", false, nil
 	}
 	settings.FileName = name
@@ -500,8 +513,10 @@ func (c *cleaned) joinDataset(d *dashboard, replacing *partRef, form url.Values)
 		had -= replacing.Rows
 	}
 	var chosen map[string]string
+	var monthCols []string
 	var twice error
 	if recipe := c.Settings.Recipe; recipe != nil {
+		monthCols = recipe.MonthColumns
 		lacking, spare := lab.ColumnChanges(d.Columns, c.Dataset.Columns)
 		chosen, twice = mapChoices(recipe.Map, form, lacking, spare)
 		recipe.Map = chosen // what the recipe remembers once the Part is confirmed
@@ -511,7 +526,7 @@ func (c *cleaned) joinDataset(d *dashboard, replacing *partRef, form url.Values)
 	if twice != nil {
 		return missing, twice
 	}
-	more, changes, err := lab.AddPart(d.Columns, had, mapped, limit)
+	more, changes, err := lab.AddPart(d.Columns, had, mapped, limit, monthCols)
 	var problem lab.Problem
 	if replacing != nil && errors.As(err, &problem) && problem.Key == "lab.err.add-too-many-rows" {
 		return nil, lab.Problem{Key: "lab.err.replace-too-many-rows", Args: problem.Args}
@@ -641,6 +656,23 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		if settings.Recipe != nil { // the Learner's sheet pick is for this Part only
 			kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
 		}
+		if recipe := kept.Settings.Recipe; recipe != nil {
+			switch {
+			case rowsBesides(d, replacing) == 0:
+				// Nothing else is in the Dataset: the new Part's own values decide, as for a first Part, on confirm.
+				recipe.MonthColumns = numberColumns(d.Columns)
+			case recipe.MonthColumns == nil:
+				// A Dataset from before month columns were kept: found once from the Parts it keeps, saved with the
+				// recipe on confirm.
+				var except int64
+				if replacing != nil {
+					except = replacing.ID
+				}
+				if recipe.MonthColumns, err = a.findMonthColumns(r, d, except); refused(0, 0, err) {
+					return
+				}
+			}
+		}
 		missing, err := kept.joinDataset(d, replacing, r.Form)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
@@ -681,6 +713,50 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 	}
 	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
+}
+
+// rowsBesides is the rows the Dataset of d keeps besides the upload's: all of them, less those of the Part replacing.
+func rowsBesides(d *dashboard, replacing *partRef) int {
+	if replacing != nil {
+		return d.Rows - replacing.Rows
+	}
+	return d.Rows
+}
+
+// numberColumns are the names of cols that are Number columns.
+func numberColumns(cols []lab.Column) []string {
+	names := []string{}
+	for _, c := range cols {
+		if c.Type == lab.Number {
+			names = append(names, c.Name)
+		}
+	}
+	return names
+}
+
+// findMonthColumns are the month columns of Dashboard d's Dataset, found by reading its current Parts from the store one
+// at a time, bar the Part except (an ID, 0 for none) whose values are going away; empty when it has none. A store that
+// cannot give a Part is errDatasetStore.
+func (a *App) findMonthColumns(r *http.Request, d *dashboard, except int64) ([]string, error) {
+	ctx := r.Context()
+	_, keys, err := a.partKeys(ctx, d.ID, except)
+	if err != nil {
+		return nil, err
+	}
+	scan := lab.NewMonthScan(d.Columns)
+	for _, k := range keys {
+		data, err := a.datasets.Get(ctx, k)
+		if err != nil {
+			a.logError(r, fmt.Errorf("get Part %s: %w", k, err))
+			return nil, errDatasetStore
+		}
+		part, err := lab.PartDataset(data, d.Columns)
+		if err != nil {
+			return nil, fmt.Errorf("read Part %s: %w", k, err)
+		}
+		scan.Add(part)
+	}
+	return scan.Columns(), nil
 }
 
 // confirmWork makes the pending Part current. An Add to data puts it last in the Dataset's order; a Replace of the data
@@ -741,8 +817,20 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 	}
 	mode := p.mode()
+	if recipe := p.Settings.Recipe; mode.intoDataset() && recipe != nil {
+		// The Dataset's values decide the month columns: with this Part's, a recorded one holding a number outside 1 to
+		// 12 is dropped. A Part that is all the Dataset has is a first Part: its own values decide.
+		if p.otherRows() == 0 {
+			scan := lab.NewMonthScan(p.Columns)
+			scan.Add(p.Dataset)
+			recipe.MonthColumns = scan.Columns()
+		} else if recipe.MonthColumns != nil {
+			recipe.MonthColumns = lab.KeepMonthColumns(p.Columns, recipe.MonthColumns, p.Dataset)
+		}
+	}
 	if !mode.intoDataset() { // the first Part, and Replace data, set the recipe every later Part is read with
-		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped}
+		// empty, not nil: found, and none
+		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped, MonthColumns: append([]string{}, p.MonthColumns...)}
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {

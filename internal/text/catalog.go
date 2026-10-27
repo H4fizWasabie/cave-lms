@@ -894,6 +894,7 @@ var catalog = map[string]entry{
 	"lab.clean.dash-empty":     {en: "Cells holding - kept empty (null), not read as 0: %d.", ms: "Sel berisi - dibiarkan kosong (null), tidak dibaca sebagai 0: %d."},
 	// dash-zero is the change Clean-up listed before - was left empty; Datasets cleaned then still hold it.
 	"lab.clean.dash-zero":   {en: "Cells holding - read as 0: %d.", ms: "Sel berisi - dibaca sebagai 0: %d."},
+	"lab.clean.month-names": {en: "Month names in %[2]s read as numbers: %[1]d.", ms: "Nama bulan dalam %[2]s dibaca sebagai nombor: %[1]d."},
 	"lab.clean.not-numbers": {en: "Cells in %[2]s that were not numbers, left empty: %[1]d.", ms: "Sel dalam %[2]s yang bukan nombor, dibiarkan kosong: %[1]d."},
 	"lab.clean.serial-dates": {
 		en: "Numbers in %[2]s read as Excel dates, as its name says it holds dates: %[1]d.",
