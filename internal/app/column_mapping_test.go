@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -269,4 +270,137 @@ func TestTheMappingFormAndNotesReadInMalay(t *testing.T) {
 	expectAll(t, mustGet(t, ada, path+"/data"),
 		"Lajur dipadankan dengan lajur data anda mengikut nama (2): KOD INSTITUSI → KOD_INSTITUSI, NAMA KELAS → NAMA_KELAS.",
 		"Lajur dipetakan kepada lajur data anda (5): NAMA INSTITUSI → NAMA_PENUH_INSTITUSI", "Lajur yang anda padankan")
+}
+
+// recipeMap is the Dashboard's remembered map of the files' columns to the Dataset's, as the recipe holds it.
+func recipeMap(t *testing.T, ada *site, name string) map[string]string {
+	t.Helper()
+	var raw []byte
+	if err := ada.db.QueryRow(`SELECT COALESCE(upload_settings->'recipe'->'map', '{}'::jsonb) FROM dashboards WHERE name = $1`, name).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]string
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+// Only a choice of a column the Dataset lacks in this file, by a column of the file the Dataset lacks, counts: any
+// other field on the form is dropped without a word, and never reaches the recipe.
+func TestMappingChoicesThatAreNotRealColumnsAreDroppedAndNeverRemembered(t *testing.T) {
+	_, ada := labLearner(t)
+	path, _ := kehadiranPage(t, ada)
+	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
+
+	junk := map[string]string{"PPD": "JPN", "TAHUN": "PPD", "PERATUS": "NO SUCH COLUMN", "NO SUCH": "JPN"}
+	for column, file := range augustPicks {
+		junk[column] = file
+	}
+	res, body := postMapping(t, ada, path+"/dataset", refused, junk, adding)
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+
+	want := map[string]string{"NAMA INSTITUSI": "NAMA_PENUH_INSTITUSI", "KOD TAHUN TINGKATAN": "KOD_THN_TING",
+		"JUMLAH PATUT HADIR": "JUMPATUTHADIR", "JUMLAH HADIR": "JUMHADIR", "JUMLAH TIDAK HADIR": "JUMTHADIR"}
+	if got := recipeMap(t, ada, "Kehadiran"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("recipe map = %v, want only the five real choices %v", got, want)
+	}
+}
+
+// One file column cannot be two of the Dataset's: the upload is refused naming the file column and both of the
+// Dataset's, in either language, and the form asks again.
+func TestOneFileColumnPickedForTwoDatasetColumnsIsRefusedNamingBoth(t *testing.T) {
+	_, ada := labLearner(t)
+	path, _ := kehadiranPage(t, ada)
+	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
+
+	twice := map[string]string{}
+	for column, file := range augustPicks {
+		twice[column] = file
+	}
+	twice["JUMTHADIR"] = "JUMLAH HADIR"
+	res, body := postMapping(t, ada, path+"/dataset", refused, twice, adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	expectAll(t, body, "JUMLAH HADIR", "both JUMHADIR and JUMTHADIR", `name="map:JUMHADIR"`, `name="map:JUMTHADIR"`)
+
+	ada.switchLanguage("ms", path)
+	res, body = postMapping(t, ada, path+"/dataset", refused, twice, adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	expectAll(t, body, "JUMLAH HADIR", "JUMHADIR dan JUMTHADIR")
+}
+
+// With the form to match the columns on the page, the refusal says the Learner can match them, not only fix the headers.
+func TestTheRefusalWithAMappingFormSaysTheColumnsCanBeMatched(t *testing.T) {
+	_, ada := labLearner(t)
+	path, _ := kehadiranPage(t, ada)
+	res, body := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA1001", "SK Maju"}), adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	expectAll(t, body, "Match the columns below, fix the headers in Excel, or choose Replace data.")
+	if strings.Contains(body, "Fix the headers in Excel, or choose Replace data.") {
+		t.Fatalf("the refusal still says only to fix the headers: %s", body)
+	}
+
+	ada.switchLanguage("ms", path)
+	_, body = ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA1001", "SK Maju"}), adding)
+	expectAll(t, body, "Padankan lajur di bawah, betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.")
+
+	// A file with nothing left over to pick from has no form, and keeps the old advice.
+	ada.switchLanguage("en", path)
+	short := testutil.XLSX(t, juneColumns[:3], []any{"Batu Pahat", "JBA1001", "SK Maju"})
+	res, body = ada.postFile(path+"/dataset", "short.xlsx", short, adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Fix the headers in Excel, or choose Replace data.")
+	if strings.Contains(body, `name="map:`) {
+		t.Fatalf("a file with no spare columns is offered a mapping: %s", body)
+	}
+}
+
+// The Dataset's types win: a mapped column whose cells are not of the Dataset column's type leaves them empty and lists
+// them, as any Add does.
+func TestAMappedColumnWhoseCellsDoNotFitTheDatasetsTypeLeavesThemEmptyAndListsThem(t *testing.T) {
+	_, ada := labLearner(t)
+	path, link := kehadiranPage(t, ada)
+	rows := [][]any{
+		{"JOHOR", "Batu Pahat", "JBA2002", "SK Jaya", "RENDAH", "SK", "T1", "1 Amanah", 2026.0, 8.0, "31/08/2026", 120.0, "ramai", 12.0, 90.0},
+		{"JOHOR", "Batu Pahat", "JBA3003", "SK Baru", "RENDAH", "SK", "T1", "1 Amanah", 2026.0, 8.0, "31/08/2026", 120.0, 108.0, 12.0, 90.0},
+	}
+	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", testutil.XLSX(t, augustColumns, rows...), adding)
+	res, body := postMapping(t, ada, path+"/dataset", refused, augustPicks, adding)
+	expectRedirect(t, res, body, path+"/data")
+	expectAll(t, mustGet(t, ada, path+"/data"), "Cells in JUMHADIR that were not numbers, left empty: 1.")
+
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.second().get(link + "data.json")
+	got := dataRows(t, body)
+	if len(got) != 3 || got[1]["JUMHADIR"] != nil || got[2]["JUMHADIR"] != 108.0 {
+		t.Fatalf("data.json = %s, want the cell that is no number empty and the next row's kept", body)
+	}
+}
+
+// The mapping form posts the Workbook it was made from, which is checked like any pick: another Learner's Workbook
+// answers 404 and nothing is added.
+func TestTheMappingFormsWorkbookIsOwnershipChecked(t *testing.T) {
+	admin, ada := labLearner(t)
+	path, _ := kehadiranPage(t, ada)
+	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
+	bea := admin.second()
+	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", "correct horse battery")
+	admin.assignPlan("bea@example.com", admin.onlyPlanID())
+	hers := bea.createPage("Kehadiran", myPage)
+	res, body := bea.postFile(hers+"/dataset", "kehadiran_062026.xlsx", juneReport(t, [2]string{"JBA1001", "SK Maju"}))
+	expectRedirect(t, res, body, hers+"/data")
+	res, body = bea.post(hers+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, hers+"/data")
+	files := bea.datasetFiles()
+
+	res, body = postMapping(t, bea, hers+"/dataset", refused, augustPicks, adding)
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	if n := bea.datasetFiles(); n != files {
+		t.Fatalf("%d stored files after the refused remap, want %d", n, files)
+	}
+	if list := partItems(t, mustGet(t, bea, hers+"/data")); strings.Contains(list, "kehadiran_082026.xlsx") {
+		t.Fatalf("the refused remap added a Part: %s", list)
+	}
 }

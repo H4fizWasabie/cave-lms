@@ -458,10 +458,10 @@ func sameColumns(a, b []Column) bool {
 	return slices.Equal(keys(a), keys(b))
 }
 
-// columnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
+// ColumnChanges lists the columns of was that now lacks and those of now that was lacks, matched as sheets are.
 // Ignoring case and spaces is safe for Add, which keeps was's names, so a page reading data.json finds the same keys;
 // the Replace warning in the app matches names exactly instead, as a Replace serves now's names as they are.
-func columnChanges(was, now []Column) (gone, added []string) {
+func ColumnChanges(was, now []Column) (gone, added []string) {
 	in := func(cols []Column, c Column) bool {
 		return slices.ContainsFunc(cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
 	}
@@ -476,12 +476,6 @@ func columnChanges(was, now []Column) (gone, added []string) {
 		}
 	}
 	return gone, added
-}
-
-// Gaps lists the columns of cols that more lacks, which refuse an Add, and the columns of more that cols lacks, which an
-// Add drops; matched as sheets are.
-func Gaps(cols []Column, more *Dataset) (missing, unused []string) {
-	return columnChanges(cols, more.Columns)
 }
 
 // Mapping is a column of an upload read as a column of the Dataset.
@@ -507,7 +501,7 @@ func looseKey(name string) string {
 // more with those columns renamed to the Dataset's (more itself when none is), what it mapped, and the changes to list.
 // A column of more the Dataset has by name is never taken, and none is taken twice.
 func MapColumns(cols []Column, more *Dataset, chosen map[string]string) (*Dataset, []Mapping, []Change) {
-	missing, unused := columnChanges(cols, more.Columns)
+	missing, unused := ColumnChanges(cols, more.Columns)
 	if missing == nil || unused == nil {
 		return more, nil, nil
 	}
@@ -562,7 +556,7 @@ func MapColumns(cols []Column, more *Dataset, chosen map[string]string) (*Datase
 // as another type is read again as its column's, as typed reads one, and one that does not fit is left empty and
 // listed as a change, once per column.
 func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Change, error) {
-	gone, extra := columnChanges(cols, more.Columns)
+	gone, extra := ColumnChanges(cols, more.Columns)
 	if gone != nil {
 		return nil, nil, Problem{"lab.err.add-columns", []any{strings.Join(gone, ", ")}}
 	}

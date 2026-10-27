@@ -1017,6 +1017,14 @@ var catalog = map[string]entry{
 		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
 		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
+	"lab.err.add-columns-map": {
+		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Match the columns below, fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Padankan lajur di bawah, betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+	},
+	"lab.err.map-twice": {
+		en: "The column “%[1]s” can stand for only one column of your data, but you picked it for both %[2]s and %[3]s. Pick a different column for one of them.",
+		ms: "Lajur “%[1]s” hanya boleh mewakili satu lajur data anda, tetapi anda memilihnya untuk %[2]s dan %[3]s. Pilih lajur lain untuk salah satu daripadanya.",
+	},
 	"lab.map.title": {en: "Match the missing columns", ms: "Padankan lajur yang hilang"},
 	"lab.map.body": {
 		en: "Your data has columns this file lacks, but the file has other columns. If some of them are the same columns under other names, pick which one each is. Cave remembers your choices for the next file with the same headers.",
