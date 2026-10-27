@@ -151,6 +151,11 @@
                 {{- end}}
               </ul>
               {{- end}}
+              <div class="field">
+                <label for="part-date">{{t $.Lang "lab.w.part-date"}} <span class="muted">({{if eq .DateFrom "cell"}}{{t $.Lang .DateFromKey .DateCell}}{{else}}{{t $.Lang .DateFromKey}}{{end}})</span></label>
+                <input id="part-date" type="date" name="part-date" value="{{.PartDate}}" min="1900-01-01" max="2100-12-31" required>
+                <small>{{t $.Lang "lab.w.part-date-help"}}</small>
+              </div>
               <div class="form-foot">
                 <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
               </div>

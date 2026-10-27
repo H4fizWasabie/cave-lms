@@ -250,8 +250,8 @@ func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	for _, c := range []struct{ lang, sentence, copy, readsOnly string }{
-		{"en", "Load the rows from ./data.json when it exists, using the Excel header names", ">Copy<", "Your page changes only if it reads data.json."},
-		{"ms", "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel", ">Salin<", "Halaman anda hanya berubah jika ia membaca data.json."},
+		{"en", "Load the rows from ./data.json when it exists, using the Excel header names as the field names, and the Part date field to tell the uploads apart", ">Copy<", "Your page changes only if it reads data.json."},
+		{"ms", "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel sebagai nama medan, dan medan Part date untuk membezakan setiap muat naik", ">Salin<", "Halaman anda hanya berubah jika ia membaca data.json."},
 	} {
 		ada.switchLanguage(c.lang, path)
 		for _, screen := range []string{path, path + "/data"} {

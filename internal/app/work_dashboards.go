@@ -45,6 +45,7 @@ func (a addition) Total() int { return a.Rows + a.Had }
 type pendingDataset struct {
 	cleaned
 	ID      int64
+	Key     string // where the Part's rows are stored
 	File    string
 	Size    int64 // saved size, which counts against the Storage allowance once confirmed
 	Dataset *lab.Dataset
@@ -58,6 +59,15 @@ func (p *pendingDataset) Picked() string {
 		}
 	}
 	return ""
+}
+
+// DateFromKey is the text catalog key saying where the Part's date came from, for the preview.
+func (p *pendingDataset) DateFromKey() string {
+	switch p.DateFrom {
+	case lab.DateFromCell, lab.DateFromSheet, lab.DateFromFile:
+		return "lab.w.date-" + p.DateFrom
+	}
+	return "lab.w.date-upload"
 }
 
 // In reports whether the sheet called name went into the Dataset.
@@ -174,10 +184,9 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 // pendingOf loads the Dashboard's pending Part, its rows read from the store; nil if it has none.
 func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, error) {
 	var p pendingDataset
-	var key string
 	var c []byte
 	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup FROM dataset_parts
-		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &c)
+		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &p.Key, &p.File, &p.Size, &c)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -187,12 +196,12 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 	if err := json.Unmarshal(c, &p.cleaned); err != nil {
 		return nil, err
 	}
-	data, err := a.datasets.Get(ctx, key)
+	data, err := a.datasets.Get(ctx, p.Key)
 	if err != nil {
-		return nil, fmt.Errorf("get Dataset %s: %w", key, err)
+		return nil, fmt.Errorf("get Dataset %s: %w", p.Key, err)
 	}
 	if p.Dataset, err = lab.PartDataset(data, p.Columns); err != nil {
-		return nil, fmt.Errorf("read Part %s: %w", key, err)
+		return nil, fmt.Errorf("read Part %s: %w", p.Key, err)
 	}
 	return &p, nil
 }
@@ -230,7 +239,10 @@ var errDatasetStore = errors.New("the store refused the Dataset")
 // Parts, Workbooks and pages take, pending Parts included. workbook is the Workbook the upload was kept as, 0 for none.
 func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string, workbook int64) (size, used int64, err error) {
 	res.Columns = res.Dataset.Columns
-	day := a.now().UTC().Format(time.DateOnly)
+	if res.PartDate == "" { // the Excel names no date: the upload day
+		res.PartDate, res.DateFrom, res.DateCell = a.now().UTC().Format(time.DateOnly), "upload", ""
+	}
+	day := res.PartDate
 	data, err := lab.PartRows(res.Dataset, day)
 	if err != nil {
 		return 0, 0, err
@@ -303,6 +315,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	settings := d.Settings
+	settings.FileName = name
 	// A header row that is not a number lets Cave find it, as when left empty. It counts for this upload only.
 	header, _ := strconv.Atoi(r.FormValue("header"))
 	settings.HeaderRow = max(header, 0)
@@ -428,6 +441,18 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
 	}
+	// The preview's date, which the Learner may have changed; the Part's rows are rewritten with it.
+	day := p.PartDate
+	if v := strings.TrimSpace(r.FormValue("part-date")); v != "" {
+		t, err := time.Parse(time.DateOnly, v)
+		if err != nil || t.Year() < 1900 || t.Year() > 2100 {
+			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Pending: p, Upload: p.File}
+			page.Error = text.T(lang, "lab.err.part-date")
+			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
+			return
+		}
+		day = t.Format(time.DateOnly)
+	}
 	cfg := d.Config
 	switch {
 	case d.Page != nil: // a page Dashboard has no blocks: its page reads the Dataset at data.json (ADR 0018)
@@ -476,6 +501,25 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		replace := p.Added == nil
 		if room, err = roomFor(r.Context(), tx, d.ID, p.Size, replace, acc); err != nil || !room.Fits {
 			return cmp.Or(err, errStorageFull)
+		}
+		if day != p.PartDate {
+			// The same length as before, so the saved size and the room check stand. The pending row is locked, so no
+			// re-upload deletes this object meanwhile.
+			rows, err := lab.PartRows(p.Dataset, day)
+			if err != nil {
+				return err
+			}
+			if err := a.datasets.Put(r.Context(), p.Key, rows); err != nil {
+				return fmt.Errorf("put Part %s: %w", p.Key, err)
+			}
+			p.PartDate, p.DateFrom, p.DateCell = day, "chosen", ""
+			c, err := json.Marshal(p.cleaned)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(r.Context(), `UPDATE dataset_parts SET part_date = $2, cleanup = $3 WHERE id = $1`, p.ID, day, c); err != nil {
+				return err
+			}
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier' OR state = 'current' AND $2::boolean)`,
 			d.ID, replace); err != nil {

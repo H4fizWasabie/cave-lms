@@ -26,6 +26,7 @@ type Settings struct {
 	HeaderRow    int      `json:"-"`                      // the header's row number in Excel, on every sheet; 0 lets Cave find each
 	Month        int      `json:"-"`                      // the month, 1 to 12, of every days-across grid; 0 lets Cave find it
 	Year         int      `json:"-"`                      // the grids' year, with Month; 0 is this year
+	FileName     string   `json:"-"`                      // the uploaded file's name, where its Part date may be named; empty for none
 }
 
 // Sheet is one sheet of an uploaded workbook.
@@ -78,8 +79,19 @@ type CleanUp struct {
 	Year      int      `json:"year,omitempty"`  // the grids' year, with Month
 	Dataset   *Dataset `json:"-"`
 	Changes   []Change `json:"changes"`
-	Notes     []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
+	Notes     []Note   `json:"notes,omitempty"`    // the columns General leaves out of charts or averages, and why
+	PartDate  string   `json:"partDate,omitempty"` // the Part's date as 2006-01-02, found in the Excel; empty when it names none
+	DateFrom  string   `json:"dateFrom,omitempty"` // where PartDate was found: DateFromCell, DateFromSheet or DateFromFile
+	DateCell  string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
 }
+
+// Where a Part's date was found, in the order Clean-up tries them. A Part with none takes the upload day, which the
+// app records as "upload", and a date the Learner changed in the preview as "chosen".
+const (
+	DateFromCell  = "cell"  // a date in the title rows above the column names
+	DateFromSheet = "sheet" // a date as the sheet's name
+	DateFromFile  = "file"  // a date in the file's name
+)
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
@@ -190,6 +202,7 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		return nil, onSheet(Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}, base.name)
 	}
 	res.HeaderRow = base.header + 1
+	res.PartDate, res.DateFrom, res.DateCell = partDate(base, s.FileName)
 	for _, tb := range used {
 		res.addChanges(tb.changes)
 	}
@@ -221,6 +234,8 @@ type table struct {
 	flat    bool     // a flat list, not a grouped notes table with a label on a group's first row only
 	days    int      // a days-across grid's day columns, after its staff columns in raw until unpivot; 0 if not a grid
 	title   string   // a grid's title rows and sheet name, where its month may be named
+	date    string   // the first date in the title rows above the header, as 2006-01-02; empty if none
+	dateAt  string   // the cell it is in, such as H2
 	changes []Change // what reading the sheet changed
 
 }
@@ -252,6 +267,7 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	res := &CleanUp{} // collects this sheet's changes
+	date, dateAt := titleDate(cells[:h], l)
 	if s.HeaderRow > 0 {
 		res.change("lab.clean.header-chosen", h+1)
 	}
@@ -265,7 +281,7 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 	if first, days := gridDays(cells[h]); days > 0 {
 		tb, err := readGrid(name, cells, h, first, days)
 		if tb != nil {
-			tb.changes = res.Changes
+			tb.changes, tb.date, tb.dateAt = res.Changes, date, dateAt
 		}
 		return tb, err
 	}
@@ -298,7 +314,7 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 	}
 	// ponytail: a blank first cell on any row reads as a grouped table; the Learner can pick the sheet instead.
 	flat := !slices.ContainsFunc(raw, func(vals []cell) bool { return vals[0].v == "" })
-	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat, changes: res.Changes}, nil
+	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat, changes: res.Changes, date: date, dateAt: dateAt}, nil
 }
 
 // groupsAbove reports whether header row h, found by headerRow, is the bottom row of a two-row header whose
@@ -1031,4 +1047,76 @@ func headerRow(cells [][]string) int {
 		}
 	}
 	return -1
+}
+
+var (
+	textDateIn = regexp.MustCompile(`(?:^|\D)(\d{1,2}[/.-]\d{1,2}[/.-]\d{4}|\d{4}-\d{1,2}-\d{1,2})(?:\D|$)`)
+	compactDay = regexp.MustCompile(`(?:^|\D)((?:19|20)\d{2})(\d{2})(\d{2})(?:\d{4}(?:\d{2})?)?(?:\D|$)`)
+	nameDay    = regexp.MustCompile(`(?:^|\D)(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[.-]\d{1,2}[.-](?:\d{4}|\d{2}))(?:\D|$)`)
+)
+
+// anyDate reads s as a date in any form Clean-up reads: day/month/year text, or otherDate's forms.
+func anyDate(s string) (string, bool) {
+	if day, ok := textDate(s); ok {
+		return day, true
+	}
+	return otherDate(s)
+}
+
+// titleDate is the first date in the rows above a table's header, reading each row left to right, and its cell:
+// a real Excel date, a cell that is a date as text (01.09.2026, 2026-09-01), or a date written inside a cell's
+// text (Stock as at 05/11/2026). ponytail: the first date wins, a period's end date is not told from its start.
+func titleDate(rows [][]string, l layout) (string, string) {
+	for ri, row := range rows {
+		for ci, v := range row {
+			v = strings.TrimSpace(v)
+			day, ok := "", false
+			if n, err := strconv.ParseFloat(v, 64); err == nil && l.date(ri, ci) && n >= 1 && n < 2958466 {
+				if t, err := excelize.ExcelDateToTime(n, false); err == nil {
+					day, ok = t.Format(time.DateOnly), true
+				}
+			} else if day, ok = anyDate(v); !ok {
+				if m := textDateIn.FindStringSubmatch(v); m != nil {
+					day, ok = anyDate(m[1])
+				}
+			}
+			if ok {
+				cell, _ := excelize.CoordinatesToCellName(ci+1, ri+1)
+				return day, cell
+			}
+		}
+	}
+	return "", ""
+}
+
+// partDate is the date of the Part read from table tb of the file called file, and where it was found: the title
+// rows above the header, else the sheet name, else the file name. Empty when the Excel names none.
+func partDate(tb *table, file string) (day, from, cell string) {
+	if tb.date != "" {
+		return tb.date, DateFromCell, tb.dateAt
+	}
+	if day, ok := sheetDate(tb.name); ok {
+		return day, DateFromSheet, ""
+	}
+	if day, ok := fileDate(file); ok {
+		return day, DateFromFile, ""
+	}
+	return "", "", ""
+}
+
+// fileDate reads a date from a file's name: YYYYMMDD, also with a time after it (20260702091058), YYYY-MM-DD,
+// DD.MM.YY and DD-MM-YYYY (also DD.MM.YYYY and DD-MM-YY), as "2006-01-02".
+func fileDate(name string) (string, bool) {
+	if m := compactDay.FindStringSubmatch(name); m != nil {
+		if day, err := time.Parse("20060102", m[1]+m[2]+m[3]); err == nil {
+			return day.Format(time.DateOnly), true
+		}
+	}
+	if m := nameDay.FindStringSubmatch(name); m != nil {
+		if day, err := time.Parse("2006-1-2", m[1]); err == nil {
+			return day.Format(time.DateOnly), true
+		}
+		return sheetDate(m[1])
+	}
+	return "", false
 }
