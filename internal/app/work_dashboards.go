@@ -51,14 +51,7 @@ type pendingDataset struct {
 }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
-func (p *pendingDataset) Picked() string {
-	for _, s := range p.Sheets {
-		if s.Readable && !s.CanCombine && s.ReasonKey == "" {
-			return s.Name
-		}
-	}
-	return ""
-}
+func (p *pendingDataset) Picked() string { return p.PickedSheet }
 
 // In reports whether the sheet called name went into the Dataset.
 func (p *pendingDataset) In(name string) bool { return slices.Contains(p.Used, name) }
@@ -302,7 +295,16 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
+	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
+	add := r.FormValue("mode") == "add" && d.Parts > 0
 	settings := d.Settings
+	settings.Recipe = nil // the first Part, and Replace data, are read as ever and set a new recipe on confirm
+	if recipe := d.Settings.Recipe; add && recipe != nil {
+		// A Part is read with the recipe: its sheet alone, found by name, and its header row. A remembered sheet or
+		// tick belongs to the Dataset's first Part; only the Learner's pick below counts.
+		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, Columns: d.Columns}
+		settings.Sheet, settings.Alone, settings.Ticked = "", false, nil
+	}
 	// A header row that is not a number lets Cave find it, as when left empty. It counts for this upload only.
 	header, _ := strconv.Atoi(r.FormValue("header"))
 	settings.HeaderRow = max(header, 0)
@@ -330,8 +332,6 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
-	add := r.FormValue("mode") == "add" && d.Parts > 0
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
 	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.
 	refused := func(size, used int64, err error) bool {
@@ -364,6 +364,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
+	if add && settings.Recipe != nil { // the Learner's sheet pick is for this Part only
+		kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
+	}
 	if add {
 		more, changes, err := lab.AddPart(d.Columns, d.Rows, res.Dataset)
 		if errors.As(err, &problem) {
@@ -446,6 +449,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			a.serverError(w, r, err)
 			return
 		}
+	}
+	if p.Added == nil { // the first Part, and Replace data, set the recipe every later Part is read with
+		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow}
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {

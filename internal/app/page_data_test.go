@@ -15,11 +15,21 @@ import (
 
 var adding = url.Values{"mode": {"add"}}
 
-// shopColumns is shopReport's month with its columns in another order, amount for item, and the same Jualan row.
+// underTitleRows is a workbook of shopReport's layout: two title rows and a blank one, then the header on row 4.
+func underTitleRows(t *testing.T, header []any, rows ...[]any) []byte {
+	t.Helper()
+	return testutil.XLSX(t, []string{"Kedai Runcit Ali"}, append([][]any{{"Laporan Oktober 2026"}, {}, header}, rows...)...)
+}
+
+// shopColumns is shopReport's month with its columns in another order, amount for item, and the same Jualan row. Its
+// header is on row 4, as shopReport's is: a new Part is read with the first Part's header row.
 func shopColumns(t *testing.T, item string, amount float64) []byte {
 	t.Helper()
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	return testutil.XLSX(t, []string{"Jumlah", "Jenis", "Kategori", "Perkara", "Tarikh"},
+	return testutil.XLSX(t, []string{"Kedai Runcit Ali"},
+		[]any{"Laporan Oktober 2026"},
+		[]any{},
+		[]any{"Jumlah", "Jenis", "Kategori", "Perkara", "Tarikh"},
 		[]any{amount, "Keluar", "Dapur", item, day},
 		[]any{900.0, "Masuk", "Kedai", "Jualan", day},
 	)
@@ -91,7 +101,7 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	texty := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+	texty := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
 		[]any{day, "Gula", "Dapur", "Keluar", "banyak"},
 		[]any{day, "Garam", "Dapur", "Keluar", 70.0})
 	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", texty, adding)
@@ -111,7 +121,7 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
-	other := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Amaun", "Nota"},
+	other := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Amaun", "Nota"},
 		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", 80.0, "baru"})
 	res, body := ada.postFile(path+"/dataset", "lain.xlsx", other, adding)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Missing: Jumlah.")

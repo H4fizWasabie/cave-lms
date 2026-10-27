@@ -993,6 +993,10 @@ var catalog = map[string]entry{
 		en: "Pick the sheet to read and tick the sheets with the same columns to combine with it, then choose your file again and upload. Cave remembers your choice for the next upload.",
 		ms: "Pilih helaian untuk dibaca dan tanda helaian dengan lajur yang sama untuk digabungkan, kemudian pilih fail anda semula dan muat naik. Cave mengingati pilihan anda untuk muat naik seterusnya.",
 	},
+	"lab.w.sheets-help-part": {
+		en: "Cave reads a new Part from the same sheet as your first one, and never combines other sheets with it. Only the sheets with your data's columns are listed: pick the one to read, then choose your file again and upload.",
+		ms: "Cave membaca Bahagian baru daripada helaian yang sama dengan Bahagian pertama anda dan tidak pernah menggabungkan helaian lain dengannya. Hanya helaian dengan lajur data anda disenaraikan: pilih yang hendak dibaca, kemudian pilih fail anda semula dan muat naik.",
+	},
 	"lab.w.notes":          {en: "How Cave reads your columns", ms: "Cara Cave membaca lajur anda"},
 	"lab.note.constant":    {en: "%s: one value on every row, so it isn't charted.", ms: "%s: satu nilai sahaja pada setiap baris, jadi ia tidak dicartakan."},
 	"lab.note.unique":      {en: "%s: different on every row, so it's only in the table.", ms: "%s: berbeza pada setiap baris, jadi ia hanya dalam jadual."},

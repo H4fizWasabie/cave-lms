@@ -26,6 +26,15 @@ type Settings struct {
 	HeaderRow    int      `json:"-"`                      // the header's row number in Excel, on every sheet; 0 lets Cave find each
 	Month        int      `json:"-"`                      // the month, 1 to 12, of every days-across grid; 0 lets Cave find it
 	Year         int      `json:"-"`                      // the grids' year, with Month; 0 is this year
+	Recipe       *Recipe  `json:"recipe,omitempty"`       // the first Part's way of reading, once the Dataset has Parts; nil reads as for a first Part
+}
+
+// Recipe is how a Dataset's first Part was read (ADR 0022), and how every later Part is: only its Sheet, found by
+// name ignoring case and never combined with others, and its HeaderRow, unless the Learner gives one.
+type Recipe struct {
+	Sheet     string   `json:"sheet"`
+	HeaderRow int      `json:"headerRow"`
+	Columns   []Column `json:"-"` // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
 }
 
 // Sheet is one sheet of an uploaded workbook.
@@ -35,6 +44,7 @@ type Sheet struct {
 	Readable   bool   `json:"readable,omitempty"`   // Clean-up can read it as a table, so it can be picked
 	CanCombine bool   `json:"canCombine,omitempty"` // it has the picked sheet's columns, so it can be ticked to join it
 	ReasonKey  string `json:"reason,omitempty"`     // the text catalog key (lab.clean.sheet-*) saying why it cannot join the picked sheet
+	Fits       bool   `json:"fits,omitempty"`       // under a Recipe: it has the Dataset's columns, so it can be picked
 }
 
 // MaxCleanRows is the most rows Clean-up keeps and MaxColumns the most columns, both counted on the Dataset as
@@ -71,14 +81,15 @@ func (c Change) In(lang string) string {
 // CleanUp is what Clean-up made of an upload: the Dataset and every change it made to get there. Its JSON leaves
 // out the Dataset, which is kept on its own.
 type CleanUp struct {
-	Sheets    []Sheet  `json:"sheets"`          // every sheet in the workbook, in order
-	Used      []string `json:"used"`            // the sheets that went into the Dataset, in workbook order
-	HeaderRow int      `json:"headerRow"`       // the picked sheet's header row number in Excel
-	Month     int      `json:"month,omitempty"` // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
-	Year      int      `json:"year,omitempty"`  // the grids' year, with Month
-	Dataset   *Dataset `json:"-"`
-	Changes   []Change `json:"changes"`
-	Notes     []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
+	Sheets      []Sheet  `json:"sheets"`           // every sheet in the workbook, in order
+	Used        []string `json:"used"`             // the sheets that went into the Dataset, in workbook order
+	PickedSheet string   `json:"picked,omitempty"` // the sheet Clean-up read first, the one the others joined
+	HeaderRow   int      `json:"headerRow"`        // the picked sheet's header row number in Excel
+	Month       int      `json:"month,omitempty"`  // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year        int      `json:"year,omitempty"`   // the grids' year, with Month
+	Dataset     *Dataset `json:"-"`
+	Changes     []Change `json:"changes"`
+	Notes       []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
 }
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
@@ -88,6 +99,9 @@ type CleanUp struct {
 // cells (- left empty, more date forms), and note the columns General leaves out of charts. Every step that changes
 // something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, s Settings) (*CleanUp, error) {
+	if s.Recipe != nil && s.HeaderRow == 0 {
+		s.HeaderRow = s.Recipe.HeaderRow
+	}
 	f, err := openWorkbook(r)
 	if err != nil {
 		return nil, err
@@ -124,6 +138,13 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	}
 
 	pick := slices.Index(names, s.Sheet)
+	if rc := s.Recipe; rc != nil && (pick < 0 || tables[pick] == nil) {
+		// The Recipe's sheet by name ignoring case, else the first with the Dataset's columns.
+		pick = slices.IndexFunc(names, func(n string) bool { return strings.EqualFold(n, rc.Sheet) })
+		if pick < 0 || tables[pick] == nil {
+			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && sameColumns(tb.cols, rc.Columns) })
+		}
+	}
 	if pick < 0 || tables[pick] == nil {
 		// A header with a number for a column name is a summary's label and value pair, not a list's header.
 		// ponytail: a list with years for column names ranks down too; the Learner can pick the sheet instead.
@@ -149,11 +170,17 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		return nil, onSheet(problems[i], names[i])
 	}
 	base := tables[pick]
+	res.PickedSheet = base.name
 	var used []*table
 	for i, tb := range tables {
 		switch sh := &res.Sheets[i]; {
 		case tb == nil:
 			continue
+		case s.Recipe != nil: // a Part is read from one sheet, never combined with others
+			sh.Fits = sameColumns(tb.cols, s.Recipe.Columns)
+			if i != pick {
+				continue
+			}
 		case i == pick:
 		case !sameColumns(tb.cols, base.cols):
 			sh.ReasonKey = "lab.clean.sheet-differs"
