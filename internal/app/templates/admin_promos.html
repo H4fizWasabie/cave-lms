@@ -15,7 +15,7 @@
               <tr><th>{{t .Lang "promos.code"}}</th><th>{{t .Lang "promos.product"}}</th><th>{{t .Lang "promos.price"}}</th><th>{{t .Lang "promos.dates"}}</th><th>{{t .Lang "promos.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Promos}}
               <tr>
-                <td>{{.Code}}</td>
+                <td>{{.Code}}{{if .Ebooks}} <span class="badge">{{t $.Lang "promos.with-ebooks"}}</span>{{end}}</td>
                 <td>{{t $.Lang (print "prices." .Product)}}</td>
                 <td>{{.Price}}</td>
                 <td>{{.Starts $.Lang}} – {{.Ends $.Lang}}</td>
@@ -41,6 +41,7 @@
               <div class="field"><label for="starts_on">{{t .Lang "promos.starts"}}</label><input id="starts_on" type="date" name="starts_on" value="{{.Form.StartsIn}}" required></div>
               <div class="field"><label for="ends_on">{{t .Lang "promos.ends"}}</label><input id="ends_on" type="date" name="ends_on" value="{{.Form.EndsIn}}" required></div>
             </div>
+            <label class="check-card"><input type="checkbox" name="ebooks" value="on"{{if .Form.Ebooks}} checked{{end}}><span><strong>{{t .Lang "promos.ebooks"}}</strong><small>{{t .Lang "promos.ebooks-sub"}}</small></span></label>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "promos.add"}}</button></div>
           </form>
         </div>

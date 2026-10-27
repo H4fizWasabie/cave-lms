@@ -124,9 +124,19 @@ _Malay_: Bahan promosi
 _Avoid_: Ad, marketing asset
 
 **Visibility**:
-Who may see a Gallery item: everyone, any logged-in Learner, or only Learners enrolled in a given Course.
+Who may see a Gallery item: everyone, any logged-in Learner, or only Learners enrolled in a given Course. An ebook that is not Promotional material is listed by its Visibility but opens only with Ebook access.
 _Malay_: Keterlihatan
 _Avoid_: Permission, access level
+
+**Ebook access**:
+The right to open and download the Gallery's ebooks, beyond the ones that are Promotional material. A Learner gets it by paying for the Pro Plan with the code of a Promo that comes with Ebooks, or from the Admin giving the COMBO Pro Plan by hand, and keeps it for that year of CaveText Pro only. Anyone else sees a locked ebook. Admins always have it.
+_Malay_: Akses Ebook
+_Avoid_: Ebook subscription, premium ebooks
+
+**COMBO Pro Plan**:
+The Pro Plan bought with the code of a Promo that comes with Ebooks, or given so by the Admin: the Pro Plan with Ebook access for its year. It is the one place "combo" names something; the Pro Plan alone is never a combo.
+_Malay_: Pelan Pro COMBO
+_Avoid_: Bundle, Pro Plan promo
 
 **Lesson**:
 One step of a Course: a title naming its topic, up to five Objectives, and its content: text, a Gallery item, or text with either a Gallery item or a Lesson image above it. The AI can write the text from the title and Objectives, for the Admin to check before saving. A Course is its ordered Lessons.
@@ -236,7 +246,7 @@ _Malay_: Harga biasa
 _Avoid_: Original price, list price, RRP
 
 **Promo**:
-A lower price for one product between two dates, which a Learner gets by entering the Promo's code on that product's payment form. The code itself lives in BCL, which limits how many times it is used in all (it cannot limit one person to one use) and which payment forms take it; CAVELMS only accepts a Payment of at least the Promo's price while the Promo runs. Several Promos may run at once; the lowest running price counts. Ending a Promo early keeps it listed. Admins never use a Promo: they give products by hand.
+A lower price for one product between two dates, which a Learner gets by entering the Promo's code on that product's payment form. The code itself lives in BCL, which limits how many times it is used in all (it cannot limit one person to one use) and which payment forms take it; CAVELMS only accepts a Payment of at least the Promo's price while the Promo runs. Several Promos may run at once; the lowest running price counts. Ending a Promo early keeps it listed. Admins never use a Promo: they give products by hand. A Pro Plan Promo may come with Ebooks: paying with its code gives Ebook access too, which the COMBO Pro Plan card advertises.
 _Malay_: Promosi
 _Avoid_: Coupon, voucher, discount
 

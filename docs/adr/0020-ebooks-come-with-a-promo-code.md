@@ -1,0 +1,7 @@
+# Ebooks come with a Promo's code, not with a product
+
+Ebooks are a lure for new buyers, so they are not a benefit of CaveText Pro, the Lab Plan or the Pro Plan at full price. A Learner gets Ebook access by paying for the Pro Plan with the code of a Promo the Admin marked "comes with Ebooks" (CAVE99 at launch), or when the Admin gives the COMBO Pro Plan by hand. It lasts as long as the year of CaveText Pro that payment bought, and ends when that year does or when the Admin ends their Pro; renewing at full price does not extend it. Every ebook that is not Promotional material needs it to be opened or downloaded; Visibility still decides who sees the ebook listed, so Learners without it, and Visitors, see a locked ebook pointing to the COMBO Pro Plan.
+
+This rests on BCL's payment webhook naming the coupon code a payer typed (`coupon_code`, seen on a real Test Mode order). Live orders are read from BCL's order detail, which may or may not name the coupon: no live order has shown it yet, so until one does, a detail without a code takes the webhook's, while BCL's own discount is still what is checked against the Promo price. Payments before this change are not read again, so none of them gives Ebook access.
+
+Rejected: (1) ebooks for every paid Learner, or every Pro Plan holder, which gives away what the COMBO card sells; (2) deciding by the price paid, which cannot tell one Promo from another; (3) a `paid` Visibility set on each item, a second setting the Admin would have to remember on every upload.

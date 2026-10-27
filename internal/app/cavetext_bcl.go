@@ -34,6 +34,7 @@ type bclWebhookBody struct {
 			Subtotal   bclText `json:"subtotal_amount"`
 			Amount     bclText `json:"amount"`          // what the payer was charged, fee included
 			Discount   bclText `json:"discount_amount"` // a coupon's discount, off the subtotal; empty with none
+			Coupon     bclText `json:"coupon_code"`     // the coupon the payer typed; empty with none
 			Paid       bclText `json:"is_paid"`
 			Status     bclText `json:"status"` // 3 for successful
 		} `json:"main_data"`
@@ -284,6 +285,11 @@ func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string)
 	if len(diffs) > 0 {
 		differs = "; the webhook said " + strings.Join(diffs, ", ") + ": BCL's are used"
 	}
+	if m.Coupon == "" {
+		// ponytail: no live order has shown whether BCL's detail names the coupon, so the webhook's code stands in;
+		// BCL's own discount is still what is checked against the price. Drop this once a live detail shows coupon_code.
+		m.Coupon = b.Data.Main.Coupon
+	}
 	b.Data.FormURL, b.Data.Main, b.Data.Custom = formURL, m, d.Data.Custom
 	if paid, readable := b.paidSen(); readable { // an unreadable one is kept for an Admin by recordPayment
 		if charged, ok := parseRM(m.Amount.String()); !ok || charged < paid {
@@ -504,11 +510,15 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	planned := true // false when no Plan is marked as the Lab Plan, so a Lab Plan or Pro Plan gave no Plan period
 	switch form.Product {
 	case caveTextProProduct:
-		err = givePro(ctx, tx, learnerID)
+		err = givePro(ctx, tx, learnerID, false)
 	case labPlanProduct:
 		planned, err = giveLabPlan(ctx, tx, learnerID)
 	case proPlanProduct:
-		planned, err = giveProPlan(ctx, tx, learnerID)
+		var ebooks bool
+		if ebooks, err = isEbooksPromoCode(ctx, tx, b.Data.Main.Coupon.String()); err != nil {
+			return "", fmt.Errorf("read Promos: %w", err)
+		}
+		planned, err = giveProPlan(ctx, tx, learnerID, ebooks)
 	}
 	if err != nil {
 		return "", err
