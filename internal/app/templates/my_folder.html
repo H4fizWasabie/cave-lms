@@ -3,14 +3,33 @@
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "my-folder.title"}}</h1>
-        <p>{{t .Lang "my-folder.intro"}}</p>
+        <p>{{if or .Lab .Workbooks}}{{t .Lang "my-folder.intro-lab"}}{{else}}{{t .Lang "my-folder.intro"}}{{end}}</p>
       </div>
-      {{if .Workbooks}}
+      {{if or .Workbooks .Lab}}
       <section class="card folder-course">
         <h2>{{t .Lang "my-folder.workbooks"}}</h2>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        {{if .Lab}}
+        <form class="form" method="post" action="/workbooks" enctype="multipart/form-data" data-busy>
+          <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "my-folder.upload-limits"}}</small></div>
+          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "my-folder.upload"}}</button></div>
+        </form>
+        <script src="{{static "forms.js"}}" defer></script>
+        {{end}}
+        {{if not .Workbooks}}<p class="muted">{{t .Lang "my-folder.workbooks-none"}}</p>{{end}}
         <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small>{{if $.Lab}} <a href="/workbooks/{{.ID}}/delete">{{t $.Lang "my-folder.delete"}}</a>{{end}}</li>{{end}}</ul>
       </section>
       {{end}}
+      {{if .Dashboards}}
+      <section class="card folder-course">
+        <h2>{{t .Lang "my-folder.pages"}}</h2>
+        {{range .Dashboards}}{{$d := .}}
+        <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
+        <ul class="file-list">{{range .Pages}}<li><a href="/lab/dashboards/{{$d.ID}}">{{if .Current}}{{t $.Lang "my-folder.page-current"}}{{else}}{{t $.Lang "my-folder.page-earlier"}}{{end}}</a> <small>{{size .Size}} · {{.Uploaded}}</small></li>{{end}}</ul>
+        {{end}}
+      </section>
+      {{end}}
+      {{if and .Courses (or .Lab .Workbooks)}}<h2 class="h-md">{{t .Lang "my-folder.submissions"}}</h2>{{end}}
       {{range .Courses}}
       <section class="card folder-course">
         <h2><a href="/courses/{{.ID}}">{{.Title}}</a>{{if not .Enrolled}} <span class="badge badge-closed">{{t $.Lang "my-folder.read-only"}}</span>{{end}}</h2>
@@ -27,7 +46,7 @@
         {{end}}
       </section>
       {{end}}
-      {{if and (not .Courses) (not .Workbooks)}}
+      {{if and (not .Courses) (not .Lab) (not .Workbooks)}}
       <div class="empty-state">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>
         <p>{{t .Lang "my-folder.none"}}</p>
