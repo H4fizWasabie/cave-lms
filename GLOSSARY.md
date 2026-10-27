@@ -266,7 +266,7 @@ _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
 
 **Part**:
-The rows of one confirmed upload within a Dataset, from one Workbook, read the same way as the Dataset's first Part. The Learner can replace or delete one Part without touching the others, and a replaced Part keeps its place in the order.
+The rows of one confirmed upload within a Dataset, from one Workbook, read the same way as the Dataset's first Part, with a date the Learner confirms. The Learner can replace or delete one Part without touching the others, and a replaced Part keeps its place in the order.
 _Malay_: Bahagian
 _Avoid_: Chunk, batch, period, file
 
