@@ -258,19 +258,8 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 type newDashboardPage struct {
 	pageBase
 	Name       string
-	BuildError string          // why Build from Excel was refused; Error is why the pasted page was
-	HTML       string          // the pasted page, kept when the form is refused
-	Samples    []*lab.Template // the Templates whose Sample the Learner may try
-}
-
-func newDashboard(name string) *newDashboardPage {
-	p := &newDashboardPage{Name: name}
-	for _, t := range lab.Templates {
-		if t != lab.General {
-			p.Samples = append(p.Samples, t)
-		}
-	}
-	return p
+	BuildError string // why Build from Excel was refused; Error is why the pasted page was
+	HTML       string // the pasted page, kept when the form is refused
 }
 
 // labScreen opens a Lab screen, a GET under /lab, only to those the Lab is open to. Visitors, Learners without a
@@ -299,58 +288,16 @@ func (a *App) labScreen(h http.HandlerFunc) http.HandlerFunc {
 
 // newDashboardForm is GET /lab/new.
 func (a *App) newDashboardForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "lab_new", newDashboard(""))
+	a.render(w, r, http.StatusOK, "lab_new", &newDashboardPage{})
 }
 
-// createDashboard makes a Dashboard from a name and the page its Learner made (createPageDashboard). With sample, a
-// Template's key, it makes an engine Dashboard instead, on that Template with its Sample, cleaned at start-up, as its
-// pending Dataset, until the engine goes (#376).
+// createDashboard makes a Dashboard from a name and the page its Learner made (createPageDashboard).
 func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
 		return
 	}
-	tooBig := parsePageForm(w, r)
-	key := r.FormValue("sample")
-	if key == "" {
-		a.createPageDashboard(w, r, acc, tooBig)
-		return
-	}
-	lang, err := a.language(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	t, sample := lab.TemplateByKey(key), a.samples[key]
-	if t == nil || t == lab.General || sample == nil {
-		a.notFound(w, r)
-		return
-	}
-	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
-	if p.Error = dashboardNameError(lang, p.Name); p.Error != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
-		return
-	}
-	learner, err := a.currentLearner(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	d := &dashboard{}
-	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', $2, $3)
-		RETURNING id`, learner.ID, t.Key, p.Name).Scan(&d.ID); err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	if t != lab.General {
-		// ponytail: the Sample is kept unchecked, as refusing a new Dashboard would need its own message; it is one
-		// small fixed Dataset per Dashboard, and it counts against the allowance for every other upload.
-		if _, _, err := a.keepPending(r, d, labAccess{}, cleaned{CleanUp: *sample}, t.Key+"-sample.xlsx"); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-	}
-	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+	a.createPageDashboard(w, r, acc, parsePageForm(w, r))
 }
 
 // buildDashboard makes a Dashboard by Build from Excel (ADR 0019), POST /lab/dashboards/build: Clean-up reads the
@@ -368,7 +315,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	file, upload, problem := xlsxOf(w, r, lang)
-	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
+	p := &newDashboardPage{Name: strings.TrimSpace(r.FormValue("name"))}
 	refuse := func(msg string) {
 		p.BuildError = msg
 		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
@@ -500,19 +447,6 @@ func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	}
 	a.dropDeletedFiles(r.Context(), r) // its Datasets, queued as their records went
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
-}
-
-// labSample downloads a Template's Sample, /lab/samples/{key}.xlsx. Samples are invented data, open to anyone.
-func (a *App) labSample(w http.ResponseWriter, r *http.Request) {
-	key, ok := strings.CutSuffix(r.PathValue("file"), ".xlsx")
-	t := lab.TemplateByKey(key)
-	if !ok || t == nil {
-		a.notFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+t.Key+`-sample.xlsx"`)
-	_, _ = w.Write(t.Sample)
 }
 
 // dashboardPage is the Dashboard page: tabs Dataset, Blocks, Preview, Under the hood and Deploy,

@@ -74,36 +74,14 @@ func TestConfirmingATemplateOnDataWithoutItsAmountLeavesOutTheBlocksThatNeedIt(t
 	}
 }
 
-func TestALearnerStartsADashboardFromEachTemplatesSampleWithItsTemplateChosen(t *testing.T) {
+// The Samples are gone (ADR 0019): naming one starts no Dashboard, as the form then has no page.
+func TestASampleNoLongerStartsADashboard(t *testing.T) {
 	_, ada := labLearner(t)
-	for _, key := range []string{"finance", "inventory", "hr", "sales", "roster"} {
-		res, body := ada.post("/lab/dashboards", url.Values{"name": {"Cuba " + key}, "sample": {key}})
-		expectStatus(t, res, body, http.StatusSeeOther, "")
-		res, body = ada.get(res.Header.Get("Location"))
-		for _, want := range []string{key + "-sample.xlsx", `name="template" value="` + key + `"`} {
-			expectStatus(t, res, body, http.StatusOK, want)
-		}
+	for _, key := range []string{"finance", "general"} {
+		res, body := ada.post("/lab/dashboards", url.Values{"name": {"Cuba"}, "sample": {key}})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
 	}
-
-	// An unknown Sample, or General's, makes no Dashboard.
-	for _, key := range []string{"astrology", "general"} {
-		res, body := ada.post("/lab/dashboards", url.Values{"name": {"Tiada"}, "sample": {key}})
-		expectStatus(t, res, body, http.StatusNotFound, "")
-	}
-}
-
-func TestConfirmingTheFinanceSampleBuildsFinanceAndCountsAgainstTheStorageAllowance(t *testing.T) {
-	_, ada, _ := storageSite(t, "1024")
-	res, body := ada.post("/lab/dashboards", url.Values{"name": {"Kewangan"}, "sample": {"finance"}})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	path := res.Header.Get("Location")
-	ada.confirmWork(path, url.Values{"template": {"finance"}, "date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Kategori"}, "type": {"Jenis"}})
-	if _, index := ada.get(path + "/view/"); !strings.Contains(index, `"label": "Money in"`) {
-		t.Fatalf("confirming the Finance Sample did not open Finance:\n%s", index)
-	}
-	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, " of 1 GB")
-	if strings.Contains(body, "0 KB of 1 GB") {
-		t.Fatalf("the Sample's Dataset does not count against the Storage allowance:\n%s", body)
+	if _, body := ada.get("/lab"); !strings.Contains(body, "No Dashboards yet.") {
+		t.Fatalf("naming a Sample made a Dashboard:\n%s", body)
 	}
 }

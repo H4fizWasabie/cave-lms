@@ -163,7 +163,7 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 		a.serverError(w, r, err)
 		return
 	}
-	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
+	p := &newDashboardPage{Name: strings.TrimSpace(r.FormValue("name"))}
 	refuse := func(msg string) {
 		if !tooBig {
 			p.HTML = r.PostFormValue("html")

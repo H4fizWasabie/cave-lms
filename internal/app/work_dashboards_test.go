@@ -499,22 +499,6 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	}
 }
 
-func TestTheSalesTemplateOpensAsItsSampleShows(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("sales", "Kafe")
-	_, sample := ada.get("/lab/samples/sales.xlsx")
-	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "item": {"Produk"}, "category": {"Kategori"},
-		"staff": {"Staf"}, "payment": {"Kaedah bayaran"}, "quantity": {"Kuantiti"}})
-	_, index := ada.get(path + "/view/")
-	for _, want := range []string{"What sells, and when?", `"label": "Revenue by payment method"`, `"group": "Kaedah bayaran"`} {
-		if !strings.Contains(index, want) {
-			t.Fatalf("the Sales Dashboard lacks %s:\n%s", want, index)
-		}
-	}
-}
-
 // stockFile is a stock list General reads by column roles: a unique SKU, a category, a unit price and a quantity.
 func stockFile(t *testing.T) []byte {
 	t.Helper()

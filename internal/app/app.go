@@ -18,7 +18,6 @@ import (
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
-	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -71,11 +70,9 @@ type App struct {
 	// cleaning holds a turn for each Clean-up running, so at most maxCleanUps uploads are read at once; others wait.
 	// ponytail: per process, right while the app runs as one; reading in the Learner's browser lifts the ceiling.
 	cleaning       chan struct{}
-	cleanUpWaitLog time.Duration // a wait for a turn longer than this is written to the System log
-	// samples is each Template's Sample, cleaned once at start-up, by Template key.
-	samples map[string]*lab.CleanUp
-	now     func() time.Time // the clock; tests set it
-	routes  []string         // every registered pattern, so the admin-route test can walk them
+	cleanUpWaitLog time.Duration    // a wait for a turn longer than this is written to the System log
+	now            func() time.Time // the clock; tests set it
+	routes         []string         // every registered pattern, so the admin-route test can walk them
 }
 
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
@@ -194,9 +191,6 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 
 	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
-	if a.samples, err = cleanedSamples(); err != nil {
-		return nil, err
-	}
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
@@ -251,11 +245,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/reports", a.admin(a.adminReports))
 	mux.HandleFunc("POST /admin/reports/{id}/dismiss", a.admin(a.dismissReport))
 	mux.HandleFunc("GET /lab", a.lab)
-	mux.HandleFunc("GET /lab/samples/{file}", a.labSample)
-	// The public demo went with the Lab's Samples (ADR 0018); old links land on the Plans.
-	mux.HandleFunc("GET /lab/demo/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/pricing", http.StatusSeeOther)
-	})
+	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
+	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
+	mux.HandleFunc("GET /lab/demo/", toPricing)
+	mux.HandleFunc("GET /lab/samples/", toPricing)
 	// Every Lab screen is a.labScreen: a GET without the Lab goes to /pricing. Every change answers 403 (a.labOpen).
 	mux.HandleFunc("GET /lab/new", a.labScreen(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))

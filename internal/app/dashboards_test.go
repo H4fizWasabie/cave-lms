@@ -20,7 +20,6 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
-	"github.com/xuri/excelize/v2"
 )
 
 // labLearner returns the Admin and Ada, who has an active Plan and no Enrollment.
@@ -58,12 +57,20 @@ func (s *site) postFile(path, filename string, content []byte, fields ...url.Val
 	return s.do(req)
 }
 
-// financeSample downloads the Finance Sample.
+// financeSample is a tidy Finance workbook: 65 rows of Tarikh, Perkara, Kategori, Jenis and Jumlah.
 func (s *site) financeSample() []byte {
 	s.t.Helper()
-	res, body := s.get("/lab/samples/finance.xlsx")
-	expectStatus(s.t, res, body, http.StatusOK, "")
-	return []byte(body)
+	return labFile(s.t, "finance.xlsx")
+}
+
+// labFile is one of the Lab's test workbooks.
+func labFile(t testing.TB, name string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "lab", "samples", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 
 func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
@@ -108,33 +115,6 @@ func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
 	res, _ = visitor.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Mine"}})
 	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/login" {
 		t.Fatalf("a Visitor creating a Dashboard got %d %s, want a redirect to /login", res.StatusCode, res.Header.Get("Location"))
-	}
-}
-
-func TestFinanceSampleDownloadsAsAnXLSXWithMalayColumns(t *testing.T) {
-	s := newSite(t)
-	res, body := s.get("/lab/samples/finance.xlsx")
-	expectStatus(t, res, body, http.StatusOK, "")
-	if ct := res.Header.Get("Content-Type"); ct != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
-		t.Fatalf("Content-Type = %q", ct)
-	}
-	if cd := res.Header.Get("Content-Disposition"); !strings.Contains(cd, `attachment; filename="finance-sample.xlsx"`) {
-		t.Fatalf("Content-Disposition = %q", cd)
-	}
-	f, err := excelize.OpenReader(strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rows, err := f.GetRows(f.GetSheetName(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := strings.Join(rows[0], ","); got != "Tarikh,Perkara,Kategori,Jenis,Jumlah" {
-		t.Fatalf("header = %s", got)
-	}
-	res, _ = s.get("/lab/samples/astrology.xlsx")
-	if res.StatusCode != http.StatusNotFound {
-		t.Fatalf("unknown Sample: %d, want 404", res.StatusCode)
 	}
 }
 

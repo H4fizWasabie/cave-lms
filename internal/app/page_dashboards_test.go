@@ -206,10 +206,16 @@ func TestAPageDeploymentSleepsWakesIsTakenDownRenamedAndDeleted(t *testing.T) {
 	}
 }
 
-func TestWithoutAPlanTheLabAndTheDemoGoToPricingButTheAdminKeepsTheLab(t *testing.T) {
+func TestWithoutAPlanTheLabGoesToPricingButTheAdminKeepsTheLab(t *testing.T) {
 	admin, ada, _, _ := labSetup(t)
 	for _, who := range []*site{ada, ada.second()} {
-		for _, p := range []string{"/lab", "/lab/demo/finance/", "/lab/demo/finance/data.json", "/lab/demo/finance/charts.js"} {
+		res, body := who.get("/lab")
+		expectRedirect(t, res, body, "/pricing")
+	}
+	// The public demo and the Samples are gone (ADR 0019): their old links land on the Plans, for the Admin too.
+	for _, who := range []*site{ada, ada.second(), admin} {
+		for _, p := range []string{"/lab/demo/finance/", "/lab/demo/finance/data.json", "/lab/demo/finance/charts.js",
+			"/lab/samples/finance.xlsx", "/lab/samples/general.xlsx", "/lab/samples/astrology.xlsx"} {
 			res, body := who.get(p)
 			expectRedirect(t, res, body, "/pricing")
 		}
