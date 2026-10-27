@@ -60,6 +60,48 @@ func TestCleanUpWithARecipeWhoseSheetIsGoneOffersTheSheetsWithTheDatasetsColumns
 	}
 }
 
+// A sheet with extra columns is offered, and picked, when it has every one of the Dataset's columns.
+func TestCleanUpWithARecipeOffersTheSheetsThatHaveEveryDatasetColumnWhateverElseTheyHave(t *testing.T) {
+	recipe := lab.Recipe{Sheet: "Data asal", Columns: salesColumns}
+	wide := sheet("Jan", row("Nota", "Jumlah", "Perkara"), row("x", 5, "Kopi"))
+	narrow := sheet("Feb", row("Perkara"), row("Teh"))
+	res := cleanWith(t, testutil.Workbook(t, narrow, wide), lab.Settings{Recipe: &recipe})
+	var fits []string
+	for _, s := range res.Sheets {
+		if s.Fits {
+			fits = append(fits, s.Name)
+		}
+	}
+	if !reflect.DeepEqual(fits, []string{"Jan"}) || res.PickedSheet != "Jan" {
+		t.Fatalf("fits = %v, picked %q, want only Jan", fits, res.PickedSheet)
+	}
+}
+
+// A Dataset that Cave built from several sheets has a Sheet or Date column no single sheet has: a Part read from one
+// sheet gets it from that sheet's name, so it is not refused as missing a column.
+func TestCleanUpWithARecipeFillsCavesSheetAndDateColumnsFromTheSheetsName(t *testing.T) {
+	bySheet := lab.Recipe{Sheet: "Jan", Columns: append([]lab.Column{{Name: "Sheet", Type: lab.Text}}, salesColumns...)}
+	res := cleanWith(t, testutil.Workbook(t, sales("Jan", 2)), lab.Settings{Recipe: &bySheet})
+	if want := [][]any{{"Jan", "Item 1", 10.0}, {"Jan", "Item 2", 20.0}}; !reflect.DeepEqual(res.Dataset.Rows, want) {
+		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, want)
+	}
+	if !res.Sheets[0].Fits {
+		t.Fatal("the sheet does not fit a Dataset with Cave's Sheet column")
+	}
+
+	byDate := lab.Recipe{Sheet: "01.09.26", Columns: append([]lab.Column{{Name: "Date", Type: lab.Date}}, salesColumns...)}
+	res = cleanWith(t, testutil.Workbook(t, sales("02.09.26", 1)), lab.Settings{Recipe: &byDate})
+	if want := [][]any{{"2026-09-02", "Item 1", 10.0}}; !reflect.DeepEqual(res.Dataset.Rows, want) {
+		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, want)
+	}
+
+	// A Date column and a sheet name that is no date: nothing to fill it from, so the sheet does not fit.
+	res = cleanWith(t, testutil.Workbook(t, sales("Jan", 1)), lab.Settings{Recipe: &byDate})
+	if res.Sheets[0].Fits {
+		t.Fatal("a sheet named Jan fits a Date column")
+	}
+}
+
 func TestCleanUpWithoutARecipeStillCombinesAndSaysWhichSheetItPicked(t *testing.T) {
 	res := cleanWith(t, testutil.Workbook(t, sales("Jan", 1), sales("Feb", 1)), lab.Settings{})
 	if !reflect.DeepEqual(res.Used, []string{"Jan", "Feb"}) || res.PickedSheet != "Jan" {

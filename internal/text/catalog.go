@@ -840,6 +840,18 @@ var catalog = map[string]entry{
 		en: "Combined %d sheets into one Dataset, with the date in each row's sheet name in a new Date column.",
 		ms: "Menggabungkan %d helaian menjadi satu Set data, dengan tarikh pada nama helaian setiap baris dalam lajur baharu Date.",
 	},
+	"lab.clean.extra-columns": {
+		en: "Columns not in your data, dropped (%[1]d): %[2]s.",
+		ms: "Lajur yang tiada dalam data anda, dibuang (%[1]d): %[2]s.",
+	},
+	"lab.clean.filled-sheet": {
+		en: "Filled the Sheet column of your data from the sheet name: %s.",
+		ms: "Lajur Sheet dalam data anda diisi daripada nama helaian: %s.",
+	},
+	"lab.clean.filled-date": {
+		en: "Filled the Date column of your data from the date in the sheet name: %s.",
+		ms: "Lajur Date dalam data anda diisi daripada tarikh pada nama helaian: %s.",
+	},
 	"lab.clean.unpivoted": {
 		en: "Turned the days across the columns into %d rows, one per staff per day, dated %d/%d. Empty days, counts beside the grid and notes below it were left out.",
 		ms: "Hari merentas lajur ditukar menjadi %d baris, satu bagi setiap staf setiap hari, bertarikh %d/%d. Hari kosong, kiraan di sebelah grid dan nota di bawahnya tidak diambil.",
@@ -974,14 +986,13 @@ var catalog = map[string]entry{
 	"lab.data.gone": {en: "Gone or renamed: %s.", ms: "Hilang atau ditukar nama: %s."},
 	"lab.data.new":  {en: "New: %s.", ms: "Baharu: %s."},
 	"lab.err.add-columns": {
-		en: "To add to your data, the file needs the same columns, in any order. Missing: %s. Not in your data: %s. Fix the headers in Excel, or choose Replace data.",
-		ms: "Untuk menambah pada data anda, fail perlu mempunyai lajur yang sama, dalam apa jua susunan. Hilang: %s. Tiada dalam data anda: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
 	"lab.err.add-too-many-rows": {
 		en: "Adding these %s rows to your %s makes %s. A Dashboard built in a Theme holds up to %s rows. Replace or delete a Part to make room.",
 		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gantikan atau padam satu Bahagian untuk memberi ruang.",
 	},
-	"lab.add.none": {en: "none", ms: "tiada"},
 
 	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {

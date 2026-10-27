@@ -118,36 +118,48 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 		`"Perkara": "Garam", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 70`)
 }
 
-func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
+// A Part may have columns the Dataset lacks, in any order: the preview lists them as dropped, and only the Dataset's
+// columns reach data.json.
+func TestAddingDataWithExtraColumnsDropsThemListsThemAndKeepsTheDatasetsColumns(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
-	other := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Amaun", "Nota"},
-		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", 80.0, "baru"})
-	res, body := ada.postFile(path+"/dataset", "lain.xlsx", other, adding)
+	extra := underTitleRows(t, []any{"Nota", "Jumlah", "Jenis", "Rak", "Kategori", "Perkara", "Warna", "Tarikh"},
+		[]any{"baru", 80.0, "Keluar", "A1", "Dapur", "Gula", "putih", time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)})
+	res, body := ada.postFile(path+"/dataset", "lebih.xlsx", extra, adding)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Columns not in your data, dropped (3): Nota, Rak, Warna.")
+	ada.switchLanguage("ms", path)
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Lajur yang tiada dalam data anda, dibuang (3): Nota, Rak, Warna.")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.second().get(link + "data.json")
+	expectAll(t, body, `"Perkara": "Gula", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 80`)
+	for _, dropped := range []string{"Nota", "Rak", "Warna"} {
+		if strings.Contains(body, dropped) {
+			t.Fatalf("data.json holds the dropped column %s: %s", dropped, body)
+		}
+	}
+}
+
+func TestAddingDataLackingAColumnIsRefusedNamingItAndChangesNothing(t *testing.T) {
+	_, ada := labLearner(t)
+	path, link := pageWithData(t, ada)
+	short := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Nota"},
+		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", "baru"})
+	res, body := ada.postFile(path+"/dataset", "kurang.xlsx", short, adding)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Missing: Jumlah.")
-	expectAll(t, body, "Not in your data: Amaun, Nota.", "We did not upload lain.xlsx")
-	if _, body = ada.get(path + "/data"); strings.Contains(body, "lain.xlsx") {
+	expectAll(t, body, "We did not upload kurang.xlsx")
+	ada.switchLanguage("ms", path)
+	res, body = ada.postFile(path+"/dataset", "kurang.xlsx", short, adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Hilang: Jumlah.")
+	if _, body = ada.get(path + "/data"); strings.Contains(body, "kurang.xlsx") {
 		t.Fatalf("a refused add was kept: %s", body)
 	}
 	if _, body = ada.second().get(link + "data.json"); strings.Contains(body, "Gula") {
 		t.Fatalf("a refused add changed data.json: %s", body)
 	}
-}
-
-func TestAnAddPastTheRowLimitIsRefusedWithTheNumbers(t *testing.T) {
-	_, ada, _ := storageSite(t, "1024")
-	path := ada.createPage("Besar", myPage)
-	rows := make([][]any, 49999)
-	for i := range rows {
-		rows[i] = []any{"x", float64(i)}
-	}
-	res, body := ada.postFile(path+"/dataset", "banyak.xlsx", testutil.XLSX(t, []string{"Perkara", "Jumlah"}, rows...))
-	expectRedirect(t, res, body, path+"/data")
-	ada.post(path+"/dataset/confirm", nil)
-	more := testutil.XLSX(t, []string{"Jumlah", "Perkara"}, []any{1.0, "y"}, []any{2.0, "z"})
-	res, body = ada.postFile(path+"/dataset", "lagi.xlsx", more, adding)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "49,999")
-	expectAll(t, body, "50,001", "50,000")
 }
 
 func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {

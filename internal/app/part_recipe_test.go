@@ -118,3 +118,40 @@ func TestReplacingDataCombinesSheetsAndSetsANewRecipe(t *testing.T) {
 		t.Fatalf("data.json Perkara = %v, want %v", got, want)
 	}
 }
+
+// A Dataset Cave built from several sheets has a Sheet column; a later Add reads one sheet, so the column is filled
+// from that sheet's name and the Add is not refused as missing it.
+func TestAnAddToADatasetOfCombinedSheetsFillsTheSheetColumnFromItsSheetName(t *testing.T) {
+	_, ada := labLearner(t)
+	path, link := pageWithData(t, ada)
+	both := testutil.Workbook(t, shopSheet("Okt", "Gula"), shopSheet("Nov", "Garam"))
+	res, body := ada.postFile(path+"/dataset", "semua.xlsx", both)
+	expectRedirect(t, res, body, path+"/data")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+
+	res, body = ada.postFile(path+"/dataset", "lagi.xlsx", testutil.Workbook(t, shopSheet("okt", "Lada")), adding)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Filled the Sheet column of your data from the sheet name: okt.")
+	ada.switchLanguage("ms", path)
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Lajur Sheet dalam data anda diisi daripada nama helaian: okt.")
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.second().get(link + "data.json")
+	expectAll(t, body, `"Sheet": "okt"`, `"Perkara": "Lada"`)
+}
+
+// A renamed sheet that also has an extra column is still offered: it has every column the Dataset has.
+func TestAnAddWithoutTheRecipeSheetOffersASheetWithExtraColumns(t *testing.T) {
+	_, ada := labLearner(t)
+	path, _ := pageWithData(t, ada)
+	wide := shopSheet("Okt", "Gula")
+	wide.Rows[3] = append(wide.Rows[3], "Nota")
+	wide.Rows[4] = append(wide.Rows[4], "baru")
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", testutil.Workbook(t, testutil.Sheet{Name: "Nota", Rows: [][]any{{"Kumpulan", "Catatan"}, {"A", "B"}}}, wide), adding)
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, `name="sheet" value="Okt" checked`, "Columns not in your data, dropped (1): Nota.")
+}

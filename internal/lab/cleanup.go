@@ -38,6 +38,51 @@ type Recipe struct {
 	Columns   []Column `json:"-"` // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
 }
 
+// fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
+// Cave added when it combined sheets counts as there: fill gives it from the sheet's name.
+func (rc *Recipe) fits(tb *table) bool {
+	return !slices.ContainsFunc(rc.Columns, func(c Column) bool {
+		return !slices.ContainsFunc(tb.cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) && !caveColumn(c, tb.name)
+	})
+}
+
+// caveColumn reports whether c is a column Cave adds to a Dataset combined from sheets (the first Part or Replace),
+// and name, the one sheet a later Part is read from, can give its value: a Sheet column of text, or a Date column of
+// dates when the sheet's name reads as a date.
+// ponytail: a Learner's own Sheet or Date column is told apart only by name and type; if their file lacks it, the
+// sheet's name fills it.
+func caveColumn(c Column, name string) bool {
+	switch columnKey(c.Name) {
+	case "sheet":
+		return c.Type == Text
+	case "date":
+		_, ok := sheetDate(name)
+		return c.Type == Date && ok
+	}
+	return false
+}
+
+// fill puts each of the Recipe's Cave-added columns d lacks in d, first, with the sheet's name (or the date it reads
+// as) on every row, and gives the changes to list.
+func (rc *Recipe) fill(d *Dataset, sheet string) (changes []Change) {
+	for i := len(rc.Columns) - 1; i >= 0; i-- {
+		c := rc.Columns[i]
+		if slices.ContainsFunc(d.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) || !caveColumn(c, sheet) {
+			continue
+		}
+		var value any = sheet
+		if c.Type == Date {
+			value, _ = sheetDate(sheet)
+		}
+		d.Columns = append([]Column{c}, d.Columns...)
+		for ri := range d.Rows {
+			d.Rows[ri] = append([]any{value}, d.Rows[ri]...)
+		}
+		changes = append(changes, Change{Key: "lab.clean.filled-" + columnKey(c.Name), Column: sheet})
+	}
+	return changes
+}
+
 // Sheet is one sheet of an uploaded workbook.
 type Sheet struct {
 	Name       string `json:"name"`
@@ -154,7 +199,7 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		// The Recipe's sheet by name ignoring case, else the first with the Dataset's columns.
 		pick = slices.IndexFunc(names, func(n string) bool { return strings.EqualFold(n, rc.Sheet) })
 		if pick < 0 || tables[pick] == nil {
-			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && sameColumns(tb.cols, rc.Columns) })
+			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && rc.fits(tb) })
 		}
 	}
 	if pick < 0 || tables[pick] == nil {
@@ -189,7 +234,7 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		case tb == nil:
 			continue
 		case s.Recipe != nil: // a Part is read from one sheet, never combined with others
-			sh.Fits = sameColumns(tb.cols, s.Recipe.Columns)
+			sh.Fits = s.Recipe.fits(tb)
 			if i != pick {
 				continue
 			}
@@ -240,6 +285,8 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
+	} else if s.Recipe != nil {
+		res.Changes = append(res.Changes, s.Recipe.fill(d, base.name)...)
 	}
 	switch n := len(d.Columns); {
 	case n > MaxColumns && len(used) > 1:
@@ -420,14 +467,16 @@ func columnChanges(was, now []Column) (gone, added []string) {
 }
 
 // AddPart is more's rows put in cols, the columns of a Dataset that already holds had rows, and the changes it made to
-// more's cells. more needs the Dataset's columns by name, in any order, and the two at most limit rows, or any number
-// when limit is 0 (a Dataset behind the Learner's own page; each upload keeps to MaxCleanRows in Clean); else a
-// Problem names the columns missing and extra, or the row counts. The Dataset's column types stay: a cell of more read
+// more's cells. more needs every one of the Dataset's columns by name, in any order, and the two at most limit rows, or
+// any number when limit is 0 (a Dataset behind the Learner's own page; each upload keeps to MaxCleanRows in Clean);
+// else a Problem names the columns missing, or the row counts. Columns of more the Dataset lacks are dropped and
+// listed as a change. The Dataset's column types stay: a cell of more read
 // as another type is read again as its column's, as typed reads one, and one that does not fit is left empty and
 // listed as a change, once per column.
 func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Change, error) {
-	if gone, added := columnChanges(cols, more.Columns); gone != nil || added != nil {
-		return nil, nil, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
+	gone, extra := columnChanges(cols, more.Columns)
+	if gone != nil {
+		return nil, nil, Problem{"lab.err.add-columns", []any{strings.Join(gone, ", ")}}
 	}
 	if n := had + len(more.Rows); limit > 0 && n > limit {
 		return nil, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(had), thousands(n), thousands(limit)}}
@@ -452,6 +501,9 @@ func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Chan
 		out.Rows = append(out.Rows, row)
 	}
 	var changes []Change
+	if extra != nil {
+		changes = append(changes, Change{Key: "lab.clean.extra-columns", Args: []int{len(extra)}, Column: strings.Join(extra, ", ")})
+	}
 	for i, n := range misfits {
 		if n > 0 {
 			changes = append(changes, Change{Key: "lab.clean.not-" + string(cols[i].Type) + "s", Args: []int{n}, Column: cols[i].Name})
@@ -474,14 +526,6 @@ func retyped(v any, typ Type) (any, bool) {
 		return day, true
 	}
 	return parse(cell{v: s}, typ)
-}
-
-// columnList is names as a Problem lists them, or the word for none.
-func columnList(names []string) any {
-	if len(names) == 0 {
-		return Problem{"lab.add.none", nil}
-	}
-	return strings.Join(names, ", ")
 }
 
 // sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.
