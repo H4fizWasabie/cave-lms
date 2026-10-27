@@ -25,11 +25,12 @@ const previewRows = 20
 // cleaned is what Clean-up found on an upload besides its data, kept with the Part as dataset_parts.cleanup: the
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
-	lab.CleanUp              // without its Dataset
-	Settings    lab.Settings `json:"settings"`           // the remembered part of the settings Clean-up read with
-	Columns     []lab.Column `json:"columns"`            // the Part's columns, in the order its stored rows read back
-	Added       *addition    `json:"added,omitempty"`    // an Add to data; nil for one that replaces the data
-	Replaces    *replacement `json:"replaces,omitempty"` // a Replace of one Part of several; nil for an Add or a Replace of the data
+	lab.CleanUp               // without its Dataset
+	Settings     lab.Settings `json:"settings"`               // the remembered part of the settings Clean-up read with
+	Columns      []lab.Column `json:"columns"`                // the Part's columns, in the order its stored rows read back
+	Added        *addition    `json:"added,omitempty"`        // an Add to data; nil for one that replaces the data
+	Replaces     *replacement `json:"replaces,omitempty"`     // a Replace of one Part of several; nil for an Add or a Replace of the data
+	FromWorkbook bool         `json:"fromWorkbook,omitempty"` // read from a Workbook the Learner picked, so the preview posts its choices without a file
 }
 
 // replacement is what a Replace of one Part put together: the Part it replaces and the rows the other Parts hold.
@@ -74,11 +75,12 @@ func (a addition) Total() int { return a.Rows + a.Had }
 // Until then the Dashboard and its Deployment keep the current Dataset. Dataset holds the upload's rows alone.
 type pendingDataset struct {
 	cleaned
-	ID      int64
-	Key     string // where the Part's rows are stored
-	File    string
-	Size    int64 // saved size, which counts against the Storage allowance once confirmed
-	Dataset *lab.Dataset
+	ID       int64
+	Key      string // where the Part's rows are stored
+	File     string
+	Size     int64 // saved size, which counts against the Storage allowance once confirmed
+	Workbook int64 // the Workbook it was read from, 0 once that Workbook is deleted
+	Dataset  *lab.Dataset
 }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
@@ -209,8 +211,8 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, error) {
 	var p pendingDataset
 	var c []byte
-	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup FROM dataset_parts
-		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &p.Key, &p.File, &p.Size, &c)
+	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup, COALESCE(workbook_id, 0) FROM dataset_parts
+		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &p.Key, &p.File, &p.Size, &c, &p.Workbook)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -415,7 +417,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	kept := cleaned{CleanUp: *res, Settings: settings}
+	kept := cleaned{CleanUp: *res, Settings: settings, FromWorkbook: pickedID(r) != ""}
 	if (add || one) && settings.Recipe != nil { // the Learner's sheet pick is for this Part only
 		kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
 	}

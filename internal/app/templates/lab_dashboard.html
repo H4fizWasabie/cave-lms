@@ -190,7 +190,8 @@
           {{- end}}
           {{- end}}
           {{- $replace := 0}}{{with .Replacing}}{{$replace = .ID}}{{end}}{{with .Pending}}{{with .Replaces}}{{$replace = .Part}}{{end}}{{end}}
-          <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}" enctype="multipart/form-data" data-busy>
+          {{- $picked := false}}{{with .Pending}}{{$picked = .FromWorkbook}}{{end}}
+          <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}"{{if not $picked}} enctype="multipart/form-data"{{end}} data-busy>
             {{- with .Pending}}{{if gt (len .Sheets) 1}}
             {{- $p := .}}{{$picked := .Picked}}
             <fieldset class="field">
@@ -233,7 +234,12 @@
               <small>{{t .Lang "lab.data.add-help"}}</small>
             </fieldset>
             {{- end}}
+            {{- if $picked}}
+            <input type="hidden" name="workbook" value="{{.Pending.Workbook}}">
+            <p class="muted">{{t .Lang "lab.d.pick-using" .Pending.File}}</p>
+            {{- else}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
+            {{- end}}
             <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
             {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
             <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
@@ -241,6 +247,27 @@
             {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
           </form>
           <script src="{{static "forms.js"}}" defer></script>
+          {{- if .Workbooks}}
+          <h2 class="h-md">{{t .Lang "lab.d.pick"}}</h2>
+          <p class="muted">{{t .Lang "lab.d.pick-body"}}</p>
+          <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}" data-busy>
+            {{- if and .Dashboard.Key (not $replace)}}
+            {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            <fieldset class="field">
+              <legend>{{t .Lang "lab.data.mode"}}</legend>
+              <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>
+              <label class="check"><input type="radio" name="mode" value="add"{{if $add}} checked{{end}}> {{t .Lang "lab.data.add"}}</label>
+            </fieldset>
+            {{- end}}
+            <div class="field"><label for="workbook">{{t .Lang "lab.d.pick-label"}}</label>
+              <select id="workbook" name="workbook" required>
+                {{- range .Workbooks}}
+                <option value="{{.ID}}">{{.Name}} ({{.SizeText}}, {{.Uploaded}})</option>
+                {{- end}}
+              </select><small>{{t .Lang "lab.d.pick-help"}}</small></div>
+            <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.pick-btn"}}</button></div>
+          </form>
+          {{- end}}
           {{- if .Dashboard.Parts}}
           <h2 class="h-md">{{t $.Lang "lab.w.get-back"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.get-back-body"}} <a href="/my-folder">{{t $.Lang "nav.my-folder"}}</a>.</p>

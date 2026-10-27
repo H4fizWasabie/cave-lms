@@ -23,6 +23,8 @@ type workbook struct {
 	Uploaded string // formatted as periodTime
 }
 
+func (w workbook) SizeText() string { return sizeText(w.Size) }
+
 // workbooksOf lists a Learner's Workbooks, newest first.
 func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT id, name, size, uploaded_at FROM workbooks

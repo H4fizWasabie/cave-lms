@@ -154,7 +154,7 @@ func TestAddingDataLackingAColumnIsRefusedNamingItAndChangesNothing(t *testing.T
 	ada.switchLanguage("ms", path)
 	res, body = ada.postFile(path+"/dataset", "kurang.xlsx", short, adding)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Hilang: Jumlah.")
-	if _, body = ada.get(path + "/data"); strings.Contains(body, "kurang.xlsx") {
+	if strings.Contains(partItems(t, mustGet(t, ada, path+"/data")), "kurang.xlsx") { // its Workbook is kept, and picked from the Folder
 		t.Fatalf("a refused add was kept: %s", body)
 	}
 	if _, body = ada.second().get(link + "data.json"); strings.Contains(body, "Gula") {

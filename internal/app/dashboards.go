@@ -444,6 +444,7 @@ type dashboardPage struct {
 	Failed    bool            // the store refused the upload's Dataset
 	Pending   *pendingDataset // an upload waiting for its confirm
 	PartList  []partRow       // the Dataset's current Parts in order, on the Data tab
+	Workbooks []workbook      // the Learner's Workbooks, to pick from, on the Data tab
 	Replacing *partRow        // the Part whose Replace screen this is, on the Data tab
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
@@ -514,6 +515,15 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			a.serverError(w, r, err)
 			return
 		}
+		// Every Workbook is offered: whether it fits is checked when it is picked, as reading each one here would not be bounded.
+		learner, err := a.currentLearner(r)
+		if err == nil {
+			p.Workbooks, err = a.workbooksOf(r.Context(), learner.ID)
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		if p.Pending != nil {
 			var room storageRoom
 			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.frees(), p.Access)
@@ -554,6 +564,13 @@ func (a *App) uploadXlsx(w http.ResponseWriter, r *http.Request, d *dashboard, r
 		a.serverError(w, r, err)
 		return
 	}
+	if pick := pickedID(r); pick != "" {
+		// A Workbook from the Folder takes the way of an upload; keepWorkbook finds it by its bytes, so no new Workbook.
+		if data, name, ok := a.pickedWorkbook(w, r, pick); ok {
+			a.uploadWork(w, r, d, acc, bytes.NewReader(data), name, replacing)
+		}
+		return
+	}
 	file, name, problem := xlsxOf(w, r, lang)
 	if problem != "" {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem, Upload: name})
@@ -561,6 +578,42 @@ func (a *App) uploadXlsx(w http.ResponseWriter, r *http.Request, d *dashboard, r
 	}
 	defer file.Close()
 	a.uploadWork(w, r, d, acc, file, name, replacing)
+}
+
+// pickedID is the ID of the Workbook the Data tab's pick form names, or "" for an upload. The pick form is a plain
+// form; an upload is multipart, so its file is never read into memory here.
+func pickedID(r *http.Request) string {
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		return ""
+	}
+	return r.PostFormValue("workbook")
+}
+
+// pickedWorkbook reads the Workbook with ID id from the store with its name, when it is the logged-in Learner's own;
+// anyone else's, or one that is not there, gets the Not found page and ok is false.
+func (a *App) pickedWorkbook(w http.ResponseWriter, r *http.Request, id string) (data []byte, name string, ok bool) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return nil, "", false
+	}
+	n, err := strconv.ParseInt(id, 10, 64)
+	var key string
+	if err == nil {
+		err = a.db.QueryRowContext(r.Context(), `SELECT name, storage_key FROM workbooks WHERE id = $1 AND learner_id = $2`, n, learner.ID).Scan(&name, &key)
+	}
+	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+		a.notFound(w, r)
+		return nil, "", false
+	}
+	if err == nil {
+		data, err = a.datasets.Get(r.Context(), key)
+	}
+	if err != nil {
+		a.serverError(w, r, fmt.Errorf("get Workbook %d: %w", n, err))
+		return nil, "", false
+	}
+	return data, name, true
 }
 
 // xlsxOf opens the .xlsx a Learner gave in the form's file field, the request capped at maxDatasetUpload. problem
