@@ -9,7 +9,7 @@
           <p class="muted">{{t .Lang "lab.new.build-body"}}</p>
           {{with .BuildError}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
           <form class="form" method="post" action="/lab/dashboards/build" enctype="multipart/form-data" data-busy>
-            <div class="field"><label for="build-name">{{t .Lang "lab.new.name"}}</label><input id="build-name" type="text" name="name" value="{{.Name}}" required maxlength="80"></div>
+            <div class="field"><label for="build-name">{{t .Lang "lab.new.name"}}</label><input id="build-name" type="text" name="name" value="{{if .BuildError}}{{.Name}}{{end}}" required maxlength="80"></div>
             <div class="field lab-drop"><label for="build-file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "lab.d.excel-file"}}</label><input id="build-file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.new.build-go"}}</button></div>
             {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
@@ -20,7 +20,7 @@
           <p class="muted">{{t .Lang "lab.new.own-body"}}</p>
           {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
           <form class="form" method="post" action="/lab/dashboards" enctype="multipart/form-data">
-            <div class="field"><label for="name">{{t .Lang "lab.new.name"}}</label><input id="name" type="text" name="name" value="{{.Name}}" required maxlength="80"></div>
+            <div class="field"><label for="name">{{t .Lang "lab.new.name"}}</label><input id="name" type="text" name="name" value="{{if .Error}}{{.Name}}{{end}}" required maxlength="80"></div>
             <div class="field"><label for="html">{{t .Lang "lab.new.paste"}}</label><textarea class="lab-code" id="html" name="html" rows="8" spellcheck="false" autocapitalize="none">{{.HTML}}</textarea></div>
             <div class="field lab-drop"><label for="file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.new.create"}}</button></div>

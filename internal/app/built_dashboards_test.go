@@ -111,6 +111,18 @@ func TestARefusedBuildSavesNothing(t *testing.T) {
 	}
 }
 
+// A refused New Dashboard keeps the typed name in the card that was sent, Build or Paste, and leaves the other empty.
+func TestARefusedNewDashboardKeepsTheNameOnlyInTheCardSent(t *testing.T) {
+	_, ada := labLearner(t)
+	res, body := ada.postFile("/lab/dashboards/build", "laporan.csv", []byte("a,b"), url.Values{"name": {"Kedai"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `id="build-name" type="text" name="name" value="Kedai"`)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `id="name" type="text" name="name" value=""`)
+
+	res, body = ada.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {" "}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `id="name" type="text" name="name" value="Jualan"`)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, `id="build-name" type="text" name="name" value=""`)
+}
+
 // The Lab list names each Dashboard's kind, and a built one's Theme.
 func TestTheLabListShowsBuiltWithItsThemeOrOwnPage(t *testing.T) {
 	_, ada := labLearner(t)
