@@ -106,6 +106,22 @@ func (s *site) storedFiles() int {
 	return len(entries)
 }
 
+// datasetFiles counts the stored Datasets, which are not the Workbooks beside them.
+func (s *site) datasetFiles() int {
+	s.t.Helper()
+	entries, err := os.ReadDir(s.storageDir)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	n := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "dataset-") {
+			n++
+		}
+	}
+	return n
+}
+
 func TestAdminUploadsPictureAndItDisplays(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")

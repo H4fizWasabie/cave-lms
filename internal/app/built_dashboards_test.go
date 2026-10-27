@@ -199,7 +199,7 @@ func TestABuiltDashboardRefusesAPastedPage(t *testing.T) {
 	_, ada := labLearner(t)
 	pending := ada.build("Kedai", shopReport(t, "Beras", 120))
 	confirmed := ada.readyDashboard("Kewangan")
-	files := ada.storedFiles()
+	files := ada.datasetFiles()
 	for lang, want := range map[string]string{
 		"en": "Kedai is built from Excel, so it takes no page of its own. Paste your page as a new Dashboard.",
 		"ms": "Kedai dibina daripada Excel, jadi ia tidak menerima halaman sendiri. Tampal halaman anda sebagai Dashboard baharu.",
@@ -215,7 +215,7 @@ func TestABuiltDashboardRefusesAPastedPage(t *testing.T) {
 			t.Errorf("%s has %d pages after the refusals, want 0", path, n)
 		}
 	}
-	if n := ada.storedFiles(); n != files {
+	if n := ada.datasetFiles(); n != files {
 		t.Fatalf("%d stored files after the refusals, want %d", n, files)
 	}
 	if theme, _ := ada.drawn(confirmed + "/view/"); theme != "corporate" {

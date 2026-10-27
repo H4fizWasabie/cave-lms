@@ -155,7 +155,7 @@ func TestAnAddPastTheRowLimitIsRefusedWithTheNumbers(t *testing.T) {
 }
 
 func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
-	_, ada, _ := storageSite(t, "1") // 1 MB, and each bigFinance saves as about 600 KB
+	_, ada, _ := storageSite(t, "2") // 2 MB, and each bigFinance is about 600 KB as a Workbook and as a Dataset
 	path := ada.createPage("Kewangan", myPage)
 	res, body := ada.postFile(path+"/dataset", "one.xlsx", bigFinance(t, 1))
 	expectRedirect(t, res, body, path+"/data")

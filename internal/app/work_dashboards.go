@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -276,15 +277,15 @@ func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.Clean
 	return lab.Clean(file, s)
 }
 
-// errDatasetStore is keepPending's error when the store refuses the Dataset.
+// errDatasetStore is keepPending's and keepWorkbook's error when the store refuses the Dataset or the Workbook.
 var errDatasetStore = errors.New("the store refused the Dataset")
 
 // keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Dataset, replacing any
 // earlier pending one, and returns its saved size. With acc's counted period, the Learner's other pending Datasets
 // count against the Storage allowance too. A Dataset that would not fit, even with every Dataset of this Dashboard
 // that roomFor may delete on confirm gone, is dropped with errStorageFull; used is then the bytes the Learner's
-// Datasets take, pending ones included.
-func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string) (size, used int64, err error) {
+// Datasets take, pending ones included. workbook is the Workbook the upload was kept as, 0 for none.
+func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string, workbook int64) (size, used int64, err error) {
 	data, err := json.Marshal(res.Dataset)
 	if err != nil {
 		return 0, 0, err
@@ -328,8 +329,12 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 				return errStorageFull
 			}
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c)
+		var from any // NULL for a Dataset with no Workbook
+		if workbook != 0 {
+			from = workbook
+		}
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c, from)
 		return err
 	})
 	if err != nil {
@@ -340,7 +345,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 	return int64(len(data)), used, nil
 }
 
-// uploadWork runs Clean-up on a Dashboard's upload and keeps the result as its pending Dataset, replacing
+// uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its pending Dataset, replacing
 // any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
 // with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
 // the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made on the
@@ -370,7 +375,38 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	if settings.Year, _ = strconv.Atoi(r.FormValue("year")); settings.Year < 1900 || settings.Year > 2100 {
 		settings.Year = 0 // this year
 	}
-	res, err := a.clean(r, file, settings)
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	data, err := io.ReadAll(file)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
+	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.
+	refused := func(size, used int64, err error) bool {
+		switch {
+		case err == nil:
+			return false
+		case errors.Is(err, errStorageFull):
+			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
+			page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
+			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
+		case errors.Is(err, errDatasetStore):
+			a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Failed: true})
+		default:
+			a.serverError(w, r, err)
+		}
+		return true
+	}
+	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, name, data)
+	if refused(int64(len(data)), used, err) {
+		return
+	}
+	res, err := a.clean(r, bytes.NewReader(data), settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem.In(lang), Upload: name})
@@ -394,19 +430,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		kept.Dataset = combined
 		kept.Changes = append(kept.Changes, changes...)
 	}
-	size, used, err := a.keepPending(r, d, acc, kept, name)
-	if errors.Is(err, errStorageFull) {
-		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
-		page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
-		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
-		return
-	}
-	if errors.Is(err, errDatasetStore) {
-		a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Failed: true})
-		return
-	}
-	if err != nil {
-		a.serverError(w, r, err)
+	size, used, err := a.keepPending(r, d, acc, kept, name, workbook)
+	if refused(size, used, err) {
 		return
 	}
 	// Nothing new to check: it goes live. An Add is always shown, as its rows may repeat ones already there.

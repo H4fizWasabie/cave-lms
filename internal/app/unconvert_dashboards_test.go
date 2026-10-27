@@ -58,6 +58,10 @@ func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T
 	if _, got := ada.get(link); got != page {
 		t.Fatalf("before the migration the link shows %.200q, want the converted page", got)
 	}
+	// Migrating down past 127 drops the Workbooks table, and with it their share of the total; the restart deletes
+	// their files from the store, as the migration's trigger queued them.
+	ada.forgetWorkbooks()
+	ada.restart()
 	files := ada.storedFiles()
 	_, body := ada.get("/lab")
 	total := storageTotal.FindStringSubmatch(body)

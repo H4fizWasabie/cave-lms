@@ -5,6 +5,12 @@
         <h1>{{t .Lang "my-folder.title"}}</h1>
         <p>{{t .Lang "my-folder.intro"}}</p>
       </div>
+      {{if .Workbooks}}
+      <section class="card folder-course">
+        <h2>{{t .Lang "my-folder.workbooks"}}</h2>
+        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small></li>{{end}}</ul>
+      </section>
+      {{end}}
       {{range .Courses}}
       <section class="card folder-course">
         <h2><a href="/courses/{{.ID}}">{{.Title}}</a>{{if not .Enrolled}} <span class="badge badge-closed">{{t $.Lang "my-folder.read-only"}}</span>{{end}}</h2>
@@ -20,7 +26,8 @@
         </div>
         {{end}}
       </section>
-      {{else}}
+      {{end}}
+      {{if and (not .Courses) (not .Workbooks)}}
       <div class="empty-state">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>
         <p>{{t .Lang "my-folder.none"}}</p>

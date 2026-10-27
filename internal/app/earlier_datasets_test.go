@@ -2,10 +2,12 @@ package app_test
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -59,7 +61,7 @@ func TestAFifthConfirmDropsTheOldestEarlierDataset(t *testing.T) {
 	for _, want := range []string{"5.xlsx", "Earlier Datasets", "2 rows"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
-	if n := ada.storedFiles(); n != 4 {
+	if n := ada.datasetFiles(); n != 4 {
 		t.Fatalf("%d stored files, want the current and 3 earlier", n)
 	}
 }
@@ -96,7 +98,7 @@ func TestRestoreSwapsTheCurrentAndAnEarlierDatasetAndKeepsTheBlocks(t *testing.T
 	}
 	res, body = ada.post(september+"/restore", nil) // now current, not earlier
 	expectStatus(t, res, body, http.StatusNotFound, "")
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("%d stored files, want 2", n)
 	}
 }
@@ -119,14 +121,17 @@ func workSized(t *testing.T, seed int64, kb int) []byte {
 }
 
 func TestAnUploadOverTheAllowanceDropsThisDashboardsOldestEarlierDatasets(t *testing.T) {
-	_, ada, _ := storageSite(t, "1") // 1024 KB
+	// 2048 KB. Each upload also keeps its Workbook, about 3/4 of the Dataset's size; they are forgotten here, but the
+	// upload being checked has its own.
+	_, ada, _ := storageSite(t, "2")
 	other := ada.createWork("Lain")
 	ada.confirmFile(other, "lain.xlsx", workSized(t, 1, 400))
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "1.xlsx", workSized(t, 2, 150))
 	ada.confirmFile(path, "2.xlsx", workSized(t, 3, 150)) // 700 KB used
+	ada.forgetWorkbooks()
 
-	res, body := ada.postFile(path+"/dataset", "3.xlsx", workSized(t, 4, 550)) // fits once 1 and 2 go
+	res, body := ada.postFile(path+"/dataset", "3.xlsx", workSized(t, 4, 900)) // fits once 1 and 2 go
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "Confirming deletes these earlier Datasets")
@@ -139,16 +144,17 @@ func TestAnUploadOverTheAllowanceDropsThisDashboardsOldestEarlierDatasets(t *tes
 	if got := ada.earlier(path); len(got) != 0 {
 		t.Fatalf("earlier Datasets = %v, want none", got)
 	}
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("%d stored files, want this Dashboard's current one and the other Dashboard's", n)
 	}
+	ada.forgetWorkbooks()
 
-	res, body = ada.postFile(path+"/dataset", "4.xlsx", workSized(t, 5, 700)) // 400 + 700 even with 3 gone
+	res, body = ada.postFile(path+"/dataset", "4.xlsx", workSized(t, 5, 1000)) // 400 + 1000 even with 3 gone
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
 	if strings.Contains(body, "Confirming deletes") {
 		t.Fatal("the refusal lists earlier Datasets it would not delete")
 	}
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("%d stored files, want only both current ones", n)
 	}
 }
@@ -165,19 +171,25 @@ func TestEarlierDatasetsGoNinetyDaysAfterTheLastPeriodButTheAdminsStay(t *testin
 	if got := admin.earlier(demo); len(got) != 3 {
 		t.Fatalf("the Admin keeps %v, want 3 earlier", got)
 	}
-	if n := ada.storedFiles(); n != 6 {
+	if n := ada.datasetFiles(); n != 6 {
 		t.Fatalf("%d stored files, want 6", n)
 	}
 
 	admin.ageAllPeriods(30 + 91)
 	admin.prune()
-	if n := ada.storedFiles(); n != 4 {
+	if n := ada.datasetFiles(); n != 4 {
 		t.Fatalf("after 91 days %d stored files, want the Admin's 4", n)
 	}
 }
 
 // storedKB is the Storage allowance's KB the files in the store take, as /lab shows it.
 func (s *site) storedKB() string {
+	s.t.Helper()
+	return storageText(s.storedBytes()) + " of 1 GB"
+}
+
+// storedBytes is the size of everything in the store: the Datasets and Workbooks the Lab counts, in these tests.
+func (s *site) storedBytes() int64 {
 	s.t.Helper()
 	entries, err := os.ReadDir(s.storageDir)
 	if err != nil {
@@ -191,7 +203,15 @@ func (s *site) storedKB() string {
 		}
 		n += info.Size()
 	}
-	return fmt.Sprintf("%d KB of 1 GB", (n+1023)>>10)
+	return n
+}
+
+// storageText is n bytes as the Lab says it: whole KB, or MB with one decimal.
+func storageText(n int64) string {
+	if n >= 1<<20 {
+		return strconv.FormatFloat(math.Round(float64(n)/(1<<20)*10)/10, 'f', -1, 64) + " MB"
+	}
+	return fmt.Sprintf("%d KB", (n+1023)>>10)
 }
 
 func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
@@ -207,7 +227,7 @@ func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
 	expectAll(t, body, `href="`+confirmPage+`"`)
 	res, body = ada.post(confirmPage, nil)
 	expectRedirect(t, res, body, confirmPage)
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("%d stored files after an unconfirmed delete, want 2", n)
 	}
 	res, body = ada.get(confirmPage)
@@ -216,7 +236,7 @@ func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
 
 	res, body = ada.post(confirmPage, confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if n := ada.storedFiles(); n != 1 {
+	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("%d stored files, want the current one", n)
 	}
 	if got := ada.earlier(path); len(got) != 0 {

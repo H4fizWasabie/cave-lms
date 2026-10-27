@@ -1,0 +1,140 @@
+package app
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"mime"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+// xlsxType is the content type a Workbook is served with.
+const xlsxType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+// workbook is a Learner's Workbook as their Folder lists it (ADR 0021).
+type workbook struct {
+	ID       int64
+	Name     string
+	Size     int64
+	Uploaded string // formatted as periodTime
+}
+
+// workbooksOf lists a Learner's Workbooks, newest first.
+func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT id, name, size, uploaded_at FROM workbooks
+		WHERE learner_id = $1 ORDER BY uploaded_at DESC, id DESC`, learnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []workbook
+	for rows.Next() {
+		var w workbook
+		var at time.Time
+		if err := rows.Scan(&w.ID, &w.Name, &w.Size, &at); err != nil {
+			return nil, err
+		}
+		w.Uploaded = at.UTC().Format(periodTime)
+		out = append(out, w)
+	}
+	return out, rows.Err()
+}
+
+// keepWorkbook keeps data, the .xlsx a Learner uploaded, as their Workbook called name, before Clean-up reads it, so it
+// stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance beside the Learner's
+// Datasets, pages and Workbooks and their pending Datasets on Dashboards other than dashboardID (0 for a new one),
+// whose own pending Dataset the upload replaces; the Datasets roomFor may delete from dashboardID on confirm count as
+// free, as for keepPending. If it does not fit, nothing is kept and the error is errStorageFull, with used the bytes
+// counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0.
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, name string, data []byte) (id, used int64, err error) {
+	if len(data) == 0 {
+		return 0, 0, nil
+	}
+	token, err := newToken()
+	if err != nil {
+		return 0, 0, err
+	}
+	key := "workbook-" + token[:22]
+	if err := a.datasets.Put(r.Context(), key, data); err != nil {
+		a.logError(r, fmt.Errorf("put Workbook %s: %w", key, err))
+		return 0, 0, errDatasetStore
+	}
+	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
+		if period := acc.CountedPeriod(); period != nil {
+			// Locking the Learner makes uploads and confirms take turns, so none slips under the allowance.
+			if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learnerID); err != nil {
+				return err
+			}
+			var pending int64 // the Learner's pending Datasets on their other Dashboards
+			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds
+				JOIN dashboards owner ON owner.id = ds.dashboard_id
+				WHERE owner.learner_id = $1 AND ds.state = 'pending' AND ds.dashboard_id <> $2`, learnerID, dashboardID).Scan(&pending); err != nil {
+				return err
+			}
+			if dashboardID != 0 {
+				// As keepPending: what confirming may delete from this Dashboard for room counts as free.
+				room, err := roomFor(r.Context(), tx, &dashboard{ID: dashboardID}, pending+int64(len(data)), acc)
+				if err != nil {
+					return err
+				}
+				if used = room.Used + pending; !room.Fits {
+					return errStorageFull
+				}
+			} else {
+				var inUse int64
+				if err := tx.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("$1"), learnerID).Scan(&inUse); err != nil {
+					return err
+				}
+				if used = inUse + pending; used+int64(len(data)) > period.Storage() {
+					return errStorageFull
+				}
+			}
+		}
+		return tx.QueryRowContext(r.Context(), `INSERT INTO workbooks (learner_id, storage_key, name, size) VALUES ($1, $2, $3, $4)
+			RETURNING id`, learnerID, key, name, len(data)).Scan(&id)
+	})
+	if err != nil {
+		a.dropDataset(r.Context(), r, key)
+		return 0, used, err
+	}
+	return id, used, nil
+}
+
+// downloadWorkbook sends a Workbook exactly as uploaded to its Learner, whether or not their Plan has ended, or to the
+// Admin. Anyone else gets Not found, so another Learner's Workbooks are not revealed.
+func (a *App) downloadWorkbook(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		a.notFound(w, r)
+		return
+	}
+	var owner int64
+	var name, key string
+	err = a.db.QueryRowContext(r.Context(), `SELECT learner_id, name, storage_key FROM workbooks WHERE id = $1`, id).Scan(&owner, &name, &key)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && owner != learner.ID && !learner.IsAdmin) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	data, err := a.datasets.Get(r.Context(), key)
+	if err != nil {
+		a.serverError(w, r, fmt.Errorf("get Workbook %s: %w", key, err))
+		return
+	}
+	w.Header().Set("Content-Type", xlsxType)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+	w.Header().Set("Cache-Control", "private, no-store")
+	_, _ = w.Write(data)
+}

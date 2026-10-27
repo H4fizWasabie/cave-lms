@@ -262,7 +262,7 @@ func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testi
 	if cc := res.Header.Get("Cache-Control"); !strings.Contains(cc, "max-age=31536000") || !strings.Contains(cc, "immutable") || !strings.Contains(cc, "private") {
 		t.Fatalf("the preview's data Cache-Control = %q, want private, a year and immutable", cc)
 	}
-	if n := ada.storedFiles(); n != 1 {
+	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("%d stored files after one upload, want 1", n)
 	}
 
@@ -278,13 +278,13 @@ func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testi
 	}
 	res, data = ada.get(path + "/view/" + second)
 	expectStatus(t, res, data, http.StatusOK, "4321.5")
-	if n := ada.storedFiles(); n != 2 {
+	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("%d stored files after a re-upload, want 2: the current Dataset and the earlier one", n)
 	}
 
 	res, body := ada.post(path+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if n := ada.storedFiles(); n != 0 {
+	if n := ada.datasetFiles(); n != 0 {
 		t.Fatalf("%d stored files after deleting the Dashboard, want 0", n)
 	}
 }
@@ -337,7 +337,7 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(gotRows, wantRows) { // the database's jsonb reorders keys and spaces
 		t.Fatalf("after the move the store holds %.300s (%v), want %.300s", got, err, dataset)
 	}
-	if n := ada.storedFiles(); n != 1 {
+	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("%d stored files after the move, want 1: the Dataset", n)
 	}
 	var column bool
@@ -374,7 +374,7 @@ func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T
 	if after := ada.dataOf(path + "/view/"); after != before {
 		t.Fatalf("after a failed upload the Dashboard fetches %s, want the previous %s", after, before)
 	}
-	if _, log := s.get("/admin/log?level=error"); !strings.Contains(log, "put Dataset") {
+	if _, log := s.get("/admin/log?level=error"); !strings.Contains(log, "put Workbook") {
 		t.Fatalf("the System log does not record the failed write:\n%s", log)
 	}
 }

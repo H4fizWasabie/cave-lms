@@ -357,6 +357,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/assignments/{aid}/delete", a.admin(a.deleteAssignment))
 	mux.HandleFunc("GET /courses/{id}/assignments/{aid}", a.requireLearner(a.showAssignment))
 	mux.HandleFunc("POST /courses/{id}/assignments/{aid}/files", a.requireLearner(a.uploadSubmission))
+	mux.HandleFunc("GET /workbooks/{id}", a.requireLearner(a.downloadWorkbook))
 	mux.HandleFunc("GET /submission-files/{fid}", a.requireLearner(a.downloadSubmissionFile))
 	mux.HandleFunc("GET /submission-files/{fid}/delete", a.requireLearner(a.confirmDeleteSubmissionFile))
 	mux.HandleFunc("POST /submission-files/{fid}/delete", a.requireLearner(a.deleteSubmissionFile))

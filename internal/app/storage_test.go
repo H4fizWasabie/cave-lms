@@ -94,13 +94,14 @@ func TestALabPlanPeriodGetsTheLabPlansStorageAllowance(t *testing.T) {
 }
 
 func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testing.T) {
-	_, ada, _ := storageSite(t, "1")
+	_, ada, _ := storageSite(t, "2")
 	first := ada.createWork("One")
 	second := ada.createWork("Two")
 	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
-	used := strings.TrimSuffix(ada.storedKB(), " of 1 GB") + " of your 1 MB"
 
 	res, body := ada.postFile(second+"/dataset", "two.xlsx", bigFinance(t, 2))
+	// The refused Dataset is dropped; its Workbook stays and counts.
+	used := strings.TrimSuffix(ada.storedKB(), " of 1 GB") + " of your 2 MB"
 	for _, want := range []string{"Storage allowance", used} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
 	}
@@ -109,17 +110,19 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 
 	res, body = ada.post(first+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	// Deleting a Dashboard frees its Dataset, not the Workbooks kept from its uploads; deleting those is a later step.
+	ada.forgetWorkbooks()
 	ada.confirmFile(second, "two.xlsx", bigFinance(t, 2))
 }
 
 func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
-	_, ada, _ := storageSite(t, "2")
+	_, ada, _ := storageSite(t, "3")
 	paths := []string{ada.createWork("One"), ada.createWork("Two")}
 	for i, p := range paths {
 		res, body := ada.postFile(p+"/dataset", "data.xlsx", bigFinance(t, int64(i+1)))
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 	}
-	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 1`); err != nil { // both uploads fitted; the allowance shrinks
+	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 2`); err != nil { // both uploads fitted, the Workbooks 1.2 MB; room for one Dataset
 		t.Fatal(err)
 	}
 	codes := make([]int, 2)

@@ -1,11 +1,13 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -278,8 +280,9 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 
 // buildDashboard makes a Dashboard by Build from Excel (ADR 0019), POST /lab/dashboards/build: Clean-up reads the
 // Learner's .xlsx and keeps it as the new Dashboard's pending Dataset, whose preview the Dashboard opens on; the
-// confirm builds its blocks by the General rules. Anything refused, the name, the file or a Dataset over the Storage
-// allowance, saves nothing.
+// confirm builds its blocks by the General rules. A name or file refused, or a file whose Workbook does not fit the
+// Storage allowance, saves nothing; once the Workbook is kept (ADR 0021) it stays if Clean-up fails or the Dataset
+// does not fit, but no Dashboard is made.
 func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -305,17 +308,35 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(msg)
 		return
 	}
-	res, err := a.clean(r, file, lab.Settings{})
-	var unread lab.Problem
-	if errors.As(err, &unread) {
-		refuse(text.T(lang, "lab.d.not-read", upload) + ". " + unread.In(lang))
-		return
-	}
+	data, err := io.ReadAll(file)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
+	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, upload, data)
+	switch {
+	case errors.Is(err, errStorageFull):
+		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
+		return
+	case errors.Is(err, errDatasetStore):
+		refuse(text.T(lang, "lab.d.upload-failed"))
+		return
+	case err != nil:
+		a.serverError(w, r, err)
+		return
+	}
+	res, err := a.clean(r, bytes.NewReader(data), lab.Settings{})
+	var unread lab.Problem
+	if errors.As(err, &unread) {
+		refuse(text.T(lang, "lab.d.not-read", upload) + ". " + unread.In(lang))
+		return
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -326,7 +347,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload)
+	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload, workbook)
 	// ponytail: a compensating delete, not one transaction, as keepPending runs its own; a crash between the insert and
 	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into keepPending
 	// if that turns up.

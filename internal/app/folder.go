@@ -24,10 +24,12 @@ type folderCourse struct {
 
 type folderPage struct {
 	pageBase
-	Courses []folderCourse
+	Workbooks []workbook // a Learner with none sees no Workbooks part
+	Courses   []folderCourse
 }
 
-// myFolder is the Learner's Folder: their Submissions by Course, with the Admin's comments.
+// myFolder is the Learner's Folder: their Workbooks, if they have any, and their Submissions by Course, with the
+// Admin's comments.
 func (a *App) myFolder(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -39,7 +41,12 @@ func (a *App) myFolder(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "my_folder", &folderPage{pageBase: pageBase{Learner: learner}, Courses: list})
+	books, err := a.workbooksOf(r.Context(), learner.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.render(w, r, http.StatusOK, "my_folder", &folderPage{pageBase: pageBase{Learner: learner}, Workbooks: books, Courses: list})
 }
 
 // folder lists every Assignment the Learner has files in or a comment on, by Course.
