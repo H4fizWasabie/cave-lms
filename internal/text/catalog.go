@@ -116,8 +116,8 @@ var catalog = map[string]entry{
 		ms: "Sijil anda: nama anda, Kursus dan tarikh. Sesiapa yang mempunyai ID sesuatu Sijil boleh menyemaknya di laman ini dan akan melihat nama anda padanya.",
 	},
 	"privacy.collect.lab": {
-		en: "Your Lab work: your Dashboards, the Datasets you upload to them and your Deployments. A Deployment's link is public: anyone who has it can open the Dashboard. The Lab is for the Samples it provides, so do not upload anyone else's personal data to it.",
-		ms: "Kerja Lab anda: Dashboard anda, Set data yang anda muat naik kepadanya dan Deployment anda. Pautan sesuatu Deployment terbuka kepada umum: sesiapa yang memilikinya boleh membuka Dashboard itu. Lab adalah untuk Sampel yang disediakannya, jadi jangan muat naik data peribadi orang lain ke dalamnya.",
+		en: "Your Lab work: your Dashboards, the Datasets you upload to them and your Deployments. A Deployment's link is public: anyone who has it can open the Dashboard. Do not upload anyone else's personal data to it.",
+		ms: "Kerja Lab anda: Dashboard anda, Set data yang anda muat naik kepadanya dan Deployment anda. Pautan sesuatu Deployment terbuka kepada umum: sesiapa yang memilikinya boleh membuka Dashboard itu. Jangan muat naik data peribadi orang lain ke dalamnya.",
 	},
 	"privacy.collect.submissions": {
 		en: "Your Submissions: the files you hand in to Assignments and the Admin's comments on them. Only you and the Admins see them. They are kept until your account is deleted, even after you leave the Course.",
