@@ -779,6 +779,22 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .ds-earlier { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .ds-earlier li { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius); }
 .ds-earlier li > div { display: grid; flex: 1; min-width: 0; }
+/* A page Dashboard's Page tab: the status bar with Deploy, the upload form in a card, Earlier pages, and the chatbot sentence
+   in a card beside them. The .html file is picked with the browser's own input in a dashed box, so it works without
+   JavaScript. Scoped to .lab-page so these rules out-rank the "Lab: as on main" section further down. */
+.lab-page .card.lab-card { margin: 0; min-width: 0; }
+.lab-page .lab-card > .h-md, .lab-page .lab-stack > section > .h-md { margin: 0 0 var(--space-1); }
+.lab-page .lab-card > .muted { margin: 0 0 var(--space-4); }
+.lab-page .lab-card > .data-sentence { margin-top: 0; }
+.lab-page .lab-stack { display: grid; gap: var(--space-6); min-width: 0; }
+.lab-page .lab-stack .ds-earlier { margin-top: var(--space-4); }
+.lab-page .ds-now.lab-now { flex-wrap: wrap; }
+.lab-page .lab-now > div { flex: 1 1 12rem; }
+.lab-page .lab-now > .btn { margin-left: auto; }
+.lab-page .lab-code { font-family: var(--font-mono); font-size: var(--fs-meta); }
+.lab-page .field.lab-drop { justify-items: start; padding: var(--space-4); border: 1px dashed var(--line-strong); border-radius: var(--radius); background: var(--bg); }
+.lab-page .lab-drop label { display: inline-flex; gap: var(--space-2); align-items: center; }
+.lab-page .lab-drop input { max-width: 100%; }
 .ds-err { border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--surface)); background: var(--bad-soft); border-radius: var(--radius); padding: var(--space-4) var(--space-5); display: grid; gap: var(--space-2); }
 .ds-err p { margin: 0; }
 .ds-err ul { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-2); }
