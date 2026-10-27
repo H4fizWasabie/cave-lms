@@ -1,0 +1,9 @@
+{{/* The sentence a Learner adds to their chatbot prompt, so the page it writes reads the data Cave serves. Shown on New Dashboard and on a Dashboard's Page and Data tabs. */}}
+{{define "dataSentence"}}
+        <div class="data-sentence">
+          <h2 class="h-sm">{{t . "lab.data.sentence-title"}}</h2>
+          <p class="muted">{{t . "lab.data.sentence-body"}}</p>
+          <textarea id="data-sentence" readonly rows="6">{{t . "lab.data.sentence"}}</textarea>
+          <button class="btn btn-ghost btn-sm" type="button" data-copy="data-sentence">{{t . "lab.data.copy"}}</button>
+        </div>
+{{- end}}
