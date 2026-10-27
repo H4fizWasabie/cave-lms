@@ -19,7 +19,7 @@ func (s *site) pageRows(path string) int {
 	return n
 }
 
-// The Dashboards converted to pages on 2026-10-27 (#389) are built again after migration 00124: one with only its
+// The Dashboards converted to pages on 2026-10-27 (#389) are built again after migration 00125: one with only its
 // converted page loses it, its file goes from the store, and its link draws its Theme and blocks again. One whose
 // owner uploaded a page of their own, and a pasted one, keep their pages.
 func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T) {
@@ -39,7 +39,7 @@ func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T
 	}
 	files := ada.storedFiles()
 
-	if err := app.MigrateDownTo(context.Background(), ada.db, 123); err != nil {
+	if err := app.MigrateDownTo(context.Background(), ada.db, 124); err != nil {
 		t.Fatal(err)
 	}
 	ada.restart()
