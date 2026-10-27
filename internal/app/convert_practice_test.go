@@ -37,7 +37,7 @@ func (s *site) drawn(page string) (theme string, blocks []string) {
 func (s *site) dashboardState() string {
 	s.t.Helper()
 	var state string
-	err := s.db.QueryRow(`SELECT (SELECT string_agg(concat_ws('|', id, kind, template, theme, choices, config, dataset_key, dataset_size), E'\n' ORDER BY id) FROM dashboards)
+	err := s.db.QueryRow(`SELECT (SELECT string_agg(concat_ws('|', id, kind, theme, config, dataset_key, dataset_size), E'\n' ORDER BY id) FROM dashboards)
 		|| E'\n' || COALESCE((SELECT string_agg(concat_ws('|', id, dashboard_id, storage_key, file_name, saved_size, row_count, state), E'\n' ORDER BY id) FROM datasets), '')`).Scan(&state)
 	if err != nil {
 		s.t.Fatal(err)
@@ -61,14 +61,14 @@ func (s *site) asPractice(path string) {
 	}
 }
 
-// Practice Dashboards made before ADR 0015 become Dashboards at the next start: their Template's blocks, now
-// editable, their Dataset as the current one, their Theme, and their Deployment at the same link drawing the
-// same blocks and data. Starting again changes nothing.
+// Practice Dashboards made before ADR 0015 become Dashboards at the next start: blocks built by the General rules,
+// as their Templates are gone (ADR 0019), their Dataset as the current one, their Theme, and their Deployment at
+// the same link drawing the same data. Starting again changes nothing.
 func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAndDeployment(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
-	empty := ada.createWork("finance", "Kosong")
-	general := ada.createWork("general", "Umum")
+	empty := ada.createWork("Kosong")
+	general := ada.createWork("Umum")
 	ada.confirmFile(general, "finance-sample.xlsx", ada.financeSample())
 	_, generalBlocks := ada.drawn(general + "/view/")
 	if _, err := ada.db.Exec(`UPDATE dashboards SET theme = 'midnight' WHERE id = $1`, path[strings.LastIndex(path, "/")+1:]); err != nil {
@@ -117,11 +117,7 @@ func TestPracticeDashboardsBecomeDashboardsAtStartupKeepingBlocksDatasetThemeAnd
 	if _, got := ada.drawn(general + "/view/"); len(generalBlocks) == 0 || !slices.Equal(got, generalBlocks) {
 		t.Fatalf("after: General draws\n%q\nwant\n%q", got, generalBlocks)
 	}
-	res, body := ada.get(path + "/blocks")
-	for _, want := range []string{"Edit blocks", blocks[0][strings.Index(blocks[0], ": ")+2:]} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	res, body = ada.get(path)
+	res, body := ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "finance-sample.xlsx")
 	if theme, _ := ada.drawn(path + "/view/"); theme != "midnight" {
 		t.Fatalf("after: the Dashboard draws theme %q, want midnight", theme)

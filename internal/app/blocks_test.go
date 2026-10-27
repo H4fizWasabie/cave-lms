@@ -14,7 +14,7 @@ import (
 // workReady is a Work Dashboard on Finance with shopReport confirmed, its Perkara column left out of the blanks.
 func (s *site) workReady() string {
 	s.t.Helper()
-	path := s.createWork("finance", "Kedai")
+	path := s.createWork("Kedai")
 	res, body := s.postFile(path+"/dataset", "laporan.xlsx", shopReport(s.t, "Beras", 120))
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	s.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Kategori"}, "type": {"Jenis"}})

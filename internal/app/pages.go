@@ -197,9 +197,8 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 				return 0, err
 			}
 		}
-		// template is the engine's; General, as it reads none of a page Dashboard's, until the engine goes (#376).
-		err := tx.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', 'general', $2)
-			RETURNING id`, learner.ID, p.Name).Scan(&id)
+		err := tx.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, name) VALUES ($1, 'work', $2) RETURNING id`,
+			learner.ID, p.Name).Scan(&id)
 		return id, err
 	})
 	switch {

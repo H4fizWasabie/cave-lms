@@ -1,12 +1,10 @@
 package lab
 
 import (
-	"cmp"
 	"slices"
 )
 
-// Config is a Dashboard's own design, stored on the Dashboard: its blocks and filter bar, naming the
-// Dataset's columns rather than Template blanks. It is configuration Cave applies, never code (ADR 0013).
+// Config is a built Dashboard's blocks and filter bar, stored on the Dashboard, naming the Dataset's columns. It is configuration Cave applies, never code (ADR 0013).
 type Config struct {
 	Blocks    []WorkBlock `json:"blocks"`
 	FilterBar []string    `json:"filterBar"`       // the Text and Date columns offered as filters
@@ -33,8 +31,8 @@ type WorkBlock struct {
 	Limit  int      `json:"limit,omitempty"`  // table: 10, 25 or 50 rows
 	Filter *Filter  `json:"filter,omitempty"` // only rows where a column holds one of some values
 	Wide   bool     `json:"wide,omitempty"`
-	// Locked marks a Template block the editor cannot express; it keeps its Template calculation below,
-	// naming columns as Block names blanks.
+	// Locked marks a block from a Template (gone, ADR 0019) that keeps its Template calculation below, naming
+	// columns; a Dashboard built on one still draws it.
 	Locked bool     `json:"locked,omitempty"`
 	Where  []string `json:"where,omitempty"`
 	Minus  []string `json:"minus,omitempty"`
@@ -56,99 +54,6 @@ type Value struct {
 type Filter struct {
 	Col  string   `json:"col"`
 	Vals []string `json:"vals"`
-}
-
-// Open copies the Template's blocks and filter bar for a Dashboard, each blank swapped for the column
-// chosen for it; blocks that need a skipped blank are left out. General builds
-// its blocks from the Dataset. A choice naming a column d lacks, or holding another type, counts as skipped, so
-// Reset to Template fills the blanks from the current columns by name.
-func (t *Template) Open(c Choices, d *Dataset) *Config {
-	if t.Build != nil {
-		t, c = t.Build(d)
-	}
-	kept := Choices{}
-	for _, b := range t.Blanks {
-		if col := c[b.Key]; col != "" && d.typeOf(col) == b.Type {
-			kept[b.Key] = col
-		}
-	}
-	c = kept
-	cols := func(keys []string) []string {
-		var out []string
-		for _, k := range keys {
-			if c[k] != "" {
-				out = append(out, c[k])
-			}
-		}
-		return out
-	}
-	cfg := &Config{FilterBar: cols(t.Filters), Blocks: []WorkBlock{}}
-	for _, b := range t.Blanks {
-		if b.Money && c[b.Key] != "" {
-			cfg.Money = append(cfg.Money, c[b.Key])
-		}
-	}
-	for _, b := range t.included(c) {
-		w := WorkBlock{Kind: b.Kind, Label: b.Label, Icon: b.Icon, X: c[b.X], Split: c[b.Series], Group: c[b.Group], Cols: cols(b.Cols),
-			Sort: c[b.Sort], Limit: b.Limit, Wide: b.Wide || b.Kind == "table"} // a Template's tables span the row
-		if b.Kind != "table" {
-			switch {
-			case b.Times != "":
-				w.Value = &Value{Agg: "calc", A: c[b.Of], Op: "x", B: c[b.Times], Then: "sum"}
-			case b.Agg == "distinct" || b.Agg == "avg":
-				w.Value = &Value{Agg: b.Agg, Col: c[b.Of]}
-			case b.Of != "":
-				w.Value = &Value{Agg: "sum", Col: c[b.Of]}
-			default:
-				w.Value = &Value{Agg: "count"}
-			}
-		}
-		if b.Kind == "line" {
-			w.By = cmp.Or(b.By, "month")
-		}
-		if b.Kind == "bar" {
-			w.Top = 8
-		}
-		if b.Kind == "table" && w.Limit == 0 {
-			w.Limit = 50
-		}
-		switch {
-		case b.Minus != nil || b.Low != nil:
-			w.Locked, w.Where, w.Minus, w.Low = true, columnPair(c, b.Where), columnPair(c, b.Minus), cols(b.Low)
-		case b.Where != nil && c[b.Where[0]] != "":
-			w.Filter = &Filter{Col: c[b.Where[0]], Vals: []string{b.Where[1]}}
-		}
-		cfg.Blocks = append(cfg.Blocks, w)
-	}
-	return cfg
-}
-
-// columnPair is [blank, value] as [column, value], or nil when the blank is skipped.
-func columnPair(c Choices, p []string) []string {
-	if p == nil || c[p[0]] == "" {
-		return nil
-	}
-	return []string{c[p[0]], p[1]}
-}
-
-// included is the Template's blocks drawn with choices c: a block needing a skipped blank is left out, as is
-// one whose Unless blank is chosen.
-func (t *Template) included(c Choices) []Block {
-	var blocks []Block
-	for _, b := range t.Blocks {
-		if b.Unless != "" && c[b.Unless] != "" {
-			continue
-		}
-		needs := append([]string{b.Of, b.X, b.Group}, b.Needs...)
-		ok := true
-		for _, k := range needs {
-			ok = ok && (k == "" || c[k] != "")
-		}
-		if ok {
-			blocks = append(blocks, b)
-		}
-	}
-	return blocks
 }
 
 // typeOf is the type of the Dataset's column called name; empty if it has none.
@@ -231,16 +136,6 @@ func (c *Config) Uses() []Use {
 				out[i].Type = u.Type
 			}
 		}
-	}
-	return out
-}
-
-// Rename is c with column m[from] in place of column from, as Config.Rename, so Reset to Template fills the
-// blanks from the columns the blocks were moved to.
-func (c Choices) Rename(m map[string]string) Choices {
-	out := Choices{}
-	for k, v := range c {
-		out[k] = cmp.Or(m[v], v)
 	}
 	return out
 }

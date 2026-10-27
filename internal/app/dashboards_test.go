@@ -63,7 +63,7 @@ func (s *site) financeSample() []byte {
 // labFile is one of the Lab's test workbooks.
 func labFile(t testing.TB, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("..", "lab", "samples", name))
+	b, err := os.ReadFile(filepath.Join("..", "lab", "testdata", name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
 	res, body = ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusOK, `name="name"`)
 
-	path := ada.createWork("general", "Kewangan <Kedai>")
+	path := ada.createWork("Kewangan <Kedai>")
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "Kewangan &lt;Kedai&gt;")
 	expectStatus(t, res, body, http.StatusOK, "Upload your Dataset")
@@ -150,7 +150,7 @@ func TestPreviewLoadsItsDataAndChartLibraryFromCave(t *testing.T) {
 
 func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	file := testutil.XLSX(t, []string{"Tarikh", "<b>Kategori</b>", "Jumlah"}, []any{day, "<script>alert(1)</script>", 12.5}, []any{day, "Teh", 3})
 	res, body := ada.postFile(path+"/dataset", "mine.xlsx", file)
@@ -172,7 +172,7 @@ func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 
 func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	res, body := ada.postFile(path+"/dataset", "data.csv", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
 	for _, want := range []string{"data.csv is not an .xlsx file.", "A CSV file stores everything as plain text", "Fix this in Excel, save, and upload again. Nothing changed."} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
@@ -222,7 +222,7 @@ func TestDeletingALearnerDeletesTheirDashboards(t *testing.T) {
 func TestAfterAccessEndsEveryLabScreenGoesToPricing(t *testing.T) {
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
-	empty := ada.createWork("finance", "Kosong")
+	empty := ada.createWork("Kosong")
 	view := path + "/view/" + ada.dataOf(path+"/view/")
 	admin.ageAllPeriods(31)
 

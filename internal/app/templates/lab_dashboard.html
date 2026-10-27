@@ -2,13 +2,10 @@
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
     <div class="wrap page-pad lab-page">
-      <p class="crumbs"><a href="/lab">Lab</a>{{if and (not .Dashboard.Page) (ne .Dashboard.Template.Key "general")}} /{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}{{end}}</p>
+      <p class="crumbs"><a href="/lab">Lab</a></p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>
       </div>
-      {{- if .ReadOnly}}
-      <div class="callout"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><p>{{t .Lang "lab.d.read-only"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p></div>
-      {{- end}}
       <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.steps"}}">
         {{- if .Dashboard.Page}}
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "page"}} aria-current="page"{{end}}>{{t .Lang "lab.page.tab"}}</a>
@@ -57,14 +54,6 @@
       {{- else if or (eq .Tab "dataset") (eq .Tab "data")}}
       <div class="lab-split">
         <section>
-          {{- if .ReadOnly}}
-          {{- with .Dashboard.Dataset}}
-          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
-          {{- else}}
-          <p class="empty">{{t .Lang "lab.d.no-dataset"}}</p>
-          {{- end}}
-          <p class="muted">{{t .Lang "lab.d.upload-needs-access"}}</p>
-          {{- else}}
           {{- with .Dashboard.Dataset}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
@@ -146,20 +135,6 @@
             </div>
             {{- end}}
             <form class="form" method="post" action="{{$url}}/dataset/confirm">
-              {{- with $.Picked}}
-              <h3 class="h-sm">{{t $.Lang "lab.w.start-from"}}</h3>
-              <p class="muted">{{t $.Lang "lab.w.offered"}}</p>
-              <ul class="tp-pick">
-                {{- range $.Offers}}
-                <li><a class="tp-card{{if eq . $.Picked.Key}} is-picked{{end}}" href="{{$url}}?template={{.}}"{{if eq . $.Picked.Key}} aria-current="true"{{end}}><strong>{{t $.Lang (print "lab.tpl." . ".name")}}</strong></a></li>
-                {{- end}}
-              </ul>
-              <input type="hidden" name="template" value="{{.Key}}">
-              <p>{{t $.Lang "lab.w.blocks"}}{{range $.Building}} <span class="badge">{{.}}</span>{{end}}</p>
-              {{- if $.Blanks}}
-              <p class="muted">{{t $.Lang "lab.w.which-column" (t $.Lang (print "lab.tpl." .Key ".name"))}}</p>
-              {{- end}}
-              {{- end}}
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
               {{- if $.Uses}}
               <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
@@ -180,19 +155,6 @@
                 {{- end}}
                 {{- end}}
               </ul>
-              {{- end}}
-              {{- range $.Blanks}}
-              <div class="field map-row">
-                <label for="m-{{.Key}}">{{.Label}}</label>
-                <select id="m-{{.Key}}" name="{{.Key}}">
-                  <option value=""{{if not .Chosen}} selected{{end}}>{{t $.Lang "lab.d.skip"}}</option>
-                  {{- $chosen := .Chosen}}
-                  {{- range .Options}}
-                  <option value="{{.}}"{{if eq . $chosen}} selected{{end}}>{{.}}</option>
-                  {{- end}}
-                </select>
-                <small>{{if .Required}}{{t $.Lang "lab.required"}}{{else}}{{t $.Lang "lab.optional"}}{{end}} · {{if .Help}}{{t $.Lang (print "lab.tpl." $.Picked.Key "." .Key ".help")}}{{end}}</small>
-              </div>
               {{- end}}
               <div class="form-foot">
                 <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
@@ -268,19 +230,12 @@
             {{- end}}
           </ul>
           {{- end}}
-          {{- end}}
         </section>
         <aside class="panel">
           {{- if .Dashboard.Page}}
           {{template "dataSentence" .Lang}}
           <p class="muted">{{t .Lang "lab.data.reads-only"}}</p>
-          {{- else if eq .Dashboard.Template.Key "general"}}
-          <p class="muted">{{t .Lang "lab.d.dates-amounts"}}</p>
           {{- else}}
-          <span class="panel-k">{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</span>
-          <h2 class="h-sm">{{t .Lang "lab.d.start-sample"}}</h2>
-          <p class="panel-msg">{{t .Lang "lab.d.start-sample-body"}}</p>
-          <a class="btn btn-ghost btn-block" href="/lab/samples/{{.Dashboard.Template.Key}}.xlsx"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "lab.d.download-sample"}}</a>
           <p class="muted">{{t .Lang "lab.d.dates-amounts"}}</p>
           {{- end}}
         </aside>
@@ -300,14 +255,12 @@
       {{- else if eq .Tab "preview"}}
       <div class="pv-bar">
         <p class="muted">{{t .Lang "lab.d.preview-note"}}</p>
-        {{- if not .ReadOnly}}
         <form class="pv-theme" method="post" action="{{$url}}/theme">
           <label for="theme">{{t .Lang "lab.d.theme"}}</label>
           <select id="theme" name="theme">{{range .Themes}}<option value="{{.Key}}"{{if eq .Key $.Dashboard.Theme}} selected{{end}}>{{.Name}}</option>{{end}}</select>
           {{- if .Phone}}<input type="hidden" name="phone" value="1">{{end}}
           <button class="btn btn-ghost">{{t .Lang "lab.d.theme-apply"}}</button>
         </form>
-        {{- end}}
         <nav class="lab-tabs" aria-label="{{t .Lang "lab.d.preview-width"}}">
           <a class="lab-tab" href="{{$url}}/preview"{{if not .Phone}} aria-current="page"{{end}}>{{t .Lang "lab.d.desktop"}}</a>
           <a class="lab-tab" href="{{$url}}/preview?phone"{{if .Phone}} aria-current="page"{{end}}>{{t .Lang "lab.d.phone"}}</a>
@@ -342,9 +295,6 @@
         {{- else if .Awake}}
         <p class="muted">{{t $.Lang "lab.dep.share"}} <a href="{{$url}}">{{t $.Lang "lab.dep.share-upload"}}</a>.</p>
         {{- end}}{{end}}
-        {{- else if not .Access.Open}}
-        <h2 class="h-md">{{t .Lang "lab.dep.needs-plan"}}</h2>
-        <p class="muted">{{t .Lang "lab.dep.needs-plan-body"}} <a href="/lab">{{t .Lang "lab.d.unlock"}}</a>.</p>
         {{- else if and .Access.CountedPeriod .Access.CountedPeriod.Full}}{{with .Access.CountedPeriod}}
         <div class="ds-err" role="alert">
           <p><strong>{{t $.Lang "lab.dep.none-left"}}</strong></p>

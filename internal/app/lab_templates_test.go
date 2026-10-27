@@ -29,7 +29,7 @@ func TestLearnerWithoutAccessCannotBuild(t *testing.T) {
 
 func TestGeneralNeedsNoColumnChoices(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("general", "Mine")
+	path := ada.createWork("Mine")
 	res, body := ada.postFile(path+"/dataset", "general.xlsx", labFile(t, "general.xlsx"))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, preview := ada.get(path)

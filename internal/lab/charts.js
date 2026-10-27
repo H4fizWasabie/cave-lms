@@ -15,7 +15,6 @@
     '.dh{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;padding:1.1rem 1.3rem;background:var(--head);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}',
     '.dh h1{font-size:1.6rem;letter-spacing:-.015em;color:var(--num)}',
     '.dh p{color:var(--muted);font-size:.88rem;margin:.2rem 0 0}',
-    '.dh .dq{color:var(--ink);font-size:1rem;font-weight:600}',
     '.df{display:flex;flex-wrap:wrap;gap:.6rem .9rem}',
     '.df label{display:grid;gap:.2rem;font-size:.78rem;font-weight:600;color:var(--muted)}',
     '.dcards{display:grid;grid-template-columns:var(--cols,1fr);gap:.8rem;margin-bottom:.8rem}',

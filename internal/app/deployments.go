@@ -280,7 +280,6 @@ type adminDeployment struct {
 	deployment
 	ID        int64
 	Dashboard string
-	Template  string
 	Learner   string
 	Email     string
 }
@@ -306,8 +305,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	if msgKey != "" {
 		msg = text.T(lang, msgKey)
 	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''),
-		CASE WHEN EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id) THEN '' ELSE COALESCE(d.template, '') END, l.name, l.email,
+	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), l.name, l.email,
 		`+deploymentColumns+`
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id
@@ -322,12 +320,9 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	for rows.Next() {
 		var dep adminDeployment
 		var err error
-		if dep.deployment, err = a.scanDeployment(rows, &dep.ID, &dep.Dashboard, &dep.Template, &dep.Learner, &dep.Email); err != nil {
+		if dep.deployment, err = a.scanDeployment(rows, &dep.ID, &dep.Dashboard, &dep.Learner, &dep.Email); err != nil {
 			a.serverError(w, r, err)
 			return
-		}
-		if dep.Template != "" {
-			dep.Template = templateName(lang, dep.Template)
 		}
 		p.Deployments = append(p.Deployments, dep)
 	}

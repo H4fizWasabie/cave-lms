@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -74,13 +75,6 @@ func TestBuildFromExcelPreviewsTheCleanUpAndOpensThePreviewOnConfirm(t *testing.
 	expectStatus(t, res, body, http.StatusOK, `<option value="corporate" selected>Corporate Executive</option>`)
 	if n := strings.Count(body, "<option value="); n != 5 {
 		t.Fatalf("the Theme select offers %d Themes, want 5:\n%s", n, body)
-	}
-	var template string
-	if err := ada.db.QueryRow(`SELECT template FROM dashboards WHERE id = $1`, idOf(path)).Scan(&template); err != nil {
-		t.Fatal(err)
-	}
-	if template != "general" {
-		t.Fatalf("a built Dashboard's Template is %q, want general", template)
 	}
 	if theme, blocks := ada.drawn(path + "/view/"); theme != "corporate" || len(blocks) == 0 {
 		t.Fatalf("the built Dashboard draws theme %q, blocks %q", theme, blocks)
@@ -184,3 +178,41 @@ func TestABuiltDashboardsLivePageFollowsItsThemeAndItsNewData(t *testing.T) {
 }
 
 func idOf(path string) string { return path[strings.LastIndex(path, "/")+1:] }
+
+// A Dashboard built on Finance before the Templates went (ADR 0019) keeps the blocks it was given, its locked
+// Balance card included, on its Preview and its Deployment, and a new Dataset with the same columns keeps them too.
+func TestADashboardBuiltOnAnotherTemplateKeepsDrawingItsBlocks(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.readyDashboard("Kewangan")
+	finance := `{"blocks": [
+		{"kind": "card", "label": "Balance", "icon": "money", "value": {"agg": "sum", "col": "Jumlah"}, "locked": true, "where": ["Jenis", "Masuk"], "minus": ["Jenis", "Keluar"]},
+		{"kind": "bar", "label": "Spending by category", "value": {"agg": "sum", "col": "Jumlah"}, "group": "Kategori", "top": 8, "filter": {"col": "Jenis", "vals": ["Keluar"]}}],
+		"filterBar": ["Kategori", "Jenis", "Tarikh"], "money": ["Jumlah"]}`
+	if _, err := ada.db.Exec(`UPDATE dashboards SET config = $2 WHERE id = $1`, idOf(path), finance); err != nil {
+		t.Fatal(err)
+	}
+	link := ada.deploy(path)
+	visitor := ada.second()
+	visitor.client.Jar = nil
+	want := []string{"card: Balance", "bar: Spending by category"}
+	for _, page := range []struct {
+		who *site
+		at  string
+	}{{ada, path + "/view/"}, {visitor, link}} {
+		if _, blocks := page.who.drawn(page.at); !slices.Equal(blocks, want) {
+			t.Fatalf("%s draws %q, want %q", page.at, blocks, want)
+		}
+	}
+	_, index := ada.get(path + "/view/")
+	expectAll(t, index, `"minus": [`, `"money": true`)
+
+	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
+	if _, blocks := visitor.drawn(link); !slices.Equal(blocks, want) {
+		t.Fatalf("after a new Dataset the Deployment draws %q, want %q", blocks, want)
+	}
+	if rows := visitor.rowsOf(link); !strings.Contains(rows, "Gula") {
+		t.Fatalf("after a new Dataset the Deployment reads\n%s", rows)
+	}
+}

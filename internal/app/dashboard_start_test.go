@@ -5,9 +5,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 func TestANewDashboardOffersNoTemplateOrKindAndAPastedOneIsItsPage(t *testing.T) {
@@ -37,7 +34,7 @@ func TestANewDashboardOffersNoTemplateOrKindAndAPastedOneIsItsPage(t *testing.T)
 // General rules whatever its confirm names (ADR 0019).
 func TestABuiltDashboardIsOfferedNoTemplateAndBuildsByTheGeneralRules(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("general", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
@@ -52,25 +49,6 @@ func TestABuiltDashboardIsOfferedNoTemplateAndBuildsByTheGeneralRules(t *testing
 	ada.confirmWork(path, url.Values{"template": {"finance"}, "date": {"Tarikh"}, "amount": {"Jumlah"}, "type": {"Jenis"}})
 	if _, index := ada.get(path + "/view/"); strings.Contains(index, `"label": "Money in"`) {
 		t.Fatalf("confirming with Finance named opened Finance:\n%s", index)
-	}
-}
-
-func TestConfirmingATemplateOnDataWithoutItsAmountLeavesOutTheBlocksThatNeedIt(t *testing.T) {
-	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	noAmount := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori"}, []any{day, "Beras", "Dapur"}, []any{day, "Gula", "Dapur"})
-	for tpl, count := range map[string]string{"finance": "Transactions", "sales": "Sales"} {
-		t.Run(tpl, func(t *testing.T) {
-			_, ada := labLearner(t)
-			path := ada.createWork(tpl, "Kedai")
-			res, body := ada.postFile(path+"/dataset", "senarai.xlsx", noAmount)
-			expectStatus(t, res, body, http.StatusSeeOther, "")
-			res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {tpl}, "date": {"Tarikh"}, "category": {"Kategori"}})
-			expectStatus(t, res, body, http.StatusSeeOther, "")
-			_, index := ada.get(path + "/view/")
-			if !strings.Contains(index, `"label": "`+count+`"`) || strings.Contains(index, `"agg": "sum"`) {
-				t.Fatalf("%s on data with no Amount:\n%s", tpl, index)
-			}
-		})
 	}
 }
 

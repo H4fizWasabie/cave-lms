@@ -14,7 +14,7 @@ const waitedLine = "for its turn to be read"
 
 func TestWithFourCleanUpsRunningAFifthUploadWaitsThenFinishes(t *testing.T) {
 	admin, ada := labLearner(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	ada.application.SetCleanUpWaitLog(100 * time.Millisecond)
 
 	release := ada.application.HoldCleanUps(4)
@@ -50,7 +50,7 @@ func TestWithFourCleanUpsRunningAFifthUploadWaitsThenFinishes(t *testing.T) {
 
 func TestTheUploadFormShowsTheFileIsBeingRead(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "")
 	expectInOrder(t, body, `action="`+path+`/dataset" enctype="multipart/form-data" data-busy`, "cave-loader", "Reading your file")

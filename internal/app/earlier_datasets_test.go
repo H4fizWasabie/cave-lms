@@ -47,7 +47,7 @@ func (s *site) earlierOn(screen, path string) map[string]string {
 
 func TestAFifthConfirmDropsTheOldestEarlierDataset(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	for i, item := range []string{"Beras", "Gula", "Garam", "Minyak", "Tepung"} {
 		ada.confirmFile(path, fmt.Sprintf("%d.xlsx", i+1), shopReport(t, item, 10))
 	}
@@ -73,7 +73,7 @@ func (s *site) blocksOf(page string) string {
 
 func TestRestoreSwapsTheCurrentAndAnEarlierDatasetAndKeepsTheBlocks(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
 	link := ada.deploy(path)
 	viewer := ada.second()
@@ -120,9 +120,9 @@ func workSized(t *testing.T, seed int64, kb int) []byte {
 
 func TestAnUploadOverTheAllowanceDropsThisDashboardsOldestEarlierDatasets(t *testing.T) {
 	_, ada, _ := storageSite(t, "1") // 1024 KB
-	other := ada.createWork("finance", "Lain")
+	other := ada.createWork("Lain")
 	ada.confirmFile(other, "lain.xlsx", workSized(t, 1, 400))
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "1.xlsx", workSized(t, 2, 150))
 	ada.confirmFile(path, "2.xlsx", workSized(t, 3, 150)) // 700 KB used
 
@@ -155,10 +155,10 @@ func TestAnUploadOverTheAllowanceDropsThisDashboardsOldestEarlierDatasets(t *tes
 
 func TestEarlierDatasetsGoNinetyDaysAfterTheLastPeriodButTheAdminsStay(t *testing.T) {
 	admin, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
 	ada.confirmFile(path, "oktober.xlsx", shopReport(t, "Gula", 80))
-	demo := admin.createWork("finance", "Demo")
+	demo := admin.createWork("Demo")
 	for i := range 5 {
 		admin.confirmFile(demo, fmt.Sprintf("%d.xlsx", i+1), shopReport(t, "Beras", 10))
 	}
@@ -196,7 +196,7 @@ func (s *site) storedKB() string {
 
 func TestDeletingAnEarlierDatasetFreesItsStorage(t *testing.T) {
 	_, ada, _ := storageSite(t, "1024")
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
 	ada.confirmFile(path, "oktober.xlsx", shopReport(t, "Gula", 80))
 	res, body := ada.get("/lab")

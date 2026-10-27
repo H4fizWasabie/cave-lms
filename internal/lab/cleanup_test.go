@@ -18,9 +18,9 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func clean(t *testing.T, file []byte, tpl *lab.Template) *lab.CleanUp {
+func clean(t *testing.T, file []byte) *lab.CleanUp {
 	t.Helper()
-	res, err := lab.Clean(bytes.NewReader(file), tpl, lab.Settings{})
+	res, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
 	if err != nil {
 		t.Fatalf("Clean: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestCleanUpFindsTheHeaderBelowTitleRowsAndListsTheSkip(t *testing.T) {
 		[]any{day, "Sewa", "RM1,200.00"},
 		[]any{day, "Gaji", 300},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	if res.HeaderRow != 4 {
 		t.Fatalf("header row = %d, want 4", res.HeaderRow)
@@ -63,22 +63,18 @@ func TestCleanUpFindsTheHeaderBelowTitleRowsAndListsTheSkip(t *testing.T) {
 	if got, want := changesIn(res, "ms"), []string{"Baris 1 hingga 3 di atas tajuk lajur di baris 4 dilangkau."}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("changes = %q, want %q", got, want)
 	}
-	wantGuess := lab.Choices{"date": "Tarikh", "amount": "Jumlah", "description": "Perkara"}
-	if !reflect.DeepEqual(res.Guess, wantGuess) {
-		t.Fatalf("guess = %v, want %v", res.Guess, wantGuess)
-	}
 	if len(res.Sheets) != 1 || res.Sheets[0].Rows != 2 || !reflect.DeepEqual(res.Used, []string{res.Sheets[0].Name}) {
 		t.Fatalf("sheets = %+v, used %v", res.Sheets, res.Used)
 	}
 }
 
 func TestCleanUpOfATidySheetChangesNothing(t *testing.T) {
-	res := clean(t, finance(t).Sample, finance(t))
+	res := clean(t, testdata(t, "finance.xlsx"))
 	if res.HeaderRow != 1 || len(res.Changes) != 0 {
 		t.Fatalf("header row %d, changes %v; want 1 and none", res.HeaderRow, changesIn(res, "en"))
 	}
 	if len(res.Dataset.Rows) != 65 {
-		t.Fatalf("%d rows, want the Sample's 65", len(res.Dataset.Rows))
+		t.Fatalf("%d rows, want the workbook's 65", len(res.Dataset.Rows))
 	}
 }
 
@@ -90,7 +86,7 @@ func TestCleanUpKeepsADashOrBlankInANumberColumnEmpty(t *testing.T) {
 		[]any{"Garam", ""},
 		[]any{"Beras", " - "},
 	)
-	res := clean(t, file, template(t, "inventory"))
+	res := clean(t, file)
 
 	if got := res.Dataset.Columns[1].Type; got != lab.Number {
 		t.Fatalf("Baki is %s, want number", got)
@@ -113,7 +109,7 @@ func TestCleanUpReadsDateTimesISOAndShortDatesAsDates(t *testing.T) {
 		[]any{"07.11.26", 10},
 		[]any{"08/11/2026", 10},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	if got := res.Dataset.Columns[0].Type; got != lab.Date {
 		t.Fatalf("dates read as %s", got)
@@ -139,7 +135,7 @@ func TestCleanUpDropsTotalAndLabelRowsAtTheBottomOnly(t *testing.T) {
 		[]any{"JUMLAH", 1300},
 		[]any{"Disediakan oleh: Ali"},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	want := [][]any{{"Sewa", 1000.0}, {"Total", 1000.0}, {"Gaji", 300.0}}
 	if !reflect.DeepEqual(res.Dataset.Rows, want) {
@@ -161,7 +157,7 @@ func TestCleanUpStopsAtTheFirstBlankRowAndColumn(t *testing.T) {
 		[]any{"Kod", "Kiraan"},
 		[]any{"S", 1},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	wantCols := []lab.Column{{"Perkara", lab.Text}, {"Jumlah", lab.Number}}
 	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) {
@@ -184,7 +180,7 @@ func TestCleanUpDropsColumnsWithNoData(t *testing.T) {
 		[]any{"Sewa", nil, 1000},
 		[]any{"Gaji", nil, 300},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	wantCols := []lab.Column{{"Perkara", lab.Text}, {"Jumlah", lab.Number}}
 	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) {
@@ -206,7 +202,7 @@ func TestCleanUpFillsMergedDataCellsDown(t *testing.T) {
 		[]any{"Makanan", "Roti", 3},
 		[]any{nil, "Kek", 9},
 	)
-	res := clean(t, testutil.Merge(t, file, "A2:A4", "A5:A6"), finance(t))
+	res := clean(t, testutil.Merge(t, file, "A2:A4", "A5:A6"))
 
 	want := [][]any{
 		{"Minuman", "Kopi", 5.0}, {"Minuman", "Teh", 4.0}, {"Minuman", "Susu", 6.0},
@@ -226,7 +222,7 @@ func TestTheLearnerCanNameTheHeaderRow(t *testing.T) {
 		[]any{"Perkara", "Kategori", "Jumlah"},
 		[]any{"Sewa", "Kedai", 1000},
 	)
-	res, err := lab.Clean(bytes.NewReader(file), finance(t), lab.Settings{HeaderRow: 3})
+	res, err := lab.Clean(bytes.NewReader(file), lab.Settings{HeaderRow: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +245,7 @@ func TestATwoRowHeaderJoinsItsRowsIntoOneNamePerColumn(t *testing.T) {
 		[]any{day, 60, 0, "Siti"},
 	)
 	file = testutil.Merge(t, file, "A2:A3", "B2:C2", "D2:D3")
-	res, err := lab.Clean(bytes.NewReader(file), finance(t), lab.Settings{TwoRowHeader: true})
+	res, err := lab.Clean(bytes.NewReader(file), lab.Settings{TwoRowHeader: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +271,7 @@ func TestATwoRowHeaderKeepsASparseMergedTopRow(t *testing.T) {
 		[]any{day, 120, 80, 10, 500, 300, 20},
 	)
 	file = testutil.Merge(t, file, "B2:D2", "E2:G2")
-	res, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{TwoRowHeader: true})
+	res, err := lab.Clean(bytes.NewReader(file), lab.Settings{TwoRowHeader: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,49 +285,8 @@ func TestATwoRowHeaderKeepsASparseMergedTopRow(t *testing.T) {
 	}
 }
 
-func TestWorkGuessingMatchesNamesLooselyAndNeverByTypeAlone(t *testing.T) {
-	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	file := testutil.XLSX(t, []string{"No. Resit", "Created Date & Time", "Total Amount (RM)", "Bilangan"},
-		[]any{"R001", day, 12.5, 2},
-	)
-	if got, want := clean(t, file, finance(t)).Guess, (lab.Choices{"date": "Created Date & Time", "amount": "Total Amount (RM)"}); !reflect.DeepEqual(got, want) {
-		t.Fatalf("guess = %v, want %v", got, want)
-	}
-
-	file = testutil.XLSX(t, []string{"Bila", "Siapa", "Berapa"}, []any{day, "Ali", 12.5})
-	if got := clean(t, file, finance(t)).Guess; len(got) != 0 {
-		t.Fatalf("guess = %v, want nothing: no name matches", got)
-	}
-}
-
-func TestInventoryGuessesTheClosingBalanceForQuantity(t *testing.T) {
-	file := testutil.XLSX(t, []string{"Nama Barang", "Purchase Quantity", "Opening Balance", "Stock Movement", "Closing Balance"},
-		[]any{"Gula", 10, 5, -3, 12},
-	)
-	got := clean(t, file, template(t, "inventory")).Guess
-	if want := (lab.Choices{"item": "Nama Barang", "quantity": "Closing Balance"}); !reflect.DeepEqual(got, want) {
-		t.Fatalf("guess = %v, want %v", got, want)
-	}
-
-	// With no closing or actual column, an opening, purchase or movement column is never stock on hand.
-	for _, c := range []struct {
-		header []string
-		want   string
-	}{
-		{[]string{"Nama Barang", "Opening Balance", "Purchase Qty", "Stock Movement"}, ""},
-		{[]string{"Nama Barang", "Baki Awal", "Belian"}, ""},
-		{[]string{"Nama Barang", "Baki Awal", "Baki"}, "Baki"},
-		{[]string{"Nama Barang", "Opening Stock", "Stock Balance"}, "Stock Balance"},
-	} {
-		got := clean(t, testutil.XLSX(t, c.header, []any{"Gula", 5, 3, 1}[:len(c.header)]), template(t, "inventory")).Guess["quantity"]
-		if got != c.want {
-			t.Errorf("%v: quantity = %q, want %q", c.header, got, c.want)
-		}
-	}
-}
-
 func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
-	_, err := lab.Clean(strings.NewReader("Tarikh,Jumlah\n05/11/2026,RM5\n"), finance(t), lab.Settings{})
+	_, err := lab.Clean(strings.NewReader("Tarikh,Jumlah\n05/11/2026,RM5\n"), lab.Settings{})
 	var p lab.Problem
 	if !errors.As(err, &p) || !strings.Contains(p.In("en"), "CSV") {
 		t.Fatalf("err = %v, want one Problem naming CSV", err)
@@ -341,7 +296,7 @@ func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 // An old Excel file renamed .xlsx is told to save it as .xlsx, not that it is no workbook.
 func TestCleanUpOfAnOldXLSFileSaysSaveItAsXLSX(t *testing.T) {
 	ole := append([]byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}, make([]byte, 504)...)
-	_, err := lab.Clean(bytes.NewReader(ole), finance(t), lab.Settings{})
+	_, err := lab.Clean(bytes.NewReader(ole), lab.Settings{})
 	var p lab.Problem
 	if !errors.As(err, &p) || p.Key != "lab.err.xls" {
 		t.Fatalf("err = %v, want lab.err.xls", err)
@@ -379,7 +334,7 @@ func TestCleanUpSaysWhyAFileCannotBeReadAndWhere(t *testing.T) {
 			"The days-across grid with its days in row 2 has no codes in the month's days. Fill in the codes and upload again.",
 			"Grid hari merentas lajur dengan harinya di baris 2 tiada kod pada hari-hari bulan itu. Isi kod tersebut dan muat naik semula."},
 	} {
-		_, err := lab.Clean(bytes.NewReader(c.file), lab.General, lab.Settings{})
+		_, err := lab.Clean(bytes.NewReader(c.file), lab.Settings{})
 		var p lab.Problem
 		if !errors.As(err, &p) {
 			t.Fatalf("err = %v, want a Problem", err)
@@ -432,17 +387,6 @@ func TestCleanUpSaysATotalRowWasDroppedFromEachCombinedSheet(t *testing.T) {
 	}
 }
 
-func TestInventoryGuessesAStockAlertColumnForTheReorderLevel(t *testing.T) {
-	file := testutil.XLSX(t, []string{"Item", "Stock", "Stock Alert Count"}, []any{"Gula", 10, 3})
-	if got := clean(t, file, template(t, "inventory")).Guess; got["reorder"] != "Stock Alert Count" || got["quantity"] != "Stock" {
-		t.Fatalf("guess = %v, want Stock Alert Count for the reorder level", got)
-	}
-	file = testutil.XLSX(t, []string{"Item", "Stock Alert Count"}, []any{"Gula", 3})
-	if got := clean(t, file, template(t, "inventory")).Guess; got["quantity"] != "" {
-		t.Fatalf("guess = %v, want no stock on hand from an alert level", got)
-	}
-}
-
 func sheet(name string, rows ...[]any) testutil.Sheet { return testutil.Sheet{Name: name, Rows: rows} }
 
 // sales is a sales sheet with n rows under the columns Perkara and Jumlah.
@@ -476,7 +420,7 @@ func TestCleanUpListsEverySheetAndPicksAFlatListOverAGroupedNotesSheet(t *testin
 		sheet("Kosong"),
 		sales("Jualan", 2),
 	)
-	res := clean(t, file, lab.General)
+	res := clean(t, file)
 	want := []string{
 		"Nota 3: Its columns differ from the picked sheet's.",
 		"Kosong 0: Cave found no table with column names and rows below them.",
@@ -492,7 +436,7 @@ func TestCleanUpListsEverySheetAndPicksAFlatListOverAGroupedNotesSheet(t *testin
 
 func cleanWith(t *testing.T, file []byte, s lab.Settings) *lab.CleanUp {
 	t.Helper()
-	res, err := lab.Clean(bytes.NewReader(file), lab.General, s)
+	res, err := lab.Clean(bytes.NewReader(file), s)
 	if err != nil {
 		t.Fatalf("Clean: %v", err)
 	}
@@ -590,7 +534,7 @@ func TestAHeaderRowChangeAppliesToEveryTickedSheet(t *testing.T) {
 
 func cleanProblem(t *testing.T, file []byte) string {
 	t.Helper()
-	_, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{})
+	_, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
 	var p lab.Problem
 	if !errors.As(err, &p) {
 		t.Fatalf("err = %v, want a Problem", err)
@@ -631,24 +575,6 @@ func TestCleanUpRefusesMoreThan50000CombinedRowsAnd100Columns(t *testing.T) {
 	}
 }
 
-func TestCleanUpOffersOnlyTheTemplatesWhoseRequiredColumnsItFoundByName(t *testing.T) {
-	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jumlah"}, []any{day, "Beras", "Dapur", 12.5})
-	res := clean(t, file, lab.General)
-	if got, want := res.Offers, (map[string]lab.Choices{
-		"finance": {"date": "Tarikh", "amount": "Jumlah", "category": "Kategori", "description": "Perkara"},
-		"sales":   {"date": "Tarikh", "amount": "Jumlah", "category": "Kategori"},
-	}); !reflect.DeepEqual(got, want) {
-		t.Fatalf("offers = %v, want %v", got, want)
-	}
-
-	// Without a name to go by, no Template is offered: a date and a number alone do not make Finance.
-	file = testutil.XLSX(t, []string{"Bila", "Siapa", "Berapa"}, []any{day, "Ali", 12.5})
-	if got := clean(t, file, lab.General).Offers; len(got) != 0 {
-		t.Fatalf("offers = %v, want none", got)
-	}
-}
-
 // A column counts as numbers when at least 90% of its filled cells are; the others are left empty and counted,
 // one change per column.
 func TestCleanUpReadsAMostlyNumberColumnAsNumbersLeavingTheOthersEmpty(t *testing.T) {
@@ -657,7 +583,7 @@ func TestCleanUpReadsAMostlyNumberColumnAsNumbersLeavingTheOthersEmpty(t *testin
 		rows = append(rows, []any{"Gaji", 100 + i, 5})
 	}
 	file := testutil.XLSX(t, []string{"Perkara", "Amount", "Kos"}, rows...)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	if got := res.Dataset.Columns[1].Type; got != lab.Number {
 		t.Fatalf("Amount is %s, want number", got)
@@ -680,7 +606,7 @@ func TestCleanUpKeepsAColumnHalfNumbersHalfTextAsText(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Perkara", "Kod"},
 		[]any{"Sewa", 101}, []any{"Gaji", "A12"}, []any{"Air", 102}, []any{"Api", "B7"},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	if got := res.Dataset.Columns[1].Type; got != lab.Text {
 		t.Fatalf("Kod is %s, want text", got)
@@ -697,7 +623,7 @@ func TestCleanUpReadsAMostlyDateColumnAsDates(t *testing.T) {
 		rows = append(rows, []any{day, 1})
 	}
 	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, rows...)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	if got := res.Dataset.Columns[0].Type; got != lab.Date {
 		t.Fatalf("Tarikh is %s, want date", got)
@@ -720,7 +646,7 @@ func TestCleanUpReadsExcelDateSerialsInADateNamedColumnAsDates(t *testing.T) {
 		[]any{46300, 3, 46300}, // 46300 is 5 October 2026
 		[]any{46301, 4, 46301},
 	)
-	res := clean(t, file, finance(t))
+	res := clean(t, file)
 
 	want := []lab.Column{{"Created Date", lab.Date}, {"Hari", lab.Number}, {"Jumlah", lab.Number}}
 	if !reflect.DeepEqual(res.Dataset.Columns, want) {
@@ -770,7 +696,7 @@ const groupedRows = `<row r="1"><c r="A1" t="inlineStr"><is><t>Kategori</t></is>
 
 func TestCleanUpFillsMergedCellsDownOnASheetKeptOutsideTheWorksheetsFolder(t *testing.T) {
 	file := handMade(t, "xl/elsewhere/data.xml", groupedRows, `<mergeCells count="1"><mergeCell ref="A2:A3"/></mergeCells>`)
-	res := clean(t, file, lab.General)
+	res := clean(t, file)
 	if want := [][]any{{"Minuman", 5.0}, {"Minuman", 4.0}}; !reflect.DeepEqual(res.Dataset.Rows, want) {
 		t.Fatalf("rows = %v, want %v", res.Dataset.Rows, want)
 	}
@@ -784,7 +710,7 @@ func TestAWorkbookOfOver10000MergedRangesIsRefusedQuickly(t *testing.T) {
 		}
 		file := handMade(t, "xl/elsewhere/data.xml", groupedRows, `<mergeCells count="10001">`+merges.String()+`</mergeCells>`)
 		start := time.Now()
-		_, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{})
+		_, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
 		if took := time.Since(start); took > time.Second {
 			t.Errorf("%s: Clean took %v", form, took)
 		}
@@ -806,7 +732,7 @@ func TestCleanUpReadsASheetWithACellFarOutOnEachRowCheaply(t *testing.T) {
 	}
 	file := handMade(t, "xl/worksheets/sheet1.xml", rows.String(), "")
 	var err error
-	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{}) }); n > 160<<20 {
+	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(file), lab.Settings{}) }); n > 160<<20 {
 		t.Errorf("Clean allocated %d MB for a %d-byte file", n>>20, len(file))
 	}
 	if err != nil {
@@ -830,7 +756,7 @@ func TestASheetPaddedPast5MillionCellsByAWideHeaderIsRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	var err error
-	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(b.Bytes()), lab.General, lab.Settings{}) }); n > 160<<20 {
+	if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(b.Bytes()), lab.Settings{}) }); n > 160<<20 {
 		t.Errorf("Clean allocated %d MB", n>>20)
 	}
 	var p lab.Problem
@@ -868,7 +794,7 @@ func TestCleanUpOfAnUnreadableSheetDoesNotFormatItsCellText(t *testing.T) {
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
 	start := time.Now()
-	_, err = lab.Clean(bytes.NewReader(b.Bytes()), lab.General, lab.Settings{})
+	_, err = lab.Clean(bytes.NewReader(b.Bytes()), lab.Settings{})
 	took := time.Since(start)
 	runtime.ReadMemStats(&after)
 	var p lab.Problem

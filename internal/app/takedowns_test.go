@@ -17,7 +17,7 @@ func TestAdminSeesEveryDeploymentAwakeOnesFirst(t *testing.T) {
 	awake := admin.deploy(admin.readyDashboard("Kewangan Baru"))
 
 	res, body := admin.get("/admin/deployments")
-	for _, want := range []string{"Ada", "ada@example.com", "Finance", "Kewangan Baru", "Awake", "Asleep: the Learner has no active Plan",
+	for _, want := range []string{"Ada", "ada@example.com", "Kewangan Baru", "Awake", "Asleep: the Learner has no active Plan",
 		"<code>kewangan-lama</code>", `href="` + asleep + `"`, `href="` + awake + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}

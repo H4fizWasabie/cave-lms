@@ -47,11 +47,9 @@ func sizeText(b int64) string {
 // its current Dataset.
 type dashboard struct {
 	ID       int64
-	Template *lab.Template
 	Name     string
 	Theme    string       // the key of the Theme it draws in
-	Choices  lab.Choices  // the column filling each of its Template's blanks, for Reset
-	Config   *lab.Config  // its blocks and filter bar; nil until its first confirm
+	Config   *lab.Config  // a built Dashboard's blocks and filter bar; nil until its first confirm, and for a page one
 	Settings lab.Settings // what it remembers for its next upload
 	Dataset  *lab.Dataset
 	Key      string    // where the Dataset is in the Dataset store; empty until the first confirm
@@ -113,14 +111,6 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 	return list, nil
 }
 
-// templateName is the name of the Template with key in lang, or key itself for one Cave no longer has.
-func templateName(lang, key string) string {
-	if lab.TemplateByKey(key) != nil {
-		return text.T(lang, "lab.tpl."+key+".name")
-	}
-	return key
-}
-
 // ownDashboard loads the Dashboard in the URL if it belongs to the logged-in Learner; nil otherwise.
 func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 	learner, err := a.currentLearner(r)
@@ -138,19 +128,18 @@ func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 // Its Dataset stays in the store until readDataset.
 func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*dashboard, error) {
 	var d dashboard
-	var key string
-	var choices, config, settings []byte
+	var config, settings []byte
 	var updated time.Time
 	var pageKey sql.NullString
 	var pageSize sql.NullInt64
 	var pageUploaded sql.NullTime
-	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.template, d.name, d.theme, d.choices, d.config, d.upload_settings,
+	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.name, d.theme, d.config, d.upload_settings,
 			COALESCE(ds.storage_key, ''), COALESCE(ds.file_name, ''), COALESCE(ds.saved_size, 0), d.updated_at,
 			pg.storage_key, pg.size, pg.uploaded_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
 		LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'
 		LEFT JOIN dashboard_pages pg ON pg.dashboard_id = d.id AND pg.current`, args...).
-		Scan(&d.ID, &key, &d.Name, &d.Theme, &choices, &config, &settings, &d.Key, &d.File, &d.Size, &updated,
+		Scan(&d.ID, &d.Name, &d.Theme, &config, &settings, &d.Key, &d.File, &d.Size, &updated,
 			&pageKey, &pageSize, &pageUploaded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -158,14 +147,11 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	if err != nil {
 		return nil, err
 	}
-	if d.Template = lab.TemplateByKey(key); d.Template == nil {
-		return nil, fmt.Errorf("dashboard %d has unknown template %q", d.ID, key)
-	}
 	d.Updated = updated.UTC().Format(periodTime)
 	if pageKey.Valid {
 		d.Page = &htmlPage{Key: pageKey.String, Size: pageSize.Int64, Uploaded: pageUploaded.Time.UTC().Format(periodTime)}
 	}
-	if err := errors.Join(json.Unmarshal(choices, &d.Choices), json.Unmarshal(settings, &d.Settings)); err != nil {
+	if err := json.Unmarshal(settings, &d.Settings); err != nil {
 		return nil, err
 	}
 	if config != nil {
@@ -319,7 +305,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(msg)
 		return
 	}
-	res, err := a.clean(r, file, lab.General, lab.Settings{})
+	res, err := a.clean(r, file, lab.Settings{})
 	var unread lab.Problem
 	if errors.As(err, &unread) {
 		refuse(text.T(lang, "lab.d.not-read", upload) + ". " + unread.In(lang))
@@ -335,8 +321,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := &dashboard{}
-	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', $2, $3)
-		RETURNING id`, learner.ID, lab.General.Key, p.Name).Scan(&d.ID); err != nil {
+	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, name) VALUES ($1, 'work', $2) RETURNING id`, learner.ID, p.Name).Scan(&d.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -448,75 +433,25 @@ type dashboardPage struct {
 	Problem   string          // why an upload could not be read
 	Upload    string          // the refused file's name
 	Failed    bool            // the store refused the upload's Dataset
-	Blanks    []blankChoice   // before the first confirm: the picked Template's blanks
 	Pending   *pendingDataset // an upload waiting for its confirm
 	Drops     []keptDataset   // the earlier Datasets confirming Pending deletes
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
-	Offers    []string        // before the first confirm: the keys of General and the Templates the pending Dataset fits
-	Picked    *lab.Template   // before the first confirm: the one of Offers the preview opens
-	Building  []string        // the labels of the blocks Picked opens to
 	Earlier   []keptDataset   // the earlier Datasets, newest first
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
 	New       string          // and its columns the current Dataset lacks
 	Pages     []htmlPage      // the earlier pages, newest first
 	Phone     bool            // preview at phone width
-	ReadOnly  bool            // no Lab access: view and download only
-	Themes    []lab.Theme // Preview tab: the Themes to pick from
+	ReadOnly  bool            // never set: every Lab screen needs the Lab (labScreen); the Page tab still reads it
+	Themes    []lab.Theme     // Preview tab: the Themes to pick from
 
-	Access labAccess // the caller looks it up; read-only follows from it
+	Access labAccess // the caller looks it up
 
 	// Deploy tab
 	Deployment *deployment // nil until deployed
 	Confirm    bool        // the confirm step
 	DeployName string      // the name typed on the confirm step
 	Prefix     string      // a Deployment's link up to its name
-}
-
-// blankChoice is one blank of the first confirm's picked Template: the columns that may fill it and Cave's guess.
-type blankChoice struct {
-	lab.Blank
-	Options []string
-	Chosen  string
-}
-
-// blankChoices is each of the Template's blanks with the Dataset's columns that may fill it.
-func blankChoices(t *lab.Template, d *lab.Dataset, chosen lab.Choices) []blankChoice {
-	var out []blankChoice
-	for _, b := range t.Blanks {
-		bc := blankChoice{Blank: b, Chosen: chosen[b.Key]}
-		for _, c := range d.Columns {
-			if c.Type == b.Type {
-				bc.Options = append(bc.Options, c.Name)
-			}
-		}
-		out = append(out, bc)
-	}
-	return out
-}
-
-// pickOffer fills the first confirm's preview: General, the Dashboard's own Template and the Templates Clean-up
-// offered, with the one keyed want picked, else the Dashboard's own; then the picked one's blanks and blocks.
-func (p *dashboardPage) pickOffer(d *dashboard, want string) {
-	pd := p.Pending
-	p.Offers = []string{lab.General.Key}
-	for _, t := range lab.Templates {
-		if _, ok := pd.Offers[t.Key]; (ok || t == d.Template) && t != lab.General {
-			p.Offers = append(p.Offers, t.Key)
-		}
-	}
-	p.Picked = d.Template
-	if slices.Contains(p.Offers, want) {
-		p.Picked = lab.TemplateByKey(want)
-	}
-	guess := pd.Offers[p.Picked.Key]
-	if p.Picked == d.Template {
-		guess = pd.Guess
-	}
-	p.Blanks = blankChoices(p.Picked, pd.Dataset, guess)
-	for _, b := range p.Picked.Open(guess, pd.Dataset).Blocks {
-		p.Building = append(p.Building, b.Label)
-	}
 }
 
 func (a *App) dashboardTab(tab string) http.HandlerFunc {
@@ -536,17 +471,13 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
-	p.Title, p.ReadOnly, p.Themes = d.Name, !p.Access.Open(), lab.Themes
-	if p.Tab == dataTab(d) && p.Pending == nil && !p.ReadOnly {
+	p.Title, p.Themes = d.Name, lab.Themes
+	if p.Tab == dataTab(d) && p.Pending == nil {
 		var err error
 		if p.Pending, err = a.pendingOf(r.Context(), d); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-	}
-	// The first confirm opens the picked Template with these choices; a built Dashboard, on General, is offered none.
-	if p.Pending != nil && d.Config == nil && d.Page == nil && d.Template != lab.General {
-		p.pickOffer(d, r.URL.Query().Get("template"))
 	}
 	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
 		p.Uses = columnUses(d.Config, p.Pending.Dataset)
@@ -569,7 +500,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		p.Gone, p.New = lacking(d.Dataset.Columns, p.Pending.Dataset.Columns), lacking(p.Pending.Dataset.Columns, d.Dataset.Columns)
 	}
-	if p.Tab == dataTab(d) && !p.ReadOnly {
+	if p.Tab == dataTab(d) {
 		var err error
 		if p.Pending != nil {
 			var room storageRoom
@@ -591,7 +522,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			return
 		}
 	}
-	if p.Tab == "page" && !p.ReadOnly { // a page Dashboard's Page screen lists its earlier pages
+	if p.Tab == "page" { // a page Dashboard's Page screen lists its earlier pages
 		var err error
 		if p.Pages, err = a.earlierPages(r.Context(), d.ID); err != nil {
 			a.serverError(w, r, err)
@@ -745,26 +676,25 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 }
 
 // convertPracticeDashboards is a one-off step at startup (ADR 0015): every Practice Dashboard becomes a normal one.
-// Its Template opens with its column choices onto its Dataset as its blocks, and the Dataset, already in the store
-// in the same format, becomes its current one under the same key, so nothing is copied or deleted and its
-// Deployment, drawn from the Dashboard on each visit, keeps its link and data. A converted Dashboard is not
-// Practice, so starting again changes nothing. Its Theme, Template and choices stay.
+// Its blocks are built from its Dataset by the General rules, as its Template went with the others (ADR 0019), and
+// the Dataset, already in the store in the same format, becomes its current one under the same key, so nothing is
+// copied or deleted and its Deployment, drawn from the Dashboard on each visit, keeps its link and data. A converted
+// Dashboard is not Practice, so starting again changes nothing. Its Theme stays.
 // The migration that drops dashboards.kind removes this step.
 func convertPracticeDashboards(ctx context.Context, db *sql.DB, store storage.Store) error {
 	type row struct {
-		id             int64
-		template, file string
-		key            sql.NullString
-		choices        []byte
+		id   int64
+		file string
+		key  sql.NullString
 	}
-	rows, err := db.QueryContext(ctx, `SELECT id, template, choices, dataset_key, dataset_file FROM dashboards WHERE kind = 'practice' ORDER BY id`)
+	rows, err := db.QueryContext(ctx, `SELECT id, dataset_key, dataset_file FROM dashboards WHERE kind = 'practice' ORDER BY id`)
 	if err != nil {
 		return err
 	}
 	var todo []row
 	for rows.Next() {
 		var r row
-		if err := rows.Scan(&r.id, &r.template, &r.choices, &r.key, &r.file); err != nil {
+		if err := rows.Scan(&r.id, &r.key, &r.file); err != nil {
 			rows.Close()
 			return err
 		}
@@ -775,7 +705,7 @@ func convertPracticeDashboards(ctx context.Context, db *sql.DB, store storage.St
 		return err
 	}
 	for _, r := range todo {
-		if err := convertPractice(ctx, db, store, r.id, r.template, r.choices, r.key, r.file); err != nil {
+		if err := convertPractice(ctx, db, store, r.id, r.key, r.file); err != nil {
 			return fmt.Errorf("convert Practice Dashboard %d: %w", r.id, err)
 		}
 	}
@@ -783,7 +713,7 @@ func convertPracticeDashboards(ctx context.Context, db *sql.DB, store storage.St
 }
 
 // convertPractice converts one Practice Dashboard, as convertPracticeDashboards says, in one transaction.
-func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id int64, template string, choices []byte, key sql.NullString, file string) error {
+func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id int64, key sql.NullString, file string) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -795,14 +725,6 @@ func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id in
 		}
 		return tx.Commit()
 	}
-	t := lab.TemplateByKey(template)
-	if t == nil {
-		return fmt.Errorf("unknown template %q", template)
-	}
-	var c lab.Choices
-	if err := json.Unmarshal(choices, &c); err != nil {
-		return err
-	}
 	data, err := store.Get(ctx, key.String)
 	if err != nil {
 		return fmt.Errorf("get Dataset %s: %w", key.String, err)
@@ -811,7 +733,7 @@ func convertPractice(ctx context.Context, db *sql.DB, store storage.Store, id in
 	if err := json.Unmarshal(data, &ds); err != nil {
 		return err
 	}
-	config, err := json.Marshal(t.Open(c, &ds))
+	config, err := json.Marshal(lab.Build(&ds))
 	if err != nil {
 		return err
 	}
@@ -890,7 +812,7 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		_, _ = w.Write(f.data)
 		return
 	}
-	index, err := lab.Page(d.Template, d.Name, d.Theme, d.Config, f.columns, dataPath(d))
+	index, err := lab.Page(d.Name, d.Theme, d.Config, f.columns, dataPath(d))
 	if err != nil {
 		a.serverError(w, r, err)
 		return

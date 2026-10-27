@@ -159,7 +159,7 @@ func TestPagesCountInTheStorageTotalAndAgainstDatasetUploads(t *testing.T) {
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, strings.TrimSuffix(ada.storedKB(), " of 1 GB")+" of 1 MB")
 
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	res, body = ada.postFile(path+"/dataset", "data.xlsx", bigFinance(t, 1))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
 }

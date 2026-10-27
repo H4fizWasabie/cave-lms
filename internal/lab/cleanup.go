@@ -69,8 +69,8 @@ func (c Change) In(lang string) string {
 	return text.T(lang, c.Key, args...)
 }
 
-// CleanUp is what Clean-up made of an upload: the Dataset, every change it made to get there, and Cave's
-// guess for each Template blank. Its JSON leaves out the Dataset, which is kept on its own.
+// CleanUp is what Clean-up made of an upload: the Dataset and every change it made to get there. Its JSON leaves
+// out the Dataset, which is kept on its own.
 type CleanUp struct {
 	Sheets    []Sheet  `json:"sheets"`          // every sheet in the workbook, in order
 	Used      []string `json:"used"`            // the sheets that went into the Dataset, in workbook order
@@ -80,18 +80,15 @@ type CleanUp struct {
 	Dataset   *Dataset `json:"-"`
 	Changes   []Change `json:"changes"`
 	Notes     []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
-	Guess     Choices  `json:"guess"`
-	// Offers are the Templates offered beside General, by key, each with its guesses: those whose required
-	// blanks all found a column by name.
-	Offers map[string]Choices `json:"offers,omitempty"`
 }
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
 // sheet (s.Sheet, else the first flat list with no number for a column name, else the first flat list, else the
 // first readable sheet), combine the sheets with the same columns into one Dataset, type each column from its
-// cells (- left empty, more date forms), guess the Template's blanks by name, and find the Templates to offer. Every step that changes something lists it in Changes. A file it cannot read gives one Problem.
-func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
+// cells (- left empty, more date forms), and note the columns General leaves out of charts. Every step that changes
+// something lists it in Changes. A file it cannot read gives one Problem.
+func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	f, err := openWorkbook(r)
 	if err != nil {
 		return nil, err
@@ -211,21 +208,7 @@ func Clean(r io.Reader, t *Template, s Settings) (*CleanUp, error) {
 	case n > MaxColumns:
 		return nil, onSheet(Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}, base.name)
 	}
-	if t.Build == nil {
-		res.Guess = t.guessWork(d)
-	}
 	res.Notes = notes(d)
-	for _, o := range Templates {
-		if o.Build != nil {
-			continue
-		}
-		if g := o.guessWork(d); !slices.ContainsFunc(o.Blanks, func(b Blank) bool { return b.Required && g[b.Key] == "" }) {
-			if res.Offers == nil {
-				res.Offers = map[string]Choices{}
-			}
-			res.Offers[o.Key] = g
-		}
-	}
 	return res, nil
 }
 

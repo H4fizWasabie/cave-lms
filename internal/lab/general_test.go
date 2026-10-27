@@ -14,7 +14,7 @@ import (
 // general cleans a workbook of header and rows and opens General on it.
 func general(t *testing.T, header []string, rows ...[]any) *lab.Config {
 	t.Helper()
-	return lab.General.Open(nil, clean(t, testutil.XLSX(t, header, rows...), lab.General).Dataset)
+	return lab.Build(clean(t, testutil.XLSX(t, header, rows...)).Dataset)
 }
 
 // kinds counts the Config's blocks of each kind.
@@ -230,12 +230,12 @@ func TestGeneralReadsAYearColumnAsAGroupingNotAnAmount(t *testing.T) {
 	for i := range 12 { // a different year on every row is still a grouping, not an ID
 		rows = append(rows, []any{float64(2014 + i), float64(5 + i)})
 	}
-	res := clean(t, testutil.XLSX(t, []string{"Tahun", "Jumlah"}, rows...), lab.General)
+	res := clean(t, testutil.XLSX(t, []string{"Tahun", "Jumlah"}, rows...))
 	d := res.Dataset
 	if d.Columns[0].Type != lab.Text {
 		t.Fatalf("Tahun is %s, want text so it can be grouped", d.Columns[0].Type)
 	}
-	cfg := lab.General.Open(nil, d)
+	cfg := lab.Build(d)
 	for _, b := range cfg.Blocks {
 		if v := b.Value; v != nil && v.Col == "Tahun" {
 			t.Errorf("%s adds up the years", b.Label)
@@ -267,7 +267,7 @@ func TestTheTableShowsTheDateNewestFirstAnIdentifierAndTheMainColumns(t *testing
 
 func TestCleanUpNotesEachColumnLeftOutOfChartsOrAveragedInBothLanguages(t *testing.T) {
 	h, rows := stockList(30)
-	res := clean(t, testutil.XLSX(t, h, rows...), lab.General)
+	res := clean(t, testutil.XLSX(t, h, rows...))
 	var en, ms []string
 	for _, n := range res.Notes {
 		en, ms = append(en, n.In("en")), append(ms, n.In("ms"))
