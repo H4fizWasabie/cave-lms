@@ -30,14 +30,29 @@ func (s *site) setUpEbooks() string {
 	return s.uploadAs("Workbook", "everyone", pdfFile)
 }
 
-// expectEbookOpens checks l can download the ebook at item.
-func expectEbookOpens(t *testing.T, l *site, item string) {
+// expectEbookOpens checks l gets the ebook at item as the PDF, with the Content-Disposition (disposition) a Learner
+// reading it in the browser (inline) or an Admin or a Promotional ebook's reader downloading it (attachment) gets.
+func expectEbookOpens(t *testing.T, l *site, item, disposition string) {
 	t.Helper()
 	res, body := l.get(item + "/file")
 	expectStatus(t, res, body, http.StatusOK, "")
+	if got := res.Header.Get("Content-Disposition"); !strings.HasPrefix(got, disposition) {
+		t.Errorf("Content-Disposition = %q, want %s", got, disposition)
+	}
+	if disposition == "inline" && res.Header.Get("Cache-Control") != "private, no-store" {
+		t.Errorf("an inline ebook's Cache-Control = %q, want private, no-store", res.Header.Get("Cache-Control"))
+	}
 	if !strings.HasPrefix(body, "%PDF") {
 		t.Fatalf("the ebook file is not the PDF: %.40q", body)
 	}
+}
+
+// expectEbookReader checks the page at path shows the ebook at item in an embedded reader, not as a download.
+func expectEbookReader(t *testing.T, l *site, path, item string) {
+	t.Helper()
+	_, body := l.get(path)
+	expectAll(t, content(body), `<iframe class="ebook-reader" src="`+item+`/file#toolbar=0&navpanes=0"`)
+	expectNone(t, content(body), `href="`+item+`/file"`)
 }
 
 // expectEbookLocked checks l sees the ebook at item listed but locked: its page offers no download, and its file
@@ -63,7 +78,7 @@ func TestAProPlanPaidWithAnEbooksPromoCodeOpensTheEbooks(t *testing.T) {
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	expectEbookLocked(t, ada, ebook)
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00")) // CAVE99
-	expectEbookOpens(t, ada, ebook)
+	expectEbookOpens(t, ada, ebook, "inline")
 }
 
 // Only the Pro Plan bought with the code of a Promo that comes with Ebooks opens them: not the Pro Plan at full price
@@ -99,7 +114,7 @@ func TestVisitorsSeeEbooksLockedButPromotionalOnesOpen(t *testing.T) {
 	res, body := s.upload(fields, pdfFile)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	sampler := res.Header.Get("Location")
-	expectEbookOpens(t, s, ebook)
+	expectEbookOpens(t, s, ebook, "attachment")
 
 	visitor := s.second()
 	visitor.logOut()
@@ -108,7 +123,10 @@ func TestVisitorsSeeEbooksLockedButPromotionalOnesOpen(t *testing.T) {
 	expectAll(t, content(body), `href="/pricing">Get the COMBO Pro Plan`)
 	_, body = visitor.get("/gallery")
 	expectAll(t, content(body), "Workbook")
-	expectEbookOpens(t, visitor, sampler)
+	expectEbookOpens(t, visitor, sampler, "attachment")
+	_, body = visitor.get(sampler)
+	expectAll(t, content(body), `href="`+sampler+`/file"`)
+	expectNone(t, content(body), "<iframe")
 
 	s.endPromo("CAVE99")
 	_, body = visitor.get(ebook)
@@ -136,9 +154,26 @@ func TestALessonShowsItsEbookLockedToACourseMemberWithoutEbookAccess(t *testing.
 	expectEbookLocked(t, ada, ebook)
 
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	expectEbookReader(t, ada, lessonPath, ebook)
 	_, body = ada.get(lessonPath)
-	expectAll(t, content(body), ebook+"/file")
 	expectNone(t, content(body), "Ebooks come with the COMBO Pro Plan")
+	_, body = s.get(lessonPath)
+	expectAll(t, content(body), `href="`+ebook+`/file"`)
+	expectNone(t, content(body), "<iframe")
+}
+
+// A Learner with Ebook access reads a non-promotional ebook in the browser, in a reader on its page, and cannot
+// download it; the Admin downloads it (ADR 0020).
+func TestLearnersReadEbooksInTheBrowserAndAdminsDownloadThem(t *testing.T) {
+	s, ebook := ebookSite(t)
+	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	expectEbookOpens(t, ada, ebook, "inline")
+	expectEbookReader(t, ada, ebook, ebook)
+	expectEbookOpens(t, s, ebook, "attachment")
+	_, body := s.get(ebook)
+	expectAll(t, content(body), `href="`+ebook+`/file"`, "Download the ebook")
+	expectNone(t, content(body), "<iframe")
 }
 
 // Ebook access lasts the year of CaveText Pro that came with it: ending that Pro locks the ebooks again, and Pro
@@ -147,7 +182,7 @@ func TestEndingTheComboYearLocksTheEbooksAgain(t *testing.T) {
 	s, ebook := ebookSite(t)
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
-	expectEbookOpens(t, ada, ebook)
+	expectEbookOpens(t, ada, ebook, "inline")
 	s.endPro("ada@example.com")
 	expectEbookLocked(t, ada, ebook)
 	s.givePro("ada@example.com")
@@ -161,7 +196,7 @@ func TestTheAdminGivesTheComboProPlanByHand(t *testing.T) {
 	res, body := s.post(s.proAction("ada@example.com", "combo"), nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	expectProPlan(t, s, ada, token, "ada@example.com", time.Time{}, nil)
-	expectEbookOpens(t, ada, ebook)
+	expectEbookOpens(t, ada, ebook, "inline")
 }
 
 // Live, BCL's order detail decides, its coupon too. While no live detail has shown whether BCL names the coupon there,
@@ -185,8 +220,8 @@ func TestALiveOrderTakesBCLsCouponCodeOrElseTheWebhooks(t *testing.T) {
 	s.bclPay(paidProPlan("LINK-1", "ada@example.com"))
 	s.bclPay(couponProPlan("LINK-2", "bea@example.com", "249.00", "150.00"))
 	s.bclPay(couponProPlan("LINK-3", "cy@example.com", "249.00", "150.00"))
-	expectEbookOpens(t, ada, ebook)
-	expectEbookOpens(t, bea, ebook)
+	expectEbookOpens(t, ada, ebook, "inline")
+	expectEbookOpens(t, bea, ebook, "inline")
 	expectEbookLocked(t, cy, ebook)
 }
 

@@ -134,7 +134,7 @@ _Malay_: Keterlihatan
 _Avoid_: Permission, access level
 
 **Ebook access**:
-The right to open and download the Gallery's ebooks, beyond the ones that are Promotional material. A Learner gets it by paying for the Pro Plan with the code of a Promo that comes with Ebooks, or from the Admin giving the COMBO Pro Plan by hand, and keeps it for that year of CaveText Pro only. Anyone else sees a locked ebook. Admins always have it.
+The right to read in the browser the Gallery's ebooks (only Admins download them), beyond the ones that are Promotional material. A Learner gets it by paying for the Pro Plan with the code of a Promo that comes with Ebooks, or from the Admin giving the COMBO Pro Plan by hand, and keeps it for that year of CaveText Pro only. Anyone else sees a locked ebook. Admins always have it.
 _Malay_: Akses Ebook
 _Avoid_: Ebook subscription, premium ebooks
 

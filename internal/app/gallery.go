@@ -294,7 +294,15 @@ func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if item.Format == "ebook" {
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="cave-gallery-%d.pdf"`, item.ID))
+		disposition := "attachment"
+		if !item.Promotional && (learner == nil || !learner.IsAdmin) {
+			// A Learner reads a non-promotional ebook in the browser and cannot download it (ADR 0020). The
+			// site's policy has object-src 'none', which keeps Chrome from showing a PDF in the page's frame.
+			disposition = "inline"
+			w.Header().Set("Cache-Control", "private, no-store") // so the browser keeps no copy to save from the cache
+			w.Header().Set("Content-Security-Policy", strings.Replace(sitePolicy, "object-src 'none'", "object-src 'self'", 1))
+		}
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename="cave-gallery-%d.pdf"`, disposition, item.ID))
 	}
 	a.serveStored(w, r, item.storageKey, item.MimeType)
 }
@@ -316,7 +324,9 @@ func (a *App) serveStored(w http.ResponseWriter, r *http.Request, key, contentTy
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	// An item's file never changes, as no code replaces it after upload, so browsers keep it and skip a round trip to the server in France.
 	// Private keeps logged-in-only items out of shared caches; a day bounds how long a deleted item lingers.
-	w.Header().Set("Cache-Control", "private, max-age=86400")
+	if w.Header().Get("Cache-Control") == "" {
+		w.Header().Set("Cache-Control", "private, max-age=86400")
+	}
 	// ServeContent handles Range requests, so videos can be seeked.
 	http.ServeContent(w, r, "", info.ModTime(), f)
 }
