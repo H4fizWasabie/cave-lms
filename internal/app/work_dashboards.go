@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -314,8 +315,8 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		if workbook != 0 {
 			from = workbook
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day)
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, sha256)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, (SELECT sha256 FROM workbooks WHERE id = $7))`, d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day)
 		return err
 	})
 	if err != nil {
@@ -383,6 +384,28 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	// The exact same file as a current Part is refused before anything is kept. An upload, and a Workbook the Learner
+	// picks, both pass here. A Replace of the data deletes every Part, so it may repeat one; a Replace of one Part may
+	// repeat that Part's own file. Rows that merely repeat a Part's never block (ADR 0022).
+	if add || one {
+		var same partRow
+		sum := sha256.Sum256(data)
+		var replaced int64 // 0 matches no Part
+		if replacing != nil {
+			replaced = replacing.ID
+		}
+		err := a.db.QueryRowContext(r.Context(), `SELECT id, file_name, part_date::text FROM dataset_parts
+			WHERE dashboard_id = $1 AND state = 'current' AND sha256 = $2 AND id <> $3 ORDER BY position LIMIT 1`,
+			d.ID, sum[:], replaced).Scan(&same.ID, &same.File, &same.Date)
+		if err == nil {
+			a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name, Same: &same})
+			return
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			a.serverError(w, r, err)
+			return
+		}
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
 	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.

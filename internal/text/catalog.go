@@ -1007,6 +1007,11 @@ var catalog = map[string]entry{
 		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
 		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
+	"lab.err.same-file": {
+		en: "This is exactly the same file as Part “%s” (Part date %s), which your Dashboard already has. To read it again, replace that Part.",
+		ms: "Ini fail yang sama sepenuhnya dengan Bahagian “%s” (Part date %s), yang sudah ada pada Dashboard anda. Untuk membacanya semula, gantikan Bahagian itu.",
+	},
+	"lab.err.same-file-replace": {en: "Replace that Part", ms: "Gantikan Bahagian itu"},
 	"lab.err.add-too-many-rows": {
 		en: "Adding these %s rows to your %s makes %s. A Dashboard built in a Theme holds up to %s rows. Replace or delete a Part to make room.",
 		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gantikan atau padam satu Bahagian untuk memberi ruang.",
