@@ -716,38 +716,42 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 		}
 		var d lab.Dataset
 		var c cleaned
-		if err := errors.Join(json.Unmarshal(data, &d), json.Unmarshal(o.cleanup, &c)); err != nil {
+		if err := json.Unmarshal(o.cleanup, &c); err != nil {
 			return fmt.Errorf("read Dataset %s: %w", o.key, err)
 		}
-		if c.Added != nil && c.Added.Had <= len(d.Rows) {
-			d.Rows = d.Rows[c.Added.Had:]
-		}
-		c.Columns = d.Columns
-		part, err := lab.PartRows(&d, o.date)
-		if err != nil {
-			return err
+		// A whole table is rewritten as a Part. What is not one is a Part already (rows only, as after migrating down and
+		// up again), and keeps its object.
+		key, rows, rewrite := o.key, -1, json.Unmarshal(data, &d) == nil && len(d.Columns) > 0
+		if rewrite {
+			if c.Added != nil && c.Added.Had <= len(d.Rows) {
+				d.Rows = d.Rows[c.Added.Had:]
+			}
+			c.Columns, rows = d.Columns, len(d.Rows)
+			part, err := lab.PartRows(&d, o.date)
+			if err != nil {
+				return err
+			}
+			if key, err = newDatasetKey(); err != nil {
+				return err
+			}
+			if err := store.Put(ctx, key, part); err != nil {
+				return err
+			}
 		}
 		cleanup, err := json.Marshal(c)
 		if err != nil {
 			return err
 		}
-		columns, err := json.Marshal(d.Columns)
+		columns, err := json.Marshal(c.Columns)
 		if err != nil {
-			return err
-		}
-		key, err := newDatasetKey()
-		if err != nil {
-			return err
-		}
-		if err := store.Put(ctx, key, part); err != nil {
 			return err
 		}
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE dataset_parts SET storage_key = $2, row_count = $3, cleanup = $4, legacy = false WHERE id = $1`,
-			o.id, key, len(d.Rows), cleanup)
+		_, err = tx.ExecContext(ctx, `UPDATE dataset_parts SET storage_key = $2, row_count = CASE WHEN $3 < 0 THEN row_count ELSE $3 END,
+			cleanup = $4, legacy = false WHERE id = $1`, o.id, key, rows, cleanup)
 		if err == nil && o.state == "current" {
 			_, err = tx.ExecContext(ctx, `UPDATE dashboards SET dataset_columns = $2 WHERE id = $1`, o.dashboard, columns)
 		}
@@ -757,10 +761,14 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 			tx.Rollback()
 		}
 		if err != nil {
-			_ = store.Delete(ctx, key)
+			if rewrite {
+				_ = store.Delete(ctx, key)
+			}
 			return err
 		}
-		_ = store.Delete(ctx, o.key) // ponytail: a failed delete leaves one unused object; nothing lists it
+		if rewrite {
+			_ = store.Delete(ctx, o.key) // ponytail: a failed delete leaves one unused object; nothing lists it
+		}
 	}
 	return nil
 }
