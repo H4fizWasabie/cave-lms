@@ -261,9 +261,14 @@ _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
 **Dataset**:
-The table Cave keeps for a Dashboard from a Workbook, after Clean-up and the Learner's confirmation. Two Dashboards using one Workbook each have their own Dataset, and deleting the Workbook leaves them as they are. It comes from one sheet, or from several sheets with the same columns combined. It belongs to exactly one Dashboard: confirming a new upload makes it the current Dataset, either replacing the rows or, with the same columns, adding to them, the Dashboard keeps up to 3 earlier ones, and the Learner can restore one. Never a Gallery item.
+The table Cave keeps for a Dashboard: one Part or more with the same columns, each cleaned from a Workbook after Clean-up and the Learner's confirmation. It belongs to exactly one Dashboard, so two Dashboards using one Workbook each have their own, and deleting the Workbook leaves it as it is. Adding data adds a Part; replacing the data makes the new Part the only one. Cave keeps no earlier Datasets: the Workbooks in the Folder are the way back. Never a Gallery item.
 _Malay_: Set data
 _Avoid_: Upload, spreadsheet, data file
+
+**Part**:
+The rows of one confirmed upload within a Dataset, from one Workbook, read the same way as the Dataset's first Part. The Learner can replace or delete one Part without touching the others, and a replaced Part keeps its place in the order.
+_Malay_: Bahagian
+_Avoid_: Chunk, batch, period, file
 
 **Workbook**:
 A Learner's Excel file, kept as uploaded in their Folder, whether uploaded there or to a Dashboard. A Dashboard's Dataset is cleaned from a Workbook. Only a Learner with an active Plan can add one.
