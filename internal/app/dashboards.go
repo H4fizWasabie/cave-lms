@@ -441,6 +441,7 @@ type dashboardPage struct {
 	Tab       string
 	Problem   string          // why an upload could not be read
 	Upload    string          // the refused file's name
+	Same      *partRow        // the current Part the refused file is the exact same file as
 	Failed    bool            // the store refused the upload's Dataset
 	Pending   *pendingDataset // an upload waiting for its confirm
 	PartList  []partRow       // the Dataset's current Parts in order, on the Data tab

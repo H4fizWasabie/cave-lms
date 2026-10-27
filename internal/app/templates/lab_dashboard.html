@@ -182,7 +182,13 @@
           </section>
           <h2 class="h-md">{{t $.Lang "lab.w.another"}}</h2>
           {{- else}}
-          {{- with $.Error}}
+          {{- with $.Same}}
+          <div class="ds-err" role="alert">
+            <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
+            <p>{{t $.Lang "lab.err.same-file" .File .Date}} {{t $.Lang "lab.d.still-uses" $.Dashboard.File}}</p>
+            <p><a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/replace">{{t $.Lang "lab.err.same-file-replace"}}</a></p>
+          </div>
+          {{- else with $.Error}}
           <div class="ds-err" role="alert">
             <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
             <p>{{.}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
