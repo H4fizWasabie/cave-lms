@@ -30,11 +30,15 @@ func TestAddPartNeedsTheDatasetsColumnsAndKeepsToTheRowLimit(t *testing.T) {
 	cols := []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Number}}
 	more := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}}, Rows: [][]any{{"Gula"}}}
 	var p lab.Problem
-	if _, _, err := lab.AddPart(cols, 1, more); !errors.As(err, &p) || p.Key != "lab.err.add-columns" {
+	if _, _, err := lab.AddPart(cols, 1, more, lab.MaxCleanRows); !errors.As(err, &p) || p.Key != "lab.err.add-columns" {
 		t.Fatalf("err = %v, want lab.err.add-columns", err)
 	}
 	full := &lab.Dataset{Columns: cols, Rows: [][]any{{"Gula", 1.0}}}
-	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full); !errors.As(err, &p) || p.Key != "lab.err.add-too-many-rows" {
+	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full, lab.MaxCleanRows); !errors.As(err, &p) || p.Key != "lab.err.add-too-many-rows" {
 		t.Fatalf("err = %v, want lab.err.add-too-many-rows", err)
+	}
+	// A limit of 0 is no row total: the Dataset behind a Learner's own page.
+	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full, 0); err != nil {
+		t.Fatalf("err = %v, want none without a row limit", err)
 	}
 }

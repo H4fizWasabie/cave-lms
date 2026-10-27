@@ -443,6 +443,7 @@ type dashboardPage struct {
 	Upload    string          // the refused file's name
 	Failed    bool            // the store refused the upload's Dataset
 	Pending   *pendingDataset // an upload waiting for its confirm
+	PartList  []partRow       // the Dataset's current Parts in order, on the Data tab
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
@@ -508,6 +509,10 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	}
 	if p.Tab == dataTab(d) {
 		var err error
+		if p.PartList, err = a.partsOf(r.Context(), d.ID); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		if p.Pending != nil {
 			var room storageRoom
 			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.Added == nil, p.Access)
