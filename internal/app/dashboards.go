@@ -450,6 +450,7 @@ type dashboardPage struct {
 	Replacing *partRef        // the Part whose Replace screen this is, on the Data tab
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
+	Mapping   *columnMapping  // an Add refused for lacking columns: the form to map them from the file's others
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
 	New       string          // and its columns the current Dataset lacks
 	Pages     []htmlPage      // the earlier pages, newest first
@@ -485,7 +486,7 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
 	p.Title, p.Themes = d.Name, lab.Themes
-	if p.Tab == dataTab(d) && p.Pending == nil && p.Replacing == nil {
+	if p.Tab == dataTab(d) && p.Pending == nil && p.Replacing == nil && p.Mapping == nil {
 		var err error
 		if p.Pending, err = a.pendingOf(r.Context(), d); err != nil {
 			a.serverError(w, r, err)
@@ -500,7 +501,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	}
 	if p.Pending != nil && !p.Pending.mode().intoDataset() && d.Page != nil && d.Parts > 0 {
 		// By exact name, as data.json's keys are: a Replace serves the new names as they are, so a page reading Jumlah
-		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.columnChanges) as it keeps the
+		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.ColumnChanges) as it keeps the
 		// current names, so data.json's keys stay.
 		lacking := func(cols, others []lab.Column) string {
 			var out []string

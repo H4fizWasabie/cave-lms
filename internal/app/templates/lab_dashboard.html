@@ -191,6 +191,22 @@
             <p>{{.}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
+          {{- with $.Mapping}}
+          <form class="form map-columns" method="post" action="{{.Action}}">
+            <h2 class="h-md">{{t $.Lang "lab.map.title"}}</h2>
+            <p class="muted">{{t $.Lang "lab.map.body"}}</p>
+            {{- range .Hidden}}
+            <input type="hidden" name="{{.Name}}" value="{{.Value}}">
+            {{- end}}
+            {{- range $i, $pick := .Picks}}
+            <div class="field map-row">
+              <label for="map-{{$i}}">{{t $.Lang "lab.map.for"}} <code>{{.Column}}</code></label>
+              {{template "map-select" (args $.Lang (printf "map-%d" $i) $pick)}}
+            </div>
+            {{- end}}
+            <div class="form-foot"><button class="btn btn-solid">{{t $.Lang "lab.map.apply"}}</button></div>
+          </form>
+          {{- end}}
           {{- end}}
           {{- $replace := 0}}{{with .Replacing}}{{$replace = .ID}}{{end}}{{with .Pending}}{{with .Replaces}}{{$replace = .Part}}{{end}}{{end}}
           {{- $picked := false}}{{with .Pending}}{{$picked = .FromWorkbook}}{{end}}
@@ -225,6 +241,18 @@
               <label for="grid-year">{{t $.Lang "lab.w.grid-year"}}</label>
               <input id="grid-year" type="number" name="year" value="{{.Year}}" min="1900" max="2100" required>
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
+            </fieldset>
+            {{- end}}{{end}}
+            {{- with .Pending}}{{with .MapPicks}}
+            <fieldset class="field">
+              <legend>{{t $.Lang "lab.map.chosen"}}</legend>
+              {{- range $i, $pick := .}}
+              <div class="map-row">
+                <label for="picked-{{$i}}"><code>{{.Column}}</code></label>
+                {{template "map-select" (args $.Lang (printf "picked-%d" $i) $pick)}}
+              </div>
+              {{- end}}
+              <small>{{t $.Lang "lab.map.chosen-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
             {{- if and .Dashboard.Key (not $replace)}}
@@ -378,3 +406,14 @@
       {{- end}}
     </div>
 {{end}}
+
+{{/* The dropdown of the upload's columns to read as one of the Dataset's: args are the language, the id and a mapPick. */}}
+{{define "map-select"}}
+{{- $lang := index . 0}}{{$pick := index . 2}}
+<select id="{{index . 1}}" name="map:{{$pick.Column}}">
+  <option value="">{{t $lang "lab.map.none"}}</option>
+  {{- range $pick.Options}}
+  <option value="{{.}}"{{if eq . $pick.File}} selected{{end}}>{{.}}</option>
+  {{- end}}
+</select>
+{{- end}}

@@ -627,7 +627,7 @@ func card(c course, lang string) courseCard { return courseCard{c, lang} }
 // parsePages pairs each page template with layout.html and the partials in _*.html, keyed by file name without
 // extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "inc": func(i int) int { return i + 1 },
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "inc": func(i int) int { return i + 1 }, "args": func(v ...any) []any { return v },
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
 		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }, "resultDelayMinutes": func() int { return resultDelayMinutes }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {

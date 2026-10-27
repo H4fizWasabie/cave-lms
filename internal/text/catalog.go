@@ -850,6 +850,14 @@ var catalog = map[string]entry{
 		en: "Columns not in your data, dropped (%[1]d): %[2]s.",
 		ms: "Lajur yang tiada dalam data anda, dibuang (%[1]d): %[2]s.",
 	},
+	"lab.clean.matched-columns": {
+		en: "Columns matched to your data's by name (%[1]d): %[2]s.",
+		ms: "Lajur dipadankan dengan lajur data anda mengikut nama (%[1]d): %[2]s.",
+	},
+	"lab.clean.mapped-columns": {
+		en: "Columns mapped to your data's (%[1]d): %[2]s.",
+		ms: "Lajur dipetakan kepada lajur data anda (%[1]d): %[2]s.",
+	},
 	"lab.clean.filled-sheet": {
 		en: "Filled the Sheet column of your data from the sheet name: %s.",
 		ms: "Lajur Sheet dalam data anda diisi daripada nama helaian: %s.",
@@ -1008,6 +1016,27 @@ var catalog = map[string]entry{
 	"lab.err.add-columns": {
 		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
 		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+	},
+	"lab.err.add-columns-map": {
+		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Match the columns below, fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Padankan lajur di bawah, betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+	},
+	"lab.err.map-twice": {
+		en: "The column “%[1]s” can stand for only one column of your data, but you picked it for both %[2]s and %[3]s. Pick a different column for one of them.",
+		ms: "Lajur “%[1]s” hanya boleh mewakili satu lajur data anda, tetapi anda memilihnya untuk %[2]s dan %[3]s. Pilih lajur lain untuk salah satu daripadanya.",
+	},
+	"lab.map.title": {en: "Match the missing columns", ms: "Padankan lajur yang hilang"},
+	"lab.map.body": {
+		en: "Your data has columns this file lacks, but the file has other columns. If some of them are the same columns under other names, pick which one each is. Cave remembers your choices for the next file with the same headers.",
+		ms: "Data anda mempunyai lajur yang tiada dalam fail ini, tetapi fail ini mempunyai lajur lain. Jika sebahagiannya lajur yang sama dengan nama lain, pilih yang mana satu. Cave mengingati pilihan anda untuk fail seterusnya dengan tajuk lajur yang sama.",
+	},
+	"lab.map.for":    {en: "In your data:", ms: "Dalam data anda:"},
+	"lab.map.none":   {en: "Not in this file", ms: "Tiada dalam fail ini"},
+	"lab.map.apply":  {en: "Match and continue", ms: "Padankan dan teruskan"},
+	"lab.map.chosen": {en: "Columns you matched", ms: "Lajur yang anda padankan"},
+	"lab.map.chosen-help": {
+		en: "To change a choice, pick another column here and choose your file again. “Not in this file” stops using it.",
+		ms: "Untuk menukar pilihan, pilih lajur lain di sini dan pilih fail anda semula. “Tiada dalam fail ini” menghentikan penggunaannya.",
 	},
 	"lab.err.same-file": {
 		en: "This is exactly the same file as Part “%s” (Part date %s), which your Dashboard already has. To read it again, replace that Part.",
