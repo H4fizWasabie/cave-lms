@@ -111,7 +111,12 @@ fi
 if [ "$backup" = yes ]; then
 	if [ -f /etc/cave-lms/backup.env ]; then
 		echo "the commit may add a migration: backing up first"
-		systemctl start cave-lms-backup
+		# backup.sh reads the commit from the manager environment: it tags the snapshot pre-deploy, which the nightly pruning leaves alone.
+		systemctl set-environment "CAVE_PREDEPLOY_SHA=$sha"
+		rc=0
+		systemctl start cave-lms-backup || rc=$?
+		systemctl unset-environment CAVE_PREDEPLOY_SHA
+		[ "$rc" = 0 ] || exit "$rc"
 	else
 		echo "the commit may add a migration, but backups are not set up: no backup taken" >&2
 	fi
@@ -123,16 +128,27 @@ mv "$bin.new" "$bin"
 systemctl enable --quiet "$name"
 systemctl restart "$name"
 
-# Migrations run before the app listens, so give it a few seconds; then the smoke test must pass.
+# Migrations and startup work run before the app listens. After a migration, or on staging (which never rolls back), wait
+# up to 120 s; otherwise 15 s. Either way give up at once when the unit is no longer starting or running (crashed, exited,
+# waiting to be restarted).
 up_and_smoke_tested() {
-	for _ in $(seq 1 15); do
+	limit=15
+	if [ "$backup" = yes ] || [ "$env" = staging ]; then limit=120; fi
+	for _ in $(seq 1 "$limit"); do
 		if curl -fs -o /dev/null "http://127.0.0.1:$port/"; then
 			"$bin-smoke" "$env"
 			return
 		fi
+		case "$(systemctl show -p SubState --value "$name")" in
+		running | start*) ;;
+		*)
+			echo "$name stopped while starting; see: journalctl -u $name -n 50" >&2
+			return 1
+			;;
+		esac
 		sleep 1
 	done
-	echo "$name did not answer on 127.0.0.1:$port; see: journalctl -u $name -n 50" >&2
+	echo "$name did not answer on 127.0.0.1:$port within ${limit}s; see: journalctl -u $name -n 50" >&2
 	return 1
 }
 if up_and_smoke_tested; then
@@ -140,7 +156,14 @@ if up_and_smoke_tested; then
 	echo "$name is up and passed the smoke test"
 	exit 0
 fi
-# Staging stays broken to be looked at; production goes back to the previous binary.
+# A rollback cannot undo a migration, and the previous binary likely fails against the new schema, so after one the new
+# binary stays for a human; the pre-deploy snapshot is in docs/deploy.md, Backups.
+if [ "$env" = production ] && [ "$backup" = yes ]; then
+	echo "$name failed after a migration may have run. NOT rolling back: the previous binary ($bin.prev) is likely broken against the new schema. Fix forward, or restore the pre-deploy snapshot (docs/deploy.md, Backups)." >&2
+	journalctl -u "$name" -n 50 --no-pager >&2 || true
+	exit 1
+fi
+# Staging stays broken to be looked at; production without a migration goes back to the previous binary.
 if [ "$env" = production ] && [ -f "$bin.prev" ]; then
 	echo "rolling production back to the previous binary" >&2
 	mv "$bin.prev" "$bin"
