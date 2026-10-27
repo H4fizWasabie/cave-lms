@@ -764,7 +764,6 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .tp-card.is-picked { box-shadow: inset 0 3px 0 var(--brand-gold); }
 .lab-detail-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
 .lab-detail-head .h-md { margin: var(--space-1) 0 0; }
-.lab-create { margin-top: var(--space-4); max-width: 32rem; }
 .lab-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--line-strong); margin-bottom: var(--space-6); overflow-x: auto; scrollbar-width: none; }
 .lab-tab { position: relative; padding: var(--space-3) var(--space-4); font-weight: 600; font-size: var(--fs-ui); text-decoration: none; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .lab-tab:hover { color: var(--brand-ink); }
@@ -795,6 +794,10 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .lab-page .field.lab-drop { justify-items: start; padding: var(--space-4); border: 1px dashed var(--line-strong); border-radius: var(--radius); background: var(--bg); }
 .lab-page .lab-drop label { display: inline-flex; gap: var(--space-2); align-items: center; }
 .lab-page .lab-drop input { max-width: 100%; }
+/* New Dashboard: Build from Excel and Paste your own page side by side as two cards; the chatbot sentence closes the second. */
+.lab-page .lab-choice { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+.lab-page .lab-choice .form-foot { justify-content: flex-end; }
+.lab-page .lab-choice .lab-card > .data-sentence { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--line); }
 .ds-err { border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--surface)); background: var(--bad-soft); border-radius: var(--radius); padding: var(--space-4) var(--space-5); display: grid; gap: var(--space-2); }
 .ds-err p { margin: 0; }
 .ds-err ul { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-2); }
@@ -805,7 +808,7 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .pv-stage { background: var(--line); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; justify-content: center; }
 .pv-frame { display: block; width: 100%; height: 1150px; border: 0; background: var(--bg); border-radius: var(--radius-lg); box-shadow: 0 2px 10px color-mix(in srgb, var(--brand-ink) 8%, transparent); }
 .pv-stage.is-phone .pv-frame { width: 390px; max-width: 100%; height: 760px; border-radius: var(--radius-phone); border: 10px solid var(--brand-ink); }
-@media (max-width: 999px) { .tp-pick { grid-template-columns: repeat(2, 1fr); } .lab-split { grid-template-columns: 1fr; } }
+@media (max-width: 999px) { .tp-pick { grid-template-columns: repeat(2, 1fr); } .lab-split { grid-template-columns: 1fr; } .lab-page .lab-choice { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .tp-pick { grid-template-columns: 1fr; } .pv-stage { padding: var(--space-2); } .pv-frame { height: 900px; } }
 
 /* A Work Dashboard's Blocks tab (Edit blocks): the list and its forms on the left, the live Dashboard on the right. */
@@ -1786,7 +1789,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .lab-page .tp-card span { color: var(--muted); font-size: .88rem; }
 .lab-page .tp-card:hover, .lab-page .tp-card.is-picked { border-color: var(--brand-ink); }
 .lab-page .tp-card.is-picked { box-shadow: inset 0 3px 0 var(--brand-gold); }
-.lab-page .lab-create { margin-top: 1.2rem; max-width: 32rem; }
 .lab-page .lab-tabs { display: flex; gap: .2rem; border-bottom: 1px solid var(--line-strong); margin-bottom: 1.8rem; overflow-x: auto; scrollbar-width: none; }
 .lab-page .lab-tab { position: relative; padding: .7rem 1rem; font-weight: 600; font-size: .95rem; text-decoration: none; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .lab-page .lab-tab:hover { color: var(--brand-ink); }
