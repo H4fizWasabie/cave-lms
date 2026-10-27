@@ -119,6 +119,41 @@ func TestReplaceDataLeavesOnePartAndQueuesTheRemovedPartsFilesForDeletion(t *tes
 	expectAll(t, body, "disember.xlsx", "2 rows")
 }
 
+// A current Dataset from before Parts that was last changed by an Add to data still holds the whole table: only a
+// pending Add is cut to its new rows. Production lost rows to this on 2026-10-27.
+func TestACurrentDatasetFromBeforePartsLastChangedByAnAddKeepsEveryRow(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createWork("Kedai")
+	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
+	link := ada.deploy(path)
+	var key string
+	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.MigrateDownTo(context.Background(), ada.db, 127); err != nil {
+		t.Fatal(err)
+	}
+	whole := `{"columns": [{"name": "Tarikh", "type": "date"}, {"name": "Perkara", "type": "text"}, {"name": "Kategori", "type": "text"},
+		{"name": "Jenis", "type": "text"}, {"name": "Jumlah", "type": "number"}],
+		"rows": [["2026-10-05", "Beras", "Dapur", "Keluar", 120], ["2026-10-06", "Jualan", "Kedai", "Masuk", 900]]}`
+	if err := os.WriteFile(filepath.Join(ada.storageDir, key), []byte(whole), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Confirmed as an Add of one row to the one it had: the Clean-up record keeps saying so after the confirm.
+	if _, err := ada.db.Exec(`UPDATE datasets SET confirmed_at = '2026-03-09 10:00+00', row_count = 2,
+		cleanup = jsonb_set(cleanup, '{added}', '{"had": 1}')`); err != nil {
+		t.Fatal(err)
+	}
+	ada.restart()
+
+	want := []string{"Beras 2026-03-09", "Jualan 2026-03-09"}
+	for _, page := range []string{path + "/view/", link} {
+		if got := ada.perkara(page); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("%s draws %v, want every row of the Dataset: %v", page, got, want)
+		}
+	}
+}
+
 // Datasets before Parts keep their earlier copies, read-only and counted, until the Dashboard's data next changes.
 func TestADatasetFromBeforePartsBecomesOnePartAndItsEarlierCopiesGoOnTheNextConfirm(t *testing.T) {
 	_, ada := labLearner(t)
