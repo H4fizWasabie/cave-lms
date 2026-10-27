@@ -246,12 +246,8 @@ func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args
 	var ids []int64
 	at := map[int64]int{} // index in list by Message ID
 	for rows.Next() {
-		m := chatMessage{ViewerAdmin: v.IsAdmin, Lang: v.lang, Reactions: make([]chatReaction, len(reactions))}
-		for i, e := range reactions {
-			m.Reactions[i].Emoji = e
-		}
-		if err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.WriterPicture, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
-			&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine, &m.Reported, &m.writerID); err != nil {
+		m, err := scanChatMessage(rows, v)
+		if err != nil {
 			return nil, err
 		}
 		at[m.ID] = len(list)
@@ -262,6 +258,17 @@ func (a *App) chatMessages(ctx context.Context, v chatViewer, where string, args
 		return nil, err
 	}
 	return list, a.countReactions(ctx, v, ids, func(id int64, i int, r chatReaction) { list[at[id]].Reactions[i] = r })
+}
+
+// scanChatMessage reads the row of chatColumns that rows is at, as v sees it, with its Reactions still to count.
+func scanChatMessage(rows *sql.Rows, v chatViewer) (chatMessage, error) {
+	m := chatMessage{ViewerAdmin: v.IsAdmin, Lang: v.lang, Reactions: make([]chatReaction, len(reactions))}
+	for i, e := range reactions {
+		m.Reactions[i].Emoji = e
+	}
+	err := rows.Scan(&m.ID, &m.CourseID, &m.Writer, &m.WriterPicture, &m.ByAdmin, &m.Mine, &m.Text, &m.At, &m.Deleted, &m.Hidden,
+		&m.ReplyID, &m.ReplyRemoved, &m.ReplyWriter, &m.ReplyLine, &m.Reported, &m.writerID)
+	return m, err
 }
 
 // countReactions counts the Reactions on the Messages ids, calling put with each Message's i-th Reaction found.

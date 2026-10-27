@@ -5,9 +5,12 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/app"
 )
 
 // chatStream is an open event stream of a Course's Chat; events carries each event's data.
@@ -210,4 +213,105 @@ func TestDeletingAnAlreadyDeletedMessageSendsNothingToOpenStreams(t *testing.T) 
 	if e := stream.next(); !strings.Contains(e, "Later") {
 		t.Fatalf("a second delete sent the stream an event: %s", e)
 	}
+}
+
+// sessionToken is the value of s's session cookie.
+func (s *site) sessionToken() string {
+	s.t.Helper()
+	u, err := url.Parse(s.server.URL)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	for _, c := range s.client.Jar.Cookies(u) {
+		if c.Name == app.SessionCookie {
+			return c.Value
+		}
+	}
+	s.t.Fatal("no session cookie")
+	return ""
+}
+
+// expectSharedFragments checks that every one of mids renders for each of viewers from a change loaded once and
+// shared by all their streams exactly as from the viewer's own queries.
+func expectSharedFragments(t *testing.T, ada *site, id string, mids []string, viewers map[string]*site) {
+	t.Helper()
+	courseID, _ := strconv.ParseInt(id, 10, 64)
+	var names, tokens []string
+	for name, s := range viewers {
+		names, tokens = append(names, name), append(tokens, s.sessionToken())
+	}
+	for _, mid := range mids {
+		messageID, _ := strconv.ParseInt(mid, 10, 64)
+		shared, apart, err := ada.application.FragmentsBothWays(courseID, messageID, tokens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, name := range names {
+			if shared[i] == "" || shared[i] != apart[i] {
+				t.Errorf("Message %s as %s: a shared change renders\n%s\nbut its own queries render\n%s", mid, name, shared[i], apart[i])
+			}
+		}
+	}
+}
+
+func TestASharedChangeRendersEachViewersFragmentAsTheirOwnQueriesDo(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	cara := admin.second()
+	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
+	expectStatus(t, must(cara.post("/courses/"+id+"/join", nil)), "", http.StatusSeeOther, "")
+	viewers := map[string]*site{"writer": ada, "reporter": ben, "reactor": cara, "admin": admin}
+
+	// A reply with Reactions from Cara and Ada and a Report from Ben, quoting a Message that has a Reaction of its own.
+	mid := ben.say(id, "Original\nsecond line")
+	cara.react(id, mid, clap)
+	rid := ada.reply(id, mid, "Hi Ben")
+	cara.react(id, rid, thumbsUp)
+	ada.react(id, rid, laugh)
+	expectStatus(t, must(ben.report(id, rid, "Spam")), "", http.StatusSeeOther, "")
+	expectSharedFragments(t, ada, id, []string{mid, rid}, viewers)
+
+	admin.post("/admin/chat/"+mid+"/hide", confirming) // the original is hidden, so the reply quotes it as removed
+	expectSharedFragments(t, ada, id, []string{mid, rid}, viewers)
+
+	ada.post("/courses/"+id+"/chat/"+rid+"/delete", confirming)
+	expectSharedFragments(t, ada, id, []string{mid, rid}, viewers)
+}
+
+func TestSeveralOpenStreamsEachGetTheirOwnViewOfOneMessage(t *testing.T) {
+	ada, admin, ben, id := chatSite(t)
+	cara := admin.second()
+	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
+	expectStatus(t, must(cara.post("/courses/"+id+"/join", nil)), "", http.StatusSeeOther, "")
+	streams := map[*site]*chatStream{ada: ada.openStream(id), ben: ben.openStream(id), cara: cara.openStream(id), admin: admin.openStream(id)}
+
+	mid := ben.say(id, "For everyone")
+	for s, st := range streams {
+		e := st.next()
+		expectInOrder(t, e, `id="m`+mid+`"`, "For everyone")
+		if mine := strings.Contains(e, "is-mine"); mine != (s == ben) {
+			t.Errorf("a stream is told the Message is its own: %t, want %t: %s", mine, s == ben, e)
+		}
+	}
+	ben.post("/courses/"+id+"/chat/"+mid+"/delete", confirming)
+	for _, st := range streams {
+		if e := st.next(); !strings.Contains(e, "Message deleted") {
+			t.Errorf("a stream does not see the deletion: %s", e)
+		}
+	}
+	// A stream whose session ended stops, the others carry on.
+	cara.post("/logout", nil)
+	ada.say(id, "After Cara left")
+	streams[cara].ends()
+	for _, s := range []*site{ada, ben, admin} {
+		expectInOrder(t, streams[s].next(), "After Cara left")
+	}
+}
+
+func TestAChatStreamEndsWhenItsLearnerLeavesTheCourse(t *testing.T) {
+	ada, _, ben, id := chatSite(t)
+	gone, staying := ada.openStream(id), ben.openStream(id)
+	expectStatus(t, must(ada.leaveCourse(id)), "", http.StatusSeeOther, "")
+	ben.say(id, "After Ada left")
+	gone.ends()
+	expectInOrder(t, staying.next(), "After Ada left")
 }
