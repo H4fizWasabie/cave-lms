@@ -1,8 +1,10 @@
 package app_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -271,4 +273,28 @@ func TestADashboardBuiltOnAnotherTemplateKeepsDrawingItsBlocks(t *testing.T) {
 	if rows := visitor.rowsOf(link); !strings.Contains(rows, "Gula") {
 		t.Fatalf("after a new Dataset the Deployment reads\n%s", rows)
 	}
+}
+
+var dashboardSettings = regexp.MustCompile(`const dashboard = (\{[\s\S]*?\});\n`)
+
+// drawn is what a Dashboard page draws: its Theme and its blocks' kinds and labels, in order.
+func (s *site) drawn(page string) (theme string, blocks []string) {
+	s.t.Helper()
+	res, body := s.get(page)
+	expectStatus(s.t, res, body, http.StatusOK, "")
+	m := dashboardSettings.FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("%s holds no dashboard settings: %s", page, body)
+	}
+	var settings struct {
+		Theme  string `json:"theme"`
+		Blocks []struct{ Kind, Label string }
+	}
+	if err := json.Unmarshal([]byte(m[1]), &settings); err != nil {
+		s.t.Fatal(err)
+	}
+	for _, b := range settings.Blocks {
+		blocks = append(blocks, b.Kind+": "+b.Label)
+	}
+	return settings.Theme, blocks
 }

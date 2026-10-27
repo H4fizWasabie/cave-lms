@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -303,7 +305,6 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	address := ada.dataOf(path + "/view/")
-	_, want := ada.get(path + "/view/" + address)
 
 	// Put the Dashboard back the way it was before the store: its Dataset in the dataset column, nothing stored.
 	stored := filepath.Join(ada.storageDir, strings.TrimPrefix(address, "data/"))
@@ -322,10 +323,19 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	}
 
 	ada.restart()
-	res, got := ada.get(path + "/view/" + ada.dataOf(path+"/view/"))
-	expectStatus(t, res, got, http.StatusOK, "")
-	if got != want {
-		t.Fatalf("after the move the data is\n%.300s\nwant\n%.300s", got, want)
+	// At migration 68 a Dashboard is a Practice one, which no step turns back any more (none is left on production),
+	// so the move is checked in the store: the Dataset is there again, under the key the Dashboard now holds.
+	var key string
+	if err := ada.db.QueryRow(`SELECT dataset_key FROM dashboards`).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(ada.storageDir, key))
+	var gotRows, wantRows any
+	if err == nil {
+		err = errors.Join(json.Unmarshal(got, &gotRows), json.Unmarshal(dataset, &wantRows))
+	}
+	if err != nil || !reflect.DeepEqual(gotRows, wantRows) { // the database's jsonb reorders keys and spaces
+		t.Fatalf("after the move the store holds %.300s (%v), want %.300s", got, err, dataset)
 	}
 	if n := ada.storedFiles(); n != 1 {
 		t.Fatalf("%d stored files after the move, want 1: the Dataset", n)
