@@ -85,3 +85,32 @@ func TestALearnerWhoRenewedOrHasAnUpcomingPeriodKeepsTheirDatasets(t *testing.T)
 		t.Fatalf("after renewing %d stored files, want 1", n)
 	}
 }
+
+func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersWorkbooksAreDeletedToo(t *testing.T) {
+	admin, ada := labLearner(t)
+	ada.readyDashboard("Kewangan")
+	link := ada.workbookPath()
+	admin.readyDashboard("Demo") // the Admin's Workbooks are never pruned
+	workbooks := func() (adas, admins int) {
+		t.Helper()
+		if err := admin.db.QueryRow(`SELECT count(*) FILTER (WHERE l.email = 'ada@example.com'), count(*) FILTER (WHERE l.email <> 'ada@example.com')
+			FROM workbooks wb JOIN learners l ON l.id = wb.learner_id`).Scan(&adas, &admins); err != nil {
+			t.Fatal(err)
+		}
+		return adas, admins
+	}
+
+	admin.ageAllPeriods(30 + 89)
+	admin.prune()
+	if adas, admins := workbooks(); adas != 1 || admins != 1 {
+		t.Fatalf("at 89 days Ada has %d Workbooks and the Admin %d, want 1 and 1", adas, admins)
+	}
+	admin.ageAllPeriods(2) // 91 days
+	admin.prune()
+	if adas, admins := workbooks(); adas != 0 || admins != 1 {
+		t.Fatalf("at 91 days Ada has %d Workbooks and the Admin %d, want 0 and 1", adas, admins)
+	}
+	if res, body := admin.get(link); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("Ada's pruned Workbook: status %d, body %.200s", res.StatusCode, body)
+	}
+}

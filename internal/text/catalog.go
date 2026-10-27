@@ -1027,8 +1027,8 @@ var catalog = map[string]entry{
 	"lab.w.another": {en: "Or upload another file", ms: "Atau muat naik fail lain"},
 	"lab.w.earlier": {en: "Earlier Datasets", ms: "Set data terdahulu"},
 	"lab.w.earlier-body": {
-		en: "Cave keeps your last 3. Restore one to use it again at once; your blocks stay as they are. Cave does not keep the .xlsx itself: to clean up a file again, upload it again.",
-		ms: "Cave menyimpan 3 yang terakhir. Pulihkan satu untuk menggunakannya semula serta-merta; blok anda kekal seperti sedia ada. Cave tidak menyimpan fail .xlsx itu sendiri: untuk membersihkan fail semula, muat naik semula.",
+		en: "Cave keeps your last 3. Restore one to use it again at once; your blocks stay as they are. Cave keeps each .xlsx you upload as a Workbook in your Folder; to clean up a file again, upload it again.",
+		ms: "Cave menyimpan 3 yang terakhir. Pulihkan satu untuk menggunakannya semula serta-merta; blok anda kekal seperti sedia ada. Cave menyimpan setiap fail .xlsx yang anda muat naik sebagai Buku kerja dalam Folder anda; untuk membersihkan fail semula, muat naik semula.",
 	},
 	"lab.w.confirmed": {en: "confirmed %s", ms: "disahkan %s"},
 	"lab.w.restore":   {en: "Restore", ms: "Pulihkan"},

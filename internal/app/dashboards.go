@@ -635,7 +635,7 @@ const lapsedSQL = `NOT l.is_admin AND NOT EXISTS (SELECT 1 FROM plan_periods pp
 	WHERE pp.learner_id = l.id AND LEAST(pp.ends_at, COALESCE(pp.ended_early_at, pp.ends_at)) > now() - make_interval(days => $1))`
 
 // pruneDatasets deletes the Datasets of every Learner with no Plan period active, upcoming, or ended within
-// datasetKeepDays, from the store and the records, and returns how many it deleted. The Dashboards and their
+// datasetKeepDays, with their Workbooks, from the store and the records, and returns how many Datasets it deleted. The Dashboards and their
 // Deployments stay, the Deployments asleep. The Admin's Datasets are never pruned. Datasets left pending
 // past pendingKeepHours go too, the Admin's included.
 func (a *App) pruneDatasets(ctx context.Context) (int, error) {
@@ -647,6 +647,11 @@ func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 	}
 	deleted, err := work.RowsAffected()
 	if err != nil {
+		return 0, err
+	}
+	// Their Workbooks go on the same day (ADR 0021); the trigger queues the files.
+	if _, err = a.db.ExecContext(ctx, `DELETE FROM workbooks wb USING learners l WHERE l.id = wb.learner_id AND `+lapsedSQL,
+		datasetKeepDays); err != nil {
 		return 0, err
 	}
 	a.dropDeletedFiles(ctx, nil)
