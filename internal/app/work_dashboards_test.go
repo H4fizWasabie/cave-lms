@@ -268,15 +268,19 @@ func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
 	ada.uploadLive(path, months(t, false, "Apr", "Mei"), "Beras Mei", "")
 }
 
-// uploadLive uploads a routine file to the Work Dashboard at path, which goes live with no preview, and checks
-// its data has want and, unless empty, lacks not.
+// uploadLive uploads a file to the Work Dashboard at path as a Replace, which waits on its preview with the warning of
+// the Parts going (even a routine one), confirms it, and checks the data has want and, unless empty, lacks not.
 func (s *site) uploadLive(path string, file []byte, want, not string) {
 	s.t.Helper()
 	res, body := s.postFile(path+"/dataset", "buku.xlsx", file)
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
-	if loc := res.Header.Get("Location"); loc != path+"/preview" {
-		s.t.Fatalf("a routine upload redirects to %q", loc)
+	if loc := res.Header.Get("Location"); loc != path {
+		s.t.Fatalf("a Replace redirects to %q, want its preview", loc)
 	}
+	if _, body = s.get(path); !strings.Contains(body, "Confirming removes the 1 Part of your Dataset.") {
+		s.t.Fatalf("the Replace preview does not warn of the Part going: %s", body)
+	}
+	s.confirmWork(path, nil)
 	if page := s.rowsOf(path + "/view/"); !strings.Contains(page, want) || (not != "" && strings.Contains(page, not)) {
 		s.t.Fatalf("data = %s, want %s and not %q", page, want, not)
 	}

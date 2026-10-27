@@ -60,6 +60,15 @@
         <section>
           {{- if .Dashboard.Parts}}
           <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.parts" .Dashboard.Parts}} · {{tn $.Lang "lab.d.rows" .Dashboard.Rows}} · {{tn $.Lang "lab.d.columns" (len .Dashboard.Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
+          {{- with .PartList}}
+          <h2 class="h-md">{{t $.Lang "lab.d.parts-list"}}</h2>
+          <ul class="ds-parts ds-earlier">
+            {{- range .}}
+            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.d.part-date" .Date}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}} · {{t $.Lang "lab.d.part-added" .Added}}</span></div>
+              <span class="ds-part-actions"><a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/delete">{{t $.Lang "lab.delete"}}</a></span></li>
+            {{- end}}
+          </ul>
+          {{- end}}
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.upload-body"}}</p>
           {{- else}}{{if .Dashboard.Page}}
@@ -150,6 +159,9 @@
                 {{- end}}
                 {{- end}}
               </ul>
+              {{- end}}
+              {{- if and (not .Added) (gt $.Dashboard.Parts 0)}}
+              <div class="ds-err" role="alert"><p><strong>{{tn $.Lang "lab.data.replace-warn" $.Dashboard.Parts}}</strong></p></div>
               {{- end}}
               <div class="form-foot">
                 <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
