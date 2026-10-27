@@ -99,8 +99,7 @@ func (a *App) lockEbook(ctx context.Context, viewer *learner, item *galleryItem)
 	}
 	if viewer != nil {
 		var open bool
-		if err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_pro_periods WHERE learner_id = $1 AND ebooks
-			AND starts_at <= now() AND ends_at > now() AND ended_early_at IS NULL)`, viewer.ID).Scan(&open); err != nil || open {
+		if err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_pro_periods WHERE learner_id = $1 AND `+ebookAccessSQL+`)`, viewer.ID).Scan(&open); err != nil || open {
 			return err
 		}
 	}

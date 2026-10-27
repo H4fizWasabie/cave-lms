@@ -25,6 +25,7 @@ type caveTextLearnerRow struct {
 	Email string
 	snippetCap
 	Snippets int
+	Ebooks   bool // Ebook access is running now
 }
 
 // Until is when the Learner's Pro ends, or empty without Pro.
@@ -61,7 +62,8 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	p.EarlyTaken = text.T(lang, "ctadmin.learners.n-of", thousands(taken), thousands(places))
 	rows, err := a.db.QueryContext(r.Context(), `
 		SELECT c.learner_id, c.place, l.name, l.email, `+snippetCapColumns+`,
-			(SELECT count(*) FROM cavetext_snippets n WHERE n.learner_id = c.learner_id)
+			(SELECT count(*) FROM cavetext_snippets n WHERE n.learner_id = c.learner_id),
+			EXISTS (SELECT 1 FROM cavetext_pro_periods e WHERE e.learner_id = c.learner_id AND e.`+ebookAccessSQL+`)
 		FROM cavetext_accounts c JOIN learners l ON l.id = c.learner_id CROSS JOIN cavetext_settings s
 		ORDER BY c.place`)
 	if err != nil {
@@ -72,7 +74,7 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var row caveTextLearnerRow
 		var until sql.NullTime
-		if err := rows.Scan(append(append([]any{&row.ID, &row.Place, &row.Name, &row.Email}, row.dest(&until)...), &row.Snippets)...); err != nil {
+		if err := rows.Scan(append(append([]any{&row.ID, &row.Place, &row.Name, &row.Email}, row.dest(&until)...), &row.Snippets, &row.Ebooks)...); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -105,6 +107,14 @@ func (a *App) giveCaveTextCombo(w http.ResponseWriter, r *http.Request) {
 	a.giveCaveTextPlan(w, r, true)
 }
 
+// emailCaveTextEbookLink sends a CaveText Learner the Ebook email again.
+func (a *App) emailCaveTextEbookLink(w http.ResponseWriter, r *http.Request) {
+	a.changePro(w, r, func(id int64) error {
+		a.emailEbookLink(r.Context(), id)
+		return nil
+	})
+}
+
 // giveCaveTextPlan gives a CaveText Learner the Pro Plan, with Ebook access when ebooks is set, in one transaction.
 func (a *App) giveCaveTextPlan(w http.ResponseWriter, r *http.Request, ebooks bool) {
 	a.changePro(w, r, func(id int64) error {
@@ -119,6 +129,9 @@ func (a *App) giveCaveTextPlan(w http.ResponseWriter, r *http.Request, ebooks bo
 		}
 		if err == nil && !planned {
 			a.warnNoLabPlan(id)
+		}
+		if err == nil && ebooks {
+			a.emailEbookLink(r.Context(), id)
 		}
 		return err
 	})

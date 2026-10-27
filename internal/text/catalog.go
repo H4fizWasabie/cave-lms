@@ -1770,6 +1770,13 @@ var catalog = map[string]entry{
 		en: "Hi %[1]s,\n\nYour Certificate for %[2]s has been issued. Its Certificate No. is %[3]s.\n\nAnyone can check it here:\n\n%[4]s\n",
 		ms: "Hai %[1]s,\n\nSijil anda untuk %[2]s telah dikeluarkan. No. Sijilnya ialah %[3]s.\n\nSesiapa sahaja boleh menyemaknya di sini:\n\n%[4]s\n",
 	},
+	// The Ebook email; the body takes the Learner's name, the day their Ebook access ends, the Gallery's ebook list and
+	// the email address it was sent to
+	"email.ebook.subject": {en: "Your COMBO Pro Plan ebooks", ms: "Ebook Pelan Pro COMBO anda"},
+	"email.ebook.body": {
+		en: "Hi %[1]s,\n\nYour COMBO Pro Plan comes with ebooks. They are open until %[2]s.\n\nRead them here:\n\n%[3]s\n\nLog in with this email (%[4]s) to open them.\n",
+		ms: "Hai %[1]s,\n\nPelan Pro COMBO anda disertakan dengan ebook. Ebook itu terbuka sehingga %[2]s.\n\nBaca di sini:\n\n%[3]s\n\nLog masuk dengan e-mel ini (%[4]s) untuk membukanya.\n",
+	},
 	"email.certificate.attached": {en: "Your Certificate PDF is attached.", ms: "PDF Sijil anda dilampirkan."},
 	// ---- end Accounts (#83) ----
 
@@ -1879,6 +1886,7 @@ var catalog = map[string]entry{
 	"ctadmin.learners.give":            {en: "Give Pro", ms: "Berikan Pro"},
 	"ctadmin.learners.give-pro-plan":   {en: "Give Pro Plan", ms: "Berikan Pelan Pro"},
 	"ctadmin.learners.give-combo":      {en: "Give COMBO Pro Plan", ms: "Berikan Pelan Pro COMBO"},
+	"ctadmin.learners.email-ebook":     {en: "Email ebook link", ms: "E-mel pautan ebook"},
 	"ctadmin.learners.renew":           {en: "Renew Pro", ms: "Perbaharui Pro"},
 	"ctadmin.learners.end":             {en: "End Pro now", ms: "Tamatkan Pro sekarang"},
 	"ctadmin.learners.none":            {en: "No Learner has signed in to CaveText yet.", ms: "Belum ada Pelajar yang log masuk ke CaveText."},
