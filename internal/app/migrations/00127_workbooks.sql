@@ -9,9 +9,10 @@ CREATE TABLE workbooks (
     storage_key text NOT NULL UNIQUE,
     name text NOT NULL,
     size bigint NOT NULL CHECK (size > 0),
+    sha256 bytea NOT NULL, -- the same file uploaded again by the same Learner stays one Workbook
     uploaded_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX workbooks_learner ON workbooks (learner_id);
+CREATE INDEX workbooks_learner ON workbooks (learner_id, sha256);
 -- Deleting a record, by hand or by cascade, queues its file for deletion from the store.
 CREATE TRIGGER workbooks_deleted AFTER DELETE ON workbooks
     FOR EACH ROW EXECUTE FUNCTION queue_stored_file_deletion();

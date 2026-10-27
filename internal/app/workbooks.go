@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -48,10 +49,19 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 // Datasets, pages and Workbooks and their pending Datasets on Dashboards other than dashboardID (0 for a new one),
 // whose own pending Dataset the upload replaces; the Datasets roomFor may delete from dashboardID on confirm count as
 // free, as for keepPending. If it does not fit, nothing is kept and the error is errStorageFull, with used the bytes
-// counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0.
+// counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0. A file the Learner
+// already keeps gives that Workbook's id, keeping nothing new.
 func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, name string, data []byte) (id, used int64, err error) {
 	if len(data) == 0 {
 		return 0, 0, nil
+	}
+	// The preview's sheet, header row and month post the file again: the same bytes stay one Workbook.
+	// ponytail: two identical uploads racing each other may still keep two; a unique index if that ever matters.
+	sum := sha256.Sum256(data)
+	err = a.db.QueryRowContext(r.Context(), `SELECT id FROM workbooks WHERE learner_id = $1 AND sha256 = $2 LIMIT 1`,
+		learnerID, sum[:]).Scan(&id)
+	if err == nil || !errors.Is(err, sql.ErrNoRows) {
+		return id, 0, err
 	}
 	token, err := newToken()
 	if err != nil {
@@ -93,8 +103,8 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 				}
 			}
 		}
-		return tx.QueryRowContext(r.Context(), `INSERT INTO workbooks (learner_id, storage_key, name, size) VALUES ($1, $2, $3, $4)
-			RETURNING id`, learnerID, key, name, len(data)).Scan(&id)
+		return tx.QueryRowContext(r.Context(), `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, $2, $3, $4, $5)
+			RETURNING id`, learnerID, key, name, len(data), sum[:]).Scan(&id)
 	})
 	if err != nil {
 		a.dropDataset(r.Context(), r, key)

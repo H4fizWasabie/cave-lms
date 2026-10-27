@@ -345,11 +345,11 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 	return int64(len(data)), used, nil
 }
 
-// uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its pending Dataset, replacing
-// any earlier pending one, then shows the preview. A file Clean-up cannot read gets one message. Clean-up reads
-// with the Dashboard's remembered settings, unless the upload comes with the preview's sheet choices, which
-// the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made on the
-// current Dataset, every column the blocks use is still there and no earlier Dataset goes for room, there is
+// uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its
+// pending Dataset, replacing any earlier pending one, then shows the preview. A file Clean-up cannot read gets one
+// message. Clean-up reads with the Dashboard's remembered settings, unless the upload comes with the preview's sheet
+// choices, which the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made
+// on the current Dataset, every column the blocks use is still there and no earlier Dataset goes for room, there is
 // nothing new to check: the upload is confirmed at once.
 func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
 	lang, err := a.language(r)

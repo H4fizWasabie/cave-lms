@@ -67,6 +67,27 @@ func TestAWorkbookStaysWhenCleanUpFailsOrIsNeverConfirmed(t *testing.T) {
 	}
 }
 
+// Picking another sheet, header row or month posts the same file again: it stays one Workbook, counted once.
+func TestTheSameFileUploadedAgainStaysOneWorkbook(t *testing.T) {
+	_, ada := labLearner(t)
+	file := bigFinance(t, 1)
+	path := ada.createWork("Kedai")
+	for range 2 {
+		res, body := ada.postFile(path+"/dataset", "laporan.xlsx", file)
+		expectStatus(t, res, body, http.StatusSeeOther, "")
+	}
+	other := ada.createWork("Gudang")
+	res, body := ada.postFile(other+"/dataset", "salinan.xlsx", file)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	res, body = ada.get("/my-folder")
+	if n := len(workbookLink.FindAllString(body, -1)); n != 1 {
+		t.Fatalf("%d Workbooks listed, want 1", n)
+	}
+	res, body = ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, fmt.Sprintf("%d KB of 1 GB", (len(file)+1023)>>10))
+}
+
 func TestBuildingADashboardFromExcelKeepsTheWorkbookEvenWhenCleanUpFails(t *testing.T) {
 	_, ada := labLearner(t)
 	file := shopReport(t, "Beras", 120)
@@ -126,7 +147,7 @@ func TestStorageUsedCountsWorkbooksButNotSubmissions(t *testing.T) {
 
 func TestAWorkbookThatDoesNotFitIsRefusedAndNothingIsKept(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
-	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size) VALUES ($1, 'workbook-filler', 'filler.xlsx', 900000)`, ada.adaID()); err != nil {
+	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'workbook-filler', 'filler.xlsx', 900000, '\x00')`, ada.adaID()); err != nil {
 		t.Fatal(err)
 	}
 	path := ada.createWork("Kedai")
