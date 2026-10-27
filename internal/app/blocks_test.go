@@ -11,7 +11,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
-// workReady is a Work Dashboard on Finance with shopReport confirmed, its Perkara column left out of the blanks.
+// workReady is a built Dashboard with shopReport confirmed, its blocks by the General rules.
 func (s *site) workReady() string {
 	s.t.Helper()
 	path := s.createWork("Kedai")

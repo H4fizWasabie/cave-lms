@@ -179,6 +179,20 @@ func TestABuiltDashboardsLivePageFollowsItsThemeAndItsNewData(t *testing.T) {
 
 func idOf(path string) string { return path[strings.LastIndex(path, "/")+1:] }
 
+// Each Dashboard's own address opens its own home, whichever kind was opened before it: a page Dashboard's Page tab,
+// a built one's Dataset tab.
+func TestEachDashboardsAddressOpensItsOwnHomeTab(t *testing.T) {
+	_, ada := labLearner(t)
+	page := ada.createPage("Halaman", myPage)
+	built := ada.build("Kedai", shopReport(t, "Beras", 120))
+	for range 2 {
+		res, body := ada.get(page)
+		expectStatus(t, res, body, http.StatusOK, `action="`+page+`/page"`)
+		res, body = ada.get(built)
+		expectStatus(t, res, body, http.StatusOK, `action="`+built+`/dataset"`)
+	}
+}
+
 // A Dashboard built on Finance before the Templates went (ADR 0019) keeps the blocks it was given, its locked
 // Balance card included, on its Preview and its Deployment, and a new Dataset with the same columns keeps them too.
 func TestADashboardBuiltOnAnotherTemplateKeepsDrawingItsBlocks(t *testing.T) {
