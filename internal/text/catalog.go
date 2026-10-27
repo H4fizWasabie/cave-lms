@@ -840,6 +840,18 @@ var catalog = map[string]entry{
 		en: "Combined %d sheets into one Dataset, with the date in each row's sheet name in a new Date column.",
 		ms: "Menggabungkan %d helaian menjadi satu Set data, dengan tarikh pada nama helaian setiap baris dalam lajur baharu Date.",
 	},
+	"lab.clean.extra-columns": {
+		en: "Columns not in your data, dropped (%[1]d): %[2]s.",
+		ms: "Lajur yang tiada dalam data anda, dibuang (%[1]d): %[2]s.",
+	},
+	"lab.clean.filled-sheet": {
+		en: "Filled the Sheet column of your data from the sheet name: %s.",
+		ms: "Lajur Sheet dalam data anda diisi daripada nama helaian: %s.",
+	},
+	"lab.clean.filled-date": {
+		en: "Filled the Date column of your data from the date in the sheet name: %s.",
+		ms: "Lajur Date dalam data anda diisi daripada tarikh pada nama helaian: %s.",
+	},
 	"lab.clean.unpivoted": {
 		en: "Turned the days across the columns into %d rows, one per staff per day, dated %d/%d. Empty days, counts beside the grid and notes below it were left out.",
 		ms: "Hari merentas lajur ditukar menjadi %d baris, satu bagi setiap staf setiap hari, bertarikh %d/%d. Hari kosong, kiraan di sebelah grid dan nota di bawahnya tidak diambil.",
@@ -886,18 +898,18 @@ var catalog = map[string]entry{
 	"lab.d.tab.deploy":  {en: "Deploy", ms: "Deploy"},
 
 	// Lab: a Dashboard's Dataset tab
-	"lab.d.upload-first":      {en: "Upload a Dataset first", ms: "Muat naik Set data dahulu"},
-	"lab.d.rows.one":          {en: "%d row", ms: "%d baris"},
-	"lab.d.rows.other":        {en: "%d rows", ms: "%d baris"},
-	"lab.d.columns.one":       {en: "%d column", ms: "%d lajur"},
-	"lab.d.columns.other":     {en: "%d columns", ms: "%d lajur"},
-	"lab.d.changed":           {en: "changed %s", ms: "diubah %s"},
-	"lab.d.parts.one":         {en: "%d Part", ms: "%d Bahagian"},
-	"lab.d.parts.other":       {en: "%d Parts", ms: "%d Bahagian"},
-	"lab.d.parts-list":        {en: "Parts of this Dataset", ms: "Bahagian Set data ini"},
-	"lab.d.part-date":         {en: "Part date %s", ms: "Tarikh Bahagian %s"},
-	"lab.d.part-added":        {en: "added %s", ms: "ditambah %s"},
-	"lab.d.part-delete":       {en: "Delete Part", ms: "Padam Bahagian"},
+	"lab.d.upload-first":  {en: "Upload a Dataset first", ms: "Muat naik Set data dahulu"},
+	"lab.d.rows.one":      {en: "%d row", ms: "%d baris"},
+	"lab.d.rows.other":    {en: "%d rows", ms: "%d baris"},
+	"lab.d.columns.one":   {en: "%d column", ms: "%d lajur"},
+	"lab.d.columns.other": {en: "%d columns", ms: "%d lajur"},
+	"lab.d.changed":       {en: "changed %s", ms: "diubah %s"},
+	"lab.d.parts.one":     {en: "%d Part", ms: "%d Bahagian"},
+	"lab.d.parts.other":   {en: "%d Parts", ms: "%d Bahagian"},
+	"lab.d.parts-list":    {en: "Parts of this Dataset", ms: "Bahagian Set data ini"},
+	"lab.d.part-date":     {en: "Part date %s", ms: "Tarikh Bahagian %s"},
+	"lab.d.part-added":    {en: "added %s", ms: "ditambah %s"},
+	"lab.d.part-delete":   {en: "Delete Part", ms: "Padam Bahagian"},
 	"lab.d.part-delete-ask": {
 		en: "Delete the Part “%s”? Its rows leave your Dataset and its file goes too. The Workbook stays in your Folder. This cannot be undone.",
 		ms: "Padam Bahagian “%s”? Barisnya keluar daripada Set data anda dan failnya turut dipadam. Buku kerja kekal dalam Folder anda. Tindakan ini tidak boleh dibuat asal.",
@@ -992,14 +1004,13 @@ var catalog = map[string]entry{
 	"lab.data.gone": {en: "Gone or renamed: %s.", ms: "Hilang atau ditukar nama: %s."},
 	"lab.data.new":  {en: "New: %s.", ms: "Baharu: %s."},
 	"lab.err.add-columns": {
-		en: "To add to your data, the file needs the same columns, in any order. Missing: %s. Not in your data: %s. Fix the headers in Excel, or choose Replace data.",
-		ms: "Untuk menambah pada data anda, fail perlu mempunyai lajur yang sama, dalam apa jua susunan. Hilang: %s. Tiada dalam data anda: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
 	"lab.err.add-too-many-rows": {
 		en: "Adding these %s rows to your %s makes %s. A Dashboard built in a Theme holds up to %s rows. Replace or delete a Part to make room.",
 		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gantikan atau padam satu Bahagian untuk memberi ruang.",
 	},
-	"lab.add.none": {en: "none", ms: "tiada"},
 
 	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {
@@ -1039,6 +1050,10 @@ var catalog = map[string]entry{
 	"lab.w.sheets-help": {
 		en: "Pick the sheet to read and tick the sheets with the same columns to combine with it, then choose your file again and upload. Cave remembers your choice for the next upload.",
 		ms: "Pilih helaian untuk dibaca dan tanda helaian dengan lajur yang sama untuk digabungkan, kemudian pilih fail anda semula dan muat naik. Cave mengingati pilihan anda untuk muat naik seterusnya.",
+	},
+	"lab.w.sheets-help-part": {
+		en: "Cave reads a new Part from the same sheet as your first one, and never combines other sheets with it. Only the sheets with your data's columns are listed: pick the one to read, then choose your file again and upload.",
+		ms: "Cave membaca Bahagian baru daripada helaian yang sama dengan Bahagian pertama anda dan tidak pernah menggabungkan helaian lain dengannya. Hanya helaian dengan lajur data anda disenaraikan: pilih yang hendak dibaca, kemudian pilih fail anda semula dan muat naik.",
 	},
 	"lab.w.notes":          {en: "How Cave reads your columns", ms: "Cara Cave membaca lajur anda"},
 	"lab.note.constant":    {en: "%s: one value on every row, so it isn't charted.", ms: "%s: satu nilai sahaja pada setiap baris, jadi ia tidak dicartakan."},

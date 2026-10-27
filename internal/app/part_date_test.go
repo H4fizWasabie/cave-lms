@@ -62,7 +62,7 @@ func TestAnExcelWithADateInItsTitleRowsPreviewsItFromThatCellAndAnUploadWithNone
 	expectAll(t, body, `value="2026-09-01"`, "daripada sel H2")
 	ada.post(path+"/dataset/confirm", nil)
 
-	ada.postFile(path+"/dataset", "stok.xlsx", testutil.XLSX(t, []string{"Perkara", "Baki", "Unit"}, []any{"Beras", 5, "kg"}), adding)
+	ada.postFile(path+"/dataset", "stok.xlsx", testutil.XLSX(t, []string{"Stock Balance Report"}, []any{}, []any{"Perkara", "Baki", "Unit"}, []any{"Beras", 5, "kg"}), adding)
 	_, body = ada.get(path + "/data")
 	expectAll(t, body, `value="`+partDate()+`"`, "hari muat naik")
 }

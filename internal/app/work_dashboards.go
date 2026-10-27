@@ -82,14 +82,7 @@ type pendingDataset struct {
 }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
-func (p *pendingDataset) Picked() string {
-	for _, s := range p.Sheets {
-		if s.Readable && !s.CanCombine && s.ReasonKey == "" {
-			return s.Name
-		}
-	}
-	return ""
-}
+func (p *pendingDataset) Picked() string { return p.PickedSheet }
 
 // DateFromKey is the text catalog key saying where the Part's date came from, for the preview.
 func (p *pendingDataset) DateFromKey() string {
@@ -347,7 +340,22 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
+	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
+	add := replacing == nil && r.FormValue("mode") == "add" && d.Parts > 0
+	// Replacing one Part of several leaves the others as they are, so the upload is read like an Add.
+	one := replacing != nil && d.Parts > 1
+	free := frees{All: !add && !one} // what confirming deletes, which the room check counts as free
+	if one {
+		free.Part = replacing.ID
+	}
 	settings := d.Settings
+	settings.Recipe = nil // the first Part, and Replace data, are read as ever and set a new recipe on confirm
+	if recipe := d.Settings.Recipe; (add || one) && recipe != nil {
+		// A Part is read with the recipe: its sheet alone, found by name, and its header row. A remembered sheet or
+		// tick belongs to the Dataset's first Part; only the Learner's pick below counts.
+		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, Columns: d.Columns}
+		settings.Sheet, settings.Alone, settings.Ticked = "", false, nil
+	}
 	settings.FileName = name
 	// A header row that is not a number lets Cave find it, as when left empty. It counts for this upload only.
 	header, _ := strconv.Atoi(r.FormValue("header"))
@@ -375,13 +383,6 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	if err != nil {
 		a.serverError(w, r, err)
 		return
-	}
-	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
-	add := replacing == nil && r.FormValue("mode") == "add" && d.Parts > 0
-	one := replacing != nil && d.Parts > 1
-	free := frees{All: !add && !one} // what confirming deletes, which the room check counts as free
-	if one {
-		free.Part = replacing.ID
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
 	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.
@@ -415,6 +416,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
+	if (add || one) && settings.Recipe != nil { // the Learner's sheet pick is for this Part only
+		kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
+	}
 	if add || one {
 		// Only a Dashboard Cave builds in a Theme keeps a row total; one behind the Learner's own page is limited by the
 		// Storage allowance alone (ADR 0022). A Replace of one Part leaves out the rows of the Part it replaces.
@@ -526,6 +530,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			a.serverError(w, r, err)
 			return
 		}
+	}
+	if p.Added == nil && p.Replaces == nil { // the first Part, and Replace data, set the recipe every later Part is read with
+		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow}
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {

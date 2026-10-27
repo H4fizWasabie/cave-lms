@@ -3,8 +3,10 @@ package app_test
 import (
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
@@ -98,7 +100,7 @@ func TestAReplaceOfOnePartCountsItsOldPartAsFreeAndIsRefusedWhenItFitsNeitherWay
 	res, body := ada.postFile(path+"/dataset", "satu.xlsx", bigFinance(t, 1))
 	expectRedirect(t, res, body, path+"/data")
 	ada.confirmWork(path, nil)
-	ada.addFile(path, "dua.xlsx", shopColumns(t, "Gula", 80))
+	ada.addFile(path, "dua.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", 80.0}))
 	link := replaceLinks(t, ada, path+"/data")[0]
 	_, before := visitor.get(dataLink + "data.json")
 
@@ -210,8 +212,8 @@ func TestAReplaceOfOneOfSeveralPartsNeedsTheDatasetsColumnsAndOnlyReachesTheLear
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	links := replaceLinks(t, ada, path+"/data")
-	res, body := ada.postFile(links[0], "markah.xlsx", markahReport(t))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Nama")
+	res, body := ada.postFile(links[0], "markah.xlsx", underTitleRows(t, []any{"Nama", "Markah"}, []any{"Ali", 80.0}))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Missing:")
 	if list := partItems(t, mustGet(t, ada, path+"/data")); !strings.Contains(list, "september.xlsx") || strings.Contains(list, "markah.xlsx") {
 		t.Fatalf("a refused Replace changed the Parts: %s", list)
 	}
@@ -224,6 +226,30 @@ func TestAReplaceOfOneOfSeveralPartsNeedsTheDatasetsColumnsAndOnlyReachesTheLear
 	if res, _ = ada.postFile(crossed, "markah.xlsx", markahReport(t)); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("replacing another Dashboard's Part answered %d, want 404", res.StatusCode)
 	}
+}
+
+// A Part replacing one of several is read with the Dataset's recipe, as an Add is: only the recipe sheet, never
+// another sheet with the same columns; and confirming it keeps the recipe.
+func TestAReplaceOfOneOfSeveralPartsIsReadWithTheRecipeAndKeepsIt(t *testing.T) {
+	_, ada := labLearner(t)
+	path, link := twoParts(t, ada)
+	visitor := ada.second()
+	file := testutil.Workbook(t, shopSheet("SHEET1", "Tepung", "Minyak"), shopSheet("Subset", "Gula"))
+	res, body := ada.postFile(replaceLinks(t, ada, path+"/data")[0], "september-betul.xlsx", file)
+	expectRedirect(t, res, body, path+"/data")
+	body = mustGet(t, ada, path+"/data")
+	expectAll(t, body, "Replacing september.xlsx with these 2 rows")
+	if strings.Contains(body, "Combined") {
+		t.Fatalf("the preview says sheets were combined: %s", body)
+	}
+	ada.confirmWork(path, nil)
+	_, body = visitor.get(link + "data.json")
+	if got, want := perkara(t, body), []string{"Tepung", "Minyak", "Gula", "Jualan"}; !slices.Equal(got, want) {
+		t.Fatalf("data.json Perkara = %v, want %v", got, want)
+	}
+	// The recipe is still the first Part's: an Add after the replace reads only its sheet.
+	ada.postFile(path+"/dataset", "november.xlsx", testutil.Workbook(t, shopSheet("SHEET1", "Garam"), shopSheet("Subset", "Lada")), adding)
+	expectAll(t, mustGet(t, ada, path+"/data"), "Adding 1 row to your 4: 5 rows in all.")
 }
 
 // partItems is the Part list of a Data tab alone, without the preview that may follow it.

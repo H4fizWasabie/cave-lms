@@ -26,7 +26,61 @@ type Settings struct {
 	HeaderRow    int      `json:"-"`                      // the header's row number in Excel, on every sheet; 0 lets Cave find each
 	Month        int      `json:"-"`                      // the month, 1 to 12, of every days-across grid; 0 lets Cave find it
 	Year         int      `json:"-"`                      // the grids' year, with Month; 0 is this year
+	Recipe       *Recipe  `json:"recipe,omitempty"`       // the first Part's way of reading, once the Dataset has Parts; nil reads as for a first Part
 	FileName     string   `json:"-"`                      // the uploaded file's name, where its Part date may be named; empty for none
+}
+
+// Recipe is how a Dataset's first Part was read (ADR 0022), and how every later Part is: only its Sheet, found by
+// name ignoring case and never combined with others, and its HeaderRow, unless the Learner gives one.
+type Recipe struct {
+	Sheet     string   `json:"sheet"`
+	HeaderRow int      `json:"headerRow"`
+	Columns   []Column `json:"-"` // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+}
+
+// fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
+// Cave added when it combined sheets counts as there: fill gives it from the sheet's name.
+func (rc *Recipe) fits(tb *table) bool {
+	return !slices.ContainsFunc(rc.Columns, func(c Column) bool {
+		return !slices.ContainsFunc(tb.cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) && !caveColumn(c, tb.name)
+	})
+}
+
+// caveColumn reports whether c is a column Cave adds to a Dataset combined from sheets (the first Part or Replace),
+// and name, the one sheet a later Part is read from, can give its value: a Sheet column of text, or a Date column of
+// dates when the sheet's name reads as a date.
+// ponytail: a Learner's own Sheet or Date column is told apart only by name and type; if their file lacks it, the
+// sheet's name fills it.
+func caveColumn(c Column, name string) bool {
+	switch columnKey(c.Name) {
+	case "sheet":
+		return c.Type == Text
+	case "date":
+		_, ok := sheetDate(name)
+		return c.Type == Date && ok
+	}
+	return false
+}
+
+// fill puts each of the Recipe's Cave-added columns d lacks in d, first, with the sheet's name (or the date it reads
+// as) on every row, and gives the changes to list.
+func (rc *Recipe) fill(d *Dataset, sheet string) (changes []Change) {
+	for i := len(rc.Columns) - 1; i >= 0; i-- {
+		c := rc.Columns[i]
+		if slices.ContainsFunc(d.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) || !caveColumn(c, sheet) {
+			continue
+		}
+		var value any = sheet
+		if c.Type == Date {
+			value, _ = sheetDate(sheet)
+		}
+		d.Columns = append([]Column{c}, d.Columns...)
+		for ri := range d.Rows {
+			d.Rows[ri] = append([]any{value}, d.Rows[ri]...)
+		}
+		changes = append(changes, Change{Key: "lab.clean.filled-" + columnKey(c.Name), Column: sheet})
+	}
+	return changes
 }
 
 // Sheet is one sheet of an uploaded workbook.
@@ -36,6 +90,7 @@ type Sheet struct {
 	Readable   bool   `json:"readable,omitempty"`   // Clean-up can read it as a table, so it can be picked
 	CanCombine bool   `json:"canCombine,omitempty"` // it has the picked sheet's columns, so it can be ticked to join it
 	ReasonKey  string `json:"reason,omitempty"`     // the text catalog key (lab.clean.sheet-*) saying why it cannot join the picked sheet
+	Fits       bool   `json:"fits,omitempty"`       // under a Recipe: it has the Dataset's columns, so it can be picked
 }
 
 // MaxCleanRows is the most rows Clean-up keeps and MaxColumns the most columns, both counted on the Dataset as
@@ -72,17 +127,18 @@ func (c Change) In(lang string) string {
 // CleanUp is what Clean-up made of an upload: the Dataset and every change it made to get there. Its JSON leaves
 // out the Dataset, which is kept on its own.
 type CleanUp struct {
-	Sheets    []Sheet  `json:"sheets"`          // every sheet in the workbook, in order
-	Used      []string `json:"used"`            // the sheets that went into the Dataset, in workbook order
-	HeaderRow int      `json:"headerRow"`       // the picked sheet's header row number in Excel
-	Month     int      `json:"month,omitempty"` // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
-	Year      int      `json:"year,omitempty"`  // the grids' year, with Month
-	Dataset   *Dataset `json:"-"`
-	Changes   []Change `json:"changes"`
-	Notes     []Note   `json:"notes,omitempty"`    // the columns General leaves out of charts or averages, and why
-	PartDate  string   `json:"partDate,omitempty"` // the Part's date as 2006-01-02, found in the Excel; empty when it names none
-	DateFrom  string   `json:"dateFrom,omitempty"` // where PartDate was found: DateFromCell, DateFromSheet or DateFromFile
-	DateCell  string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
+	Sheets      []Sheet  `json:"sheets"`           // every sheet in the workbook, in order
+	Used        []string `json:"used"`             // the sheets that went into the Dataset, in workbook order
+	PickedSheet string   `json:"picked,omitempty"` // the sheet Clean-up read first, the one the others joined
+	HeaderRow   int      `json:"headerRow"`        // the picked sheet's header row number in Excel
+	Month       int      `json:"month,omitempty"`  // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year        int      `json:"year,omitempty"`   // the grids' year, with Month
+	Dataset     *Dataset `json:"-"`
+	Changes     []Change `json:"changes"`
+	Notes       []Note   `json:"notes,omitempty"`    // the columns General leaves out of charts or averages, and why
+	PartDate    string   `json:"partDate,omitempty"` // the Part's date as 2006-01-02, found in the Excel; empty when it names none
+	DateFrom    string   `json:"dateFrom,omitempty"` // where PartDate was found: DateFromCell, DateFromSheet or DateFromFile
+	DateCell    string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
 }
 
 // Where a Part's date was found, in the order Clean-up tries them. A Part with none takes the upload day, which the
@@ -100,6 +156,9 @@ const (
 // cells (- left empty, more date forms), and note the columns General leaves out of charts. Every step that changes
 // something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, s Settings) (*CleanUp, error) {
+	if s.Recipe != nil && s.HeaderRow == 0 {
+		s.HeaderRow = s.Recipe.HeaderRow
+	}
 	f, err := openWorkbook(r)
 	if err != nil {
 		return nil, err
@@ -136,6 +195,13 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	}
 
 	pick := slices.Index(names, s.Sheet)
+	if rc := s.Recipe; rc != nil && (pick < 0 || tables[pick] == nil) {
+		// The Recipe's sheet by name ignoring case, else the first with the Dataset's columns.
+		pick = slices.IndexFunc(names, func(n string) bool { return strings.EqualFold(n, rc.Sheet) })
+		if pick < 0 || tables[pick] == nil {
+			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && rc.fits(tb) })
+		}
+	}
 	if pick < 0 || tables[pick] == nil {
 		// A header with a number for a column name is a summary's label and value pair, not a list's header.
 		// ponytail: a list with years for column names ranks down too; the Learner can pick the sheet instead.
@@ -161,11 +227,17 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		return nil, onSheet(problems[i], names[i])
 	}
 	base := tables[pick]
+	res.PickedSheet = base.name
 	var used []*table
 	for i, tb := range tables {
 		switch sh := &res.Sheets[i]; {
 		case tb == nil:
 			continue
+		case s.Recipe != nil: // a Part is read from one sheet, never combined with others
+			sh.Fits = s.Recipe.fits(tb)
+			if i != pick {
+				continue
+			}
 		case i == pick:
 		case !sameColumns(tb.cols, base.cols):
 			sh.ReasonKey = "lab.clean.sheet-differs"
@@ -213,6 +285,8 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
+	} else if s.Recipe != nil {
+		res.Changes = append(res.Changes, s.Recipe.fill(d, base.name)...)
 	}
 	switch n := len(d.Columns); {
 	case n > MaxColumns && len(used) > 1:
@@ -393,14 +467,16 @@ func columnChanges(was, now []Column) (gone, added []string) {
 }
 
 // AddPart is more's rows put in cols, the columns of a Dataset that already holds had rows, and the changes it made to
-// more's cells. more needs the Dataset's columns by name, in any order, and the two at most limit rows, or any number
-// when limit is 0 (a Dataset behind the Learner's own page; each upload keeps to MaxCleanRows in Clean); else a
-// Problem names the columns missing and extra, or the row counts. The Dataset's column types stay: a cell of more read
+// more's cells. more needs every one of the Dataset's columns by name, in any order, and the two at most limit rows, or
+// any number when limit is 0 (a Dataset behind the Learner's own page; each upload keeps to MaxCleanRows in Clean);
+// else a Problem names the columns missing, or the row counts. Columns of more the Dataset lacks are dropped and
+// listed as a change. The Dataset's column types stay: a cell of more read
 // as another type is read again as its column's, as typed reads one, and one that does not fit is left empty and
 // listed as a change, once per column.
 func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Change, error) {
-	if gone, added := columnChanges(cols, more.Columns); gone != nil || added != nil {
-		return nil, nil, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
+	gone, extra := columnChanges(cols, more.Columns)
+	if gone != nil {
+		return nil, nil, Problem{"lab.err.add-columns", []any{strings.Join(gone, ", ")}}
 	}
 	if n := had + len(more.Rows); limit > 0 && n > limit {
 		return nil, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(had), thousands(n), thousands(limit)}}
@@ -425,6 +501,9 @@ func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Chan
 		out.Rows = append(out.Rows, row)
 	}
 	var changes []Change
+	if extra != nil {
+		changes = append(changes, Change{Key: "lab.clean.extra-columns", Args: []int{len(extra)}, Column: strings.Join(extra, ", ")})
+	}
 	for i, n := range misfits {
 		if n > 0 {
 			changes = append(changes, Change{Key: "lab.clean.not-" + string(cols[i].Type) + "s", Args: []int{n}, Column: cols[i].Name})
@@ -447,14 +526,6 @@ func retyped(v any, typ Type) (any, bool) {
 		return day, true
 	}
 	return parse(cell{v: s}, typ)
-}
-
-// columnList is names as a Problem lists them, or the word for none.
-func columnList(names []string) any {
-	if len(names) == 0 {
-		return Problem{"lab.add.none", nil}
-	}
-	return strings.Join(names, ", ")
 }
 
 // sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.

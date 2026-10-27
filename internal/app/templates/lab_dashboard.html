@@ -199,6 +199,7 @@
               {{- if .Tickable}}<input type="hidden" name="tickable" value="1">{{end}}
               <ul>
                 {{- range .Sheets}}
+                {{- if or (not $p.Settings.Recipe) .Fits (eq .Name $picked)}}
                 <li>
                   <label><input type="radio" name="sheet" value="{{.Name}}"{{if eq .Name $picked}} checked{{end}}{{if not .Readable}} disabled{{end}}> {{.Name}}</label>
                   {{- if .CanCombine}}
@@ -207,8 +208,9 @@
                   <small class="muted">{{tn $.Lang "lab.d.rows" .Rows}}{{with .ReasonKey}} · {{t $.Lang .}}{{end}}</small>
                 </li>
                 {{- end}}
+                {{- end}}
               </ul>
-              <small>{{t $.Lang "lab.w.sheets-help"}}</small>
+              <small>{{if $p.Settings.Recipe}}{{t $.Lang "lab.w.sheets-help-part"}}{{else}}{{t $.Lang "lab.w.sheets-help"}}{{end}}</small>
             </fieldset>
             {{- end}}{{end}}
             {{- with .Pending}}{{with .Grid}}

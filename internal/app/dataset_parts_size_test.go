@@ -16,19 +16,30 @@ import (
 // bigReport is a shopReport-shaped workbook of n rows (no title rows) for item.
 func bigReport(t *testing.T, item string, n int) []byte {
 	t.Helper()
+	return testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, bigRows(item, n)...)
+}
+
+// bigRows is n rows of shopReport's columns for item.
+func bigRows(item string, n int) [][]any {
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
 	rows := make([][]any, n)
 	for i := range rows {
 		rows[i] = []any{day, fmt.Sprintf("%s %d", item, i), "Dapur", "Keluar", float64(i + 1)}
 	}
-	return testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, rows...)
+	return rows
+}
+
+// bigReportTitled is bigReport under shopReport's title rows, the header on row 4 as pageWithData's first Part has it.
+func bigReportTitled(t *testing.T, item string, n int) []byte {
+	t.Helper()
+	return underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, bigRows(item, n)...)
 }
 
 func TestAnOwnPageDashboardAddsPartsPastFiftyThousandRowsAndDataJSONReturnsEveryRow(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	for _, name := range []string{"oktober.xlsx", "november.xlsx"} {
-		res, body := ada.postFile(path+"/dataset", name, bigReport(t, name, 25000), adding)
+		res, body := ada.postFile(path+"/dataset", name, bigReportTitled(t, name, 25000), adding)
 		expectRedirect(t, res, body, path+"/data")
 		res, body = ada.post(path+"/dataset/confirm", nil)
 		expectRedirect(t, res, body, path+"/data")
