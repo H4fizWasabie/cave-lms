@@ -437,6 +437,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/pro", a.admin(a.giveCaveTextPro))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/pro-plan", a.admin(a.giveCaveTextProPlan))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/combo", a.admin(a.giveCaveTextCombo))
+	mux.HandleFunc("POST /admin/cavetext/learners/{id}/ebook-email", a.admin(a.emailCaveTextEbookLink))
 	mux.HandleFunc("GET /admin/cavetext/learners/{id}/end-pro", a.admin(a.confirmEndCaveTextPro))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/end-pro", a.admin(a.endCaveTextPro))
 	mux.HandleFunc("POST /admin/cavetext/payments/done", a.admin(a.paymentDone))

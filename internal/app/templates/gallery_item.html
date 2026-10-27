@@ -15,8 +15,10 @@
         <img src="/gallery/{{.ID}}/file" alt="{{.Title}}" style="view-transition-name: g-{{.ID}}">
         {{else if .Locked}}
         {{template "ebook-lock" (tile . $.Lang)}}
-        {{else}}
+        {{else if not .Reader}}
         <a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "gallery.download-ebook"}}</a>
+        {{else}}
+        <iframe class="ebook-reader" src="/gallery/{{.ID}}/file#toolbar=0&navpanes=0" title="{{.Title}}"></iframe>
         {{end}}
       </div>
       {{end}}

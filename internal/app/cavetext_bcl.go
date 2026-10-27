@@ -507,6 +507,7 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 			return "", err
 		}
 	}
+	var ebooks bool // the Pro Plan was paid with the code of a Promo that comes with Ebooks
 	planned := true // false when no Plan is marked as the Lab Plan, so a Lab Plan or Pro Plan gave no Plan period
 	switch form.Product {
 	case caveTextProProduct:
@@ -514,7 +515,6 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	case labPlanProduct:
 		planned, err = giveLabPlan(ctx, tx, learnerID)
 	case proPlanProduct:
-		var ebooks bool
 		if ebooks, err = isEbooksPromoCode(ctx, tx, b.Data.Main.Coupon.String()); err != nil {
 			return "", fmt.Errorf("read Promos: %w", err)
 		}
@@ -535,6 +535,9 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 	}
 	if !planned {
 		a.warnNoLabPlan(learnerID)
+	}
+	if ebooks {
+		a.emailEbookLink(ctx, learnerID)
 	}
 	return fmt.Sprintf("gave Learner %d %s", learnerID, form.Product), nil
 }
