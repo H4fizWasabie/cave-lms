@@ -172,7 +172,7 @@ func TestABuiltDashboardsLivePageFollowsItsThemeAndItsNewData(t *testing.T) {
 
 	// Add: shown for a check, as its rows join the ones there, then live.
 	_, body = ada.get(path)
-	expectAll(t, body, `name="mode" value="replace" checked`, `name="mode" value="add"`, "Replace data", "Add to data")
+	expectAll(t, body, `name="mode" value="add" checked`, `name="mode" value="replace"`, "Replace data", "Add to data")
 	res, body = ada.postFile(path+"/dataset", "tambah.xlsx", shopReport(t, "Tepung", 40), adding)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	_, body = ada.get(path)

@@ -116,9 +116,6 @@
                 <p>{{t $.Lang "lab.data.gone" $.Gone}}{{with $.New}} {{t $.Lang "lab.data.new" .}}{{end}}</p>
               </div>
               {{- end}}
-              {{- if not $.Dashboard.Key}}
-              <p><strong>{{t $.Lang "lab.data.all-rows"}}</strong></p>
-              {{- end}}
               {{- end}}
             </div>
             {{- with $.AskHeader}}
@@ -231,7 +228,7 @@
             </fieldset>
             {{- end}}{{end}}
             {{- if and .Dashboard.Key (not $replace)}}
-            {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            {{- $add := gt .Dashboard.Parts 0}}{{with .Pending}}{{$add = false}}{{if .Added}}{{$add = true}}{{end}}{{end}}
             <fieldset class="field">
               <legend>{{t .Lang "lab.data.mode"}}</legend>
               <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>
@@ -258,7 +255,7 @@
           <p class="muted">{{t .Lang "lab.d.pick-body"}}</p>
           <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}" data-busy>
             {{- if and .Dashboard.Key (not $replace)}}
-            {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            {{- $add := gt .Dashboard.Parts 0}}{{with .Pending}}{{$add = false}}{{if .Added}}{{$add = true}}{{end}}{{end}}
             <fieldset class="field">
               <legend>{{t .Lang "lab.data.mode"}}</legend>
               <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>

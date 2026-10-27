@@ -968,11 +968,7 @@ var catalog = map[string]entry{
 		en: "Your Excel file. Cave cleans it and shows you a preview; once you confirm, your page's link serves it at data.json.",
 		ms: "Fail Excel anda. Cave membersihkannya dan menunjukkan pratonton; sebaik anda mengesahkan, pautan halaman anda menyajikannya di data.json.",
 	},
-	"lab.data.columns": {en: "Columns: %s", ms: "Lajur: %s"},
-	"lab.data.all-rows": {
-		en: "Upload all your rows, not only the new ones: once your page reads this data, it shows only what you upload here.",
-		ms: "Muat naik semua baris anda, bukan yang baharu sahaja: sebaik halaman anda membaca data ini, ia hanya menunjukkan apa yang anda muat naik di sini.",
-	},
+	"lab.data.columns":        {en: "Columns: %s", ms: "Lajur: %s"},
 	"lab.data.sentence-title": {en: "Sentence for your chatbot", ms: "Ayat untuk chatbot anda"},
 	"lab.data.sentence-body": {
 		en: "Add this to your prompt, so your page shows the data you upload here.",
