@@ -19,8 +19,6 @@
                 <td>{{if .Verified}}{{t $.Lang "adm.yes"}}{{else}}{{t $.Lang "adm.no"}}{{end}}</td>
                 <td>{{.JoinedOn $.Lang}}</td>
               </tr>
-              {{else}}
-              <tr><td colspan="3">{{t .Lang "adm.all-learners.none"}}</td></tr>
               {{end}}
             </table>
           </div>
