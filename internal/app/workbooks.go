@@ -48,10 +48,10 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 // stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance beside the Learner's
 // Parts, pages and Workbooks and their pending Parts on Dashboards other than dashboardID (0 for a new one),
 // whose own pending Part the upload replaces; the Parts roomFor counts as deleted by the confirm count as free, as for
-// keepPending: every current Part of dashboardID when replace (the upload replaces its data), else none. If it does not fit, nothing is kept and the error is errStorageFull, with used the bytes
+// keepPending: free (every current Part of dashboardID when the upload replaces its data, the one it replaces, else none). If it does not fit, nothing is kept and the error is errStorageFull, with used the bytes
 // counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0. A file the Learner
 // already keeps gives that Workbook's id, keeping nothing new.
-func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, replace bool, name string, data []byte) (id, used int64, err error) {
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, free frees, name string, data []byte) (id, used int64, err error) {
 	if len(data) == 0 {
 		return 0, 0, nil
 	}
@@ -86,7 +86,7 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 			}
 			if dashboardID != 0 {
 				// As keepPending: what confirming deletes from this Dashboard counts as free.
-				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), replace, acc)
+				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), free, acc)
 				if err != nil {
 					return err
 				}

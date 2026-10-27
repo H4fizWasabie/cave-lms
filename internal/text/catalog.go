@@ -902,6 +902,24 @@ var catalog = map[string]entry{
 		en: "Delete the Part “%s”? Its rows leave your Dataset and its file goes too. The Workbook stays in your Folder. This cannot be undone.",
 		ms: "Padam Bahagian “%s”? Barisnya keluar daripada Set data anda dan failnya turut dipadam. Buku kerja kekal dalam Folder anda. Tindakan ini tidak boleh dibuat asal.",
 	},
+	"lab.d.part-replace":      {en: "Replace Part", ms: "Gantikan Bahagian"},
+	"lab.d.part-replace-btn":  {en: "Replace", ms: "Gantikan"},
+	"lab.d.part-replace-body": {
+		en: "Upload the corrected Excel file for “%s”. Its new Part takes the same place in the order and the old one is removed when you confirm. Cave shows a preview first.",
+		ms: "Muat naik fail Excel yang telah dibetulkan untuk “%s”. Bahagian baharunya mengambil tempat yang sama dalam susunan dan yang lama dibuang apabila anda mengesahkan. Cave menunjukkan pratonton dahulu.",
+	},
+	"lab.data.replaces.one": {
+		en: "Replacing %[2]s with this %[1]d row: %[3]d rows in all. The new row is below, as Cave will keep it.",
+		ms: "Menggantikan %[2]s dengan %[1]d baris ini: %[3]d baris semuanya. Baris baharu di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.data.replaces.other": {
+		en: "Replacing %[2]s with these %[1]d rows: %[3]d rows in all. The first new rows are below, as Cave will keep them.",
+		ms: "Menggantikan %[2]s dengan %[1]d baris ini: %[3]d baris semuanya. Baris baharu pertama di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.err.replace-too-many-rows": {
+		en: "These %s rows and the %s in the other Parts make %s. A Dashboard built in a Theme holds up to %s rows. Use fewer rows, or delete another Part to make room.",
+		ms: "%s baris ini dan %s baris dalam Bahagian lain menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gunakan baris yang lebih sedikit, atau padam Bahagian lain untuk memberi ruang.",
+	},
 	"lab.data.replace-warn.one": {
 		en: "Confirming removes the %d Part of your Dataset. Its Workbook stays in your Folder.",
 		ms: "Pengesahan membuang %d Bahagian Set data anda. Buku kerja itu kekal dalam Folder anda.",

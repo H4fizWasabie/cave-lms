@@ -303,7 +303,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
-	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, true, upload, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, frees{All: true}, upload, data)
 	switch {
 	case errors.Is(err, errStorageFull):
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
@@ -444,6 +444,7 @@ type dashboardPage struct {
 	Failed    bool            // the store refused the upload's Dataset
 	Pending   *pendingDataset // an upload waiting for its confirm
 	PartList  []partRow       // the Dataset's current Parts in order, on the Data tab
+	Replacing *partRow        // the Part whose Replace screen this is, on the Data tab
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
@@ -479,7 +480,7 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
 	p.Title, p.Themes = d.Name, lab.Themes
-	if p.Tab == dataTab(d) && p.Pending == nil {
+	if p.Tab == dataTab(d) && p.Pending == nil && p.Replacing == nil {
 		var err error
 		if p.Pending, err = a.pendingOf(r.Context(), d); err != nil {
 			a.serverError(w, r, err)
@@ -492,7 +493,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.AskHeader = p.Pending.HeaderRow
 		}
 	}
-	if p.Pending != nil && p.Pending.Added == nil && d.Page != nil && d.Parts > 0 {
+	if p.Pending != nil && p.Pending.Added == nil && p.Pending.Replaces == nil && d.Page != nil && d.Parts > 0 {
 		// By exact name, as data.json's keys are: a Replace serves the new names as they are, so a page reading Jumlah
 		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.columnChanges) as it keeps the
 		// current names, so data.json's keys stay.
@@ -515,7 +516,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		if p.Pending != nil {
 			var room storageRoom
-			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.Added == nil, p.Access)
+			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.frees(), p.Access)
 			if err == nil && !room.Fits && p.Error == "" { // the confirm will be refused: say so now
 				var lang string
 				lang, err = a.language(r)
@@ -539,6 +540,11 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 
 // uploadDataset checks an uploaded .xlsx's name and size, then hands it to uploadWork to clean and keep pending.
 func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	a.uploadXlsx(w, r, d, nil)
+}
+
+// uploadXlsx is uploadDataset for an upload that replaces the Part replacing, if not nil.
+func (a *App) uploadXlsx(w http.ResponseWriter, r *http.Request, d *dashboard, replacing *partRow) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
 		return
@@ -554,7 +560,7 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		return
 	}
 	defer file.Close()
-	a.uploadWork(w, r, d, acc, file, name)
+	a.uploadWork(w, r, d, acc, file, name, replacing)
 }
 
 // xlsxOf opens the .xlsx a Learner gave in the form's file field, the request capped at maxDatasetUpload. problem

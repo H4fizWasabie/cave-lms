@@ -26,9 +26,39 @@ const previewRows = 20
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
 	lab.CleanUp              // without its Dataset
-	Settings    lab.Settings `json:"settings"`        // the remembered part of the settings Clean-up read with
-	Columns     []lab.Column `json:"columns"`         // the Part's columns, in the order its stored rows read back
-	Added       *addition    `json:"added,omitempty"` // an Add to data; nil for one that replaces the data
+	Settings    lab.Settings `json:"settings"`           // the remembered part of the settings Clean-up read with
+	Columns     []lab.Column `json:"columns"`            // the Part's columns, in the order its stored rows read back
+	Added       *addition    `json:"added,omitempty"`    // an Add to data; nil for one that replaces the data
+	Replaces    *replacement `json:"replaces,omitempty"` // a Replace of one Part of several; nil for an Add or a Replace of the data
+}
+
+// replacement is what a Replace of one Part put together: the Part it replaces and the rows the other Parts hold.
+type replacement struct {
+	Part int64  `json:"part"`
+	File string `json:"file"`
+	Rows int    `json:"rows"` // the replaced Part's rows
+	Had  int    `json:"had"`  // the other Parts' rows
+}
+
+// Total is the Dataset's rows once the Replace is confirmed, given the new Part's rows.
+func (r replacement) Total(rows int) int { return rows + r.Had }
+
+// frees is which current Parts confirming a pending Part deletes: all (a Replace of the data), the one with ID Part (a
+// Replace of one Part), or none (an Add).
+type frees struct {
+	All  bool
+	Part int64
+}
+
+// frees is the Parts confirming the pending Part deletes.
+func (c cleaned) frees() frees {
+	switch {
+	case c.Added != nil:
+		return frees{}
+	case c.Replaces != nil:
+		return frees{Part: c.Replaces.Part}
+	}
+	return frees{All: true}
 }
 
 // addition is what an Add to data put together: the upload's rows and the rows the Dataset had before them.
@@ -124,9 +154,10 @@ type storageRoom struct {
 }
 
 // roomFor is whether a pending Part of size bytes fits the Learner's Storage allowance, counting as free the Parts
-// its confirm deletes: every current Part when it replaces the data, and the earlier Datasets from before Parts,
-// which any confirm deletes. dashboardID is 0 for a Dashboard not made yet. The Admin has no allowance.
-func roomFor(ctx context.Context, q queryer, dashboardID, size int64, replace bool, acc labAccess) (storageRoom, error) {
+// its confirm deletes (free): every current Part when it replaces the data, the one Part it replaces, and the earlier
+// Datasets from before Parts, which any confirm deletes. dashboardID is 0 for a Dashboard not made yet. The Admin has
+// no allowance.
+func roomFor(ctx context.Context, q queryer, dashboardID, size int64, free frees, acc labAccess) (storageRoom, error) {
 	period := acc.CountedPeriod()
 	if period == nil {
 		return storageRoom{Fits: true}, nil
@@ -134,8 +165,8 @@ func roomFor(ctx context.Context, q queryer, dashboardID, size int64, replace bo
 	var room storageRoom
 	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+`,
 			(SELECT COALESCE(sum(p.saved_size), 0) FROM dataset_parts p
-				WHERE p.dashboard_id = this.id AND (p.state = 'earlier' OR p.state = 'current' AND $2::boolean))
-		FROM dashboards this WHERE this.id = $1`, dashboardID, replace).Scan(&room.Used, &room.Freed); err != nil {
+				WHERE p.dashboard_id = this.id AND (p.state = 'earlier' OR p.state = 'current' AND ($2::boolean OR p.id = $3)))
+		FROM dashboards this WHERE this.id = $1`, dashboardID, free.All, free.Part).Scan(&room.Used, &room.Freed); err != nil {
 		return storageRoom{}, err
 	}
 	room.Fits = room.Used+size-room.Freed <= period.Storage()
@@ -278,7 +309,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 			}
 			// ponytail: what confirm deletes counts as free before it is, so the store can hold up to about twice the
 			// allowance until the Learner confirms; refusing those uploads would refuse ones that fit once confirmed.
-			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), res.Added == nil, acc)
+			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), res.frees(), acc)
 			if err != nil {
 				return err
 			}
@@ -308,7 +339,9 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 // choices, which the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made
 // on the latest Part, every column the blocks use is still there, the Dataset has at most one Part for a Replace to
 // delete and the Part fits the Storage allowance, there is nothing new to check: the upload is confirmed at once.
-func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
+// replacing is the Part the upload replaces, from its Replace link; nil for an upload to the Dataset. Replacing the
+// only Part is a Replace of the data; with other Parts the upload is read like an Add and takes the Part's place.
+func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string, replacing *partRow) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -344,7 +377,12 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
-	add := r.FormValue("mode") == "add" && d.Parts > 0
+	add := replacing == nil && r.FormValue("mode") == "add" && d.Parts > 0
+	one := replacing != nil && d.Parts > 1
+	free := frees{All: !add && !one} // what confirming deletes, which the room check counts as free
+	if one {
+		free.Part = replacing.ID
+	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
 	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.
 	refused := func(size, used int64, err error) bool {
@@ -362,7 +400,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		return true
 	}
-	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, !add, name, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, free, name, data)
 	if refused(int64(len(data)), used, err) {
 		return
 	}
@@ -377,15 +415,22 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
-	if add {
+	if add || one {
 		// Only a Dashboard Cave builds in a Theme keeps a row total; one behind the Learner's own page is limited by the
-		// Storage allowance alone (ADR 0022).
+		// Storage allowance alone (ADR 0022). A Replace of one Part leaves out the rows of the Part it replaces.
 		limit := lab.MaxCleanRows
 		if d.Page != nil {
 			limit = 0
 		}
-		more, changes, err := lab.AddPart(d.Columns, d.Rows, res.Dataset, limit)
+		had := d.Rows
+		if one {
+			had -= replacing.Rows
+		}
+		more, changes, err := lab.AddPart(d.Columns, had, res.Dataset, limit)
 		if errors.As(err, &problem) {
+			if one && problem.Key == "lab.err.add-too-many-rows" {
+				problem.Key = "lab.err.replace-too-many-rows"
+			}
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 			page.Error = problem.In(lang)
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
@@ -395,7 +440,11 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			a.serverError(w, r, err)
 			return
 		}
-		kept.Added = &addition{Rows: len(more.Rows), Had: d.Rows}
+		if add {
+			kept.Added = &addition{Rows: len(more.Rows), Had: d.Rows}
+		} else {
+			kept.Replaces = &replacement{Part: replacing.ID, File: replacing.File, Rows: replacing.Rows, Had: had}
+		}
 		kept.Dataset = more
 		kept.Changes = append(kept.Changes, changes...)
 	}
@@ -408,7 +457,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
-			room, err = roomFor(r.Context(), a.db, d.ID, size, true, acc)
+			room, err = roomFor(r.Context(), a.db, d.ID, size, frees{All: true}, acc)
 		}
 		if err != nil {
 			a.serverError(w, r, err)
@@ -422,10 +471,10 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 }
 
-// confirmWork makes the pending Part current. An Add to data puts it last in the Dataset's order; a Replace makes it the
-// only Part, deleting the others, and any Dataset from before Parts is deleted either way, their files queued for
-// deletion from the store. The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019).
-// Later confirms keep the blocks, swapping in the Learner's pick (use:<column>) for each column they use that the
+// confirmWork makes the pending Part current. An Add to data puts it last in the Dataset's order; a Replace of the data
+// makes it the only Part, deleting the others; a Replace of one Part deletes that Part and takes its place in the
+// order. Any Dataset from before Parts is deleted in each case, their files queued for deletion from the store.
+// The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019). Later confirms keep the blocks, swapping in the Learner's pick (use:<column>) for each column they use that the
 // Dataset lacks; one left out pauses its blocks. A confirm that would take the Learner over their Storage allowance
 // even with the Parts it deletes gone is refused and the Part stays pending.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
@@ -504,8 +553,20 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		if err != nil {
 			return err
 		}
-		replace := p.Added == nil
-		if room, err = roomFor(r.Context(), tx, d.ID, p.Size, replace, acc); err != nil || !room.Fits {
+		// A Replace of one Part takes the replaced Part's place; the Part goes if another confirm or delete has not already.
+		var position sql.NullInt64
+		if p.Replaces != nil {
+			err := tx.QueryRowContext(r.Context(), `SELECT position FROM dataset_parts WHERE id = $1 AND dashboard_id = $2 AND state = 'current' FOR UPDATE`,
+				p.Replaces.Part, d.ID).Scan(&position)
+			if errors.Is(err, sql.ErrNoRows) {
+				return replaced
+			}
+			if err != nil {
+				return err
+			}
+		}
+		free := p.frees()
+		if room, err = roomFor(r.Context(), tx, d.ID, p.Size, free, acc); err != nil || !room.Fits {
 			return cmp.Or(err, errStorageFull)
 		}
 		if day != p.PartDate {
@@ -527,13 +588,13 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 				return err
 			}
 		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier' OR state = 'current' AND $2::boolean)`,
-			d.ID, replace); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier' OR state = 'current' AND ($2::boolean OR id = $3))`,
+			d.ID, free.All, free.Part); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE dataset_parts SET state = 'current', confirmed_at = now(),
-			position = (SELECT COALESCE(max(position), 0) + 1 FROM dataset_parts WHERE dashboard_id = $2 AND state = 'current')
-			WHERE id = $1`, p.ID, d.ID); err != nil {
+			position = COALESCE($3::integer, (SELECT COALESCE(max(position), 0) + 1 FROM dataset_parts WHERE dashboard_id = $2 AND state = 'current'))
+			WHERE id = $1`, p.ID, d.ID, position); err != nil {
 			return err
 		}
 		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, upload_settings = $3, dataset_columns = $4, updated_at = now() WHERE id = $1`,
