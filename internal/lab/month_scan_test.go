@@ -21,3 +21,16 @@ func TestAMonthScanFindsTheNumberColumnsOfWholeOneToTwelveAcrossTheParts(t *test
 		t.Fatalf("month columns of no Part = %#v, want empty and not nil", got)
 	}
 }
+
+// A recorded month column stays unless the Part has a number in it that is not a whole 1 to 12: a name or nothing in it
+// does not drop it, and a column not recorded is never added.
+func TestKeepMonthColumnsDropsTheOnesThePartHasAnotherNumberIn(t *testing.T) {
+	cols := []lab.Column{{"BULAN", lab.Number}, {"UMUR", lab.Number}, {"BAKI", lab.Number}}
+	part := &lab.Dataset{Columns: cols, Rows: [][]any{{13.0, 5.0, 3.0}, {"OGOS", nil, 4.0}}}
+	if got, want := lab.KeepMonthColumns(cols, []string{"bulan", "UMUR"}, part), []string{"UMUR"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("month columns = %v, want %v", got, want)
+	}
+	if got := lab.KeepMonthColumns(cols, []string{"BULAN"}, part); got == nil || len(got) != 0 {
+		t.Fatalf("month columns with none left = %#v, want empty and not nil", got)
+	}
+}

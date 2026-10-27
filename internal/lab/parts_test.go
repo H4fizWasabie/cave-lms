@@ -31,15 +31,15 @@ func TestAddPartNeedsTheDatasetsColumnsAndKeepsToTheRowLimit(t *testing.T) {
 	cols := []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Number}}
 	more := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}}, Rows: [][]any{{"Gula"}}}
 	var p lab.Problem
-	if _, _, err := lab.AddPart(cols, 1, more, lab.MaxCleanRows); !errors.As(err, &p) || p.Key != "lab.err.add-columns" {
+	if _, _, err := lab.AddPart(cols, 1, more, lab.MaxCleanRows, nil); !errors.As(err, &p) || p.Key != "lab.err.add-columns" {
 		t.Fatalf("err = %v, want lab.err.add-columns", err)
 	}
 	full := &lab.Dataset{Columns: cols, Rows: [][]any{{"Gula", 1.0}}}
-	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full, lab.MaxCleanRows); !errors.As(err, &p) || p.Key != "lab.err.add-too-many-rows" {
+	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full, lab.MaxCleanRows, nil); !errors.As(err, &p) || p.Key != "lab.err.add-too-many-rows" {
 		t.Fatalf("err = %v, want lab.err.add-too-many-rows", err)
 	}
 	// A limit of 0 is no row total: the Dataset behind a Learner's own page.
-	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full, 0); err != nil {
+	if _, _, err := lab.AddPart(cols, lab.MaxCleanRows, full, 0, nil); err != nil {
 		t.Fatalf("err = %v, want none without a row limit", err)
 	}
 }
@@ -52,7 +52,7 @@ func TestAddPartDropsExtraColumnsAndListsThemAndAcceptsAnyOrder(t *testing.T) {
 		Columns: []lab.Column{{Name: "Nota", Type: lab.Text}, {Name: "baki", Type: lab.Number}, {Name: "Rak", Type: lab.Text}, {Name: "Barang", Type: lab.Text}, {Name: "Warna", Type: lab.Text}},
 		Rows:    [][]any{{"n", 3.0, "r", "Gula", "putih"}},
 	}
-	out, changes, err := lab.AddPart(cols, 1, more, lab.MaxCleanRows)
+	out, changes, err := lab.AddPart(cols, 1, more, lab.MaxCleanRows, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestAddPartDropsExtraColumnsAndListsThemAndAcceptsAnyOrder(t *testing.T) {
 	}
 
 	short := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}}, Rows: [][]any{{"Gula"}}}
-	_, _, err = lab.AddPart(append(cols, lab.Column{Name: "Rak", Type: lab.Text}), 1, short, 0)
+	_, _, err = lab.AddPart(append(cols, lab.Column{Name: "Rak", Type: lab.Text}), 1, short, 0, nil)
 	var p lab.Problem
 	if !errors.As(err, &p) || !strings.Contains(p.In("en"), "Missing: Baki, Rak.") {
 		t.Fatalf("err = %v, want a refusal naming Baki and Rak", err)
@@ -88,7 +88,7 @@ func TestMapColumnsReadsRenamedColumnsAsTheDatasetsAndListsWhatItMapped(t *testi
 	}
 	chosen := map[string]string{"NAMA INSTITUSI": "NAMA_PENUH_INSTITUSI", "jumlah hadir": "JUMHADIR"}
 	mapped, ms, changes := lab.MapColumns(cols, more, chosen)
-	out, dropped, err := lab.AddPart(cols, 1, mapped, lab.MaxCleanRows)
+	out, dropped, err := lab.AddPart(cols, 1, mapped, lab.MaxCleanRows, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestMapColumnsReadsRenamedColumnsAsTheDatasetsAndListsWhatItMapped(t *testi
 
 	// A column still unmapped is refused, naming it.
 	unmapped, _, _ := lab.MapColumns(cols, more, nil)
-	_, _, err = lab.AddPart(cols, 1, unmapped, 0)
+	_, _, err = lab.AddPart(cols, 1, unmapped, 0, nil)
 	var p lab.Problem
 	if !errors.As(err, &p) || !strings.Contains(p.In("en"), "Missing: NAMA_PENUH_INSTITUSI, JUMHADIR.") {
 		t.Fatalf("err = %v, want a refusal naming the two still unmapped", err)

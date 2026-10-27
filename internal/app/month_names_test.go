@@ -8,7 +8,7 @@ import (
 )
 
 // monthNamedReport is augustReport with BULAN written as a month name, as the real August export does.
-func monthNamedReport(t *testing.T, month string, schools ...[2]string) []byte {
+func monthNamedReport(t *testing.T, month any, schools ...[2]string) []byte {
 	t.Helper()
 	var rows [][]any
 	for _, s := range schools {

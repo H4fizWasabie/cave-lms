@@ -909,7 +909,7 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 // ponytail: one Part is in memory at a time, as the store reads whole objects; stream from the store (R2) if Parts
 // get big enough to matter.
 func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, key, cache string) {
-	all, withRows, err := a.partKeys(r.Context(), d.ID)
+	all, withRows, err := a.partKeys(r.Context(), d.ID, 0)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -941,10 +941,11 @@ func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, k
 	_, _ = w.Write([]byte("\n]\n"))
 }
 
-// partKeys lists the store keys of the Dashboard's current Parts in position order, and of those that have rows.
-func (a *App) partKeys(ctx context.Context, dashboardID int64) (all, withRows []string, err error) {
+// partKeys lists the store keys of the Dashboard's current Parts in position order, and of those that have rows, leaving
+// out the Part except (an ID; 0 leaves out none).
+func (a *App) partKeys(ctx context.Context, dashboardID, except int64) (all, withRows []string, err error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT storage_key, row_count > 0 FROM dataset_parts
-		WHERE dashboard_id = $1 AND state = 'current' ORDER BY position`, dashboardID)
+		WHERE dashboard_id = $1 AND state = 'current' AND id <> $2 ORDER BY position`, dashboardID, except)
 	if err != nil {
 		return nil, nil, err
 	}

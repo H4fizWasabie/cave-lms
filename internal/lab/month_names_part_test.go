@@ -27,7 +27,7 @@ func TestAddingAPartOfMonthNamesToADatasetWhoseMonthColumnHeldNumbers(t *testing
 	if got := changesIn(august, "en"); len(got) != 0 {
 		t.Fatalf("changes = %q, want none before the Part is added", got)
 	}
-	out, changes, err := lab.AddPart(first.Dataset.Columns, 2, august.Dataset, lab.MaxCleanRows, recipe.MonthColumns...)
+	out, changes, err := lab.AddPart(first.Dataset.Columns, 2, august.Dataset, lab.MaxCleanRows, recipe.MonthColumns)
 	if err != nil {
 		t.Fatal(err)
 	}

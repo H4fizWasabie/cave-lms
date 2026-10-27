@@ -18,7 +18,7 @@ func TestAnAddedPartsMonthNamesAreReadAsNumbersInTheDatasetsMonthColumn(t *testi
 		Columns: []lab.Column{{Name: "KELAS", Type: lab.Text}, {Name: "BULAN", Type: lab.Text}, {Name: "JUMLAH", Type: lab.Number}},
 		Rows:    [][]any{{"1 Amanah", "OGOS", 10.0}, {"2 Bestari", "ogos", 12.0}, {"3 Cekal", " Aug ", 11.0}, {"4 Dedikasi", "8", 9.0}, {"5 Efisien", nil, 9.0}},
 	}
-	out, changes, err := lab.AddPart(attendanceColumns, 2, more, lab.MaxCleanRows, "BULAN")
+	out, changes, err := lab.AddPart(attendanceColumns, 2, more, lab.MaxCleanRows, []string{"BULAN"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestAnAddedPartsMonthNameStaysEmptyWhereTheColumnIsNotAMonthColumn(t *testi
 		"a number beyond 12": {part("OGOS", "13"), []string{"BULAN"}},
 		"a fraction":         {part("OGOS", "2.5"), []string{"BULAN"}},
 	} {
-		out, changes, err := lab.AddPart(attendanceColumns, 1, c.more, 0, c.months...)
+		out, changes, err := lab.AddPart(attendanceColumns, 1, c.more, 0, c.months)
 		if err != nil {
 			t.Fatal(name, err)
 		}
@@ -76,7 +76,7 @@ func TestAnAddedPartsAmountColumnNeverReadsAMonthName(t *testing.T) {
 		Columns: []lab.Column{{Name: "KELAS", Type: lab.Text}, {Name: "BULAN", Type: lab.Number}, {Name: "JUMLAH", Type: lab.Text}},
 		Rows:    [][]any{{"x", 8.0, "Mac"}, {"y", 8.0, "Jun"}, {"z", 8.0, "5"}},
 	}
-	out, changes, err := lab.AddPart(attendanceColumns, 1, more, 0, "BULAN")
+	out, changes, err := lab.AddPart(attendanceColumns, 1, more, 0, []string{"BULAN"})
 	if err != nil {
 		t.Fatal(err)
 	}
