@@ -236,9 +236,8 @@ func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, 
 	return out, rows.Err()
 }
 
-// uploadPage makes a new page current at the Dashboard's link, POST /lab/dashboards/{id}/page, checked as
-// createPageDashboard checks the first; a Dashboard without one takes its first, though no screen offers it to a
-// built one.
+// uploadPage makes a new page current at a page Dashboard's link, POST /lab/dashboards/{id}/page, checked as
+// createPageDashboard checks the first; a built Dashboard, one without a page, takes none (ADR 0019).
 // The page it replaces turns earlier; past keepEarlier, the oldest earlier one goes, from the store too, and its bytes
 // no longer count against the Storage allowance.
 func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
@@ -250,6 +249,10 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if d.Page == nil {
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: d.Name, Message: text.T(lang, "lab.page.err.built", d.Name)})
 		return
 	}
 	refuse := func(msg string) {

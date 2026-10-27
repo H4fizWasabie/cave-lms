@@ -179,6 +179,36 @@ func TestABuiltDashboardsLivePageFollowsItsThemeAndItsNewData(t *testing.T) {
 
 func idOf(path string) string { return path[strings.LastIndex(path, "/")+1:] }
 
+// Paste is only for own-page Dashboards: a page posted to a built one, before or after its first confirm, is refused
+// in both languages and saves nothing.
+func TestABuiltDashboardRefusesAPastedPage(t *testing.T) {
+	_, ada := labLearner(t)
+	pending := ada.build("Kedai", shopReport(t, "Beras", 120))
+	confirmed := ada.readyDashboard("Kewangan")
+	files := ada.storedFiles()
+	for lang, want := range map[string]string{
+		"en": "Kedai is built from Excel, so it takes no page of its own. Paste your page as a new Dashboard.",
+		"ms": "Kedai dibina daripada Excel, jadi ia tidak menerima halaman sendiri. Tampal halaman anda sebagai Dashboard baharu.",
+	} {
+		ada.switchLanguage(lang, "/lab")
+		res, body := ada.post(pending+"/page", url.Values{"html": {myPage}})
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
+	}
+	res, body := ada.postFile(confirmed+"/page", "jualan.html", []byte(myPage))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Kewangan ")
+	for _, path := range []string{pending, confirmed} {
+		if n := ada.pageRows(path); n != 0 {
+			t.Errorf("%s has %d pages after the refusals, want 0", path, n)
+		}
+	}
+	if n := ada.storedFiles(); n != files {
+		t.Fatalf("%d stored files after the refusals, want %d", n, files)
+	}
+	if theme, _ := ada.drawn(confirmed + "/view/"); theme != "corporate" {
+		t.Fatalf("after the refusal the Dashboard draws %q, want corporate", theme)
+	}
+}
+
 // Each Dashboard's own address opens its own home, whichever kind was opened before it: a page Dashboard's Page tab,
 // a built one's Dataset tab.
 func TestEachDashboardsAddressOpensItsOwnHomeTab(t *testing.T) {

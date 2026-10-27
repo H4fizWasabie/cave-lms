@@ -747,6 +747,10 @@ var catalog = map[string]entry{
 		en: "%s is not a .html file. Pick the page saved as .html, or paste its HTML.",
 		ms: "%s bukan fail .html. Pilih halaman yang disimpan sebagai .html, atau tampal HTMLnya.",
 	},
+	"lab.page.err.built": {
+		en: "%s is built from Excel, so it takes no page of its own. Paste your page as a new Dashboard.",
+		ms: "%s dibina daripada Excel, jadi ia tidak menerima halaman sendiri. Tampal halaman anda sebagai Dashboard baharu.",
+	},
 	"lab.err.name":      {en: "Give the Dashboard a name.", ms: "Berikan nama kepada Dashboard."},
 	"lab.err.name-long": {en: "Keep the name to 80 characters or fewer.", ms: "Hadkan nama kepada 80 aksara atau kurang."},
 	"lab.locked.title":  {en: "The Lab is locked", ms: "Lab dikunci"},
