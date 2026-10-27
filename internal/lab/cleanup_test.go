@@ -811,7 +811,7 @@ func TestCleanUpOfAnUnreadableSheetDoesNotFormatItsCellText(t *testing.T) {
 func TestAddKeepsADashEmptyInANumberColumn(t *testing.T) {
 	d := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Number}}, Rows: [][]any{{"Gula", 12.0}}}
 	more := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Text}}, Rows: [][]any{{"Tepung", "-"}, {"Beras", "7"}}}
-	out, changes, err := lab.AddPart(d.Columns, len(d.Rows), more)
+	out, changes, err := lab.AddPart(d.Columns, len(d.Rows), more, lab.MaxCleanRows)
 	if err != nil {
 		t.Fatal(err)
 	}

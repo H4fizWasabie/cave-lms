@@ -393,16 +393,17 @@ func columnChanges(was, now []Column) (gone, added []string) {
 }
 
 // AddPart is more's rows put in cols, the columns of a Dataset that already holds had rows, and the changes it made to
-// more's cells. more needs the Dataset's columns by name, in any order, and the two at most MaxCleanRows rows; else a
+// more's cells. more needs the Dataset's columns by name, in any order, and the two at most limit rows, or any number
+// when limit is 0 (a Dataset behind the Learner's own page; each upload keeps to MaxCleanRows in Clean); else a
 // Problem names the columns missing and extra, or the row counts. The Dataset's column types stay: a cell of more read
 // as another type is read again as its column's, as typed reads one, and one that does not fit is left empty and
 // listed as a change, once per column.
-func AddPart(cols []Column, had int, more *Dataset) (*Dataset, []Change, error) {
+func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Change, error) {
 	if gone, added := columnChanges(cols, more.Columns); gone != nil || added != nil {
 		return nil, nil, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
 	}
-	if n := had + len(more.Rows); n > MaxCleanRows {
-		return nil, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(had), thousands(n), thousands(MaxCleanRows)}}
+	if n := had + len(more.Rows); limit > 0 && n > limit {
+		return nil, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(had), thousands(n), thousands(limit)}}
 	}
 	at := make([]int, len(cols)) // each column's index in more
 	for i, c := range cols {
