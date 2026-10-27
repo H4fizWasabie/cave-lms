@@ -9,7 +9,7 @@
       </ul>
       {{- with .Access.CountedPeriod}}
       <div class="lab-plan">
-        <div><span class="panel-k">{{t $.Lang "lab.plan"}}</span><strong>{{.PlanName}}</strong><span class="muted">{{t $.Lang "lab.ends" .Ends}}</span></div>
+        <div><span class="panel-k">{{t $.Lang "lab.plan"}}</span><strong>{{t $.Lang "plans.lab"}}</strong><span class="muted">{{t $.Lang "lab.ends" .Ends}}</span></div>
         <div><span class="panel-k">{{t $.Lang "lab.awake"}}</span><strong>{{t $.Lang "lab.of" .Awake .Deployments}}</strong></div>
         <div><span class="panel-k">{{t $.Lang "lab.storage"}}</span><strong>{{t $.Lang "lab.storage-of" (size .Used) (size .Storage)}}</strong><span class="muted">{{t $.Lang "lab.storage-what"}}</span></div>
       </div>

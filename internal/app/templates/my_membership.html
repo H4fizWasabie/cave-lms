@@ -7,7 +7,7 @@
       </div>
       <dl class="acct-list">
         {{- if .PlanName}}
-        <div><dt>{{t .Lang "my-membership.plan"}}</dt><dd><strong>{{.PlanName}}</strong><span>{{t .Lang "my-membership.until" .PlanUntil}}</span></dd></div>
+        <div><dt>{{t .Lang "my-membership.plan"}}</dt><dd><strong>{{t .Lang "plans.lab"}}</strong><span>{{t .Lang "my-membership.until" .PlanUntil}}</span></dd></div>
         {{- else}}
         <div><dt>{{t .Lang "my-membership.plan"}}</dt><dd><strong>{{t .Lang "my-membership.no-plan"}}</strong><a class="link-more" href="/pricing">{{t .Lang "my-membership.get-plan"}}</a></dd></div>
         {{- end}}
