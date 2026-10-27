@@ -52,7 +52,7 @@ type offer struct {
 // offerBenefits are the catalog keys of what each product includes, listed under its price.
 var offerBenefits = map[string][]string{
 	caveTextProProduct: {"offers.cavetext-pro.unlimited", "offers.cavetext-pro.user", "offers.cavetext-pro.ready", "offers.cavetext-pro.keep"},
-	labPlanProduct:     {"offers.lab-plan.build", "offers.lab-plan.deploy", "offers.lab-plan.hosting", "offers.lab-plan.code"},
+	labPlanProduct:     {"offers.lab-plan.build", "offers.lab-plan.deploy", "offers.lab-plan.hosting"},
 	proPlanProduct:     {"offers.pro-plan.cavetext", "offers.pro-plan.lab", "offers.pro-plan.deploy", "offers.pro-plan.storage", "offers.pro-plan.both"},
 }
 
