@@ -1185,7 +1185,8 @@ func partDate(tb *table, file string) (day, from, cell string) {
 }
 
 // fileDate reads a date from a file's name: YYYYMMDD, also with a time after it (20260702091058), YYYY-MM-DD,
-// DD.MM.YY and DD-MM-YYYY (also DD.MM.YYYY and DD-MM-YY), as "2006-01-02".
+// DD.MM.YY and DD-MM-YYYY (also DD.MM.YYYY and DD-MM-YY), as "2006-01-02". Failing those, a month and year, read
+// as the first of the month: see monthYear.
 func fileDate(name string) (string, bool) {
 	if m := compactDay.FindStringSubmatch(name); m != nil {
 		if day, err := time.Parse("20060102", m[1]+m[2]+m[3]); err == nil {
@@ -1198,5 +1199,64 @@ func fileDate(name string) (string, bool) {
 		}
 		return sheetDate(m[1])
 	}
-	return "", false
+	return monthYear(name)
+}
+
+var monthNames = map[string]time.Month{
+	"jan": 1, "januari": 1, "january": 1,
+	"feb": 2, "februari": 2, "february": 2,
+	"mar": 3, "mac": 3, "march": 3,
+	"apr": 4, "april": 4,
+	"may": 5, "mei": 5,
+	"jun": 6, "june": 6,
+	"jul": 7, "julai": 7, "july": 7,
+	"aug": 8, "ogos": 8, "august": 8,
+	"sep": 9, "sept": 9, "september": 9,
+	"oct": 10, "okt": 10, "october": 10, "oktober": 10,
+	"nov": 11, "november": 11,
+	"dec": 12, "dis": 12, "december": 12, "disember": 12,
+}
+
+var (
+	// A run of exactly six digits (062026), or a month and a four-digit year with . or - (06-2026, 2026-06).
+	// fileDate tries full dates first, so day-month-year and year-month-day never reach this.
+	monthYearDigits = regexp.MustCompile(`(?:^|\D)(?:(\d{2})(\d{4})|(\d{1,2})[.-](\d{4})|(\d{4})-(\d{1,2}))(?:\D|$)`)
+	// A month name, English or Malay, then a four-digit year (Jun 2026, Ogos-2026). A day before the name
+	// (5 Jun 2026) is group 1: that is a full date this does not read, so it is not taken as the month.
+	monthYearName = regexp.MustCompile(`(?i)(?:^|[^a-z0-9])(\d{1,2}[\s._-]*)?(` + monthAlternatives() + `)[\s._-]*(\d{4})(?:\D|$)`)
+)
+
+func monthAlternatives() string {
+	names := make([]string, 0, len(monthNames))
+	for n := range monthNames {
+		names = append(names, n)
+	}
+	return strings.Join(names, "|")
+}
+
+// monthYear reads a month and year in a file's name as the first of that month, "2006-01-02": MMYYYY, MM-YYYY,
+// MM.YYYY, YYYY-MM, or a month name with a year. The month is 1 to 12 and the year 1900 to 2099, as in YYYYMMDD.
+func monthYear(name string) (string, bool) {
+	month, year := 0, 0
+	if m := monthYearDigits.FindStringSubmatch(name); m != nil {
+		switch {
+		case m[1] != "":
+			month, year = atoi(m[1]), atoi(m[2])
+		case m[3] != "":
+			month, year = atoi(m[3]), atoi(m[4])
+		default:
+			month, year = atoi(m[6]), atoi(m[5])
+		}
+	} else if m := monthYearName.FindStringSubmatch(name); m != nil && m[1] == "" {
+		month, year = int(monthNames[strings.ToLower(m[2])]), atoi(m[3])
+	}
+	if month < 1 || month > 12 || year < 1900 || year > 2099 {
+		return "", false
+	}
+	return time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format(time.DateOnly), true
+}
+
+func atoi(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
 }

@@ -899,6 +899,76 @@ func TestCleanUpFallsBackToTheSheetNameThenTheFileName(t *testing.T) {
 	}
 }
 
+func TestCleanUpReadsAMonthAndYearInTheFileNameAsTheFirstOfTheMonth(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data", row("Item", "Balance"), row("Gula", 3)))
+	for name, want := range map[string]string{
+		"kehadiran_062026.xlsx":     "2026-06-01",
+		"kehadiran 06-2026.xlsx":    "2026-06-01",
+		"kehadiran 6.2026.xlsx":     "2026-06-01",
+		"kehadiran 2026-06.xlsx":    "2026-06-01",
+		"kehadiran_2026-12.xlsx":    "2026-12-01",
+		"Laporan Jun 2026.xlsx":     "2026-06-01",
+		"Laporan June 2026.xlsx":    "2026-06-01",
+		"Laporan Ogos 2026.xlsx":    "2026-08-01",
+		"Laporan August 2026.xlsx":  "2026-08-01",
+		"Laporan_Mac-2026.xlsx":     "2026-03-01",
+		"Laporan MEI2026.xlsx":      "2026-05-01",
+		"Laporan Disember 2026":     "2026-12-01",
+		"Laporan Dis 2026.xlsx":     "2026-12-01",
+		"Laporan Sept 2026.xlsx":    "2026-09-01",
+		"Laporan Okt_2026.xlsx":     "2026-10-01",
+		"Laporan Januari 2027.xlsx": "2027-01-01",
+		"Laporan Julai 2026.xlsx":   "2026-07-01",
+	} {
+		res := cleanWith(t, file, lab.Settings{FileName: name})
+		if res.PartDate != want || res.DateFrom != lab.DateFromFile {
+			t.Errorf("%s: date = %q from %q, want %s from the file name", name, res.PartDate, res.DateFrom, want)
+		}
+	}
+}
+
+func TestCleanUpKeepsAFullDateInTheFileNameOverAMonthAndYear(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data", row("Item", "Balance"), row("Gula", 3)))
+	for name, want := range map[string]string{
+		"Report_20260702.xlsx":           "2026-07-02",
+		"Report_20260702091058.xlsx":     "2026-07-02",
+		"Laporan 05-07-2026.xlsx":        "2026-07-05",
+		"Laporan 2026-07-03.xlsx":        "2026-07-03",
+		"Laporan Jun 2026 05.07.26.xlsx": "2026-07-05",
+	} {
+		res := cleanWith(t, file, lab.Settings{FileName: name})
+		if res.PartDate != want || res.DateFrom != lab.DateFromFile {
+			t.Errorf("%s: date = %q from %q, want %s from the file name", name, res.PartDate, res.DateFrom, want)
+		}
+	}
+}
+
+func TestCleanUpDoesNotReadOtherNumbersOrWordsAsAMonthAndYear(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data", row("Item", "Balance"), row("Gula", 3)))
+	for _, name := range []string{
+		"Report_132026.xlsx",      // month 13
+		"Report_002026.xlsx",      // month 0
+		"Report_13-2026.xlsx",     // month 13
+		"Report_2026-13.xlsx",     // month 13
+		"Report_0620261.xlsx",     // longer digit run
+		"Report_10620261.xlsx",    // longer digit run
+		"Report_20261399.xlsx",    // 8 digits, not a date
+		"Report_31-02-2026.xlsx",  // an impossible full date is not its month and year
+		"Report_2026-02-31.xlsx",  // likewise
+		"Report_091058.xlsx",      // a time
+		"Report_061899.xlsx",      // year out of bounds
+		"Report_Junior 2026.xlsx", // not a month name
+		"Report_Format 2026.xlsx", // not a month name
+		"Report_Jun 20261.xlsx",   // longer digit run
+		"Report_Jun 26.xlsx",      // no four-digit year
+		"Report_Januari.xlsx",     // no year
+	} {
+		if res := cleanWith(t, file, lab.Settings{FileName: name}); res.PartDate != "" || res.DateFrom != "" {
+			t.Errorf("%q: date = %q from %q, want none", name, res.PartDate, res.DateFrom)
+		}
+	}
+}
+
 func TestCleanUpFindsNoPartDateWhenTheExcelHasNone(t *testing.T) {
 	// A date in a data row, a number that is not a date in the file name and a version number are not Part dates.
 	file := testutil.Workbook(t, sheet("Data", row("Item", "Day"), row("Gula", time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC))))
