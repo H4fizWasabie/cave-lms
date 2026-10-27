@@ -190,6 +190,8 @@ The start-up step that gave each engine Dashboard with a Dataset the engine's pa
 
 **Migration 00125 (#389)** deletes the page record of every Dashboard that still has its engine settings (`config` a JSON object) and exactly one page record, the converted one. Each is a built Dashboard again, served by the engine at the same link, in its Theme, with its Dataset. The `dashboard_pages` delete trigger queues the page's file in `stored_file_deletions`, the start-up prune deletes it from the store, and the Storage totals drop by its size. A Dashboard whose owner has since uploaded a page of their own (more than one record) stays a page Dashboard; a pasted one (no `config`) is untouched. On a database with no converted Dashboards it deletes nothing. Its Down does nothing: a converted page cannot be rebuilt in SQL.
 
+**Stop before deploying.** Run the first query below on production (`ssh vps`, then `sudo -u postgres psql cave`) before deploying this release. It must list exactly the 6 Dashboards converted on 2026-10-27, the ones with Deployments `/d/try/` and `/d/inv2/` among them, each with one page. If it lists any other Dashboard, or not all six, do not deploy: 00125 would delete that Dashboard's only page. Tell Abah, with the rows it listed.
+
 The deploy backs up production first, as the release adds a migration. Checks, on staging then production (`sudo -u postgres psql cave`), before and after:
 
 ```sql

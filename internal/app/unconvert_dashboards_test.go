@@ -2,10 +2,14 @@ package app_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/H4fizWasabie/cave-lms/internal/app"
@@ -44,16 +48,23 @@ func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T
 	link := ada.deploy(converted)
 	theme, blocks := ada.drawn(link)
 	data := ada.dataOf(converted + "/view/")
-	ada.convertToPage(converted, versionOf(1))
+	page := versionOf(1) + strings.Repeat(" ", 200<<10-len(versionOf(1))) // 200 KB exactly, so the total drops by 200
+	ada.convertToPage(converted, page)
 
 	owned := ada.readyDashboard("Kedai")
 	ada.convertToPage(owned, versionOf(1))
 	ada.uploadPage(owned, versionOf(2))
 	pasted := ada.createPage("Jualan", myPage)
-	if _, page := ada.get(link); page != versionOf(1) {
-		t.Fatalf("before the migration the link shows %.200q, want the converted page", page)
+	if _, got := ada.get(link); got != page {
+		t.Fatalf("before the migration the link shows %.200q, want the converted page", got)
 	}
 	files := ada.storedFiles()
+	_, body := ada.get("/lab")
+	total := storageTotal.FindStringSubmatch(body)
+	if total == nil {
+		t.Fatalf("/lab shows no storage total in KB:\n%s", body)
+	}
+	before, _ := strconv.Atoi(total[1])
 
 	if err := app.MigrateDownTo(context.Background(), ada.db, 124); err != nil {
 		t.Fatal(err)
@@ -75,5 +86,8 @@ func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T
 		t.Fatalf("%d stored files after the migration, want %d: the converted page gone", n, files-1)
 	}
 	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, ada.storedKB())
+	expectStatus(t, res, body, http.StatusOK, fmt.Sprintf("%d KB of 1 GB", before-200))
 }
+
+// storageTotal is the Storage total /lab shows, in KB.
+var storageTotal = regexp.MustCompile(`(\d+) KB of 1 GB`)
