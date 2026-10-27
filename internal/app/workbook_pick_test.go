@@ -212,3 +212,14 @@ func TestAPickedWorkbookWithoutTheRecipeSheetLetsTheLearnerPickASheetWithoutUplo
 		t.Fatalf("data.json Perkara = %v", got)
 	}
 }
+
+// A pick goes the way of an upload, so a Workbook that is already a current Part is refused as the same file is.
+func TestPickingTheWorkbookOfACurrentPartIsRefusedAsTheSameFile(t *testing.T) {
+	_, ada := labLearner(t)
+	path, _ := pageWithData(t, ada)
+	id := ada.workbookID("september.xlsx")
+
+	res, body := ada.pick(path+"/dataset", id, adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "exactly the same file")
+	expectAll(t, body, "Replace that Part")
+}
