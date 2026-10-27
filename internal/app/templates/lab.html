@@ -29,9 +29,6 @@
           </div>
           <div class="row-actions">
             <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}">{{t $.Lang "lab.open"}}</a>
-            {{- if .HasData}}
-            <a class="btn btn-ghost btn-sm" href="/lab/dashboards/{{.ID}}/download"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lab.download"}}</a>
-            {{- end}}
             <a class="btn btn-quiet btn-sm" href="/lab/dashboards/{{.ID}}/rename" title="{{t $.Lang "lab.rename"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-pencil-simple"/></svg><span class="sr">{{t $.Lang "lab.rename"}}</span></a>
             <a class="btn btn-danger btn-sm" href="/lab/dashboards/{{.ID}}/delete" title="{{t $.Lang "lab.delete"}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg><span class="sr">{{t $.Lang "lab.delete"}}</span></a>
           </div>

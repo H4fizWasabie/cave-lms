@@ -96,53 +96,15 @@ func TestRestoringADatasetWithTheColumnUnpausesItsBlocks(t *testing.T) {
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, nil)
-	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, "is-paused")
+	if ada.paused(path+"/view/") == 0 {
+		t.Fatal("no block paused without Jumlah")
+	}
 
 	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.get(path + "/blocks")
-	if res.StatusCode != http.StatusOK || strings.Contains(body, "is-paused") {
-		t.Fatalf("blocks still paused after restoring a Dataset with Jumlah:\n%s", body)
+	if n := ada.paused(path + "/view/"); n != 0 {
+		t.Fatalf("%d blocks still paused after restoring a Dataset with Jumlah", n)
 	}
-}
-
-func TestUseInsteadSwapsTheColumnInEveryBlock(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, nil)
-	before, _ := ada.pageBlocks(path + "/view/")
-
-	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, `<option value="Amaun">Amaun</option>`)
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"use"}, "block": {"5"}, "from": {"Jumlah"}, "to": {"Kategori"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "") // a Text column cannot be summed
-	ada.editBlocks(path, url.Values{"do": {"use"}, "block": {"5"}, "from": {"Jumlah"}, "to": {"Amaun"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if n := using(blocks, "Amaun"); n == 0 || n != using(before, "Jumlah") {
-		t.Fatalf("Amaun in %d blocks, Jumlah was in %d", n, using(before, "Jumlah"))
-	}
-	res, body = ada.get(path + "/blocks")
-	if strings.Contains(body, "is-paused") {
-		t.Fatalf("blocks still paused after Use instead:\n%s", body)
-	}
-}
-
-func TestAFilterValueNoLongerInTheDatasetIsFlagged(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	ada.editBlocks(path, barForm(url.Values{"fcol": {"Perkara"}, "fval": {"Beras"}}))
-	ada.editBlocks(path, barForm(url.Values{"fcol": {"Perkara"}, "fval": {"Beras"}})) // ticks belong to the column shown
-	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopReport(t, "Gula", 80))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, nil)
-
-	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, "Beras is not in this Dataset")
-	res, body = ada.get(path + "/blocks?open=5")
-	expectStatus(t, res, body, http.StatusOK, `name="fval" value="Beras" checked><s>Beras</s>`)
 }
 
 func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
@@ -163,23 +125,15 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 			t.Fatalf("%s should keep the paused blocks and lack the Jumlah column:\n%s", page.at, index)
 		}
 	}
-	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, `class="eb-item is-paused`)
-	expectStatus(t, res, body, http.StatusOK, "Needs <code>Jumlah</code>")
-
-	// A paused block's form still saves, its missing column kept.
-	ada.editBlocks(path, barForm(url.Values{"label": {"Belanja"}}))
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if blocks[5].Label != "Belanja" || blocks[5].Value.Col != "Jumlah" {
-		t.Fatalf("the paused bar after a save: %+v %+v", blocks[5], blocks[5].Value)
+	if ada.paused(path+"/view/") == 0 {
+		t.Fatal("no block paused without Jumlah")
 	}
 
 	res, body = ada.postFile(path+"/dataset", "disember.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, nil)
-	res, body = ada.get(path + "/blocks")
-	if res.StatusCode != http.StatusOK || strings.Contains(body, "is-paused") {
-		t.Fatalf("blocks still paused once Jumlah is back:\n%s", body)
+	if n := ada.paused(path + "/view/"); n != 0 {
+		t.Fatalf("%d blocks still paused once Jumlah is back", n)
 	}
 }
 
@@ -203,41 +157,13 @@ func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
 		[]any{day, "Gula", "Dapur", "Keluar", "lapan puluh"}, []any{day, "Jualan", "Kedai", "Masuk", "tujuh ratus"}))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, url.Values{"use:Jumlah": {""}})
-	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, `class="eb-item is-paused`)
-	expectStatus(t, res, body, http.StatusOK, "Needs <code>Jumlah</code>")
+	if ada.paused(path+"/view/") == 0 {
+		t.Fatal("no block paused with Jumlah retyped")
+	}
 
 	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.get(path + "/blocks")
-	if res.StatusCode != http.StatusOK || strings.Contains(body, "is-paused") {
-		t.Fatalf("blocks still paused after restoring a Dataset with a Number Jumlah:\n%s", body)
-	}
-}
-
-func TestResetAfterARenameFillsTheBlanksFromTheRenamedColumn(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	opened, _ := ada.pageBlocks(path + "/view/")
-
-	// An upload pick: Jumlah is now Amount.
-	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amount"))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, url.Values{"use:Jumlah": {"Amount"}})
-	ada.editBlocks(path, url.Values{"do": {"reset"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if labels(blocks) != labels(opened) || using(blocks, "Amount") != using(opened, "Jumlah") {
-		t.Fatalf("Reset after the pick: %s, Amount in %d blocks", labels(blocks), using(blocks, "Amount"))
-	}
-
-	// Use instead: Amount is now Wang, a name Cave does not guess.
-	res, body = ada.postFile(path+"/dataset", "disember.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Wang"))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, url.Values{"use:Amount": {""}})
-	ada.editBlocks(path, url.Values{"do": {"use"}, "block": {"5"}, "from": {"Amount"}, "to": {"Wang"}})
-	ada.editBlocks(path, url.Values{"do": {"reset"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if labels(blocks) != labels(opened) || using(blocks, "Wang") != using(opened, "Jumlah") {
-		t.Fatalf("Reset after Use instead: %s, Wang in %d blocks", labels(blocks), using(blocks, "Wang"))
+	if n := ada.paused(path + "/view/"); n != 0 {
+		t.Fatalf("%d blocks still paused after restoring a Dataset with a Number Jumlah", n)
 	}
 }

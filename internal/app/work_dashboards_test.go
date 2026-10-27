@@ -82,7 +82,7 @@ func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
 		ada.switchLanguage(lang, "/")
 		res, body := ada.get("/lab")
 		expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
-		for _, p := range []string{"/lab", "/lab/new", path, path + "/blocks", path + "/preview", path + "/hood", path + "/deploy"} {
+		for _, p := range []string{"/lab", "/lab/new", path, path + "/preview", path + "/deploy"} {
 			res, body := ada.get(p)
 			expectStatus(t, res, body, http.StatusOK, `<html lang="`+lang+`">`)
 			low := strings.ToLower(body)
@@ -131,8 +131,6 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	if !strings.Contains(page, `"Perkara": "Beras"`) {
 		t.Fatalf("data = %s", page)
 	}
-	res, body = ada.get(path + "/hood")
-	expectStatus(t, res, body, http.StatusOK, "data.json")
 }
 
 func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {

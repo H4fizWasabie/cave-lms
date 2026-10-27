@@ -211,9 +211,11 @@ func TestChartsDrawsEveryThemeCaveOffersAndNoOther(t *testing.T) {
 	}
 }
 
+// The block editor is gone (ADR 0019), but a card saved by it may still name any icon it offered.
 func TestChartsDrawsEveryIconACardMayName(t *testing.T) {
-	if out := strings.TrimSpace(node(t, "icons")); out != strings.Join(lab.Icons, " ") {
-		t.Fatalf("charts.js draws icons %q, a card may name %q", out, lab.Icons)
+	icons := "people money box calendar check alert chart-up tag clock building cart star"
+	if out := strings.TrimSpace(node(t, "icons")); out != icons {
+		t.Fatalf("charts.js draws icons %q, a card may name %q", out, icons)
 	}
 }
 

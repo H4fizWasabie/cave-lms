@@ -83,8 +83,6 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	res, body = ada.postFile(path+"/dataset", "notes.csv", []byte("a,b"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "notes.csv bukan fail .xlsx.")
 	ada.confirmFile(path, "finance-sample.xlsx", ada.financeSample())
-	_, body = ada.get(path + "/hood")
-	expectLanguage(t, body, "ms", "Hamparan kerja anda, sebagai data")
 	_, body = ada.get(path + "/deploy")
 	expectLanguage(t, body, "ms", "Letakkan Dashboard ini dalam talian")
 	link := ada.deploy(path)

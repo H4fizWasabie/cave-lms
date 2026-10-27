@@ -1,12 +1,9 @@
 package app_test
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
-	"html"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -165,7 +162,7 @@ func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 		t.Fatalf("the upload preview has hostile text unescaped: %s", body)
 	}
 	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"<b>Kategori</b>"}})
-	for _, p := range []string{path + "/blocks", path + "/preview", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/")} {
+	for _, p := range []string{path + "/preview", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/")} {
 		_, body := ada.get(p)
 		if strings.Contains(body, "<script>alert") || strings.Contains(body, "<b>Kategori") {
 			t.Fatalf("%s has hostile text unescaped: %s", p, body)
@@ -202,7 +199,7 @@ func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
 	bob := admin.second()
 	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
 	admin.assignPlan("bob@example.com", admin.onlyPlanID()) // without a Plan the Lab sends him to /pricing first
-	for _, p := range []string{path, path + "/blocks", path + "/preview", path + "/view/", path + "/view/" + data} {
+	for _, p := range []string{path, path + "/preview", path + "/view/", path + "/view/" + data} {
 		if res, _ := bob.get(p); res.StatusCode != http.StatusNotFound {
 			t.Errorf("Bob got %d for %s, want 404", res.StatusCode, p)
 		}
@@ -221,112 +218,6 @@ func TestDeletingALearnerDeletesTheirDashboards(t *testing.T) {
 	}
 }
 
-// unzip reads a zip download into file name -> contents.
-func unzip(t *testing.T, body string) map[string]string {
-	t.Helper()
-	zr, err := zip.NewReader(strings.NewReader(body), int64(len(body)))
-	if err != nil {
-		t.Fatalf("not a zip: %v", err)
-	}
-	files := map[string]string{}
-	for _, f := range zr.File {
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, err := io.ReadAll(rc)
-		rc.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		files[f.Name] = string(b)
-	}
-	return files
-}
-
-func TestDownloadZipHasThePageItsDataAndTheChartLibrary(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kewangan Kedai")
-	if res, _ := ada.get(path + "/download"); res.StatusCode != http.StatusNotFound {
-		t.Fatalf("a Dashboard with no Dataset downloads: %d", res.StatusCode)
-	}
-	ada.confirmFile(path, "finance-sample.xlsx", ada.financeSample())
-
-	res, body := ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/download"`)
-	res, body = ada.get(path + "/download")
-	expectStatus(t, res, body, http.StatusOK, "")
-	if ct := res.Header.Get("Content-Type"); ct != "application/zip" {
-		t.Fatalf("zip Content-Type = %q", ct)
-	}
-	if cd := res.Header.Get("Content-Disposition"); cd != `attachment; filename="kewangan-kedai.zip"` {
-		t.Fatalf("zip Content-Disposition = %q", cd)
-	}
-	files := unzip(t, body)
-	address := ada.dataOf(path + "/view/")
-	_, index := ada.get(path + "/view/")
-	_, data := ada.get(path + "/view/" + address)
-	_, charts := ada.get(path + "/view/charts.js")
-	// The zip's page reads data.json beside it; the preview's reads the stored Dataset's address.
-	index = strings.Replace(index, `fetch("`+address+`")`, `fetch("data.json")`, 1)
-	if files["index.html"] != index || files["data.json"] != data || files["charts.js"] != charts {
-		t.Fatalf("zip files differ from the preview's: %v", keys(files))
-	}
-	// Browsers block fetch from a file opened on the computer, so the page falls back to data.js.
-	for _, want := range []string{`fetch("data.json")`, `"data.js"`} {
-		if !strings.Contains(index, want) {
-			t.Fatalf("index.html lacks %s: %s", want, index)
-		}
-	}
-	js, ok := strings.CutPrefix(files["data.js"], "var dashboardRows = ")
-	js, ok2 := strings.CutSuffix(js, ";\n")
-	var rows []map[string]any
-	if !ok || !ok2 || json.Unmarshal([]byte(js), &rows) != nil || len(rows) != 65 {
-		t.Fatalf("data.js does not hold the 65 rows: %.200s", files["data.js"])
-	}
-	if len(files) != 4 {
-		t.Fatalf("zip holds %v, want index.html, data.json, data.js and charts.js", keys(files))
-	}
-}
-
-func keys(m map[string]string) []string {
-	var k []string
-	for n := range m {
-		k = append(k, n)
-	}
-	return k
-}
-
-var hoodCode = regexp.MustCompile(`(?s)<pre><code>(.*?)</code></pre>`)
-
-func TestUnderTheHoodShowsTheGeneratedPageAndDataExplained(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.readyDashboard("Kewangan")
-
-	res, body := ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/hood"`)
-	res, body = ada.get(path + "/hood")
-	for _, want := range []string{"The page&#39;s details", "The layout", "The chart library", "Your blocks", "Load the data, then draw", "Your spreadsheet, as data"} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	parts := hoodCode.FindAllStringSubmatch(body, -1)
-	if len(parts) != 6 {
-		t.Fatalf("want 5 parts of index.html and data.json, got %d: %s", len(parts), body)
-	}
-	var page string
-	for _, p := range parts[:5] {
-		page += html.UnescapeString(p[1])
-	}
-	if _, index := ada.get(path + "/view/"); page != index {
-		t.Fatalf("the hood's index.html is not the preview's:\n%s\n---\n%s", page, index)
-	}
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/view/`+ada.dataOf(path+"/view/")+`"`)
-	data := html.UnescapeString(parts[5][1])
-	if !strings.Contains(data, `{"Tarikh": "2026-`) || !strings.Contains(data, "62 more rows") {
-		t.Fatalf("data.json excerpt: %s", data)
-	}
-}
-
 // Once the Plan ends every Lab screen, the Learner's own Dashboards too, goes to /pricing; changes stay refused.
 func TestAfterAccessEndsEveryLabScreenGoesToPricing(t *testing.T) {
 	admin, ada := labLearner(t)
@@ -335,15 +226,13 @@ func TestAfterAccessEndsEveryLabScreenGoesToPricing(t *testing.T) {
 	view := path + "/view/" + ada.dataOf(path+"/view/")
 	admin.ageAllPeriods(31)
 
-	for _, p := range []string{"/lab", "/lab/new", empty, path, path + "/data", path + "/blocks", path + "/preview", path + "/hood",
-		path + "/view/", view, path + "/download", path + "/deploy", path + "/rename", path + "/delete"} {
+	for _, p := range []string{"/lab", "/lab/new", empty, path, path + "/data", path + "/preview",
+		path + "/view/", view, path + "/deploy", path + "/rename", path + "/delete"} {
 		res, body := ada.get(p)
 		expectRedirect(t, res, body, "/pricing")
 	}
 
 	res, body := ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
-	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"reset"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 	res, body = ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Baru"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")

@@ -2,10 +2,8 @@ package lab_test
 
 import (
 	"encoding/json"
-	"errors"
 	"reflect"
 	"regexp"
-	"slices"
 	"strings"
 	"testing"
 
@@ -125,127 +123,5 @@ func TestGenerateWritesTheBlocksAndFilterBarIntoThePage(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(data), "[\n  {\"Tarikh\": ") {
 		t.Fatalf("data.json = %.80s", data)
-	}
-}
-
-func TestACardShowsAnIconFromTheSetSuitedToItsValueUntilPicked(t *testing.T) {
-	tpl := finance(t)
-	res := sample(t, tpl)
-	d := res.Dataset
-	cfg := tpl.Open(res.Guess, d)
-	at, err := cfg.Add("card", d, "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b := cfg.Blocks[at]; b.Icon != "money" || b.Value.Col != "Jumlah" {
-		t.Fatalf("a new card of %+v shows %q, want the sum of the RM column Jumlah, money", b.Value, b.Icon)
-	}
-	// While the Learner has not picked one, the icon follows the value.
-	b := cfg.Blocks[at]
-	for _, c := range []struct {
-		v    lab.Value
-		want string
-	}{
-		{lab.Value{Agg: "count"}, "people"},
-		{lab.Value{Agg: "avg", Col: "Jumlah"}, "money"},
-		{lab.Value{Agg: "distinct", Col: "Perkara"}, "tag"},
-		{lab.Value{Agg: "calc", A: "Jumlah", Op: "/", B: "Jumlah", Then: "sum"}, "chart-up"},
-	} {
-		old := b
-		b.Value = &c.v
-		b.FollowIcon(old, cfg.Money)
-		if b.Icon != c.want {
-			t.Errorf("a card of %+v shows %q, want %s", c.v, b.Icon, c.want)
-		}
-	}
-	old := b
-	b.Icon = "star"
-	b.FollowIcon(old, cfg.Money)
-	old, b.Value = b, &lab.Value{Agg: "count"}
-	b.FollowIcon(old, cfg.Money)
-	if b.Icon != "star" {
-		t.Errorf("a picked icon changed with the value to %q", b.Icon)
-	}
-
-	for icon, ok := range map[string]bool{"star": true, "none": true, "": true, "rocket": false, "Star": false} {
-		b.Icon = icon
-		if err := b.Check(d); (err == nil) != ok {
-			t.Errorf("Check of icon %q = %v", icon, err)
-		}
-	}
-}
-
-func TestEveryTemplateCardNamesAnIconFromTheSet(t *testing.T) {
-	for _, tpl := range lab.Templates {
-		res := sample(t, tpl)
-		for _, b := range tpl.Open(res.Guess, res.Dataset).Blocks {
-			if b.IsCard() && !slices.Contains(lab.Icons, b.Icon) {
-				t.Errorf("%s card %q names icon %q", tpl.Key, b.Label, b.Icon)
-			}
-		}
-	}
-}
-
-func TestABarStandsHorizontalUnlessSetVertical(t *testing.T) {
-	d := &lab.Dataset{Columns: []lab.Column{{Name: "Staf", Type: lab.Text}}}
-	for dir, want := range map[string]string{"": "", "horizontal": "", "vertical": "vertical"} {
-		b := lab.WorkBlock{Kind: "bar", Value: &lab.Value{Agg: "count"}, Group: "Staf", Top: 8, Dir: dir}
-		b.Fill(d)
-		if err := b.Check(d); err != nil || b.Dir != want {
-			t.Errorf("direction %q is stored as %q (%v), want %q", dir, b.Dir, err, want)
-		}
-	}
-	b := lab.WorkBlock{Kind: "bar", Value: &lab.Value{Agg: "count"}, Group: "Staf", Top: 8, Dir: "diagonal"}
-	b.Fill(d)
-	if err := b.Check(d); err == nil {
-		t.Error("a diagonal bar is accepted")
-	}
-	b = lab.WorkBlock{Kind: "donut", Value: &lab.Value{Agg: "count"}, Group: "Staf", Dir: "vertical"}
-	if b.Fill(d); b.Dir != "" {
-		t.Errorf("a donut keeps direction %q", b.Dir)
-	}
-}
-
-func TestAHeatmapCrossesTwoDifferentTextColumns(t *testing.T) {
-	d := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Text}},
-		Rows: [][]any{{"HR", 3000.0, "Tetap"}, {"IT", 4000.0, "Kontrak"}}}
-	var cfg lab.Config
-	at, err := cfg.Add("heatmap", d, "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, _ := json.Marshal(cfg.Blocks[at]); string(got) != `{"kind":"heatmap","label":"Gaji by Jabatan × Status","value":{"agg":"sum","col":"Gaji"},"split":"Status","group":"Jabatan","top":8,"wide":true}` {
-		t.Fatalf("a new heatmap = %s", got)
-	}
-	for _, c := range []struct {
-		group, split string
-		want         string
-	}{
-		{"Jabatan", "Jabatan", "lab.err.block-heat-cols"},
-		{"Jabatan", "", "lab.err.block-heat-cols"},
-		{"Jabatan", "Gaji", "lab.err.block-type"},
-		{"Jabatan", "Cawangan", "lab.err.block-column"},
-		{"Gaji", "Status", "lab.err.block-type"},
-	} {
-		b := lab.WorkBlock{Kind: "heatmap", Value: &lab.Value{Agg: "count"}, Group: c.group, Split: c.split, Top: 8}
-		var p lab.Problem
-		if err := b.Check(d); !errors.As(err, &p) || p.Key != c.want {
-			t.Errorf("heatmap %s × %s: %v, want %s", c.group, c.split, err, c.want)
-		}
-	}
-	// Its columns pause it when gone or retyped, and follow a rename.
-	retyped := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}, {Name: "Gaji", Type: lab.Number}, {Name: "Status", Type: lab.Number}}}
-	if got := cfg.Blocks[at].Missing(retyped); !reflect.DeepEqual(got, []string{"Status"}) {
-		t.Errorf("missing = %v", got)
-	}
-	cfg.Rename(map[string]string{"Status": "Keadaan", "Jabatan": "Unit"})
-	if b := cfg.Blocks[at]; b.Group != "Unit" || b.Split != "Keadaan" {
-		t.Errorf("renamed heatmap = %+v", b)
-	}
-	// With one Text column, the Dataset cannot give it a column across.
-	one := &lab.Dataset{Columns: []lab.Column{{Name: "Jabatan", Type: lab.Text}}}
-	var p lab.Problem
-	if _, err := cfg.Add("heatmap", one, "en"); !errors.As(err, &p) || p.Key != "lab.err.block-heat-cols" {
-		t.Errorf("a heatmap on one Text column: %v", err)
 	}
 }

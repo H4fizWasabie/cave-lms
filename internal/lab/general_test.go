@@ -244,9 +244,6 @@ func TestGeneralReadsAYearColumnAsAGroupingNotAnAmount(t *testing.T) {
 	if !slices.Contains(grouped(cfg), "Tahun") || !slices.Contains(cfg.FilterBar, "Tahun") {
 		t.Errorf("no chart or filter by Tahun: blocks %+v, filter bar %v", cfg.Blocks, cfg.FilterBar)
 	}
-	if at, err := cfg.Add("bar", d, "en"); err != nil || cfg.Blocks[at].Group != "Tahun" {
-		t.Errorf("a new bar: %v, groups by %q, want Tahun", err, cfg.Blocks[at].Group)
-	}
 	if !slices.Contains(res.Notes, lab.Note{Key: "lab.note.year", Col: "Tahun"}) {
 		t.Errorf("notes %v, want Tahun's years note", res.Notes)
 	}
@@ -320,71 +317,6 @@ func TestWithNothingAddedUpThePriceTimesQuantityCardComesFirst(t *testing.T) {
 	cfg := general(t, []string{"Cost Price", "Actual Stock"}, []any{2.0, 3.0}, []any{4.0, 5.0})
 	if first := cfg.Blocks[0]; first.Value == nil || first.Value.Agg != "calc" {
 		t.Errorf("first card %+v, want the calculation", first)
-	}
-}
-
-func TestANewCardAveragesAPriceAndANewBarCountsAsGeneralDoes(t *testing.T) {
-	var rows [][]any
-	for i := range 12 {
-		rows = append(rows, []any{fmt.Sprintf("SKU-%02d", i), []string{"Food", "Drink", "Snack"}[i%3], float64(2 + i%4)})
-	}
-	d := clean(t, testutil.XLSX(t, []string{"SKU", "Category", "Unit Price"}, rows...), lab.General).Dataset
-	cfg := lab.General.Open(nil, d)
-	for kind, want := range map[string]lab.Value{"card": {Agg: "avg", Col: "Unit Price"}, "bar": {Agg: "count"}} {
-		at, err := cfg.Add(kind, d, "en")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if b := cfg.Blocks[at]; *b.Value != want || (kind == "bar" && b.Group != "Category") {
-			t.Errorf("a new %s is %+v by %q, want %+v", kind, *b.Value, b.Group, want)
-		}
-	}
-}
-
-func TestABarDonutOrHeatmapIsAddedEvenWhenNoTextColumnIsAGrouping(t *testing.T) {
-	var rows [][]any
-	for i := range 12 {
-		rows = append(rows, []any{fmt.Sprintf("SKU-%02d", i), "Ipoh", float64(i)})
-	}
-	d := clean(t, testutil.XLSX(t, []string{"SKU", "Branch", "Jumlah"}, rows...), lab.General).Dataset
-	cfg := lab.General.Open(nil, d)
-	for _, kind := range []string{"bar", "donut", "heatmap"} {
-		at, err := cfg.Add(kind, d, "en")
-		if err != nil {
-			t.Fatalf("adding a %s: %v", kind, err)
-		}
-		if b := cfg.Blocks[at]; b.Group != "SKU" || (kind == "heatmap" && b.Split != "Branch") {
-			t.Errorf("a new %s groups by %q split by %q, want SKU (and Branch across)", kind, b.Group, b.Split)
-		}
-	}
-}
-
-func TestANewTableAndLineChooseAsGeneralDoes(t *testing.T) {
-	h, rows := stockList(30)
-	day := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
-	for i := range rows {
-		rows[i] = append(rows[i], day.AddDate(0, 0, i))
-	}
-	d := clean(t, testutil.XLSX(t, append(h, "Tarikh"), rows...), lab.General).Dataset
-	cfg := &lab.Config{}
-	at, err := cfg.Add("table", d, "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{"Tarikh", "SKU", "Category", "Quantity", "Unit Price"}; !slices.Equal(cfg.Blocks[at].Cols, want) {
-		t.Errorf("a new table shows %v, want %v", cfg.Blocks[at].Cols, want)
-	}
-	for step, want := range map[time.Duration]string{24 * time.Hour: "day", 7 * 24 * time.Hour: "month"} {
-		h, rows := dated(20, step)
-		d := clean(t, testutil.XLSX(t, h, rows...), lab.General).Dataset
-		cfg := &lab.Config{}
-		at, err := cfg.Add("line", d, "en")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if by := cfg.Blocks[at].By; by != want {
-			t.Errorf("a new line over 20 rows %s apart goes by %s, want %s", step, by, want)
-		}
 	}
 }
 

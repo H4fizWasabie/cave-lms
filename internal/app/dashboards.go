@@ -1,8 +1,6 @@
 package app
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -12,7 +10,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -64,18 +61,12 @@ type dashboard struct {
 	Page     *htmlPage // its current page, the HTML its Learner made (ADR 0018); nil for an engine Dashboard
 }
 
-// generate writes the Dashboard's index.html and data.json, its data fetched from dataURL.
-func (d *dashboard) generate(dataURL string) (index, data []byte, err error) {
-	return lab.Generate(d.Template, d.Name, d.Theme, d.Config, d.Dataset, dataURL)
-}
-
 // dashboardRow is a Dashboard in the Lab list.
 type dashboardRow struct {
 	ID         int64
 	Name       string
 	Theme      string // a built Dashboard's Theme, by name
 	Updated    string
-	HasData    bool        // a Dataset is uploaded, so it can be downloaded
 	Page       bool        // it has a page: its Learner's own, not one Cave builds
 	Deployment *deployment // nil until deployed
 }
@@ -84,7 +75,6 @@ type dashboardRow struct {
 // ponytail: one query per deployed Dashboard; join the Deployment's columns in if a Learner's list gets long.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
 	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.theme, d.updated_at,
-			EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current'),
 			EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id AND pg.current),
 			EXISTS (SELECT 1 FROM deployments dep WHERE dep.dashboard_id = d.id)
 		FROM dashboards d WHERE d.learner_id = $1 ORDER BY d.updated_at DESC, d.id DESC`, learnerID)
@@ -98,7 +88,7 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 		var theme string
 		var updated time.Time
 		var dep bool
-		if err := rows.Scan(&d.ID, &d.Name, &theme, &updated, &d.HasData, &d.Page, &dep); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &theme, &updated, &d.Page, &dep); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -449,8 +439,8 @@ func (a *App) deleteDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	http.Redirect(w, r, "/lab", http.StatusSeeOther)
 }
 
-// dashboardPage is the Dashboard page: tabs Dataset, Blocks, Preview, Under the hood and Deploy,
-// plus Rename.
+// dashboardPage is the Dashboard page: a built Dashboard's tabs Dataset, Preview and Deploy, a page Dashboard's Page,
+// Data and Deploy, plus Rename.
 type dashboardPage struct {
 	pageBase
 	Dashboard *dashboard
@@ -470,13 +460,8 @@ type dashboardPage struct {
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
 	New       string          // and its columns the current Dataset lacks
 	Pages     []htmlPage      // the earlier pages, newest first
-	Open      int             // Blocks tab: the block whose form is open; -1 for none
-	Saved     bool            // Blocks tab: an edit was just saved
-	Blocks    *blocksView     // Blocks tab
 	Phone     bool            // preview at phone width
 	ReadOnly  bool            // no Lab access: view and download only
-	Hood      []hoodPart
-	Data      hoodPart    // the start of data.json, on the Under the hood tab
 	Themes    []lab.Theme // Preview tab: the Themes to pick from
 
 	Access labAccess // the caller looks it up; read-only follows from it
@@ -541,30 +526,17 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		if tab == "" {
-			tab = homeTab(d)
+		at := tab // not tab itself, which every request shares
+		if at == "" {
+			at = homeTab(d)
 		}
-		q := r.URL.Query()
-		open, err := strconv.Atoi(q.Get("open"))
-		if err != nil {
-			open = -1
-		}
-		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: tab, Access: acc, Phone: q.Has("phone"),
-			Open: open, Saved: q.Has("saved")})
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: at, Access: acc, Phone: r.URL.Query().Has("phone")})
 	})
 }
 
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
 	p.Title, p.ReadOnly, p.Themes = d.Name, !p.Access.Open(), lab.Themes
-	if p.Tab == "blocks" && d.Config != nil && d.Dataset != nil {
-		lang, err := a.language(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		p.Blocks = newBlocksView(d, lang, p.Open, p.Saved)
-	}
 	if p.Tab == dataTab(d) && p.Pending == nil && !p.ReadOnly {
 		var err error
 		if p.Pending, err = a.pendingOf(r.Context(), d); err != nil {
@@ -625,20 +597,6 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			a.serverError(w, r, err)
 			return
 		}
-	}
-	if p.Tab == "hood" && d.Dataset != nil {
-		lang, err := a.language(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		index, data, err := d.generate(dataPath(d))
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		p.Hood = hoodParts(lang, string(index))
-		p.Data = hoodPart{N: len(p.Hood) + 1, Code: dataExcerpt(lang, string(data)), Title: text.T(lang, "lab.hood.data.title"), Note: text.T(lang, "lab.hood.data")}
 	}
 	a.render(w, r, status, "lab_dashboard", p)
 }
@@ -879,7 +837,7 @@ func (a *App) dashboardFile(name string) http.HandlerFunc {
 	})
 }
 
-// previewCSP keeps a Dashboard served same-origin (the preview and the demo) to Cave's own scripts and
+// previewCSP keeps a Dashboard served same-origin (the preview) to Cave's own scripts and
 // connections, to the fonts written into charts.js, and to framing by Cave. The preview needs the session
 // cookie for data.json, so no sandbox.
 const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src data:; frame-ancestors 'self'"
@@ -889,10 +847,10 @@ const previewCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style
 // (only its Learner sees it); a Deployment's for 5 minutes, so sleep and Takedown take effect soon.
 func dataPath(d *dashboard) string { return "data/" + d.Key }
 
-// serveDashboardFile writes one of a Dashboard's files: index.html, charts.js, data.json (the demo's data,
-// at a fixed address) or data (data/<key>, under cache; any other key is not found). index.html needs only the
-// Dataset's columns and the data its data.json: both are kept by key (datasetFilesCache), so the Dataset is read
-// from the store once, not on each request, and never for charts.js.
+// serveDashboardFile writes one of a built Dashboard's files: index.html, charts.js or data (data/<key>, under
+// cache; any other key is not found). index.html needs only the Dataset's columns and the data its data.json: both
+// are kept by key (datasetFilesCache), so the Dataset is read from the store once, not on each request, and never
+// for charts.js.
 // csp is the index page's Content-Security-Policy; cache is the data's Cache-Control.
 func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dashboard, name, csp, cache string) {
 	if name == "charts.js" {
@@ -904,7 +862,7 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		a.notFound(w, r)
 		return
 	}
-	wantData := name == "data.json" || name == "data"
+	wantData := name == "data"
 	f, ok := a.datasetFiles.get(d.Key)
 	if !ok || wantData && f.data == nil {
 		if err := a.readDataset(r.Context(), d); err != nil {
@@ -927,18 +885,12 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	if wantData {
-		if name == "data" {
-			w.Header().Set("Cache-Control", cache)
-		}
+		w.Header().Set("Cache-Control", cache)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(f.data)
 		return
 	}
-	dataURL := "data.json"
-	if d.Key != "" {
-		dataURL = dataPath(d)
-	}
-	index, err := lab.Page(d.Template, d.Name, d.Theme, d.Config, f.columns, dataURL)
+	index, err := lab.Page(d.Template, d.Name, d.Theme, d.Config, f.columns, dataPath(d))
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -958,8 +910,7 @@ type datasetFiles struct {
 const maxKeptBytes = 128 << 20
 
 // datasetFilesCache keeps datasetFiles by Dataset key. A Dataset never changes under its key (each upload gets a
-// new key; a restore points back to an earlier one, unchanged), so nothing goes stale. The demo's Dataset has no
-// key and is never kept.
+// new key; a restore points back to an earlier one, unchanged), so nothing goes stale.
 // ponytail: FIFO within maxKeptBytes and no single-flight, so a data.json over 64 MB is built on each data request
 // (its columns are still kept) and a burst of first visits each reads the Dataset; make it an LRU, or store
 // data.json beside the Dataset, if that shows up.
@@ -1015,99 +966,4 @@ func keptSize(f datasetFiles) int {
 		n += len(col.Name) + 32
 	}
 	return n
-}
-
-// downloadDashboard is the Dashboard as a zip that opens offline: index.html, data.json, charts.js and
-// data.js, the same rows as a script, which the page reads when the browser blocks fetch from a file.
-// Open to its Learner with or without Lab access.
-func (a *App) downloadDashboard(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if d.Dataset == nil {
-		a.notFound(w, r)
-		return
-	}
-	index, data, err := d.generate("data.json")
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-	for _, f := range []struct {
-		name string
-		body []byte
-	}{
-		{"index.html", index},
-		{"data.json", data},
-		{"data.js", append(append([]byte("var dashboardRows = "), bytes.TrimSuffix(data, []byte("\n"))...), ";\n"...)},
-		{"charts.js", lab.ChartScript},
-	} {
-		fw, err := zw.Create(f.name)
-		if err == nil {
-			_, err = fw.Write(f.body)
-		}
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-	}
-	if err := zw.Close(); err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+zipName(d.Name)+`"`)
-	_, _ = w.Write(buf.Bytes())
-}
-
-// zipName is the Dashboard's name as a safe file name: lower-case letters and digits joined by dashes.
-func zipName(name string) string {
-	slug := strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(name), "-"), "-")
-	if slug == "" {
-		slug = "dashboard"
-	}
-	return slug + ".zip"
-}
-
-var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
-
-// hoodPart is a piece of a generated file on the Under the hood tab, with its plain-word note.
-type hoodPart struct {
-	N                 int
-	Code, Title, Note string
-}
-
-// hoodNotes explain index.html part by part; each part starts at its marker in lab/dashboard.html.
-// key names its note in the text catalog, and key.title its title.
-var hoodNotes = []struct{ marker, key string }{
-	{"", "lab.hood.head"},
-	{"<body>", "lab.hood.layout"},
-	{`  <script src="charts.js">`, "lab.hood.library"},
-	{"  <script>\n", "lab.hood.blocks"},
-	{"    fetch(", "lab.hood.fetch"},
-}
-
-// hoodParts cuts the generated index.html at the markers; a missing marker merges its part into the one before.
-func hoodParts(lang, index string) []hoodPart {
-	var parts []hoodPart
-	for i, n := range hoodNotes {
-		if i > 0 {
-			last := &parts[len(parts)-1]
-			j := strings.Index(last.Code, n.marker)
-			if j <= 0 {
-				continue
-			}
-			index, last.Code = last.Code[j:], last.Code[:j]
-		}
-		parts = append(parts, hoodPart{N: len(parts) + 1, Code: index, Title: text.T(lang, n.key+".title"), Note: text.T(lang, n.key)})
-	}
-	return parts
-}
-
-// dataExcerpt is the start of data.json: its first three rows, then how many more there are.
-func dataExcerpt(lang, data string) string {
-	lines := strings.Split(strings.TrimSuffix(data, "\n"), "\n") // "[", one line per row, "]"
-	if len(lines) <= 7 {
-		return data
-	}
-	return strings.Join(lines[:4], "\n") + "\n  ... " + text.T(lang, "lab.d.more-rows", len(lines)-5) + "\n]\n"
 }
