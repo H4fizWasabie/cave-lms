@@ -8,7 +8,7 @@ import (
 )
 
 // dataTab is the screen a Dashboard's Dataset is uploaded on: the data screen for a page Dashboard (ADR 0018), the
-// Dataset tab for an engine one. dataURL is its address.
+// Dataset tab for a built one. dataURL is its address.
 func dataTab(d *dashboard) string {
 	if d.Page != nil {
 		return "data"
@@ -16,8 +16,8 @@ func dataTab(d *dashboard) string {
 	return "dataset"
 }
 
-// homeTab is the screen at a Dashboard's own address: the Page screen for a page Dashboard, the Dataset tab for an
-// engine one or one without a page yet.
+// homeTab is the screen at a Dashboard's own address: the Page screen for a page Dashboard, the Dataset tab for a
+// built one.
 func homeTab(d *dashboard) string {
 	if d.Page != nil {
 		return "page"

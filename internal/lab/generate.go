@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"html/template"
+	"slices"
 )
 
 //go:embed charts.js
@@ -44,6 +45,15 @@ var Themes = []Theme{
 	{"minimal", "Minimal Insight"},
 	{"glass", "Glass Vision"},
 	{"storytelling", "Data Storytelling"},
+}
+
+// ThemeByKey is the Theme with key, and whether Cave offers one.
+func ThemeByKey(key string) (Theme, bool) {
+	i := slices.IndexFunc(Themes, func(t Theme) bool { return t.Key == key })
+	if i < 0 {
+		return Theme{}, false
+	}
+	return Themes[i], true
 }
 
 //go:embed dashboard.html

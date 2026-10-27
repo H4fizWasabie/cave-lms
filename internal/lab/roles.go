@@ -60,7 +60,8 @@ var (
 
 // mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for,
 // in English and Malay.
-var mainNames = append(slices.Clone(salesBlanks[0].Loose), "closing", "actual", "sebenar", "akhir")
+var mainNames = append(slices.Clone(salesBlanks[slices.IndexFunc(salesBlanks,
+	func(b Blank) bool { return b.Key == "amount" })].Loose), "closing", "actual", "sebenar", "akhir")
 
 // words are a column name's lower-case words: "No. Invoice" is [no invoice].
 func words(name string) []string {
@@ -311,7 +312,7 @@ func tableCols(d *Dataset, ps []profile) []string {
 // buildGeneral makes one blank per column, filled by that column, and fills General's budget of blocks with the
 // best-ranked columns by role (ADR 0014): cards, a line, bars, a donut and a table.
 func buildGeneral(d *Dataset) (*design, choices) {
-	t, c := &design{}, choices{}
+	plan, c := &design{}, choices{}
 	key := map[string]string{}
 	for i, col := range d.Columns {
 		k := fmt.Sprintf("c%d", i+1)
@@ -341,7 +342,7 @@ func buildGeneral(d *Dataset) (*design, choices) {
 		cards = slices.Insert(cards, min(at, len(cards)), calc)
 	}
 	cards = append(cards, Block{Kind: "card", Label: "Rows", Icon: "people", Agg: "count"})
-	t.Blocks = cards[:min(generalCards, len(cards))]
+	plan.Blocks = cards[:min(generalCards, len(cards))]
 
 	if len(dates) > 0 {
 		dt := dates[0]
@@ -350,18 +351,18 @@ func buildGeneral(d *Dataset) (*design, choices) {
 			if s := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= generalLineSeries }); s >= 0 {
 				line.Series = key[dims[s].Name]
 			}
-			t.Blocks = append(t.Blocks, line)
+			plan.Blocks = append(plan.Blocks, line)
 		}
-		t.Filters = append(t.Filters, key[dt.Name])
+		plan.Filters = append(plan.Filters, key[dt.Name])
 	}
 	var bars []string
 	for _, g := range dims[:min(generalBars, len(dims))] {
-		t.Blocks = append(t.Blocks, Block{Kind: "bar", Label: what + " by " + g.Name, Group: key[g.Name], Of: of})
+		plan.Blocks = append(plan.Blocks, Block{Kind: "bar", Label: what + " by " + g.Name, Group: key[g.Name], Of: of})
 		bars = append(bars, g.Name)
-		t.Filters = append(t.Filters, key[g.Name])
+		plan.Filters = append(plan.Filters, key[g.Name])
 	}
 	if i := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= generalDonutValues && !slices.Contains(bars, p.Name) }); i >= 0 {
-		t.Blocks = append(t.Blocks, Block{Kind: "donut", Label: what + " by " + dims[i].Name, Group: key[dims[i].Name], Of: of})
+		plan.Blocks = append(plan.Blocks, Block{Kind: "donut", Label: what + " by " + dims[i].Name, Group: key[dims[i].Name], Of: of})
 	}
 
 	table := Block{Kind: "table", Label: "Rows", Limit: 10}
@@ -371,8 +372,8 @@ func buildGeneral(d *Dataset) (*design, choices) {
 	for _, col := range tableCols(d, ps) {
 		table.Cols = append(table.Cols, key[col])
 	}
-	t.Blocks = append(t.Blocks, table)
-	return t, c
+	plan.Blocks = append(plan.Blocks, table)
+	return plan, c
 }
 
 // priceAndQuantity are d's quantity and price measures, by Sales' and Inventory's names, when it has both: a

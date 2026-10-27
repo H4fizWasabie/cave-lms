@@ -237,7 +237,7 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			return
 		}
 		if d != nil && name == "data.json" {
-			if d.Page == nil { // an engine Dashboard's data is at data/<key>
+			if d.Page == nil { // a built Dashboard's data is at data/<key>
 				a.notFound(w, r)
 				return
 			}

@@ -56,7 +56,7 @@ type dashboard struct {
 	File     string    // the uploaded Dataset's file name
 	Size     int64     // the Dataset's saved size, against the Storage allowance
 	Updated  string    // formatted as periodTime
-	Page     *htmlPage // its current page, the HTML its Learner made (ADR 0018); nil for an engine Dashboard
+	Page     *htmlPage // its current page, the HTML its Learner made (ADR 0018); nil for a built Dashboard
 }
 
 // dashboardRow is a Dashboard in the Lab list.
@@ -94,8 +94,8 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 			deployed = append(deployed, len(list))
 		}
 		d.Theme, d.Updated = theme, updated.UTC().Format(periodTime)
-		if i := slices.IndexFunc(lab.Themes, func(t lab.Theme) bool { return t.Key == theme }); i >= 0 {
-			d.Theme = lab.Themes[i].Name
+		if t, ok := lab.ThemeByKey(theme); ok {
+			d.Theme = t.Name
 		}
 		list = append(list, d)
 	}
@@ -321,11 +321,15 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := &dashboard{}
-	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, name) VALUES ($1, 'work', $2) RETURNING id`, learner.ID, p.Name).Scan(&d.ID); err != nil {
+	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, name)
+		VALUES ($1, 'work', $2) RETURNING id`, learner.ID, p.Name).Scan(&d.ID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload)
+	// ponytail: a compensating delete, not one transaction, as keepPending runs its own; a crash between the insert and
+	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into keepPending
+	// if that turns up.
 	if err != nil { // the Dashboard goes with its Dataset, which keepPending has dropped
 		if _, err := a.db.ExecContext(context.WithoutCancel(r.Context()), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
 			a.logError(r, fmt.Errorf("delete refused Dashboard %d: %w", d.ID, err))
@@ -387,7 +391,7 @@ func (a *App) saveTheme(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		return
 	}
 	theme := r.FormValue("theme")
-	if !slices.ContainsFunc(lab.Themes, func(t lab.Theme) bool { return t.Key == theme }) {
+	if _, ok := lab.ThemeByKey(theme); !ok {
 		http.Error(w, "unknown theme", http.StatusBadRequest)
 		return
 	}

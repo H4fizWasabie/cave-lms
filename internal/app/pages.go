@@ -252,7 +252,8 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		return
 	}
 	if d.Page == nil {
-		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: d.Name, Message: text.T(lang, "lab.page.err.built", d.Name)})
+		msg := text.T(lang, "lab.page.err.built", d.Name)
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: d.Name, Message: msg})
 		return
 	}
 	refuse := func(msg string) {

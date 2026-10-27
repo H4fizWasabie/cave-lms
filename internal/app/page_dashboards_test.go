@@ -23,7 +23,7 @@ func (s *site) createPage(name, page string) string {
 	return loc
 }
 
-// dropPage deletes the page of the Dashboard with id, record and stored file, leaving an engine Dashboard.
+// dropPage deletes the page of the Dashboard with id, record and stored file, leaving a built Dashboard.
 func (s *site) dropPage(id string) {
 	s.t.Helper()
 	var key string

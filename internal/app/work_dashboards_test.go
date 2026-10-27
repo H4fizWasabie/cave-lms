@@ -15,9 +15,8 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// createWork creates a Dashboard with template pre-chosen, as a Sample's Template is, and returns its path.
-// The New Dashboard form makes a page Dashboard on General; its page is dropped, so it is an engine Dashboard until
-// the engine goes (#376), and any other Template is set in the database.
+// createWork creates a built Dashboard with no Dataset yet and returns its path: a page Dashboard made with the New
+// Dashboard form, its page dropped.
 func (s *site) createWork(name string) string {
 	s.t.Helper()
 	res, body := s.post("/lab/dashboards", url.Values{"name": {name}, "html": {myPage}})
