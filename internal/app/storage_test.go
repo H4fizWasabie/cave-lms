@@ -116,13 +116,13 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 }
 
 func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
-	_, ada, _ := storageSite(t, "3")
+	_, ada, _ := storageSite(t, "4")
 	paths := []string{ada.createWork("One"), ada.createWork("Two")}
 	for i, p := range paths {
 		res, body := ada.postFile(p+"/dataset", "data.xlsx", bigFinance(t, int64(i+1)))
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 	}
-	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 2`); err != nil { // both uploads fitted, the Workbooks 1.2 MB; room for one Dataset
+	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 3`); err != nil { // both uploads fitted, the Workbooks 1.2 MB and each Part 1.1 MB; room for one Part
 		t.Fatal(err)
 	}
 	codes := make([]int, 2)

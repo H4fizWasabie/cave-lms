@@ -285,6 +285,25 @@ func TestATwoRowHeaderKeepsASparseMergedTopRow(t *testing.T) {
 	}
 }
 
+// data.json adds a Part date key to every row, so a column of the Learner's with that name (ignoring case and spaces)
+// would be overwritten.
+func TestCleanUpRefusesAColumnCalledPartDateWhateverItsCaseAndSpaces(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data", row("Perkara", "part  DATE"), row("Beras", "2026-01-01")))
+	_, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
+	var p lab.Problem
+	if !errors.As(err, &p) {
+		t.Fatalf("err = %v, want a Problem", err)
+	}
+	for lang, want := range map[string]string{
+		"en": "Rename the column “part  DATE” in Excel",
+		"ms": "Namakan semula lajur “part  DATE” dalam Excel",
+	} {
+		if got := p.In(lang); !strings.Contains(got, want) {
+			t.Errorf("%s problem = %q, want it to contain %q", lang, got, want)
+		}
+	}
+}
+
 func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 	_, err := lab.Clean(strings.NewReader("Tarikh,Jumlah\n05/11/2026,RM5\n"), lab.Settings{})
 	var p lab.Problem
@@ -811,14 +830,81 @@ func TestCleanUpOfAnUnreadableSheetDoesNotFormatItsCellText(t *testing.T) {
 func TestAddKeepsADashEmptyInANumberColumn(t *testing.T) {
 	d := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Number}}, Rows: [][]any{{"Gula", 12.0}}}
 	more := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Text}}, Rows: [][]any{{"Tepung", "-"}, {"Beras", "7"}}}
-	out, _, changes, err := lab.Add(d, more)
+	out, changes, err := lab.AddPart(d.Columns, len(d.Rows), more, lab.MaxCleanRows)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := [][]any{{"Gula", 12.0}, {"Tepung", nil}, {"Beras", 7.0}}; !reflect.DeepEqual(out.Rows, want) {
+	if want := [][]any{{"Tepung", nil}, {"Beras", 7.0}}; !reflect.DeepEqual(out.Rows, want) {
 		t.Fatalf("rows = %v, want %v", out.Rows, want)
 	}
 	if len(changes) != 0 {
 		t.Fatalf("changes = %v, want none", changes)
+	}
+}
+
+// A Part's date is found in the Excel: the title rows above the column names first, then the sheet name, then the
+// file name, then none (the app uses the upload day).
+func TestCleanUpFindsThePartDateInTheTitleRowsFirst(t *testing.T) {
+	file := testutil.Workbook(t, sheet("02.09.26",
+		row("Stock Balance Report"),
+		row(nil, nil, nil, nil, nil, nil, nil, "01.09.2026"),
+		row("Item", "Balance"),
+		row("Gula", 3),
+	))
+	res := cleanWith(t, file, lab.Settings{FileName: "Report_20260702091058.xlsx"})
+	if res.PartDate != "2026-09-01" || res.DateFrom != lab.DateFromCell || res.DateCell != "H2" {
+		t.Fatalf("date = %q from %q %q, want 2026-09-01 from cell H2", res.PartDate, res.DateFrom, res.DateCell)
+	}
+}
+
+func TestCleanUpReadsARealExcelDateInTheTitleRows(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data",
+		row(nil, time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC)),
+		row("Item", "Balance", "Unit", "Shelf"),
+		row("Gula", 3, "kg", "A1"),
+	))
+	res := clean(t, file)
+	if res.PartDate != "2026-09-03" || res.DateFrom != lab.DateFromCell || res.DateCell != "B1" {
+		t.Fatalf("date = %q from %q %q, want 2026-09-03 from cell B1", res.PartDate, res.DateFrom, res.DateCell)
+	}
+}
+
+func TestCleanUpFindsADateInsideATitleCellsText(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data", row("Stock as at 05/11/2026 (RM)"), row("Item", "Balance"), row("Gula", 3)))
+	if res := clean(t, file); res.PartDate != "2026-11-05" || res.DateCell != "A1" {
+		t.Fatalf("date = %q in %q, want 2026-11-05 in A1", res.PartDate, res.DateCell)
+	}
+}
+
+func TestCleanUpFallsBackToTheSheetNameThenTheFileName(t *testing.T) {
+	titled := func(name string) []byte {
+		return testutil.Workbook(t, sheet(name, row("Item", "Balance"), row("Gula", 3)))
+	}
+	res := cleanWith(t, titled("02.09.26"), lab.Settings{FileName: "Report_20260702091058.xlsx"})
+	if res.PartDate != "2026-09-02" || res.DateFrom != lab.DateFromSheet {
+		t.Fatalf("date = %q from %q, want 2026-09-02 from the sheet name", res.PartDate, res.DateFrom)
+	}
+	for file, want := range map[string]string{
+		"Stock_Balance_History_Report_20260702091058.xlsx": "2026-07-02",
+		"Report_20260702.xlsx":                             "2026-07-02",
+		"Sales 2026-07-03.xlsx":                            "2026-07-03",
+		"Laporan 04.07.26.xlsx":                            "2026-07-04",
+		"Laporan 05-07-2026.xlsx":                          "2026-07-05",
+		"Laporan 06.07.2026":                               "2026-07-06",
+	} {
+		res := cleanWith(t, titled("Data"), lab.Settings{FileName: file})
+		if res.PartDate != want || res.DateFrom != lab.DateFromFile {
+			t.Errorf("%s: date = %q from %q, want %s from the file name", file, res.PartDate, res.DateFrom, want)
+		}
+	}
+}
+
+func TestCleanUpFindsNoPartDateWhenTheExcelHasNone(t *testing.T) {
+	// A date in a data row, a number that is not a date in the file name and a version number are not Part dates.
+	file := testutil.Workbook(t, sheet("Data", row("Item", "Day"), row("Gula", time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC))))
+	for _, name := range []string{"", "report.xlsx", "Report_v2.1.3.xlsx", "Report_20261399.xlsx", "Report_12345678901234567.xlsx"} {
+		if res := cleanWith(t, file, lab.Settings{FileName: name}); res.PartDate != "" || res.DateFrom != "" || res.DateCell != "" {
+			t.Errorf("%q: date = %q from %q, want none", name, res.PartDate, res.DateFrom)
+		}
 	}
 }

@@ -13,7 +13,7 @@
         <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
         <a class="lab-tab" href="{{$url}}"{{if eq .Tab "dataset"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.dataset"}}</a>
-        {{- if .Dashboard.Dataset}}
+        {{- if .Dashboard.Parts}}
         <a class="lab-tab" href="{{$url}}/preview"{{if eq .Tab "preview"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.preview"}}</a>
         <a class="lab-tab" href="{{$url}}/deploy"{{if eq .Tab "deploy"}} aria-current="page"{{end}}>{{t .Lang "lab.d.tab.deploy"}}</a>
         {{- else}}
@@ -58,10 +58,24 @@
       {{- else if or (eq .Tab "dataset") (eq .Tab "data")}}
       <div class="lab-split">
         <section>
-          {{- with .Dashboard.Dataset}}
-          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{$.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.rows" (len .Rows)}} · {{tn $.Lang "lab.d.columns" (len .Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
+          {{- if .Dashboard.Parts}}
+          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.parts" .Dashboard.Parts}} · {{tn $.Lang "lab.d.rows" .Dashboard.Rows}} · {{tn $.Lang "lab.d.columns" (len .Dashboard.Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
+          {{- with .PartList}}
+          <h2 class="h-md">{{t $.Lang "lab.d.parts-list"}}</h2>
+          <ul class="ds-parts ds-earlier">
+            {{- range .}}
+            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.d.part-date" .Date}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}} · {{t $.Lang "lab.d.part-added" .Added}}</span></div>
+              <span class="ds-part-actions"><a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/replace">{{t $.Lang "lab.d.part-replace-btn"}}</a> <a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/delete">{{t $.Lang "lab.delete"}}</a></span></li>
+            {{- end}}
+          </ul>
+          {{- end}}
+          {{- if .Replacing}}
+          <h2 class="h-md">{{t $.Lang "lab.d.part-replace"}}</h2>
+          <p class="muted">{{t $.Lang "lab.d.part-replace-body" .Replacing.File}}</p>
+          {{- else}}
           <h2 class="h-md">{{t $.Lang "lab.d.upload-new"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.upload-body"}}</p>
+          {{- end}}
           {{- else}}{{if .Dashboard.Page}}
           <h2 class="h-md">{{t .Lang "lab.data.upload"}}</h2>
           <p class="muted">{{t .Lang "lab.data.upload-body"}}</p>
@@ -73,13 +87,13 @@
           <div class="ds-err" role="alert">
             <p><strong>{{if $.Upload}}{{t $.Lang "lab.d.not-read" $.Upload}}{{else}}{{t $.Lang "lab.d.not-read-file"}}{{end}}</strong></p>
             <p>{{.}}</p>
-            <p>{{t $.Lang "lab.d.fix-this"}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+            <p>{{t $.Lang "lab.d.fix-this"}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           {{- if .Failed}}
           <div class="ds-err" role="alert">
             <p><strong>{{t .Lang "lab.d.upload-failed"}}</strong></p>
-            <p>{{with .Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+            <p>{{if .Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           {{- with .Pending}}
@@ -87,10 +101,9 @@
             <div>
               <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
               {{- with .Added}}
-              <p class="muted">{{tn $.Lang "lab.data.adds" .Rows .Had (len $.Pending.Dataset.Rows)}}</p>
-              {{- if .Same}}
-              <p><strong>{{tn $.Lang "lab.data.same" .Same}}</strong></p>
-              {{- end}}
+              <p class="muted">{{tn $.Lang "lab.data.adds" .Rows .Had .Total}}</p>
+              {{- else with .Replaces}}
+              <p class="muted">{{tn $.Lang "lab.data.replaces" (len $.Pending.Dataset.Rows) .File (.Total (len $.Pending.Dataset.Rows))}}</p>
               {{- else}}
               <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
               {{- end}}
@@ -132,12 +145,6 @@
               <thead><tr>{{range .Dataset.Columns}}<th scope="col">{{.Name}}<br><small class="muted">{{t $.Lang (print "lab.type." .Type)}}</small></th>{{end}}</tr></thead>
               <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
             </table></div>
-            {{- with $.Drops}}
-            <div>
-              <h3 class="h-sm">{{t $.Lang "lab.w.drops"}}</h3>
-              <ul>{{range .}}<li>{{.File}} · {{t $.Lang "lab.w.confirmed" .Confirmed}} · {{.SizeText}}</li>{{end}}</ul>
-            </div>
-            {{- end}}
             <form class="form" method="post" action="{{$url}}/dataset/confirm">
               {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
               {{- if $.Uses}}
@@ -160,6 +167,14 @@
                 {{- end}}
               </ul>
               {{- end}}
+              <div class="field">
+                <label for="part-date">{{t $.Lang "lab.w.part-date"}} <span class="muted">({{if eq .DateFrom "cell"}}{{t $.Lang .DateFromKey .DateCell}}{{else}}{{t $.Lang .DateFromKey}}{{end}})</span></label>
+                <input id="part-date" type="date" name="part-date" value="{{.PartDate}}" min="1900-01-01" max="2100-12-31" required>
+                <small>{{t $.Lang "lab.w.part-date-help"}}</small>
+              </div>
+              {{- if and (not .Added) (not .Replaces) (gt $.Dashboard.Parts 0)}}
+              <div class="ds-err" role="alert"><p><strong>{{tn $.Lang "lab.data.replace-warn" $.Dashboard.Parts}}</strong></p></div>
+              {{- end}}
               <div class="form-foot">
                 <button class="btn {{if $.AskHeader}}btn-ghost{{else}}btn-solid{{end}}">{{t $.Lang "lab.w.confirm"}}</button>
               </div>
@@ -167,14 +182,22 @@
           </section>
           <h2 class="h-md">{{t $.Lang "lab.w.another"}}</h2>
           {{- else}}
-          {{- with $.Error}}
+          {{- with $.Same}}
           <div class="ds-err" role="alert">
             <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
-            <p>{{.}} {{with $.Dashboard.Dataset}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+            <p>{{t $.Lang "lab.err.same-file" .File .Date}} {{t $.Lang "lab.d.still-uses" $.Dashboard.File}}</p>
+            <p><a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/replace">{{t $.Lang "lab.err.same-file-replace"}}</a></p>
+          </div>
+          {{- else with $.Error}}
+          <div class="ds-err" role="alert">
+            <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
+            <p>{{.}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           {{- end}}
-          <form class="form" method="post" action="{{$url}}/dataset" enctype="multipart/form-data" data-busy>
+          {{- $replace := 0}}{{with .Replacing}}{{$replace = .ID}}{{end}}{{with .Pending}}{{with .Replaces}}{{$replace = .Part}}{{end}}{{end}}
+          {{- $picked := false}}{{with .Pending}}{{$picked = .FromWorkbook}}{{end}}
+          <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}"{{if not $picked}} enctype="multipart/form-data"{{end}} data-busy>
             {{- with .Pending}}{{if gt (len .Sheets) 1}}
             {{- $p := .}}{{$picked := .Picked}}
             <fieldset class="field">
@@ -183,6 +206,7 @@
               {{- if .Tickable}}<input type="hidden" name="tickable" value="1">{{end}}
               <ul>
                 {{- range .Sheets}}
+                {{- if or (not $p.Settings.Recipe) .Fits (eq .Name $picked)}}
                 <li>
                   <label><input type="radio" name="sheet" value="{{.Name}}"{{if eq .Name $picked}} checked{{end}}{{if not .Readable}} disabled{{end}}> {{.Name}}</label>
                   {{- if .CanCombine}}
@@ -191,8 +215,9 @@
                   <small class="muted">{{tn $.Lang "lab.d.rows" .Rows}}{{with .ReasonKey}} · {{t $.Lang .}}{{end}}</small>
                 </li>
                 {{- end}}
+                {{- end}}
               </ul>
-              <small>{{t $.Lang "lab.w.sheets-help"}}</small>
+              <small>{{if $p.Settings.Recipe}}{{t $.Lang "lab.w.sheets-help-part"}}{{else}}{{t $.Lang "lab.w.sheets-help"}}{{end}}</small>
             </fieldset>
             {{- end}}{{end}}
             {{- with .Pending}}{{with .Grid}}
@@ -205,7 +230,7 @@
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
-            {{- if .Dashboard.Key}}
+            {{- if and .Dashboard.Key (not $replace)}}
             {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
             <fieldset class="field">
               <legend>{{t .Lang "lab.data.mode"}}</legend>
@@ -215,24 +240,43 @@
               <small>{{t .Lang "lab.data.add-help"}}</small>
             </fieldset>
             {{- end}}
+            {{- if $picked}}
+            <input type="hidden" name="workbook" value="{{.Pending.Workbook}}">
+            <p class="muted">{{t .Lang "lab.d.pick-using" .Pending.File}}</p>
+            {{- else}}
             <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
+            {{- end}}
             <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{with .AskHeader}} value="{{.}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
             {{- $twoRow := .Dashboard.Settings.TwoRowHeader}}{{with .Pending}}{{$twoRow = .Settings.TwoRowHeader}}{{end}}
             <label class="check"><input type="checkbox" name="two-row" value="on"{{if $twoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
-            <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
+            <div class="form-foot">{{if .Replacing}}<a class="btn btn-quiet" href="{{if .Dashboard.Page}}{{$url}}/data{{else}}{{$url}}{{end}}">{{t .Lang "lab.cancel"}}</a>{{end}}<button class="btn btn-solid">{{t .Lang "lab.d.upload"}}</button></div>
             {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
           </form>
           <script src="{{static "forms.js"}}" defer></script>
-          {{- with .Earlier}}
-          <h2 class="h-md">{{t $.Lang "lab.w.earlier"}}</h2>
-          <p class="muted">{{t $.Lang "lab.w.earlier-body"}}</p>
-          <ul class="ds-earlier">
-            {{- range .}}
-            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.w.confirmed" .Confirmed}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}}</span></div>
-              <form method="post" action="{{$url}}/datasets/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form>
-              <a class="btn btn-quiet" href="{{$url}}/datasets/{{.ID}}/delete">{{t $.Lang "lab.w.delete"}}</a></li>
+          {{- if .Workbooks}}
+          <h2 class="h-md">{{t .Lang "lab.d.pick"}}</h2>
+          <p class="muted">{{t .Lang "lab.d.pick-body"}}</p>
+          <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}" data-busy>
+            {{- if and .Dashboard.Key (not $replace)}}
+            {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            <fieldset class="field">
+              <legend>{{t .Lang "lab.data.mode"}}</legend>
+              <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>
+              <label class="check"><input type="radio" name="mode" value="add"{{if $add}} checked{{end}}> {{t .Lang "lab.data.add"}}</label>
+            </fieldset>
             {{- end}}
-          </ul>
+            <div class="field"><label for="workbook">{{t .Lang "lab.d.pick-label"}}</label>
+              <select id="workbook" name="workbook" required>
+                {{- range .Workbooks}}
+                <option value="{{.ID}}">{{.Name}} ({{.SizeText}}, {{.Uploaded}})</option>
+                {{- end}}
+              </select><small>{{t .Lang "lab.d.pick-help"}}</small></div>
+            <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.d.pick-btn"}}</button></div>
+          </form>
+          {{- end}}
+          {{- if .Dashboard.Parts}}
+          <h2 class="h-md">{{t $.Lang "lab.w.get-back"}}</h2>
+          <p class="muted">{{t $.Lang "lab.w.get-back-body"}} <a href="/my-folder">{{t $.Lang "nav.my-folder"}}</a>.</p>
           {{- end}}
         </section>
         <aside class="panel">
@@ -253,7 +297,7 @@
         <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.d.save"}}</button></div>
       </form>
 
-      {{- else if and (not .Dashboard.Dataset) (not .Dashboard.Page)}}
+      {{- else if and (not .Dashboard.Parts) (not .Dashboard.Page)}}
       <p class="empty">{{t .Lang "lab.d.upload-first-p"}} <a href="{{$url}}">{{t .Lang "lab.d.go-dataset"}}</a>.</p>
 
       {{- else if eq .Tab "preview"}}

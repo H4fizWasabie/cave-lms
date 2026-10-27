@@ -45,8 +45,7 @@ type App struct {
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
-	datasets             storage.Store     // where Dataset data and Submission files live (ADR 0008)
-	datasetFiles         datasetFilesCache // what Dashboard pages and data need of each stored Dataset
+	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
 	maxUpload            int64
 	limiter              rateLimiter
 	chatHub              chatHub       // tells open Chat streams of new and changed Messages
@@ -186,6 +185,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("apply database migrations: %w", err)
 	}
 
+	if err = convertDatasetsToParts(ctx, db, datasets); err != nil {
+		return nil, fmt.Errorf("convert Datasets to Parts: %w", err)
+	}
+
 	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
 	if len(cfg.EmailAllowlist) > 0 {
@@ -254,12 +257,13 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.labScreen(a.dashboardTab("preview")))
 	mux.HandleFunc("GET /lab/dashboards/{id}/data", a.labScreen(a.dashboardTab("data")))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset", a.withDashboard(a.uploadDataset))
-	mux.HandleFunc("POST /lab/dashboards/{id}/page", a.withDashboardRow(a.uploadPage))
-	mux.HandleFunc("POST /lab/dashboards/{id}/pages/{pg}/restore", a.withDashboardRow(a.restorePage))
-	mux.HandleFunc("POST /lab/dashboards/{id}/dataset/confirm", a.withDashboardRow(a.confirmWork))
-	mux.HandleFunc("POST /lab/dashboards/{id}/datasets/{ds}/restore", a.withDashboardRow(a.restoreDataset))
-	mux.HandleFunc("GET /lab/dashboards/{id}/datasets/{ds}/delete", a.labScreen(a.withDashboardRow(a.confirmDeleteDataset)))
-	mux.HandleFunc("POST /lab/dashboards/{id}/datasets/{ds}/delete", a.withDashboardRow(a.deleteDataset))
+	mux.HandleFunc("POST /lab/dashboards/{id}/page", a.withDashboard(a.uploadPage))
+	mux.HandleFunc("POST /lab/dashboards/{id}/pages/{pg}/restore", a.withDashboard(a.restorePage))
+	mux.HandleFunc("POST /lab/dashboards/{id}/dataset/confirm", a.withDashboard(a.confirmWork))
+	mux.HandleFunc("GET /lab/dashboards/{id}/parts/{part}/delete", a.labScreen(a.withDashboard(a.confirmDeletePart)))
+	mux.HandleFunc("POST /lab/dashboards/{id}/parts/{part}/delete", a.withDashboard(a.deletePart))
+	mux.HandleFunc("GET /lab/dashboards/{id}/parts/{part}/replace", a.labScreen(a.withDashboard(a.replacePartForm)))
+	mux.HandleFunc("POST /lab/dashboards/{id}/parts/{part}/replace", a.withDashboard(a.uploadPartReplacement))
 	mux.HandleFunc("POST /lab/dashboards/{id}/theme", a.withDashboard(a.saveTheme))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.labScreen(a.dashboardFile("index.html")))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/data/{key}", a.labScreen(a.dashboardFile("data")))
@@ -268,7 +272,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /lab/dashboards/{id}/deploy", a.withDashboard(a.deployDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/rename", a.labScreen(a.dashboardTab("rename")))
 	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
-	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.labScreen(a.withDashboardRow(a.confirmDeleteDashboard)))
+	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.labScreen(a.withDashboard(a.confirmDeleteDashboard)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/{$}", a.deploymentFile("index.html"))
 	mux.HandleFunc("GET /"+deploymentPrefix+"/{name}/data/{key}", a.deploymentFile("data"))

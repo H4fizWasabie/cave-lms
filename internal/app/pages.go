@@ -16,6 +16,9 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
+// keepEarlier is how many earlier pages a Dashboard keeps beside its current one.
+const keepEarlier = 3
+
 // maxPageSize is the largest page a Dashboard takes (ADR 0017); maxPageUpload caps the request around it.
 const (
 	maxPageSize   = 5 << 20
@@ -47,8 +50,7 @@ func (a *App) pageCSP() string {
 }
 
 // servePage writes a Deployment's page under pageCSP, cached five minutes so sleep and Takedown take effect soon.
-// ponytail: reads the page from the store on each uncached visit; keep pages in memory, as datasetFilesCache keeps
-// data, if the store gets slow.
+// ponytail: reads the page from the store on each uncached visit; keep pages in memory if the store gets slow.
 func (a *App) servePage(w http.ResponseWriter, r *http.Request, p *htmlPage) {
 	data, err := a.datasets.Get(r.Context(), p.Key)
 	if err != nil {

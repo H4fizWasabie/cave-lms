@@ -38,7 +38,7 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 	if n := ada.datasetFiles(); n != 2 {
 		t.Fatalf("at 89 days %d stored files, want 2", n)
 	}
-	if line := admin.lastLogLine("Datasets"); line != "Daily prune deleted 0 Datasets" {
+	if line := admin.lastLogLine("Parts"); line != "Daily prune deleted 0 Parts" {
 		t.Fatalf("System log line = %q", line)
 	}
 
@@ -47,17 +47,17 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("at 91 days %d stored files, want the Admin's 1", n)
 	}
-	if line := admin.lastLogLine("Datasets"); line != "Daily prune deleted 1 Datasets" {
+	if line := admin.lastLogLine("Parts"); line != "Daily prune deleted 1 Parts" {
 		t.Fatalf("System log line = %q", line)
 	}
 	// The Dashboard stays, without its Dataset. Lapsed, Ada can't open the Lab (it sends her to /pricing), so ask the database.
-	var dashboards, datasets int
-	if err := admin.db.QueryRow(`SELECT count(*), (SELECT count(*) FROM datasets ds JOIN dashboards d ON d.id = ds.dashboard_id
-		WHERE d.name = 'Kewangan') FROM dashboards WHERE name = 'Kewangan'`).Scan(&dashboards, &datasets); err != nil {
+	var dashboards, parts int
+	if err := admin.db.QueryRow(`SELECT count(*), (SELECT count(*) FROM dataset_parts ds JOIN dashboards d ON d.id = ds.dashboard_id
+		WHERE d.name = 'Kewangan') FROM dashboards WHERE name = 'Kewangan'`).Scan(&dashboards, &parts); err != nil {
 		t.Fatal(err)
 	}
-	if dashboards != 1 || datasets != 0 {
-		t.Fatalf("Kewangan: %d Dashboards and %d Datasets, want 1 and 0", dashboards, datasets)
+	if dashboards != 1 || parts != 0 {
+		t.Fatalf("Kewangan: %d Dashboards and %d Parts, want 1 and 0", dashboards, parts)
 	}
 	res, body := ada.second().get(link)
 	expectStatus(t, res, body, http.StatusOK, "This Dashboard is asleep")

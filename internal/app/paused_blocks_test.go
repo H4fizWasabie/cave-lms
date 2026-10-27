@@ -53,15 +53,19 @@ func TestAPickForARenamedColumnSwapsInEveryBlock(t *testing.T) {
 	}
 }
 
-func TestAnUnchangedUploadSkipsThePreviewAndGoesLive(t *testing.T) {
+func TestAnUnchangedReplaceShowsItsPreviewAndGoesLiveOnConfirm(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	link := ada.deploy(path)
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if loc := res.Header.Get("Location"); loc != path+"/preview" {
-		t.Fatalf("an unchanged upload redirects to %q", loc)
+	if loc := res.Header.Get("Location"); loc != path {
+		t.Fatalf("an unchanged Replace redirects to %q, want its preview", loc)
 	}
+	if page := ada.second().rowsOf(link); strings.Contains(page, "Gula") {
+		t.Fatalf("before confirming the Deployment's data = %s", page)
+	}
+	ada.confirmWork(path, nil)
 	if page := ada.second().rowsOf(link); !strings.Contains(page, "Gula") {
 		t.Fatalf("the Deployment's data = %s", page)
 	}
@@ -90,7 +94,7 @@ func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
 	}
 }
 
-func TestRestoringADatasetWithTheColumnUnpausesItsBlocks(t *testing.T) {
+func TestReplacingTheDataWithADatasetThatHasTheColumnUnpausesItsBlocks(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
@@ -100,10 +104,11 @@ func TestRestoringADatasetWithTheColumnUnpausesItsBlocks(t *testing.T) {
 		t.Fatal("no block paused without Jumlah")
 	}
 
-	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
 	if n := ada.paused(path + "/view/"); n != 0 {
-		t.Fatalf("%d blocks still paused after restoring a Dataset with Jumlah", n)
+		t.Fatalf("%d blocks still paused after replacing the data with a Dataset with Jumlah", n)
 	}
 }
 
@@ -137,7 +142,7 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 	}
 }
 
-func TestAnUploadWithTheSameKindsOfChangesSkipsThePreview(t *testing.T) {
+func TestEvenAReplaceWithTheSameKindsOfChangesShowsThePreviewWithItsWarning(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady() // its title rows were skipped
 	ada.uploadLive(path, shopReport(t, "Gula", 80), "Gula", "Beras")
@@ -145,11 +150,11 @@ func TestAnUploadWithTheSameKindsOfChangesSkipsThePreview(t *testing.T) {
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", dashReport(t, "Garam"))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if loc := res.Header.Get("Location"); loc != path {
-		t.Fatalf("an upload with a new kind of change redirects to %q, not the preview", loc)
+		t.Fatalf("a Replace with a new kind of change redirects to %q, want its preview", loc)
 	}
 }
 
-func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
+func TestARetypedColumnLeftOutPausesItsBlocksUntilTheDataIsReplaced(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
@@ -161,9 +166,10 @@ func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
 		t.Fatal("no block paused with Jumlah retyped")
 	}
 
-	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
 	if n := ada.paused(path + "/view/"); n != 0 {
-		t.Fatalf("%d blocks still paused after restoring a Dataset with a Number Jumlah", n)
+		t.Fatalf("%d blocks still paused after replacing the data with a Dataset with a Number Jumlah", n)
 	}
 }

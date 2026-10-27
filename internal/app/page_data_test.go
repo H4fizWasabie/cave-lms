@@ -1,8 +1,11 @@
 package app_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -12,11 +15,21 @@ import (
 
 var adding = url.Values{"mode": {"add"}}
 
-// shopColumns is shopReport's month with its columns in another order, amount for item, and the same Jualan row.
+// underTitleRows is a workbook of shopReport's layout: two title rows and a blank one, then the header on row 4.
+func underTitleRows(t *testing.T, header []any, rows ...[]any) []byte {
+	t.Helper()
+	return testutil.XLSX(t, []string{"Kedai Runcit Ali"}, append([][]any{{"Laporan Oktober 2026"}, {}, header}, rows...)...)
+}
+
+// shopColumns is shopReport's month with its columns in another order, amount for item, and the same Jualan row. Its
+// header is on row 4, as shopReport's is: a new Part is read with the first Part's header row.
 func shopColumns(t *testing.T, item string, amount float64) []byte {
 	t.Helper()
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	return testutil.XLSX(t, []string{"Jumlah", "Jenis", "Kategori", "Perkara", "Tarikh"},
+	return testutil.XLSX(t, []string{"Kedai Runcit Ali"},
+		[]any{"Laporan Oktober 2026"},
+		[]any{},
+		[]any{"Jumlah", "Jenis", "Kategori", "Perkara", "Tarikh"},
 		[]any{amount, "Keluar", "Dapur", item, day},
 		[]any{900.0, "Masuk", "Kedai", "Jualan", day},
 	)
@@ -38,7 +51,10 @@ func pageWithData(t *testing.T, ada *site) (path, link string) {
 	return path, link
 }
 
-func TestAddingToAPageDashboardsDataCombinesTheRowsAndRestoringUndoesIt(t *testing.T) {
+// partDate is the day a Part uploaded now is dated.
+func partDate() string { return time.Now().UTC().Format(time.DateOnly) }
+
+func TestConfirmingAnAddCreatesASecondPartAndDataJSONReturnsBothPartsInOrderEachRowWithItsPartDate(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
@@ -48,21 +64,34 @@ func TestAddingToAPageDashboardsDataCombinesTheRowsAndRestoringUndoesIt(t *testi
 	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
 	expectRedirect(t, res, body, path+"/data")
 	_, body = ada.get(path + "/data")
-	expectAll(t, body, "Adding 2 rows to your 2: 4 rows in all.", "1 new row exactly matches a row already in your data.",
-		`name="mode" value="add" checked`, `action="`+path+`/dataset/confirm"`)
+	expectAll(t, body, "Adding 2 rows to your 2: 4 rows in all.", `name="mode" value="add" checked`, `action="`+path+`/dataset/confirm"`)
+	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Gula") {
+		t.Fatalf("before confirming, data.json = %s", body)
+	}
 	res, body = ada.post(path+"/dataset/confirm", nil)
 	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "2 Parts", "4 rows")
+
 	_, body = visitor.get(link + "data.json")
-	expectAll(t, body, `"Perkara": "Beras"`, `"Perkara": "Gula"`)
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(body), &rows); err != nil {
+		t.Fatalf("data.json is not one array: %v\n%s", err, body)
+	}
+	var got []string
+	for _, r := range rows {
+		got = append(got, fmt.Sprint(r["Perkara"], " ", r["Part date"]))
+	}
+	today := partDate()
+	want := []string{"Beras " + today, "Jualan " + today, "Gula " + today, "Jualan " + today}
+	if !slices.Equal(got, want) {
+		t.Fatalf("data.json rows = %v, want %v", got, want)
+	}
 	if n := strings.Count(body, `"Tarikh": "2026-10-05", "Perkara"`); n != 4 {
 		t.Fatalf("data.json has %d rows in the current column order, want 4: %s", n, body)
 	}
-
-	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
-	res, body = ada.post(september+"/restore", nil)
-	expectRedirect(t, res, body, path+"/data")
-	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Gula") || !strings.Contains(body, "Beras") {
-		t.Fatalf("after restoring data.json = %s", body)
+	if n := ada.datasetFiles(); n != 2 {
+		t.Fatalf("%d stored files, want one per Part", n)
 	}
 }
 
@@ -72,7 +101,7 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	texty := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
+	texty := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
 		[]any{day, "Gula", "Dapur", "Keluar", "banyak"},
 		[]any{day, "Garam", "Dapur", "Keluar", 70.0})
 	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", texty, adding)
@@ -89,48 +118,43 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 		`"Perkara": "Garam", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 70`)
 }
 
-// An Add is put together with the data current at upload: once that changed, confirming it would undo the change,
-// so it is refused and the Learner is asked to upload again.
-func TestAnAddIsRefusedWhenTheDataChangedSinceItsUpload(t *testing.T) {
+// A Part may have columns the Dataset lacks, in any order: the preview lists them as dropped, and only the Dataset's
+// columns reach data.json.
+func TestAddingDataWithExtraColumnsDropsThemListsThemAndKeepsTheDatasetsColumns(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
-	res, body := ada.postFile(path+"/dataset", "ogos.xlsx", shopReport(t, "Tepung", 50))
+	extra := underTitleRows(t, []any{"Nota", "Jumlah", "Jenis", "Rak", "Kategori", "Perkara", "Warna", "Tarikh"},
+		[]any{"baru", 80.0, "Keluar", "A1", "Dapur", "Gula", "putih", time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)})
+	res, body := ada.postFile(path+"/dataset", "lebih.xlsx", extra, adding)
 	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
-	expectRedirect(t, res, body, path+"/data")
-	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
-	res, body = ada.post(september+"/restore", nil)
-	expectRedirect(t, res, body, path+"/data")
-
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectStatus(t, res, body, http.StatusConflict, "Your data changed after you uploaded oktober.xlsx")
-	if strings.Contains(body, `action="`+path+`/dataset/confirm"`) {
-		t.Fatalf("the refused Add is still offered: %s", body)
-	}
-	if _, body = ada.second().get(link + "data.json"); strings.Contains(body, "Gula") || strings.Contains(body, "Tepung") || !strings.Contains(body, "Beras") {
-		t.Fatalf("after the refused Add data.json = %s", body)
-	}
-
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Columns not in your data, dropped (3): Nota, Rak, Warna.")
 	ada.switchLanguage("ms", path)
-	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(ada.earlierOn(path+"/data", path)["ogos.xlsx"]+"/restore", nil)
-	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "Lajur yang tiada dalam data anda, dibuang (3): Nota, Rak, Warna.")
 	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectStatus(t, res, body, http.StatusConflict, "Data anda berubah selepas anda memuat naik oktober.xlsx")
+	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.second().get(link + "data.json")
+	expectAll(t, body, `"Perkara": "Gula", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 80`)
+	for _, dropped := range []string{"Nota", "Rak", "Warna"} {
+		if strings.Contains(body, dropped) {
+			t.Fatalf("data.json holds the dropped column %s: %s", dropped, body)
+		}
+	}
 }
 
-func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
+func TestAddingDataLackingAColumnIsRefusedNamingItAndChangesNothing(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
-	other := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Amaun", "Nota"},
-		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", 80.0, "baru"})
-	res, body := ada.postFile(path+"/dataset", "lain.xlsx", other, adding)
+	short := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Nota"},
+		[]any{time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC), "Gula", "Dapur", "Keluar", "baru"})
+	res, body := ada.postFile(path+"/dataset", "kurang.xlsx", short, adding)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Missing: Jumlah.")
-	expectAll(t, body, "Not in your data: Amaun, Nota.", "We did not upload lain.xlsx")
-	if _, body = ada.get(path + "/data"); strings.Contains(body, "lain.xlsx") {
+	expectAll(t, body, "We did not upload kurang.xlsx")
+	ada.switchLanguage("ms", path)
+	res, body = ada.postFile(path+"/dataset", "kurang.xlsx", short, adding)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Hilang: Jumlah.")
+	if strings.Contains(partItems(t, mustGet(t, ada, path+"/data")), "kurang.xlsx") { // its Workbook is kept, and picked from the Folder
 		t.Fatalf("a refused add was kept: %s", body)
 	}
 	if _, body = ada.second().get(link + "data.json"); strings.Contains(body, "Gula") {
@@ -138,24 +162,8 @@ func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
 	}
 }
 
-func TestAnAddPastTheRowLimitIsRefusedWithTheNumbers(t *testing.T) {
-	_, ada, _ := storageSite(t, "1024")
-	path := ada.createPage("Besar", myPage)
-	rows := make([][]any, 49999)
-	for i := range rows {
-		rows[i] = []any{"x", float64(i)}
-	}
-	res, body := ada.postFile(path+"/dataset", "banyak.xlsx", testutil.XLSX(t, []string{"Perkara", "Jumlah"}, rows...))
-	expectRedirect(t, res, body, path+"/data")
-	ada.post(path+"/dataset/confirm", nil)
-	more := testutil.XLSX(t, []string{"Jumlah", "Perkara"}, []any{1.0, "y"}, []any{2.0, "z"})
-	res, body = ada.postFile(path+"/dataset", "lagi.xlsx", more, adding)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "49,999")
-	expectAll(t, body, "50,001", "50,000")
-}
-
 func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
-	_, ada, _ := storageSite(t, "2") // 2 MB, and each bigFinance is about 600 KB as a Workbook and as a Dataset
+	_, ada, _ := storageSite(t, "3") // 3 MB; each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
 	path := ada.createPage("Kewangan", myPage)
 	res, body := ada.postFile(path+"/dataset", "one.xlsx", bigFinance(t, 1))
 	expectRedirect(t, res, body, path+"/data")
@@ -245,11 +253,18 @@ func TestAPageDashboardsDataIsUploadedConfirmedAndServedAtDataJSON(t *testing.T)
 	}
 	admin.assignPlan("ada@example.com", admin.onlyPlanID())
 
-	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
-	res, body = ada.post(september+"/restore", nil)
+	// Sleeping stops data.json however many Parts it has; so does a Takedown.
+	res, body = ada.postFile(path+"/dataset", "november.xlsx", shopColumns(t, "Garam", 70), adding)
 	expectRedirect(t, res, body, path+"/data")
-	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, `"Perkara": "Beras"`) {
-		t.Fatalf("after restoring data.json = %s", body)
+	ada.post(path+"/dataset/confirm", nil)
+	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, "Gula") || !strings.Contains(body, "Garam") {
+		t.Fatalf("after adding, data.json = %s", body)
+	}
+	_, body = admin.get("/admin/deployments")
+	res, body = admin.post(takedownAction.FindStringSubmatch(body)[1], url.Values{"reason": {"Borang palsu"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Perkara") {
+		t.Fatalf("a taken-down Deployment's data.json = %s", body)
 	}
 }
 
@@ -257,8 +272,8 @@ func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	for _, c := range []struct{ lang, sentence, copy, readsOnly string }{
-		{"en", "Load the rows from ./data.json when it exists, using the Excel header names", ">Copy<", "Your page changes only if it reads data.json."},
-		{"ms", "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel", ">Salin<", "Halaman anda hanya berubah jika ia membaca data.json."},
+		{"en", "Load the rows from ./data.json when it exists, using the Excel header names as the field names, and the Part date field to tell the uploads apart", ">Copy<", "Your page changes only if it reads data.json."},
+		{"ms", "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel sebagai nama medan, dan medan Part date untuk membezakan setiap muat naik", ">Salin<", "Halaman anda hanya berubah jika ia membaca data.json."},
 	} {
 		ada.switchLanguage(c.lang, path)
 		for _, screen := range []string{path, path + "/data"} {

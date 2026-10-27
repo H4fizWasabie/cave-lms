@@ -117,10 +117,10 @@ func (a *App) dailyPrune(ctx context.Context) {
 	}
 	n, err := a.pruneDatasets(ctx)
 	if err != nil {
-		a.logError(nil, fmt.Errorf("prune Datasets: %w", err))
+		a.logError(nil, fmt.Errorf("prune Parts: %w", err))
 		return
 	}
-	a.logInfo("Daily prune deleted %d Datasets", n)
+	a.logInfo("Daily prune deleted %d Parts", n)
 }
 
 // pruneDaily runs dailyPrune and checkBCLToken once a day until done is closed.

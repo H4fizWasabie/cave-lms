@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"path"
 	"regexp"
@@ -27,6 +26,63 @@ type Settings struct {
 	HeaderRow    int      `json:"-"`                      // the header's row number in Excel, on every sheet; 0 lets Cave find each
 	Month        int      `json:"-"`                      // the month, 1 to 12, of every days-across grid; 0 lets Cave find it
 	Year         int      `json:"-"`                      // the grids' year, with Month; 0 is this year
+	Recipe       *Recipe  `json:"recipe,omitempty"`       // the first Part's way of reading, once the Dataset has Parts; nil reads as for a first Part
+	FileName     string   `json:"-"`                      // the uploaded file's name, where its Part date may be named; empty for none
+}
+
+// Recipe is how a Dataset's first Part was read (ADR 0022), and how every later Part is: only its Sheet, found by
+// name ignoring case and never combined with others. Its HeaderRow is read again only if the Learner typed it for the
+// first Part (HeaderTyped); else Cave finds each Part's header row, as its title rows may differ.
+type Recipe struct {
+	Sheet       string   `json:"sheet"`
+	HeaderRow   int      `json:"headerRow"`
+	HeaderTyped bool     `json:"headerTyped,omitempty"` // HeaderRow was typed by hand, not found by Cave
+	Columns     []Column `json:"-"`                     // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+}
+
+// fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
+// Cave added when it combined sheets counts as there: fill gives it from the sheet's name.
+func (rc *Recipe) fits(tb *table) bool {
+	return !slices.ContainsFunc(rc.Columns, func(c Column) bool {
+		return !slices.ContainsFunc(tb.cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) && !caveColumn(c, tb.name)
+	})
+}
+
+// caveColumn reports whether c is a column Cave adds to a Dataset combined from sheets (the first Part or Replace),
+// and name, the one sheet a later Part is read from, can give its value: a Sheet column of text, or a Date column of
+// dates when the sheet's name reads as a date.
+// ponytail: a Learner's own Sheet or Date column is told apart only by name and type; if their file lacks it, the
+// sheet's name fills it.
+func caveColumn(c Column, name string) bool {
+	switch columnKey(c.Name) {
+	case "sheet":
+		return c.Type == Text
+	case "date":
+		_, ok := sheetDate(name)
+		return c.Type == Date && ok
+	}
+	return false
+}
+
+// fill puts each of the Recipe's Cave-added columns d lacks in d, first, with the sheet's name (or the date it reads
+// as) on every row, and gives the changes to list.
+func (rc *Recipe) fill(d *Dataset, sheet string) (changes []Change) {
+	for i := len(rc.Columns) - 1; i >= 0; i-- {
+		c := rc.Columns[i]
+		if slices.ContainsFunc(d.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) || !caveColumn(c, sheet) {
+			continue
+		}
+		var value any = sheet
+		if c.Type == Date {
+			value, _ = sheetDate(sheet)
+		}
+		d.Columns = append([]Column{c}, d.Columns...)
+		for ri := range d.Rows {
+			d.Rows[ri] = append([]any{value}, d.Rows[ri]...)
+		}
+		changes = append(changes, Change{Key: "lab.clean.filled-" + columnKey(c.Name), Column: sheet})
+	}
+	return changes
 }
 
 // Sheet is one sheet of an uploaded workbook.
@@ -36,6 +92,7 @@ type Sheet struct {
 	Readable   bool   `json:"readable,omitempty"`   // Clean-up can read it as a table, so it can be picked
 	CanCombine bool   `json:"canCombine,omitempty"` // it has the picked sheet's columns, so it can be ticked to join it
 	ReasonKey  string `json:"reason,omitempty"`     // the text catalog key (lab.clean.sheet-*) saying why it cannot join the picked sheet
+	Fits       bool   `json:"fits,omitempty"`       // under a Recipe: it has the Dataset's columns, so it can be picked
 }
 
 // MaxCleanRows is the most rows Clean-up keeps and MaxColumns the most columns, both counted on the Dataset as
@@ -72,15 +129,29 @@ func (c Change) In(lang string) string {
 // CleanUp is what Clean-up made of an upload: the Dataset and every change it made to get there. Its JSON leaves
 // out the Dataset, which is kept on its own.
 type CleanUp struct {
-	Sheets    []Sheet  `json:"sheets"`          // every sheet in the workbook, in order
-	Used      []string `json:"used"`            // the sheets that went into the Dataset, in workbook order
-	HeaderRow int      `json:"headerRow"`       // the picked sheet's header row number in Excel
-	Month     int      `json:"month,omitempty"` // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
-	Year      int      `json:"year,omitempty"`  // the grids' year, with Month
-	Dataset   *Dataset `json:"-"`
-	Changes   []Change `json:"changes"`
-	Notes     []Note   `json:"notes,omitempty"` // the columns General leaves out of charts or averages, and why
+	Sheets      []Sheet  `json:"sheets"`           // every sheet in the workbook, in order
+	Used        []string `json:"used"`             // the sheets that went into the Dataset, in workbook order
+	PickedSheet string   `json:"picked,omitempty"` // the sheet Clean-up read first, the one the others joined
+	HeaderRow   int      `json:"headerRow"`        // the picked sheet's header row number in Excel
+	Month       int      `json:"month,omitempty"`  // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year        int      `json:"year,omitempty"`   // the grids' year, with Month
+	Dataset     *Dataset `json:"-"`
+	Changes     []Change `json:"changes"`
+	Notes       []Note   `json:"notes,omitempty"`    // the columns General leaves out of charts or averages, and why
+	PartDate    string   `json:"partDate,omitempty"` // the Part's date as 2006-01-02, found in the Excel; empty when it names none
+	DateFrom    string   `json:"dateFrom,omitempty"` // where PartDate was found: DateFromCell, DateFromSheet or DateFromFile
+	DateCell    string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
 }
+
+// Where a Part's date was found, in the order Clean-up tries them. Clean-up leaves PartDate empty when it finds none;
+// the app then dates the Part DateFromUpload, and DateFromChosen when the Learner changes the date in the preview.
+const (
+	DateFromCell   = "cell"   // a date in the title rows above the column names
+	DateFromSheet  = "sheet"  // a date as the sheet's name
+	DateFromFile   = "file"   // a date in the file's name
+	DateFromUpload = "upload" // the day the file was uploaded, as it names no date
+	DateFromChosen = "chosen" // a date the Learner typed in the preview
+)
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
 // sheet on its own (readTable: header row, merged cells, cut-off, totals at the bottom, empty columns), pick one
@@ -89,6 +160,9 @@ type CleanUp struct {
 // cells (- left empty, more date forms), and note the columns General leaves out of charts. Every step that changes
 // something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, s Settings) (*CleanUp, error) {
+	if s.Recipe != nil && s.Recipe.HeaderTyped && s.HeaderRow == 0 {
+		s.HeaderRow = s.Recipe.HeaderRow
+	}
 	f, err := openWorkbook(r)
 	if err != nil {
 		return nil, err
@@ -125,6 +199,13 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	}
 
 	pick := slices.Index(names, s.Sheet)
+	if rc := s.Recipe; rc != nil && (pick < 0 || tables[pick] == nil) {
+		// The Recipe's sheet by name ignoring case, else the first with the Dataset's columns.
+		pick = slices.IndexFunc(names, func(n string) bool { return strings.EqualFold(n, rc.Sheet) })
+		if pick < 0 || tables[pick] == nil {
+			pick = slices.IndexFunc(tables, func(tb *table) bool { return tb != nil && rc.fits(tb) })
+		}
+	}
 	if pick < 0 || tables[pick] == nil {
 		// A header with a number for a column name is a summary's label and value pair, not a list's header.
 		// ponytail: a list with years for column names ranks down too; the Learner can pick the sheet instead.
@@ -150,11 +231,17 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		return nil, onSheet(problems[i], names[i])
 	}
 	base := tables[pick]
+	res.PickedSheet = base.name
 	var used []*table
 	for i, tb := range tables {
 		switch sh := &res.Sheets[i]; {
 		case tb == nil:
 			continue
+		case s.Recipe != nil: // a Part is read from one sheet, never combined with others
+			sh.Fits = s.Recipe.fits(tb)
+			if i != pick {
+				continue
+			}
 		case i == pick:
 		case !sameColumns(tb.cols, base.cols):
 			sh.ReasonKey = "lab.clean.sheet-differs"
@@ -191,6 +278,7 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		return nil, onSheet(Problem{"lab.err.too-many-rows", []any{thousands(len(raw)), thousands(MaxCleanRows), thousands(d.RowNumbers[MaxCleanRows])}}, base.name)
 	}
 	res.HeaderRow = base.header + 1
+	res.PartDate, res.DateFrom, res.DateCell = partDate(base, s.FileName)
 	for _, tb := range used {
 		res.addChanges(tb.changes)
 	}
@@ -201,12 +289,18 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	}
 	if len(used) > 1 {
 		res.Changes = append(res.Changes, addSheetColumn(d, used))
+	} else if s.Recipe != nil {
+		res.Changes = append(res.Changes, s.Recipe.fill(d, base.name)...)
 	}
 	switch n := len(d.Columns); {
 	case n > MaxColumns && len(used) > 1:
 		return nil, Problem{"lab.err.too-many-columns-combined", []any{n, d.Columns[0].Name, MaxColumns}}
 	case n > MaxColumns:
 		return nil, onSheet(Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}, base.name)
+	}
+	// data.json gives every row a Part date key (PartRows), which a column of that name would be overwritten by.
+	if i := slices.IndexFunc(d.Columns, func(c Column) bool { return columnKey(c.Name) == columnKey(PartDateKey) }); i >= 0 {
+		return nil, onSheet(Problem{"lab.err.part-date-column", []any{d.Columns[i].Name}}, base.name)
 	}
 	res.Notes = notes(d)
 	return res, nil
@@ -222,6 +316,8 @@ type table struct {
 	flat    bool     // a flat list, not a grouped notes table with a label on a group's first row only
 	days    int      // a days-across grid's day columns, after its staff columns in raw until unpivot; 0 if not a grid
 	title   string   // a grid's title rows and sheet name, where its month may be named
+	date    string   // the first date in the title rows above the header, as 2006-01-02; empty if none
+	dateAt  string   // the cell it is in, such as H2
 	changes []Change // what reading the sheet changed
 
 }
@@ -253,6 +349,7 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 		return nil, Problem{"lab.err.no-rows", []any{h + 1}}
 	}
 	res := &CleanUp{} // collects this sheet's changes
+	date, dateAt := titleDate(cells[:h], l)
 	if s.HeaderRow > 0 {
 		res.change("lab.clean.header-chosen", h+1)
 	}
@@ -266,7 +363,7 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 	if first, days := gridDays(cells[h]); days > 0 {
 		tb, err := readGrid(name, cells, h, first, days)
 		if tb != nil {
-			tb.changes = res.Changes
+			tb.changes, tb.date, tb.dateAt = res.Changes, date, dateAt
 		}
 		return tb, err
 	}
@@ -299,7 +396,7 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 	}
 	// ponytail: a blank first cell on any row reads as a grouped table; the Learner can pick the sheet instead.
 	flat := !slices.ContainsFunc(raw, func(vals []cell) bool { return vals[0].v == "" })
-	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat, changes: res.Changes}, nil
+	return &table{name: name, header: h, cols: cols, raw: raw, rowNo: rowNo, flat: flat, changes: res.Changes, date: date, dateAt: dateAt}, nil
 }
 
 // groupsAbove reports whether header row h, found by headerRow, is the bottom row of a two-row header whose
@@ -377,52 +474,50 @@ func columnChanges(was, now []Column) (gone, added []string) {
 	return gone, added
 }
 
-// Add is d's rows followed by more's, put in d's columns, how many of more's rows exactly match one of d's, and
-// the changes it made to more's cells. more needs d's columns by name, in any order, and the two at most MaxCleanRows
-// rows; else a Problem names the columns missing and extra, or the row counts. d's column types stay: a cell of more
-// read as another type is read again as its column's, as typed reads one, and one that does not fit is left empty
-// and listed as a change, once per column.
-func Add(d, more *Dataset) (*Dataset, int, []Change, error) {
-	if gone, added := columnChanges(d.Columns, more.Columns); gone != nil || added != nil {
-		return nil, 0, nil, Problem{"lab.err.add-columns", []any{columnList(gone), columnList(added)}}
+// AddPart is more's rows put in cols, the columns of a Dataset that already holds had rows, and the changes it made to
+// more's cells. more needs every one of the Dataset's columns by name, in any order, and the two at most limit rows, or
+// any number when limit is 0 (a Dataset behind the Learner's own page; each upload keeps to MaxCleanRows in Clean);
+// else a Problem names the columns missing, or the row counts. Columns of more the Dataset lacks are dropped and
+// listed as a change. The Dataset's column types stay: a cell of more read
+// as another type is read again as its column's, as typed reads one, and one that does not fit is left empty and
+// listed as a change, once per column.
+func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Change, error) {
+	gone, extra := columnChanges(cols, more.Columns)
+	if gone != nil {
+		return nil, nil, Problem{"lab.err.add-columns", []any{strings.Join(gone, ", ")}}
 	}
-	if n := len(d.Rows) + len(more.Rows); n > MaxCleanRows {
-		return nil, 0, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(len(d.Rows)), thousands(n), thousands(MaxCleanRows)}}
+	if n := had + len(more.Rows); limit > 0 && n > limit {
+		return nil, nil, Problem{"lab.err.add-too-many-rows", []any{thousands(len(more.Rows)), thousands(had), thousands(n), thousands(limit)}}
 	}
-	at := make([]int, len(d.Columns)) // each column's index in more
-	for i, c := range d.Columns {
+	at := make([]int, len(cols)) // each column's index in more
+	for i, c := range cols {
 		at[i] = slices.IndexFunc(more.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
 	}
-	key := func(row []any) string { return fmt.Sprintf("%#v", row) } // typed, so 1 and "1" differ
-	had := map[string]bool{}
-	for _, row := range d.Rows {
-		had[key(row)] = true
-	}
-	out := &Dataset{Columns: d.Columns, Rows: slices.Clone(d.Rows)}
-	same, misfits := 0, make([]int, len(d.Columns))
+	out := &Dataset{Columns: cols}
+	misfits := make([]int, len(cols))
 	for _, vals := range more.Rows {
 		row := make([]any, len(at))
 		for i, j := range at {
 			row[i] = vals[j]
-			if typ := d.Columns[i].Type; row[i] != nil && more.Columns[j].Type != typ {
+			if typ := cols[i].Type; row[i] != nil && more.Columns[j].Type != typ {
 				var ok bool
 				if row[i], ok = retyped(row[i], typ); !ok {
 					misfits[i]++
 				}
 			}
 		}
-		if had[key(row)] {
-			same++
-		}
 		out.Rows = append(out.Rows, row)
 	}
 	var changes []Change
+	if extra != nil {
+		changes = append(changes, Change{Key: "lab.clean.extra-columns", Args: []int{len(extra)}, Column: strings.Join(extra, ", ")})
+	}
 	for i, n := range misfits {
 		if n > 0 {
-			changes = append(changes, Change{Key: "lab.clean.not-" + string(d.Columns[i].Type) + "s", Args: []int{n}, Column: d.Columns[i].Name})
+			changes = append(changes, Change{Key: "lab.clean.not-" + string(cols[i].Type) + "s", Args: []int{n}, Column: cols[i].Name})
 		}
 	}
-	return out, same, changes, nil
+	return out, changes, nil
 }
 
 // retyped is v, a Dataset value of another type, read as typ as typed reads a cell; nil and false when it does not
@@ -439,14 +534,6 @@ func retyped(v any, typ Type) (any, bool) {
 		return day, true
 	}
 	return parse(cell{v: s}, typ)
-}
-
-// columnList is names as a Problem lists them, or the word for none.
-func columnList(names []string) any {
-	if len(names) == 0 {
-		return Problem{"lab.add.none", nil}
-	}
-	return strings.Join(names, ", ")
 }
 
 // sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.
@@ -1040,4 +1127,76 @@ func headerRow(cells [][]string) int {
 		}
 	}
 	return -1
+}
+
+var (
+	textDateIn = regexp.MustCompile(`(?:^|\D)(\d{1,2}[/.-]\d{1,2}[/.-]\d{4}|\d{4}-\d{1,2}-\d{1,2})(?:\D|$)`)
+	compactDay = regexp.MustCompile(`(?:^|\D)((?:19|20)\d{2})(\d{2})(\d{2})(?:\d{4}(?:\d{2})?)?(?:\D|$)`)
+	nameDay    = regexp.MustCompile(`(?:^|\D)(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[.-]\d{1,2}[.-](?:\d{4}|\d{2}))(?:\D|$)`)
+)
+
+// anyDate reads s as a date in any form Clean-up reads: day/month/year text, or otherDate's forms.
+func anyDate(s string) (string, bool) {
+	if day, ok := textDate(s); ok {
+		return day, true
+	}
+	return otherDate(s)
+}
+
+// titleDate is the first date in the rows above a table's header, reading each row left to right, and its cell:
+// a real Excel date, a cell that is a date as text (01.09.2026, 2026-09-01), or a date written inside a cell's
+// text (Stock as at 05/11/2026). ponytail: the first date wins, a period's end date is not told from its start.
+func titleDate(rows [][]string, l layout) (string, string) {
+	for ri, row := range rows {
+		for ci, v := range row {
+			v = strings.TrimSpace(v)
+			day, ok := "", false
+			if n, err := strconv.ParseFloat(v, 64); err == nil && l.date(ri, ci) && n >= 1 && n < 2958466 {
+				if t, err := excelize.ExcelDateToTime(n, false); err == nil {
+					day, ok = t.Format(time.DateOnly), true
+				}
+			} else if day, ok = anyDate(v); !ok {
+				if m := textDateIn.FindStringSubmatch(v); m != nil {
+					day, ok = anyDate(m[1])
+				}
+			}
+			if ok {
+				cell, _ := excelize.CoordinatesToCellName(ci+1, ri+1)
+				return day, cell
+			}
+		}
+	}
+	return "", ""
+}
+
+// partDate is the date of the Part read from table tb of the file called file, and where it was found: the title
+// rows above the header, else the sheet name, else the file name. Empty when the Excel names none.
+func partDate(tb *table, file string) (day, from, cell string) {
+	if tb.date != "" {
+		return tb.date, DateFromCell, tb.dateAt
+	}
+	if day, ok := sheetDate(tb.name); ok {
+		return day, DateFromSheet, ""
+	}
+	if day, ok := fileDate(file); ok {
+		return day, DateFromFile, ""
+	}
+	return "", "", ""
+}
+
+// fileDate reads a date from a file's name: YYYYMMDD, also with a time after it (20260702091058), YYYY-MM-DD,
+// DD.MM.YY and DD-MM-YYYY (also DD.MM.YYYY and DD-MM-YY), as "2006-01-02".
+func fileDate(name string) (string, bool) {
+	if m := compactDay.FindStringSubmatch(name); m != nil {
+		if day, err := time.Parse("20060102", m[1]+m[2]+m[3]); err == nil {
+			return day.Format(time.DateOnly), true
+		}
+	}
+	if m := nameDay.FindStringSubmatch(name); m != nil {
+		if day, err := time.Parse("2006-1-2", m[1]); err == nil {
+			return day.Format(time.DateOnly), true
+		}
+		return sheetDate(m[1])
+	}
+	return "", false
 }

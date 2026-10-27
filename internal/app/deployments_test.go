@@ -104,7 +104,7 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 
 	visitor := ada.second() // no session
 	res, page := visitor.get(link)
-	expectStatus(t, res, page, http.StatusOK, `fetch("data/dataset-`)
+	expectStatus(t, res, page, http.StatusOK, `fetch("data/`)
 	// Sandboxed to an opaque origin, where some browsers match nothing to 'self', so Cave's address is named too.
 	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid 'unsafe-inline'; " +
 		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' https://cave.example.invalid; frame-ancestors 'none'"
@@ -177,6 +177,8 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}, []any{day, "Kopi", "Dapur", "Keluar", 4321.5})
 	res, body := ada.postFile(path+"/dataset", "new.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	// A Replace of a Dataset with Parts always shows its preview first, so it goes live on confirm.
+	ada.confirmWork(path, nil)
 	_, data := ada.second().get(link + ada.second().dataOf(link))
 	if !strings.Contains(data, "4321.5") || strings.Count(data, "Tarikh") != 1 {
 		t.Fatalf("the Deployment does not show the new Dataset: %s", data)
@@ -386,30 +388,30 @@ func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
 }
 
-// A Dataset never changes under its key, so a Deployment reads it once, not on every visit:
-// with the stored Dataset gone, its page and data still answer the same.
-func TestADeploymentReadsItsDatasetOnceNotOnEveryVisit(t *testing.T) {
+// A Deployment's page is made from the Dashboard's columns, so it needs no read of the store; its data is read Part by
+// Part on each request and held nowhere, so a Dataset of any size is never in memory whole.
+func TestADeploymentsPageNeedsNoReadOfTheStoreAndItsDataIsReadPartByPart(t *testing.T) {
 	_, ada := labLearner(t)
-	link := ada.deploy(ada.readyDashboard("Kewangan"))
+	path := ada.readyDashboard("Kewangan")
+	link := ada.deploy(path)
 	visitor := ada.second()
 	dataURL := link + visitor.dataOf(link)
 	_, page := visitor.get(link)
 	_, data := visitor.get(dataURL)
 
-	key := dataURL[strings.LastIndex(dataURL, "/")+1:]
+	var key string
+	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Remove(filepath.Join(ada.storageDir, key)); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 2; i++ {
-		res, again := visitor.get(link)
-		expectStatus(t, res, again, http.StatusOK, "")
-		if again != page {
-			t.Fatalf("visit %d: the page changed:\n%s\nwant\n%s", i, again, page)
-		}
-		res, again = visitor.get(dataURL)
-		expectStatus(t, res, again, http.StatusOK, "")
-		if again != data {
-			t.Fatalf("visit %d: the data changed", i)
-		}
+	res, again := visitor.get(link)
+	expectStatus(t, res, again, http.StatusOK, "")
+	if again != page {
+		t.Fatalf("the page changed:\n%s\nwant\n%s", again, page)
+	}
+	if res, _ := visitor.get(dataURL); res.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("the data of a Part gone from the store answers %d, want 500: it is read on each request (%d bytes before)", res.StatusCode, len(data))
 	}
 }

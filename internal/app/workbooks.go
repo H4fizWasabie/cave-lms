@@ -23,6 +23,9 @@ type workbook struct {
 	Uploaded string // formatted as periodTime
 }
 
+// SizeText is the Workbook's size as people read it, such as 12 KB.
+func (w workbook) SizeText() string { return sizeText(w.Size) }
+
 // workbooksOf lists a Learner's Workbooks, newest first.
 func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT id, name, size, uploaded_at FROM workbooks
@@ -46,12 +49,12 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 
 // keepWorkbook keeps data, the .xlsx a Learner uploaded, as their Workbook called name, before Clean-up reads it, so it
 // stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance beside the Learner's
-// Datasets, pages and Workbooks and their pending Datasets on Dashboards other than dashboardID (0 for a new one),
-// whose own pending Dataset the upload replaces; the Datasets roomFor may delete from dashboardID on confirm count as
-// free, as for keepPending. If it does not fit, nothing is kept and the error is errStorageFull, with used the bytes
-// counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0. A file the Learner
-// already keeps gives that Workbook's id, keeping nothing new.
-func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, name string, data []byte) (id, used int64, err error) {
+// Parts, pages and Workbooks and their pending Parts on Dashboards other than dashboardID (0 for a new one); the
+// Dashboard's own pending Part is not counted, as the upload replaces it. The Parts that confirming the upload deletes
+// count as free, as for keepPending: those of mode on dashboardID (see roomFor). If it does not fit, nothing is kept
+// and the error is errStorageFull, with used the bytes counted. A store that refuses the file gives errDatasetStore. An
+// empty file is not kept: id is 0. A file the Learner already keeps gives that Workbook's id, keeping nothing new.
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, mode uploadMode, name string, data []byte) (id, used int64, err error) {
 	if len(data) == 0 {
 		return 0, 0, nil
 	}
@@ -78,15 +81,15 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 			if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learnerID); err != nil {
 				return err
 			}
-			var pending int64 // the Learner's pending Datasets on their other Dashboards
-			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds
+			var pending int64 // the Learner's pending Parts on their other Dashboards
+			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(ds.saved_size), 0) FROM dataset_parts ds
 				JOIN dashboards owner ON owner.id = ds.dashboard_id
 				WHERE owner.learner_id = $1 AND ds.state = 'pending' AND ds.dashboard_id <> $2`, learnerID, dashboardID).Scan(&pending); err != nil {
 				return err
 			}
 			if dashboardID != 0 {
-				// As keepPending: what confirming may delete from this Dashboard for room counts as free.
-				room, err := roomFor(r.Context(), tx, &dashboard{ID: dashboardID}, pending+int64(len(data)), acc)
+				// As keepPending: what confirming deletes from this Dashboard counts as free.
+				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), mode, acc)
 				if err != nil {
 					return err
 				}
@@ -163,7 +166,7 @@ func (a *App) deletableWorkbook(w http.ResponseWriter, r *http.Request) (id int6
 		return 0, "", 0, false
 	}
 	err = a.db.QueryRowContext(r.Context(), `SELECT name,
-		(SELECT count(DISTINCT ds.dashboard_id) FROM datasets ds WHERE ds.workbook_id = wb.id)
+		(SELECT count(DISTINCT ds.dashboard_id) FROM dataset_parts ds WHERE ds.workbook_id = wb.id)
 		FROM workbooks wb WHERE wb.id = $1 AND wb.learner_id = $2`, id, learner.ID).Scan(&name, &uses)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
@@ -185,7 +188,7 @@ func (a *App) confirmDeleteWorkbook(w http.ResponseWriter, r *http.Request) {
 }
 
 // deleteWorkbook deletes a Workbook and its file once its confirmation page is posted, freeing its room in the Storage
-// allowance. The Datasets cleaned from it, their Dashboards and Deployments stay and no longer name a Workbook. Like
+// allowance. The Parts cleaned from it, their Dashboards and Deployments stay and no longer name a Workbook. Like
 // every change in the Lab it needs an active Plan period (403 without).
 func (a *App) deleteWorkbook(w http.ResponseWriter, r *http.Request) {
 	if _, ok := a.labOpen(w, r); !ok {

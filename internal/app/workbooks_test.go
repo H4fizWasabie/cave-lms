@@ -113,11 +113,11 @@ func TestTheDatasetConfirmedFromAnUploadRecordsItsWorkbook(t *testing.T) {
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "laporan.xlsx", shopReport(t, "Beras", 120))
 	var name sql.NullString
-	if err := ada.db.QueryRow(`SELECT w.name FROM datasets d JOIN workbooks w ON w.id = d.workbook_id WHERE d.state = 'current'`).Scan(&name); err != nil || name.String != "laporan.xlsx" {
+	if err := ada.db.QueryRow(`SELECT w.name FROM dataset_parts d JOIN workbooks w ON w.id = d.workbook_id WHERE d.state = 'current'`).Scan(&name); err != nil || name.String != "laporan.xlsx" {
 		t.Fatalf("the current Dataset's Workbook is %q, %v", name.String, err)
 	}
 	// A Dataset from before has no Workbook and keeps working.
-	if _, err := ada.db.Exec(`UPDATE datasets SET workbook_id = NULL`); err != nil {
+	if _, err := ada.db.Exec(`UPDATE dataset_parts SET workbook_id = NULL`); err != nil {
 		t.Fatal(err)
 	}
 	res, body := ada.get(path + "/view/")

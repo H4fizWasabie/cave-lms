@@ -253,8 +253,6 @@ var catalog = map[string]entry{
 	"chat.hide-title":               {en: "Hide Message", ms: "Sembunyikan Mesej"},
 	"chat.hide-ask":                 {en: "Hide this Message from the Chat and from Reports? You can unhide it later.", ms: "Sembunyikan Mesej ini daripada Sembang dan Laporan? Anda boleh menyahsembunyikannya kemudian."},
 	"community.leave-ask":           {en: "Leave the Community Chat? Your Messages stay. You can join again at any time.", ms: "Keluar dari Sembang Komuniti? Mesej anda kekal. Anda boleh menyertainya semula pada bila-bila masa."},
-	"lab.w.delete-title":            {en: "Delete earlier Dataset", ms: "Padam Set data terdahulu"},
-	"lab.w.delete-ask":              {en: "Delete the earlier Dataset “%s”? Its file goes too. This cannot be undone.", ms: "Padam Set data terdahulu “%s”? Failnya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
 	"ctadmin.learners.end-ask":      {en: "End Pro for %s now? Their running Pro and any given to follow it end at once; their Plan periods stay. This cannot be undone, but you can give Pro again.", ms: "Tamatkan Pro untuk %s sekarang? Pro mereka yang berjalan dan yang diberikan selepasnya tamat serta-merta; Tempoh Pelan mereka kekal. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh memberikan Pro semula."},
 	"plans.period.end":              {en: "End Plan period", ms: "Tamatkan Tempoh Pelan"},
 	"plans.period.end-ask":          {en: "End the “%[2]s” period for %[1]s now? It stops at once. This cannot be undone, but you can assign a Plan again.", ms: "Tamatkan tempoh “%[2]s” bagi %[1]s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan semula."},
@@ -848,6 +846,18 @@ var catalog = map[string]entry{
 		en: "Combined %d sheets into one Dataset, with the date in each row's sheet name in a new Date column.",
 		ms: "Menggabungkan %d helaian menjadi satu Set data, dengan tarikh pada nama helaian setiap baris dalam lajur baharu Date.",
 	},
+	"lab.clean.extra-columns": {
+		en: "Columns not in your data, dropped (%[1]d): %[2]s.",
+		ms: "Lajur yang tiada dalam data anda, dibuang (%[1]d): %[2]s.",
+	},
+	"lab.clean.filled-sheet": {
+		en: "Filled the Sheet column of your data from the sheet name: %s.",
+		ms: "Lajur Sheet dalam data anda diisi daripada nama helaian: %s.",
+	},
+	"lab.clean.filled-date": {
+		en: "Filled the Date column of your data from the date in the sheet name: %s.",
+		ms: "Lajur Date dalam data anda diisi daripada tarikh pada nama helaian: %s.",
+	},
 	"lab.clean.unpivoted": {
 		en: "Turned the days across the columns into %d rows, one per staff per day, dated %d/%d. Empty days, counts beside the grid and notes below it were left out.",
 		ms: "Hari merentas lajur ditukar menjadi %d baris, satu bagi setiap staf setiap hari, bertarikh %d/%d. Hari kosong, kiraan di sebelah grid dan nota di bawahnya tidak diambil.",
@@ -894,12 +904,48 @@ var catalog = map[string]entry{
 	"lab.d.tab.deploy":  {en: "Deploy", ms: "Deploy"},
 
 	// Lab: a Dashboard's Dataset tab
-	"lab.d.upload-first":      {en: "Upload a Dataset first", ms: "Muat naik Set data dahulu"},
-	"lab.d.rows.one":          {en: "%d row", ms: "%d baris"},
-	"lab.d.rows.other":        {en: "%d rows", ms: "%d baris"},
-	"lab.d.columns.one":       {en: "%d column", ms: "%d lajur"},
-	"lab.d.columns.other":     {en: "%d columns", ms: "%d lajur"},
-	"lab.d.changed":           {en: "changed %s", ms: "diubah %s"},
+	"lab.d.upload-first":  {en: "Upload a Dataset first", ms: "Muat naik Set data dahulu"},
+	"lab.d.rows.one":      {en: "%d row", ms: "%d baris"},
+	"lab.d.rows.other":    {en: "%d rows", ms: "%d baris"},
+	"lab.d.columns.one":   {en: "%d column", ms: "%d lajur"},
+	"lab.d.columns.other": {en: "%d columns", ms: "%d lajur"},
+	"lab.d.changed":       {en: "changed %s", ms: "diubah %s"},
+	"lab.d.parts.one":     {en: "%d Part", ms: "%d Bahagian"},
+	"lab.d.parts.other":   {en: "%d Parts", ms: "%d Bahagian"},
+	"lab.d.parts-list":    {en: "Parts of this Dataset", ms: "Bahagian Set data ini"},
+	"lab.d.part-date":     {en: "Part date %s", ms: "Tarikh Bahagian %s"},
+	"lab.d.part-added":    {en: "added %s", ms: "ditambah %s"},
+	"lab.d.part-delete":   {en: "Delete Part", ms: "Padam Bahagian"},
+	"lab.d.part-delete-ask": {
+		en: "Delete the Part “%s”? Its rows leave your Dataset and are deleted from Cave. The Workbook stays in your Folder. This cannot be undone.",
+		ms: "Padam Bahagian “%s”? Barisnya keluar daripada Set data anda dan dipadam daripada Cave. Buku kerja kekal dalam Folder anda. Tindakan ini tidak boleh dibuat asal.",
+	},
+	"lab.d.part-replace":     {en: "Replace Part", ms: "Gantikan Bahagian"},
+	"lab.d.part-replace-btn": {en: "Replace", ms: "Gantikan"},
+	"lab.d.part-replace-body": {
+		en: "Upload the corrected Excel file for “%s”. Its new Part takes the same place in the order and the old one is removed when you confirm. Cave shows a preview first.",
+		ms: "Muat naik fail Excel yang telah dibetulkan untuk “%s”. Bahagian baharunya mengambil tempat yang sama dalam susunan dan yang lama dibuang apabila anda mengesahkan. Cave menunjukkan pratonton dahulu.",
+	},
+	"lab.data.replaces.one": {
+		en: "Replacing %[2]s with this %[1]d row: %[3]d rows in all. The new row is below, as Cave will keep it.",
+		ms: "Menggantikan %[2]s dengan %[1]d baris ini: %[3]d baris semuanya. Baris baharu di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.data.replaces.other": {
+		en: "Replacing %[2]s with these %[1]d rows: %[3]d rows in all. The first new rows are below, as Cave will keep them.",
+		ms: "Menggantikan %[2]s dengan %[1]d baris ini: %[3]d baris semuanya. Baris baharu pertama di bawah, seperti yang akan disimpan oleh Cave.",
+	},
+	"lab.err.replace-too-many-rows": {
+		en: "These %s rows and the %s in the other Parts make %s. A Dashboard built in a Theme holds up to %s rows. Use fewer rows, or delete another Part to make room.",
+		ms: "%s baris ini dan %s baris dalam Bahagian lain menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gunakan baris yang lebih sedikit, atau padam Bahagian lain untuk memberi ruang.",
+	},
+	"lab.data.replace-warn.one": {
+		en: "Confirming removes the %d Part of your Dataset. Its Workbook stays in your Folder.",
+		ms: "Pengesahan membuang %d Bahagian Set data anda. Buku kerja itu kekal dalam Folder anda.",
+	},
+	"lab.data.replace-warn.other": {
+		en: "Confirming removes all %d Parts of your Dataset. Their Workbooks stay in your Folder.",
+		ms: "Pengesahan membuang semua %d Bahagian Set data anda. Buku kerja mereka kekal dalam Folder anda.",
+	},
 	"lab.d.upload-new":        {en: "Upload a new Dataset", ms: "Muat naik Set data baharu"},
 	"lab.d.upload-yours":      {en: "Upload your Dataset", ms: "Muat naik Set data anda"},
 	"lab.d.upload-yours-body": {en: "Your own Excel data. Cave cleans it and builds the blocks from your columns.", ms: "Data Excel anda sendiri. Cave membersihkannya dan membina blok daripada lajur anda."},
@@ -933,8 +979,8 @@ var catalog = map[string]entry{
 		ms: "Tambah ayat ini pada prompt anda, supaya halaman anda menunjukkan data yang anda muat naik di sini.",
 	},
 	"lab.data.sentence": {
-		en: "Load the rows from ./data.json when it exists, using the Excel header names as the field names; otherwise use the data in the page.",
-		ms: "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel sebagai nama medan; jika tidak, gunakan data dalam halaman.",
+		en: "Load the rows from ./data.json when it exists, using the Excel header names as the field names, and the Part date field to tell the uploads apart; otherwise use the data in the page.",
+		ms: "Muatkan baris daripada ./data.json jika ia wujud, menggunakan nama tajuk lajur Excel sebagai nama medan, dan medan Part date untuk membezakan setiap muat naik; jika tidak, gunakan data dalam halaman.",
 	},
 	"lab.data.copy": {en: "Copy", ms: "Salin"},
 	"lab.data.reads-only": {
@@ -957,14 +1003,6 @@ var catalog = map[string]entry{
 		en: "Adding %d rows to your %d: %d rows in all. The first new rows are below, as Cave will keep them.",
 		ms: "Menambah %d baris pada %d baris anda: %d baris semuanya. Baris baharu pertama di bawah, seperti yang akan disimpan oleh Cave.",
 	},
-	"lab.data.same.one": {
-		en: "%d new row exactly matches a row already in your data. Check you are not adding the same rows twice.",
-		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
-	},
-	"lab.data.same.other": {
-		en: "%d new rows exactly match rows already in your data. Check you are not adding the same rows twice.",
-		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
-	},
 	"lab.data.columns-changed": {
 		en: "Your page may stop working: these columns differ from your current data's.",
 		ms: "Halaman anda mungkin berhenti berfungsi: lajur ini berbeza daripada lajur data semasa anda.",
@@ -972,18 +1010,18 @@ var catalog = map[string]entry{
 	"lab.data.gone": {en: "Gone or renamed: %s.", ms: "Hilang atau ditukar nama: %s."},
 	"lab.data.new":  {en: "New: %s.", ms: "Baharu: %s."},
 	"lab.err.add-columns": {
-		en: "To add to your data, the file needs the same columns, in any order. Missing: %s. Not in your data: %s. Fix the headers in Excel, or choose Replace data.",
-		ms: "Untuk menambah pada data anda, fail perlu mempunyai lajur yang sama, dalam apa jua susunan. Hilang: %s. Tiada dalam data anda: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
+		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
+		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
+	"lab.err.same-file": {
+		en: "This is exactly the same file as Part “%s” (Part date %s), which your Dashboard already has. To read it again, replace that Part.",
+		ms: "Ini fail yang sama sepenuhnya dengan Bahagian “%s” (Part date %s), yang sudah ada pada Dashboard anda. Untuk membacanya semula, gantikan Bahagian itu.",
+	},
+	"lab.err.same-file-replace": {en: "Replace that Part", ms: "Gantikan Bahagian itu"},
 	"lab.err.add-too-many-rows": {
-		en: "Adding these %s rows to your %s makes %s. A Dataset holds up to %s rows. Upload fewer rows, or choose Replace data.",
-		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Set data memuatkan sehingga %s baris. Muat naik lebih sedikit baris, atau pilih Gantikan data.",
+		en: "Adding these %s rows to your %s makes %s. A Dashboard built in a Theme holds up to %s rows. Replace or delete a Part to make room.",
+		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gantikan atau padam satu Bahagian untuk memberi ruang.",
 	},
-	"lab.err.add-stale": {
-		en: "Your data changed after you uploaded %s, so adding it now would undo that change. Nothing was added: upload the file again to add it to your data as it is now.",
-		ms: "Data anda berubah selepas anda memuat naik %s, jadi menambahnya sekarang akan membatalkan perubahan itu. Tiada apa yang ditambah: muat naik fail itu sekali lagi untuk menambahnya pada data anda sekarang.",
-	},
-	"lab.add.none": {en: "none", ms: "tiada"},
 
 	// The Dataset tab: Clean-up's preview
 	"lab.w.upload-body": {
@@ -994,11 +1032,28 @@ var catalog = map[string]entry{
 		en: ".xlsx only · sheets with the same columns combine · title rows above the column names are skipped · up to 50,000 rows, 100 columns and 10 MB",
 		ms: ".xlsx sahaja · helaian dengan lajur yang sama digabungkan · baris tajuk di atas nama lajur dilangkau · sehingga 50,000 baris, 100 lajur dan 10 MB",
 	},
-	"lab.w.preview":    {en: "Check %s before your Dashboard uses it", ms: "Semak %s sebelum Dashboard anda menggunakannya"},
-	"lab.w.read.one":   {en: "Cave kept %d row. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
-	"lab.w.read.other": {en: "Cave kept %d rows. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
-	"lab.w.used":       {en: "Sheets in this Dataset: %s.", ms: "Helaian dalam Set data ini: %s."},
-	"lab.w.sheets":     {en: "Sheets", ms: "Helaian"},
+	"lab.w.preview":     {en: "Check %s before your Dashboard uses it", ms: "Semak %s sebelum Dashboard anda menggunakannya"},
+	"lab.w.read.one":    {en: "Cave kept %d row. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
+	"lab.w.read.other":  {en: "Cave kept %d rows. The first rows are below, as Cave will keep them.", ms: "Cave menyimpan %d baris. Baris pertama di bawah, seperti yang akan disimpan oleh Cave."},
+	"lab.w.used":        {en: "Sheets in this Dataset: %s.", ms: "Helaian dalam Set data ini: %s."},
+	"lab.w.sheets":      {en: "Sheets", ms: "Helaian"},
+	"lab.w.part-date":   {en: "Date of this Part", ms: "Tarikh Bahagian ini"},
+	"lab.w.date-cell":   {en: "from cell %s", ms: "daripada sel %s"},
+	"lab.w.date-sheet":  {en: "from the sheet name", ms: "daripada nama helaian"},
+	"lab.w.date-file":   {en: "from the file name", ms: "daripada nama fail"},
+	"lab.w.date-upload": {en: "the upload day", ms: "hari muat naik"},
+	"lab.w.part-date-help": {
+		en: "Every row of this Part gets it as Part date, so your page can tell uploads apart. Change it if it is wrong.",
+		ms: "Setiap baris Bahagian ini mendapatnya sebagai Part date, supaya halaman anda dapat membezakan muat naik. Tukar jika salah.",
+	},
+	"lab.err.part-date": {
+		en: "The Part date is not a date. Pick a date, such as 2026-07-02.",
+		ms: "Part date bukan tarikh. Pilih tarikh, seperti 2026-07-02.",
+	},
+	"lab.err.part-date-column": {
+		en: "Cave gives every row a column called Part date, and your file has one called “%s”. Rename the column “%[1]s” in Excel and upload again.",
+		ms: "Cave memberi setiap baris lajur bernama Part date, dan fail anda mempunyai satu bernama “%s”. Namakan semula lajur “%[1]s” dalam Excel dan muat naik semula.",
+	},
 	"lab.w.combine":    {en: "combine", ms: "gabung"},
 	"lab.w.grid":       {en: "Month of the days across the columns", ms: "Bulan bagi hari merentas lajur"},
 	"lab.w.grid-month": {en: "Month (1 to 12)", ms: "Bulan (1 hingga 12)"},
@@ -1010,6 +1065,10 @@ var catalog = map[string]entry{
 	"lab.w.sheets-help": {
 		en: "Pick the sheet to read and tick the sheets with the same columns to combine with it, then choose your file again and upload. Cave remembers your choice for the next upload.",
 		ms: "Pilih helaian untuk dibaca dan tanda helaian dengan lajur yang sama untuk digabungkan, kemudian pilih fail anda semula dan muat naik. Cave mengingati pilihan anda untuk muat naik seterusnya.",
+	},
+	"lab.w.sheets-help-part": {
+		en: "Cave reads a new Part from the same sheet as your first one, and never combines other sheets with it. Only the sheets with your data's columns are listed: pick the one to read, then choose your file again and upload.",
+		ms: "Cave membaca Bahagian baru daripada helaian yang sama dengan Bahagian pertama anda dan tidak pernah menggabungkan helaian lain dengannya. Hanya helaian dengan lajur data anda disenaraikan: pilih yang hendak dibaca, kemudian pilih fail anda semula dan muat naik.",
 	},
 	"lab.w.notes":          {en: "How Cave reads your columns", ms: "Cara Cave membaca lajur anda"},
 	"lab.note.constant":    {en: "%s: one value on every row, so it isn't charted.", ms: "%s: satu nilai sahaja pada setiap baris, jadi ia tidak dicartakan."},
@@ -1029,20 +1088,26 @@ var catalog = map[string]entry{
 		en: "Cave finds the row with your column names. If the preview shows the wrong one, upload the file again with its row number.",
 		ms: "Cave mencari baris yang mengandungi nama lajur anda. Jika pratonton menunjukkan baris yang salah, muat naik fail sekali lagi dengan nombor barisnya.",
 	},
-	"lab.w.two-row": {en: "My column names take 2 rows", ms: "Nama lajur saya mengambil 2 baris"},
-	"lab.w.another": {en: "Or upload another file", ms: "Atau muat naik fail lain"},
-	"lab.w.earlier": {en: "Earlier Datasets", ms: "Set data terdahulu"},
-	"lab.w.earlier-body": {
-		en: "Cave keeps your last 3. Restore one to use it again at once; your blocks stay as they are. Cave keeps each .xlsx you upload as a Workbook in your Folder; to clean up a file again, upload it again.",
-		ms: "Cave menyimpan 3 yang terakhir. Pulihkan satu untuk menggunakannya semula serta-merta; blok anda kekal seperti sedia ada. Cave menyimpan setiap fail .xlsx yang anda muat naik sebagai Buku kerja dalam Folder anda; untuk membersihkan fail semula, muat naik semula.",
+	"lab.w.two-row":  {en: "My column names take 2 rows", ms: "Nama lajur saya mengambil 2 baris"},
+	"lab.w.another":  {en: "Or upload another file", ms: "Atau muat naik fail lain"},
+	"lab.w.restore":  {en: "Restore", ms: "Pulihkan"},
+	"lab.w.get-back": {en: "Getting data back", ms: "Mendapatkan semula data"},
+	"lab.w.get-back-body": {
+		en: "Cave keeps no earlier copies of your data. Every .xlsx you upload stays as a Workbook in your Folder: to get data back, upload that Workbook again. Your Workbooks are in",
+		ms: "Cave tidak menyimpan salinan data terdahulu. Setiap fail .xlsx yang anda muat naik kekal sebagai Buku kerja dalam Folder anda: untuk mendapatkan semula data, muat naik Buku kerja itu sekali lagi. Buku kerja anda ada di",
 	},
-	"lab.w.confirmed": {en: "confirmed %s", ms: "disahkan %s"},
-	"lab.w.restore":   {en: "Restore", ms: "Pulihkan"},
-	"lab.w.delete":    {en: "Delete", ms: "Padam"},
-	"lab.w.drops": {
-		en: "Confirming deletes these earlier Datasets, so that Cave keeps 3 and you stay within your Storage allowance:",
-		ms: "Pengesahan memadam Set data terdahulu ini, supaya Cave menyimpan 3 dan anda kekal dalam had storan anda:",
+	"lab.d.pick":       {en: "Pick a Workbook from your Folder", ms: "Pilih Buku kerja daripada Folder anda"},
+	"lab.d.pick-label": {en: "Workbook", ms: "Buku kerja"},
+	"lab.d.pick-btn":   {en: "Use this Workbook", ms: "Guna Buku kerja ini"},
+	"lab.d.pick-body": {
+		en: "Use a file you already uploaded instead of uploading it again. Cave reads it the same way and shows a preview first. Deleting the Workbook later leaves the Part as it is.",
+		ms: "Gunakan fail yang telah anda muat naik tanpa memuat naiknya semula. Cave membacanya dengan cara yang sama dan menunjukkan pratonton dahulu. Memadam Buku kerja kemudian tidak mengubah Bahagian itu.",
 	},
+	"lab.d.pick-help": {
+		en: "To add or replace a Part, the Workbook needs every column your data has. Cave checks this when you pick it.",
+		ms: "Untuk menambah atau menggantikan Bahagian, Buku kerja perlu mempunyai setiap lajur dalam data anda. Cave menyemaknya apabila anda memilihnya.",
+	},
+	"lab.d.pick-using":    {en: "Reading from your Workbook “%s”.", ms: "Membaca daripada Buku kerja anda “%s”."},
 	"lab.w.uses":          {en: "Columns your blocks use", ms: "Lajur yang digunakan oleh blok anda"},
 	"lab.w.blocks-use":    {en: "Blocks use", ms: "Blok menggunakan"},
 	"lab.w.pick-or-leave": {en: ": pick a column or leave it out", ms: ": pilih lajur atau tinggalkan"},

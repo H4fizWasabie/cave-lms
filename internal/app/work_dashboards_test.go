@@ -149,8 +149,8 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 			t.Fatalf("after confirming, data = %s", page)
 		}
 	}
-	if n := ada.datasetFiles(); n != 2 {
-		t.Fatalf("%d stored files, want the current Dataset and the earlier one", n)
+	if n := ada.datasetFiles(); n != 1 {
+		t.Fatalf("%d stored files, want only the Part that replaced the first", n)
 	}
 }
 
@@ -268,15 +268,19 @@ func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
 	ada.uploadLive(path, months(t, false, "Apr", "Mei"), "Beras Mei", "")
 }
 
-// uploadLive uploads a routine file to the Work Dashboard at path, which goes live with no preview, and checks
-// its data has want and, unless empty, lacks not.
+// uploadLive uploads a file to the Work Dashboard at path as a Replace, which waits on its preview with the warning of
+// the Parts going (even a routine one), confirms it, and checks the data has want and, unless empty, lacks not.
 func (s *site) uploadLive(path string, file []byte, want, not string) {
 	s.t.Helper()
 	res, body := s.postFile(path+"/dataset", "buku.xlsx", file)
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
-	if loc := res.Header.Get("Location"); loc != path+"/preview" {
-		s.t.Fatalf("a routine upload redirects to %q", loc)
+	if loc := res.Header.Get("Location"); loc != path {
+		s.t.Fatalf("a Replace redirects to %q, want its preview", loc)
 	}
+	if _, body = s.get(path); !strings.Contains(body, "Confirming removes the 1 Part of your Dataset.") {
+		s.t.Fatalf("the Replace preview does not warn of the Part going: %s", body)
+	}
+	s.confirmWork(path, nil)
 	if page := s.rowsOf(path + "/view/"); !strings.Contains(page, want) || (not != "" && strings.Contains(page, not)) {
 		s.t.Fatalf("data = %s, want %s and not %q", page, want, not)
 	}
@@ -418,7 +422,7 @@ func TestTheStorageAllowanceCountsWorkbooksAndConfirmedWorkDatasetsBySavedSize(t
 }
 
 func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
-	_, ada, _ := storageSite(t, "3")
+	_, ada, _ := storageSite(t, "4") // each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
 	first := ada.createWork("Satu")
 	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
 	path := ada.createWork("Kedai")
@@ -432,7 +436,7 @@ func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
 }
 
 func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
-	_, ada, _ := storageSite(t, "2") // 2 MB, and each upload keeps its Workbook and saves its Dataset, about 600 KB each
+	_, ada, _ := storageSite(t, "2") // 2 MB; each upload keeps its Workbook, about 0.6 MB, and saves its Part, about 1.1 MB
 	first := ada.createWork("Satu")
 	one := bigFinance(t, 1)
 	res, body := ada.postFile(first+"/dataset", "one.xlsx", one)
@@ -452,8 +456,9 @@ func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
 	res, body = ada.postFile(first+"/dataset", "again.xlsx", again)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
-	// The Storage figure counts the Workbooks, all three kept, and confirmed Datasets only.
-	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(one)+len(two)+len(again)))+" of 3 MB")
+	// The Storage figure counts the Workbooks and confirmed Parts only. The second Dashboard's upload was refused before
+	// its Workbook was kept, as the first Dashboard's pending Part counted against it.
+	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(one)+len(again)))+" of 3 MB")
 }
 
 func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
@@ -465,7 +470,7 @@ func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
 	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("a fresh pending Dataset was pruned: %d stored files", n)
 	}
-	if _, err := admin.db.ExecContext(context.Background(), `UPDATE datasets SET uploaded_at = uploaded_at - interval '2 days'`); err != nil {
+	if _, err := admin.db.ExecContext(context.Background(), `UPDATE dataset_parts SET uploaded_at = uploaded_at - interval '2 days'`); err != nil {
 		t.Fatal(err)
 	}
 	admin.prune()
@@ -476,16 +481,20 @@ func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Upload your Dataset")
 }
 
-func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
+func TestDeletingAWorkDashboardDeletesItsParts(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "a.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, financeGuess)
-	res, body = ada.postFile(path+"/dataset", "b.xlsx", shopReport(t, "Gula", 80))
+	res, body = ada.postFile(path+"/dataset", "b.xlsx", shopReport(t, "Gula", 80), adding)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if n := ada.datasetFiles(); n != 2 {
-		t.Fatalf("%d stored files, want current and pending", n)
+		t.Fatalf("%d stored files, want the current Part and the pending one", n)
+	}
+	ada.confirmWork(path, nil)
+	if n := ada.datasetFiles(); n != 2 {
+		t.Fatalf("%d stored files, want both Parts", n)
 	}
 	res, body = ada.post(path+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
