@@ -31,11 +31,13 @@ type Settings struct {
 }
 
 // Recipe is how a Dataset's first Part was read (ADR 0022), and how every later Part is: only its Sheet, found by
-// name ignoring case and never combined with others, and its HeaderRow, unless the Learner gives one.
+// name ignoring case and never combined with others. Its HeaderRow is read again only if the Learner typed it for the
+// first Part (HeaderTyped); else Cave finds each Part's header row, as its title rows may differ.
 type Recipe struct {
-	Sheet     string   `json:"sheet"`
-	HeaderRow int      `json:"headerRow"`
-	Columns   []Column `json:"-"` // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+	Sheet       string   `json:"sheet"`
+	HeaderRow   int      `json:"headerRow"`
+	HeaderTyped bool     `json:"headerTyped,omitempty"` // HeaderRow was typed by hand, not found by Cave
+	Columns     []Column `json:"-"`                     // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
 }
 
 // fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
@@ -141,12 +143,14 @@ type CleanUp struct {
 	DateCell    string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
 }
 
-// Where a Part's date was found, in the order Clean-up tries them. A Part with none takes the upload day, which the
-// app records as "upload", and a date the Learner changed in the preview as "chosen".
+// Where a Part's date was found, in the order Clean-up tries them. Clean-up leaves PartDate empty when it finds none;
+// the app then dates the Part DateFromUpload, and DateFromChosen when the Learner changes the date in the preview.
 const (
-	DateFromCell  = "cell"  // a date in the title rows above the column names
-	DateFromSheet = "sheet" // a date as the sheet's name
-	DateFromFile  = "file"  // a date in the file's name
+	DateFromCell   = "cell"   // a date in the title rows above the column names
+	DateFromSheet  = "sheet"  // a date as the sheet's name
+	DateFromFile   = "file"   // a date in the file's name
+	DateFromUpload = "upload" // the day the file was uploaded, as it names no date
+	DateFromChosen = "chosen" // a date the Learner typed in the preview
 )
 
 // Clean is Clean-up, the Lab's way of reading an upload. Its rules run as steps, in order: read every
@@ -156,7 +160,7 @@ const (
 // cells (- left empty, more date forms), and note the columns General leaves out of charts. Every step that changes
 // something lists it in Changes. A file it cannot read gives one Problem.
 func Clean(r io.Reader, s Settings) (*CleanUp, error) {
-	if s.Recipe != nil && s.HeaderRow == 0 {
+	if s.Recipe != nil && s.Recipe.HeaderTyped && s.HeaderRow == 0 {
 		s.HeaderRow = s.Recipe.HeaderRow
 	}
 	f, err := openWorkbook(r)
@@ -293,6 +297,10 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		return nil, Problem{"lab.err.too-many-columns-combined", []any{n, d.Columns[0].Name, MaxColumns}}
 	case n > MaxColumns:
 		return nil, onSheet(Problem{"lab.err.too-many-columns", []any{n, MaxColumns}}, base.name)
+	}
+	// data.json gives every row a Part date key (PartRows), which a column of that name would be overwritten by.
+	if i := slices.IndexFunc(d.Columns, func(c Column) bool { return columnKey(c.Name) == columnKey(PartDateKey) }); i >= 0 {
+		return nil, onSheet(Problem{"lab.err.part-date-column", []any{d.Columns[i].Name}}, base.name)
 	}
 	res.Notes = notes(d)
 	return res, nil

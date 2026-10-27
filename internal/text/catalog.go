@@ -911,8 +911,8 @@ var catalog = map[string]entry{
 	"lab.d.part-added":    {en: "added %s", ms: "ditambah %s"},
 	"lab.d.part-delete":   {en: "Delete Part", ms: "Padam Bahagian"},
 	"lab.d.part-delete-ask": {
-		en: "Delete the Part “%s”? Its rows leave your Dataset and its file goes too. The Workbook stays in your Folder. This cannot be undone.",
-		ms: "Padam Bahagian “%s”? Barisnya keluar daripada Set data anda dan failnya turut dipadam. Buku kerja kekal dalam Folder anda. Tindakan ini tidak boleh dibuat asal.",
+		en: "Delete the Part “%s”? Its rows leave your Dataset and are deleted from Cave. The Workbook stays in your Folder. This cannot be undone.",
+		ms: "Padam Bahagian “%s”? Barisnya keluar daripada Set data anda dan dipadam daripada Cave. Buku kerja kekal dalam Folder anda. Tindakan ini tidak boleh dibuat asal.",
 	},
 	"lab.d.part-replace":     {en: "Replace Part", ms: "Gantikan Bahagian"},
 	"lab.d.part-replace-btn": {en: "Replace", ms: "Gantikan"},
@@ -1043,6 +1043,10 @@ var catalog = map[string]entry{
 	"lab.err.part-date": {
 		en: "The Part date is not a date. Pick a date, such as 2026-07-02.",
 		ms: "Part date bukan tarikh. Pilih tarikh, seperti 2026-07-02.",
+	},
+	"lab.err.part-date-column": {
+		en: "Cave gives every row a column called Part date, and your file has one called “%s”. Rename the column “%[1]s” in Excel and upload again.",
+		ms: "Cave memberi setiap baris lajur bernama Part date, dan fail anda mempunyai satu bernama “%s”. Namakan semula lajur “%[1]s” dalam Excel dan muat naik semula.",
 	},
 	"lab.w.combine":    {en: "combine", ms: "gabung"},
 	"lab.w.grid":       {en: "Month of the days across the columns", ms: "Bulan bagi hari merentas lajur"},

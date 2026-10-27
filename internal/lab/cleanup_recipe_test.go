@@ -27,13 +27,23 @@ func TestCleanUpWithARecipeReadsOnlyItsSheetFoundIgnoringCase(t *testing.T) {
 	}
 }
 
-func TestCleanUpWithARecipeUsesItsHeaderRow(t *testing.T) {
-	recipe := lab.Recipe{Sheet: "Data", HeaderRow: 3, Columns: salesColumns}
+func TestCleanUpWithARecipeUsesItsHeaderRowWhenTheLearnerTypedIt(t *testing.T) {
+	recipe := lab.Recipe{Sheet: "Data", HeaderRow: 3, HeaderTyped: true, Columns: salesColumns}
 	// Row 2 looks like a header of its own; the recipe says the header is row 3.
 	file := testutil.Workbook(t, sheet("Data", row("Laporan"), row("Perkara", "Jumlah"), row("Perkara", "Jumlah"), row("Kopi", 5)))
 	res := cleanWith(t, file, lab.Settings{Recipe: &recipe})
 	if want := [][]any{{"Kopi", 5.0}}; !reflect.DeepEqual(res.Dataset.Rows, want) || res.HeaderRow != 3 {
 		t.Fatalf("rows = %v, header = %d, want %v read from row 3", res.Dataset.Rows, res.HeaderRow, want)
+	}
+}
+
+// A header row Cave found for the first Part is not reused: every Part's is found again, as its title rows may differ.
+func TestCleanUpWithARecipeFindsTheHeaderRowAgainWhenTheLearnerDidNotTypeIt(t *testing.T) {
+	recipe := lab.Recipe{Sheet: "Data", HeaderRow: 3, Columns: salesColumns}
+	file := testutil.Workbook(t, sheet("Data", row("Laporan"), row("Perkara", "Jumlah"), row("Kopi", 5)))
+	res := cleanWith(t, file, lab.Settings{Recipe: &recipe})
+	if want := [][]any{{"Kopi", 5.0}}; !reflect.DeepEqual(res.Dataset.Rows, want) || res.HeaderRow != 2 {
+		t.Fatalf("rows = %v, header = %d, want %v read from the header Cave found on row 2", res.Dataset.Rows, res.HeaderRow, want)
 	}
 }
 

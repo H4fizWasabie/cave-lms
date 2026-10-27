@@ -285,6 +285,25 @@ func TestATwoRowHeaderKeepsASparseMergedTopRow(t *testing.T) {
 	}
 }
 
+// data.json adds a Part date key to every row, so a column of the Learner's with that name (ignoring case and spaces)
+// would be overwritten.
+func TestCleanUpRefusesAColumnCalledPartDateWhateverItsCaseAndSpaces(t *testing.T) {
+	file := testutil.Workbook(t, sheet("Data", row("Perkara", "part  DATE"), row("Beras", "2026-01-01")))
+	_, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
+	var p lab.Problem
+	if !errors.As(err, &p) {
+		t.Fatalf("err = %v, want a Problem", err)
+	}
+	for lang, want := range map[string]string{
+		"en": "Rename the column “part  DATE” in Excel",
+		"ms": "Namakan semula lajur “part  DATE” dalam Excel",
+	} {
+		if got := p.In(lang); !strings.Contains(got, want) {
+			t.Errorf("%s problem = %q, want it to contain %q", lang, got, want)
+		}
+	}
+}
+
 func TestCleanUpOfAnUnreadableFileGivesOneProblem(t *testing.T) {
 	_, err := lab.Clean(strings.NewReader("Tarikh,Jumlah\n05/11/2026,RM5\n"), lab.Settings{})
 	var p lab.Problem
