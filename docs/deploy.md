@@ -240,6 +240,37 @@ A redirect drops a request's sign-in header and webhook senders may not follow i
 
 The app refuses an upload over 2 GB with its own message. Caddy's `request_body` cap (2100 MiB, about 2.2 GB) sits just above it to leave room for multipart framing. Caddy reads `MB` as 10^6 bytes, so keep `MiB`. Caddy streams the body to the app, so the app's cap trips first and even a 2.2 GB upload gets the app's message (tested 2026-10-20: 2047 MiB stored; 2050 MiB and 2200 MiB refused with 413 and nothing stored). Caddy's cap is a backstop. An Assignment upload has its own smaller cap: 5 files of 20 MB, refused above about 101 MB.
 
+**A stalled upload.** Caddy aborts a request whose body sends nothing for `read_body_idle`, which defaults to 1 minute. A class on one weak school connection, all uploading at once, can stall that long. The 200-Learner staging run of 2026-10-27 lost 9 Assignment uploads this way: a 502 after exactly 60 s, with Caddy logging `readfrom tcp ...->127.0.0.1:8089: i/o timeout` (8089 is staging's port).
+
+- **Not the cause**: the app has no body timeout (only `ReadHeaderTimeout`), and a steady upload of 80 s or more passes. Only silence counts, so a long steady upload of any size, a 2 GB Gallery file included, is unaffected.
+- **The fix**: raise the limit to 5 minutes. It's the one change outside the files named above, a global option in the shared `/etc/caddy/Caddyfile`, so it applies to every site on this Caddy. Not yet applied: as of 2026-10-27 the VPS still runs the 1-minute default. If the file has a global block (a `{ ... }` before the first site), add the `servers` part inside it. A second global block makes the Caddyfile invalid. If it has none, add this as its first block:
+
+  ```
+  {
+  	servers {
+  		timeouts {
+  			read_body_idle 5m
+  		}
+  	}
+  }
+  ```
+
+  Then, as root:
+
+  ```sh
+  cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-read-body-idle-$(date +%Y%m%d)
+  # edit /etc/caddy/Caddyfile as above
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl reload caddy
+  ```
+
+- **Why not per route**: Caddy's `timeouts` directive (experimental) can't do it. Tested on the VPS's Caddy v2.11.7 on 2026-10-27:
+  - A route's `read_timeout` only takes effect once the global `read_body_idle` is off (`-1s`), and that would leave every other site on this Caddy with no body timeout at all.
+  - Its `min_rate` argument didn't abort an upload trickling at 100 B/s.
+- **What the raised limit costs**:
+  - A completely silent body is now held 5 minutes, not 1, on every site here, before Caddy drops it.
+  - A body that trickles a byte more often than that was never cut off, under 1 minute or 5. Nothing here limits a slow sender's rate.
+- **To check it**: with the same Caddy on a spare local port in front of a small upstream, send a fixed-length body that pauses 70 s halfway. Under the default it fails after 60 s; with `5m` it gets 200.
+
 ## System log
 
 Errors and start-ups go to journald and to the `system_log` table, which keeps 30 days. The Owner (`OWNER_EMAIL` in `/etc/cave-lms/env`, an Admin account with that email) reads them at `/admin/log`; every other visitor gets a 404 there. A line that could not reach the database, for example while Postgres is down, is only in journald: `journalctl -u cave-lms -n 100`.
