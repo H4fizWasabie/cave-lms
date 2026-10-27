@@ -2,7 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
+
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // folderAssignment is one Assignment in a Learner's Folder: their files in it and the Admin's comment.
@@ -50,6 +54,11 @@ func (a *App) myFolder(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/my-folder/"+learner.Username, http.StatusFound)
 		return
 	}
+	a.renderFolder(w, r, learner, http.StatusOK, "")
+}
+
+// renderFolder shows the Learner's Folder with status, and problem above the upload form when not "".
+func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *learner, status int, problem string) {
 	list, err := a.folder(r.Context(), learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -60,7 +69,51 @@ func (a *App) myFolder(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, http.StatusOK, "my_folder", &folderPage{pageBase: pageBase{Learner: learner}, Workbooks: books, Courses: list})
+	a.render(w, r, status, "my_folder", &folderPage{pageBase: pageBase{Learner: learner, Error: problem}, Workbooks: books, Courses: list})
+}
+
+// uploadWorkbook keeps an .xlsx the Learner uploaded in their Folder as their Workbook, with no Clean-up. It takes the
+// file types and size limit of a Dashboard upload, and the Storage allowance check of keepWorkbook. Like every change in
+// the Lab it needs an active Plan period (403 without).
+func (a *App) uploadWorkbook(w http.ResponseWriter, r *http.Request) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
+		return
+	}
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	file, name, problem := xlsxOf(w, r, lang)
+	if problem != "" {
+		a.renderFolder(w, r, learner, http.StatusUnprocessableEntity, problem)
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	id, used, err := a.keepWorkbook(r, learner.ID, 0, acc, uploadMode{}, name, data)
+	switch {
+	case errors.Is(err, errStorageFull):
+		a.renderFolder(w, r, learner, http.StatusUnprocessableEntity, text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
+	case errors.Is(err, errDatasetStore):
+		a.renderFolder(w, r, learner, http.StatusServiceUnavailable, text.T(lang, "lab.d.upload-failed"))
+	case err != nil:
+		a.serverError(w, r, err)
+	case id == 0: // an empty file
+		a.renderFolder(w, r, learner, http.StatusUnprocessableEntity, text.T(lang, "lab.err.choose-file"))
+	default:
+		http.Redirect(w, r, "/my-folder", http.StatusSeeOther)
+	}
 }
 
 // folder lists every Assignment the Learner has files in or a comment on, by Course.

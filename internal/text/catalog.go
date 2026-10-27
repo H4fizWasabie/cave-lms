@@ -1458,6 +1458,8 @@ var catalog = map[string]entry{
 	"my-folder.none":           {en: "You have not handed in anything yet. Your Submissions show here once you upload files to an Assignment in a Course.", ms: "Anda belum menyerahkan apa-apa. Serahan anda dipaparkan di sini setelah anda memuat naik fail kepada Tugasan dalam sesebuah Kursus."},
 	"my-folder.workbooks":      {en: "Workbooks", ms: "Buku kerja"},
 	"my-folder.delete":         {en: "Delete", ms: "Padam"},
+	"my-folder.upload":         {en: "Upload Workbook", ms: "Muat naik Buku kerja"},
+	"my-folder.upload-limits":  {en: ".xlsx only · up to 10 MB · kept as you upload it, with no Clean-up", ms: ".xlsx sahaja · sehingga 10 MB · disimpan seperti yang anda muat naik, tanpa Pembersihan"},
 	"workbook.delete":          {en: "Delete Workbook", ms: "Padam Buku kerja"},
 	"workbook.delete-ask": {
 		en: "Delete “%s” from your Folder? Dashboards that used it: %d. Their Datasets, Dashboards and Deployments keep working, but you cannot get the file back.",
