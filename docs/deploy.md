@@ -210,6 +210,8 @@ curl -s "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
 curl -s "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
 ```
 
+**Dropped in a later release.** The Templates are gone (ADR 0019), and nothing reads or writes `dashboards.template` or `dashboards.choices` now, but the columns stay: the binary before this release still selects them, and a rollback puts that binary back without undoing a migration. Migration 00126 gives `template` the default `'general'` (`choices` already defaults to `'{}'`), so a Dashboard made by this release opens on General with no choices in that binary too. Once production has run this release with no rollback, a later release adds a migration dropping both columns.
+
 ## Changing the domain
 
 The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in `/etc/cave-lms/env`.
