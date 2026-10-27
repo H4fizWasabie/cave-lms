@@ -51,6 +51,14 @@ func TestAFileNamedWithADatePreviewsItFromTheFileNameAndDataJSONRowsCarryIt(t *t
 	}
 }
 
+func TestAFileNamedWithAMonthAndYearPreviewsTheFirstOfThatMonthFromTheFileName(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createPage("Kedai", myPage)
+	ada.postFile(path+"/dataset", "kehadiran_062026.xlsx", shopReport(t, "Beras", 120))
+	_, body := ada.get(path + "/data")
+	expectAll(t, body, `name="part-date"`, `value="2026-06-01"`, "from the file name")
+}
+
 func TestAnExcelWithADateInItsTitleRowsPreviewsItFromThatCellAndAnUploadWithNoneTakesTheUploadDay(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
