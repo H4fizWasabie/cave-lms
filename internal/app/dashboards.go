@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -72,21 +73,17 @@ func (d *dashboard) generate(dataURL string) (index, data []byte, err error) {
 type dashboardRow struct {
 	ID         int64
 	Name       string
-	Template   string
+	Theme      string // a built Dashboard's Theme, by name
 	Updated    string
 	HasData    bool        // a Dataset is uploaded, so it can be downloaded
-	Page       bool        // it has a page: a page Dashboard, not an engine one
+	Page       bool        // it has a page: its Learner's own, not one Cave builds
 	Deployment *deployment // nil until deployed
 }
 
 // labDashboards lists a Learner's Dashboards, most recently changed first.
 // ponytail: one query per deployed Dashboard; join the Deployment's columns in if a Learner's list gets long.
 func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, error) {
-	lang, err := a.language(r)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.template, d.updated_at,
+	rows, err := a.db.QueryContext(r.Context(), `SELECT d.id, d.name, d.theme, d.updated_at,
 			EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current'),
 			EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id AND pg.current),
 			EXISTS (SELECT 1 FROM deployments dep WHERE dep.dashboard_id = d.id)
@@ -98,17 +95,20 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 	var deployed []int // indexes into list
 	for rows.Next() {
 		var d dashboardRow
-		var key string
+		var theme string
 		var updated time.Time
 		var dep bool
-		if err := rows.Scan(&d.ID, &d.Name, &key, &updated, &d.HasData, &d.Page, &dep); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &theme, &updated, &d.HasData, &d.Page, &dep); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		if dep {
 			deployed = append(deployed, len(list))
 		}
-		d.Template, d.Updated = templateName(lang, key), updated.UTC().Format(periodTime)
+		d.Theme, d.Updated = theme, updated.UTC().Format(periodTime)
+		if i := slices.IndexFunc(lab.Themes, func(t lab.Theme) bool { return t.Key == theme }); i >= 0 {
+			d.Theme = lab.Themes[i].Name
+		}
 		list = append(list, d)
 	}
 	rows.Close()
@@ -254,13 +254,13 @@ func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok
 	return acc, acc.Open()
 }
 
-// newDashboardPage is /lab/new: name the Dashboard, then upload its Dataset or try a Sample. Cave builds the blocks
-// from the data and offers the Templates that fit it at the preview (ADR 0014).
+// newDashboardPage is /lab/new: the two ways to a Dashboard (ADR 0019), Build from Excel and Paste your own page.
 type newDashboardPage struct {
 	pageBase
-	Name    string
-	HTML    string          // the pasted page, kept when the form is refused
-	Samples []*lab.Template // the Templates whose Sample the Learner may try
+	Name       string
+	BuildError string          // why Build from Excel was refused; Error is why the pasted page was
+	HTML       string          // the pasted page, kept when the form is refused
+	Samples    []*lab.Template // the Templates whose Sample the Learner may try
 }
 
 func newDashboard(name string) *newDashboardPage {
@@ -349,6 +349,76 @@ func (a *App) createDashboard(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
+	}
+	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+}
+
+// buildDashboard makes a Dashboard by Build from Excel (ADR 0019), POST /lab/dashboards/build: Clean-up reads the
+// Learner's .xlsx and keeps it as the new Dashboard's pending Dataset, whose preview the Dashboard opens on; the
+// confirm builds its blocks by the General rules. Anything refused, the name, the file or a Dataset over the Storage
+// allowance, saves nothing.
+func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
+	acc, ok := a.labOpen(w, r)
+	if !ok {
+		return
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	file, upload, problem := xlsxOf(w, r, lang)
+	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
+	refuse := func(msg string) {
+		p.BuildError = msg
+		a.render(w, r, http.StatusUnprocessableEntity, "lab_new", p)
+	}
+	if problem != "" {
+		refuse(problem)
+		return
+	}
+	defer file.Close()
+	if msg := dashboardNameError(lang, p.Name); msg != "" {
+		refuse(msg)
+		return
+	}
+	res, err := a.clean(r, file, lab.General, lab.Settings{})
+	var unread lab.Problem
+	if errors.As(err, &unread) {
+		refuse(text.T(lang, "lab.d.not-read", upload) + ". " + unread.In(lang))
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	d := &dashboard{}
+	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', $2, $3)
+		RETURNING id`, learner.ID, lab.General.Key, p.Name).Scan(&d.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload)
+	if err != nil { // the Dashboard goes with its Dataset, which keepPending has dropped
+		if _, err := a.db.ExecContext(context.WithoutCancel(r.Context()), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
+			a.logError(r, fmt.Errorf("delete refused Dashboard %d: %w", d.ID, err))
+		}
+	}
+	switch {
+	case errors.Is(err, errStorageFull):
+		refuse(text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage())))
+		return
+	case errors.Is(err, errDatasetStore):
+		refuse(text.T(lang, "lab.d.upload-failed"))
+		return
+	case err != nil:
+		a.serverError(w, r, err)
+		return
 	}
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
@@ -568,7 +638,8 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			return
 		}
 	}
-	if p.Pending != nil && d.Config == nil && d.Page == nil { // the first confirm opens the picked Template with these choices
+	// The first confirm opens the picked Template with these choices; a built Dashboard, on General, is offered none.
+	if p.Pending != nil && d.Config == nil && d.Page == nil && d.Template != lab.General {
 		p.pickOffer(d, r.URL.Query().Get("template"))
 	}
 	if p.Pending != nil && d.Config != nil { // later confirms keep the blocks, with a pick for each column gone
@@ -649,36 +720,40 @@ func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard
 		a.serverError(w, r, err)
 		return
 	}
-	name := ""
-	refuse := func(problem string) {
+	file, name, problem := xlsxOf(w, r, lang)
+	if problem != "" {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem, Upload: name})
+		return
 	}
-	tooBig := text.T(lang, "lab.err.too-big")
+	defer file.Close()
+	a.uploadWork(w, r, d, acc, file, name)
+}
+
+// xlsxOf opens the .xlsx a Learner gave in the form's file field, the request capped at maxDatasetUpload. problem
+// says why it is refused, in lang, or is "" when it is not; name is the file's name, when one was given.
+func xlsxOf(w http.ResponseWriter, r *http.Request, lang string) (file multipart.File, name, problem string) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxDatasetUpload)
 	file, header, err := r.FormFile("file")
 	var over *http.MaxBytesError
 	switch {
 	case errors.As(err, &over) || r.ContentLength > maxDatasetUpload:
-		refuse(tooBig)
-		return
+		return nil, "", text.T(lang, "lab.err.too-big")
 	case err != nil:
-		refuse(text.T(lang, "lab.err.choose-file"))
-		return
+		return nil, "", text.T(lang, "lab.err.choose-file")
 	}
-	defer file.Close()
 	name = header.Filename
 	switch {
 	case strings.EqualFold(filepath.Ext(name), ".xls"):
-		refuse(text.T(lang, "lab.err.xls"))
-		return
+		problem = text.T(lang, "lab.err.xls")
 	case !strings.EqualFold(filepath.Ext(name), ".xlsx"):
-		refuse(text.T(lang, "lab.err.not-xlsx", name))
-		return
+		problem = text.T(lang, "lab.err.not-xlsx", name)
 	case header.Size > maxDatasetFile:
-		refuse(tooBig)
-		return
+		problem = text.T(lang, "lab.err.too-big")
+	default:
+		return file, name, ""
 	}
-	a.uploadWork(w, r, d, acc, file, name)
+	file.Close()
+	return nil, name, problem
 }
 
 // newDatasetKey is a new key in the Dataset store: a new one every upload, so a cached copy is never stale.

@@ -186,20 +186,7 @@ A Dashboard never uploaded to has no blocks until its first confirm, as for a ne
 
 ## Converting engine Dashboards to pages (ADR 0018, #375)
 
-Every start, after migrations, gives each engine Dashboard with a current Dataset and no page the engine's page as its first current page: its chart script inlined (the page policy loads no script from Cave) and its rows read from `./data.json`, stored like an uploaded page and counted against Storage, over the allowance too. Its Deployment keeps its name and awake state; sleeping and taken-down ones are converted and stay as they are. A Dashboard without a Dataset gets no page. A Dashboard with a page is skipped, so later starts change nothing and log nothing. Each one converts in its own transaction; one that fails (its Dataset or the store out of reach) is logged as an error naming it and keeps its engine page until the next start retries it. The start goes on either way. Each one reads its Dataset from the store and writes a page before the app listens; if that takes the start past the deploy's 15-second wait, production rolls back to the previous binary, the Dashboards already converted stay so, and deploying again carries on from there.
-
-The command is the deploy itself, `CAVE_ENV=staging deploy/deploy.sh` then `deploy/deploy.sh`. Check the System log (`/admin/log`, or `journalctl -u cave-lms -n 50`) for `converted N of M engine Dashboards to pages` with N = M and no `convert Dashboard` error. Restart (`systemctl restart cave-lms`) to retry failures. Before and after, on production with `sudo -u postgres psql cave`:
-
-```sql
--- after: none left
-SELECT d.id FROM dashboards d WHERE NOT EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id)
-  AND EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current');
-SELECT name, taken_down_at FROM deployments ORDER BY id;          -- after: the same
-```
-
-For a Deployment `$n`, after: `curl -sI "$base/d/$n/"` carries the `sandbox allow-scripts` policy, `curl -s "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'` matches before, and `curl -s "$base/d/$n/data.json"` gives its rows.
-
-**The engine goes in a later release (#376).** The conversion needs the page generator, so the generator, the chart script and the conversion step (`convertEngineDashboards`) are deleted only once production has started on this release and the query above finds none.
+The start-up step that gave each engine Dashboard with a Dataset the engine's page as its own ran on production on 2026-10-27 and is gone (ADR 0019, #388): a start converts nothing now, so a Dashboard Cave builds stays built. #389 turns the Dashboards it converted back into built ones.
 
 ## Changing the domain
 

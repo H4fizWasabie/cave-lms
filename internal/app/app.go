@@ -200,7 +200,6 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
 	}
-	a.convertEngineDashboards(ctx)
 	a.dailyPrune(ctx)
 	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)
@@ -260,6 +259,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	// Every Lab screen is a.labScreen: a GET without the Lab goes to /pricing. Every change answers 403 (a.labOpen).
 	mux.HandleFunc("GET /lab/new", a.labScreen(a.newDashboardForm))
 	mux.HandleFunc("POST /lab/dashboards", a.requireLearner(a.createDashboard))
+	mux.HandleFunc("POST /lab/dashboards/build", a.requireLearner(a.buildDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}", a.labScreen(a.dashboardTab("")))
 	mux.HandleFunc("GET /lab/dashboards/{id}/preview", a.labScreen(a.dashboardTab("preview")))
 	mux.HandleFunc("GET /lab/dashboards/{id}/data", a.labScreen(a.dashboardTab("data")))

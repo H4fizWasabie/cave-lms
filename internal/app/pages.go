@@ -238,7 +238,8 @@ func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, 
 }
 
 // uploadPage makes a new page current at the Dashboard's link, POST /lab/dashboards/{id}/page, checked as
-// createPageDashboard checks the first; a Dashboard without one, left so by the conversion (#375), takes its first.
+// createPageDashboard checks the first; a Dashboard without one takes its first, though no screen offers it to a
+// built one.
 // The page it replaces turns earlier; past keepEarlier, the oldest earlier one goes, from the store too, and its bytes
 // no longer count against the Storage allowance.
 func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {

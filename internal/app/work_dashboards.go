@@ -400,8 +400,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
-	// Add to data on a page Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
-	if r.FormValue("mode") == "add" && d.Page != nil && d.Dataset != nil {
+	// Add to data on a Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
+	if r.FormValue("mode") == "add" && d.Dataset != nil {
 		combined, same, changes, err := lab.Add(d.Dataset, res.Dataset)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
@@ -428,7 +428,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	if d.Config != nil && allFit(d.Config, res.Dataset) { // nothing new to check: it goes live
+	// Nothing new to check: it goes live. An Add is always shown, as its rows may repeat ones already there.
+	if d.Config != nil && kept.Added == nil && allFit(d.Config, res.Dataset) {
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
@@ -447,7 +448,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 }
 
 // confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and roomFor's earlier
-// Datasets are deleted. On the first confirm the Template the Learner picked (General, or one offered) opens onto
+// Datasets are deleted. On the first confirm the Template the Learner picked (General, or one offered; a built
+// Dashboard always General) opens onto
 // the Dashboard as its blocks with their column choice for each blank; a blank with no column is never refused,
 // its blocks are left out (ADR 0014). Later confirms keep the blocks,
 // swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
@@ -477,7 +479,8 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	switch {
 	case d.Page != nil: // a page Dashboard has no blocks: its page reads the Dataset at data.json (ADR 0018)
 	case cfg == nil:
-		if picked := lab.TemplateByKey(r.FormValue("template")); picked != nil {
+		// A built Dashboard's blocks come from the General rules, whatever the form says (ADR 0019).
+		if picked := lab.TemplateByKey(r.FormValue("template")); picked != nil && t != lab.General {
 			t = picked
 		}
 		c = lab.Choices{}

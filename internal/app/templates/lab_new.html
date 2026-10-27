@@ -4,6 +4,20 @@
       <p class="crumbs"><a href="/lab">Lab</a> / {{t .Lang "lab.new"}}</p>
       <div class="page-head"><h1>{{t .Lang "lab.new"}}</h1><p>{{t .Lang "lab.new.sub"}}</p></div>
       <section class="card">
+        <h2 class="h-md">{{t .Lang "lab.new.build"}}</h2>
+        <p class="muted">{{t .Lang "lab.new.build-body"}}</p>
+        {{with .BuildError}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        <form class="form lab-create" method="post" action="/lab/dashboards/build" enctype="multipart/form-data" data-busy>
+          <div class="field"><label for="build-name">{{t .Lang "lab.new.name"}}</label><input id="build-name" type="text" name="name" value="{{.Name}}" required maxlength="80"></div>
+          <div class="field"><label for="build-file">{{t .Lang "lab.d.excel-file"}}</label><input id="build-file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "lab.w.file-limits"}}</small></div>
+          <div class="form-foot"><a class="btn btn-quiet" href="/lab">{{t .Lang "lab.cancel"}}</a><button class="btn btn-solid">{{t .Lang "lab.new.build-go"}}</button></div>
+          {{template "cave-loader" (loader (t .Lang "lab.d.reading") (t .Lang "lab.d.reading-lines"))}}
+        </form>
+        <script src="{{static "forms.js"}}" defer></script>
+      </section>
+      <section class="card">
+        <h2 class="h-md">{{t .Lang "lab.new.own"}}</h2>
+        <p class="muted">{{t .Lang "lab.new.own-body"}}</p>
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
         <form class="form lab-create" method="post" action="/lab/dashboards" enctype="multipart/form-data">
           <div class="field"><label for="name">{{t .Lang "lab.new.name"}}</label><input id="name" type="text" name="name" value="{{.Name}}" required maxlength="80"></div>

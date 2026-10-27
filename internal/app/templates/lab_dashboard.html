@@ -2,7 +2,7 @@
 {{define "content"}}
     {{- $url := printf "/lab/dashboards/%d" .Dashboard.ID}}
     <div class="wrap page-pad lab-page">
-      <p class="crumbs"><a href="/lab">Lab</a>{{if not .Dashboard.Page}} / {{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}{{end}}</p>
+      <p class="crumbs"><a href="/lab">Lab</a>{{if and (not .Dashboard.Page) (ne .Dashboard.Template.Key "general")}} /{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}{{end}}</p>
       <div class="page-head page-head-row">
         <h1>{{.Dashboard.Name}}</h1>
         {{- if .Dashboard.Dataset}}
@@ -33,17 +33,6 @@
         {{- end}}
       </nav>
 
-      {{- if and (not .Dashboard.Page) (not .Dashboard.Config) (not .ReadOnly) (eq .Tab "dataset")}}
-      <section class="lab-narrow">
-        <h2 class="h-md">{{t .Lang "lab.page.add"}}</h2>
-        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-        <form class="form" method="post" action="{{$url}}/page" enctype="multipart/form-data">
-          <div class="field"><label for="page-html">{{t .Lang "lab.new.paste"}}</label><textarea id="page-html" name="html" rows="6" spellcheck="false" autocapitalize="none"></textarea></div>
-          <div class="field"><label for="page-file">{{t .Lang "lab.new.file"}}</label><input id="page-file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
-          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "lab.page.upload"}}</button></div>
-        </form>
-      </section>
-      {{- end}}
       {{- if and .Dashboard.Page (eq .Tab "page")}}{{with .Dashboard.Page}}
       <section class="lab-narrow">
         <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div></div>
@@ -257,7 +246,7 @@
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
-            {{- if and .Dashboard.Page .Dashboard.Key}}
+            {{- if .Dashboard.Key}}
             {{- $add := false}}{{with .Pending}}{{if .Added}}{{$add = true}}{{end}}{{end}}
             <fieldset class="field">
               <legend>{{t .Lang "lab.data.mode"}}</legend>
@@ -292,6 +281,8 @@
           {{- if .Dashboard.Page}}
           {{template "dataSentence" .Lang}}
           <p class="muted">{{t .Lang "lab.data.reads-only"}}</p>
+          {{- else if eq .Dashboard.Template.Key "general"}}
+          <p class="muted">{{t .Lang "lab.d.dates-amounts"}}</p>
           {{- else}}
           <span class="panel-k">{{t .Lang "lab.template-name" (t $.Lang (print "lab.tpl." $.Dashboard.Template.Key ".name"))}}</span>
           <h2 class="h-sm">{{t .Lang "lab.d.start-sample"}}</h2>

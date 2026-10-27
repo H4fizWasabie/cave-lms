@@ -21,7 +21,7 @@
           <div class="mc-main">
             <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
             <ul class="meta">
-              {{- if not .Page}}<li>{{t $.Lang "lab.template-name" .Template}}</li>{{end}}
+              <li>{{if .Page}}{{t $.Lang "lab.kind.page"}}{{else}}{{t $.Lang "lab.kind.built" .Theme}}{{end}}</li>
               {{- with .Deployment}}<li><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></li><li>{{if .TakenDown}}<span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .TakenDown}}</span>{{else if .Awake}}{{t $.Lang "lab.dep.online"}}{{else}}{{t $.Lang "lab.dep.asleep"}}{{end}}</li>
               {{- else}}<li>{{t $.Lang "lab.page.not-deployed"}}</li>{{end}}
               <li>{{t $.Lang "lab.changed" .Updated}}</li>

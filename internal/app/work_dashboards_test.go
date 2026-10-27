@@ -350,7 +350,10 @@ func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, "General Template")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if strings.Contains(body, "Finance Template") {
+		t.Fatalf("confirmed on General, the Dashboard still names Finance:\n%s", body)
+	}
 	_, index := ada.get(path + "/view/")
 	if !strings.Contains(index, `"cols": [`) {
 		t.Fatalf("General built no table:\n%s", index)

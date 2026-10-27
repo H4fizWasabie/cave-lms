@@ -72,7 +72,7 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	expectLanguage(t, body, "ms", "Deployment aktif")
 	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
 	_, body = ada.get("/lab/new")
-	expectLanguage(t, body, "ms", "Namakan Dashboard anda, kemudian tampal HTML yang ditulis oleh chatbot AI anda")
+	expectLanguage(t, body, "ms", "Tampal HTML yang ditulis oleh chatbot AI anda")
 	expectAll(t, body, "Cipta Dashboard", "Tampal HTML", "Atau pilih fail .html")
 	res, body := ada.post("/lab/dashboards", url.Values{"name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan nama kepada Dashboard.")
@@ -119,8 +119,8 @@ func TestTheLabsFileErrorsAreInMalay(t *testing.T) {
 func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T) {
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
-	ada.createWork("finance", "Duit saya")
-	_, body := ada.get("/lab")
+	path := ada.createWork("finance", "Duit saya")
+	_, body := ada.get(path)
 	expectAll(t, body, "Templat Kewangan")
 	expectNone(t, body, "Templat Finance")
 }
