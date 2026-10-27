@@ -24,7 +24,7 @@
           <div class="ebook ebook-plain">
             <div class="ebook-info">
               <h2>{{.Title}}</h2>
-              {{if .Locked}}{{template "ebook-lock" (tile . $.Lang)}}{{else if not (or .Promotional (and $.Learner $.Learner.IsAdmin))}}<iframe class="ebook-reader" src="/gallery/{{.ID}}/file#toolbar=0&navpanes=0" title="{{.Title}}"></iframe>{{else}}<a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lesson.download-ebook"}}</a>{{end}}
+              {{if .Locked}}{{template "ebook-lock" (tile . $.Lang)}}{{else if .Reader}}<iframe class="ebook-reader" src="/gallery/{{.ID}}/file#toolbar=0&navpanes=0" title="{{.Title}}"></iframe>{{else}}<a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "lesson.download-ebook"}}</a>{{end}}
             </div>
           </div>
           {{end}}

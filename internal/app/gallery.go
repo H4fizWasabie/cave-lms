@@ -42,6 +42,7 @@ type galleryItem struct {
 	storageKey  string
 	Locked      bool // an ebook the viewer has no Ebook access to: listed, but not opened (lockEbook)
 	ComboOnSale bool // set with Locked while a Promo that comes with Ebooks runs, so the lock points to /pricing
+	Reader      bool // a non-promotional ebook seen by a non-Admin: read in the browser, never downloaded (lockEbook)
 }
 
 // allowedTypes maps the content type sniffed from the first 512 bytes to a Format.
@@ -94,7 +95,8 @@ func (a *App) mayView(ctx context.Context, viewer *learner, item galleryItem) (b
 // Ebook access: a running year of CaveText Pro that came with Ebooks (ADR 0020). Admins have it always. A locked
 // ebook's page and Lesson show it without its file, and its file sends the viewer to its page.
 func (a *App) lockEbook(ctx context.Context, viewer *learner, item *galleryItem) error {
-	if item.Format != "ebook" || item.Promotional || (viewer != nil && viewer.IsAdmin) {
+	item.Reader = item.Format == "ebook" && !item.Promotional && (viewer == nil || !viewer.IsAdmin)
+	if !item.Reader {
 		return nil
 	}
 	if viewer != nil {
@@ -294,7 +296,7 @@ func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 	}
 	if item.Format == "ebook" {
 		disposition := "attachment"
-		if !item.Promotional && (learner == nil || !learner.IsAdmin) {
+		if item.Reader {
 			// A Learner reads a non-promotional ebook in the browser and cannot download it (ADR 0020). The
 			// site's policy has object-src 'none', which keeps Chrome from showing a PDF in the page's frame.
 			disposition = "inline"
