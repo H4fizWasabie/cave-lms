@@ -279,6 +279,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
 	})
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
+	mux.HandleFunc("GET /admin/learners", a.admin(a.adminLearners))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
 	mux.HandleFunc("POST /admin/gallery", a.admin(a.galleryUpload))
 	mux.HandleFunc("GET /admin/gallery", a.admin(a.adminGallery))

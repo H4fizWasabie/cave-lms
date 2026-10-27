@@ -294,6 +294,12 @@ var catalog = map[string]entry{
 	"adm.yes":            {en: "Yes", ms: "Ya"},
 	"adm.no":             {en: "No", ms: "Tidak"},
 
+	// The Admin Learners page: every account
+	"adm.all-learners.intro":    {en: "Everyone with an account, newest first. Unverified accounts registered but never opened the link in their email.", ms: "Semua yang mempunyai akaun, yang terbaru dahulu. Akaun belum disahkan telah mendaftar tetapi tidak pernah membuka pautan dalam e-mel mereka."},
+	"adm.all-learners.verified": {en: "Verified", ms: "Disahkan"},
+	"adm.all-learners.joined":   {en: "Joined", ms: "Menyertai"},
+	"adm.all-learners.none":     {en: "No accounts yet.", ms: "Belum ada akaun."},
+
 	// The Gallery: list, upload, edit and delete
 	"adm.gallery.title":           {en: "Admin: Gallery", ms: "Pentadbir: Galeri"},
 	"adm.gallery.lede":            {en: "Promotional items appear on the home page. Visibility decides who can open each item.", ms: "Item promosi dipaparkan di laman utama. Keterlihatan menentukan siapa yang boleh membuka setiap item."},
@@ -631,6 +637,7 @@ var catalog = map[string]entry{
 	"admin.nav":                {en: "Admin", ms: "Pentadbir"},
 	"admin.side.dashboard":     {en: "Dashboard", ms: "Dashboard"},
 	"admin.side.courses":       {en: "Courses", ms: "Kursus"},
+	"admin.side.learners":      {en: "Learners", ms: "Pelajar"},
 	"admin.side.gallery":       {en: "Gallery", ms: "Galeri"},
 	"admin.side.programmes":    {en: "Programmes", ms: "Program"},
 	"admin.side.organisations": {en: "Organisations", ms: "Organisasi"},
