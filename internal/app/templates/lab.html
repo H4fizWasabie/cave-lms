@@ -14,6 +14,7 @@
         <div><span class="panel-k">{{t $.Lang "lab.storage"}}</span><strong>{{t $.Lang "lab.storage-of" (size .Used) (size .Storage)}}</strong><span class="muted">{{t $.Lang "lab.storage-what"}}</span></div>
       </div>
       {{- end}}
+      <p class="muted">{{t .Lang "lab.folder-body"}} <a href="/my-folder">{{t .Lang "nav.my-folder"}}</a>.</p>
       <h2 class="h-md">{{t .Lang "lab.mine"}}</h2>
       <ul class="mc-list">
         {{- range .Dashboards}}

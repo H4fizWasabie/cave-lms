@@ -122,3 +122,126 @@ func TestTheFolderIsInTheMyMenuInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, `<a href="/my-folder">Folder saya</a>`)
 	expectStatus(t, res, body, http.StatusOK, "Anda belum menyerahkan apa-apa.")
 }
+
+// pastIntro is the Folder's page below its heading, past the header, which lists Courses too.
+func pastIntro(t *testing.T, body string) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(body, "<h1>My folder</h1>")
+	if !ok {
+		t.Fatalf("no Folder heading: %s", body)
+	}
+	return rest
+}
+
+const labIntro = "Your Workbooks, your Dashboards&#39; pages and your Submissions"
+
+func TestALearnerWithAPlanAndNoCourseSeesTheLabPartAndNoJoinACourseEmptyState(t *testing.T) {
+	_, ada := labLearner(t)
+	res, body := ada.getFolder()
+	expectStatus(t, res, body, http.StatusOK, labIntro)
+	rest := pastIntro(t, body)
+	for _, gone := range []string{"You have not handed in anything yet", "empty-state"} {
+		if strings.Contains(rest, gone) {
+			t.Errorf("a Learner with a Plan is told %q: %s", gone, rest)
+		}
+	}
+	if !strings.Contains(rest, "<h2>Workbooks</h2>") {
+		t.Errorf("the Folder has no Workbooks part: %s", rest)
+	}
+}
+
+func TestALearnerWithAPlanAndSubmissionsSeesTheLabPartFirstAndSubmissionsBelow(t *testing.T) {
+	admin, ada, path := publishedAssignment(t)
+	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
+	admin.createPlan("Lab Monthly", "30", "3")
+	admin.assignPlan("ada@example.com", admin.onlyPlanID())
+	ada.createPage("Jualan", myPage)
+	ada.postFile("/workbooks", "laporan.xlsx", shopReport(t, "Beras", 120))
+
+	_, body := ada.getFolder()
+	rest := pastIntro(t, body)
+	workbooks, pages, course := strings.Index(rest, "laporan.xlsx"), strings.Index(rest, "Jualan"), strings.Index(rest, "Go Basics")
+	if workbooks < 0 || pages < workbooks || course < pages {
+		t.Fatalf("want Workbooks, then pages, then the Course; got %d, %d, %d: %s", workbooks, pages, course, rest)
+	}
+	if !strings.Contains(rest, "prompt.pdf") || strings.Contains(rest, "You have not handed in anything yet") {
+		t.Errorf("the Submission is missing or the empty state shows: %s", rest)
+	}
+}
+
+func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(t *testing.T) {
+	_, ada := labLearner(t)
+	path := ada.createPage("Jualan", myPage)
+	ada.uploadPage(path, versionOf(2))
+	ada.readyDashboard("Kewangan") // a built Dashboard has no page
+
+	_, body := ada.getFolder()
+	rest := pastIntro(t, body)
+	if n := strings.Count(rest, `href="`+path+`"`); n != 3 { // its name and each of its two pages
+		t.Errorf("%d links to the page Dashboard, want 3: %s", n, rest)
+	}
+	for _, want := range []string{"Jualan", "Current", "Earlier"} {
+		if !strings.Contains(rest, want) {
+			t.Errorf("the Folder lacks %q: %s", want, rest)
+		}
+	}
+	if strings.Contains(rest, "Kewangan") {
+		t.Errorf("the Folder lists a Dashboard with no page: %s", rest)
+	}
+}
+
+func TestAFreeLearnersFolderKeepsTodaysIntroAndEmptyState(t *testing.T) {
+	_, ada, _, _ := labSetup(t)
+	res, body := ada.getFolder()
+	expectStatus(t, res, body, http.StatusOK, "Your Submissions to Assignments, by Course")
+	expectStatus(t, res, body, http.StatusOK, "You have not handed in anything yet.")
+	expectStatus(t, res, body, http.StatusOK, `href="/my-courses"`)
+	if strings.Contains(body, labIntro) || strings.Contains(body, "<h2>Workbooks</h2>") || strings.Contains(body, `action="/workbooks"`) {
+		t.Errorf("a free Learner sees the Lab part: %s", body)
+	}
+}
+
+// Once the last Plan period ends the Lab part stays for as long as Workbooks are kept, to download; without any it goes.
+func TestTheLabPartStaysForAnEndedPlanWithWorkbooksAndGoesWithoutThem(t *testing.T) {
+	admin, ada := labLearner(t)
+	ada.createPage("Jualan", myPage)
+	ada.postFile("/workbooks", "laporan.xlsx", shopReport(t, "Beras", 120))
+	admin.ageAllPeriods(31)
+	res, body := ada.getFolder()
+	expectStatus(t, res, body, http.StatusOK, labIntro)
+	expectStatus(t, res, body, http.StatusOK, "laporan.xlsx")
+	if rest := pastIntro(t, body); strings.Contains(rest, "empty-state") {
+		t.Errorf("the empty state shows beside kept Workbooks: %s", rest)
+	}
+
+	if _, err := ada.db.Exec(`DELETE FROM workbooks`); err != nil {
+		t.Fatal(err)
+	}
+	res, body = ada.getFolder()
+	expectStatus(t, res, body, http.StatusOK, "You have not handed in anything yet.")
+	if strings.Contains(body, labIntro) {
+		t.Errorf("an ended Plan with no Workbooks keeps the Lab intro: %s", body)
+	}
+}
+
+func TestTheLabAndTheDataTabLinkToTheFolder(t *testing.T) {
+	_, ada := labLearner(t)
+	// The header links to the Folder too, so look for the sentence each page puts before its own link.
+	res, body := ada.get("/lab")
+	expectStatus(t, res, body, http.StatusOK, `Your Workbooks and your Dashboards&#39; pages are in <a href="/my-folder">My folder</a>.`)
+	path := ada.readyDashboard("Kewangan")
+	res, body = ada.get(path + "/data")
+	expectStatus(t, res, body, http.StatusOK, `Your Workbooks are in <a href="/my-folder">My folder</a>.`)
+}
+
+func TestTheFolderLabPartIsInMalay(t *testing.T) {
+	_, ada := labLearner(t)
+	ada.createPage("Jualan", myPage)
+	ada.switchLanguage("ms", "/")
+	res, body := ada.getFolderAsking("ms")
+	expectStatus(t, res, body, http.StatusOK, "Buku kerja, halaman Dashboard dan Serahan anda")
+	expectStatus(t, res, body, http.StatusOK, "Halaman Dashboard")
+	expectStatus(t, res, body, http.StatusOK, "Semasa")
+	res, body = ada.getAsking("/lab", "ms")
+	expectStatus(t, res, body, http.StatusOK, `Buku kerja dan halaman Dashboard anda ada di <a href="/my-folder">Folder saya</a>.`)
+}
