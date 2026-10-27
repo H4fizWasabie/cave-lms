@@ -15,10 +15,9 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// createWork creates a Dashboard with template pre-chosen, as a Sample's Template is, and returns its path.
-// The New Dashboard form makes a page Dashboard on General; its page is dropped, so it is an engine Dashboard until
-// the engine goes (#376), and any other Template is set in the database.
-func (s *site) createWork(template, name string) string {
+// createWork creates a built Dashboard with no Dataset yet and returns its path: a page Dashboard made with the New
+// Dashboard form, its page dropped.
+func (s *site) createWork(name string) string {
 	s.t.Helper()
 	res, body := s.post("/lab/dashboards", url.Values{"name": {name}, "html": {myPage}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
@@ -26,9 +25,6 @@ func (s *site) createWork(template, name string) string {
 	m := dashboardPath.FindStringSubmatch(loc)
 	if m == nil {
 		s.t.Fatalf("created Work Dashboard redirects to %q", loc)
-	}
-	if _, err := s.db.Exec(`UPDATE dashboards SET template = $2 WHERE id = $1`, m[1], template); err != nil {
-		s.t.Fatal(err)
 	}
 	s.dropPage(m[1])
 	return loc
@@ -77,12 +73,12 @@ var financeGuess = url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "categor
 func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
-	ada.createWork("hr", "Staf")
+	ada.createWork("Staf")
 	for _, lang := range []string{"en", "ms"} {
 		ada.switchLanguage(lang, "/")
 		res, body := ada.get("/lab")
 		expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
-		for _, p := range []string{"/lab", "/lab/new", path, path + "/blocks", path + "/preview", path + "/hood", path + "/deploy"} {
+		for _, p := range []string{"/lab", "/lab/new", path, path + "/preview", path + "/deploy"} {
 			res, body := ada.get(p)
 			expectStatus(t, res, body, http.StatusOK, `<html lang="`+lang+`">`)
 			low := strings.ToLower(body)
@@ -98,7 +94,7 @@ func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
 
 func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -106,7 +102,6 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	for _, want := range []string{
 		"Skipped rows 1 to 3 above the header in row 4.",
 		"laporan.xlsx", "Beras", "Jualan",
-		`<option value="Tarikh" selected>Tarikh</option>`, `<option value="Jumlah" selected>Jumlah</option>`,
 		`action="` + path + `/dataset/confirm"`,
 	} {
 		expectStatus(t, res, body, http.StatusOK, want)
@@ -123,7 +118,7 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	ada.confirmWork(path, financeGuess)
 	page := ada.rowsOf(path + "/view/")
 	_, index := ada.get(path + "/view/")
-	for _, want := range []string{`"group": "Kategori"`, `"vals": [`} {
+	for _, want := range []string{`"group": "Kategori"`} {
 		if !strings.Contains(index, want) {
 			t.Fatalf("the Work Dashboard page lacks %s:\n%s", want, index)
 		}
@@ -131,13 +126,11 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 	if !strings.Contains(page, `"Perkara": "Beras"`) {
 		t.Fatalf("data = %s", page)
 	}
-	res, body = ada.get(path + "/hood")
-	expectStatus(t, res, body, http.StatusOK, "data.json")
 }
 
 func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "september.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, financeGuess)
@@ -240,7 +233,7 @@ func months(t *testing.T, notes bool, names ...string) []byte {
 
 func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	upload := func(file []byte, want string, fields ...url.Values) string {
 		t.Helper()
 		res, body := ada.postFile(path+"/dataset", "buku.xlsx", file, fields...)
@@ -292,7 +285,7 @@ func (s *site) uploadLive(path string, file []byte, want, not string) {
 
 func TestAFailedOrAbandonedUploadLeavesTheRememberedSettings(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	janAlone := url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}}
 	both := func() {
 		t.Helper()
@@ -312,7 +305,7 @@ func TestAFailedOrAbandonedUploadLeavesTheRememberedSettings(t *testing.T) {
 
 func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	header := []any{"Staff"}
 	for d := 1; d <= 31; d++ {
 		header = append(header, d)
@@ -343,14 +336,17 @@ func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {
 
 func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
 	res, body := ada.postFile(path+"/dataset", "senarai.xlsx", testutil.XLSX(t, []string{"Hari", "Nota"}, []any{day, "Buka"}))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, "General Template")
+	expectStatus(t, res, body, http.StatusOK, "")
+	if strings.Contains(body, "Finance Template") {
+		t.Fatalf("confirmed on General, the Dashboard still names Finance:\n%s", body)
+	}
 	_, index := ada.get(path + "/view/")
 	if !strings.Contains(index, `"cols": [`) {
 		t.Fatalf("General built no table:\n%s", index)
@@ -359,7 +355,7 @@ func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 
 func TestAnUnreadableWorkUploadGivesOneMessage(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", []byte("Tarikh,Jumlah\n05/11/2026,RM5\n"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "We could not read laporan.xlsx")
 	if n := strings.Count(body, "CSV file stores everything"); n != 1 {
@@ -372,7 +368,7 @@ func TestAnUnreadableWorkUploadGivesOneMessage(t *testing.T) {
 
 func TestTheLearnerCanUploadAgainNamingATwoRowHeader(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
 	file := testutil.Merge(t, testutil.XLSX(t, []string{"Jualan Oktober 2026", "Kedai Ali"},
 		[]any{"Tarikh", "Jualan", nil, "Staf"},
@@ -407,7 +403,7 @@ func TestTheLearnerCanUploadAgainNamingATwoRowHeader(t *testing.T) {
 
 func TestTheStorageAllowanceCountsConfirmedWorkDatasetsBySavedSize(t *testing.T) {
 	_, ada, _ := storageSite(t, "1024")
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
@@ -428,9 +424,9 @@ func TestTheStorageAllowanceCountsConfirmedWorkDatasetsBySavedSize(t *testing.T)
 
 func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
 	_, ada, _ := storageSite(t, "2")
-	first := ada.createWork("finance", "Satu")
+	first := ada.createWork("Satu")
 	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 1`); err != nil { // the upload fitted; the allowance shrinks
@@ -442,10 +438,10 @@ func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
 
 func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
 	_, ada, _ := storageSite(t, "1") // 1 MB, and each upload saves as about 600 KB
-	first := ada.createWork("finance", "Satu")
+	first := ada.createWork("Satu")
 	res, body := ada.postFile(first+"/dataset", "one.xlsx", bigFinance(t, 1))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body = ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
 	if n := ada.storedFiles(); n != 1 {
@@ -460,7 +456,7 @@ func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
 
 func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
 	admin, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	admin.prune()
@@ -480,7 +476,7 @@ func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
 
 func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
+	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "a.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	ada.confirmWork(path, financeGuess)
@@ -496,22 +492,6 @@ func TestDeletingAWorkDashboardDeletesItsDatasets(t *testing.T) {
 	}
 }
 
-func TestTheSalesTemplateOpensAsItsSampleShows(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("sales", "Kafe")
-	_, sample := ada.get("/lab/samples/sales.xlsx")
-	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", []byte(sample))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "item": {"Produk"}, "category": {"Kategori"},
-		"staff": {"Staf"}, "payment": {"Kaedah bayaran"}, "quantity": {"Kuantiti"}})
-	_, index := ada.get(path + "/view/")
-	for _, want := range []string{"What sells, and when?", `"label": "Revenue by payment method"`, `"group": "Kaedah bayaran"`} {
-		if !strings.Contains(index, want) {
-			t.Fatalf("the Sales Dashboard lacks %s:\n%s", want, index)
-		}
-	}
-}
-
 // stockFile is a stock list General reads by column roles: a unique SKU, a category, a unit price and a quantity.
 func stockFile(t *testing.T) []byte {
 	t.Helper()
@@ -524,7 +504,7 @@ func stockFile(t *testing.T) []byte {
 
 func TestThePreviewSaysWhichColumnsGeneralLeavesOutOfChartsOrAverages(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("general", "Stor")
+	path := ada.createWork("Stor")
 	res, body := ada.postFile(path+"/dataset", "stok.xlsx", stockFile(t))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get(path)

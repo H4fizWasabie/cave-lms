@@ -39,9 +39,9 @@ func missingUses(uses []columnUse) int {
 	return n
 }
 
-// withPicks is cfg and the Template choices c with the Learner's pick for each column cfg's blocks use that d
-// lacks or has of another type, posted as use:<column>; a column left out, or a pick d lacks, stays as it is.
-func withPicks(cfg *lab.Config, c lab.Choices, d *lab.Dataset, form url.Values) (*lab.Config, lab.Choices) {
+// withPicks is cfg with the Learner's pick for each column cfg's blocks use that d lacks or has of another type,
+// posted as use:<column>; a column left out, or a pick d lacks, stays as it is.
+func withPicks(cfg *lab.Config, d *lab.Dataset, form url.Values) *lab.Config {
 	m := map[string]string{}
 	for _, u := range columnUses(cfg, d) {
 		if to := form.Get("use:" + u.Name); !u.Fits && to != "" && (lab.Use{Name: to, Type: u.Type}).Fits(d) {
@@ -50,5 +50,5 @@ func withPicks(cfg *lab.Config, c lab.Choices, d *lab.Dataset, form url.Values) 
 	}
 	out := *cfg
 	out.Rename(m)
-	return &out, c.Rename(m)
+	return &out
 }

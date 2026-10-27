@@ -2,24 +2,19 @@ package app_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"regexp"
-	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
-	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// workReady is a Work Dashboard on Finance with shopReport confirmed, its Perkara column left out of the blanks.
+// workReady is a built Dashboard with shopReport confirmed, its blocks by the General rules.
 func (s *site) workReady() string {
 	s.t.Helper()
-	path := s.createWork("finance", "Kedai")
+	path := s.createWork("Kedai")
 	res, body := s.postFile(path+"/dataset", "laporan.xlsx", shopReport(s.t, "Beras", 120))
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	s.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"Kategori"}, "type": {"Jenis"}})
@@ -47,16 +42,6 @@ func (s *site) pageBlocks(page string) ([]lab.WorkBlock, []string) {
 	return cfg.Blocks, cfg.Filters
 }
 
-// editBlocks posts one edit to the Blocks tab and expects it saved.
-func (s *site) editBlocks(path string, form url.Values) {
-	s.t.Helper()
-	res, body := s.post(path+"/blocks", form)
-	expectStatus(s.t, res, body, http.StatusSeeOther, "")
-	if loc := res.Header.Get("Location"); !strings.HasPrefix(loc, path+"/blocks?") || !strings.Contains(loc, "saved") {
-		s.t.Fatalf("an edit redirects to %q", loc)
-	}
-}
-
 func labels(blocks []lab.WorkBlock) string {
 	var out []string
 	for _, b := range blocks {
@@ -65,577 +50,47 @@ func labels(blocks []lab.WorkBlock) string {
 	return strings.Join(out, ", ")
 }
 
-func TestTheBlocksTabListsTheBlocksBesideTheDashboard(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	res, body := ada.get(path + "/blocks")
-	for _, want := range []string{
-		`href="` + path + `/blocks" aria-current="page">2. Blocks`, "Edit blocks",
-		"Money in", "Spending by category", "Sum of Jumlah · Kategori · Jenis = Keluar", "Latest transactions",
-		"8/20 · Cards 4/8", `src="` + path + `/view/"`, "Filter bar",
-	} {
-		expectStatus(t, res, body, http.StatusOK, want)
+// paused counts the blocks the Dashboard page at page (ending in /) keeps but leaves off: those adding up a column its
+// Dataset lacks as a number.
+func (s *site) paused(page string) int {
+	s.t.Helper()
+	_, body := s.get(page)
+	m := pageConfig.FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("%s has no config: %s", page, body)
 	}
-	res, body = ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/blocks"`)
-	for i, want := range []string{`name="kind" value="card" checked`, `name="agg"`, `name="agg"`, `name="agg"`, `name="x"`, `name="fval" value="Keluar" checked`,
-		`name="group"`, `name="cols" value="Tarikh" checked`} {
-		res, body = ada.get(fmt.Sprintf("%s/blocks?open=%d", path, i))
-		expectStatus(t, res, body, http.StatusOK, want)
-		expectStatus(t, res, body, http.StatusOK, `name="close" value="1"`) // Done
+	var cfg struct {
+		Columns map[string]struct{ Type lab.Type } `json:"columns"`
+		Blocks  []lab.WorkBlock                    `json:"blocks"`
 	}
-
-	ada.switchLanguage("ms", path+"/blocks")
-	res, body = ada.get(path + "/blocks")
-	for _, want := range []string{"2. Blok", "Ubah blok", "Kad 4/8", "Bar penapis"} {
-		expectStatus(t, res, body, http.StatusOK, want)
+	if err := json.Unmarshal([]byte(m[1]), &cfg); err != nil {
+		s.t.Fatal(err)
 	}
-}
-
-func TestAnAddedBlockShowsOnTheDeploymentAtOnce(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	link := ada.deploy(path)
-	viewer := ada.second()
-
-	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"bar"}})
-	res, body := ada.get(path + "/blocks?saved&open=8")
-	expectStatus(t, res, body, http.StatusOK, "Saved. The live link shows it now.")
-	expectStatus(t, res, body, http.StatusOK, `name="group"`) // its form is open
-	for _, page := range []*site{ada, viewer} {
-		at := link
-		if page == ada {
-			at = path + "/view/"
-		}
-		blocks, _ := page.pageBlocks(at)
-		if len(blocks) != 9 || blocks[8].Kind != "bar" || blocks[8].Group == "" || blocks[8].Top != 8 {
-			t.Fatalf("%s blocks after adding a bar: %+v", at, blocks)
+	n := 0
+	for _, b := range cfg.Blocks {
+		if v := b.Value; v != nil && (v.Agg == "sum" || v.Agg == "avg") && cfg.Columns[v.Col].Type != lab.Number {
+			n++
 		}
 	}
-
-	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if blocks[4].Kind != "card" || blocks[4].Label != "Jumlah" {
-		t.Fatalf("a new card goes after the cards, labelled by its value Jumlah: %s", labels(blocks))
-	}
+	return n
 }
 
-// barForm is the open form of the Spending by category bar (block 5) with fields set over its saved choices.
-func barForm(set url.Values) url.Values {
-	f := url.Values{"do": {"save"}, "block": {"5"}, "kind": {"bar"}, "label": {"Spending by category"}, "agg": {"sum"}, "col": {"Jumlah"},
-		"group": {"Kategori"}, "top": {"8"}, "fcol": {"Jenis"}, "fval": {"Keluar"}}
-	for k, v := range set {
-		f[k] = v
-	}
-	return f
-}
-
-func TestAChangedBlockUsesAnyColumnAndItsLabelFollowsUntilTyped(t *testing.T) {
+// Block editing and Reset are gone (ADR 0019): the Blocks tab is not found, and posting an edit changes nothing.
+func TestTheBlocksTabIsGone(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
-
-	// Perkara is no blank of the Template the Dashboard opened with.
-	ada.editBlocks(path, barForm(url.Values{"group": {"Perkara"}, "agg": {"avg"}, "split": {"Kategori"}, "top": {"0"}}))
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	b := blocks[5]
-	if b.Group != "Perkara" || b.Value.Agg != "avg" || b.Split != "Kategori" || b.Top != 0 || b.Label != "Average Jumlah by Perkara" || b.LabelSet {
-		t.Fatalf("the changed bar is %+v %+v", b, b.Value)
-	}
-	if b.Filter == nil || b.Filter.Col != "Jenis" || len(b.Filter.Vals) != 1 {
-		t.Fatalf("the bar's filter is %+v", b.Filter)
-	}
-
-	ada.editBlocks(path, barForm(url.Values{"label": {"Purata belanja"}, "group": {"Perkara"}, "agg": {"avg"}}))
-	ada.editBlocks(path, barForm(url.Values{"label": {"Purata belanja"}, "group": {"Kategori"}, "agg": {"avg"}}))
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if blocks[5].Label != "Purata belanja" || !blocks[5].LabelSet {
-		t.Fatalf("a typed label changed with the choices: %+v", blocks[5])
-	}
-	ada.editBlocks(path, barForm(url.Values{"label": {""}, "group": {"Kategori"}, "agg": {"distinct"}, "col": {"Perkara"}}))
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if blocks[5].Label != "Distinct Perkara by Kategori" || blocks[5].LabelSet {
-		t.Fatalf("an emptied label does not follow the choices again: %+v", blocks[5])
-	}
-
-	// A width change keeps a Template label; a kind change keeps the label, value, filter and width.
-	donut := url.Values{"do": {"save"}, "block": {"6"}, "kind": {"donut"}, "label": {"Money in by source"}, "agg": {"sum"},
-		"col": {"Jumlah"}, "group": {"Kategori"}, "fcol": {"Jenis"}, "fval": {"Masuk"}, "width": {"full"}}
-	ada.editBlocks(path, donut)
-	donut.Set("kind", "bar")
-	ada.editBlocks(path, donut)
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if b := blocks[6]; b.Kind != "bar" || b.Label != "Money in by source" || !b.Wide || b.Top != 8 || b.Filter.Vals[0] != "Masuk" {
-		t.Fatalf("the donut turned bar is %+v", b)
-	}
-
-	// A table shows the ticked columns, sorted, 25 rows.
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"7"}, "kind": {"table"}, "label": {"Latest transactions"},
-		"cols": {"Tarikh", "Perkara"}, "sort": {"Jumlah"}, "limit": {"25"}, "width": {"half"}, "close": {"1"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if b := blocks[7]; strings.Join(b.Cols, ",") != "Tarikh,Perkara" || b.Sort != "Jumlah" || b.Limit != 25 || b.Wide {
-		t.Fatalf("the table is %+v", b)
-	}
-	// A calculation, row by row, then averaged.
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"1"}, "kind": {"card"}, "label": {"Money in"}, "agg": {"calc"},
-		"a": {"Jumlah"}, "op": {"x"}, "b": {"Jumlah"}, "then": {"avg"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if v := blocks[1].Value; v.Agg != "calc" || v.Op != "x" || v.Then != "avg" || blocks[1].Label != "Jumlah × Jumlah" {
-		t.Fatalf("the calculation card is %+v %+v", blocks[1], v)
-	}
-}
-
-func TestACardShowsTheIconPickedInTheEditor(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	res, body := ada.get(path + "/blocks?open=3")
-	expectStatus(t, res, body, http.StatusOK, `<option value="check" selected>Tick</option>`) // the Template's icon
-	expectStatus(t, res, body, http.StatusOK, `<option value="none">None</option>`)
-
-	card := url.Values{"do": {"save"}, "block": {"3"}, "kind": {"card"}, "label": {"Transactions"}, "agg": {"count"}, "icon": {"star"}}
-	ada.editBlocks(path, card)
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[3].Icon != "star" {
-		t.Fatalf("the card's icon is %q, want star", blocks[3].Icon)
-	}
-	card.Set("icon", "none")
-	ada.editBlocks(path, card)
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[3].Icon != "none" {
-		t.Fatalf("the card's icon is %q, want none", blocks[3].Icon)
-	}
-	card.Set("icon", "rocket")
-	res, body = ada.post(path+"/blocks", card)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-
-	// A new card starts with the icon its value suggests, and follows the value until the Learner picks one.
-	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "money" {
-		t.Fatalf("a new card summing the RM column Jumlah shows %q, want money", blocks[4].Icon)
-	}
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"count"}, "icon": {"money"}})
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[4].Icon != "people" {
-		t.Fatalf("a new card turned to counting rows shows %q, want people", blocks[4].Icon)
-	}
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"card"}, "agg": {"sum"}, "col": {"Jumlah"}, "icon": {"people"}})
-
-	ada.switchLanguage("ms", path+"/blocks")
-	res, body = ada.get(path + "/blocks?open=4")
-	for _, want := range []string{`<label for="b-icon">Ikon</label>`, `<option value="none">Tiada</option>`, `<option value="money" selected>Wang</option>`, "Bintang"} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-}
-
-func TestABarTurnsVertical(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	res, body := ada.get(path + "/blocks?open=5")
-	expectStatus(t, res, body, http.StatusOK, `name="direction" value="horizontal" checked`)
-	ada.editBlocks(path, barForm(url.Values{"direction": {"vertical"}, "split": {"Jenis"}}))
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[5].Dir != "vertical" || blocks[5].Split != "Jenis" {
-		t.Fatalf("the vertical bar is %+v", blocks[5])
-	}
-	res, body = ada.post(path+"/blocks", barForm(url.Values{"direction": {"diagonal"}}))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-	ada.editBlocks(path, barForm(url.Values{"direction": {"horizontal"}}))
-	if blocks, _ := ada.pageBlocks(path + "/view/"); blocks[5].Dir != "" {
-		t.Fatalf("a horizontal bar stores direction %q", blocks[5].Dir)
-	}
-	ada.switchLanguage("ms", path+"/blocks")
-	res, body = ada.get(path + "/blocks?open=5")
-	for _, want := range []string{">Arah<", ">Mendatar<", ">Menegak<"} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-}
-
-func TestADonutShowsTheSlicesTheLearnerPicks(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	ada.editBlocks(path, barForm(url.Values{"kind": {"donut"}}))
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if b := blocks[5]; b.Kind != "donut" || b.Slices != nil {
-		t.Fatalf("a bar turned donut is %+v, want 6 slices by default", b)
-	}
-	res, body := ada.get(path + "/blocks?open=5")
-	for _, want := range []string{`name="slices" value="6" checked`, `name="slices" value="5"`, `name="slices" value="8"`, `name="slices" value="0"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	for n, want := range map[string]int{"5": 5, "0": 0, "8": 8} {
-		ada.editBlocks(path, barForm(url.Values{"kind": {"donut"}, "slices": {n}}))
-		blocks, _ = ada.pageBlocks(path + "/view/")
-		if b := blocks[5]; b.Slices == nil || *b.Slices != want {
-			t.Errorf("slices %s saved as %v", n, b.Slices)
-		}
-	}
-	res, body = ada.post(path+"/blocks", barForm(url.Values{"kind": {"donut"}, "slices": {"7"}}))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-	ada.editBlocks(path, barForm(url.Values{"kind": {"bar"}}))
-	if blocks, _ = ada.pageBlocks(path + "/view/"); blocks[5].Slices != nil {
-		t.Errorf("a donut turned bar keeps slices %v", *blocks[5].Slices)
-	}
-}
-
-func TestTheEditorAddsAHeatmapAcrossTwoTextColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"heatmap"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if b := blocks[8]; b.Kind != "heatmap" || !b.Wide || b.Top != 8 || b.Group == "" || b.Split == "" || b.Group == b.Split {
-		t.Fatalf("a new heatmap is %+v", b)
-	}
-	res, body := ada.get(path + "/blocks?open=8")
-	for _, want := range []string{"Rows down", "Columns across", `name="split"`, `name="top" value="8" checked`, "Past the 10 largest columns", `name="fcol"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	if strings.Contains(body, `name="direction"`) {
-		t.Error("a heatmap offers a Direction, which only a bar has")
-	}
-	if strings.Contains(body, `<option value="" selected>None</option>`) {
-		t.Errorf("a heatmap offers no column across:\n%s", body)
-	}
-
-	heat := url.Values{"do": {"save"}, "block": {"8"}, "kind": {"heatmap"}, "agg": {"sum"}, "col": {"Jumlah"}, "group": {"Kategori"}, "split": {"Kategori"}, "top": {"5"}}
-	res, body = ada.post(path+"/blocks", heat)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "A heatmap needs two different Text columns")
-	heat.Set("split", "Jenis")
-	ada.editBlocks(path, heat)
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if b := blocks[8]; b.Group != "Kategori" || b.Split != "Jenis" || b.Top != 5 || b.Value.Agg != "sum" || b.Label != "Jumlah by Kategori × Jenis" {
-		t.Fatalf("the saved heatmap is %+v", b)
-	}
-
-	// A bar turned heatmap spans the row and gets a column across.
-	ada.editBlocks(path, barForm(url.Values{"kind": {"heatmap"}}))
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if b := blocks[5]; b.Kind != "heatmap" || !b.Wide || b.Top != 8 || b.Split == "" || b.Split == b.Group {
-		t.Fatalf("the bar turned heatmap is %+v", b)
-	}
-
-	ada.switchLanguage("ms", path+"/blocks")
-	res, body = ada.get(path + "/blocks?open=8")
-	for _, want := range []string{"Peta haba", "Baris ke bawah", "Lajur melintang"} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-}
-
-func TestBlocksMoveAmongTheirOwnSortAndGo(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	ada.editBlocks(path, url.Values{"do": {"down"}, "block": {"3"}}) // the last card stays among the cards
-	ada.editBlocks(path, url.Values{"do": {"up"}, "block": {"4"}})   // the first chart too
-	ada.editBlocks(path, url.Values{"do": {"up"}, "block": {"3"}})
-	ada.editBlocks(path, url.Values{"do": {"down"}, "block": {"5"}})
-	ada.editBlocks(path, url.Values{"do": {"remove"}, "block": {"0"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if got, want := labels(blocks), "Money in, Transactions, Money out, By month, Money in by source, Spending by category, Latest transactions"; got != want {
-		t.Fatalf("blocks after moving and removing: %s, want %s", got, want)
-	}
-}
-
-func TestTheServerKeepsBlocksWithinLimitsAndTheDataset(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	for _, f := range []url.Values{
-		barForm(url.Values{"group": {"Pelanggan"}}),
-		barForm(url.Values{"top": {"7"}}),
-		barForm(url.Values{"kind": {"pie"}}),
-		barForm(url.Values{"fcol": {"Jumlah"}}),
-		barForm(url.Values{"label": {strings.Repeat("a", 81)}}),
-		{"do": {"filter-bar"}, "bar": {"Jumlah"}},
-	} {
-		res, body := ada.post(path+"/blocks", f)
-		if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(body, `class="up-err" role="alert"`) {
-			t.Fatalf("%v = %d, want refused:\n%s", f, res.StatusCode, body)
-		}
-	}
-	res, body := ada.post(path+"/blocks", barForm(url.Values{"group": {"Pelanggan"}}))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This Dataset has no column called Pelanggan.")
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if blocks[5].Group != "Kategori" {
-		t.Fatalf("a refused edit was saved: %+v", blocks[5])
-	}
-
-	for range 4 {
-		ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
+	before, _ := ada.pageBlocks(path + "/view/")
+	res, body := ada.get(path)
+	if strings.Contains(body, `href="`+path+`/blocks"`) {
+		t.Fatalf("the Dashboard still links its Blocks tab:\n%s", body)
 	}
 	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, "12/20 · Cards 8/8")
-	expectStatus(t, res, body, http.StatusOK, `name="kind" value="card" disabled`)
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"add"}, "kind": {"card"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "at most 8 cards")
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"save"}, "block": {"8"}, "kind": {"card"}, "agg": {"count"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "at most 8 cards")
-	for range 8 {
-		ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"table"}})
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	for _, form := range []url.Values{{"do": {"reset"}}, {"do": {"remove"}, "block": {"0"}}} {
+		res, body = ada.post(path+"/blocks", form)
+		expectStatus(t, res, body, http.StatusNotFound, "")
 	}
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"add"}, "kind": {"line"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "at most 20 blocks")
-	if blocks, _ := ada.pageBlocks(path + "/view/"); len(blocks) != 20 {
-		t.Fatalf("%d blocks", len(blocks))
-	}
-}
-
-// A saved block keeps no more than the editor offers: the Config is copied into every Deployment page.
-func TestASavedBlockKeepsNoMoreFilterValuesOrColumnsThanTheEditorOffers(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	many := make([]string, lab.MaxFilterValues+1)
-	for i := range many {
-		many[i] = fmt.Sprint("v", i)
-	}
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {"4"}, "kind": {"table"}})
-	for _, f := range []url.Values{
-		barForm(url.Values{"fval": many}),
-		barForm(url.Values{"fval": {strings.Repeat("a", 201)}}),
-		{"do": {"save"}, "block": {"4"}, "kind": {"table"}, "cols": {"Jumlah", "Jumlah"}, "limit": {"10"}},
-		{"do": {"filter-bar"}, "bar": {"Perkara", "Perkara"}},
-		barForm(url.Values{"pad": {strings.Repeat("a", 64<<10)}}),
-	} {
-		if res, body := ada.post(path+"/blocks", f); res.StatusCode < 400 {
-			t.Errorf("%.200v = %d, want refused:\n%.300s", f, res.StatusCode, body)
-		}
-	}
-	ada.editBlocks(path, barForm(url.Values{"fval": many[:lab.MaxFilterValues]}))
-}
-
-func TestTheFilterBarIsTheTickedColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	link := ada.deploy(path)
-	ada.editBlocks(path, url.Values{"do": {"filter-bar"}, "bar": {"Perkara", "Tarikh"}})
-	_, filters := ada.second().pageBlocks(link)
-	if strings.Join(filters, ",") != "Perkara,Tarikh" {
-		t.Fatalf("the Deployment's filter bar is %v", filters)
-	}
-	res, body := ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, `name="bar" value="Perkara" checked`)
-}
-
-func TestABlankFilterValueReadsInTheLearnersLanguage(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
-	res, body := ada.postFile(path+"/dataset", "november.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"},
-		[]any{day, nil, "Dapur", "Keluar", 80.0}, []any{day, "Jualan", "Kedai", "Masuk", 700.0}))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, nil)
-	ada.editBlocks(path, barForm(url.Values{"fcol": {"Perkara"}}))
-	ada.switchLanguage("ms", path+"/blocks")
-	res, body = ada.get(path + "/blocks?open=5")
-	expectStatus(t, res, body, http.StatusOK, `name="fval" value="(blank)">(kosong)</label>`)
-}
-
-func TestTheFilterBarTakesOneDateColumn(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
-	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	res, body := ada.postFile(path+"/dataset", "tugas.xlsx", testutil.XLSX(t, []string{"Mula", "Tamat", "Nota"}, []any{day, day, "Cat"}))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"filter-bar"}, "bar": {"Mula", "Tamat"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "one Date column")
-	ada.editBlocks(path, url.Values{"do": {"filter-bar"}, "bar": {"Nota", "Tamat"}})
-}
-
-func TestResetToTemplatePutsBackTheTemplatesBlocksFromTheCurrentColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	opened, bar := ada.pageBlocks(path + "/view/")
-	res, body := ada.get(path + "/blocks")
-	for _, want := range []string{"Reset to Template", "Your own blocks and changes go", `name="do" value="reset"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-
-	ada.editBlocks(path, url.Values{"do": {"remove"}, "block": {"0"}})
-	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"table"}})
-	ada.editBlocks(path, barForm(url.Values{"block": {"4"}, "label": {"Belanja"}}))
-	ada.editBlocks(path, url.Values{"do": {"filter-bar"}, "bar": {"Perkara"}})
-	ada.editBlocks(path, url.Values{"do": {"reset"}})
-	blocks, filters := ada.pageBlocks(path + "/view/")
-	if labels(blocks) != labels(opened) || fmt.Sprint(filters) != fmt.Sprint(bar) {
-		t.Fatalf("after Reset: %s %v, want %s %v", labels(blocks), filters, labels(opened), bar)
-	}
-
-	// A new Dataset without Kategori: Reset leaves out the blocks that need it.
-	day := time.Date(2026, 10, 6, 0, 0, 0, 0, time.UTC)
-	res, body = ada.postFile(path+"/dataset", "baru.xlsx", testutil.XLSX(t, []string{"Tarikh", "Perkara", "Jenis", "Jumlah"},
-		[]any{day, "Gula", "Keluar", 30.0}, []any{day, "Jualan", "Masuk", 500.0}))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, nil)
-	ada.editBlocks(path, url.Values{"do": {"reset"}})
-	blocks, filters = ada.pageBlocks(path + "/view/")
-	if strings.Contains(labels(blocks), "Spending by category") || !strings.Contains(labels(blocks), "Balance") || slices.Contains(filters, "Kategori") {
-		t.Fatalf("Reset without Kategori: %s %v", labels(blocks), filters)
-	}
-
-	ada.switchLanguage("ms", path+"/blocks")
-	res, body = ada.get(path + "/blocks")
-	expectStatus(t, res, body, http.StatusOK, "Set semula ke Template")
-}
-
-func TestALockedBlockKeepsItsKindAndCalculationButMovesToOtherColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	i := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Label == "Balance" })
-	at := fmt.Sprint(i)
-	res, body := ada.get(path + "/blocks?open=" + at)
-	for _, want := range []string{`<fieldset class="field" disabled><legend>Kind`, `name="agg" disabled`,
-		"You can still rename, move, resize or remove it, or point it at other columns.", `name="where"`, `name="minus"`} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-
-	form := func(set url.Values) url.Values {
-		f := url.Values{"do": {"save"}, "block": {at}, "label": {"Balance"}, "col": {"Jumlah"}, "where": {"Jenis"}, "minus": {"Jenis"}, "fcol": {""}}
-		for k, v := range set {
-			f[k] = v
-		}
-		return f
-	}
-	for _, f := range []url.Values{form(url.Values{"kind": {"bar"}}), form(url.Values{"agg": {"count"}}), form(url.Values{"where": {"Jumlah"}})} {
-		res, body := ada.post(path+"/blocks", f)
-		if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(body, `class="up-err" role="alert"`) {
-			t.Fatalf("%v = %d, want refused:\n%s", f, res.StatusCode, body)
-		}
-	}
-	res, body = ada.post(path+"/blocks", form(url.Values{"kind": {"bar"}}))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "kind and calculation stay as the Template made them")
-
-	ada.editBlocks(path, form(url.Values{"label": {"Baki"}, "where": {"Kategori"}, "minus": {"Kategori"}}))
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	b := blocks[i]
-	if b.Label != "Baki" || !b.Locked || b.Kind != "card" || b.Value.Agg != "sum" || b.Value.Col != "Jumlah" ||
-		fmt.Sprint(b.Where, b.Minus) != "[Kategori Masuk] [Kategori Keluar]" {
-		t.Fatalf("the repointed Balance is %+v", b)
-	}
-}
-
-func TestALockedBlockTakesNoFilter(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.workReady()
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	at := fmt.Sprint(slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Label == "Balance" }))
-	res, body := ada.get(path + "/blocks?open=" + at)
-	expectStatus(t, res, body, http.StatusOK, `name="where"`)
-	if strings.Contains(body, `name="fcol"`) {
-		t.Fatal("a locked block's form offers a filter")
-	}
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"save"}, "block": {at}, "label": {"Balance"}, "col": {"Jumlah"},
-		"where": {"Jenis"}, "minus": {"Jenis"}, "fcol": {"Kategori"}})
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, `class="up-err" role="alert"`)
-}
-
-func TestResetOnGeneralRebuildsFromTheCurrentDataset(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kedai")
-	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	res, body := ada.postFile(path+"/dataset", "senarai.xlsx", testutil.XLSX(t, []string{"Hari", "Nota"}, []any{day, "Buka"}))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.post(path+"/dataset/confirm", url.Values{"template": {"general"}})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	res, body = ada.postFile(path+"/dataset", "senarai.xlsx", testutil.XLSX(t, []string{"Hari", "Nota", "Kos"}, []any{day, "Buka", 12.5}))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, nil)
-	ada.editBlocks(path, url.Values{"do": {"reset"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	if table := blocks[len(blocks)-1]; table.Kind != "table" || strings.Join(table.Cols, ",") != "Hari,Nota,Kos" {
-		t.Fatalf("Reset on General gave %+v", blocks)
-	}
-}
-
-func TestResetOnGeneralUsesColumnRolesAndStoredBlocksStayUntilThen(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("general", "Stor")
-	res, body := ada.postFile(path+"/dataset", "stok.xlsx", stockFile(t))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, url.Values{"template": {"general"}})
-	sumsPrice := func(blocks []lab.WorkBlock) bool {
-		return slices.ContainsFunc(blocks, func(b lab.WorkBlock) bool {
-			return b.Value != nil && b.Value.Agg == "sum" && b.Value.Col == "Unit Price"
-		})
-	}
-	ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {"card"}})
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	last := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return !b.IsCard() }) - 1
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(last)}, "kind": {"card"}, "agg": {"sum"}, "col": {"Unit Price"}})
-	if blocks, _ = ada.pageBlocks(path + "/view/"); !sumsPrice(blocks) {
-		t.Fatalf("the Learner's card adding up Unit Price is gone: %s", labels(blocks))
-	}
-	ada.editBlocks(path, url.Values{"do": {"reset"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if sumsPrice(blocks) || !strings.Contains(labels(blocks), "Average Unit Price") || !strings.Contains(labels(blocks), "Kuantiti × Unit Price") {
-		t.Fatalf("Reset gave %s", labels(blocks))
-	}
-}
-
-// salesFile is a sales list whose first Text columns are an invoice number, one branch and a different customer
-// on every row, and whose first Number column is a price: the columns a new block must not start with.
-func salesFile(t *testing.T) []byte {
-	t.Helper()
-	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	var rows [][]any
-	for i := range 12 {
-		rows = append(rows, []any{fmt.Sprintf("INV-%02d", i), "Ipoh", fmt.Sprintf("Pelanggan %d", i),
-			[]string{"Beras", "Beras", "Beras", "Minyak", "Gula"}[i%5], []string{"Tunai", "Kad"}[i%2],
-			float64(3 + i%4), float64(20 + i), day.AddDate(0, 0, i)})
-	}
-	return testutil.XLSX(t, []string{"Invoice", "Cawangan", "Pelanggan", "Kategori", "Bayaran", "Harga", "Jumlah", "Tarikh"}, rows...)
-}
-
-func TestNewBlocksStartWithTheBestColumn(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("general", "Jualan")
-	res, body := ada.postFile(path+"/dataset", "jualan.xlsx", salesFile(t))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	ada.confirmWork(path, url.Values{"template": {"general"}})
-	added := func(kind string) lab.WorkBlock {
-		t.Helper()
-		before, _ := ada.pageBlocks(path + "/view/")
-		ada.editBlocks(path, url.Values{"do": {"add"}, "kind": {kind}})
-		after, _ := ada.pageBlocks(path + "/view/")
-		for i, b := range after {
-			if i >= len(before) || !reflect.DeepEqual(b, before[i]) {
-				return b
-			}
-		}
-		t.Fatalf("adding a %s changed nothing", kind)
-		return lab.WorkBlock{}
-	}
-	sumJumlah := func(v *lab.Value) bool { return v != nil && v.Agg == "sum" && v.Col == "Jumlah" }
-
-	for _, kind := range []string{"bar", "donut"} {
-		if b := added(kind); b.Group != "Kategori" || !sumJumlah(b.Value) {
-			t.Errorf("a new %s groups by %q with %+v, want Jumlah by Kategori", kind, b.Group, b.Value)
-		}
-	}
-	if b := added("heatmap"); b.Group != "Kategori" || b.Split != "Bayaran" {
-		t.Errorf("a new heatmap is %q × %q, want Kategori × Bayaran", b.Group, b.Split)
-	}
-	if b := added("line"); b.X != "Tarikh" || !sumJumlah(b.Value) {
-		t.Errorf("a new line is %+v over %q, want Jumlah over Tarikh", b.Value, b.X)
-	}
-	card := added("card")
-	if !sumJumlah(card.Value) || card.Label != "Jumlah" {
-		t.Errorf("a new card is %q, %+v, want the sum of Jumlah", card.Label, card.Value)
-	}
-
-	// A kind change fills the new kind's options the same way and keeps what the Learner set.
-	blocks, _ := ada.pageBlocks(path + "/view/")
-	at := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return !b.IsCard() }) - 1 // the new card
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(at)}, "kind": {"donut"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	donut := at // a card turned chart goes first after the cards
-	if b := blocks[donut]; b.Kind != "donut" || b.Group != "Kategori" || !sumJumlah(b.Value) {
-		t.Fatalf("the card turned donut is %+v %+v", b, b.Value)
-	}
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(donut)}, "kind": {"donut"}, "agg": {"avg"}, "col": {"Jumlah"}, "group": {"Bayaran"}})
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(donut)}, "kind": {"heatmap"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if b := blocks[donut]; b.Kind != "heatmap" || b.Group != "Bayaran" || b.Split != "Kategori" || b.Value.Agg != "avg" {
-		t.Fatalf("the donut by Bayaran turned heatmap is %+v %+v", b, b.Value)
-	}
-	table := slices.IndexFunc(blocks, func(b lab.WorkBlock) bool { return b.Kind == "table" })
-	ada.editBlocks(path, url.Values{"do": {"save"}, "block": {fmt.Sprint(table)}, "kind": {"card"}})
-	blocks, _ = ada.pageBlocks(path + "/view/")
-	if !slices.ContainsFunc(blocks, func(b lab.WorkBlock) bool { return b.Kind == "card" && sumJumlah(b.Value) }) {
-		t.Fatalf("the table turned card does not sum Jumlah: %s", labels(blocks))
+	if after, _ := ada.pageBlocks(path + "/view/"); labels(after) != labels(before) {
+		t.Fatalf("the blocks changed: %s, were %s", labels(after), labels(before))
 	}
 }

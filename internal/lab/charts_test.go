@@ -60,7 +60,7 @@ func TestAWorkDashboardWithHandSetBlocksDraws(t *testing.T) {
 			lab.WorkBlock{Kind: "table", Label: "Jadual B", Cols: []string{"Kos"}, Limit: 10},
 		),
 	}
-	index, data, err := lab.Generate(lab.TemplateByKey("general"), "Klinik", "", cfg, d, "data.json")
+	index, data, err := generate("Klinik", "", cfg, d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestADashboardDrawsInItsTheme(t *testing.T) {
 		{"", "--bg:#F6F8FB", "#C89B3C", "#0E2A47"},
 		{"neon", "--bg:#F6F8FB", "#C89B3C", "#0E2A47"},
 	} {
-		index, data, err := lab.Generate(lab.TemplateByKey("general"), "Staf", c.theme, cfg, d, "data.json")
+		index, data, err := generate("Staf", c.theme, cfg, d, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,7 +145,7 @@ func TestAHeatmapShadesItsCellsInItsThemesScale(t *testing.T) {
 	heat := lab.WorkBlock{Kind: "heatmap", Label: "Jabatan ikut status", Value: &lab.Value{Agg: "count"}, Group: "Jabatan", Split: "Status", Top: 8, Wide: true}
 	draw := func(theme string, money []string, blocks ...lab.WorkBlock) string {
 		t.Helper()
-		index, data, err := lab.Generate(lab.TemplateByKey("general"), "Staf", theme, &lab.Config{Blocks: blocks, Money: money}, d, "data.json")
+		index, data, err := generate("Staf", theme, &lab.Config{Blocks: blocks, Money: money}, d, "data.json")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -211,9 +211,11 @@ func TestChartsDrawsEveryThemeCaveOffersAndNoOther(t *testing.T) {
 	}
 }
 
+// The block editor is gone (ADR 0019), but a card saved by it may still name any icon it offered.
 func TestChartsDrawsEveryIconACardMayName(t *testing.T) {
-	if out := strings.TrimSpace(node(t, "icons")); out != strings.Join(lab.Icons, " ") {
-		t.Fatalf("charts.js draws icons %q, a card may name %q", out, lab.Icons)
+	icons := "people money box calendar check alert chart-up tag clock building cart star"
+	if out := strings.TrimSpace(node(t, "icons")); out != icons {
+		t.Fatalf("charts.js draws icons %q, a card may name %q", out, icons)
 	}
 }
 

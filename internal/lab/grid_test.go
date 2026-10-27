@@ -45,7 +45,7 @@ func TestCleanUpUnpivotsADaysAcrossGridToStaffDateCodeRows(t *testing.T) {
 		"Ali":  {1: "P", 2: "M", 31: "P"},
 		"Siti": {5: "M"},
 	}))
-	res := clean(t, file, lab.General)
+	res := clean(t, file)
 
 	wantCols := []lab.Column{{"Staff", lab.Text}, {"Date", lab.Date}, {"Code", lab.Text}}
 	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) {
@@ -74,13 +74,13 @@ func TestCleanUpReadsTheGridMonthFromTheSheetNameOrTheLearnerElseThisMonth(t *te
 	codes := map[string]map[int]string{"Ali": {3: "P"}}
 	at := func(res *lab.CleanUp) any { return res.Dataset.Rows[0][1] }
 
-	if got := at(clean(t, testutil.Workbook(t, roster("Mac 2025", "Jadual Tugas", codes)), lab.General)); got != "2025-03-03" {
+	if got := at(clean(t, testutil.Workbook(t, roster("Mac 2025", "Jadual Tugas", codes)))); got != "2025-03-03" {
 		t.Fatalf("Malay month in the sheet name: %v", got)
 	}
-	if got := at(clean(t, testutil.Workbook(t, roster("Roster", "Duty roster, February", codes)), lab.General)); got != time.Date(time.Now().Year(), 2, 3, 0, 0, 0, 0, time.UTC).Format("2006-01-02") {
+	if got := at(clean(t, testutil.Workbook(t, roster("Roster", "Duty roster, February", codes)))); got != time.Date(time.Now().Year(), 2, 3, 0, 0, 0, 0, time.UTC).Format("2006-01-02") {
 		t.Fatalf("English month in the title, this year: %v", got)
 	}
-	if got := at(clean(t, testutil.Workbook(t, roster("Roster", "Jadual Tugas", codes)), lab.General)); got != time.Date(time.Now().Year(), time.Now().Month(), 3, 0, 0, 0, 0, time.UTC).Format("2006-01-02") {
+	if got := at(clean(t, testutil.Workbook(t, roster("Roster", "Jadual Tugas", codes)))); got != time.Date(time.Now().Year(), time.Now().Month(), 3, 0, 0, 0, 0, time.UTC).Format("2006-01-02") {
 		t.Fatalf("no month named, this month: %v", got)
 	}
 	res := cleanWith(t, testutil.Workbook(t, roster("Oktober", "Jadual Tugas Oktober 2026", codes)), lab.Settings{Month: 1, Year: 2027})
@@ -94,7 +94,7 @@ func TestDepartmentGridsAreEachUnpivotedThenCombined(t *testing.T) {
 		roster("Dapur", "Jadual Tugas November 2026", map[string]map[int]string{"Ali": {1: "P"}}),
 		roster("Kaunter", "Jadual Tugas November 2026", map[string]map[int]string{"Siti": {2: "M"}, "Abu": {30: "P"}}),
 	)
-	res := clean(t, file, lab.General)
+	res := clean(t, file)
 
 	wantCols := []lab.Column{{"Sheet", lab.Text}, {"Staff", lab.Text}, {"Date", lab.Date}, {"Code", lab.Text}}
 	if !reflect.DeepEqual(res.Dataset.Columns, wantCols) {
@@ -137,7 +137,7 @@ func TestAGridGivesStaffDateCodeAndLeavesOutCountRowsUnderIt(t *testing.T) {
 		days([]any{nil, "Bilangan Pagi"}, map[int]any{1: 1, 2: 0}),
 		days([]any{nil, "Jumlah"}, map[int]any{1: 1, 2: 1}),
 	))
-	res := clean(t, file, template(t, "roster"))
+	res := clean(t, file)
 
 	wantCols := []lab.Column{{"Staff", lab.Text}, {"Date", lab.Date}, {"Code", lab.Text}}
 	wantRows := [][]any{{"Ali", "2026-10-01", "P"}, {"Siti", "2026-10-02", "M"}}
@@ -163,7 +163,7 @@ func TestAGridUnderManyBlankRowsCleansQuicklyAndKeepsItsTitleMonth(t *testing.T)
 		t.Fatal(err)
 	}
 	start := time.Now()
-	res := clean(t, b.Bytes(), lab.General)
+	res := clean(t, b.Bytes())
 	if took := time.Since(start); took > time.Second {
 		t.Fatalf("Clean took %v, want under 1s", took)
 	}

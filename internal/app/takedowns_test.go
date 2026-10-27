@@ -17,7 +17,7 @@ func TestAdminSeesEveryDeploymentAwakeOnesFirst(t *testing.T) {
 	awake := admin.deploy(admin.readyDashboard("Kewangan Baru"))
 
 	res, body := admin.get("/admin/deployments")
-	for _, want := range []string{"Ada", "ada@example.com", "Finance", "Kewangan Baru", "Awake", "Asleep: the Learner has no active Plan",
+	for _, want := range []string{"Ada", "ada@example.com", "Kewangan Baru", "Awake", "Asleep: the Learner has no active Plan",
 		"<code>kewangan-lama</code>", `href="` + asleep + `"`, `href="` + awake + `"`} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
@@ -79,17 +79,13 @@ func TestTakedownNeedsAReasonAndSleepsTheDeploymentAtOnce(t *testing.T) {
 		t.Fatalf("a taken-down Deployment still offers Takedown: %s", body)
 	}
 
-	// The Learner keeps the Dashboard, marked as taken down, and can download it.
+	// The Learner keeps the Dashboard, marked as taken down.
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `<a href="`+path+`">Kewangan</a>`)
 	expectStatus(t, res, body, http.StatusOK, "Taken down")
 	res, body = ada.get(path + "/deploy")
 	expectStatus(t, res, body, http.StatusOK, "Cave took this Deployment offline on")
 	expectStatus(t, res, body, http.StatusOK, "Shared under a real company&#39;s name.")
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/download"`)
-	if res, _ := ada.get(path + "/download"); res.StatusCode != http.StatusOK {
-		t.Fatalf("download after Takedown: %d", res.StatusCode)
-	}
 
 	// A renewal does not wake it.
 	admin.ageAllPeriods(31)

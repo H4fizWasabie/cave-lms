@@ -8,7 +8,7 @@
 <body>
   <main>
     <header class="dh">
-      <div><h1>{{.Name}}</h1>{{with .Question}}<p class="dq">{{.}}</p>{{end}}<p id="count"></p></div>
+      <div><h1>{{.Name}}</h1><p id="count"></p></div>
       <form class="df" id="filters" aria-label="Filters"></form>
     </header>
     <section class="dcards" id="cards"></section>
@@ -19,13 +19,6 @@
     const dashboard = {{.Config}};
     fetch({{.Data}})
       .then(response => response.json())
-      .catch(() => new Promise(done => {
-        // Opened from a file on the computer, browsers block fetch: read the same rows from data.js.
-        const script = document.createElement("script");
-        script.src = "data.js";
-        script.onload = () => done(dashboardRows);
-        document.head.append(script);
-      }))
       .then(rows => drawDashboard(dashboard, rows));
   </script>
 </body>

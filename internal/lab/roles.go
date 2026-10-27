@@ -40,7 +40,7 @@ type profile struct {
 	to     string
 }
 
-// Word lists for roles, lower case, Malay and English, beside the Templates' own Loose names.
+// Word lists for roles, lower case, Malay and English, beside salesBlanks' and stockBlanks' Loose names.
 var (
 	idWords   = []string{"id", "kod", "code", "sku", "barcode", "invoice", "invois", "resit", "receipt", "ic", "nric", "ref"}
 	idNames   = []string{"no", "no.", "bil", "bil.", "#", "number", "nombor"}
@@ -54,16 +54,14 @@ var (
 	priceWords = []string{"price", "harga", "cost", "kos"}
 	yearWords  = []string{"year", "tahun", "yr"}
 	dateWords  = []string{"tarikh", "date", "created"}
+	// dateNames rank dates, best first: the names the Finance Template looked for.
+	dateNames = []string{"tarikh", "date", "created", "hari", "day"}
 )
 
 // mainNames rank measures, best first: Sales' Amount names, then the closing and actual counts Inventory looks for,
 // in English and Malay.
-var mainNames = append(slices.Clone(blank(Sales, "amount").Loose), "closing", "actual", "sebenar", "akhir")
-
-// blank is the Template's blank of key.
-func blank(t *Template, key string) Blank {
-	return t.Blanks[slices.IndexFunc(t.Blanks, func(b Blank) bool { return b.Key == key })]
-}
+var mainNames = append(slices.Clone(salesBlanks[slices.IndexFunc(salesBlanks,
+	func(b Blank) bool { return b.Key == "amount" })].Loose), "closing", "actual", "sebenar", "akhir")
 
 // words are a column name's lower-case words: "No. Invoice" is [no invoice].
 func words(name string) []string {
@@ -140,7 +138,7 @@ func profiles(d *Dataset) []profile {
 			role(Constant, "lab.note.constant")
 		case col.Type == Date:
 			role(DateRole, "")
-			p.rank = rankOf(col.Name, blank(Finance, "date").Loose)
+			p.rank = rankOf(col.Name, dateNames)
 		case col.Type != Date && yearNamed(col.Name) && years: // Clean-up types them as Text, so they group
 			role(Dimension, "lab.note.year")
 		case col.Type == Number && dateNamed(col.Name): // a day of the month, or Excel's days since 1900
@@ -313,12 +311,11 @@ func tableCols(d *Dataset, ps []profile) []string {
 
 // buildGeneral makes one blank per column, filled by that column, and fills General's budget of blocks with the
 // best-ranked columns by role (ADR 0014): cards, a line, bars, a donut and a table.
-func buildGeneral(d *Dataset) (*Template, Choices) {
-	t, c := &Template{}, Choices{}
+func buildGeneral(d *Dataset) (*design, choices) {
+	plan, c := &design{}, choices{}
 	key := map[string]string{}
 	for i, col := range d.Columns {
 		k := fmt.Sprintf("c%d", i+1)
-		t.Blanks = append(t.Blanks, Blank{Key: k, Label: col.Name, Type: col.Type})
 		c[k], key[col.Name] = col.Name, k
 	}
 	ps := profiles(d)
@@ -345,7 +342,7 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 		cards = slices.Insert(cards, min(at, len(cards)), calc)
 	}
 	cards = append(cards, Block{Kind: "card", Label: "Rows", Icon: "people", Agg: "count"})
-	t.Blocks = cards[:min(generalCards, len(cards))]
+	plan.Blocks = cards[:min(generalCards, len(cards))]
 
 	if len(dates) > 0 {
 		dt := dates[0]
@@ -354,18 +351,18 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 			if s := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= generalLineSeries }); s >= 0 {
 				line.Series = key[dims[s].Name]
 			}
-			t.Blocks = append(t.Blocks, line)
+			plan.Blocks = append(plan.Blocks, line)
 		}
-		t.Filters = append(t.Filters, key[dt.Name])
+		plan.Filters = append(plan.Filters, key[dt.Name])
 	}
 	var bars []string
 	for _, g := range dims[:min(generalBars, len(dims))] {
-		t.Blocks = append(t.Blocks, Block{Kind: "bar", Label: what + " by " + g.Name, Group: key[g.Name], Of: of})
+		plan.Blocks = append(plan.Blocks, Block{Kind: "bar", Label: what + " by " + g.Name, Group: key[g.Name], Of: of})
 		bars = append(bars, g.Name)
-		t.Filters = append(t.Filters, key[g.Name])
+		plan.Filters = append(plan.Filters, key[g.Name])
 	}
 	if i := slices.IndexFunc(dims, func(p profile) bool { return p.Values <= generalDonutValues && !slices.Contains(bars, p.Name) }); i >= 0 {
-		t.Blocks = append(t.Blocks, Block{Kind: "donut", Label: what + " by " + dims[i].Name, Group: key[dims[i].Name], Of: of})
+		plan.Blocks = append(plan.Blocks, Block{Kind: "donut", Label: what + " by " + dims[i].Name, Group: key[dims[i].Name], Of: of})
 	}
 
 	table := Block{Kind: "table", Label: "Rows", Limit: 10}
@@ -375,8 +372,8 @@ func buildGeneral(d *Dataset) (*Template, Choices) {
 	for _, col := range tableCols(d, ps) {
 		table.Cols = append(table.Cols, key[col])
 	}
-	t.Blocks = append(t.Blocks, table)
-	return t, c
+	plan.Blocks = append(plan.Blocks, table)
+	return plan, c
 }
 
 // priceAndQuantity are d's quantity and price measures, by Sales' and Inventory's names, when it has both: a
@@ -385,8 +382,8 @@ func priceAndQuantity(d *Dataset, ps []profile) (quantity, price string) {
 	is := func(name string, avg bool) bool {
 		return slices.ContainsFunc(ps, func(p profile) bool { return p.Name == name && p.Role == Measure && (!avg || p.Avg) })
 	}
-	inv := Inventory.guessWork(d)
-	price, quantity = inv["price"], cmp.Or(Sales.guessWork(d)["quantity"], inv["quantity"])
+	inv := guess(stockBlanks, d)
+	price, quantity = inv["price"], cmp.Or(guess(salesBlanks, d)["quantity"], inv["quantity"])
 	if !is(price, true) || !is(quantity, false) || price == quantity {
 		return "", ""
 	}

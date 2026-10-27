@@ -163,7 +163,7 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 		a.serverError(w, r, err)
 		return
 	}
-	p := newDashboard(strings.TrimSpace(r.FormValue("name")))
+	p := &newDashboardPage{Name: strings.TrimSpace(r.FormValue("name"))}
 	refuse := func(msg string) {
 		if !tooBig {
 			p.HTML = r.PostFormValue("html")
@@ -197,9 +197,8 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 				return 0, err
 			}
 		}
-		// template is the engine's; General, as it reads none of a page Dashboard's, until the engine goes (#376).
-		err := tx.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, template, name) VALUES ($1, 'work', 'general', $2)
-			RETURNING id`, learner.ID, p.Name).Scan(&id)
+		err := tx.QueryRowContext(r.Context(), `INSERT INTO dashboards (learner_id, kind, name) VALUES ($1, 'work', $2) RETURNING id`,
+			learner.ID, p.Name).Scan(&id)
 		return id, err
 	})
 	switch {
@@ -237,8 +236,8 @@ func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, 
 	return out, rows.Err()
 }
 
-// uploadPage makes a new page current at the Dashboard's link, POST /lab/dashboards/{id}/page, checked as
-// createPageDashboard checks the first; a Dashboard without one, left so by the conversion (#375), takes its first.
+// uploadPage makes a new page current at a page Dashboard's link, POST /lab/dashboards/{id}/page, checked as
+// createPageDashboard checks the first; a built Dashboard, one without a page, takes none (ADR 0019).
 // The page it replaces turns earlier; past keepEarlier, the oldest earlier one goes, from the store too, and its bytes
 // no longer count against the Storage allowance.
 func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
@@ -250,6 +249,11 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if d.Page == nil {
+		msg := text.T(lang, "lab.page.err.built", d.Name)
+		a.render(w, r, http.StatusUnprocessableEntity, "message", page{Title: d.Name, Message: msg})
 		return
 	}
 	refuse := func(msg string) {

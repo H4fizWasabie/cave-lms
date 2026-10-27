@@ -71,7 +71,7 @@ func TestTheLabShowsStorageUsedAndPeriodsKeepTheirAllowance(t *testing.T) {
 	admin, ada, planID := storageSite(t, "1024")
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "0 KB of 1 GB")
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	ada.confirmFile(path, "mine.xlsx", bigFinance(t, 1))
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, ada.storedKB())
@@ -95,8 +95,8 @@ func TestALabPlanPeriodGetsTheLabPlansStorageAllowance(t *testing.T) {
 
 func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testing.T) {
 	_, ada, _ := storageSite(t, "1")
-	first := ada.createWork("finance", "One")
-	second := ada.createWork("finance", "Two")
+	first := ada.createWork("One")
+	second := ada.createWork("Two")
 	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
 	used := strings.TrimSuffix(ada.storedKB(), " of 1 GB") + " of your 1 MB"
 
@@ -114,7 +114,7 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 
 func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
 	_, ada, _ := storageSite(t, "2")
-	paths := []string{ada.createWork("finance", "One"), ada.createWork("finance", "Two")}
+	paths := []string{ada.createWork("One"), ada.createWork("Two")}
 	for i, p := range paths {
 		res, body := ada.postFile(p+"/dataset", "data.xlsx", bigFinance(t, int64(i+1)))
 		expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -141,7 +141,7 @@ func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
 func TestTheAdminHasNoStorageAllowance(t *testing.T) {
 	admin, _, planID := storageSite(t, "0")
 	admin.assignPlan("admin@example.com", planID)
-	path := admin.createWork("finance", "Kewangan")
+	path := admin.createWork("Kewangan")
 	admin.confirmFile(path, "mine.xlsx", admin.financeSample())
 	_, body := admin.get("/lab")
 	if strings.Contains(body, "of 0 KB") {

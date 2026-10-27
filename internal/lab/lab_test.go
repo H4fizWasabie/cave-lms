@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"math"
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
@@ -19,13 +21,23 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func finance(t *testing.T) *lab.Template {
+// testdata is the test workbook called name, in testdata/.
+func testdata(t *testing.T, name string) []byte {
 	t.Helper()
-	tpl := lab.TemplateByKey("finance")
-	if tpl == nil {
-		t.Fatal("no Finance Template")
+	b, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatal(err)
 	}
-	return tpl
+	return b
+}
+
+// generate is a built Dashboard's index.html and data.json, as Cave serves them.
+func generate(name, theme string, cfg *lab.Config, d *lab.Dataset, dataURL string) (index, data []byte, err error) {
+	if index, err = lab.Page(name, theme, cfg, d.Columns, dataURL); err != nil {
+		return nil, nil, err
+	}
+	data, err = lab.DataJSON(d)
+	return index, data, err
 }
 
 // allocated is how many bytes fn allocates.
@@ -37,29 +49,18 @@ func allocated(fn func()) uint64 {
 	return after.TotalAlloc - before.TotalAlloc
 }
 
-// sample is tpl's Sample cleaned, as the Lab cleans it at start-up.
-func sample(t *testing.T, tpl *lab.Template) *lab.CleanUp {
-	t.Helper()
-	return clean(t, tpl.Sample, tpl)
-}
-
 func TestGenerateWritesThePageAndTheDatasetAsDataJSON(t *testing.T) {
-	fin := finance(t)
-	res := sample(t, fin)
-	d := res.Dataset
-	index, data, err := lab.Generate(fin, "Kewangan Kedai", "", fin.Open(res.Guess, d), d, "data.json")
+	d := clean(t, testdata(t, "finance.xlsx")).Dataset
+	index, data, err := generate("Kewangan Kedai", "", lab.Build(d), d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	page := string(index)
 	for _, want := range []string{"<title>Kewangan Kedai</title>", `<script src="charts.js"></script>`, `fetch("data.json")`,
-		`"name": "Jumlah"`, "Money in", "Balance", "Spending by category", "Latest transactions"} {
+		`"name": "Jumlah"`, `"label": "Jumlah by Kategori"`, `"label": "Latest rows"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("index.html lacks %q", want)
 		}
-	}
-	if strings.Contains(page, `"Total"`) {
-		t.Errorf("index.html has the Total card although Type is chosen")
 	}
 
 	if !bytes.HasPrefix(data, []byte(`[`+"\n"+`  {"Tarikh": "2026-01-01", "Perkara": "Sewa pejabat", "Kategori": "Sewa", "Jenis": "Keluar", "Jumlah": 3200}`)) {
@@ -73,18 +74,17 @@ func TestGenerateWritesThePageAndTheDatasetAsDataJSON(t *testing.T) {
 	for _, r := range rows {
 		totals[r["Jenis"]] += r["Jumlah"].(float64)
 	}
-	// The Sample's totals, summed from its sheet XML outside Go.
+	// The workbook's totals, summed from its sheet XML outside Go.
 	if len(rows) != 65 || math.Round(totals["Masuk"]*100) != 8836647 || math.Round(totals["Keluar"]*100) != 3742391 {
 		t.Fatalf("data.json has %d rows, totals %v; want 65 rows, Masuk 88366.47, Keluar 37423.91", len(rows), totals)
 	}
 }
 
 func TestGeneratedPageEscapesColumnNamesAndCellText(t *testing.T) {
-	fin := finance(t)
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	file := testutil.XLSX(t, []string{"Tarikh", "</script><b>Kategori</b>", "Jumlah"}, []any{day, "<script>alert(1)</script>", 12.5})
-	d := clean(t, file, fin).Dataset
-	index, data, err := lab.Generate(fin, "<i>Mine</i>", "", fin.Open(lab.Choices{"date": "Tarikh", "amount": "Jumlah", "category": "</script><b>Kategori</b>"}, d), d, "data.json")
+	d := clean(t, file).Dataset
+	index, data, err := generate("<i>Mine</i>", "", lab.Build(d), d, "data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestAWorkbookThatUnzipsPast50MBIsRefusedUnread(t *testing.T) {
 	if len(file) > 1<<20 {
 		t.Fatalf("the zip bomb is %d bytes; it should fit well under the 10 MB upload limit", len(file))
 	}
-	_, err := lab.Clean(bytes.NewReader(file), finance(t), lab.Settings{})
+	_, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
 	var p lab.Problem
 	if !errors.As(err, &p) {
 		t.Fatalf("Clean gave %v, want one lab.Problem", err)
@@ -157,7 +157,7 @@ func farOutWorkbook(t *testing.T, rows int) []byte {
 
 func TestRefusesASheetOfTooManyCells(t *testing.T) {
 	file := farOutWorkbook(t, 400)
-	_, err := lab.Clean(bytes.NewReader(file), finance(t), lab.Settings{})
+	_, err := lab.Clean(bytes.NewReader(file), lab.Settings{})
 	var p lab.Problem
 	if !errors.As(err, &p) || p.Key != "lab.err.too-many-cells" {
 		t.Fatalf("got %v, want lab.err.too-many-cells", err)
@@ -233,7 +233,7 @@ func TestAWorkbookWhoseSharedTextPasses50MBOnceGivenToEachCellIsRefusedUnread(t 
 			t.Fatalf("%s: the file is %d bytes; it should be a few KB", name, len(file))
 		}
 		var err error
-		if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{}) }); n > 32<<20 {
+		if n := allocated(func() { _, err = lab.Clean(bytes.NewReader(file), lab.Settings{}) }); n > 32<<20 {
 			t.Errorf("%s: Clean allocated %d MB; it should refuse the file before giving the string to each cell", name, n>>20)
 		}
 		var p lab.Problem
@@ -245,7 +245,7 @@ func TestAWorkbookWhoseSharedTextPasses50MBOnceGivenToEachCellIsRefusedUnread(t 
 
 func TestAWorkbookWhoseCellsShareShortTextIsRead(t *testing.T) {
 	file := sharedStringBomb(t, 3, 1000, nil, nil)
-	if _, err := lab.Clean(bytes.NewReader(file), lab.General, lab.Settings{}); err != nil {
+	if _, err := lab.Clean(bytes.NewReader(file), lab.Settings{}); err != nil {
 		t.Fatalf("Clean: %v", err)
 	}
 }

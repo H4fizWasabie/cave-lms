@@ -1,6 +1,6 @@
-// Package lab is the Lab's pure logic: no database, no HTTP. Clean turns an uploaded .xlsx into a
-// Dataset; a Template opens onto it as blocks; Generate turns the blocks and the Dataset into the
-// Dashboard's index.html and data.json. See ADR 0003.
+// Package lab is the Lab's pure logic: no database, no HTTP. Clean turns an uploaded .xlsx into a Dataset; Build
+// makes a built Dashboard's blocks from it by the General rules; Page and DataJSON turn the blocks and the Dataset
+// into the Dashboard's index.html and data.json. See ADR 0019.
 package lab
 
 import (

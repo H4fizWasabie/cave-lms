@@ -186,20 +186,33 @@ A Dashboard never uploaded to has no blocks until its first confirm, as for a ne
 
 ## Converting engine Dashboards to pages (ADR 0018, #375)
 
-Every start, after migrations, gives each engine Dashboard with a current Dataset and no page the engine's page as its first current page: its chart script inlined (the page policy loads no script from Cave) and its rows read from `./data.json`, stored like an uploaded page and counted against Storage, over the allowance too. Its Deployment keeps its name and awake state; sleeping and taken-down ones are converted and stay as they are. A Dashboard without a Dataset gets no page. A Dashboard with a page is skipped, so later starts change nothing and log nothing. Each one converts in its own transaction; one that fails (its Dataset or the store out of reach) is logged as an error naming it and keeps its engine page until the next start retries it. The start goes on either way. Each one reads its Dataset from the store and writes a page before the app listens; if that takes the start past the deploy's 15-second wait, production rolls back to the previous binary, the Dashboards already converted stay so, and deploying again carries on from there.
+The start-up step that gave each engine Dashboard with a Dataset the engine's page as its own ran on production on 2026-10-27 and is gone (ADR 0019, #388): a start converts nothing now, so a Dashboard Cave builds stays built. #389 turns the Dashboards it converted back into built ones.
 
-The command is the deploy itself, `CAVE_ENV=staging deploy/deploy.sh` then `deploy/deploy.sh`. Check the System log (`/admin/log`, or `journalctl -u cave-lms -n 50`) for `converted N of M engine Dashboards to pages` with N = M and no `convert Dashboard` error. Restart (`systemctl restart cave-lms`) to retry failures. Before and after, on production with `sudo -u postgres psql cave`:
+**Migration 00125 (#389)** deletes the page record of every Dashboard that still has its engine settings (`config` a JSON object) and exactly one page record, the converted one. Each is a built Dashboard again, served by the engine at the same link, in its Theme, with its Dataset. The `dashboard_pages` delete trigger queues the page's file in `stored_file_deletions`, the start-up prune deletes it from the store, and the Storage totals drop by its size. A Dashboard whose owner has since uploaded a page of their own (more than one record) stays a page Dashboard; a pasted one (no `config`) is untouched. On a database with no converted Dashboards it deletes nothing. Its Down does nothing: a converted page cannot be rebuilt in SQL.
+
+**Stop before deploying.** Run the first query below on production (`ssh vps`, then `sudo -u postgres psql cave`) before deploying this release. It must list exactly the 6 Dashboards converted on 2026-10-27, the ones with Deployments `/d/try/` and `/d/inv2/` among them, each with one page. If it lists any other Dashboard, or not all six, do not deploy: 00125 would delete that Dashboard's only page. Tell Abah, with the rows it listed.
+
+The deploy backs up production first, as the release adds a migration. Checks, on staging then production (`sudo -u postgres psql cave`), before and after:
 
 ```sql
--- after: none left
-SELECT d.id FROM dashboards d WHERE NOT EXISTS (SELECT 1 FROM dashboard_pages pg WHERE pg.dashboard_id = d.id)
-  AND EXISTS (SELECT 1 FROM datasets ds WHERE ds.dashboard_id = d.id AND ds.state = 'current');
-SELECT name, taken_down_at FROM deployments ORDER BY id;          -- after: the same
+-- before: the six converted Dashboards, one page each; after: none of these rows
+SELECT d.id, d.name, d.theme, dep.name AS deployment, count(pg.id) AS pages
+  FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id
+  LEFT JOIN deployments dep ON dep.dashboard_id = d.id
+  WHERE jsonb_typeof(d.config) = 'object' GROUP BY d.id, dep.name HAVING count(pg.id) = 1 ORDER BY d.id;
+-- the page records left: after, the before count less the six
+SELECT count(*) FROM dashboard_pages;
+SELECT count(*) FROM stored_file_deletions;   -- after the start-up prune: 0
 ```
 
-For a Deployment `$n`, after: `curl -sI "$base/d/$n/"` carries the `sandbox allow-scripts` policy, `curl -s "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'` matches before, and `curl -s "$base/d/$n/data.json"` gives its rows.
+After, `/d/try/` and `/d/inv2/` answer 200 with the engine's settings, their Theme and block labels, not the converted page, and each of the six Dashboards' Preview draws its Theme and blocks:
 
-**The engine goes in a later release (#376).** The conversion needs the page generator, so the generator, the chart script and the conversion step (`convertEngineDashboards`) are deleted only once production has started on this release and the query above finds none.
+```sh
+curl -s "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
+curl -s "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
+```
+
+**Dropped in a later release.** The Templates are gone (ADR 0019), and nothing reads or writes `dashboards.template` or `dashboards.choices` now, but the columns stay: the binary before this release still selects them, and a rollback puts that binary back without undoing a migration. Migration 00126 gives `template` the default `'general'` (`choices` already defaults to `'{}'`), so a Dashboard made by this release opens on General with no choices in that binary too. Once production has run this release with no rollback, a later release adds a migration dropping both columns.
 
 ## Changing the domain
 

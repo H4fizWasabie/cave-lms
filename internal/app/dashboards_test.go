@@ -1,17 +1,16 @@
 package app_test
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
-	"html"
-	"io"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -20,7 +19,6 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
-	"github.com/xuri/excelize/v2"
 )
 
 // labLearner returns the Admin and Ada, who has an active Plan and no Enrollment.
@@ -58,12 +56,20 @@ func (s *site) postFile(path, filename string, content []byte, fields ...url.Val
 	return s.do(req)
 }
 
-// financeSample downloads the Finance Sample.
+// financeSample is a tidy Finance workbook: 65 rows of Tarikh, Perkara, Kategori, Jenis and Jumlah.
 func (s *site) financeSample() []byte {
 	s.t.Helper()
-	res, body := s.get("/lab/samples/finance.xlsx")
-	expectStatus(s.t, res, body, http.StatusOK, "")
-	return []byte(body)
+	return labFile(s.t, "finance.xlsx")
+}
+
+// labFile is one of the Lab's test workbooks.
+func labFile(t testing.TB, name string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "lab", "testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 
 func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
@@ -75,7 +81,7 @@ func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
 	res, body = ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusOK, `name="name"`)
 
-	path := ada.createWork("general", "Kewangan <Kedai>")
+	path := ada.createWork("Kewangan <Kedai>")
 	res, body = ada.get(path)
 	expectStatus(t, res, body, http.StatusOK, "Kewangan &lt;Kedai&gt;")
 	expectStatus(t, res, body, http.StatusOK, "Upload your Dataset")
@@ -108,33 +114,6 @@ func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
 	res, _ = visitor.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Mine"}})
 	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/login" {
 		t.Fatalf("a Visitor creating a Dashboard got %d %s, want a redirect to /login", res.StatusCode, res.Header.Get("Location"))
-	}
-}
-
-func TestFinanceSampleDownloadsAsAnXLSXWithMalayColumns(t *testing.T) {
-	s := newSite(t)
-	res, body := s.get("/lab/samples/finance.xlsx")
-	expectStatus(t, res, body, http.StatusOK, "")
-	if ct := res.Header.Get("Content-Type"); ct != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
-		t.Fatalf("Content-Type = %q", ct)
-	}
-	if cd := res.Header.Get("Content-Disposition"); !strings.Contains(cd, `attachment; filename="finance-sample.xlsx"`) {
-		t.Fatalf("Content-Disposition = %q", cd)
-	}
-	f, err := excelize.OpenReader(strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rows, err := f.GetRows(f.GetSheetName(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := strings.Join(rows[0], ","); got != "Tarikh,Perkara,Kategori,Jenis,Jumlah" {
-		t.Fatalf("header = %s", got)
-	}
-	res, _ = s.get("/lab/samples/astrology.xlsx")
-	if res.StatusCode != http.StatusNotFound {
-		t.Fatalf("unknown Sample: %d, want 404", res.StatusCode)
 	}
 }
 
@@ -173,7 +152,7 @@ func TestPreviewLoadsItsDataAndChartLibraryFromCave(t *testing.T) {
 
 func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
 	file := testutil.XLSX(t, []string{"Tarikh", "<b>Kategori</b>", "Jumlah"}, []any{day, "<script>alert(1)</script>", 12.5}, []any{day, "Teh", 3})
 	res, body := ada.postFile(path+"/dataset", "mine.xlsx", file)
@@ -185,7 +164,7 @@ func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 		t.Fatalf("the upload preview has hostile text unescaped: %s", body)
 	}
 	ada.confirmWork(path, url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "category": {"<b>Kategori</b>"}})
-	for _, p := range []string{path + "/blocks", path + "/preview", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/")} {
+	for _, p := range []string{path + "/preview", path + "/view/", path + "/view/" + ada.dataOf(path+"/view/")} {
 		_, body := ada.get(p)
 		if strings.Contains(body, "<script>alert") || strings.Contains(body, "<b>Kategori") {
 			t.Fatalf("%s has hostile text unescaped: %s", p, body)
@@ -195,7 +174,7 @@ func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 
 func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	res, body := ada.postFile(path+"/dataset", "data.csv", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
 	for _, want := range []string{"data.csv is not an .xlsx file.", "A CSV file stores everything as plain text", "Fix this in Excel, save, and upload again. Nothing changed."} {
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, want)
@@ -222,7 +201,7 @@ func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
 	bob := admin.second()
 	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
 	admin.assignPlan("bob@example.com", admin.onlyPlanID()) // without a Plan the Lab sends him to /pricing first
-	for _, p := range []string{path, path + "/blocks", path + "/preview", path + "/view/", path + "/view/" + data} {
+	for _, p := range []string{path, path + "/preview", path + "/view/", path + "/view/" + data} {
 		if res, _ := bob.get(p); res.StatusCode != http.StatusNotFound {
 			t.Errorf("Bob got %d for %s, want 404", res.StatusCode, p)
 		}
@@ -241,129 +220,21 @@ func TestDeletingALearnerDeletesTheirDashboards(t *testing.T) {
 	}
 }
 
-// unzip reads a zip download into file name -> contents.
-func unzip(t *testing.T, body string) map[string]string {
-	t.Helper()
-	zr, err := zip.NewReader(strings.NewReader(body), int64(len(body)))
-	if err != nil {
-		t.Fatalf("not a zip: %v", err)
-	}
-	files := map[string]string{}
-	for _, f := range zr.File {
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		b, err := io.ReadAll(rc)
-		rc.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		files[f.Name] = string(b)
-	}
-	return files
-}
-
-func TestDownloadZipHasThePageItsDataAndTheChartLibrary(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.createWork("finance", "Kewangan Kedai")
-	if res, _ := ada.get(path + "/download"); res.StatusCode != http.StatusNotFound {
-		t.Fatalf("a Dashboard with no Dataset downloads: %d", res.StatusCode)
-	}
-	ada.confirmFile(path, "finance-sample.xlsx", ada.financeSample())
-
-	res, body := ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/download"`)
-	res, body = ada.get(path + "/download")
-	expectStatus(t, res, body, http.StatusOK, "")
-	if ct := res.Header.Get("Content-Type"); ct != "application/zip" {
-		t.Fatalf("zip Content-Type = %q", ct)
-	}
-	if cd := res.Header.Get("Content-Disposition"); cd != `attachment; filename="kewangan-kedai.zip"` {
-		t.Fatalf("zip Content-Disposition = %q", cd)
-	}
-	files := unzip(t, body)
-	address := ada.dataOf(path + "/view/")
-	_, index := ada.get(path + "/view/")
-	_, data := ada.get(path + "/view/" + address)
-	_, charts := ada.get(path + "/view/charts.js")
-	// The zip's page reads data.json beside it; the preview's reads the stored Dataset's address.
-	index = strings.Replace(index, `fetch("`+address+`")`, `fetch("data.json")`, 1)
-	if files["index.html"] != index || files["data.json"] != data || files["charts.js"] != charts {
-		t.Fatalf("zip files differ from the preview's: %v", keys(files))
-	}
-	// Browsers block fetch from a file opened on the computer, so the page falls back to data.js.
-	for _, want := range []string{`fetch("data.json")`, `"data.js"`} {
-		if !strings.Contains(index, want) {
-			t.Fatalf("index.html lacks %s: %s", want, index)
-		}
-	}
-	js, ok := strings.CutPrefix(files["data.js"], "var dashboardRows = ")
-	js, ok2 := strings.CutSuffix(js, ";\n")
-	var rows []map[string]any
-	if !ok || !ok2 || json.Unmarshal([]byte(js), &rows) != nil || len(rows) != 65 {
-		t.Fatalf("data.js does not hold the 65 rows: %.200s", files["data.js"])
-	}
-	if len(files) != 4 {
-		t.Fatalf("zip holds %v, want index.html, data.json, data.js and charts.js", keys(files))
-	}
-}
-
-func keys(m map[string]string) []string {
-	var k []string
-	for n := range m {
-		k = append(k, n)
-	}
-	return k
-}
-
-var hoodCode = regexp.MustCompile(`(?s)<pre><code>(.*?)</code></pre>`)
-
-func TestUnderTheHoodShowsTheGeneratedPageAndDataExplained(t *testing.T) {
-	_, ada := labLearner(t)
-	path := ada.readyDashboard("Kewangan")
-
-	res, body := ada.get(path)
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/hood"`)
-	res, body = ada.get(path + "/hood")
-	for _, want := range []string{"The page&#39;s details", "The layout", "The chart library", "Your blocks", "Load the data, then draw", "Your spreadsheet, as data"} {
-		expectStatus(t, res, body, http.StatusOK, want)
-	}
-	parts := hoodCode.FindAllStringSubmatch(body, -1)
-	if len(parts) != 6 {
-		t.Fatalf("want 5 parts of index.html and data.json, got %d: %s", len(parts), body)
-	}
-	var page string
-	for _, p := range parts[:5] {
-		page += html.UnescapeString(p[1])
-	}
-	if _, index := ada.get(path + "/view/"); page != index {
-		t.Fatalf("the hood's index.html is not the preview's:\n%s\n---\n%s", page, index)
-	}
-	expectStatus(t, res, body, http.StatusOK, `href="`+path+`/view/`+ada.dataOf(path+"/view/")+`"`)
-	data := html.UnescapeString(parts[5][1])
-	if !strings.Contains(data, `{"Tarikh": "2026-`) || !strings.Contains(data, "62 more rows") {
-		t.Fatalf("data.json excerpt: %s", data)
-	}
-}
-
 // Once the Plan ends every Lab screen, the Learner's own Dashboards too, goes to /pricing; changes stay refused.
 func TestAfterAccessEndsEveryLabScreenGoesToPricing(t *testing.T) {
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
-	empty := ada.createWork("finance", "Kosong")
+	empty := ada.createWork("Kosong")
 	view := path + "/view/" + ada.dataOf(path+"/view/")
 	admin.ageAllPeriods(31)
 
-	for _, p := range []string{"/lab", "/lab/new", empty, path, path + "/data", path + "/blocks", path + "/preview", path + "/hood",
-		path + "/view/", view, path + "/download", path + "/deploy", path + "/rename", path + "/delete"} {
+	for _, p := range []string{"/lab", "/lab/new", empty, path, path + "/data", path + "/preview",
+		path + "/view/", view, path + "/deploy", path + "/rename", path + "/delete"} {
 		res, body := ada.get(p)
 		expectRedirect(t, res, body, "/pricing")
 	}
 
 	res, body := ada.postFile(path+"/dataset", "finance-sample.xlsx", ada.financeSample())
-	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
-	res, body = ada.post(path+"/blocks", url.Values{"do": {"reset"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
 	res, body = ada.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Baru"}})
 	expectStatus(t, res, body, http.StatusForbidden, "need a Plan")
@@ -434,7 +305,6 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	address := ada.dataOf(path + "/view/")
-	_, want := ada.get(path + "/view/" + address)
 
 	// Put the Dashboard back the way it was before the store: its Dataset in the dataset column, nothing stored.
 	stored := filepath.Join(ada.storageDir, strings.TrimPrefix(address, "data/"))
@@ -453,13 +323,22 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	}
 
 	ada.restart()
-	res, got := ada.get(path + "/view/" + ada.dataOf(path+"/view/"))
-	expectStatus(t, res, got, http.StatusOK, "")
-	if got != want {
-		t.Fatalf("after the move the data is\n%.300s\nwant\n%.300s", got, want)
+	// At migration 68 a Dashboard is a Practice one, which no step turns back any more (none is left on production),
+	// so the move is checked in the store: the Dataset is there again, under the key the Dashboard now holds.
+	var key string
+	if err := ada.db.QueryRow(`SELECT dataset_key FROM dashboards`).Scan(&key); err != nil {
+		t.Fatal(err)
 	}
-	if n := ada.storedFiles(); n != 2 {
-		t.Fatalf("%d stored files after the move, want 2: the Dataset and the page it is converted to (#375)", n)
+	got, err := os.ReadFile(filepath.Join(ada.storageDir, key))
+	var gotRows, wantRows any
+	if err == nil {
+		err = errors.Join(json.Unmarshal(got, &gotRows), json.Unmarshal(dataset, &wantRows))
+	}
+	if err != nil || !reflect.DeepEqual(gotRows, wantRows) { // the database's jsonb reorders keys and spaces
+		t.Fatalf("after the move the store holds %.300s (%v), want %.300s", got, err, dataset)
+	}
+	if n := ada.storedFiles(); n != 1 {
+		t.Fatalf("%d stored files after the move, want 1: the Dataset", n)
 	}
 	var column bool
 	if err := ada.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns

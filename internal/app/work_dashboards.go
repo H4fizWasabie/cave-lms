@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -13,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
@@ -264,7 +262,7 @@ const cleanUpWaitLog = 3 * time.Second
 
 // clean runs Clean-up on an upload once one of the maxCleanUps turns is free; until then it waits, unless the
 // Learner gives up.
-func (a *App) clean(r *http.Request, file io.Reader, t *lab.Template, s lab.Settings) (*lab.CleanUp, error) {
+func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.CleanUp, error) {
 	start := time.Now()
 	select {
 	case a.cleaning <- struct{}{}:
@@ -275,24 +273,7 @@ func (a *App) clean(r *http.Request, file io.Reader, t *lab.Template, s lab.Sett
 	if waited := time.Since(start); waited > a.cleanUpWaitLog {
 		a.logInfo("An upload waited %s for its turn to be read", waited.Round(time.Millisecond))
 	}
-	return lab.Clean(file, t, s)
-}
-
-// cleanedSamples is each Template's Sample cleaned, by Template key: once per process, so the New Dashboard page
-// cleans none.
-var cleanedSamples = sync.OnceValues(cleanSamples)
-
-// cleanSamples runs Clean-up on each Template's Sample.
-func cleanSamples() (map[string]*lab.CleanUp, error) {
-	samples := map[string]*lab.CleanUp{}
-	for _, t := range lab.Templates {
-		res, err := lab.Clean(bytes.NewReader(t.Sample), t, lab.Settings{})
-		if err != nil {
-			return nil, fmt.Errorf("clean the %s Sample: %w", t.Name, err)
-		}
-		samples[t.Key] = res
-	}
-	return samples, nil
+	return lab.Clean(file, s)
 }
 
 // errDatasetStore is keepPending's error when the store refuses the Dataset.
@@ -389,7 +370,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	if settings.Year, _ = strconv.Atoi(r.FormValue("year")); settings.Year < 1900 || settings.Year > 2100 {
 		settings.Year = 0 // this year
 	}
-	res, err := a.clean(r, file, d.Template, settings)
+	res, err := a.clean(r, file, settings)
 	var problem lab.Problem
 	if errors.As(err, &problem) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem.In(lang), Upload: name})
@@ -400,8 +381,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
-	// Add to data on a page Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
-	if r.FormValue("mode") == "add" && d.Page != nil && d.Dataset != nil {
+	// Add to data on a Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
+	if r.FormValue("mode") == "add" && d.Dataset != nil {
 		combined, same, changes, err := lab.Add(d.Dataset, res.Dataset)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
@@ -428,7 +409,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	if d.Config != nil && allFit(d.Config, res.Dataset) { // nothing new to check: it goes live
+	// Nothing new to check: it goes live. An Add is always shown, as its rows may repeat ones already there.
+	if d.Config != nil && kept.Added == nil && allFit(d.Config, res.Dataset) {
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
@@ -447,9 +429,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 }
 
 // confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and roomFor's earlier
-// Datasets are deleted. On the first confirm the Template the Learner picked (General, or one offered) opens onto
-// the Dashboard as its blocks with their column choice for each blank; a blank with no column is never refused,
-// its blocks are left out (ADR 0014). Later confirms keep the blocks,
+// Datasets are deleted. The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019).
+// Later confirms keep the blocks,
 // swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
 // pauses its blocks. A confirm that would take the Learner over their Storage allowance even with every earlier
 // Dataset of this Dashboard gone is refused and the Dataset stays pending. An Add to data whose current Dataset is no
@@ -473,31 +454,17 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
 	}
-	t, c, cfg := d.Template, d.Choices, d.Config
+	cfg := d.Config
 	switch {
 	case d.Page != nil: // a page Dashboard has no blocks: its page reads the Dataset at data.json (ADR 0018)
 	case cfg == nil:
-		if picked := lab.TemplateByKey(r.FormValue("template")); picked != nil {
-			t = picked
-		}
-		c = lab.Choices{}
-		for _, b := range t.Blanks {
-			if v := r.FormValue(b.Key); v != "" {
-				c[b.Key] = v
-			}
-		}
-		cfg = t.Open(c, p.Dataset) // a blank left empty, or naming no column, leaves out the blocks that need it
+		cfg = lab.Build(p.Dataset)
 	default:
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		cfg, c = withPicks(cfg, c, p.Dataset, r.Form)
-	}
-	choices, err := json.Marshal(c)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
+		cfg = withPicks(cfg, p.Dataset, r.Form)
 	}
 	var config []byte // NULL for a page Dashboard
 	if cfg != nil {
@@ -555,8 +522,8 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'current', confirmed_at = now() WHERE id = $1`, p.ID); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET template = $2, choices = $3, config = $4, upload_settings = $5, updated_at = now()
-			WHERE id = $1`, d.ID, t.Key, choices, config, settings)
+		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, upload_settings = $3, updated_at = now() WHERE id = $1`,
+			d.ID, config, settings)
 		return err
 	})
 	if errors.Is(err, errStorageFull) {

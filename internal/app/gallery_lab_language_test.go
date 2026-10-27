@@ -4,9 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
-
-	"github.com/H4fizWasabie/cave-lms/internal/lab"
-	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 func TestTheGalleryPagesAreInMalayAndEnglish(t *testing.T) {
@@ -72,19 +69,17 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	expectLanguage(t, body, "ms", "Deployment aktif")
 	expectAll(t, body, "0 daripada 3", "Dashboard saya", "Belum ada Dashboard.")
 	_, body = ada.get("/lab/new")
-	expectLanguage(t, body, "ms", "Namakan Dashboard anda, kemudian tampal HTML yang ditulis oleh chatbot AI anda")
+	expectLanguage(t, body, "ms", "Tampal HTML yang ditulis oleh chatbot AI anda")
 	expectAll(t, body, "Cipta Dashboard", "Tampal HTML", "Atau pilih fail .html")
 	res, body := ada.post("/lab/dashboards", url.Values{"name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Berikan nama kepada Dashboard.")
 
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	_, body = ada.get(path)
 	expectLanguage(t, body, "ms", "Muat naik Set data anda")
 	res, body = ada.postFile(path+"/dataset", "notes.csv", []byte("a,b"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "notes.csv bukan fail .xlsx.")
 	ada.confirmFile(path, "finance-sample.xlsx", ada.financeSample())
-	_, body = ada.get(path + "/hood")
-	expectLanguage(t, body, "ms", "Hamparan kerja anda, sebagai data")
 	_, body = ada.get(path + "/deploy")
 	expectLanguage(t, body, "ms", "Letakkan Dashboard ini dalam talian")
 	link := ada.deploy(path)
@@ -109,39 +104,9 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 func TestTheLabsFileErrorsAreInMalay(t *testing.T) {
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
-	path := ada.createWork("finance", "Kewangan")
+	path := ada.createWork("Kewangan")
 	res, body := ada.postFile(path+"/dataset", "fake.xlsx", []byte("not a workbook"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ini bukan fail .xlsx. Lab membaca buku kerja Excel sahaja.")
 	res, body = ada.postFile(path+"/dataset", "old.xls", []byte("old"))
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Ini fail Excel lama (Excel 97-2003, .xls).")
-}
-
-func TestTheLabsTemplatesAreNamedAndExplainedInTheVisitorsLanguage(t *testing.T) {
-	_, ada := labLearner(t)
-	ada.switchLanguage("ms", "/")
-	ada.createWork("finance", "Duit saya")
-	_, body := ada.get("/lab")
-	expectAll(t, body, "Templat Kewangan")
-	expectNone(t, body, "Templat Finance")
-}
-
-func TestEveryTemplateHasItsLabWordsInTheCatalogMatchingItsEnglish(t *testing.T) {
-	for _, tp := range lab.Templates {
-		words := map[string]string{"name": tp.Name, "blurb": tp.Blurb, "question": tp.Question}
-		for _, b := range tp.Blanks {
-			words[b.Key+".help"] = b.Help
-		}
-		for k, en := range words {
-			key := "lab.tpl." + tp.Key + "." + k
-			if en == "" {
-				continue
-			}
-			if got := text.T("en", key); got != en {
-				t.Errorf("%s in English = %q, want the Template's %q", key, got, en)
-			}
-			if got := text.T("ms", key); got == key || got == "" {
-				t.Errorf("%s has no Malay", key)
-			}
-		}
-	}
 }

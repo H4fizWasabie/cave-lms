@@ -16,7 +16,7 @@
               <tr><th>Dashboard</th><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "deployments.name"}}</th><th>{{t .Lang "deployments.link"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Deployments}}
               <tr{{if not .Awake}} class="is-revoked"{{end}}>
-                <td>{{if .Dashboard}}{{.Dashboard}}<br>{{with .Template}}<small>{{t $.Lang "deployments.template" .}}</small>{{end}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
+                <td>{{if .Dashboard}}{{.Dashboard}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
                 <td><code>{{.Name}}</code></td>
                 <td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></td>

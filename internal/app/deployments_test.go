@@ -18,7 +18,7 @@ import (
 // readyDashboard creates a Finance Dashboard with the Sample confirmed and returns its path.
 func (s *site) readyDashboard(name string) string {
 	s.t.Helper()
-	path := s.createWork("finance", name)
+	path := s.createWork(name)
 	s.confirmFile(path, "finance-sample.xlsx", s.financeSample())
 	return path
 }
