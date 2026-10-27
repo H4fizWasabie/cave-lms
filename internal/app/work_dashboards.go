@@ -399,7 +399,7 @@ func uploadSettings(r *http.Request, d *dashboard, name string, mode uploadMode)
 	if recipe := d.Settings.Recipe; mode.intoDataset() && recipe != nil {
 		// A Part is read with the recipe: its sheet alone, found by name, and its header row if the Learner typed it. A
 		// remembered sheet or tick belongs to the Dataset's first Part; only the Learner's pick below counts.
-		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns, Map: recipe.Map}
+		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns, MonthColumns: recipe.MonthColumns, Map: recipe.Map}
 		settings.Sheet, settings.Alone, settings.Ticked = "", false, nil
 	}
 	settings.FileName = name
@@ -500,8 +500,10 @@ func (c *cleaned) joinDataset(d *dashboard, replacing *partRef, form url.Values)
 		had -= replacing.Rows
 	}
 	var chosen map[string]string
+	var months []string
 	var twice error
 	if recipe := c.Settings.Recipe; recipe != nil {
+		months = recipe.MonthColumns
 		lacking, spare := lab.ColumnChanges(d.Columns, c.Dataset.Columns)
 		chosen, twice = mapChoices(recipe.Map, form, lacking, spare)
 		recipe.Map = chosen // what the recipe remembers once the Part is confirmed
@@ -511,7 +513,7 @@ func (c *cleaned) joinDataset(d *dashboard, replacing *partRef, form url.Values)
 	if twice != nil {
 		return missing, twice
 	}
-	more, changes, err := lab.AddPart(d.Columns, had, mapped, limit)
+	more, changes, err := lab.AddPart(d.Columns, had, mapped, limit, months...)
 	var problem lab.Problem
 	if replacing != nil && errors.As(err, &problem) && problem.Key == "lab.err.add-too-many-rows" {
 		return nil, lab.Problem{Key: "lab.err.replace-too-many-rows", Args: problem.Args}
@@ -742,7 +744,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	}
 	mode := p.mode()
 	if !mode.intoDataset() { // the first Part, and Replace data, set the recipe every later Part is read with
-		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped}
+		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped, MonthColumns: p.MonthColumns}
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {

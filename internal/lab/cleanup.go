@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"encoding/xml"
 	"io"
+	"math"
 	"path"
 	"regexp"
 	"slices"
@@ -35,11 +36,12 @@ type Settings struct {
 // name ignoring case and never combined with others. Its HeaderRow is read again only if the Learner typed it for the
 // first Part (HeaderTyped); else Cave finds each Part's header row, as its title rows may differ.
 type Recipe struct {
-	Sheet       string            `json:"sheet"`
-	HeaderRow   int               `json:"headerRow"`
-	HeaderTyped bool              `json:"headerTyped,omitempty"` // HeaderRow was typed by hand, not found by Cave
-	Columns     []Column          `json:"-"`                     // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
-	Map         map[string]string `json:"map,omitempty"`         // a Part's column the Learner chose to read as the Dataset's: its name to the Dataset column's (MapColumns)
+	Sheet        string            `json:"sheet"`
+	HeaderRow    int               `json:"headerRow"`
+	HeaderTyped  bool              `json:"headerTyped,omitempty"`  // HeaderRow was typed by hand, not found by Cave
+	Columns      []Column          `json:"-"`                      // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+	MonthColumns []string          `json:"monthColumns,omitempty"` // the Dataset's number columns that month names are read in: those of its first Part that held whole 1 to 12 only (CleanUp.MonthColumns); AddPart reads a Part's month names in them
+	Map          map[string]string `json:"map,omitempty"`          // a Part's column the Learner chose to read as the Dataset's: its name to the Dataset column's (MapColumns)
 }
 
 // fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
@@ -133,18 +135,19 @@ func (c Change) In(lang string) string {
 // CleanUp is what Clean-up made of an upload: the Dataset and every change it made to get there. Its JSON leaves
 // out the Dataset, which is kept on its own.
 type CleanUp struct {
-	Sheets      []Sheet  `json:"sheets"`           // every sheet in the workbook, in order
-	Used        []string `json:"used"`             // the sheets that went into the Dataset, in workbook order
-	PickedSheet string   `json:"picked,omitempty"` // the sheet Clean-up read first, the one the others joined
-	HeaderRow   int      `json:"headerRow"`        // the picked sheet's header row number in Excel
-	Month       int      `json:"month,omitempty"`  // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
-	Year        int      `json:"year,omitempty"`   // the grids' year, with Month
-	Dataset     *Dataset `json:"-"`
-	Changes     []Change `json:"changes"`
-	Notes       []Note   `json:"notes,omitempty"`    // the columns General leaves out of charts or averages, and why
-	PartDate    string   `json:"partDate,omitempty"` // the Part's date as 2006-01-02, found in the Excel; empty when it names none
-	DateFrom    string   `json:"dateFrom,omitempty"` // where PartDate was found: DateFromCell, DateFromSheet or DateFromFile
-	DateCell    string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
+	Sheets       []Sheet  `json:"sheets"`           // every sheet in the workbook, in order
+	Used         []string `json:"used"`             // the sheets that went into the Dataset, in workbook order
+	PickedSheet  string   `json:"picked,omitempty"` // the sheet Clean-up read first, the one the others joined
+	HeaderRow    int      `json:"headerRow"`        // the picked sheet's header row number in Excel
+	Month        int      `json:"month,omitempty"`  // the month, 1 to 12, the days-across grids were dated in; 0 when no grid was used
+	Year         int      `json:"year,omitempty"`   // the grids' year, with Month
+	Dataset      *Dataset `json:"-"`
+	MonthColumns []string `json:"monthColumns,omitempty"` // a first Part's number columns of whole 1 to 12 only (see monthLike), which month names are read in; the recipe keeps them
+	Changes      []Change `json:"changes"`
+	Notes        []Note   `json:"notes,omitempty"`    // the columns General leaves out of charts or averages, and why
+	PartDate     string   `json:"partDate,omitempty"` // the Part's date as 2006-01-02, found in the Excel; empty when it names none
+	DateFrom     string   `json:"dateFrom,omitempty"` // where PartDate was found: DateFromCell, DateFromSheet or DateFromFile
+	DateCell     string   `json:"dateCell,omitempty"` // the cell it was found in, such as H2, when DateFrom is DateFromCell
 }
 
 // Where a Part's date was found, in the order Clean-up tries them. Clean-up leaves PartDate empty when it finds none;
@@ -286,7 +289,7 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	for _, tb := range used {
 		res.addChanges(tb.changes)
 	}
-	res.Dataset = typed(d, raw, d.RowNumbers, res)
+	res.Dataset = typed(d, raw, d.RowNumbers, res, s.Recipe == nil)
 	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
 		res.Month, res.Year = int(month), year
 		res.Changes = append(res.Changes, Change{Key: "lab.clean.unpivoted", Args: []int{len(raw), res.Month, year}})
@@ -554,8 +557,10 @@ func MapColumns(cols []Column, more *Dataset, chosen map[string]string) (*Datase
 // else a Problem names the columns missing, or the row counts. Columns of more the Dataset lacks are dropped and
 // listed as a change. The Dataset's column types stay: a cell of more read
 // as another type is read again as its column's, as typed reads one, and one that does not fit is left empty and
-// listed as a change, once per column.
-func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Change, error) {
+// listed as a change, once per column. In a Number column the Dataset records as a month column (monthColumns, by name
+// as sheets are matched; see Recipe.MonthColumns), a month name is read as its number 1 to 12 and listed as its own
+// change, provided every number the Part has in that column is a whole number from 1 to 12.
+func AddPart(cols []Column, had int, more *Dataset, limit int, monthColumns ...string) (*Dataset, []Change, error) {
 	gone, extra := ColumnChanges(cols, more.Columns)
 	if gone != nil {
 		return nil, nil, Problem{"lab.err.add-columns", []any{strings.Join(gone, ", ")}}
@@ -568,14 +573,25 @@ func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Chan
 		at[i] = slices.IndexFunc(more.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) })
 	}
 	out := &Dataset{Columns: cols}
-	misfits := make([]int, len(cols))
+	misfits, named := make([]int, len(cols)), make([]int, len(cols))
+	months := make([]bool, len(cols)) // the columns whose month names are read as numbers
+	for i, c := range cols {
+		months[i] = c.Type == Number && slices.ContainsFunc(monthColumns, func(m string) bool { return columnKey(m) == columnKey(c.Name) }) && wholeMonths(more, at[i])
+	}
 	for _, vals := range more.Rows {
 		row := make([]any, len(at))
 		for i, j := range at {
 			row[i] = vals[j]
 			if typ := cols[i].Type; row[i] != nil && more.Columns[j].Type != typ {
+				name, _ := row[i].(string)
 				var ok bool
-				if row[i], ok = retyped(row[i], typ); !ok {
+				if row[i], ok = retyped(row[i], typ); ok {
+					continue
+				}
+				if m, isMonth := monthNames[strings.ToLower(strings.TrimSpace(name))]; isMonth && months[i] {
+					row[i] = float64(m)
+					named[i]++
+				} else {
 					misfits[i]++
 				}
 			}
@@ -586,12 +602,40 @@ func AddPart(cols []Column, had int, more *Dataset, limit int) (*Dataset, []Chan
 	if extra != nil {
 		changes = append(changes, Change{Key: "lab.clean.extra-columns", Args: []int{len(extra)}, Column: strings.Join(extra, ", ")})
 	}
+	for i, n := range named {
+		if n > 0 {
+			changes = append(changes, Change{Key: "lab.clean.month-names", Args: []int{n}, Column: cols[i].Name})
+		}
+	}
 	for i, n := range misfits {
 		if n > 0 {
 			changes = append(changes, Change{Key: "lab.clean.not-" + string(cols[i].Type) + "s", Args: []int{n}, Column: cols[i].Name})
 		}
 	}
 	return out, changes, nil
+}
+
+// wholeMonths reports whether every number in column j of d is a whole number from 1 to 12. Cells that are not numbers
+// are not looked at.
+func wholeMonths(d *Dataset, j int) bool {
+	for _, vals := range d.Rows {
+		var n float64
+		switch v := vals[j].(type) {
+		case float64:
+			n = v
+		case string:
+			var ok bool
+			if n, ok = number(v); !ok {
+				continue
+			}
+		default:
+			continue
+		}
+		if n != math.Trunc(n) || n < 1 || n > 12 {
+			return false
+		}
+	}
+	return true
 }
 
 // retyped is v, a Dataset value of another type, read as typ as typed reads a cell; nil and false when it does not
@@ -1049,8 +1093,8 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 // typed fills d's rows from raw, each column typed by its cells. Unlike Read, a lone - in a Number column is
 // left empty, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
 // left empty; each is listed as a change, the last once per column.
-func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
-	dashes, others, misfits := 0, 0, make([]int, len(d.Columns))
+func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first bool) *Dataset {
+	dashes, others, misfits, named := 0, 0, make([]int, len(d.Columns)), make([]int, len(d.Columns))
 	for ci, col := range d.Columns {
 		d.Columns[ci].Type = workType(raw, ci)
 		// Years are groups, not amounts: typed as Text, they can be grouped and filtered by, and never added up.
@@ -1062,6 +1106,19 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 			d.Columns[ci].Type = Date
 			res.Changes = append(res.Changes, Change{Key: "lab.clean.serial-dates", Args: []int{n}, Column: col.Name})
 		}
+		if names, ok := monthLike(raw, ci); ok && d.Columns[ci].Type != Date {
+			switch {
+			case first:
+				d.Columns[ci].Type = Number
+				res.MonthColumns = append(res.MonthColumns, col.Name)
+			case names > 0: // a Part under a recipe: AddPart reads the names, by the Dataset's column
+				d.Columns[ci].Type = Text
+			}
+		}
+	}
+	monthCol := make([]bool, len(d.Columns)) // the columns month names are read in
+	for ci, c := range d.Columns {
+		monthCol[ci] = c.Type == Number && slices.Contains(res.MonthColumns, c.Name)
 	}
 	for _, vals := range raw {
 		row := make([]any, len(d.Columns))
@@ -1077,6 +1134,11 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 			if day, ok := otherDate(c.v); ok && typ == Date {
 				row[ci] = day
 				others++
+				continue
+			}
+			if m, ok := monthNames[strings.ToLower(c.v)]; ok && monthCol[ci] {
+				row[ci] = float64(m)
+				named[ci]++
 				continue
 			}
 			v, ok := parse(c, typ)
@@ -1095,12 +1157,38 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp) *Dataset {
 	if others > 0 {
 		res.change("lab.clean.other-dates", others)
 	}
+	for ci, n := range named {
+		if n > 0 {
+			res.Changes = append(res.Changes, Change{Key: "lab.clean.month-names", Args: []int{n}, Column: d.Columns[ci].Name})
+		}
+	}
 	for ci, n := range misfits {
 		if n > 0 {
 			res.Changes = append(res.Changes, Change{Key: "lab.clean.not-" + string(d.Columns[ci].Type) + "s", Args: []int{n}, Column: d.Columns[ci].Name})
 		}
 	}
 	return d
+}
+
+// monthLike reports whether every filled cell of column ci, bar a lone -, is a whole number from 1 to 12 or a month
+// name (monthNames, the whole cell), and at least one is; names counts the month names. It does not look at the
+// column's name: a column is a month column by its values.
+func monthLike(raw [][]cell, ci int) (names int, ok bool) {
+	filled := 0
+	for _, vals := range raw {
+		switch v := vals[ci].v; {
+		case v == "" || v == "-":
+			continue
+		case monthNames[strings.ToLower(v)] > 0:
+			names++
+		default:
+			if n, isNumber := number(v); !isNumber || n != math.Trunc(n) || n < 1 || n > 12 {
+				return 0, false
+			}
+		}
+		filled++
+	}
+	return names, filled > 0
 }
 
 // workType is a column's type as Clean-up reads it: Date or Number when at least 90% of its filled cells are
