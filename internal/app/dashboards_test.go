@@ -126,7 +126,7 @@ func TestPreviewLoadsItsDataAndChartLibraryFromCave(t *testing.T) {
 
 	res, page := ada.get(path + "/view/")
 	expectStatus(t, res, page, http.StatusOK, `<script src="charts.js"></script>`)
-	for _, want := range []string{`fetch("data/dataset-`, `"filters": [`, `"Kategori",`, `"Tarikh"`} {
+	for _, want := range []string{`fetch("data/`, `"filters": [`, `"Kategori",`, `"Tarikh"`} {
 		expectStatus(t, res, page, http.StatusOK, want)
 	}
 	if strings.Contains(page, "http://") || strings.Contains(page, "https://") {
@@ -278,8 +278,8 @@ func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testi
 	}
 	res, data = ada.get(path + "/view/" + second)
 	expectStatus(t, res, data, http.StatusOK, "4321.5")
-	if n := ada.datasetFiles(); n != 2 {
-		t.Fatalf("%d stored files after a re-upload, want 2: the current Dataset and the earlier one", n)
+	if n := ada.datasetFiles(); n != 1 {
+		t.Fatalf("%d stored files after a re-upload, want 1: the Part that replaced the first", n)
 	}
 
 	res, body := ada.post(path+"/delete", confirming)
@@ -304,14 +304,15 @@ func (s *site) restart() {
 func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
-	address := ada.dataOf(path + "/view/")
+	ada.dataOf(path + "/view/")
 
 	// Put the Dashboard back the way it was before the store: its Dataset in the dataset column, nothing stored.
-	stored := filepath.Join(ada.storageDir, strings.TrimPrefix(address, "data/"))
-	dataset, err := os.ReadFile(stored)
-	if err != nil {
+	var key string
+	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&key); err != nil {
 		t.Fatal(err)
 	}
+	stored := filepath.Join(ada.storageDir, key)
+	dataset := []byte(`{"columns": [{"name": "Tarikh", "type": "date"}, {"name": "Jumlah", "type": "number"}], "rows": [["2026-03-05", 12.5]]}`)
 	if err := app.MigrateDownTo(context.Background(), ada.db, 68); err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +326,6 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 	ada.restart()
 	// At migration 68 a Dashboard is a Practice one, which no step turns back any more (none is left on production),
 	// so the move is checked in the store: the Dataset is there again, under the key the Dashboard now holds.
-	var key string
 	if err := ada.db.QueryRow(`SELECT dataset_key FROM dashboards`).Scan(&key); err != nil {
 		t.Fatal(err)
 	}

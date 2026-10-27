@@ -95,15 +95,23 @@ func Page(name, theme string, cfg *Config, columns []Column, dataURL string) ([]
 	return out.Bytes(), err
 }
 
-// DataJSON is a Dashboard's data.json: the Dataset as a JSON array with one object per row, keys in column order, one row per line.
-func DataJSON(d *Dataset) ([]byte, error) {
+// PartDateKey is the key every row of data.json carries: the date of the Part the row is from.
+const PartDateKey = "Part date"
+
+// PartRows is a Part as stored, and as data.json serves it: one JSON object per row, keys in column order and the
+// Part's date last, one row per line, rows separated by ",\n" and no brackets around them, so the Parts of a Dataset
+// join into one array by writing their rows between "[\n" and "\n]\n" with ",\n" between Parts.
+func PartRows(d *Dataset, date string) ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString("[")
+	day, err := json.Marshal(date)
+	if err != nil {
+		return nil, err
+	}
 	for ri, row := range d.Rows {
 		if ri > 0 {
-			b.WriteString(",")
+			b.WriteString(",\n")
 		}
-		b.WriteString("\n  {")
+		b.WriteString("  {")
 		for ci, v := range row {
 			k, err := json.Marshal(d.Columns[ci].Name)
 			if err != nil {
@@ -113,15 +121,31 @@ func DataJSON(d *Dataset) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			if ci > 0 {
-				b.WriteString(", ")
-			}
 			b.Write(k)
 			b.WriteString(": ")
 			b.Write(val)
+			b.WriteString(", ")
 		}
+		b.WriteString(`"` + PartDateKey + `": `)
+		b.Write(day)
 		b.WriteString("}")
 	}
-	b.WriteString("\n]\n")
 	return b.Bytes(), nil
+}
+
+// PartDataset reads a Part as PartRows wrote it back into a Dataset with the given columns, without the Part date.
+func PartDataset(data []byte, cols []Column) (*Dataset, error) {
+	var objects []map[string]any
+	if err := json.Unmarshal(append(append([]byte("["), data...), ']'), &objects); err != nil {
+		return nil, err
+	}
+	d := &Dataset{Columns: cols, Rows: make([][]any, len(objects))}
+	for i, o := range objects {
+		row := make([]any, len(cols))
+		for j, c := range cols {
+			row[j] = o[c.Name]
+		}
+		d.Rows[i] = row
+	}
+	return d, nil
 }

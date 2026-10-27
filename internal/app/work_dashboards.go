@@ -22,26 +22,26 @@ import (
 // previewRows is how many cleaned rows a Dashboard's upload preview shows.
 const previewRows = 20
 
-// cleaned is what Clean-up found on an upload besides its data, kept with the Dataset as datasets.cleanup: the
+// cleaned is what Clean-up found on an upload besides its data, kept with the Part as dataset_parts.cleanup: the
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
 	lab.CleanUp              // without its Dataset
 	Settings    lab.Settings `json:"settings"`        // the remembered part of the settings Clean-up read with
-	Added       *addition    `json:"added,omitempty"` // an Add to data; nil for one that replaces the rows
+	Columns     []lab.Column `json:"columns"`         // the Part's columns, in the order its stored rows read back
+	Added       *addition    `json:"added,omitempty"` // an Add to data; nil for one that replaces the data
 }
 
-// addition is what an Add to data put together: the upload's rows, the current Dataset's before them, and how
-// many of the upload's exactly match one of those. On is where that current Dataset is in the store, as confirming
-// is refused once another is current.
+// addition is what an Add to data put together: the upload's rows and the rows the Dataset had before them.
 type addition struct {
-	Rows int    `json:"rows"`
-	Had  int    `json:"had"`
-	Same int    `json:"same"`
-	On   string `json:"on"`
+	Rows int `json:"rows"`
+	Had  int `json:"had"`
 }
 
-// pendingDataset is a Dashboard's upload after Clean-up, waiting for its Learner to confirm the preview.
-// Until then the Dashboard and its Deployment keep the current Dataset.
+// Total is the Dataset's rows once the Add is confirmed.
+func (a addition) Total() int { return a.Rows + a.Had }
+
+// pendingDataset is a Dashboard's upload after Clean-up, a pending Part waiting for its Learner to confirm the preview.
+// Until then the Dashboard and its Deployment keep the current Dataset. Dataset holds the upload's rows alone.
 type pendingDataset struct {
 	cleaned
 	ID      int64
@@ -80,12 +80,9 @@ func (p *pendingDataset) Grid() *struct{ Month, Year int } {
 // UsedList is the sheets that went in, for the preview.
 func (p *pendingDataset) UsedList() string { return strings.Join(p.Used, ", ") }
 
-// Rows are the first previewRows cleaned rows as the preview shows them; for an Add to data, the upload's.
+// Rows are the first previewRows cleaned rows as the preview shows them.
 func (p *pendingDataset) Rows() [][]string {
 	rows := p.Dataset.Rows
-	if p.Added != nil {
-		rows = rows[p.Added.Had:]
-	}
 	var out [][]string
 	for _, row := range rows[:min(len(rows), previewRows)] {
 		cells := make([]string, len(row))
@@ -103,101 +100,44 @@ func (p *pendingDataset) Rows() [][]string {
 	return out
 }
 
-// keepEarlier is how many earlier Datasets a Dashboard keeps beside its current one.
-const keepEarlier = 3
-
-// keptDataset is a Dashboard's Dataset that is not pending: an earlier one the Learner may restore or delete,
-// or the current one.
-type keptDataset struct {
-	ID        int64
-	File      string
-	Size      int64 // saved size
-	Rows      int
-	Confirmed string // formatted as periodTime
-}
-
-func (e keptDataset) SizeText() string { return sizeText(e.Size) }
-
 // queryer is a *sql.DB or a *sql.Tx, for reads that may run inside a caller's transaction.
 type queryer interface {
 	rowQueryer
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-// keptDatasets lists the Dashboard's earlier Datasets, oldest confirmed first, then its current one, if any.
-func keptDatasets(ctx context.Context, q queryer, dashboardID int64) ([]keptDataset, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, file_name, saved_size, row_count, confirmed_at FROM datasets
-		WHERE dashboard_id = $1 AND state <> 'pending' ORDER BY state = 'current', confirmed_at, id`, dashboardID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []keptDataset
-	for rows.Next() {
-		var e keptDataset
-		var confirmed time.Time
-		if err := rows.Scan(&e.ID, &e.File, &e.Size, &e.Rows, &confirmed); err != nil {
-			return nil, err
-		}
-		e.Confirmed = confirmed.UTC().Format(periodTime)
-		out = append(out, e)
-	}
-	return out, rows.Err()
-}
-
-// earlierOf lists the Dashboard's earlier Datasets, newest first, as the Dataset tab shows them.
-func (a *App) earlierOf(ctx context.Context, d *dashboard) ([]keptDataset, error) {
-	kept, err := keptDatasets(ctx, a.db, d.ID)
-	if err != nil || d.Key == "" { // no current Dataset, so no earlier ones
-		return nil, err
-	}
-	kept = kept[:len(kept)-1] // the current one
-	slices.Reverse(kept)
-	return kept, nil
-}
-
-// storageRoom is what confirming a pending Dataset does to the Learner's Storage allowance.
+// storageRoom is what confirming a pending Part does to the Learner's Storage allowance.
 type storageRoom struct {
-	Drop    []keptDataset // deleted on confirm: the earlier ones past keepEarlier, then oldest first for room
-	ForRoom bool          // some of Drop go only to make room under the allowance
-	Used    int64         // the bytes the Learner's Datasets take now
-	Fits    bool          // false when the Dataset does not fit even with every earlier one gone
+	Used  int64 // the bytes the Learner's Workbooks, pages and confirmed Parts take now
+	Freed int64 // the bytes the confirm deletes: the Parts a Replace removes, and any Dataset from before Parts
+	Fits  bool  // false when the Part does not fit even with those gone
 }
 
-// roomFor is what confirming a pending Dataset of size bytes deletes, the current Dataset turning earlier: the
-// earlier ones past keepEarlier, then, oldest first, as many more as the Storage allowance needs. The Admin has no
-// allowance.
-func roomFor(ctx context.Context, q queryer, d *dashboard, size int64, acc labAccess) (storageRoom, error) {
-	kept, err := keptDatasets(ctx, q, d.ID)
-	if err != nil {
-		return storageRoom{}, err
-	}
-	past := max(len(kept)-keepEarlier, 0)
+// roomFor is whether a pending Part of size bytes fits the Learner's Storage allowance, counting as free the Parts
+// its confirm deletes: every current Part when it replaces the data, and the earlier Datasets from before Parts,
+// which any confirm deletes. dashboardID is 0 for a Dashboard not made yet. The Admin has no allowance.
+func roomFor(ctx context.Context, q queryer, dashboardID, size int64, replace bool, acc labAccess) (storageRoom, error) {
 	period := acc.CountedPeriod()
 	if period == nil {
-		return storageRoom{Drop: kept[:past], Fits: true}, nil
+		return storageRoom{Fits: true}, nil
 	}
 	var room storageRoom
-	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, d.ID).Scan(&room.Used); err != nil {
+	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+`,
+			(SELECT COALESCE(sum(p.saved_size), 0) FROM dataset_parts p
+				WHERE p.dashboard_id = this.id AND (p.state = 'earlier' OR p.state = 'current' AND $2::boolean))
+		FROM dashboards this WHERE this.id = $1`, dashboardID, replace).Scan(&room.Used, &room.Freed); err != nil {
 		return storageRoom{}, err
 	}
-	after := room.Used + size
-	for _, e := range kept[:past] {
-		after -= e.Size
-	}
-	n := past
-	for ; after > period.Storage() && n < len(kept); n++ {
-		after -= kept[n].Size
-	}
-	room.Drop, room.ForRoom, room.Fits = kept[:n], n > past, after <= period.Storage()
+	room.Fits = room.Used+size-room.Freed <= period.Storage()
 	return room, nil
 }
 
-// routine reports whether Clean-up's changes are all of kinds it also made on the Dashboard's current Dataset, as
+// routine reports whether Clean-up's changes are all of kinds it also made on the Dashboard's latest Part, as
 // when the same monthly workbook is skipped past its title rows and combined again.
 func (a *App) routine(ctx context.Context, d *dashboard, changes []lab.Change) (bool, error) {
 	var c []byte
-	err := a.db.QueryRowContext(ctx, `SELECT cleanup FROM datasets WHERE dashboard_id = $1 AND state = 'current'`, d.ID).Scan(&c)
+	err := a.db.QueryRowContext(ctx, `SELECT cleanup FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current'
+		ORDER BY position DESC LIMIT 1`, d.ID).Scan(&c)
 	if errors.Is(err, sql.ErrNoRows) {
 		return len(changes) == 0, nil
 	}
@@ -231,12 +171,12 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 	return tx.Commit()
 }
 
-// pendingOf loads the Dashboard's pending Dataset, read from the store; nil if it has none.
+// pendingOf loads the Dashboard's pending Part, its rows read from the store; nil if it has none.
 func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, error) {
 	var p pendingDataset
 	var key string
 	var c []byte
-	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup FROM datasets
+	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup FROM dataset_parts
 		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &key, &p.File, &p.Size, &c)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -251,7 +191,10 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 	if err != nil {
 		return nil, fmt.Errorf("get Dataset %s: %w", key, err)
 	}
-	return &p, json.Unmarshal(data, &p.Dataset)
+	if p.Dataset, err = lab.PartDataset(data, p.Columns); err != nil {
+		return nil, fmt.Errorf("read Part %s: %w", key, err)
+	}
+	return &p, nil
 }
 
 // maxCleanUps is how many uploads Clean-up reads at once: a 1.5 MB workbook peaks near 300 MB.
@@ -280,13 +223,15 @@ func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.Clean
 // errDatasetStore is keepPending's and keepWorkbook's error when the store refuses the Dataset or the Workbook.
 var errDatasetStore = errors.New("the store refused the Dataset")
 
-// keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Dataset, replacing any
-// earlier pending one, and returns its saved size. With acc's counted period, the Learner's other pending Datasets
-// count against the Storage allowance too. A Dataset that would not fit, even with every Dataset of this Dashboard
-// that roomFor may delete on confirm gone, is dropped with errStorageFull; used is then the bytes the Learner's
-// Datasets take, pending ones included. workbook is the Workbook the upload was kept as, 0 for none.
+// keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Part, replacing any earlier
+// pending one, and returns its saved size. With acc's counted period, the Learner's other pending Parts count against
+// the Storage allowance too. A Part that would not fit, even with the Parts its confirm deletes gone (all the current
+// ones when replace, else none; see roomFor), is dropped with errStorageFull; used is then the bytes the Learner's
+// Parts, Workbooks and pages take, pending Parts included. workbook is the Workbook the upload was kept as, 0 for none.
 func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string, workbook int64) (size, used int64, err error) {
-	data, err := json.Marshal(res.Dataset)
+	res.Columns = res.Dataset.Columns
+	day := a.now().UTC().Format(time.DateOnly)
+	data, err := lab.PartRows(res.Dataset, day)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -299,7 +244,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		return 0, 0, err
 	}
 	if err := a.datasets.Put(r.Context(), key, data); err != nil {
-		a.logError(r, fmt.Errorf("put Dataset %s: %w", key, err))
+		a.logError(r, fmt.Errorf("put Part %s: %w", key, err))
 		return 0, 0, errDatasetStore
 	}
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
@@ -309,19 +254,19 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 				return err
 			}
 		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND state = 'pending'`, d.ID); err != nil {
 			return err
 		}
 		if acc.CountedPeriod() != nil {
 			var pending int64
-			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(ds.saved_size), 0) FROM datasets ds
-				JOIN dashboards owner ON owner.id = ds.dashboard_id JOIN dashboards this ON this.learner_id = owner.learner_id
-				WHERE this.id = $1 AND ds.state = 'pending'`, d.ID).Scan(&pending); err != nil {
+			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(p.saved_size), 0) FROM dataset_parts p
+				JOIN dashboards owner ON owner.id = p.dashboard_id JOIN dashboards this ON this.learner_id = owner.learner_id
+				WHERE this.id = $1 AND p.state = 'pending'`, d.ID).Scan(&pending); err != nil {
 				return err
 			}
-			// ponytail: what confirm may delete for room counts as free before it is, so the store can hold up to about
-			// twice the allowance until the Learner confirms; refusing those uploads would refuse ones that fit today.
-			room, err := roomFor(r.Context(), tx, d, pending+int64(len(data)), acc)
+			// ponytail: what confirm deletes counts as free before it is, so the store can hold up to about twice the
+			// allowance until the Learner confirms; refusing those uploads would refuse ones that fit once confirmed.
+			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), res.Added == nil, acc)
 			if err != nil {
 				return err
 			}
@@ -329,12 +274,12 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 				return errStorageFull
 			}
 		}
-		var from any // NULL for a Dataset with no Workbook
+		var from any // NULL for a Part with no Workbook
 		if workbook != 0 {
 			from = workbook
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c, from)
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`, d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day)
 		return err
 	})
 	if err != nil {
@@ -346,11 +291,11 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 }
 
 // uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its
-// pending Dataset, replacing any earlier pending one, then shows the preview. A file Clean-up cannot read gets one
+// pending Part, replacing any earlier pending one, then shows the preview. A file Clean-up cannot read gets one
 // message. Clean-up reads with the Dashboard's remembered settings, unless the upload comes with the preview's sheet
 // choices, which the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made
-// on the current Dataset, every column the blocks use is still there and no earlier Dataset goes for room, there is
-// nothing new to check: the upload is confirmed at once.
+// on the latest Part, every column the blocks use is still there, the Dataset has at most one Part for a Replace to
+// delete and the Part fits the Storage allowance, there is nothing new to check: the upload is confirmed at once.
 func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string) {
 	lang, err := a.language(r)
 	if err != nil {
@@ -385,6 +330,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
+	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
+	add := r.FormValue("mode") == "add" && d.Parts > 0
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
 	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.
 	refused := func(size, used int64, err error) bool {
@@ -402,7 +349,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		return true
 	}
-	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, name, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, !add, name, data)
 	if refused(int64(len(data)), used, err) {
 		return
 	}
@@ -417,17 +364,20 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
-	// Add to data on a Dashboard with a Dataset keeps its rows and the upload's as one new Dataset (ADR 0018).
-	if r.FormValue("mode") == "add" && d.Dataset != nil {
-		combined, same, changes, err := lab.Add(d.Dataset, res.Dataset)
+	if add {
+		more, changes, err := lab.AddPart(d.Columns, d.Rows, res.Dataset)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 			page.Error = problem.In(lang)
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 			return
 		}
-		kept.Added = &addition{Rows: len(res.Dataset.Rows), Had: len(d.Dataset.Rows), Same: same, On: d.Key}
-		kept.Dataset = combined
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		kept.Added = &addition{Rows: len(more.Rows), Had: d.Rows}
+		kept.Dataset = more
 		kept.Changes = append(kept.Changes, changes...)
 	}
 	size, used, err := a.keepPending(r, d, acc, kept, name, workbook)
@@ -435,17 +385,17 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	// Nothing new to check: it goes live. An Add is always shown, as its rows may repeat ones already there.
-	if d.Config != nil && kept.Added == nil && allFit(d.Config, res.Dataset) {
+	if d.Config != nil && !add && d.Parts <= 1 && allFit(d.Config, res.Dataset) {
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
-			room, err = roomFor(r.Context(), a.db, d, size, acc)
+			room, err = roomFor(r.Context(), a.db, d.ID, size, true, acc)
 		}
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		if usual && room.Fits && !room.ForRoom {
+		if usual && room.Fits {
 			a.confirmWork(w, r, d)
 			return
 		}
@@ -453,13 +403,12 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 }
 
-// confirmWork makes the pending Dataset current; the one it replaces becomes earlier, and roomFor's earlier
-// Datasets are deleted. The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019).
-// Later confirms keep the blocks,
-// swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
-// pauses its blocks. A confirm that would take the Learner over their Storage allowance even with every earlier
-// Dataset of this Dashboard gone is refused and the Dataset stays pending. An Add to data whose current Dataset is no
-// longer current, after a restore or another confirm, is refused and dropped, so it never undoes that change.
+// confirmWork makes the pending Part current. An Add to data puts it last in the Dataset's order; a Replace makes it the
+// only Part, deleting the others, and any Dataset from before Parts is deleted either way, their files queued for
+// deletion from the store. The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019).
+// Later confirms keep the blocks, swapping in the Learner's pick (use:<column>) for each column they use that the
+// Dataset lacks; one left out pauses its blocks. A confirm that would take the Learner over their Storage allowance
+// even with the Parts it deletes gone is refused and the Part stays pending.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -503,52 +452,42 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.serverError(w, r, err)
 		return
 	}
+	columns, err := json.Marshal(p.Columns)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	var room storageRoom
-	replaced := errors.New("pending Dataset replaced")
-	stale := false
+	replaced := errors.New("pending Part replaced")
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		// Locking the Learner makes confirms and uploads take turns, so none slips under the allowance.
 		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
 			return err
 		}
-		// Locking the pending Dataset holds off a re-upload replacing it; one that already did leaves this one gone.
+		// Locking the pending Part holds off a re-upload replacing it; one that already did leaves this one gone.
 		var one int
-		err := tx.QueryRowContext(r.Context(), `SELECT 1 FROM datasets WHERE id = $1 AND state = 'pending' FOR UPDATE`, p.ID).Scan(&one)
+		err := tx.QueryRowContext(r.Context(), `SELECT 1 FROM dataset_parts WHERE id = $1 AND state = 'pending' FOR UPDATE`, p.ID).Scan(&one)
 		if errors.Is(err, sql.ErrNoRows) {
 			return replaced
 		}
 		if err != nil {
 			return err
 		}
-		if p.Added != nil {
-			// Locking the current Dataset holds off a restore until this confirm is done.
-			var on string
-			err := tx.QueryRowContext(r.Context(), `SELECT storage_key FROM datasets WHERE dashboard_id = $1 AND state = 'current' FOR UPDATE`,
-				d.ID).Scan(&on)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return err
-			}
-			if stale = on != p.Added.On; stale {
-				_, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1`, p.ID)
-				return err
-			}
-		}
-		if room, err = roomFor(r.Context(), tx, d, p.Size, acc); err != nil || !room.Fits {
+		replace := p.Added == nil
+		if room, err = roomFor(r.Context(), tx, d.ID, p.Size, replace, acc); err != nil || !room.Fits {
 			return cmp.Or(err, errStorageFull)
 		}
-		for _, e := range room.Drop {
-			if _, err := tx.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1`, e.ID); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'earlier' WHERE dashboard_id = $1 AND state = 'current'`, d.ID); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier' OR state = 'current' AND $2::boolean)`,
+			d.ID, replace); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'current', confirmed_at = now() WHERE id = $1`, p.ID); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `UPDATE dataset_parts SET state = 'current', confirmed_at = now(),
+			position = (SELECT COALESCE(max(position), 0) + 1 FROM dataset_parts WHERE dashboard_id = $2 AND state = 'current')
+			WHERE id = $1`, p.ID, d.ID); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, upload_settings = $3, updated_at = now() WHERE id = $1`,
-			d.ID, config, settings)
+		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET config = $2, upload_settings = $3, dataset_columns = $4, updated_at = now() WHERE id = $1`,
+			d.ID, config, settings, columns)
 		return err
 	})
 	if errors.Is(err, errStorageFull) {
@@ -566,103 +505,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
-	if stale {
-		if err := a.readDataset(r.Context(), d); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc}
-		page.Error = text.T(lang, "lab.err.add-stale", p.File)
-		a.renderDashboard(w, r, http.StatusConflict, page)
-		return
-	}
 	if d.Page != nil {
 		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, dashboardURL(d)+"/preview", http.StatusSeeOther)
-}
-
-// restoreDataset makes an earlier Dataset current at once, with no preview: the Dashboard and its Deployment show
-// it now, and the one it replaces becomes earlier. The blocks stay as they are. Restore and delete are
-// POST /lab/dashboards/{id}/datasets/{ds}/restore and .../delete.
-func (a *App) restoreDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if _, ok := a.labOpen(w, r); !ok {
-		return
-	}
-	id, err := strconv.ParseInt(r.PathValue("ds"), 10, 64)
-	if err != nil {
-		a.notFound(w, r)
-		return
-	}
-	gone := errors.New("not an earlier Dataset")
-	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		// Two statements, as the one-current index is checked row by row.
-		if _, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'earlier' WHERE dashboard_id = $1 AND state = 'current' AND id <> $2`, d.ID, id); err != nil {
-			return err
-		}
-		res, err := tx.ExecContext(r.Context(), `UPDATE datasets SET state = 'current' WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`, id, d.ID)
-		if err != nil {
-			return err
-		}
-		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return cmp.Or(err, gone)
-		}
-		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
-		return err
-	})
-	if errors.Is(err, gone) {
-		a.notFound(w, r)
-		return
-	}
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
-}
-
-// earlierDatasetFor applies the Lab access rule and loads the id and file name of Dashboard d's earlier Dataset
-// named by {ds}. ok is false when it has answered.
-func (a *App) earlierDatasetFor(w http.ResponseWriter, r *http.Request, d *dashboard) (id int64, file string, ok bool) {
-	if _, ok := a.labOpen(w, r); !ok {
-		return 0, "", false
-	}
-	id, err := strconv.ParseInt(r.PathValue("ds"), 10, 64)
-	if err == nil {
-		err = a.db.QueryRowContext(r.Context(), `SELECT file_name FROM datasets WHERE id = $1 AND dashboard_id = $2 AND state = 'earlier'`,
-			id, d.ID).Scan(&file)
-	}
-	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
-		a.notFound(w, r)
-		return 0, "", false
-	}
-	if err != nil {
-		a.serverError(w, r, err)
-		return 0, "", false
-	}
-	return id, file, true
-}
-
-// confirmDeleteDataset asks before deleting an earlier Dataset.
-func (a *App) confirmDeleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if _, file, ok := a.earlierDatasetFor(w, r, d); ok {
-		a.confirm(w, r, http.StatusOK, confirmation{Heading: "lab.w.delete-title", Question: "lab.w.delete-ask", Cancel: dataURL(d),
-			Action: r.URL.Path}, file)
-	}
-}
-
-// deleteDataset deletes an earlier Dataset and its stored data once its confirmation page is posted, freeing its
-// bytes from the Storage allowance.
-func (a *App) deleteDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	id, _, ok := a.earlierDatasetFor(w, r, d)
-	if !ok || unconfirmed(w, r) {
-		return
-	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM datasets WHERE id = $1 AND state = 'earlier'`, id); err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	a.dropDeletedFiles(r.Context(), r)
-	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 }

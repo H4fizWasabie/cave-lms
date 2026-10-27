@@ -31,13 +31,13 @@ func testdata(t *testing.T, name string) []byte {
 	return b
 }
 
-// generate is a built Dashboard's index.html and data.json, as Cave serves them.
+// generate is a built Dashboard's index.html and data.json of one Part, as Cave serves them.
 func generate(name, theme string, cfg *lab.Config, d *lab.Dataset, dataURL string) (index, data []byte, err error) {
 	if index, err = lab.Page(name, theme, cfg, d.Columns, dataURL); err != nil {
 		return nil, nil, err
 	}
-	data, err = lab.DataJSON(d)
-	return index, data, err
+	rows, err := lab.PartRows(d, "2026-07-02")
+	return index, []byte("[\n" + string(rows) + "\n]\n"), err
 }
 
 // allocated is how many bytes fn allocates.
@@ -63,7 +63,7 @@ func TestGenerateWritesThePageAndTheDatasetAsDataJSON(t *testing.T) {
 		}
 	}
 
-	if !bytes.HasPrefix(data, []byte(`[`+"\n"+`  {"Tarikh": "2026-01-01", "Perkara": "Sewa pejabat", "Kategori": "Sewa", "Jenis": "Keluar", "Jumlah": 3200}`)) {
+	if !bytes.HasPrefix(data, []byte(`[`+"\n"+`  {"Tarikh": "2026-01-01", "Perkara": "Sewa pejabat", "Kategori": "Sewa", "Jenis": "Keluar", "Jumlah": 3200, "Part date": "2026-07-02"}`)) {
 		t.Fatalf("data.json does not start with the first row in column order:\n%.300s", data)
 	}
 	var rows []map[string]any

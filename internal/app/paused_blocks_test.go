@@ -90,7 +90,7 @@ func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
 	}
 }
 
-func TestRestoringADatasetWithTheColumnUnpausesItsBlocks(t *testing.T) {
+func TestReplacingTheDataWithADatasetThatHasTheColumnUnpausesItsBlocks(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
@@ -100,10 +100,11 @@ func TestRestoringADatasetWithTheColumnUnpausesItsBlocks(t *testing.T) {
 		t.Fatal("no block paused without Jumlah")
 	}
 
-	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
 	if n := ada.paused(path + "/view/"); n != 0 {
-		t.Fatalf("%d blocks still paused after restoring a Dataset with Jumlah", n)
+		t.Fatalf("%d blocks still paused after replacing the data with a Dataset with Jumlah", n)
 	}
 }
 
@@ -149,7 +150,7 @@ func TestAnUploadWithTheSameKindsOfChangesSkipsThePreview(t *testing.T) {
 	}
 }
 
-func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
+func TestARetypedColumnLeftOutPausesItsBlocksUntilTheDataIsReplaced(t *testing.T) {
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
@@ -161,9 +162,10 @@ func TestARetypedColumnLeftOutPausesItsBlocksUntilRestored(t *testing.T) {
 		t.Fatal("no block paused with Jumlah retyped")
 	}
 
-	res, body = ada.post(ada.earlier(path)["laporan.xlsx"]+"/restore", nil)
+	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, nil)
 	if n := ada.paused(path + "/view/"); n != 0 {
-		t.Fatalf("%d blocks still paused after restoring a Dataset with a Number Jumlah", n)
+		t.Fatalf("%d blocks still paused after replacing the data with a Dataset with a Number Jumlah", n)
 	}
 }

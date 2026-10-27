@@ -127,7 +127,7 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 	if !ok {
 		return
 	}
-	if d.Dataset == nil && d.Page == nil {
+	if d.Parts == 0 && d.Page == nil {
 		http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 		return
 	}

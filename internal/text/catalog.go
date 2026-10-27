@@ -253,8 +253,6 @@ var catalog = map[string]entry{
 	"chat.hide-title":               {en: "Hide Message", ms: "Sembunyikan Mesej"},
 	"chat.hide-ask":                 {en: "Hide this Message from the Chat and from Reports? You can unhide it later.", ms: "Sembunyikan Mesej ini daripada Sembang dan Laporan? Anda boleh menyahsembunyikannya kemudian."},
 	"community.leave-ask":           {en: "Leave the Community Chat? Your Messages stay. You can join again at any time.", ms: "Keluar dari Sembang Komuniti? Mesej anda kekal. Anda boleh menyertainya semula pada bila-bila masa."},
-	"lab.w.delete-title":            {en: "Delete earlier Dataset", ms: "Padam Set data terdahulu"},
-	"lab.w.delete-ask":              {en: "Delete the earlier Dataset “%s”? Its file goes too. This cannot be undone.", ms: "Padam Set data terdahulu “%s”? Failnya turut dipadam. Tindakan ini tidak boleh dibuat asal."},
 	"ctadmin.learners.end-ask":      {en: "End Pro for %s now? Their running Pro and any given to follow it end at once; their Plan periods stay. This cannot be undone, but you can give Pro again.", ms: "Tamatkan Pro untuk %s sekarang? Pro mereka yang berjalan dan yang diberikan selepasnya tamat serta-merta; Tempoh Pelan mereka kekal. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh memberikan Pro semula."},
 	"plans.period.end":              {en: "End Plan period", ms: "Tamatkan Tempoh Pelan"},
 	"plans.period.end-ask":          {en: "End the “%[2]s” period for %[1]s now? It stops at once. This cannot be undone, but you can assign a Plan again.", ms: "Tamatkan tempoh “%[2]s” bagi %[1]s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan semula."},
@@ -894,6 +892,8 @@ var catalog = map[string]entry{
 	"lab.d.columns.one":       {en: "%d column", ms: "%d lajur"},
 	"lab.d.columns.other":     {en: "%d columns", ms: "%d lajur"},
 	"lab.d.changed":           {en: "changed %s", ms: "diubah %s"},
+	"lab.d.parts.one":         {en: "%d Part", ms: "%d Bahagian"},
+	"lab.d.parts.other":       {en: "%d Parts", ms: "%d Bahagian"},
 	"lab.d.upload-new":        {en: "Upload a new Dataset", ms: "Muat naik Set data baharu"},
 	"lab.d.upload-yours":      {en: "Upload your Dataset", ms: "Muat naik Set data anda"},
 	"lab.d.upload-yours-body": {en: "Your own Excel data. Cave cleans it and builds the blocks from your columns.", ms: "Data Excel anda sendiri. Cave membersihkannya dan membina blok daripada lajur anda."},
@@ -951,14 +951,6 @@ var catalog = map[string]entry{
 		en: "Adding %d rows to your %d: %d rows in all. The first new rows are below, as Cave will keep them.",
 		ms: "Menambah %d baris pada %d baris anda: %d baris semuanya. Baris baharu pertama di bawah, seperti yang akan disimpan oleh Cave.",
 	},
-	"lab.data.same.one": {
-		en: "%d new row exactly matches a row already in your data. Check you are not adding the same rows twice.",
-		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
-	},
-	"lab.data.same.other": {
-		en: "%d new rows exactly match rows already in your data. Check you are not adding the same rows twice.",
-		ms: "%d baris baharu sama persis dengan baris yang sudah ada dalam data anda. Pastikan anda tidak menambah baris yang sama dua kali.",
-	},
 	"lab.data.columns-changed": {
 		en: "Your page may stop working: these columns differ from your current data's.",
 		ms: "Halaman anda mungkin berhenti berfungsi: lajur ini berbeza daripada lajur data semasa anda.",
@@ -972,10 +964,6 @@ var catalog = map[string]entry{
 	"lab.err.add-too-many-rows": {
 		en: "Adding these %s rows to your %s makes %s. A Dataset holds up to %s rows. Upload fewer rows, or choose Replace data.",
 		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Set data memuatkan sehingga %s baris. Muat naik lebih sedikit baris, atau pilih Gantikan data.",
-	},
-	"lab.err.add-stale": {
-		en: "Your data changed after you uploaded %s, so adding it now would undo that change. Nothing was added: upload the file again to add it to your data as it is now.",
-		ms: "Data anda berubah selepas anda memuat naik %s, jadi menambahnya sekarang akan membatalkan perubahan itu. Tiada apa yang ditambah: muat naik fail itu sekali lagi untuk menambahnya pada data anda sekarang.",
 	},
 	"lab.add.none": {en: "none", ms: "tiada"},
 
@@ -1023,19 +1011,13 @@ var catalog = map[string]entry{
 		en: "Cave finds the row with your column names. If the preview shows the wrong one, upload the file again with its row number.",
 		ms: "Cave mencari baris yang mengandungi nama lajur anda. Jika pratonton menunjukkan baris yang salah, muat naik fail sekali lagi dengan nombor barisnya.",
 	},
-	"lab.w.two-row": {en: "My column names take 2 rows", ms: "Nama lajur saya mengambil 2 baris"},
-	"lab.w.another": {en: "Or upload another file", ms: "Atau muat naik fail lain"},
-	"lab.w.earlier": {en: "Earlier Datasets", ms: "Set data terdahulu"},
-	"lab.w.earlier-body": {
-		en: "Cave keeps your last 3. Restore one to use it again at once; your blocks stay as they are. Cave keeps each .xlsx you upload as a Workbook in your Folder; to clean up a file again, upload it again.",
-		ms: "Cave menyimpan 3 yang terakhir. Pulihkan satu untuk menggunakannya semula serta-merta; blok anda kekal seperti sedia ada. Cave menyimpan setiap fail .xlsx yang anda muat naik sebagai Buku kerja dalam Folder anda; untuk membersihkan fail semula, muat naik semula.",
-	},
-	"lab.w.confirmed": {en: "confirmed %s", ms: "disahkan %s"},
-	"lab.w.restore":   {en: "Restore", ms: "Pulihkan"},
-	"lab.w.delete":    {en: "Delete", ms: "Padam"},
-	"lab.w.drops": {
-		en: "Confirming deletes these earlier Datasets, so that Cave keeps 3 and you stay within your Storage allowance:",
-		ms: "Pengesahan memadam Set data terdahulu ini, supaya Cave menyimpan 3 dan anda kekal dalam had storan anda:",
+	"lab.w.two-row":  {en: "My column names take 2 rows", ms: "Nama lajur saya mengambil 2 baris"},
+	"lab.w.another":  {en: "Or upload another file", ms: "Atau muat naik fail lain"},
+	"lab.w.restore":  {en: "Restore", ms: "Pulihkan"},
+	"lab.w.get-back": {en: "Getting data back", ms: "Mendapatkan semula data"},
+	"lab.w.get-back-body": {
+		en: "Cave keeps no earlier copies of your data. Every .xlsx you upload stays as a Workbook in your Folder: to get data back, upload that Workbook again. Your Workbooks are in",
+		ms: "Cave tidak menyimpan salinan data terdahulu. Setiap fail .xlsx yang anda muat naik kekal sebagai Buku kerja dalam Folder anda: untuk mendapatkan semula data, muat naik Buku kerja itu sekali lagi. Buku kerja anda ada di",
 	},
 	"lab.w.uses":          {en: "Columns your blocks use", ms: "Lajur yang digunakan oleh blok anda"},
 	"lab.w.blocks-use":    {en: "Blocks use", ms: "Blok menggunakan"},

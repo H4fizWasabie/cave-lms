@@ -811,11 +811,11 @@ func TestCleanUpOfAnUnreadableSheetDoesNotFormatItsCellText(t *testing.T) {
 func TestAddKeepsADashEmptyInANumberColumn(t *testing.T) {
 	d := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Number}}, Rows: [][]any{{"Gula", 12.0}}}
 	more := &lab.Dataset{Columns: []lab.Column{{Name: "Barang", Type: lab.Text}, {Name: "Baki", Type: lab.Text}}, Rows: [][]any{{"Tepung", "-"}, {"Beras", "7"}}}
-	out, _, changes, err := lab.Add(d, more)
+	out, changes, err := lab.AddPart(d.Columns, len(d.Rows), more)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := [][]any{{"Gula", 12.0}, {"Tepung", nil}, {"Beras", 7.0}}; !reflect.DeepEqual(out.Rows, want) {
+	if want := [][]any{{"Tepung", nil}, {"Beras", 7.0}}; !reflect.DeepEqual(out.Rows, want) {
 		t.Fatalf("rows = %v, want %v", out.Rows, want)
 	}
 	if len(changes) != 0 {

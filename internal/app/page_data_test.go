@@ -1,8 +1,11 @@
 package app_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -38,7 +41,10 @@ func pageWithData(t *testing.T, ada *site) (path, link string) {
 	return path, link
 }
 
-func TestAddingToAPageDashboardsDataCombinesTheRowsAndRestoringUndoesIt(t *testing.T) {
+// partDate is the day a Part uploaded now is dated.
+func partDate() string { return time.Now().UTC().Format(time.DateOnly) }
+
+func TestConfirmingAnAddCreatesASecondPartAndDataJSONReturnsBothPartsInOrderEachRowWithItsPartDate(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
@@ -48,21 +54,34 @@ func TestAddingToAPageDashboardsDataCombinesTheRowsAndRestoringUndoesIt(t *testi
 	res, body := ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
 	expectRedirect(t, res, body, path+"/data")
 	_, body = ada.get(path + "/data")
-	expectAll(t, body, "Adding 2 rows to your 2: 4 rows in all.", "1 new row exactly matches a row already in your data.",
-		`name="mode" value="add" checked`, `action="`+path+`/dataset/confirm"`)
+	expectAll(t, body, "Adding 2 rows to your 2: 4 rows in all.", `name="mode" value="add" checked`, `action="`+path+`/dataset/confirm"`)
+	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Gula") {
+		t.Fatalf("before confirming, data.json = %s", body)
+	}
 	res, body = ada.post(path+"/dataset/confirm", nil)
 	expectRedirect(t, res, body, path+"/data")
+	_, body = ada.get(path + "/data")
+	expectAll(t, body, "2 Parts", "4 rows")
+
 	_, body = visitor.get(link + "data.json")
-	expectAll(t, body, `"Perkara": "Beras"`, `"Perkara": "Gula"`)
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(body), &rows); err != nil {
+		t.Fatalf("data.json is not one array: %v\n%s", err, body)
+	}
+	var got []string
+	for _, r := range rows {
+		got = append(got, fmt.Sprint(r["Perkara"], " ", r["Part date"]))
+	}
+	today := partDate()
+	want := []string{"Beras " + today, "Jualan " + today, "Gula " + today, "Jualan " + today}
+	if !slices.Equal(got, want) {
+		t.Fatalf("data.json rows = %v, want %v", got, want)
+	}
 	if n := strings.Count(body, `"Tarikh": "2026-10-05", "Perkara"`); n != 4 {
 		t.Fatalf("data.json has %d rows in the current column order, want 4: %s", n, body)
 	}
-
-	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
-	res, body = ada.post(september+"/restore", nil)
-	expectRedirect(t, res, body, path+"/data")
-	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Gula") || !strings.Contains(body, "Beras") {
-		t.Fatalf("after restoring data.json = %s", body)
+	if n := ada.datasetFiles(); n != 2 {
+		t.Fatalf("%d stored files, want one per Part", n)
 	}
 }
 
@@ -87,39 +106,6 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 	_, body = ada.second().get(link + "data.json")
 	expectAll(t, body, `"Perkara": "Gula", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": null`,
 		`"Perkara": "Garam", "Kategori": "Dapur", "Jenis": "Keluar", "Jumlah": 70`)
-}
-
-// An Add is put together with the data current at upload: once that changed, confirming it would undo the change,
-// so it is refused and the Learner is asked to upload again.
-func TestAnAddIsRefusedWhenTheDataChangedSinceItsUpload(t *testing.T) {
-	_, ada := labLearner(t)
-	path, link := pageWithData(t, ada)
-	res, body := ada.postFile(path+"/dataset", "ogos.xlsx", shopReport(t, "Tepung", 50))
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
-	expectRedirect(t, res, body, path+"/data")
-	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
-	res, body = ada.post(september+"/restore", nil)
-	expectRedirect(t, res, body, path+"/data")
-
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectStatus(t, res, body, http.StatusConflict, "Your data changed after you uploaded oktober.xlsx")
-	if strings.Contains(body, `action="`+path+`/dataset/confirm"`) {
-		t.Fatalf("the refused Add is still offered: %s", body)
-	}
-	if _, body = ada.second().get(link + "data.json"); strings.Contains(body, "Gula") || strings.Contains(body, "Tepung") || !strings.Contains(body, "Beras") {
-		t.Fatalf("after the refused Add data.json = %s", body)
-	}
-
-	ada.switchLanguage("ms", path)
-	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", shopColumns(t, "Gula", 80), adding)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(ada.earlierOn(path+"/data", path)["ogos.xlsx"]+"/restore", nil)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectStatus(t, res, body, http.StatusConflict, "Data anda berubah selepas anda memuat naik oktober.xlsx")
 }
 
 func TestAddingDataWithOtherColumnsIsRefusedNamingThem(t *testing.T) {
@@ -155,7 +141,7 @@ func TestAnAddPastTheRowLimitIsRefusedWithTheNumbers(t *testing.T) {
 }
 
 func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
-	_, ada, _ := storageSite(t, "2") // 2 MB, and each bigFinance is about 600 KB as a Workbook and as a Dataset
+	_, ada, _ := storageSite(t, "3") // 3 MB; each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
 	path := ada.createPage("Kewangan", myPage)
 	res, body := ada.postFile(path+"/dataset", "one.xlsx", bigFinance(t, 1))
 	expectRedirect(t, res, body, path+"/data")
@@ -245,11 +231,18 @@ func TestAPageDashboardsDataIsUploadedConfirmedAndServedAtDataJSON(t *testing.T)
 	}
 	admin.assignPlan("ada@example.com", admin.onlyPlanID())
 
-	september := ada.earlierOn(path+"/data", path)["september.xlsx"]
-	res, body = ada.post(september+"/restore", nil)
+	// Sleeping stops data.json however many Parts it has; so does a Takedown.
+	res, body = ada.postFile(path+"/dataset", "november.xlsx", shopColumns(t, "Garam", 70), adding)
 	expectRedirect(t, res, body, path+"/data")
-	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, `"Perkara": "Beras"`) {
-		t.Fatalf("after restoring data.json = %s", body)
+	ada.post(path+"/dataset/confirm", nil)
+	if _, body = visitor.get(link + "data.json"); !strings.Contains(body, "Gula") || !strings.Contains(body, "Garam") {
+		t.Fatalf("after adding, data.json = %s", body)
+	}
+	_, body = admin.get("/admin/deployments")
+	res, body = admin.post(takedownAction.FindStringSubmatch(body)[1], url.Values{"reason": {"Borang palsu"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if _, body = visitor.get(link + "data.json"); strings.Contains(body, "Perkara") {
+		t.Fatalf("a taken-down Deployment's data.json = %s", body)
 	}
 }
 
