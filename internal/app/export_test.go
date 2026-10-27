@@ -3,6 +3,9 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"text/template/parse"
 	"time"
 
@@ -120,3 +123,45 @@ func (a *App) HoldCleanUps(n int) (release func()) {
 
 // SetCleanUpWaitLog sets how long an upload may wait for its turn before the wait is logged, for tests.
 func (a *App) SetCleanUpWaitLog(d time.Duration) { a.cleanUpWaitLog = d }
+
+// SessionCookie is the name of the cookie that holds a session.
+const SessionCookie = sessionCookie
+
+// FragmentsBothWays renders Message id of Course courseID, or the Community Chat when it is 0, for the Learner behind
+// each session token: shared as open Chat streams do when one loaded change serves them all, apart with messageFragment,
+// for tests. A viewer the shared change refuses gets "denied" there.
+func (a *App) FragmentsBothWays(courseID, id int64, tokens []string) (shared, apart []string, err error) {
+	ch := &chatChange{courseID: courseID, id: id}
+	views := make([]chatViewer, len(tokens))
+	for i, token := range tokens {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+		r.Header.Set("Accept-Language", "en")
+		l, err := a.lookUpLearner(r)
+		if err != nil || l == nil {
+			return nil, nil, fmt.Errorf("session %d: %v", i, err)
+		}
+		lang, err := a.language(r)
+		if err != nil {
+			return nil, nil, err
+		}
+		views[i] = chatViewer{l, lang}
+		ch.tokens = append(ch.tokens, hashToken(token))
+	}
+	for i, token := range tokens {
+		html, ok, err := a.streamFragment(ch, &views[i], hashToken(token))
+		if err != nil {
+			return nil, nil, err
+		}
+		if !ok {
+			html = "denied"
+		}
+		shared = append(shared, html)
+		html, err = a.messageFragment(context.Background(), views[i], courseID, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		apart = append(apart, html)
+	}
+	return shared, apart, nil
+}

@@ -50,6 +50,9 @@ func (a *App) currentLearner(r *http.Request) (*learner, error) {
 	return a.lookUpLearner(r)
 }
 
+// learnerColumns selects a Learner as the session lookups read them; $2 is the owner's email.
+const learnerColumns = `l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2), coalesce(l.language, ''), l.picture_key`
+
 func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	cookie, err := r.Cookie(sessionCookie)
 	if err != nil {
@@ -57,7 +60,7 @@ func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	}
 	var l learner
 	err = a.db.QueryRowContext(r.Context(), `
-		SELECT l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2), coalesce(l.language, ''), l.picture_key
+		SELECT `+learnerColumns+`
 		FROM sessions s JOIN learners l ON l.id = s.learner_id
 		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value), a.ownerEmail).Scan(&l.ID, &l.Name, &l.IsAdmin, &l.IsOwner, &l.Lang, &l.PictureKey)
 	if errors.Is(err, sql.ErrNoRows) {
