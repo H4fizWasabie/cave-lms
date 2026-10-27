@@ -13,6 +13,12 @@
             <small>{{t .Lang "account.name-hint"}}</small>
           </div>
           <div class="field">
+            <label for="username">{{t .Lang "account.username"}}</label>
+            <input id="username" type="text" name="username" value="{{.Username}}" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" required{{if eq $f "username"}} aria-invalid="true" aria-describedby="username-err"{{end}}>
+            {{if eq $f "username"}}<p class="field-err" id="username-err" role="alert">{{.Error}}</p>{{end}}
+            <small>{{t .Lang "account.username-hint"}}</small>
+          </div>
+          <div class="field">
             <label for="email">{{t .Lang "account.email"}}</label>
             <input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required{{if eq $f "email"}} aria-invalid="true" aria-describedby="email-err"{{end}}>
             {{if eq $f "email"}}<p class="field-err" id="email-err" role="alert">{{.Error}}</p>{{end}}

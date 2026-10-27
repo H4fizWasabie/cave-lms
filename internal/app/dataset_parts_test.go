@@ -145,6 +145,7 @@ func TestACurrentDatasetFromBeforePartsLastChangedByAnAddKeepsEveryRow(t *testin
 		t.Fatal(err)
 	}
 	ada.restart()
+	link = ada.linkAfterMigration(path)
 
 	want := []string{"Beras 2026-03-09", "Jualan 2026-03-09"}
 	for _, page := range []string{path + "/view/", link} {
@@ -191,6 +192,7 @@ func TestADatasetFromBeforePartsBecomesOnePartAndItsEarlierCopiesGoOnTheNextConf
 		t.Fatal(err)
 	}
 	ada.restart()
+	link = ada.linkAfterMigration(path)
 
 	// The Dataset has the recipe its next Parts are read with: the sheet its Part was read from, the header not typed.
 	var recipe string

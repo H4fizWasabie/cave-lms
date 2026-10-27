@@ -23,9 +23,9 @@ func (s *site) readyDashboard(name string) string {
 	return path
 }
 
-var deploymentLink = regexp.MustCompile(`https://cave\.example\.invalid(/d/[A-Za-z0-9_-]+/)`)
+var deploymentLink = regexp.MustCompile(`https://cave\.example\.invalid(/d/[a-z0-9-]+/[A-Za-z0-9_-]+/)`)
 
-// deploy confirms the Deployment of the Dashboard at path, named dash-<its id>, and returns its link's path, /d/<name>/.
+// deploy confirms the Deployment of the Dashboard at path, named dash-<its id>, and returns its link's path, /d/<username>/<name>/.
 func (s *site) deploy(path string) string {
 	s.t.Helper()
 	return s.deployAs(path, "dash-"+path[strings.LastIndex(path, "/")+1:])
@@ -60,7 +60,7 @@ func TestADeploymentsCSPNamesOnlyCavesOrigin(t *testing.T) {
 	res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-ada"}, "right": {"yes"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
-	res, _ = ada.second().get("/d/kedai-ada/")
+	res, _ = ada.second().get("/d/ada-example-com/kedai-ada/")
 	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://cave.example.invalid:8443 'unsafe-inline'; " +
 		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' https://cave.example.invalid:8443; frame-ancestors 'none'"
 	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
@@ -94,7 +94,7 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	}
 
 	link := ada.deployAs(path, "kedai-ada-2026")
-	if link != "/d/kedai-ada-2026/" {
+	if link != "/d/ada-example-com/kedai-ada-2026/" {
 		t.Fatalf("the link is %s, want the name Ada picked", link)
 	}
 	res, body = ada.get(path + "/deploy")
@@ -369,7 +369,7 @@ func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
 	if _, body = ada.get(path + "/deploy"); deploymentLink.MatchString(body) {
 		t.Fatalf("deployed after a refusal: %s", body)
 	}
-	if link := ada.deployAs(path, "kedai-baru"); link != "/d/kedai-baru/" {
+	if link := ada.deployAs(path, "kedai-baru"); link != "/d/ada-example-com/kedai-baru/" {
 		t.Fatalf("link %s", link)
 	}
 }
@@ -382,9 +382,10 @@ func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	visitor := ada.second()
-	res, body := visitor.get("/d/" + old + "/")
+	link := "/d/ada-example-com/" + old + "/"
+	res, body := visitor.get(link)
 	expectStatus(t, res, body, http.StatusOK, `fetch("data/`)
-	res, body = visitor.get("/d/" + old + "/" + visitor.dataOf("/d/"+old+"/"))
+	res, body = visitor.get(link + visitor.dataOf(link))
 	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
 }
 
@@ -413,5 +414,65 @@ func TestADeploymentsPageNeedsNoReadOfTheStoreAndItsDataIsReadPartByPart(t *test
 	}
 	if res, _ := visitor.get(dataURL); res.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("the data of a Part gone from the store answers %d, want 500: it is read on each request (%d bytes before)", res.StatusCode, len(data))
+	}
+}
+
+// A Deployment is found by its name alone, so the Username in its link is for show (ADR 0023): the earlier link and a
+// link with any other Username redirect for good to the owner's current one, whatever file they ask for.
+func TestADeploymentOpensAtItsLearnersUsernameAndEveryOtherLinkRedirectsToIt(t *testing.T) {
+	_, ada := labLearner(t)
+	link := ada.deployAs(ada.readyDashboard("Kewangan"), "kedai-ada")
+	if link != "/d/ada-example-com/kedai-ada/" {
+		t.Fatalf("the link is %s, want the Username and the name", link)
+	}
+	visitor := ada.second()
+	res, body := visitor.get(link)
+	expectStatus(t, res, body, http.StatusOK, `fetch("data/`)
+	data := visitor.dataOf(link)
+	res, body = visitor.get(link + data)
+	expectStatus(t, res, body, http.StatusOK, `"Tarikh"`)
+	res, body = visitor.get(link + "charts.js")
+	expectStatus(t, res, body, http.StatusOK, "")
+
+	for old, want := range map[string]string{
+		"/d/kedai-ada":                    link,
+		"/d/kedai-ada/":                   link,
+		"/d/kedai-ada/" + data:            link + data,
+		"/d/kedai-ada/charts.js":          link + "charts.js",
+		"/d/kedai-ada/data.json":          link + "data.json",
+		"/d/nobody/kedai-ada/":            link,
+		"/d/nobody/kedai-ada/" + data:     link + data,
+		"/d/nobody/kedai-ada/charts.js?v": link + "charts.js?v",
+		"/d/ada-example-com/kedai-ada":    link,
+	} {
+		res, _ := visitor.get(old)
+		if res.StatusCode != http.StatusMovedPermanently || res.Header.Get("Location") != want {
+			t.Errorf("GET %s = %d to %q, want 301 to %q", old, res.StatusCode, res.Header.Get("Location"), want)
+		}
+	}
+	res, body = visitor.get("/d/ada-example-com/nope/")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	res, body = visitor.get("/d/nope/")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+}
+
+func TestChangingTheUsernameMovesDeploymentLinksAndTheOldOnesRedirect(t *testing.T) {
+	_, ada := labLearner(t)
+	link := ada.deploy(ada.readyDashboard("Kewangan"))
+	name := strings.Split(link, "/")[3]
+	res, body := ada.post("/my-profile/username", url.Values{"username": {"ada-books"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	newLink := "/d/ada-books/" + name + "/"
+	visitor := ada.second()
+	res, _ = visitor.get(link)
+	if res.StatusCode != http.StatusMovedPermanently || res.Header.Get("Location") != newLink {
+		t.Fatalf("the old link went %d to %q, want 301 to %q", res.StatusCode, res.Header.Get("Location"), newLink)
+	}
+	res, body = visitor.get(newLink)
+	expectStatus(t, res, body, http.StatusOK, `fetch("data/`)
+	res, _ = visitor.get("/d/ada-example-com/" + name + "/")
+	if res.StatusCode != http.StatusMovedPermanently {
+		t.Fatalf("the first Username still opens the Deployment: %d", res.StatusCode)
 	}
 }

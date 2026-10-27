@@ -29,17 +29,21 @@ func (a *App) CreateAdmin(ctx context.Context, name, email, password string) err
 		return fmt.Errorf("save admin: %w", err)
 	}
 	defer tx.Rollback()
+	username, err := randomUsername()
+	if err != nil {
+		return fmt.Errorf("pick Username: %w", err)
+	}
 	var id string
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO learners (name, email, password_hash, verified_at, is_admin)
-		VALUES ($1, $2, $3, now(), true)
+		INSERT INTO learners (name, username, email, password_hash, verified_at, is_admin)
+		VALUES ($1, $2, $3, $4, now(), true)
 		ON CONFLICT ((lower(email))) DO UPDATE SET
 			name = EXCLUDED.name,
 			password_hash = EXCLUDED.password_hash,
 			verified_at = COALESCE(learners.verified_at, now()),
 			is_admin = true
 		RETURNING id`,
-		name, email, string(hash)).Scan(&id)
+		name, username, email, string(hash)).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("save admin: %w", err)
 	}

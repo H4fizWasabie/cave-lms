@@ -13,7 +13,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// deploymentPrefix is the path Deployments live under, /<prefix>/<name>/ (ADR 0007). The client picks the word.
+// deploymentPrefix is the path Deployments live under, /<prefix>/<username>/<name>/ (ADR 0007, ADR 0023). The client picks the word.
 const deploymentPrefix = "d"
 
 // deploymentName is what a Learner may pick: 3 to 40 lowercase letters, digits and single dashes, no dash at
@@ -34,7 +34,8 @@ func init() {
 	}
 }
 
-// nameError is the catalog key saying why a Learner may not pick name, or "" if they may (taken aside).
+// nameError is the catalog key saying why a Learner may not pick name for a Deployment or as their Username, or "" if
+// they may (taken aside).
 func nameError(name string) string {
 	switch {
 	case len(name) < 3 || len(name) > 40:
@@ -50,7 +51,8 @@ func nameError(name string) string {
 // deployment is a Dashboard's Deployment as its Learner sees it on the Deploy tab.
 type deployment struct {
 	Name      string
-	Path      string // /<prefix>/<name>/
+	Username  string // the Username of the Learner it belongs to, in its link
+	Path      string // /<prefix>/<username>/<name>/
 	Link      string // the full link to share
 	Deployed  string // formatted as periodTime
 	Awake     bool
@@ -65,17 +67,17 @@ const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at 
 		AND ` + activePeriodSQL + `))))`
 
 // deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
-const deploymentColumns = `dep.name, dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason`
+const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason`
 
 // scanDeployment scans a row whose columns are lead's targets followed by deploymentColumns.
 func (a *App) scanDeployment(row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
 	var dep deployment
 	var deployed time.Time
 	var takenDown sql.NullTime
-	if err := row.Scan(append(lead, &dep.Name, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
+	if err := row.Scan(append(lead, &dep.Name, &dep.Username, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
 		return dep, err
 	}
-	dep.Path = "/" + deploymentPrefix + "/" + dep.Name + "/"
+	dep.Path = "/" + deploymentPrefix + "/" + dep.Username + "/" + dep.Name + "/"
 	dep.Link = a.publicBaseURL + dep.Path
 	dep.Deployed = deployed.UTC().Format(periodTime)
 	if takenDown.Valid {
@@ -110,8 +112,12 @@ func (a *App) deployTab(w http.ResponseWriter, r *http.Request, d *dashboard) {
 // renderDeployTab renders p, filled in up to its Deploy tab fields, on the Deploy tab.
 func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	p.Tab = "deploy"
-	p.Prefix = a.publicBaseURL + "/" + deploymentPrefix + "/"
-	var err error
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p.Prefix = a.publicBaseURL + "/" + deploymentPrefix + "/" + learner.Username + "/"
 	if p.Deployment, err = a.deploymentOf(r, p.Dashboard.ID); err != nil {
 		a.serverError(w, r, err)
 		return
@@ -219,7 +225,71 @@ func (a *App) origin() string {
 	return u.Scheme + "://" + u.Host
 }
 
-// deploymentFile serves a Deployment's files at /<prefix>/<name>/ to anyone while it is awake. The page is
+// deploymentFileOf names the file asked for by the path segments after a Deployment's name: "" for the name alone,
+// "index.html", "data.json", "charts.js", or "data" with its key. ok is false for any other path.
+func deploymentFileOf(tail []string) (file, key string, ok bool) {
+	switch {
+	case len(tail) == 0:
+		return "", "", true
+	case len(tail) == 1 && tail[0] == "":
+		return "index.html", "", true
+	case len(tail) == 1 && (tail[0] == "data.json" || tail[0] == "charts.js"):
+		return tail[0], "", true
+	case len(tail) == 2 && tail[0] == "data" && tail[1] != "":
+		return "data", tail[1], true
+	}
+	return "", "", false
+}
+
+// deploymentRoute serves everything under /<prefix>/. A Deployment's address is /<prefix>/<username>/<name>/ (ADR 0023),
+// but Cave finds it by its name alone, so the Username is for show: any other Username, and the earlier
+// /<prefix>/<name>/ addresses, redirect for good to the owner's current one, keeping the file asked for.
+func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.PathValue("rest"), "/")
+	// Names hold no dots, so /<name>/data.json is never a Username and a name. A path that fits as both, such as
+	// /<name>/data/charts.js, is read with the Username, as no Dashboard's data key is "charts.js".
+	username, name, tail := "", parts[0], parts[1:]
+	if len(parts) >= 2 && parts[1] != "" && !strings.Contains(parts[1], ".") {
+		if _, _, ok := deploymentFileOf(parts[2:]); ok {
+			username, name, tail = parts[0], parts[1], parts[2:]
+		}
+	}
+	file, key, ok := deploymentFileOf(tail)
+	if !ok {
+		a.notFound(w, r)
+		return
+	}
+	var owner string
+	err := a.db.QueryRowContext(r.Context(), `SELECT l.username FROM deployments dep JOIN learners l ON l.id = dep.learner_id
+		WHERE dep.name = $1`, name).Scan(&owner)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		a.serverError(w, r, err)
+		return
+	}
+	if err == nil && (username != owner || file == "") {
+		to := "/" + deploymentPrefix + "/" + owner + "/" + name + "/"
+		switch file {
+		case "data":
+			to += "data/" + key
+		case "data.json", "charts.js":
+			to += file
+		}
+		if r.URL.RawQuery != "" {
+			to += "?" + r.URL.RawQuery
+		}
+		w.Header().Set("Cache-Control", "no-store") // a Username can be changed back, so no browser keeps this
+		http.Redirect(w, r, to, http.StatusMovedPermanently)
+		return
+	}
+	if file == "" {
+		file = "index.html"
+	}
+	r.SetPathValue("name", name)
+	r.SetPathValue("key", key)
+	a.deploymentFile(file)(w, r)
+}
+
+// deploymentFile serves a Deployment's files at /<prefix>/<username>/<name>/ to anyone while it is awake. The page is
 // sandboxed (ADR 0007), so its null origin needs CORS to load its data. Asleep or taken down: an
 // inactive page; deleted Dashboard or unknown name: not found.
 func (a *App) deploymentFile(name string) http.HandlerFunc {

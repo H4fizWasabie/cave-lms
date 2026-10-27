@@ -15,6 +15,18 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/app"
 )
 
+// linkAfterMigration is the link of the Deployment of the Dashboard at path after a migration down past 131 and up again,
+// which gave its Learner a new random Username and so a new link.
+func (s *site) linkAfterMigration(path string) string {
+	s.t.Helper()
+	_, body := s.get(path + "/deploy")
+	m := regexp.MustCompile(`/d/learner-[a-z0-9]{6}/dash-\d+/`).FindString(body)
+	if m == "" {
+		s.t.Fatalf("after the migration the Deployment's link has no random Username: %s", body)
+	}
+	return m
+}
+
 // pageRows is how many page records the Dashboard at path has.
 func (s *site) pageRows(path string) int {
 	s.t.Helper()
@@ -74,6 +86,7 @@ func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T
 		t.Fatal(err)
 	}
 	ada.restart()
+	link = ada.linkAfterMigration(converted)
 
 	if gotTheme, gotBlocks := ada.drawn(link); gotTheme != theme || !slices.Equal(gotBlocks, blocks) {
 		t.Fatalf("after the migration the link draws %q %q, want %q %q", gotTheme, gotBlocks, theme, blocks)

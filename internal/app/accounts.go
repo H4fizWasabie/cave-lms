@@ -36,6 +36,8 @@ type learner struct {
 	Lang    string // the saved language, or "" before the Learner first switches
 	// PictureKey names the Learner's profile picture in storage, "" when they have none.
 	PictureKey string
+	// Username stands for the Learner in links (ADR 0023); their Name never does.
+	Username string
 }
 
 // learnerKey keys the per-request memo of the session lookup that ServeHTTP installs.
@@ -51,7 +53,7 @@ func (a *App) currentLearner(r *http.Request) (*learner, error) {
 }
 
 // learnerColumns selects a Learner as the session lookups read them; $2 is the owner's email.
-const learnerColumns = `l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2), coalesce(l.language, ''), l.picture_key`
+const learnerColumns = `l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2), coalesce(l.language, ''), l.picture_key, l.username`
 
 func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	cookie, err := r.Cookie(sessionCookie)
@@ -62,7 +64,7 @@ func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 	err = a.db.QueryRowContext(r.Context(), `
 		SELECT `+learnerColumns+`
 		FROM sessions s JOIN learners l ON l.id = s.learner_id
-		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value), a.ownerEmail).Scan(&l.ID, &l.Name, &l.IsAdmin, &l.IsOwner, &l.Lang, &l.PictureKey)
+		WHERE s.token_hash = $1 AND s.expires_at > now()`, hashToken(cookie.Value), a.ownerEmail).Scan(&l.ID, &l.Name, &l.IsAdmin, &l.IsOwner, &l.Lang, &l.PictureKey, &l.Username)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -78,6 +80,7 @@ func (a *App) registerForm(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PostFormValue("name"))
+	username := strings.TrimSpace(r.PostFormValue("username"))
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	password := r.PostFormValue("password")
 	lang, err := a.language(r)
@@ -85,8 +88,13 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	form := page{Name: name, Email: email}
-	if form.ErrorField, form.Error = accountFieldError(lang, name, email, password); form.Error != "" {
+	form := page{Name: name, Username: username, Email: email}
+	if form.ErrorField, form.Error = accountFieldError(lang, name, email, password); form.Error == "" {
+		if key := nameError(username); key != "" {
+			form.ErrorField, form.Error = "username", text.T(lang, key)
+		}
+	}
+	if form.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "register", form)
 		return
 	}
@@ -104,10 +112,14 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	var id int64
 	err = tx.QueryRowContext(r.Context(),
-		`INSERT INTO learners (name, email, password_hash) VALUES ($1, $2, $3) ON CONFLICT ((lower(email))) DO NOTHING RETURNING id`,
-		name, email, string(hash)).Scan(&id)
+		`INSERT INTO learners (name, username, email, password_hash) VALUES ($1, $2, $3, $4) ON CONFLICT ((lower(email))) DO NOTHING RETURNING id`,
+		name, username, email, string(hash)).Scan(&id)
 	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
 	switch {
+	case isUniqueViolation(err): // the email's conflict is skipped above, so this is the Username
+		form.ErrorField, form.Error = "username", text.T(lang, "account.err.username-taken")
+		a.render(w, r, http.StatusConflict, "register", form)
+		return
 	case errors.Is(err, sql.ErrNoRows):
 		// The email already has an account: answer as for a new one and email its owner, so the page tells nobody.
 		err = a.mailOwnerOfUsedEmail(r, tx, email)

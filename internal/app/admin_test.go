@@ -48,7 +48,7 @@ func TestHomeLinksToAdminAreaOnlyForTheAdmin(t *testing.T) {
 func TestRegistrationCannotMakeAnAdmin(t *testing.T) {
 	s := newSite(t)
 	const email, password = "mallory@example.com", "correct horse battery"
-	res, body := s.post("/register", url.Values{"name": {"Mallory"}, "email": {email}, "password": {password}, "is_admin": {"true"}})
+	res, body := s.post("/register", url.Values{"name": {"Mallory"}, "username": {usernameFor(email)}, "email": {email}, "password": {password}, "is_admin": {"true"}})
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
 	res, body = s.get(s.lastVerifyPath(email))
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
