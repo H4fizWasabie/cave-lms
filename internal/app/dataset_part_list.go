@@ -18,7 +18,22 @@ type partRow struct {
 	Added string // formatted as periodTime
 }
 
+// SizeText is the Part's saved size as people read it, such as 12 KB.
 func (p partRow) SizeText() string { return sizeText(p.Size) }
+
+// partRef is a current Part named by a request, such as the one a Replace link or a delete names.
+type partRef struct {
+	ID   int64
+	File string
+	Rows int
+}
+
+// samePart is the current Part a refused upload is the exact same file as.
+type samePart struct {
+	ID   int64
+	File string
+	Date string // the Part date
+}
 
 // partsOf lists the Dashboard's current Parts in order.
 func (a *App) partsOf(ctx context.Context, dashboardID int64) ([]partRow, error) {
@@ -41,13 +56,14 @@ func (a *App) partsOf(ctx context.Context, dashboardID int64) ([]partRow, error)
 	return list, rows.Err()
 }
 
-// partFor applies the Lab access rule and loads the ID, file name and rows of Dashboard d's current Part named by
-// {part}. ok is false when it has answered.
-func (a *App) partFor(w http.ResponseWriter, r *http.Request, d *dashboard) (p *partRow, ok bool) {
-	if _, ok := a.labOpen(w, r); !ok {
-		return nil, false
+// partFor applies the Lab access rule, which it returns, and loads the ID, file name and rows of Dashboard d's current
+// Part named by {part}. ok is false when it has answered.
+func (a *App) partFor(w http.ResponseWriter, r *http.Request, d *dashboard) (p *partRef, acc labAccess, ok bool) {
+	acc, ok = a.labOpen(w, r)
+	if !ok {
+		return nil, acc, false
 	}
-	p = &partRow{}
+	p = &partRef{}
 	var err error
 	if p.ID, err = strconv.ParseInt(r.PathValue("part"), 10, 64); err == nil {
 		err = a.db.QueryRowContext(r.Context(), `SELECT file_name, row_count FROM dataset_parts WHERE id = $1 AND dashboard_id = $2 AND state = 'current'`,
@@ -55,18 +71,18 @@ func (a *App) partFor(w http.ResponseWriter, r *http.Request, d *dashboard) (p *
 	}
 	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
 		a.notFound(w, r)
-		return nil, false
+		return nil, acc, false
 	}
 	if err != nil {
 		a.serverError(w, r, err)
-		return nil, false
+		return nil, acc, false
 	}
-	return p, true
+	return p, acc, true
 }
 
 // confirmDeletePart asks before deleting a Part.
 func (a *App) confirmDeletePart(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if p, ok := a.partFor(w, r, d); ok {
+	if p, _, ok := a.partFor(w, r, d); ok {
 		a.confirm(w, r, http.StatusOK, confirmation{Heading: "lab.d.part-delete", Question: "lab.d.part-delete-ask", Cancel: dataURL(d),
 			Action: r.URL.Path}, p.File)
 	}
@@ -74,34 +90,27 @@ func (a *App) confirmDeletePart(w http.ResponseWriter, r *http.Request, d *dashb
 
 // replacePartForm shows the Data tab's upload form for replacing one Part.
 func (a *App) replacePartForm(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	p, ok := a.partFor(w, r, d)
-	if !ok {
-		return
+	if p, acc, ok := a.partFor(w, r, d); ok {
+		a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Replacing: p})
 	}
-	acc, err := a.learnerAccess(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	a.renderDashboard(w, r, http.StatusOK, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Replacing: p})
 }
 
 // uploadPartReplacement checks an uploaded .xlsx's name and size, then hands it to uploadWork to clean and keep pending
 // as the replacement of the Part named by {part}.
 func (a *App) uploadPartReplacement(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	if p, ok := a.partFor(w, r, d); ok {
-		a.uploadXlsx(w, r, d, p)
+	if p, acc, ok := a.partFor(w, r, d); ok {
+		a.uploadXlsx(w, r, d, acc, p)
 	}
 }
 
 // deletePart deletes a Part once its confirmation page is posted: its rows leave data.json, its room is free in the
-// Storage allowance and its file is queued for deletion. The other Parts keep their order. Deleting the last Part
-// leaves the Dataset empty: its columns are cleared to the empty list (NULL is a Dataset never uploaded, which
-// data.json answers 404), so the next upload sets new ones. An Add waiting to be confirmed was put together from the
-// Parts as they were, so it goes too, and so does a Replace of this Part; a Replace of the data, or of another Part,
-// stays.
+// Storage allowance and its rows are queued for deletion from the store. The other Parts keep their order, and any
+// Dataset from before Parts goes, as the Dashboard's data changed. Deleting the last Part leaves the Dataset empty: its
+// columns are cleared to the empty list (NULL is a Dataset never uploaded, which data.json answers 404) and so is its
+// recipe, so the next upload sets new ones. An Add waiting to be confirmed was put together from the Parts as they
+// were, so it goes too, and so does a Replace of this Part; a Replace of the data, or of another Part, stays.
 func (a *App) deletePart(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	p, ok := a.partFor(w, r, d)
+	p, _, ok := a.partFor(w, r, d)
 	if !ok || unconfirmed(w, r) {
 		return
 	}
@@ -118,12 +127,14 @@ func (a *App) deletePart(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		if n, err := res.RowsAffected(); err != nil || n == 0 {
 			return errors.Join(err, gone)
 		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND state = 'pending'
-				AND (cleanup ? 'added' OR cleanup->'replaces'->>'part' = $2::bigint::text)`, d.ID, p.ID); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier'
+				OR state = 'pending' AND (cleanup ? 'added' OR cleanup->'replaces'->>'part' = $2::bigint::text))`, d.ID, p.ID); err != nil {
 			return err
 		}
 		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now(),
-				dataset_columns = CASE WHEN EXISTS (SELECT 1 FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current') THEN dataset_columns ELSE '[]' END
+				dataset_columns = CASE WHEN left_over.none THEN '[]' ELSE dataset_columns END,
+				upload_settings = CASE WHEN left_over.none THEN upload_settings - 'recipe' ELSE upload_settings END
+			FROM (SELECT NOT EXISTS (SELECT 1 FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current') AS none) left_over
 			WHERE id = $1`, d.ID)
 		return err
 	})

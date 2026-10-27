@@ -148,11 +148,21 @@ func TestADatasetFromBeforePartsBecomesOnePartAndItsEarlierCopiesGoOnTheNextConf
 	if _, err := ada.db.Exec(`UPDATE datasets SET confirmed_at = '2026-03-09 10:00+00'`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := ada.db.Exec(`UPDATE dashboards SET upload_settings = upload_settings - 'recipe'`); err != nil { // none before Parts
+		t.Fatal(err)
+	}
 	if _, err := ada.db.Exec(`INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, confirmed_at)
 		SELECT dashboard_id, $1, 'agosto.xlsx', 1000, 2, 'earlier', '2026-02-01 10:00+00' FROM datasets`, earlier); err != nil {
 		t.Fatal(err)
 	}
 	ada.restart()
+
+	// The Dataset has the recipe its next Parts are read with: the sheet its Part was read from, the header not typed.
+	var recipe string
+	if err := ada.db.QueryRow(`SELECT upload_settings->'recipe'->>'sheet' || '/' || COALESCE(upload_settings->'recipe'->>'headerTyped', 'no')
+		FROM dashboards`).Scan(&recipe); err != nil || recipe != "Sheet1/no" {
+		t.Fatalf("recipe after the conversion = %q (%v), want Sheet1/no", recipe, err)
+	}
 
 	want := []string{"Beras 2026-03-09", "Jualan 2026-03-09"}
 	for _, page := range []string{path + "/view/", link} {

@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -303,7 +304,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
-	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, frees{All: true}, upload, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, uploadMode{}, upload, data)
 	switch {
 	case errors.Is(err, errStorageFull):
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
@@ -441,12 +442,12 @@ type dashboardPage struct {
 	Tab       string
 	Problem   string          // why an upload could not be read
 	Upload    string          // the refused file's name
-	Same      *partRow        // the current Part the refused file is the exact same file as
+	Same      *samePart       // the current Part the refused file is the exact same file as
 	Failed    bool            // the store refused the upload's Dataset
 	Pending   *pendingDataset // an upload waiting for its confirm
 	PartList  []partRow       // the Dataset's current Parts in order, on the Data tab
 	Workbooks []workbook      // the Learner's Workbooks, to pick from, on the Data tab
-	Replacing *partRow        // the Part whose Replace screen this is, on the Data tab
+	Replacing *partRef        // the Part whose Replace screen this is, on the Data tab
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
@@ -479,6 +480,8 @@ func (a *App) dashboardTab(tab string) http.HandlerFunc {
 	})
 }
 
+// renderDashboard writes the Dashboard page p with status, first filling in what its tab shows: on the Data tab the
+// pending Part, the current Parts, the Learner's Workbooks and any storage warning, on the Page tab the earlier pages.
 func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int, p *dashboardPage) {
 	d := p.Dashboard
 	p.Title, p.Themes = d.Name, lab.Themes
@@ -495,7 +498,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.AskHeader = p.Pending.HeaderRow
 		}
 	}
-	if p.Pending != nil && p.Pending.Added == nil && p.Pending.Replaces == nil && d.Page != nil && d.Parts > 0 {
+	if p.Pending != nil && !p.Pending.mode().intoDataset() && d.Page != nil && d.Parts > 0 {
 		// By exact name, as data.json's keys are: a Replace serves the new names as they are, so a page reading Jumlah
 		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.columnChanges) as it keeps the
 		// current names, so data.json's keys stay.
@@ -527,7 +530,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		if p.Pending != nil {
 			var room storageRoom
-			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.frees(), p.Access)
+			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.mode(), p.Access)
 			if err == nil && !room.Fits && p.Error == "" { // the confirm will be refused: say so now
 				var lang string
 				lang, err = a.language(r)
@@ -551,15 +554,15 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 
 // uploadDataset checks an uploaded .xlsx's name and size, then hands it to uploadWork to clean and keep pending.
 func (a *App) uploadDataset(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	a.uploadXlsx(w, r, d, nil)
+	if acc, ok := a.labOpen(w, r); ok {
+		a.uploadXlsx(w, r, d, acc, nil)
+	}
 }
 
-// uploadXlsx is uploadDataset for an upload that replaces the Part replacing, if not nil.
-func (a *App) uploadXlsx(w http.ResponseWriter, r *http.Request, d *dashboard, replacing *partRow) {
-	acc, ok := a.labOpen(w, r)
-	if !ok {
-		return
-	}
+// uploadXlsx is what uploadDataset and uploadPartReplacement share, once the Lab access rule gave acc: it reads the
+// upload, or the Workbook picked in its place, and hands it to uploadWork. The upload replaces the Part replacing, if
+// not nil.
+func (a *App) uploadXlsx(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, replacing *partRef) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -747,9 +750,10 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 
 // convertDatasetsToParts is a one-off step at startup (ADR 0022): it rewrites the Datasets from before Parts that are
 // current or pending, each stored as one whole table, into the Part shape (lab.PartRows) under a new key, with the
-// Part date migration 00128 gave it, and gives their Dashboards the Dataset's columns. Their sizes stay as saved. A
-// pending Add held the whole combined table; its Part is the new rows alone. The earlier Datasets are left as they
-// are. With nothing left to convert it reads one row.
+// Part date migration 00128 gave it, and gives their Dashboards the Dataset's columns and a recipe (the sheet the Part
+// was read from, its header row found, not typed). Their sizes stay as saved. A pending Add held the whole combined
+// table; its Part is the new rows alone. The earlier Datasets are left as they are. With nothing left to convert it
+// reads one row.
 func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store) error {
 	rows, err := db.QueryContext(ctx, `SELECT id, dashboard_id, storage_key, state, part_date::text, cleanup FROM dataset_parts
 		WHERE legacy AND state <> 'earlier' ORDER BY state = 'pending', id`)
@@ -820,6 +824,13 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 		if err == nil && o.state == "current" {
 			_, err = tx.ExecContext(ctx, `UPDATE dashboards SET dataset_columns = $2 WHERE id = $1`, o.dashboard, columns)
 		}
+		if err == nil && o.state == "current" && c.PickedSheet != "" {
+			// The Dataset has no recipe until its next Replace data, so every later Part would be read as a first one: its
+			// recipe is the sheet this Part was picked from, its header row found, not typed.
+			recipe, _ := json.Marshal(lab.Recipe{Sheet: c.PickedSheet, HeaderRow: c.HeaderRow})
+			_, err = tx.ExecContext(ctx, `UPDATE dashboards SET upload_settings = jsonb_set(upload_settings, '{recipe}', $2::jsonb) WHERE id = $1 AND NOT upload_settings ? 'recipe'`,
+				o.dashboard, recipe)
+		}
 		if err == nil {
 			err = tx.Commit()
 		} else {
@@ -874,7 +885,7 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 		return
 	}
 	if name == "data" {
-		a.serveParts(w, r, d, cache)
+		a.serveParts(w, r, d, r.PathValue("key"), cache)
 		return
 	}
 	index, err := lab.Page(d.Name, d.Theme, d.Config, d.Columns, dataPath(d))
@@ -889,19 +900,26 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 }
 
 // serveParts writes the Dashboard's Parts as one JSON array, Part after Part in position order, each as stored, so
-// no Part is parsed. The first Part is read before the headers go, so a store that fails answers 500.
+// no Part is parsed. The Parts are listed in one query. With a key (the preview's data/<key>) they must be the Parts it
+// names, as a Part deleted or confirmed since d was loaded would make the listing another Dataset's, which the browser
+// would then keep for a year under the key; any other listing is not found. The first Part is read before the headers
+// go, so a store that fails answers 500.
 // ponytail: one Part is in memory at a time, as the store reads whole objects; stream from the store (R2) if Parts
 // get big enough to matter.
-func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, cache string) {
-	rows, err := a.datasetKeys(r.Context(), d.ID)
+func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, key, cache string) {
+	all, withRows, err := a.partKeys(r.Context(), d.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
+	if key != "" && datasetKey(all) != key {
+		a.notFound(w, r)
+		return
+	}
 	var first []byte
-	if len(rows) > 0 {
-		if first, err = a.datasets.Get(r.Context(), rows[0]); err != nil {
-			a.serverError(w, r, fmt.Errorf("get Part %s: %w", rows[0], err))
+	if len(withRows) > 0 {
+		if first, err = a.datasets.Get(r.Context(), withRows[0]); err != nil {
+			a.serverError(w, r, fmt.Errorf("get Part %s: %w", withRows[0], err))
 			return
 		}
 	}
@@ -909,10 +927,10 @@ func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, c
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte("[\n"))
 	_, _ = w.Write(first)
-	for _, key := range rows[min(1, len(rows)):] {
-		data, err := a.datasets.Get(r.Context(), key)
+	for _, k := range withRows[min(1, len(withRows)):] {
+		data, err := a.datasets.Get(r.Context(), k)
 		if err != nil {
-			a.logError(r, fmt.Errorf("get Part %s: %w", key, err))
+			a.logError(r, fmt.Errorf("get Part %s: %w", k, err))
 			panic(http.ErrAbortHandler) // the rows already sent are not the Dataset: cut the connection
 		}
 		_, _ = w.Write([]byte(",\n"))
@@ -921,21 +939,33 @@ func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, c
 	_, _ = w.Write([]byte("\n]\n"))
 }
 
-// datasetKeys lists the store keys of the Dashboard's current Parts that have rows, in position order.
-func (a *App) datasetKeys(ctx context.Context, dashboardID int64) ([]string, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT storage_key FROM dataset_parts
-		WHERE dashboard_id = $1 AND state = 'current' AND row_count > 0 ORDER BY position`, dashboardID)
+// partKeys lists the store keys of the Dashboard's current Parts in position order, and of those that have rows.
+func (a *App) partKeys(ctx context.Context, dashboardID int64) (all, withRows []string, err error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT storage_key, row_count > 0 FROM dataset_parts
+		WHERE dashboard_id = $1 AND state = 'current' ORDER BY position`, dashboardID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
-	var keys []string
 	for rows.Next() {
 		var key string
-		if err := rows.Scan(&key); err != nil {
-			return nil, err
+		var has bool
+		if err := rows.Scan(&key, &has); err != nil {
+			return nil, nil, err
 		}
-		keys = append(keys, key)
+		all = append(all, key)
+		if has {
+			withRows = append(withRows, key)
+		}
 	}
-	return keys, rows.Err()
+	return all, withRows, rows.Err()
+}
+
+// datasetKey names the Parts stored under keys, in order: dashboard.Key as loadDashboard's SQL makes it, md5 in hex of
+// the keys joined by commas; empty without Parts.
+func datasetKey(keys []string) string {
+	if len(keys) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(keys, ","))))
 }

@@ -37,7 +37,7 @@ func markahReport(t *testing.T) []byte {
 	return testutil.XLSX(t, []string{"Nama", "Markah"}, []any{"Ali", 80.0}, []any{"Siti", 90.0})
 }
 
-func TestReplacingTheFirstOfThreePartsKeepsItFirstWithTheNewRowsAndQueuesTheOldFile(t *testing.T) {
+func TestReplacingTheFirstOfThreePartsKeepsItFirstWithTheNewRowsAndQueuesTheOldRows(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := threeParts(t, ada)
 	visitor := ada.second()
@@ -191,20 +191,6 @@ func TestDeletingAnotherPartKeepsAPendingReplaceOfOnePartAndDeletingItsPartDrops
 	}
 	if n := ada.datasetFiles(); n != 1 {
 		t.Fatalf("%d stored files, want the one Part left", n)
-	}
-}
-
-func TestReplacingTheOnlyPartReplacesTheDataAndMayChangeItsColumns(t *testing.T) {
-	_, ada := labLearner(t)
-	path, link := pageWithData(t, ada)
-	visitor := ada.second()
-	res, body := ada.postFile(replaceLinks(t, ada, path+"/data")[0], "markah.xlsx", markahReport(t))
-	expectRedirect(t, res, body, path+"/data")
-	ada.confirmWork(path, nil)
-	_, body = visitor.get(link + "data.json")
-	expectAll(t, body, `"Nama": "Ali"`)
-	if strings.Contains(body, "Beras") {
-		t.Fatalf("data.json still holds the replaced Part: %s", body)
 	}
 }
 

@@ -54,7 +54,7 @@ func mustGet(t *testing.T, s *site, path string) string {
 	return body
 }
 
-func TestDeletingAPartAsksFirstThenRemovesItsRowsFreesItsRoomAndQueuesItsFile(t *testing.T) {
+func TestDeletingAPartAsksFirstThenRemovesItsRowsFreesItsRoomAndDeletesThemFromTheStore(t *testing.T) {
 	_, ada := labLearner(t)
 	path, link := twoParts(t, ada)
 	visitor := ada.second()

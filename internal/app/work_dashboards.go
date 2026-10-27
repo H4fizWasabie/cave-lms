@@ -32,6 +32,7 @@ type cleaned struct {
 	Added        *addition    `json:"added,omitempty"`        // an Add to data; nil for one that replaces the data
 	Replaces     *replacement `json:"replaces,omitempty"`     // a Replace of one Part of several; nil for an Add or a Replace of the data
 	FromWorkbook bool         `json:"fromWorkbook,omitempty"` // read from a Workbook the Learner picked, so the preview posts its choices without a file
+	HeaderTyped  bool         `json:"headerTyped,omitempty"`  // the Learner typed the header row, so the recipe of a first Part keeps it
 }
 
 // replacement is what a Replace of one Part put together: the Part it replaces and the rows the other Parts hold.
@@ -45,22 +46,34 @@ type replacement struct {
 // Total is the Dataset's rows once the Replace is confirmed, given the new Part's rows.
 func (r replacement) Total(rows int) int { return rows + r.Had }
 
-// frees is which current Parts confirming a pending Part deletes: all (a Replace of the data), the one with ID Part (a
-// Replace of one Part), or none (an Add).
-type frees struct {
-	All  bool
-	Part int64
+// uploadKind is what an upload does to the Dataset once confirmed (ADR 0022).
+type uploadKind int
+
+const (
+	replaceData uploadKind = iota // every current Part is deleted and the upload is the Dataset
+	addPart                       // the upload becomes the last Part and the others stay
+	replacePart                   // the upload takes the place of one Part and the others stay
+)
+
+// uploadMode is an upload's kind, with the Part it replaces for replacePart. The zero value is Replace data.
+type uploadMode struct {
+	Kind uploadKind
+	Part int64 // the ID of the Part replaced; 0 unless Kind is replacePart, which matches no Part
 }
 
-// frees is the Parts confirming the pending Part deletes.
-func (c cleaned) frees() frees {
+// intoDataset reports whether the upload joins the Dataset's Parts, an Add or a Replace of one Part, so it is read with
+// the Dataset's recipe and columns. Replace data starts the Dataset afresh.
+func (m uploadMode) intoDataset() bool { return m.Kind != replaceData }
+
+// mode is the pending Part's kind: an Add, a Replace of the Part it names, else Replace data.
+func (c cleaned) mode() uploadMode {
 	switch {
 	case c.Added != nil:
-		return frees{}
+		return uploadMode{Kind: addPart}
 	case c.Replaces != nil:
-		return frees{Part: c.Replaces.Part}
+		return uploadMode{Kind: replacePart, Part: c.Replaces.Part}
 	}
-	return frees{All: true}
+	return uploadMode{}
 }
 
 // addition is what an Add to data put together: the upload's rows and the rows the Dataset had before them.
@@ -150,10 +163,10 @@ type storageRoom struct {
 }
 
 // roomFor is whether a pending Part of size bytes fits the Learner's Storage allowance, counting as free the Parts
-// its confirm deletes (free): every current Part when it replaces the data, the one Part it replaces, and the earlier
-// Datasets from before Parts, which any confirm deletes. dashboardID is 0 for a Dashboard not made yet. The Admin has
-// no allowance.
-func roomFor(ctx context.Context, q queryer, dashboardID, size int64, free frees, acc labAccess) (storageRoom, error) {
+// its confirm deletes (see mode): every current Part for Replace data, the one Part for a Replace of a Part, none for
+// an Add, and for all three the earlier Datasets from before Parts. dashboardID is 0 for a Dashboard not made yet. The
+// Admin has no allowance.
+func roomFor(ctx context.Context, q queryer, dashboardID, size int64, mode uploadMode, acc labAccess) (storageRoom, error) {
 	period := acc.CountedPeriod()
 	if period == nil {
 		return storageRoom{Fits: true}, nil
@@ -162,7 +175,7 @@ func roomFor(ctx context.Context, q queryer, dashboardID, size int64, free frees
 	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+`,
 			(SELECT COALESCE(sum(p.saved_size), 0) FROM dataset_parts p
 				WHERE p.dashboard_id = this.id AND (p.state = 'earlier' OR p.state = 'current' AND ($2::boolean OR p.id = $3)))
-		FROM dashboards this WHERE this.id = $1`, dashboardID, free.All, free.Part).Scan(&room.Used, &room.Freed); err != nil {
+		FROM dashboards this WHERE this.id = $1`, dashboardID, mode.Kind == replaceData, mode.Part).Scan(&room.Used, &room.Freed); err != nil {
 		return storageRoom{}, err
 	}
 	room.Fits = room.Used+size-room.Freed <= period.Storage()
@@ -261,13 +274,13 @@ var errDatasetStore = errors.New("the store refused the Dataset")
 
 // keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Part, replacing any earlier
 // pending one, and returns its saved size. With acc's counted period, the Learner's other pending Parts count against
-// the Storage allowance too. A Part that would not fit, even with the Parts its confirm deletes gone (all the current
-// ones when replace, else none; see roomFor), is dropped with errStorageFull; used is then the bytes the Learner's
-// Parts, Workbooks and pages take, pending Parts included. workbook is the Workbook the upload was kept as, 0 for none.
+// the Storage allowance too. A Part that would not fit, even with the Parts its confirm deletes gone (those of
+// res.mode(); see roomFor), is dropped with errStorageFull; used is then the bytes the Learner's Parts, Workbooks and
+// pages take, pending Parts included. workbook is the Workbook the upload was kept as, 0 for none.
 func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string, workbook int64) (size, used int64, err error) {
 	res.Columns = res.Dataset.Columns
 	if res.PartDate == "" { // the Excel names no date: the upload day
-		res.PartDate, res.DateFrom, res.DateCell = a.now().UTC().Format(time.DateOnly), "upload", ""
+		res.PartDate, res.DateFrom, res.DateCell = a.now().UTC().Format(time.DateOnly), lab.DateFromUpload, ""
 	}
 	day := res.PartDate
 	data, err := lab.PartRows(res.Dataset, day)
@@ -305,7 +318,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 			}
 			// ponytail: what confirm deletes counts as free before it is, so the store can hold up to about twice the
 			// allowance until the Learner confirms; refusing those uploads would refuse ones that fit once confirmed.
-			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), res.frees(), acc)
+			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), res.mode(), acc)
 			if err != nil {
 				return err
 			}
@@ -317,8 +330,9 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		if workbook != 0 {
 			from = workbook
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, sha256)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, (SELECT sha256 FROM workbooks WHERE id = $7))`, d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day)
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, date_source, sha256)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, (SELECT sha256 FROM workbooks WHERE id = $7))`,
+				d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
 		return err
 	})
 	if err != nil {
@@ -329,34 +343,16 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 	return int64(len(data)), used, nil
 }
 
-// uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its
-// pending Part, replacing any earlier pending one, then shows the preview. A file Clean-up cannot read gets one
-// message. Clean-up reads with the Dashboard's remembered settings, unless the upload comes with the preview's sheet
-// choices, which the Dashboard remembers once the Learner confirms. When Clean-up made only the kinds of change it made
-// on the latest Part, every column the blocks use is still there, the Dataset has at most one Part for a Replace to
-// delete and the Part fits the Storage allowance, there is nothing new to check: the upload is confirmed at once.
-// replacing is the Part the upload replaces, from its Replace link; nil for an upload to the Dataset. Replacing the
-// only Part is a Replace of the data; with other Parts the upload is read like an Add and takes the Part's place.
-func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string, replacing *partRow) {
-	lang, err := a.language(r)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
-	add := replacing == nil && r.FormValue("mode") == "add" && d.Parts > 0
-	// Replacing one Part of several leaves the others as they are, so the upload is read like an Add.
-	one := replacing != nil && d.Parts > 1
-	free := frees{All: !add && !one} // what confirming deletes, which the room check counts as free
-	if one {
-		free.Part = replacing.ID
-	}
+// uploadSettings is how Clean-up reads the upload called name: the Dashboard's remembered settings, with the choices
+// the Learner made on the upload form. An Add or a Replace of a Part is read with the Dataset's recipe, the rest as
+// ever.
+func uploadSettings(r *http.Request, d *dashboard, name string, mode uploadMode) lab.Settings {
 	settings := d.Settings
 	settings.Recipe = nil // the first Part, and Replace data, are read as ever and set a new recipe on confirm
-	if recipe := d.Settings.Recipe; (add || one) && recipe != nil {
-		// A Part is read with the recipe: its sheet alone, found by name, and its header row. A remembered sheet or
-		// tick belongs to the Dataset's first Part; only the Learner's pick below counts.
-		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, Columns: d.Columns}
+	if recipe := d.Settings.Recipe; mode.intoDataset() && recipe != nil {
+		// A Part is read with the recipe: its sheet alone, found by name, and its header row if the Learner typed it. A
+		// remembered sheet or tick belongs to the Dataset's first Part; only the Learner's pick below counts.
+		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns}
 		settings.Sheet, settings.Alone, settings.Ticked = "", false, nil
 	}
 	settings.FileName = name
@@ -377,6 +373,82 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	if settings.Year, _ = strconv.Atoi(r.FormValue("year")); settings.Year < 1900 || settings.Year > 2100 {
 		settings.Year = 0 // this year
 	}
+	return settings
+}
+
+// sameFileAs finds the current Part of Dashboard d that was cleaned from exactly data, other than the Part with ID
+// except (0 for none); nil if there is none. A Workbook the Learner picks passes here as an upload does. Rows that
+// merely repeat a Part's never match (ADR 0022).
+func (a *App) sameFileAs(ctx context.Context, d *dashboard, data []byte, except int64) (*samePart, error) {
+	sum := sha256.Sum256(data)
+	var same samePart
+	err := a.db.QueryRowContext(ctx, `SELECT id, file_name, part_date::text FROM dataset_parts
+		WHERE dashboard_id = $1 AND state = 'current' AND sha256 = $2 AND id <> $3 ORDER BY position LIMIT 1`,
+		d.ID, sum[:], except).Scan(&same.ID, &same.File, &same.Date)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &same, nil
+}
+
+// joinDataset puts the upload's rows (c.Dataset) in the Dataset's columns, as an Add does or, with the Part replacing,
+// a Replace of that Part does, and records in c what it put together: the rows, the changes it made and the row totals.
+// A Problem says why they do not fit. Only a Dashboard Cave builds in a Theme keeps a row total; one behind the
+// Learner's own page is limited by the Storage allowance alone (ADR 0022). A Replace leaves out the rows of the Part it
+// replaces.
+func (c *cleaned) joinDataset(d *dashboard, replacing *partRef) error {
+	limit := lab.MaxCleanRows
+	if d.Page != nil {
+		limit = 0
+	}
+	had := d.Rows
+	if replacing != nil {
+		had -= replacing.Rows
+	}
+	more, changes, err := lab.AddPart(d.Columns, had, c.Dataset, limit)
+	var problem lab.Problem
+	if replacing != nil && errors.As(err, &problem) && problem.Key == "lab.err.add-too-many-rows" {
+		return lab.Problem{Key: "lab.err.replace-too-many-rows", Args: problem.Args}
+	}
+	if err != nil {
+		return err
+	}
+	if replacing != nil {
+		c.Replaces = &replacement{Part: replacing.ID, File: replacing.File, Rows: replacing.Rows, Had: had}
+	} else {
+		c.Added = &addition{Rows: len(more.Rows), Had: d.Rows}
+	}
+	c.Dataset = more
+	c.Changes = append(c.Changes, changes...)
+	return nil
+}
+
+// uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its
+// pending Part, replacing any earlier pending one, then shows the preview. A file Clean-up cannot read gets one
+// message. Clean-up reads with the Dashboard's remembered settings, unless the upload comes with the preview's sheet
+// choices, which the Dashboard remembers once the Learner confirms. When the Dataset has no Part, Clean-up made only
+// the kinds of change it made on the latest Part, every column the blocks use is still there and the Part fits the
+// Storage allowance, there is nothing new to check: the upload is confirmed at once.
+// replacing is the Part the upload replaces, from its Replace link; nil for an upload to the Dataset. Replacing a Part,
+// even the only one, is read like an Add and takes the Part's place; changing the columns is for Replace data.
+func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, acc labAccess, file io.Reader, name string, replacing *partRef) {
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
+	var mode uploadMode
+	switch {
+	case replacing != nil:
+		mode = uploadMode{Kind: replacePart, Part: replacing.ID}
+	case r.FormValue("mode") == "add" && d.Parts > 0:
+		mode.Kind = addPart
+	}
+	settings := uploadSettings(r, d, name, mode)
 	learner, err := a.currentLearner(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -387,30 +459,22 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	// The exact same file as a current Part is refused before anything is kept. An upload, and a Workbook the Learner
-	// picks, both pass here. A Replace of the data deletes every Part, so it may repeat one; a Replace of one Part may
-	// repeat that Part's own file. Rows that merely repeat a Part's never block (ADR 0022).
-	if add || one {
-		var same partRow
-		sum := sha256.Sum256(data)
-		var replaced int64 // 0 matches no Part
-		if replacing != nil {
-			replaced = replacing.ID
-		}
-		err := a.db.QueryRowContext(r.Context(), `SELECT id, file_name, part_date::text FROM dataset_parts
-			WHERE dashboard_id = $1 AND state = 'current' AND sha256 = $2 AND id <> $3 ORDER BY position LIMIT 1`,
-			d.ID, sum[:], replaced).Scan(&same.ID, &same.File, &same.Date)
-		if err == nil {
-			a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name, Same: &same})
-			return
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
+	// The exact same file as a current Part is refused before anything is kept. A Replace of the data deletes every
+	// Part, so it may repeat one; a Replace of one Part may repeat that Part's own file (ADR 0022).
+	if mode.intoDataset() {
+		same, err := a.sameFileAs(r.Context(), d, data, mode.Part)
+		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
+		if same != nil {
+			a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name, Same: same})
+			return
+		}
 	}
-	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR 0021).
-	// A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the store's.
+	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR
+	// 0021). A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the
+	// store's.
 	refused := func(size, used int64, err error) bool {
 		switch {
 		case err == nil:
@@ -426,7 +490,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		return true
 	}
-	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, free, name, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, mode, name, data)
 	if refused(int64(len(data)), used, err) {
 		return
 	}
@@ -440,26 +504,13 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	kept := cleaned{CleanUp: *res, Settings: settings, FromWorkbook: pickedID(r) != ""}
-	if (add || one) && settings.Recipe != nil { // the Learner's sheet pick is for this Part only
-		kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
-	}
-	if add || one {
-		// Only a Dashboard Cave builds in a Theme keeps a row total; one behind the Learner's own page is limited by the
-		// Storage allowance alone (ADR 0022). A Replace of one Part leaves out the rows of the Part it replaces.
-		limit := lab.MaxCleanRows
-		if d.Page != nil {
-			limit = 0
+	kept := cleaned{CleanUp: *res, Settings: settings, FromWorkbook: pickedID(r) != "", HeaderTyped: settings.HeaderRow > 0}
+	if mode.intoDataset() {
+		if settings.Recipe != nil { // the Learner's sheet pick is for this Part only
+			kept.Settings.Sheet, kept.Settings.Alone = d.Settings.Sheet, d.Settings.Alone
 		}
-		had := d.Rows
-		if one {
-			had -= replacing.Rows
-		}
-		more, changes, err := lab.AddPart(d.Columns, had, res.Dataset, limit)
+		err := kept.joinDataset(d, replacing)
 		if errors.As(err, &problem) {
-			if one && problem.Key == "lab.err.add-too-many-rows" {
-				problem.Key = "lab.err.replace-too-many-rows"
-			}
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 			page.Error = problem.In(lang)
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
@@ -469,24 +520,18 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			a.serverError(w, r, err)
 			return
 		}
-		if add {
-			kept.Added = &addition{Rows: len(more.Rows), Had: d.Rows}
-		} else {
-			kept.Replaces = &replacement{Part: replacing.ID, File: replacing.File, Rows: replacing.Rows, Had: had}
-		}
-		kept.Dataset = more
-		kept.Changes = append(kept.Changes, changes...)
 	}
 	size, used, err := a.keepPending(r, d, acc, kept, name, workbook)
 	if refused(size, used, err) {
 		return
 	}
-	// Nothing new to check: it goes live. An Add is always shown, as its rows may repeat ones already there.
-	if d.Config != nil && !add && d.Parts == 0 && allFit(d.Config, res.Dataset) {
+	// Nothing new to check: it goes live. An Add or a Replace of a Part has Parts to keep, so it is always shown: its
+	// rows may repeat ones already there.
+	if d.Config != nil && d.Parts == 0 && allFit(d.Config, res.Dataset) {
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
-			room, err = roomFor(r.Context(), a.db, d.ID, size, frees{All: true}, acc)
+			room, err = roomFor(r.Context(), a.db, d.ID, size, uploadMode{}, acc)
 		}
 		if err != nil {
 			a.serverError(w, r, err)
@@ -503,9 +548,10 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 // confirmWork makes the pending Part current. An Add to data puts it last in the Dataset's order; a Replace of the data
 // makes it the only Part, deleting the others; a Replace of one Part deletes that Part and takes its place in the
 // order. Any Dataset from before Parts is deleted in each case, their files queued for deletion from the store.
-// The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019). Later confirms keep the blocks, swapping in the Learner's pick (use:<column>) for each column they use that the
-// Dataset lacks; one left out pauses its blocks. A confirm that would take the Learner over their Storage allowance
-// even with the Parts it deletes gone is refused and the Part stays pending.
+// The first confirm of a built Dashboard builds its blocks by the General rules (ADR 0019). Later confirms keep the
+// blocks, swapping in the Learner's pick (use:<column>) for each column they use that the Dataset lacks; one left out
+// pauses its blocks. A confirm that would take the Learner over their Storage allowance even with the Parts it deletes
+// gone is refused and the Part stays pending.
 func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	acc, ok := a.labOpen(w, r)
 	if !ok {
@@ -556,8 +602,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			return
 		}
 	}
-	if p.Added == nil && p.Replaces == nil { // the first Part, and Replace data, set the recipe every later Part is read with
-		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow}
+	mode := p.mode()
+	if !mode.intoDataset() { // the first Part, and Replace data, set the recipe every later Part is read with
+		p.Settings.Recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped}
 	}
 	settings, err := json.Marshal(p.Settings)
 	if err != nil {
@@ -568,6 +615,24 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	// A changed date rewrites the Part's rows (the same length, so the saved size and the room check stand). They go under
+	// a new key first and the confirm switches the Part to it, so a confirm that fails leaves the Part's object as it was.
+	var newKey string
+	if day != p.PartDate {
+		rows, err := lab.PartRows(p.Dataset, day)
+		if err == nil {
+			newKey, err = newDatasetKey()
+		}
+		if err == nil {
+			if err = a.datasets.Put(r.Context(), newKey, rows); err != nil {
+				err = fmt.Errorf("put Part %s: %w", newKey, err)
+			}
+		}
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
 	var room storageRoom
 	replaced := errors.New("pending Part replaced")
@@ -587,9 +652,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		}
 		// A Replace of one Part takes the replaced Part's place; the Part goes if another confirm or delete has not already.
 		var position sql.NullInt64
-		if p.Replaces != nil {
+		if mode.Kind == replacePart {
 			err := tx.QueryRowContext(r.Context(), `SELECT position FROM dataset_parts WHERE id = $1 AND dashboard_id = $2 AND state = 'current' FOR UPDATE`,
-				p.Replaces.Part, d.ID).Scan(&position)
+				mode.Part, d.ID).Scan(&position)
 			if errors.Is(err, sql.ErrNoRows) {
 				return replaced
 			}
@@ -597,31 +662,27 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 				return err
 			}
 		}
-		free := p.frees()
-		if room, err = roomFor(r.Context(), tx, d.ID, p.Size, free, acc); err != nil || !room.Fits {
+		if room, err = roomFor(r.Context(), tx, d.ID, p.Size, mode, acc); err != nil || !room.Fits {
 			return cmp.Or(err, errStorageFull)
 		}
-		if day != p.PartDate {
-			// The same length as before, so the saved size and the room check stand. The pending row is locked, so no
-			// re-upload deletes this object meanwhile.
-			rows, err := lab.PartRows(p.Dataset, day)
-			if err != nil {
-				return err
-			}
-			if err := a.datasets.Put(r.Context(), p.Key, rows); err != nil {
-				return fmt.Errorf("put Part %s: %w", p.Key, err)
-			}
-			p.PartDate, p.DateFrom, p.DateCell = day, "chosen", ""
+		if newKey != "" {
+			oldKey := p.Key
+			p.PartDate, p.DateFrom, p.DateCell = day, lab.DateFromChosen, ""
 			c, err := json.Marshal(p.cleaned)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(r.Context(), `UPDATE dataset_parts SET part_date = $2, cleanup = $3 WHERE id = $1`, p.ID, day, c); err != nil {
+			if _, err := tx.ExecContext(r.Context(), `UPDATE dataset_parts SET storage_key = $2, part_date = $3, date_source = $4, cleanup = $5 WHERE id = $1`,
+				p.ID, newKey, day, p.DateFrom, c); err != nil {
+				return err
+			}
+			// The trigger queues the object of a deleted record only, so the old object is queued here.
+			if _, err := tx.ExecContext(r.Context(), `INSERT INTO stored_file_deletions (storage_key) VALUES ($1) ON CONFLICT DO NOTHING`, oldKey); err != nil {
 				return err
 			}
 		}
 		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier' OR state = 'current' AND ($2::boolean OR id = $3))`,
-			d.ID, free.All, free.Part); err != nil {
+			d.ID, mode.Kind == replaceData, mode.Part); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(r.Context(), `UPDATE dataset_parts SET state = 'current', confirmed_at = now(),
@@ -633,6 +694,9 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			d.ID, config, settings, columns)
 		return err
 	})
+	if err != nil {
+		a.dropDataset(r.Context(), r, newKey) // the rewritten rows were not kept
+	}
 	if errors.Is(err, errStorageFull) {
 		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Pending: p, Upload: p.File}
 		page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(room.Used), sizeText(acc.Period.Storage()))

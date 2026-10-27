@@ -40,13 +40,13 @@ func (p *pendingDataset) ColumnList() string {
 }
 
 // servePageData writes a page Dashboard's current Dataset at <link>/data.json, every Part's rows in order each with its
-// Part date (see serveParts), or answers 404 without one. Any origin may read it, as the sandboxed page's origin is null; it is cached five
-// minutes, so a new confirm, sleep and Takedown take effect soon.
+// Part date (see serveParts), or answers 404 without one. Any origin may read it, as the sandboxed page's origin is
+// null; it is cached five minutes, so a new confirm, sleep and Takedown take effect soon.
 func (a *App) servePageData(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if d.Parts == 0 && d.Columns == nil { // not uploaded yet; once the last Part is deleted, the columns are an empty list
 		a.notFound(w, r)
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	a.serveParts(w, r, d, "public, max-age=300")
+	a.serveParts(w, r, d, "", "public, max-age=300")
 }

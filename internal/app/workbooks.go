@@ -23,6 +23,7 @@ type workbook struct {
 	Uploaded string // formatted as periodTime
 }
 
+// SizeText is the Workbook's size as people read it, such as 12 KB.
 func (w workbook) SizeText() string { return sizeText(w.Size) }
 
 // workbooksOf lists a Learner's Workbooks, newest first.
@@ -48,12 +49,12 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 
 // keepWorkbook keeps data, the .xlsx a Learner uploaded, as their Workbook called name, before Clean-up reads it, so it
 // stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance beside the Learner's
-// Parts, pages and Workbooks and their pending Parts on Dashboards other than dashboardID (0 for a new one),
-// whose own pending Part the upload replaces; the Parts roomFor counts as deleted by the confirm count as free, as for
-// keepPending: free (every current Part of dashboardID when the upload replaces its data, the one it replaces, else none). If it does not fit, nothing is kept and the error is errStorageFull, with used the bytes
-// counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0. A file the Learner
-// already keeps gives that Workbook's id, keeping nothing new.
-func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, free frees, name string, data []byte) (id, used int64, err error) {
+// Parts, pages and Workbooks and their pending Parts on Dashboards other than dashboardID (0 for a new one); the
+// Dashboard's own pending Part is not counted, as the upload replaces it. The Parts that confirming the upload deletes
+// count as free, as for keepPending: those of mode on dashboardID (see roomFor). If it does not fit, nothing is kept
+// and the error is errStorageFull, with used the bytes counted. A store that refuses the file gives errDatasetStore. An
+// empty file is not kept: id is 0. A file the Learner already keeps gives that Workbook's id, keeping nothing new.
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, mode uploadMode, name string, data []byte) (id, used int64, err error) {
 	if len(data) == 0 {
 		return 0, 0, nil
 	}
@@ -88,7 +89,7 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 			}
 			if dashboardID != 0 {
 				// As keepPending: what confirming deletes from this Dashboard counts as free.
-				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), free, acc)
+				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), mode, acc)
 				if err != nil {
 					return err
 				}
