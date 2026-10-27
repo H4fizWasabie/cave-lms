@@ -365,7 +365,13 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	}
 	kept := cleaned{CleanUp: *res, Settings: settings}
 	if add {
-		more, changes, err := lab.AddPart(d.Columns, d.Rows, res.Dataset)
+		// Only a Dashboard Cave builds in a Theme keeps a row total; one behind the Learner's own page is limited by the
+		// Storage allowance alone (ADR 0022).
+		limit := lab.MaxCleanRows
+		if d.Page != nil {
+			limit = 0
+		}
+		more, changes, err := lab.AddPart(d.Columns, d.Rows, res.Dataset, limit)
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 			page.Error = problem.In(lang)
