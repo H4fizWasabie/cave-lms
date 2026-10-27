@@ -1017,6 +1017,19 @@ var catalog = map[string]entry{
 		en: "To add to your data, the file needs every column your data has, in any order. Missing: %s. Fix the headers in Excel, or choose Replace data.",
 		ms: "Untuk menambah pada data anda, fail perlu mempunyai setiap lajur dalam data anda, dalam apa jua susunan. Hilang: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
+	"lab.map.title": {en: "Match the missing columns", ms: "Padankan lajur yang hilang"},
+	"lab.map.body": {
+		en: "Your data has columns this file lacks, but the file has other columns. If some of them are the same columns under other names, pick which one each is. Cave remembers your choices for the next file with the same headers.",
+		ms: "Data anda mempunyai lajur yang tiada dalam fail ini, tetapi fail ini mempunyai lajur lain. Jika sebahagiannya lajur yang sama dengan nama lain, pilih yang mana satu. Cave mengingati pilihan anda untuk fail seterusnya dengan tajuk lajur yang sama.",
+	},
+	"lab.map.for":    {en: "In your data:", ms: "Dalam data anda:"},
+	"lab.map.none":   {en: "Not in this file", ms: "Tiada dalam fail ini"},
+	"lab.map.apply":  {en: "Match and continue", ms: "Padankan dan teruskan"},
+	"lab.map.chosen": {en: "Columns you matched", ms: "Lajur yang anda padankan"},
+	"lab.map.chosen-help": {
+		en: "To change a choice, pick another column here and choose your file again. “Not in this file” stops using it.",
+		ms: "Untuk menukar pilihan, pilih lajur lain di sini dan pilih fail anda semula. “Tiada dalam fail ini” menghentikan penggunaannya.",
+	},
 	"lab.err.same-file": {
 		en: "This is exactly the same file as Part “%s” (Part date %s), which your Dashboard already has. To read it again, replace that Part.",
 		ms: "Ini fail yang sama sepenuhnya dengan Bahagian “%s” (Part date %s), yang sudah ada pada Dashboard anda. Untuk membacanya semula, gantikan Bahagian itu.",

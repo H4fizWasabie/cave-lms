@@ -96,6 +96,31 @@
             <p>{{if .Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
+          {{- with .Mapping}}
+          <div class="ds-err" role="alert">
+            <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
+            <p>{{$.Error}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{end}}</p>
+          </div>
+          <form class="form map-columns" method="post" action="{{.Action}}">
+            <h2 class="h-md">{{t $.Lang "lab.map.title"}}</h2>
+            <p class="muted">{{t $.Lang "lab.map.body"}}</p>
+            {{- range .Hidden}}
+            <input type="hidden" name="{{index . 0}}" value="{{index . 1}}">
+            {{- end}}
+            {{- range $i, $pick := .Picks}}
+            <div class="field map-row">
+              <label for="map-{{$i}}">{{t $.Lang "lab.map.for"}} <code>{{.Column}}</code></label>
+              <select id="map-{{$i}}" name="map:{{.Column}}">
+                <option value="">{{t $.Lang "lab.map.none"}}</option>
+                {{- range .Options}}
+                <option value="{{.}}">{{.}}</option>
+                {{- end}}
+              </select>
+            </div>
+            {{- end}}
+            <div class="form-foot"><button class="btn btn-solid">{{t $.Lang "lab.map.apply"}}</button></div>
+          </form>
+          {{- end}}
           {{- with .Pending}}
           <section class="card ds-preview">
             <div>
@@ -143,7 +168,7 @@
               <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
             </table></div>
             <form class="form" method="post" action="{{$url}}/dataset/confirm">
-              {{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+              {{if not $.Mapping}}{{with $.Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}{{end}}
               {{- if $.Uses}}
               <h3 class="h-sm">{{t $.Lang "lab.w.uses"}}</h3>
               <ul class="ds-uses">
@@ -185,12 +210,12 @@
             <p>{{t $.Lang "lab.err.same-file" .File .Date}} {{t $.Lang "lab.d.still-uses" $.Dashboard.File}}</p>
             <p><a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/replace">{{t $.Lang "lab.err.same-file-replace"}}</a></p>
           </div>
-          {{- else with $.Error}}
+          {{- else with $.Error}}{{if not $.Mapping}}
           <div class="ds-err" role="alert">
             <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
             <p>{{.}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
-          {{- end}}
+          {{- end}}{{end}}
           {{- end}}
           {{- $replace := 0}}{{with .Replacing}}{{$replace = .ID}}{{end}}{{with .Pending}}{{with .Replaces}}{{$replace = .Part}}{{end}}{{end}}
           {{- $picked := false}}{{with .Pending}}{{$picked = .FromWorkbook}}{{end}}
@@ -225,6 +250,23 @@
               <label for="grid-year">{{t $.Lang "lab.w.grid-year"}}</label>
               <input id="grid-year" type="number" name="year" value="{{.Year}}" min="1900" max="2100" required>
               <small>{{t $.Lang "lab.w.grid-help"}}</small>
+            </fieldset>
+            {{- end}}{{end}}
+            {{- with .Pending}}{{with .MapPicks}}
+            <fieldset class="field">
+              <legend>{{t $.Lang "lab.map.chosen"}}</legend>
+              {{- range $i, $pick := .}}
+              <div class="map-row">
+                <label for="picked-{{$i}}"><code>{{.Column}}</code></label>
+                <select id="picked-{{$i}}" name="map:{{.Column}}">
+                  <option value="">{{t $.Lang "lab.map.none"}}</option>
+                  {{- range .Options}}
+                  <option value="{{.}}"{{if eq . $pick.File}} selected{{end}}>{{.}}</option>
+                  {{- end}}
+                </select>
+              </div>
+              {{- end}}
+              <small>{{t $.Lang "lab.map.chosen-help"}}</small>
             </fieldset>
             {{- end}}{{end}}
             {{- if and .Dashboard.Key (not $replace)}}

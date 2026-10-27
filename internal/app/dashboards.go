@@ -450,6 +450,7 @@ type dashboardPage struct {
 	Replacing *partRef        // the Part whose Replace screen this is, on the Data tab
 	Uses      []columnUse     // after the first confirm: the columns the blocks use, as the pending Dataset has them
 	AskHeader int             // most of Uses are missing: the preview asks whether this row is the header
+	Mapping   *columnMapping  // an Add refused for lacking columns: the form to map them from the file's others
 	Gone      string          // a page Dashboard's replacing upload: the current columns it lacks
 	New       string          // and its columns the current Dataset lacks
 	Pages     []htmlPage      // the earlier pages, newest first

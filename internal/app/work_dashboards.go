@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,13 +28,45 @@ const previewRows = 20
 // cleaned is what Clean-up found on an upload besides its data, kept with the Part as dataset_parts.cleanup: the
 // preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
 type cleaned struct {
-	lab.CleanUp               // without its Dataset
-	Settings     lab.Settings `json:"settings"`               // the remembered part of the settings Clean-up read with
-	Columns      []lab.Column `json:"columns"`                // the Part's columns, in the order its stored rows read back
-	Added        *addition    `json:"added,omitempty"`        // an Add to data; nil for one that replaces the data
-	Replaces     *replacement `json:"replaces,omitempty"`     // a Replace of one Part of several; nil for an Add or a Replace of the data
-	FromWorkbook bool         `json:"fromWorkbook,omitempty"` // read from a Workbook the Learner picked, so the preview posts its choices without a file
-	HeaderTyped  bool         `json:"headerTyped,omitempty"`  // the Learner typed the header row, so the recipe of a first Part keeps it
+	lab.CleanUp                // without its Dataset
+	Settings     lab.Settings  `json:"settings"`               // the remembered part of the settings Clean-up read with
+	Columns      []lab.Column  `json:"columns"`                // the Part's columns, in the order its stored rows read back
+	Added        *addition     `json:"added,omitempty"`        // an Add to data; nil for one that replaces the data
+	Replaces     *replacement  `json:"replaces,omitempty"`     // a Replace of one Part of several; nil for an Add or a Replace of the data
+	FromWorkbook bool          `json:"fromWorkbook,omitempty"` // read from a Workbook the Learner picked, so the preview posts its choices without a file
+	HeaderTyped  bool          `json:"headerTyped,omitempty"`  // the Learner typed the header row, so the recipe of a first Part keeps it
+	Mapped       []lab.Mapping `json:"mapped,omitempty"`       // an Add or a Replace of a Part: the upload's columns read as the Dataset's
+	Unused       []string      `json:"unused,omitempty"`       // and the upload's columns left over after that, dropped
+
+	missing []string // the Dataset's columns the upload still lacks, once joinDataset refuses it
+}
+
+// mapPick is a column of the Dataset the Learner may read an upload's column as, for the preview's dropdown: File is the
+// upload's column now read as it, if any, and Options the upload's columns to pick from.
+type mapPick struct {
+	Column  string
+	File    string
+	Options []string
+}
+
+// MapPicks are the dropdowns of the columns the Learner mapped, so a wrong choice can be changed (or cleared) when the
+// file is read again; the ones Cave matched by name are not asked about.
+func (p *pendingDataset) MapPicks() []mapPick {
+	var picks []mapPick
+	for _, m := range p.Mapped {
+		if m.Chosen {
+			picks = append(picks, mapPick{Column: m.Column, File: m.File, Options: append([]string{m.File}, p.Unused...)})
+		}
+	}
+	return picks
+}
+
+// columnMapping is the form a refused Add shows for the Dataset columns the upload lacks: it posts the Workbook the
+// upload was kept as, with the choices the Learner already made and the upload's other settings, to the same address.
+type columnMapping struct {
+	Action string
+	Hidden [][2]string
+	Picks  []mapPick
 }
 
 // replacement is what a Replace of one Part put together: the Part it replaces and the rows the other Parts hold.
@@ -332,7 +366,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		}
 		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, date_source, sha256)
 			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, (SELECT sha256 FROM workbooks WHERE id = $7))`,
-				d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
+			d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
 		return err
 	})
 	if err != nil {
@@ -352,7 +386,7 @@ func uploadSettings(r *http.Request, d *dashboard, name string, mode uploadMode)
 	if recipe := d.Settings.Recipe; mode.intoDataset() && recipe != nil {
 		// A Part is read with the recipe: its sheet alone, found by name, and its header row if the Learner typed it. A
 		// remembered sheet or tick belongs to the Dataset's first Part; only the Learner's pick below counts.
-		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns}
+		settings.Recipe = &lab.Recipe{Sheet: recipe.Sheet, HeaderRow: recipe.HeaderRow, HeaderTyped: recipe.HeaderTyped, Columns: d.Columns, Map: mapChoices(recipe.Map, r.Form)}
 		settings.Sheet, settings.Alone, settings.Ticked = "", false, nil
 	}
 	settings.FileName = name
@@ -374,6 +408,31 @@ func uploadSettings(r *http.Request, d *dashboard, name string, mode uploadMode)
 		settings.Year = 0 // this year
 	}
 	return settings
+}
+
+// mapChoices is the recipe's map of the upload's columns to the Dataset's with the Learner's choices on the form: a field
+// map:<Dataset column> holds the upload's column to read as it, or nothing to read none as it. A choice replaces what the
+// recipe had for that Dataset column; the rest stays, as a file with other headers has no use for it.
+func mapChoices(saved map[string]string, form url.Values) map[string]string {
+	out := maps.Clone(saved)
+	for _, field := range slices.Sorted(maps.Keys(form)) {
+		column, ok := strings.CutPrefix(field, "map:")
+		if !ok {
+			continue
+		}
+		for file, to := range out {
+			if strings.EqualFold(to, column) {
+				delete(out, file)
+			}
+		}
+		if file := strings.TrimSpace(form.Get(field)); file != "" {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[file] = column
+		}
+	}
+	return out
 }
 
 // sameFileAs finds the current Part of Dashboard d that was cleaned from exactly data, other than the Part with ID
@@ -408,7 +467,13 @@ func (c *cleaned) joinDataset(d *dashboard, replacing *partRef) error {
 	if replacing != nil {
 		had -= replacing.Rows
 	}
-	more, changes, err := lab.AddPart(d.Columns, had, c.Dataset, limit)
+	var chosen map[string]string
+	if recipe := c.Settings.Recipe; recipe != nil {
+		chosen = recipe.Map
+	}
+	mapped, mappings, mapChanges := lab.MapColumns(d.Columns, c.Dataset, chosen)
+	c.missing, c.Unused = lab.Gaps(d.Columns, mapped)
+	more, changes, err := lab.AddPart(d.Columns, had, mapped, limit)
 	var problem lab.Problem
 	if replacing != nil && errors.As(err, &problem) && problem.Key == "lab.err.add-too-many-rows" {
 		return lab.Problem{Key: "lab.err.replace-too-many-rows", Args: problem.Args}
@@ -421,9 +486,38 @@ func (c *cleaned) joinDataset(d *dashboard, replacing *partRef) error {
 	} else {
 		c.Added = &addition{Rows: len(more.Rows), Had: d.Rows}
 	}
-	c.Dataset = more
-	c.Changes = append(c.Changes, changes...)
+	c.Dataset, c.Mapped = more, mappings
+	c.Changes = append(append(c.Changes, mapChanges...), changes...)
 	return nil
+}
+
+// mappingForm is the form to map the columns of a refused upload that the Dataset still lacks, from the file's columns
+// that are left; nil when none are left to pick from. Choices already made, for columns not asked about again, and the
+// upload's other settings go in it as hidden fields, so the file is read again as it was.
+func mappingForm(r *http.Request, d *dashboard, c cleaned, workbook int64, mode uploadMode) *columnMapping {
+	if len(c.Unused) == 0 {
+		return nil
+	}
+	form := &columnMapping{Action: dashboardURL(d) + "/dataset", Hidden: [][2]string{{"workbook", strconv.FormatInt(workbook, 10)}}}
+	if mode.Kind == replacePart {
+		form.Action = fmt.Sprintf("%s/parts/%d/replace", dashboardURL(d), mode.Part)
+	} else {
+		form.Hidden = append(form.Hidden, [2]string{"mode", "add"})
+	}
+	for _, field := range []string{"header", "two-row", "sheet", "month", "year"} {
+		if v := r.FormValue(field); v != "" {
+			form.Hidden = append(form.Hidden, [2]string{field, v})
+		}
+	}
+	for _, field := range slices.Sorted(maps.Keys(r.Form)) {
+		if column, ok := strings.CutPrefix(field, "map:"); ok && !slices.Contains(c.missing, column) {
+			form.Hidden = append(form.Hidden, [2]string{field, r.Form.Get(field)})
+		}
+	}
+	for _, column := range c.missing {
+		form.Picks = append(form.Picks, mapPick{Column: column, Options: c.Unused})
+	}
+	return form
 }
 
 // uploadWork keeps a Dashboard's upload as its Learner's Workbook, then runs Clean-up on it and keeps the result as its
@@ -513,6 +607,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		if errors.As(err, &problem) {
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 			page.Error = problem.In(lang)
+			if problem.Key == "lab.err.add-columns" && workbook != 0 {
+				page.Mapping = mappingForm(r, d, kept, workbook, mode)
+			}
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 			return
 		}
