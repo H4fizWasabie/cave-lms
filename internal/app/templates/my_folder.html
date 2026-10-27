@@ -8,7 +8,7 @@
       {{if .Workbooks}}
       <section class="card folder-course">
         <h2>{{t .Lang "my-folder.workbooks"}}</h2>
-        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small></li>{{end}}</ul>
+        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small>{{if $.Lab}} <a href="/workbooks/{{.ID}}/delete">{{t $.Lang "my-folder.delete"}}</a>{{end}}</li>{{end}}</ul>
       </section>
       {{end}}
       {{range .Courses}}
