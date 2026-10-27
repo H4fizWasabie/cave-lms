@@ -23,10 +23,10 @@ Route every task that changes this repo's code or docs through Matt Pocock's ski
 - **Running a skill**: the ones Abah normally types (`ask-matt`, `grill-with-docs`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `triage`, `wayfinder`, `improve-codebase-architecture`, `handoff`): read `~/.claude/plugins/cache/mattpocock/mattpocock-skills/<highest version>/skills/*/<name>/SKILL.md` and follow it as if he had typed the command. All others: load them through your agent's skill mechanism.
 - **Entry point by size**: small fix, one file, obvious behaviour: `tdd` (or `diagnosing-bugs` for a bug), then `code-review`. Multi-file feature or design change: `grill-with-docs`, then the main flow. Foggy effort spanning sessions: `wayfinder`.
 - **Overrides** (this file wins where a skill disagrees):
-  - `implement` / `implement-spec`: run the affected tests (`./test.sh ./internal/<pkg>/...`); CI runs the full suite on the PR.
   - `to-spec`, `to-tickets`, `triage`: draft each issue, show it, publish after Abah approves.
   - Between tickets, dispatch each one to a subagent (`implement-spec`) in place of `/clear`.
   - `retro` runs only when Abah types it.
+- **Tests**: every agent and skill (`implement`, `implement-spec`, `tdd`, `diagnosing-bugs`, subagents) runs only the affected packages (`./test.sh ./internal/<pkg>/...`), never the full suite (`./test.sh` or `./...`). CI runs the full suite on the PR and again on main.
 - **Shipping**: once a change passes `code-review`, commit it, open the PR and turn on auto-merge (`gh pr merge --auto --merge`) so it lands when CI is green, without waiting for Abah. Test on staging whenever a change needs a real run (`CAVE_ENV=staging deploy/deploy.sh` from a clean, pushed commit; see `docs/deploy.md`, Staging). Deploying to production stays Abah's call.
 - **Shared checkout**: when another agent may be using this checkout, work in your own `git worktree` off `origin/main` and leave its uncommitted changes in place.
 - **Attribution**: Abah is the sole author of commits, PRs, issues and comments; add no agent credit lines. No emojis in commits, issues, PR comments or code.
