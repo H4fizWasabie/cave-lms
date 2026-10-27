@@ -13,7 +13,7 @@ var workbookDeleteLink = regexp.MustCompile(`href="(/workbooks/\d+/delete)"`)
 // deletePath is the delete link of the Learner's only Workbook, read from their Folder.
 func (s *site) deletePath() string {
 	s.t.Helper()
-	res, body := s.get("/my-folder")
+	res, body := s.getFolder()
 	expectStatus(s.t, res, body, http.StatusOK, "/workbooks/")
 	m := workbookDeleteLink.FindStringSubmatch(body)
 	if m == nil {
@@ -30,7 +30,7 @@ func TestTheDeleteConfirmationNamesHowManyDashboardsUsedTheWorkbook(t *testing.T
 	expectStatus(t, res, body, http.StatusOK, "Dashboards that used it: 2.")
 
 	ada.postFile(ada.createWork("Baru")+"/dataset", "rosak.xlsx", []byte("not a workbook")) // kept, never cleaned
-	_, body = ada.get("/my-folder")
+	_, body = ada.getFolder()
 	var counts []string
 	for _, m := range workbookDeleteLink.FindAllStringSubmatch(body, -1) {
 		_, page := ada.get(m[1])
@@ -64,7 +64,7 @@ func TestDeletingAWorkbookRemovesItAndFreesItsRoomButNotWhatWasCleanedFromIt(t *
 	res, body = ada.post(del, url.Values{"confirm": {"yes"}})
 	expectRedirect(t, res, body, "/my-folder")
 
-	res, body = ada.get("/my-folder")
+	res, body = ada.getFolder()
 	if strings.Contains(body, "finance-sample.xlsx") || strings.Contains(body, "/workbooks/") {
 		t.Fatalf("the Folder still lists the Workbook: %s", body)
 	}
@@ -113,7 +113,7 @@ func TestAnotherLearnersWorkbookCannotBeDeleted(t *testing.T) {
 		res, body = c.who.post(del, url.Values{"confirm": {"yes"}})
 		expectStatus(t, res, body, http.StatusNotFound, "")
 	}
-	res, body := ada.get("/my-folder")
+	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "finance-sample.xlsx")
 	res, body = ada.get("/workbooks/999999/delete")
 	expectStatus(t, res, body, http.StatusNotFound, "")
@@ -125,7 +125,7 @@ func TestWithoutAnActivePlanAWorkbookCannotBeDeleted(t *testing.T) {
 	del := ada.deletePath()
 
 	admin.ageAllPeriods(31)
-	res, body := ada.get("/my-folder")
+	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "finance-sample.xlsx")
 	if strings.Contains(body, "/delete") {
 		t.Fatalf("the Folder offers deleting after the Plan ended: %s", body)
@@ -141,7 +141,7 @@ func TestWithoutAnActivePlanAWorkbookCannotBeDeleted(t *testing.T) {
 func TestTheDeleteWorkbookScreenAndFolderLinkAreInMalay(t *testing.T) {
 	_, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
-	res, body := ada.getAsking("/my-folder", "ms")
+	res, body := ada.getFolderAsking("ms")
 	expectStatus(t, res, body, http.StatusOK, "Padam")
 	res, body = ada.getAsking(ada.deletePath(), "ms")
 	expectStatus(t, res, body, http.StatusOK, "Dashboard yang menggunakannya: 1.")

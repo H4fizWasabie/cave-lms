@@ -19,7 +19,7 @@ func TestAnUploadOnADashboardIsKeptAsAWorkbookInTheFolder(t *testing.T) {
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
-	res, body = ada.get("/my-folder")
+	res, body = ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "laporan.xlsx")
 	links := workbookLink.FindStringSubmatch(body)
 	if links == nil {
@@ -46,7 +46,7 @@ func (s *site) forgetWorkbooks() {
 // workbookPath is the download link of the Learner's only Workbook, read from their Folder.
 func (s *site) workbookPath() string {
 	s.t.Helper()
-	res, body := s.get("/my-folder")
+	res, body := s.getFolder()
 	expectStatus(s.t, res, body, http.StatusOK, "/workbooks/")
 	return workbookLink.FindStringSubmatch(body)[1]
 }
@@ -59,7 +59,7 @@ func TestAWorkbookStaysWhenCleanUpFailsOrIsNeverConfirmed(t *testing.T) {
 	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120)) // never confirmed
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
-	res, body = ada.get("/my-folder")
+	res, body = ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "rosak.xlsx")
 	expectStatus(t, res, body, http.StatusOK, "laporan.xlsx")
 	if n := len(workbookLink.FindAllString(body, -1)); n != 2 {
@@ -80,7 +80,7 @@ func TestTheSameFileUploadedAgainStaysOneWorkbook(t *testing.T) {
 	res, body := ada.postFile(other+"/dataset", "salinan.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 
-	res, body = ada.get("/my-folder")
+	res, body = ada.getFolder()
 	if n := len(workbookLink.FindAllString(body, -1)); n != 1 {
 		t.Fatalf("%d Workbooks listed, want 1", n)
 	}
@@ -98,7 +98,7 @@ func TestBuildingADashboardFromExcelKeepsTheWorkbookEvenWhenCleanUpFails(t *test
 	res, body = ada.postFile("/lab/dashboards/build", "tanpa-nama.xlsx", file, url.Values{"name": {""}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Give the Dashboard a name.")
 
-	_, body = ada.get("/my-folder")
+	_, body = ada.getFolder()
 	if n := len(workbookLink.FindAllString(body, -1)); n != 2 || strings.Contains(body, "tanpa-nama.xlsx") {
 		t.Fatalf("%d Workbooks listed, want laporan.xlsx and rosak.xlsx only: %s", n, body)
 	}
@@ -156,7 +156,7 @@ func TestAWorkbookThatDoesNotFitIsRefusedAndNothingIsKept(t *testing.T) {
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after a refused upload", n)
 	}
-	_, body = ada.get("/my-folder")
+	_, body = ada.getFolder()
 	if strings.Contains(body, "besar.xlsx") {
 		t.Fatalf("the refused Workbook is listed: %s", body)
 	}
@@ -197,13 +197,13 @@ func TestOnlyTheOwnerAndTheAdminDownloadAWorkbookAndAnEndedPlanStillCan(t *testi
 	if got != string(file) {
 		t.Fatalf("the download after the Plan ended is %d bytes, want %d", len(got), len(file))
 	}
-	res, body = ada.get("/my-folder")
+	res, body = ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "laporan.xlsx")
 }
 
 func TestAFreeLearnersFolderHasNoWorkbooksPart(t *testing.T) {
 	_, ada, _, _ := labSetup(t)
-	res, body := ada.get("/my-folder")
+	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "You have not handed in anything yet.")
 	if strings.Contains(body, "Workbooks") || strings.Contains(body, "/workbooks/") {
 		t.Fatalf("a free Learner's Folder has a Workbooks part: %s", body)
@@ -213,7 +213,7 @@ func TestAFreeLearnersFolderHasNoWorkbooksPart(t *testing.T) {
 func TestTheFoldersWorkbooksPartIsInMalay(t *testing.T) {
 	_, ada := labLearner(t)
 	ada.postFile(ada.createWork("Kedai")+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
-	res, body := ada.getAsking("/my-folder", "ms")
+	res, body := ada.getFolderAsking("ms")
 	expectStatus(t, res, body, http.StatusOK, "Buku kerja")
 	expectStatus(t, res, body, http.StatusOK, "laporan.xlsx")
 }

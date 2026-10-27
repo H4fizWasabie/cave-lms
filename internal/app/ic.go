@@ -31,9 +31,11 @@ func formatIC(ic string) string {
 // myProfilePage is the logged-in Learner's profile: their IC or passport number, formatted, or a form to set it.
 type myProfilePage struct {
 	pageBase
-	IC           string
-	Typed        string // what the Learner typed, kept when it is refused
-	PictureError string // why the picture just uploaded was refused
+	IC            string
+	Typed         string // what the Learner typed, kept when it is refused
+	PictureError  string // why the picture just uploaded was refused
+	UsernameError string // why the Username just typed was refused
+	TypedUsername string // what the Learner typed, kept when it is refused
 }
 
 func (a *App) myProfile(w http.ResponseWriter, r *http.Request) {

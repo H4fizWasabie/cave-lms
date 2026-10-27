@@ -175,9 +175,9 @@ SELECT d.id, d.kind, d.template, d.theme, ds.storage_key, ds.file_name, ds.state
 For each Deployment `$n` with Dataset key `$key`, before and after, the page answers 200 with the same Theme and block labels, and the data is the same:
 
 ```sh
-curl -s -o /dev/null -w '%{http_code}\n' "$base/d/$n/"
-curl -s "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'
-curl -s "$base/d/$n/data/$key" | sha256sum
+curl -sL -o /dev/null -w '%{http_code}\n' "$base/d/$n/"
+curl -sL "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'
+curl -sL "$base/d/$n/data/$key" | sha256sum
 ```
 
 A Dashboard never uploaded to has no blocks until its first confirm, as for a new one.
@@ -205,11 +205,11 @@ SELECT count(*) FROM dashboard_pages;
 SELECT count(*) FROM stored_file_deletions;   -- after the start-up prune: 0
 ```
 
-After, `/d/try/` and `/d/inv2/` answer 200 with the engine's settings, their Theme and block labels, not the converted page, and each of the six Dashboards' Preview draws its Theme and blocks:
+After, `/d/try/` and `/d/inv2/` (which redirect to their Learner's Username, ADR 0023, hence `-L`) answer 200 with the engine's settings, their Theme and block labels, not the converted page, and each of the six Dashboards' Preview draws its Theme and blocks:
 
 ```sh
-curl -s "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
-curl -s "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
+curl -sL "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
+curl -sL "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
 ```
 
 **Dropped in a later release.** The Templates are gone (ADR 0019), and nothing reads or writes `dashboards.template` or `dashboards.choices` now, but the columns stay: the binary before this release still selects them, and a rollback puts that binary back without undoing a migration. Migration 00126 gives `template` the default `'general'` (`choices` already defaults to `'{}'`), so a Dashboard made by this release opens on General with no choices in that binary too. Once production has run this release with no rollback, a later release adds a migration dropping both columns.

@@ -28,12 +28,26 @@ type folderPage struct {
 	Courses   []folderCourse
 }
 
+// myFolderRedirect sends the Learner to their Folder, which has their Username in its address (ADR 0023).
+func (a *App) myFolderRedirect(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/my-folder/"+learner.Username, http.StatusFound)
+}
+
 // myFolder is the Learner's Folder: their Workbooks, if they have any, and their Submissions by Course, with the
-// Admin's comments.
+// Admin's comments. It is always their own: at any other Username's address they are sent to theirs.
 func (a *App) myFolder(w http.ResponseWriter, r *http.Request) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if r.PathValue("username") != learner.Username {
+		http.Redirect(w, r, "/my-folder/"+learner.Username, http.StatusFound)
 		return
 	}
 	list, err := a.folder(r.Context(), learner.ID)
