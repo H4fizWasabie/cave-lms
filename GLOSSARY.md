@@ -133,6 +133,11 @@ The right to open and download the Gallery's ebooks, beyond the ones that are Pr
 _Malay_: Akses Ebook
 _Avoid_: Ebook subscription, premium ebooks
 
+**Ebook email**:
+The email a Learner gets each time a year of Ebook access is given, by a COMBO Pro Plan payment or by the Admin, and again whenever the Admin resends it. It links to the Gallery's ebooks and says until when they stay open; it never carries an ebook, so access still ends with that year.
+_Malay_: E-mel Ebook
+_Avoid_: Ebook delivery, download email
+
 **COMBO Pro Plan**:
 The Pro Plan bought with the code of a Promo that comes with Ebooks, or given so by the Admin: the Pro Plan with Ebook access for its year. It is the one place "combo" names something; the Pro Plan alone is never a combo.
 _Malay_: Pelan Pro COMBO
