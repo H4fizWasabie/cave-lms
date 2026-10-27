@@ -894,6 +894,22 @@ var catalog = map[string]entry{
 	"lab.d.changed":           {en: "changed %s", ms: "diubah %s"},
 	"lab.d.parts.one":         {en: "%d Part", ms: "%d Bahagian"},
 	"lab.d.parts.other":       {en: "%d Parts", ms: "%d Bahagian"},
+	"lab.d.parts-list":        {en: "Parts of this Dataset", ms: "Bahagian Set data ini"},
+	"lab.d.part-date":         {en: "Part date %s", ms: "Tarikh Bahagian %s"},
+	"lab.d.part-added":        {en: "added %s", ms: "ditambah %s"},
+	"lab.d.part-delete":       {en: "Delete Part", ms: "Padam Bahagian"},
+	"lab.d.part-delete-ask": {
+		en: "Delete the Part “%s”? Its rows leave your Dataset and its file goes too. The Workbook stays in your Folder. This cannot be undone.",
+		ms: "Padam Bahagian “%s”? Barisnya keluar daripada Set data anda dan failnya turut dipadam. Buku kerja kekal dalam Folder anda. Tindakan ini tidak boleh dibuat asal.",
+	},
+	"lab.data.replace-warn.one": {
+		en: "Confirming removes the %d Part of your Dataset. Its Workbook stays in your Folder.",
+		ms: "Pengesahan membuang %d Bahagian Set data anda. Buku kerja itu kekal dalam Folder anda.",
+	},
+	"lab.data.replace-warn.other": {
+		en: "Confirming removes all %d Parts of your Dataset. Their Workbooks stay in your Folder.",
+		ms: "Pengesahan membuang semua %d Bahagian Set data anda. Buku kerja mereka kekal dalam Folder anda.",
+	},
 	"lab.d.upload-new":        {en: "Upload a new Dataset", ms: "Muat naik Set data baharu"},
 	"lab.d.upload-yours":      {en: "Upload your Dataset", ms: "Muat naik Set data anda"},
 	"lab.d.upload-yours-body": {en: "Your own Excel data. Cave cleans it and builds the blocks from your columns.", ms: "Data Excel anda sendiri. Cave membersihkannya dan membina blok daripada lajur anda."},

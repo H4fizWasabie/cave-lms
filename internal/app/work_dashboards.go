@@ -404,7 +404,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	// Nothing new to check: it goes live. An Add is always shown, as its rows may repeat ones already there.
-	if d.Config != nil && !add && d.Parts <= 1 && allFit(d.Config, res.Dataset) {
+	if d.Config != nil && !add && d.Parts == 0 && allFit(d.Config, res.Dataset) {
 		usual, err := a.routine(r.Context(), d, res.Changes)
 		var room storageRoom
 		if err == nil && usual {

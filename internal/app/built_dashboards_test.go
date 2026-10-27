@@ -159,9 +159,13 @@ func TestABuiltDashboardsLivePageFollowsItsThemeAndItsNewData(t *testing.T) {
 		t.Fatalf("after saving a Theme the live page draws %q, want midnight", theme)
 	}
 
-	// Replace: the routine monthly workbook goes live at once.
+	// Replace: shown with its warning, then live once confirmed, even for a routine monthly workbook.
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopReport(t, "Gula", 80), url.Values{"mode": {"replace"}})
-	expectStatus(t, res, body, http.StatusSeeOther, "")
+	expectRedirect(t, res, body, path)
+	if rows := visitor.rowsOf(link); strings.Contains(rows, "Gula") {
+		t.Fatalf("before confirming a Replace the live page reads\n%s", rows)
+	}
+	ada.confirmWork(path, url.Values{})
 	if rows := visitor.rowsOf(link); !strings.Contains(rows, "Gula") || strings.Contains(rows, "Beras") {
 		t.Fatalf("after a Replace the live page reads\n%s", rows)
 	}

@@ -260,6 +260,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /lab/dashboards/{id}/page", a.withDashboard(a.uploadPage))
 	mux.HandleFunc("POST /lab/dashboards/{id}/pages/{pg}/restore", a.withDashboard(a.restorePage))
 	mux.HandleFunc("POST /lab/dashboards/{id}/dataset/confirm", a.withDashboard(a.confirmWork))
+	mux.HandleFunc("GET /lab/dashboards/{id}/parts/{part}/delete", a.labScreen(a.withDashboard(a.confirmDeletePart)))
+	mux.HandleFunc("POST /lab/dashboards/{id}/parts/{part}/delete", a.withDashboard(a.deletePart))
 	mux.HandleFunc("POST /lab/dashboards/{id}/theme", a.withDashboard(a.saveTheme))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/{$}", a.labScreen(a.dashboardFile("index.html")))
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/data/{key}", a.labScreen(a.dashboardFile("data")))
