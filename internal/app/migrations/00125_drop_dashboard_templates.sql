@@ -6,3 +6,5 @@ ALTER TABLE dashboards DROP COLUMN template, DROP COLUMN choices;
 
 -- +goose Down
 ALTER TABLE dashboards ADD COLUMN template text, ADD COLUMN choices jsonb;
+-- What the code before this migration reads: every Dashboard on General, with no choices.
+UPDATE dashboards SET template = 'general', choices = '{}';
