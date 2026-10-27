@@ -148,3 +148,56 @@ func (a *App) downloadWorkbook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	_, _ = w.Write(data)
 }
+
+// deletableWorkbook loads the Workbook named by {id} when it is the logged-in Learner's, with how many Dashboards used
+// it; the Admin's other than their own are Not found, as for a Submission's files. Otherwise it writes the Not found
+// page, so another Learner's Workbooks are not revealed. The caller has found the Lab open to the Learner.
+func (a *App) deletableWorkbook(w http.ResponseWriter, r *http.Request) (id int64, name string, uses int, ok bool) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return 0, "", 0, false
+	}
+	if id, err = strconv.ParseInt(r.PathValue("id"), 10, 64); err != nil {
+		a.notFound(w, r)
+		return 0, "", 0, false
+	}
+	err = a.db.QueryRowContext(r.Context(), `SELECT name, (SELECT count(DISTINCT ds.dashboard_id) FROM datasets ds WHERE ds.workbook_id = wb.id)
+		FROM workbooks wb WHERE wb.id = $1 AND wb.learner_id = $2`, id, learner.ID).Scan(&name, &uses)
+	if errors.Is(err, sql.ErrNoRows) {
+		a.notFound(w, r)
+		return 0, "", 0, false
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return 0, "", 0, false
+	}
+	return id, name, uses, true
+}
+
+// confirmDeleteWorkbook asks the Learner to confirm deleting one of their Workbooks, naming how many Dashboards used it.
+func (a *App) confirmDeleteWorkbook(w http.ResponseWriter, r *http.Request) {
+	if _, name, uses, ok := a.deletableWorkbook(w, r); ok {
+		a.confirm(w, r, http.StatusOK, confirmation{Heading: "workbook.delete", Question: "workbook.delete-ask",
+			Cancel: "/my-folder", CancelLabel: "workbook.keep", Action: r.URL.Path}, name, uses)
+	}
+}
+
+// deleteWorkbook deletes a Workbook and its file once its confirmation page is posted, freeing its room in the Storage
+// allowance. The Datasets cleaned from it, their Dashboards and Deployments stay and no longer name a Workbook. Like
+// every change in the Lab it needs an active Plan period (403 without).
+func (a *App) deleteWorkbook(w http.ResponseWriter, r *http.Request) {
+	if _, ok := a.labOpen(w, r); !ok {
+		return
+	}
+	id, _, _, ok := a.deletableWorkbook(w, r)
+	if !ok || unconfirmed(w, r) {
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM workbooks WHERE id = $1`, id); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.dropDeletedFiles(r.Context(), r)
+	http.Redirect(w, r, "/my-folder", http.StatusSeeOther)
+}
