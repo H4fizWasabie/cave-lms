@@ -978,8 +978,8 @@ var catalog = map[string]entry{
 		ms: "Untuk menambah pada data anda, fail perlu mempunyai lajur yang sama, dalam apa jua susunan. Hilang: %s. Tiada dalam data anda: %s. Betulkan tajuk lajur dalam Excel, atau pilih Gantikan data.",
 	},
 	"lab.err.add-too-many-rows": {
-		en: "Adding these %s rows to your %s makes %s. A Dataset holds up to %s rows. Upload fewer rows, or choose Replace data.",
-		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Set data memuatkan sehingga %s baris. Muat naik lebih sedikit baris, atau pilih Gantikan data.",
+		en: "Adding these %s rows to your %s makes %s. A Dashboard built in a Theme holds up to %s rows. Replace or delete a Part to make room.",
+		ms: "Menambah %s baris ini pada %s baris anda menjadikannya %s. Dashboard yang dibina dalam Tema memuatkan sehingga %s baris. Gantikan atau padam satu Bahagian untuk memberi ruang.",
 	},
 	"lab.add.none": {en: "none", ms: "tiada"},
 
