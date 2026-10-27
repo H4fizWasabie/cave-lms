@@ -149,9 +149,9 @@ func (a *App) downloadWorkbook(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// deletableWorkbook loads the Workbook named by {id} when it is the logged-in Learner's, with how many Dashboards used
-// it; the Admin's other than their own are Not found, as for a Submission's files. Otherwise it writes the Not found
-// page, so another Learner's Workbooks are not revealed. The caller has found the Lab open to the Learner.
+// deletableWorkbook loads the Workbook named by {id} when it is the logged-in Learner's own, with how many Dashboards
+// used it. Anyone else's, the Admin included, as for a Submission's files, gets the Not found page, so another
+// Learner's Workbooks are not revealed. The caller checks the Lab is open to the Learner.
 func (a *App) deletableWorkbook(w http.ResponseWriter, r *http.Request) (id int64, name string, uses int, ok bool) {
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -162,7 +162,8 @@ func (a *App) deletableWorkbook(w http.ResponseWriter, r *http.Request) (id int6
 		a.notFound(w, r)
 		return 0, "", 0, false
 	}
-	err = a.db.QueryRowContext(r.Context(), `SELECT name, (SELECT count(DISTINCT ds.dashboard_id) FROM datasets ds WHERE ds.workbook_id = wb.id)
+	err = a.db.QueryRowContext(r.Context(), `SELECT name,
+		(SELECT count(DISTINCT ds.dashboard_id) FROM datasets ds WHERE ds.workbook_id = wb.id)
 		FROM workbooks wb WHERE wb.id = $1 AND wb.learner_id = $2`, id, learner.ID).Scan(&name, &uses)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)

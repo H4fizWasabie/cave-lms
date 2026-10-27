@@ -53,7 +53,8 @@ func TestDeletingAWorkbookRemovesItAndFreesItsRoomButNotWhatWasCleanedFromIt(t *
 		t.Fatalf("%d stored files, want the Dataset and the Workbook", n)
 	}
 	res, body := ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, ada.storedKB())
+	full := ada.storedKB()
+	expectStatus(t, res, body, http.StatusOK, full)
 
 	res, body = ada.post(del, nil) // not from the confirmation page: nothing happens yet
 	expectRedirect(t, res, body, del)
@@ -73,7 +74,11 @@ func TestDeletingAWorkbookRemovesItAndFreesItsRoomButNotWhatWasCleanedFromIt(t *
 		t.Fatalf("%d stored files, want only the Dataset", n)
 	}
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, ada.storedKB())
+	if freed := ada.storedKB(); freed == full {
+		t.Fatalf("storage used is still %s after the delete", full)
+	} else {
+		expectStatus(t, res, body, http.StatusOK, freed)
+	}
 	if after := visitor.get2(link + visitor.dataOf(link)); after != before {
 		t.Fatalf("the Deployment's data.json changed:\n%s\nbecame\n%s", before, after)
 	}
