@@ -164,10 +164,10 @@ DATABASE_URL=postgres:///cave_rehearsal PUBLIC_BASE_URL=http://127.0.0.1:8090 LI
 SELECT kind, count(*) FROM dashboards GROUP BY kind;            -- after: no practice, same total
 SELECT count(*) FROM deployments;                               -- after: the same
 -- before: the Practice Dashboards and their Deployments
-SELECT d.id, d.template, d.theme, d.dataset_key, d.dataset_file, dep.name
+SELECT d.id, d.theme, d.dataset_key, d.dataset_file, dep.name
   FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.kind = 'practice' ORDER BY d.id;
 -- after, for those ids: same theme; storage_key the old dataset_key; current; blocks there
-SELECT d.id, d.kind, d.template, d.theme, ds.storage_key, ds.file_name, ds.state, jsonb_array_length(d.config->'blocks') AS blocks, dep.name
+SELECT d.id, d.kind, d.theme, ds.storage_key, ds.file_name, ds.state, jsonb_array_length(d.config->'blocks') AS blocks, dep.name
   FROM dashboards d LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'
   LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.id IN (...) ORDER BY d.id;
 ```
@@ -211,8 +211,6 @@ After, `/d/try/` and `/d/inv2/` (which redirect to their Learner's Username, ADR
 curl -sL "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
 curl -sL "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
 ```
-
-**Dropped in a later release.** The Templates are gone (ADR 0019), and nothing reads or writes `dashboards.template` or `dashboards.choices` now, but the columns stay: the binary before this release still selects them, and a rollback puts that binary back without undoing a migration. Migration 00126 gives `template` the default `'general'` (`choices` already defaults to `'{}'`), so a Dashboard made by this release opens on General with no choices in that binary too. Once production has run this release with no rollback, a later release adds a migration dropping both columns.
 
 ## Changing the domain
 
