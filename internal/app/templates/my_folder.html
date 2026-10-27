@@ -1,15 +1,15 @@
-{{define "title"}}{{t .Lang "my-folder.title"}} · CAVELMS{{end}}
+{{define "title"}}{{if .Owner}}{{t .Lang "my-folder.of" .Owner.Name}}{{else}}{{t .Lang "my-folder.title"}}{{end}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
-        <h1>{{t .Lang "my-folder.title"}}</h1>
-        <p>{{if or .Lab .Workbooks}}{{t .Lang "my-folder.intro-lab"}}{{else}}{{t .Lang "my-folder.intro"}}{{end}}</p>
+        <h1>{{if .Owner}}{{t .Lang "my-folder.of" .Owner.Name}}{{else}}{{t .Lang "my-folder.title"}}{{end}}</h1>
+        <p>{{if .Owner}}{{t .Lang "my-folder.intro-admin"}}{{else if or .LabPart .Workbooks}}{{t .Lang "my-folder.intro-lab"}}{{else}}{{t .Lang "my-folder.intro"}}{{end}}</p>
       </div>
-      {{if or .Workbooks .Lab}}
+      {{if or .Workbooks .LabPart}}
       <section class="card folder-course">
         <h2>{{t .Lang "my-folder.workbooks"}}</h2>
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
-        {{if .Lab}}
+        {{if and .LabPart (not .Owner)}}
         <form class="form" method="post" action="/workbooks" enctype="multipart/form-data" data-busy>
           <div class="field"><label for="file">{{t .Lang "lab.d.excel-file"}}</label><input id="file" type="file" name="file" accept=".xlsx" required><small>{{t .Lang "my-folder.upload-limits"}}</small></div>
           <div class="form-foot"><button class="btn btn-solid">{{t .Lang "my-folder.upload"}}</button></div>
@@ -17,27 +17,27 @@
         <script src="{{static "forms.js"}}" defer></script>
         {{end}}
         {{if not .Workbooks}}<p class="muted">{{t .Lang "my-folder.workbooks-none"}}</p>{{end}}
-        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small>{{if $.Lab}} <a href="/workbooks/{{.ID}}/delete">{{t $.Lang "my-folder.delete"}}</a>{{end}}</li>{{end}}</ul>
+        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small>{{if and $.LabPart (not $.Owner)}} <a href="/workbooks/{{.ID}}/delete">{{t $.Lang "my-folder.delete"}}</a>{{end}}</li>{{end}}</ul>
       </section>
       {{end}}
       {{if .Dashboards}}
       <section class="card folder-course">
         <h2>{{t .Lang "my-folder.pages"}}</h2>
         {{range .Dashboards}}{{$d := .}}
-        <h3><a href="/lab/dashboards/{{.ID}}">{{.Name}}</a></h3>
-        <ul class="file-list">{{range .Pages}}<li><a href="/lab/dashboards/{{$d.ID}}">{{if .Current}}{{t $.Lang "my-folder.page-current"}}{{else}}{{t $.Lang "my-folder.page-earlier"}}{{end}}</a> <small>{{size .Size}} · {{.Uploaded}}</small></li>{{end}}</ul>
+        <h3>{{if $.Owner}}{{.Name}}{{else}}<a href="/lab/dashboards/{{.ID}}">{{.Name}}</a>{{end}}</h3>
+        <ul class="file-list">{{range .Pages}}<li>{{$what := t $.Lang "my-folder.page-earlier"}}{{if .Current}}{{$what = t $.Lang "my-folder.page-current"}}{{end}}{{if $.Owner}}{{$what}}{{else}}<a href="/lab/dashboards/{{$d.ID}}">{{$what}}</a>{{end}} <small>{{size .Size}} · {{.Uploaded}}</small></li>{{end}}</ul>
         {{end}}
       </section>
       {{end}}
-      {{if and .Courses (or .Lab .Workbooks)}}<h2 class="h-md">{{t .Lang "my-folder.submissions"}}</h2>{{end}}
+      {{if and .Courses (or .LabPart .Workbooks)}}<h2 class="h-md">{{t .Lang "my-folder.submissions"}}</h2>{{end}}
       {{range .Courses}}
       <section class="card folder-course">
-        <h2><a href="/courses/{{.ID}}">{{.Title}}</a>{{if not .Enrolled}} <span class="badge badge-closed">{{t $.Lang "my-folder.read-only"}}</span>{{end}}</h2>
-        {{if not .Enrolled}}<p class="muted">{{t $.Lang "my-folder.left"}}</p>{{end}}
+        <h2><a href="/courses/{{.ID}}">{{.Title}}</a>{{if and (not .Enrolled) (not $.Owner)}} <span class="badge badge-closed">{{t $.Lang "my-folder.read-only"}}</span>{{end}}</h2>
+        {{if and (not .Enrolled) (not $.Owner)}}<p class="muted">{{t $.Lang "my-folder.left"}}</p>{{end}}
         {{$c := .}}
         {{range .Assignments}}
         <div class="folder-assignment">
-          <h3>{{if and $c.Enrolled .Published}}<a href="/courses/{{$c.ID}}/assignments/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</h3>
+          <h3>{{if and $c.Enrolled .Published (not $.Owner)}}<a href="/courses/{{$c.ID}}/assignments/{{.ID}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</h3>
           {{if .Files}}
           <ul class="file-list">{{range .Files}}<li><a href="/submission-files/{{.ID}}">{{.Name}}</a> <small>{{size .Size}}</small></li>{{end}}</ul>
           {{end}}
@@ -46,7 +46,7 @@
         {{end}}
       </section>
       {{end}}
-      {{if and (not .Courses) (not .Lab) (not .Workbooks)}}
+      {{if and (not .Courses) (not .LabPart) (not .Workbooks)}}
       <div class="empty-state">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>
         <p>{{t .Lang "my-folder.none"}}</p>

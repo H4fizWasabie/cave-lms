@@ -295,6 +295,7 @@ var catalog = map[string]entry{
 	// The Admin Learners page: every account
 	"adm.all-learners.intro":    {en: "Everyone with an account, newest first. Unverified accounts registered but never opened the link in their email.", ms: "Semua yang mempunyai akaun, yang terbaru dahulu. Akaun yang belum disahkan sudah mendaftar tetapi tidak pernah membuka pautan dalam e-mel mereka."},
 	"adm.all-learners.verified": {en: "Verified", ms: "Disahkan"},
+	"adm.all-learners.folder":   {en: "Folder", ms: "Folder"},
 	"adm.all-learners.joined":   {en: "Joined", ms: "Tarikh sertai"},
 
 	// The Gallery: list, upload, edit and delete
@@ -1456,6 +1457,8 @@ var catalog = map[string]entry{
 	"my-folder.title":          {en: "My folder", ms: "Folder saya"},
 	"my-folder.intro":          {en: "Your Submissions to Assignments, by Course, with the Admin's comments. Only you and the Admin see them.", ms: "Serahan anda kepada Tugasan, mengikut Kursus, bersama ulasan Pentadbir. Hanya anda dan Pentadbir yang melihatnya."},
 	"my-folder.none":           {en: "You have not handed in anything yet. Your Submissions show here once you upload files to an Assignment in a Course.", ms: "Anda belum menyerahkan apa-apa. Serahan anda dipaparkan di sini setelah anda memuat naik fail kepada Tugasan dalam sesebuah Kursus."},
+	"my-folder.of":             {en: "Folder of %s", ms: "Folder %s"},
+	"my-folder.intro-admin":    {en: "Their Workbooks, their Dashboards' pages and their Submissions to Assignments, by Course, with your comments. You can download them here but not change them.", ms: "Buku kerja, halaman Dashboard dan Serahan mereka kepada Tugasan, mengikut Kursus, bersama ulasan anda. Anda boleh memuat turunnya di sini tetapi tidak boleh mengubahnya."},
 	"my-folder.workbooks":      {en: "Workbooks", ms: "Buku kerja"},
 	"my-folder.delete":         {en: "Delete", ms: "Padam"},
 	"my-folder.intro-lab":      {en: "Your Workbooks, your Dashboards' pages and your Submissions to Assignments, by Course, with the Admin's comments. Only you and the Admin see them.", ms: "Buku kerja, halaman Dashboard dan Serahan anda kepada Tugasan, mengikut Kursus, bersama ulasan Pentadbir. Hanya anda dan Pentadbir yang melihatnya."},
