@@ -792,7 +792,8 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 		// up again), and keeps its object.
 		key, rows, rewrite := o.key, -1, json.Unmarshal(data, &d) == nil && len(d.Columns) > 0
 		if rewrite {
-			if c.Added != nil && c.Added.Had <= len(d.Rows) {
+			// Only a pending Add holds rows it has not added yet; a confirmed one's record still names its Add.
+			if o.state == "pending" && c.Added != nil && c.Added.Had <= len(d.Rows) {
 				d.Rows = d.Rows[c.Added.Had:]
 			}
 			c.Columns, rows = d.Columns, len(d.Rows)
