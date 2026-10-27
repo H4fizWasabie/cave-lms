@@ -92,18 +92,28 @@ func (a *App) adminCaveTextLearners(w http.ResponseWriter, r *http.Request) {
 
 // giveCaveTextPro gives a CaveText Learner a year of CaveText Pro, as givePro does.
 func (a *App) giveCaveTextPro(w http.ResponseWriter, r *http.Request) {
-	a.changePro(w, r, func(id int64) error { return givePro(r.Context(), a.db, id) })
+	a.changePro(w, r, func(id int64) error { return givePro(r.Context(), a.db, id, false) })
 }
 
-// giveCaveTextProPlan gives a CaveText Learner the Pro Plan, as giveProPlan does, in one transaction.
+// giveCaveTextProPlan gives a CaveText Learner the Pro Plan, as giveProPlan does.
 func (a *App) giveCaveTextProPlan(w http.ResponseWriter, r *http.Request) {
+	a.giveCaveTextPlan(w, r, false)
+}
+
+// giveCaveTextCombo gives a CaveText Learner the COMBO Pro Plan: the Pro Plan with Ebook access (ADR 0020).
+func (a *App) giveCaveTextCombo(w http.ResponseWriter, r *http.Request) {
+	a.giveCaveTextPlan(w, r, true)
+}
+
+// giveCaveTextPlan gives a CaveText Learner the Pro Plan, with Ebook access when ebooks is set, in one transaction.
+func (a *App) giveCaveTextPlan(w http.ResponseWriter, r *http.Request, ebooks bool) {
 	a.changePro(w, r, func(id int64) error {
 		tx, err := a.db.BeginTx(r.Context(), nil)
 		if err != nil {
 			return err
 		}
 		defer tx.Rollback()
-		planned, err := giveProPlan(r.Context(), tx, id)
+		planned, err := giveProPlan(r.Context(), tx, id, ebooks)
 		if err == nil {
 			err = tx.Commit()
 		}
@@ -115,10 +125,11 @@ func (a *App) giveCaveTextProPlan(w http.ResponseWriter, r *http.Request) {
 }
 
 // giveProPlan gives the Learner the Pro Plan: a year of CaveText Pro, as givePro does, and a period of the Lab Plan,
-// as giveLabPlan does. planned is false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the
-// caller writes warnNoLabPlan once its transaction has committed.
-func giveProPlan(ctx context.Context, db execer, learnerID int64) (planned bool, err error) {
-	if err := givePro(ctx, db, learnerID); err != nil {
+// as giveLabPlan does. With ebooks, that year of CaveText Pro gives Ebook access: the COMBO Pro Plan. planned is
+// false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the caller writes warnNoLabPlan once
+// its transaction has committed.
+func giveProPlan(ctx context.Context, db execer, learnerID int64, ebooks bool) (planned bool, err error) {
+	if err := givePro(ctx, db, learnerID, ebooks); err != nil {
 		return false, err
 	}
 	return giveLabPlan(ctx, db, learnerID)
@@ -131,15 +142,15 @@ func (a *App) warnNoLabPlan(learnerID int64) {
 }
 
 // givePro gives the Learner a year of CaveText Pro and nothing else, starting now or when their running Pro ends,
-// so renewing early loses no days.
+// so renewing early loses no days. With ebooks, that year also gives Ebook access (ADR 0020).
 // ponytail: an Admin and a payment giving Pro to one Learner at the same moment could overlap; fine at this volume.
-func givePro(ctx context.Context, db execer, learnerID int64) error {
+func givePro(ctx context.Context, db execer, learnerID int64, ebooks bool) error {
 	if _, err := db.ExecContext(ctx, `
-		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at)
-		SELECT $1, s.at, s.at + '`+proLength+`'::interval
+		INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at, ebooks)
+		SELECT $1, s.at, s.at + '`+proLength+`'::interval, $2
 		FROM (SELECT GREATEST(now(), (
 			SELECT max(LEAST(ends_at, COALESCE(ended_early_at, ends_at))) FROM cavetext_pro_periods WHERE learner_id = $1
-		)) AS at) s`, learnerID); err != nil {
+		)) AS at) s`, learnerID, ebooks); err != nil {
 		return fmt.Errorf("give Pro: %w", err)
 	}
 	return nil

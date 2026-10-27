@@ -345,6 +345,7 @@ const (
 // account email field, empty for none.
 type bclOrder struct {
 	amount, subtotal, discount, payer, cavelms, status, kind string
+	coupon                                                   string // coupon_code, left out when empty
 	paid                                                     bool
 	formID                                                   int
 }
@@ -434,17 +435,21 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 			if o.formID != 0 {
 				formID = o.formID
 			}
+			main := map[string]any{"id": 1, "order_number": order, "payer_name": "BCL Payer", "payer_email": o.payer,
+				"payer_telephone_number": "+60123456789", "transaction_type": o.kind, "currency": "MYR",
+				"subtotal_amount": number(o.subtotal), "discount_amount": number(o.discount), "fee_amount": 1,
+				"additional_fee_amount": 0, "amount": number(o.amount), "payment_channel": "FPX", "status": code,
+				"status_description": "Successful", "is_paid": o.paid, "items": []any{}}
+			if o.coupon != "" {
+				main["coupon_code"] = o.coupon
+			}
 			json.NewEncoder(w).Encode(map[string]any{"success": true, "data": map[string]any{
 				"record_id": order, "record_type": "Transaction", "formable_id": formID, "formable_type": "payment_form",
 				"form_title": "some form", "custom_fields_data": custom,
 				"customer":    map[string]any{"id": 1, "email": o.payer, "name": "Payer", "phone": "+60123456789"},
 				"receipt_url": "https://bcl.my/receipt/1",
-				"main_data": map[string]any{"id": 1, "order_number": order, "payer_name": "BCL Payer", "payer_email": o.payer,
-					"payer_telephone_number": "+60123456789", "transaction_type": o.kind, "currency": "MYR",
-					"subtotal_amount": number(o.subtotal), "discount_amount": number(o.discount), "fee_amount": 1,
-					"additional_fee_amount": 0, "amount": number(o.amount), "payment_channel": "FPX", "status": code,
-					"status_description": "Successful", "is_paid": o.paid, "items": []any{}},
-				"team": map[string]any{"id": 1}}})
+				"main_data":   main,
+				"team":        map[string]any{"id": 1}}})
 		case strings.HasPrefix(r.URL.Path, "/transaction/"):
 			order := strings.TrimPrefix(r.URL.Path, "/transaction/")
 			o, known := f.orders[order]

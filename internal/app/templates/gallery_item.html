@@ -13,6 +13,8 @@
         <video controls preload="metadata" src="/gallery/{{.ID}}/file" style="view-transition-name: g-{{.ID}}"></video>
         {{else if eq .Format "picture"}}
         <img src="/gallery/{{.ID}}/file" alt="{{.Title}}" style="view-transition-name: g-{{.ID}}">
+        {{else if .Locked}}
+        {{template "ebook-lock" (tile . $.Lang)}}
         {{else}}
         <a class="btn btn-solid" href="/gallery/{{.ID}}/file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "gallery.download-ebook"}}</a>
         {{end}}

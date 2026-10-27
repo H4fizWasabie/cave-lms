@@ -569,6 +569,10 @@ func (a *App) showLesson(w http.ResponseWriter, r *http.Request) {
 			a.refuseMembersItem(w, r, item)
 			return
 		}
+		if err := a.lockEbook(r.Context(), learner, &item); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 		data.Item = &item
 	}
 	if l.Body != "" {
