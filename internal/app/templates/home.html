@@ -64,20 +64,6 @@
       </div>
     </section>
 
-    {{- if .Latest}}
-    <section class="section section-alt">
-      <div class="wrap">
-        <div class="home-head home-head-row">
-          <h2>{{t .Lang "home.courses.title"}}</h2>
-          <a class="link-more" href="/courses">{{t .Lang "footer.all-courses"}}</a>
-        </div>
-        <ul class="catalogue">
-          {{range .Latest}}{{template "course-card" (card . $.Lang)}}{{end}}
-        </ul>
-      </div>
-    </section>
-    {{- end}}
-
     <section class="section" id="coach">
       <div class="wrap home-coach">
         <div class="coach-photo"><img src="{{static "coach-adam-daniel.webp"}}" alt="{{t .Lang "home.coach-alt"}}" width="768" height="960" loading="lazy"></div>
