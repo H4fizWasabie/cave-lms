@@ -10,8 +10,7 @@ import (
 // myMembershipPage is what the logged-in Learner holds: their Plan, CaveText Pro and Snippet cap.
 type myMembershipPage struct {
 	pageBase
-	PlanName  string // empty when the Learner has no active Plan period
-	PlanUntil string // the end of the last queued Plan period
+	PlanUntil string // the end of the last queued Plan period; empty when the Learner has no active Plan period
 	CaveText  bool   // has a CaveText account, so a Snippet cap
 	Cap       snippetCap
 	ProUntil  string
@@ -44,7 +43,7 @@ func (a *App) myMembership(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		p.PlanName, p.PlanUntil = acc.Period.PlanName, text.Date(lang, until.UTC())
+		p.PlanUntil = text.Date(lang, until.UTC())
 	}
 	if err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)`, learner.ID).Scan(&p.CaveText); err != nil {
 		a.serverError(w, r, err)
