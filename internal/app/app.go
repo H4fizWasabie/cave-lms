@@ -356,6 +356,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/assignments/{aid}/delete", a.admin(a.deleteAssignment))
 	mux.HandleFunc("GET /courses/{id}/assignments/{aid}", a.requireLearner(a.showAssignment))
 	mux.HandleFunc("POST /courses/{id}/assignments/{aid}/files", a.requireLearner(a.uploadSubmission))
+	mux.HandleFunc("POST /workbooks", a.requireLearner(a.uploadWorkbook))
 	mux.HandleFunc("GET /workbooks/{id}", a.requireLearner(a.downloadWorkbook))
 	mux.HandleFunc("GET /workbooks/{id}/delete", a.requireLearner(a.labScreen(a.confirmDeleteWorkbook)))
 	mux.HandleFunc("POST /workbooks/{id}/delete", a.requireLearner(a.deleteWorkbook))
@@ -502,7 +503,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "home", &homePage{pageBase: pageBase{Learner: learner}, PublicBaseURL: a.publicBaseURL, Items: promo, Placeholders: !a.production})
 }
 
-// homePage is the home page's data; its Course cards are the header's Latest Courses.
+// homePage is the home page's data.
 type homePage struct {
 	pageBase
 	PublicBaseURL string

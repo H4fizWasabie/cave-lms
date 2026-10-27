@@ -42,13 +42,13 @@ func TestEachHomeSectionHasAtMostOnePrimaryButton(t *testing.T) {
 	}
 }
 
-func TestTheHomePageShowsThePCCPathwayAndTheLatestCourseCards(t *testing.T) {
+func TestTheHomePageShowsThePCCPathwayAndNoCourseCards(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.courseWithContent()
 	s.logOut()
 	_, body := s.getAsking("/", "en")
-	main := content(body)
+	main := mainOf(body)
 	// One PCC badge beside the four Levels, each with its length.
 	_, path, _ := strings.Cut(main, `class="pcc-path"`)
 	path, _, _ = strings.Cut(path, "</section>")
@@ -56,11 +56,12 @@ func TestTheHomePageShowsThePCCPathwayAndTheLatestCourseCards(t *testing.T) {
 		t.Errorf("the PCC pathway has %d images, want one badge", n)
 	}
 	expectInOrder(t, path, "pcc-badge.webp", "Basic", "1 day", "Foundation", "2 days", "Practitioner", "3 days", "Professional", "4 or 5 days")
-	expectAll(t, courseCard(t, main, "Go Basics"), `href="/courses/`)
+	expectNone(t, main, "catalogue-card", "Go Basics", "Latest courses", "All courses")
 	expectHeadingsInOrder(t, "/ en", body)
 	_, body = s.getAsking("/", "ms")
 	expectHeadingsInOrder(t, "/ ms", body)
-	expectInOrder(t, content(body), "Laluan pensijilan PCC", "1 hari", "4 atau 5 hari", "Kursus terkini")
+	expectInOrder(t, content(body), "Laluan pensijilan PCC", "1 hari", "4 atau 5 hari")
+	expectNone(t, mainOf(body), "catalogue-card", "Kursus terkini")
 }
 
 func TestTheHomePageLeavesTheCostComparisonToPricingWhichShowsTheStoredProPlanPrice(t *testing.T) {

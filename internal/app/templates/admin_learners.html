@@ -12,12 +12,13 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "adm.all-learners.verified"}}</th><th>{{t .Lang "adm.all-learners.joined"}}</th></tr>
+              <tr><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "adm.all-learners.verified"}}</th><th>{{t .Lang "adm.all-learners.joined"}}</th><th></th></tr>
               {{range .Accounts}}
               <tr>
                 <td>{{.Name}}{{if .IsAdmin}} <span class="badge">{{t $.Lang "admin.common.admin"}}</span>{{end}}<br><span class="muted">{{.Email}}</span></td>
                 <td>{{if .Verified}}{{t $.Lang "adm.yes"}}{{else}}{{t $.Lang "adm.no"}}{{end}}</td>
                 <td>{{.JoinedOn $.Lang}}</td>
+                <td><a href="/my-folder/{{.Username}}">{{t $.Lang "adm.all-learners.folder"}}</a></td>
               </tr>
               {{end}}
             </table>

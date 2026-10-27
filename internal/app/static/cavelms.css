@@ -772,7 +772,7 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .lab-tab[aria-current="page"] { color: var(--brand-ink); border-bottom-color: var(--brand-gold); }
 .lab-tab.is-off { opacity: .45; cursor: not-allowed; }
 .lab-split { display: grid; grid-template-columns: 1fr 20rem; gap: var(--space-6); align-items: start; }
-.lab-split > section { display: grid; gap: var(--space-4); min-width: 0; }
+.lab-split > section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); min-width: 0; }
 .lab-narrow { max-width: 40rem; }
 .ds-now { display: flex; gap: var(--space-3); align-items: center; background: var(--ok-soft); color: var(--ok); padding: var(--space-3) var(--space-4); border-radius: var(--radius); }
 .ds-now .i { width: 1.6rem; height: 1.6rem; flex: none; }
@@ -1740,7 +1740,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .lab-page .lab-tab[aria-current="page"] { color: var(--brand-ink); border-bottom-color: var(--brand-gold); }
 .lab-page .lab-tab.is-off { opacity: .45; cursor: not-allowed; }
 .lab-page .lab-split { display: grid; grid-template-columns: 1fr 20rem; gap: 2rem; align-items: start; }
-.lab-page .lab-split > section { display: grid; gap: .9rem; min-width: 0; }
+.lab-page .lab-split > section { display: grid; grid-template-columns: minmax(0, 1fr); gap: .9rem; min-width: 0; }
 .lab-page .lab-narrow { max-width: 40rem; }
 .lab-page .ds-now { display: flex; gap: .8rem; align-items: center; background: var(--ok-soft); color: var(--ok); padding: .8rem 1rem; border-radius: var(--radius); }
 .lab-page .ds-now .i { width: 1.6rem; height: 1.6rem; flex: none; }
