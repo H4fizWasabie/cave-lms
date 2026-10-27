@@ -13,18 +13,16 @@ func Build(d *Dataset) *Config {
 	return t.open(c)
 }
 
-// design is what the General rules make of a Dataset before it becomes a Config: blanks the columns fill, and
-// blocks drawn from them. A block is left out when a blank it needs is empty.
+// design is what the General rules make of a Dataset before it becomes a Config: blocks naming blanks, each blank a
+// key the columns fill. A block is left out when a blank it needs is empty.
 type design struct {
-	Blanks  []Blank
 	Blocks  []Block
 	Filters []string // blank keys: a Date blank filters by month range, a Text blank by value
 }
 
-// Blank is a hole in a design that one column fills.
+// Blank is a hole that one column fills, guessed by its names.
 type Blank struct {
 	Key   string // what blocks refer to it by
-	Label string
 	Type  Type
 	Guess []string // column names Cave tries first, lower case, Malay and English
 	// Loose, when set, are the names Cave's guessing looks for in column names instead of Guess,

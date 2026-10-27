@@ -442,7 +442,6 @@ type dashboardPage struct {
 	New       string          // and its columns the current Dataset lacks
 	Pages     []htmlPage      // the earlier pages, newest first
 	Phone     bool            // preview at phone width
-	ReadOnly  bool            // never set: every Lab screen needs the Lab (labScreen); the Page tab still reads it
 	Themes    []lab.Theme     // Preview tab: the Themes to pick from
 
 	Access labAccess // the caller looks it up

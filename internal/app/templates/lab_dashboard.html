@@ -27,8 +27,7 @@
       <div class="lab-split">
         <div class="lab-stack">
           <div class="ds-now lab-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div>
-            {{- if not $.ReadOnly}}<a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a>{{end}}</div>
-          {{- if not $.ReadOnly}}
+            <a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a></div>
           <section class="card lab-card">
             <h2 class="h-md">{{t $.Lang "lab.page.new"}}</h2>
             <p class="muted">{{t $.Lang "lab.page.new-body"}}</p>
@@ -50,7 +49,6 @@
               {{- end}}
             </ul>
           </section>
-          {{- end}}
           {{- end}}
         </div>
         <aside class="card lab-card">{{template "dataSentence" $.Lang}}</aside>

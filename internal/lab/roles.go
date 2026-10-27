@@ -315,7 +315,6 @@ func buildGeneral(d *Dataset) (*design, choices) {
 	key := map[string]string{}
 	for i, col := range d.Columns {
 		k := fmt.Sprintf("c%d", i+1)
-		t.Blanks = append(t.Blanks, Blank{Key: k, Label: col.Name, Type: col.Type})
 		c[k], key[col.Name] = col.Name, k
 	}
 	ps := profiles(d)
