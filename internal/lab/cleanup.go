@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	"github.com/xuri/excelize/v2"
@@ -34,17 +35,20 @@ type Settings struct {
 // name ignoring case and never combined with others. Its HeaderRow is read again only if the Learner typed it for the
 // first Part (HeaderTyped); else Cave finds each Part's header row, as its title rows may differ.
 type Recipe struct {
-	Sheet       string   `json:"sheet"`
-	HeaderRow   int      `json:"headerRow"`
-	HeaderTyped bool     `json:"headerTyped,omitempty"` // HeaderRow was typed by hand, not found by Cave
-	Columns     []Column `json:"-"`                     // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+	Sheet       string            `json:"sheet"`
+	HeaderRow   int               `json:"headerRow"`
+	HeaderTyped bool              `json:"headerTyped,omitempty"` // HeaderRow was typed by hand, not found by Cave
+	Columns     []Column          `json:"-"`                     // the Dataset's columns, set by the caller: when no sheet has the name, the sheets with them can be picked
+	Map         map[string]string `json:"map,omitempty"`         // a Part's column the Learner chose to read as the Dataset's: its name to the Dataset column's (MapColumns)
 }
 
 // fits reports whether tb has every one of the Dataset's columns, by name in any order, whatever else it has. A column
-// Cave added when it combined sheets counts as there: fill gives it from the sheet's name.
+// MapColumns reads as one of the Dataset's counts as there, and so does one Cave added when it combined sheets: fill
+// gives it from the sheet's name.
 func (rc *Recipe) fits(tb *table) bool {
+	mapped, _, _ := MapColumns(rc.Columns, &Dataset{Columns: tb.cols}, rc.Map)
 	return !slices.ContainsFunc(rc.Columns, func(c Column) bool {
-		return !slices.ContainsFunc(tb.cols, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) && !caveColumn(c, tb.name)
+		return !slices.ContainsFunc(mapped.Columns, func(o Column) bool { return columnKey(o.Name) == columnKey(c.Name) }) && !caveColumn(c, tb.name)
 	})
 }
 
@@ -472,6 +476,82 @@ func columnChanges(was, now []Column) (gone, added []string) {
 		}
 	}
 	return gone, added
+}
+
+// Gaps lists the columns of cols that more lacks, which refuse an Add, and the columns of more that cols lacks, which an
+// Add drops; matched as sheets are.
+func Gaps(cols []Column, more *Dataset) (missing, unused []string) {
+	return columnChanges(cols, more.Columns)
+}
+
+// Mapping is a column of an upload read as a column of the Dataset.
+type Mapping struct {
+	File   string `json:"file"`             // the upload's column name
+	Column string `json:"column"`           // the Dataset's
+	Chosen bool   `json:"chosen,omitempty"` // by the Learner, now or in the recipe; else Cave matched the names
+}
+
+// looseKey is a column name as MapColumns matches by name: ignoring case, spaces, underscores and dashes.
+func looseKey(name string) string {
+	return strings.ToLower(strings.Map(func(r rune) rune {
+		if r == '_' || r == '-' || unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, name))
+}
+
+// MapColumns reads the columns of more that cols lacks as the Dataset's columns that more lacks, for AddPart: each
+// Dataset column more lacks takes the column chosen for it (chosen is the upload's column name to the Dataset's, names
+// matched as sheets are), else the one whose name is the same ignoring case, spaces, underscores and dashes. It gives
+// more with those columns renamed to the Dataset's (more itself when none is), what it mapped, and the changes to list.
+// A column of more the Dataset has by name is never taken, and none is taken twice.
+func MapColumns(cols []Column, more *Dataset, chosen map[string]string) (*Dataset, []Mapping, []Change) {
+	missing, unused := columnChanges(cols, more.Columns)
+	if missing == nil || unused == nil {
+		return more, nil, nil
+	}
+	renamed := &Dataset{Columns: slices.Clone(more.Columns), Rows: more.Rows, RowNumbers: more.RowNumbers}
+	var ms []Mapping
+	for _, want := range missing {
+		byChoice := func(file string) bool {
+			for from, to := range chosen {
+				if columnKey(from) == columnKey(file) && columnKey(to) == columnKey(want) {
+					return true
+				}
+			}
+			return false
+		}
+		byName := func(file string) bool { return looseKey(file) == looseKey(want) }
+		learner := true
+		i := slices.IndexFunc(unused, byChoice)
+		if i < 0 {
+			learner, i = false, slices.IndexFunc(unused, byName)
+		}
+		if i < 0 {
+			continue
+		}
+		renamed.Columns[slices.IndexFunc(renamed.Columns, func(c Column) bool { return c.Name == unused[i] })].Name = want
+		ms = append(ms, Mapping{File: unused[i], Column: want, Chosen: learner})
+		unused = slices.Delete(unused, i, i+1)
+	}
+	var changes []Change
+	for _, byLearner := range []bool{false, true} {
+		var list []string
+		for _, m := range ms {
+			if m.Chosen == byLearner {
+				list = append(list, m.File+" → "+m.Column)
+			}
+		}
+		if list != nil {
+			key := "lab.clean.matched-columns"
+			if byLearner {
+				key = "lab.clean.mapped-columns"
+			}
+			changes = append(changes, Change{Key: key, Args: []int{len(list)}, Column: strings.Join(list, ", ")})
+		}
+	}
+	return renamed, ms, changes
 }
 
 // AddPart is more's rows put in cols, the columns of a Dataset that already holds had rows, and the changes it made to

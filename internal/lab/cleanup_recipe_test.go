@@ -87,6 +87,25 @@ func TestCleanUpWithARecipeOffersTheSheetsThatHaveEveryDatasetColumnWhateverElse
 	}
 }
 
+// A sheet whose renamed columns the recipe maps, or whose names match the Dataset's but for spaces, underscores or
+// dashes, has every one of the Dataset's columns: it is offered, and picked, when the recipe's sheet is gone.
+func TestCleanUpWithARecipeCountsMappedAndNameMatchedColumnsAsTheDatasetsOwn(t *testing.T) {
+	cols := []lab.Column{{Name: "NAMA_KELAS", Type: lab.Text}, {Name: "JUMHADIR", Type: lab.Number}}
+	renamed := sheet("Ogos", row("NAMA KELAS", "JUMLAH HADIR"), row("1 A", 30))
+	other := sheet("Nota", row("NAMA KELAS", "Catatan"), row("1 A", "x"))
+	file := testutil.Workbook(t, other, renamed)
+
+	unmapped := lab.Recipe{Sheet: "Julai", Columns: cols}
+	if res := cleanWith(t, file, lab.Settings{Recipe: &unmapped}); res.Sheets[1].Fits {
+		t.Fatal("a sheet with JUMLAH HADIR fits a Dataset with JUMHADIR before it is mapped")
+	}
+	mapped := lab.Recipe{Sheet: "Julai", Columns: cols, Map: map[string]string{"JUMLAH HADIR": "JUMHADIR"}}
+	res := cleanWith(t, file, lab.Settings{Recipe: &mapped})
+	if res.Sheets[0].Fits || !res.Sheets[1].Fits || res.PickedSheet != "Ogos" {
+		t.Fatalf("fits = %v and %v, picked %q, want only Ogos", res.Sheets[0].Fits, res.Sheets[1].Fits, res.PickedSheet)
+	}
+}
+
 // A Dataset that Cave built from several sheets has a Sheet or Date column no single sheet has: a Part read from one
 // sheet gets it from that sheet's name, so it is not refused as missing a column.
 func TestCleanUpWithARecipeFillsCavesSheetAndDateColumnsFromTheSheetsName(t *testing.T) {

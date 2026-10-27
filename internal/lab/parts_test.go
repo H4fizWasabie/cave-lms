@@ -76,3 +76,48 @@ func TestAddPartDropsExtraColumnsAndListsThemAndAcceptsAnyOrder(t *testing.T) {
 		t.Fatalf("err = %v, want a refusal naming Baki and Rak", err)
 	}
 }
+
+// A Part whose columns are named otherwise is read as the Dataset's: a column whose name is the same ignoring case,
+// spaces, underscores and dashes matches by itself, and the ones the Learner chose are mapped; the Dataset's names
+// and types win, and what is left over is dropped and listed as ever.
+func TestMapColumnsReadsRenamedColumnsAsTheDatasetsAndListsWhatItMapped(t *testing.T) {
+	cols := []lab.Column{{Name: "PPD", Type: lab.Text}, {Name: "KOD_INSTITUSI", Type: lab.Text}, {Name: "NAMA_PENUH_INSTITUSI", Type: lab.Text}, {Name: "JUMHADIR", Type: lab.Number}}
+	more := &lab.Dataset{
+		Columns: []lab.Column{{Name: "JPN", Type: lab.Text}, {Name: "PPD", Type: lab.Text}, {Name: "KOD INSTITUSI", Type: lab.Text}, {Name: "NAMA INSTITUSI", Type: lab.Text}, {Name: "Jumlah  Hadir", Type: lab.Text}},
+		Rows:    [][]any{{"JOHOR", "Batu Pahat", "JBA1", "SK Maju", "30"}, {"JOHOR", "Muar", "JBA2", "SK Jaya", "x"}},
+	}
+	chosen := map[string]string{"NAMA INSTITUSI": "NAMA_PENUH_INSTITUSI", "jumlah hadir": "JUMHADIR"}
+	mapped, ms, changes := lab.MapColumns(cols, more, chosen)
+	out, dropped, err := lab.AddPart(cols, 1, mapped, lab.MaxCleanRows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := [][]any{{"Batu Pahat", "JBA1", "SK Maju", 30.0}, {"Muar", "JBA2", "SK Jaya", nil}}; !reflect.DeepEqual(out.Rows, want) {
+		t.Fatalf("rows = %v, want %v", out.Rows, want)
+	}
+	want := []lab.Mapping{{File: "KOD INSTITUSI", Column: "KOD_INSTITUSI"}, {File: "NAMA INSTITUSI", Column: "NAMA_PENUH_INSTITUSI", Chosen: true}, {File: "Jumlah  Hadir", Column: "JUMHADIR", Chosen: true}}
+	if !reflect.DeepEqual(ms, want) {
+		t.Fatalf("mapped = %+v, want %+v", ms, want)
+	}
+	var got []string
+	for _, c := range append(changes, dropped...) {
+		got = append(got, c.In("en"))
+	}
+	wantText := []string{
+		"Columns matched to your data's by name (1): KOD INSTITUSI → KOD_INSTITUSI.",
+		"Columns mapped to your data's (2): NAMA INSTITUSI → NAMA_PENUH_INSTITUSI, Jumlah  Hadir → JUMHADIR.",
+		"Columns not in your data, dropped (1): JPN.",
+		"Cells in JUMHADIR that were not numbers, left empty: 1.",
+	}
+	if !reflect.DeepEqual(got, wantText) {
+		t.Fatalf("changes = %q, want %q", got, wantText)
+	}
+
+	// A column still unmapped is refused, naming it.
+	unmapped, _, _ := lab.MapColumns(cols, more, nil)
+	_, _, err = lab.AddPart(cols, 1, unmapped, 0)
+	var p lab.Problem
+	if !errors.As(err, &p) || !strings.Contains(p.In("en"), "Missing: NAMA_PENUH_INSTITUSI, JUMHADIR.") {
+		t.Fatalf("err = %v, want a refusal naming the two still unmapped", err)
+	}
+}

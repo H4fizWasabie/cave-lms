@@ -850,6 +850,14 @@ var catalog = map[string]entry{
 		en: "Columns not in your data, dropped (%[1]d): %[2]s.",
 		ms: "Lajur yang tiada dalam data anda, dibuang (%[1]d): %[2]s.",
 	},
+	"lab.clean.matched-columns": {
+		en: "Columns matched to your data's by name (%[1]d): %[2]s.",
+		ms: "Lajur dipadankan dengan lajur data anda mengikut nama (%[1]d): %[2]s.",
+	},
+	"lab.clean.mapped-columns": {
+		en: "Columns mapped to your data's (%[1]d): %[2]s.",
+		ms: "Lajur dipetakan kepada lajur data anda (%[1]d): %[2]s.",
+	},
 	"lab.clean.filled-sheet": {
 		en: "Filled the Sheet column of your data from the sheet name: %s.",
 		ms: "Lajur Sheet dalam data anda diisi daripada nama helaian: %s.",
