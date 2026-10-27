@@ -232,6 +232,9 @@ func TestTheLabAndTheDataTabLinkToTheFolder(t *testing.T) {
 	path := ada.readyDashboard("Kewangan")
 	res, body = ada.get(path + "/data")
 	expectStatus(t, res, body, http.StatusOK, `Your Workbooks are in <a href="/my-folder">My folder</a>.`)
+	// A Dashboard with no data yet links to the Folder too, where the Workbooks to pick from are.
+	res, body = ada.get(ada.createPage("Jualan", myPage) + "/data")
+	expectStatus(t, res, body, http.StatusOK, `Your Workbooks and your Dashboards&#39; pages are in <a href="/my-folder">My folder</a>.`)
 }
 
 func TestTheFolderLabPartIsInMalay(t *testing.T) {

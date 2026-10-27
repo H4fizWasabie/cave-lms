@@ -302,6 +302,8 @@
           {{- if .Dashboard.Parts}}
           <h2 class="h-md">{{t $.Lang "lab.w.get-back"}}</h2>
           <p class="muted">{{t $.Lang "lab.w.get-back-body"}} <a href="/my-folder">{{t $.Lang "nav.my-folder"}}</a>.</p>
+          {{- else}}
+          <p class="muted">{{t $.Lang "lab.folder-body"}} <a href="/my-folder">{{t $.Lang "nav.my-folder"}}</a>.</p>
           {{- end}}
         </section>
         <aside class="panel">
