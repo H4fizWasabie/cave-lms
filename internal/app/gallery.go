@@ -40,6 +40,8 @@ type galleryItem struct {
 	MimeType    string
 	SizeBytes   int64
 	storageKey  string
+	Locked      bool // an ebook the viewer has no Ebook access to: listed, but not opened (lockEbook)
+	ComboOnSale bool // set with Locked while a Promo that comes with Ebooks runs, so the lock points to /pricing
 }
 
 // allowedTypes maps the content type sniffed from the first 512 bytes to a Format.
@@ -86,6 +88,25 @@ func (a *App) mayView(ctx context.Context, viewer *learner, item galleryItem) (b
 		JOIN enrollments e ON e.course_id = l.course_id
 		WHERE l.gallery_item_id = $1 AND l.published AND e.learner_id = $2)`, item.ID, viewer.ID).Scan(&ok)
 	return ok, err
+}
+
+// lockEbook sets item.Locked when it is an ebook, not Promotional material, and viewer (nil for a Visitor) has no
+// Ebook access: a running year of CaveText Pro that came with Ebooks (ADR 0020). Admins have it always. A locked
+// ebook's page and Lesson show it without its file, and its file sends the viewer to its page.
+func (a *App) lockEbook(ctx context.Context, viewer *learner, item *galleryItem) error {
+	if item.Format != "ebook" || item.Promotional || (viewer != nil && viewer.IsAdmin) {
+		return nil
+	}
+	if viewer != nil {
+		var open bool
+		if err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_pro_periods WHERE learner_id = $1 AND ebooks
+			AND starts_at <= now() AND ends_at > now() AND ended_early_at IS NULL)`, viewer.ID).Scan(&open); err != nil || open {
+			return err
+		}
+	}
+	item.Locked = true
+	return a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM promos WHERE ebooks AND product = $1 AND `+runningPromoSQL+`)`,
+		proPlanProduct).Scan(&item.ComboOnSale)
 }
 
 // galleryItemFor loads the item named by the {id} path value. When there is none it writes the Not found page and returns false.
@@ -245,6 +266,9 @@ func (a *App) galleryItemPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	learner, err := a.currentLearner(r)
+	if err == nil {
+		err = a.lockEbook(r.Context(), learner, &item)
+	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -255,6 +279,18 @@ func (a *App) galleryItemPage(w http.ResponseWriter, r *http.Request) {
 func (a *App) galleryFile(w http.ResponseWriter, r *http.Request) {
 	item, ok := a.viewItem(w, r)
 	if !ok {
+		return
+	}
+	learner, err := a.currentLearner(r)
+	if err == nil {
+		err = a.lockEbook(r.Context(), learner, &item)
+	}
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if item.Locked {
+		http.Redirect(w, r, fmt.Sprintf("/gallery/%d", item.ID), http.StatusSeeOther)
 		return
 	}
 	if item.Format == "ebook" {
