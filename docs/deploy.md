@@ -68,11 +68,11 @@ CAVE_ENV=staging deploy/deploy.sh
 deploy/deploy.sh            # CAVE_HOST=other-host deploy/deploy.sh to target another SSH host
 ```
 
-It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. A production deploy also refuses a commit that has not passed the smoke test on staging; for an emergency fix, `CAVE_SKIP_STAGING=1 deploy/deploy.sh` skips that check. When the commit adds a migration since the one production runs, or production's commit is not known, it runs the nightly backup first and waits for it. A merge makes a new commit, so after merging a pull request, deploy main to staging again before production.
+It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. A production deploy also refuses a commit that has not passed the smoke test on staging; for an emergency fix, `CAVE_SKIP_STAGING=1 deploy/deploy.sh` skips that check. When the commit adds a migration since the one production runs, or production's commit is not known, it runs a backup first and waits for it; that snapshot is tagged `pre-deploy` and kept out of the nightly pruning (see Backups). A merge makes a new commit, so after merging a pull request, deploy main to staging again before production.
 
-Then it builds a Linux binary and copies the binary, unit, Caddy site and smoke test to the VPS. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails before anything else changes. Then it swaps the binary, restarts `cave-lms` and waits for it to answer. Migrations run on start. Logs: `journalctl -u cave-lms -n 100`.
+Then it builds a Linux binary and copies the binary, unit, Caddy site and smoke test to the VPS. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails before anything else changes. Then it swaps the binary, restarts `cave-lms` and waits for it to answer. Migrations and any startup work run before it listens, so after a migration (and always on staging) it waits up to 120 seconds, and 15 seconds otherwise; it gives up at once if the service crashes or exits while starting. Migrations run on start. Logs: `journalctl -u cave-lms -n 100`.
 
-Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. Run it by hand with `ssh vps cave-lms-smoke production` or `ssh vps cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
+Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. **After a migration there is no rollback**: when the commit may have added one (the backup above was due), a failed start or smoke test leaves the new binary in place, prints `journalctl -u cave-lms -n 50` and fails, because the previous binary is likely broken against the migrated schema (on 2026-10-27 it ran for 2 minutes with `relation "datasets" does not exist`). Fix forward and deploy again, or restore the pre-deploy snapshot (see Backups, Restoring a pre-deploy snapshot); the old binary is `/usr/local/bin/cave-lms.prev` if it is wanted. Run it by hand with `ssh vps cave-lms-smoke production` or `ssh vps cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
 
 ## Staging
 
@@ -405,7 +405,7 @@ Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bi
 | On the VPS | `/var/backups/cave-lms/restic` (quick restores after a mistake) |
 | Cloudflare R2 | bucket `cave-lms-backups` (survives losing the VPS) |
 
-Each keeps the last 7 days, 4 weeks and 6 months, and is checked after every run. If the VPS was off at 03:00, the backup runs at boot.
+Each keeps the last 7 days, 4 weeks and 6 months of the nightly snapshots (tag `nightly`), and is checked after every run. The backup `deploy/deploy.sh` takes before a commit that adds a migration is a separate snapshot tagged `pre-deploy` and `commit-<first 12 characters of the commit>`; the nightly pruning never touches it, and its own policy keeps the last 10 in each repository. It also leaves a copy of its dump in `/var/backups/cave-lms/pre-deploy/` (last 10), which later runs do not overwrite, and it does not ping `HEALTHCHECK_URL`. It runs through `systemctl start cave-lms-backup` with `CAVE_PREDEPLOY_SHA` set in systemd's environment for that call. A nightly run still in progress when the deploy starts would be joined, not repeated, and would leave no `pre-deploy` snapshot. If the VPS was off at 03:00, the backup runs at boot.
 
 Each snapshot therefore holds the database rows and the Dataset objects from the same moment. A Learner's Delete still removes the object from R2 at once, and it leaves the backups with the last snapshot that holds it: within 6 months, as the privacy notice promises. Backup copies do not count against the Storage allowance. A Dataset created and deleted between two nightly runs is never backed up. The mirror is a full copy on the VPS disk (112 GB free in October 2026); once the bucket passes about 50 GB, switch to a bucket-to-bucket copy or a soft delete in the app.
 
@@ -427,6 +427,7 @@ systemctl list-timers cave-lms-backup      # when the next run is
 set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
 restic -r /var/backups/cave-lms/restic snapshots
 restic -r "s3:$R2_ENDPOINT/$R2_BUCKET" snapshots
+restic -r /var/backups/cave-lms/restic snapshots --tag pre-deploy    # only the ones taken before a migration
 ```
 
 First install: `install -m 600 /dev/null /etc/cave-lms/backup.env` and fill it in, create the password with `(umask 077; openssl rand -base64 32 > /etc/cave-lms/restic-password)`, copy the password into a password manager, then run `deploy/deploy.sh`, which installs restic and enables the timer once both files exist.
@@ -450,6 +451,24 @@ Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot resto
 The Datasets are at `/tmp/cave-restore/var/backups/cave-lms/datasets`; copy them back with `rclone copy` (below).
 
 Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database. Once Query statistics is on, the dump also holds `CREATE EXTENSION pg_stat_statements`: a restore as `cave` reports errors for that and loads everything else; as `postgres` on Postgres 16 it restores in full.
+
+### Restoring a pre-deploy snapshot
+
+After a bad migration, restore the snapshot taken just before it. Its dump, uploads and Datasets mirror are from the same moment. `restic snapshots --tag pre-deploy` lists them with their time and `commit-<sha>` tag; take the last one before the deploy that failed. The dump is at the same path as in any snapshot, and a copy sits in `/var/backups/cave-lms/pre-deploy/`:
+
+```sh
+set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
+repo=/var/backups/cave-lms/restic            # or "s3:$R2_ENDPOINT/$R2_BUCKET"
+restic -r $repo snapshots --tag pre-deploy
+systemctl stop cave-lms
+restic -r $repo restore <snapshot> --target /tmp/r
+runuser -u postgres -- dropdb cave && runuser -u postgres -- createdb --owner cave cave
+runuser -u postgres -- pg_restore --no-owner --role=cave --dbname=cave /tmp/r/var/backups/cave-lms/staging/cave.dump
+mv /usr/local/bin/cave-lms.prev /usr/local/bin/cave-lms   # the binary that matches this schema, if the deploy swapped it out
+systemctl start cave-lms
+```
+
+The Datasets objects are in `/tmp/r/var/backups/cave-lms/datasets`; put back only the ones the migration or conversion removed or rewrote, with `rclone copy` as in the next section. Drop `/tmp/r` afterwards.
 
 ### Restoring one deleted Dashboard's Datasets
 

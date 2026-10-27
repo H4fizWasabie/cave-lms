@@ -3,6 +3,8 @@
 # Datasets bucket, written with restic
 # to a repository on the VPS and to one in Cloudflare R2. Installed to /usr/local/bin/cave-lms-backup by
 # deploy/deploy.sh and run by cave-lms-backup.timer. See docs/deploy.md, Backups.
+# deploy/deploy.sh sets CAVE_PREDEPLOY_SHA before a commit that adds a migration: the snapshot is then tagged
+# pre-deploy and the commit instead of nightly, so the nightly forget never prunes it.
 set -euo pipefail
 
 # backup.env holds R2_ENDPOINT, R2_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ALERT_EMAIL and,
@@ -17,6 +19,20 @@ install -d -m 700 /var/backups/cave-lms "$staging"
 
 runuser -u postgres -- pg_dump --format=custom cave > "$staging/cave.dump.tmp"
 mv "$staging/cave.dump.tmp" "$staging/cave.dump"
+
+if [ -n "${CAVE_PREDEPLOY_SHA:-}" ]; then
+	tags=(--tag pre-deploy --tag "commit-${CAVE_PREDEPLOY_SHA:0:12}")
+	keep=(--tag pre-deploy --keep-last 10)
+	# The nightly run overwrites cave.dump, so keep this dump under its own name too: the last 10.
+	predeploy=/var/backups/cave-lms/pre-deploy
+	install -d -m 700 "$predeploy"
+	cp "$staging/cave.dump" "$predeploy/cave-$(date +%Y%m%dT%H%M%S)-${CAVE_PREDEPLOY_SHA:0:12}.dump"
+	# shellcheck disable=SC2012 # the names are the ones written above
+	ls -t "$predeploy"/*.dump | tail -n +11 | xargs -r rm --
+else
+	tags=(--tag nightly)
+	keep=(--tag nightly --keep-daily 7 --keep-weekly 4 --keep-monthly 6)
+fi
 
 # Mirror the Datasets bucket (ADR 0008) with the app's own R2 settings, so each snapshot holds the
 # objects that match its dump. Only new objects are downloaded; deleted ones leave the mirror and stay
@@ -33,12 +49,13 @@ datasets=/var/backups/cave-lms/datasets
 
 for repo in "$local_repo" "$r2_repo"; do
 	restic -r "$repo" cat config >/dev/null 2>&1 || restic -r "$repo" init
-	restic -r "$repo" backup --quiet --tag nightly "$staging/cave.dump" /var/lib/cave-lms/uploads "$datasets"
-	restic -r "$repo" forget --quiet --tag nightly --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+	restic -r "$repo" backup --quiet "${tags[@]}" "$staging/cave.dump" /var/lib/cave-lms/uploads "$datasets"
+	restic -r "$repo" forget --quiet "${keep[@]}" --prune
 	restic -r "$repo" check --quiet
 done
 
-if [ -n "${HEALTHCHECK_URL:-}" ]; then
+# A pre-deploy run is no nightly run, so it must not tell the check that the night's backup happened.
+if [ -n "${HEALTHCHECK_URL:-}" ] && [ -z "${CAVE_PREDEPLOY_SHA:-}" ]; then
 	curl -fsS -m 10 --retry 3 -o /dev/null "$HEALTHCHECK_URL"
 fi
 echo "backup done"
