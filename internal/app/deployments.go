@@ -48,6 +48,11 @@ func nameError(name string) string {
 	return ""
 }
 
+// usernameError is nameError for a Username: the catalog key saying why a Learner may not pick it, or "".
+func usernameError(username string) string {
+	return strings.Replace(nameError(username), "lab.dep.err.name-", "account.err.username-", 1)
+}
+
 // deployment is a Dashboard's Deployment as its Learner sees it on the Deploy tab.
 type deployment struct {
 	Name      string
@@ -278,6 +283,8 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 			to += "?" + r.URL.RawQuery
 		}
 		w.Header().Set("Cache-Control", "no-store") // a Username can be changed back, so no browser keeps this
+		// A sandboxed page still open at an old link fetches its data from a null origin, through this redirect.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		http.Redirect(w, r, to, http.StatusMovedPermanently)
 		return
 	}

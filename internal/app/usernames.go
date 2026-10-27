@@ -35,7 +35,7 @@ func (a *App) setMyUsername(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username := strings.TrimSpace(r.PostFormValue("username"))
-	status, key := http.StatusUnprocessableEntity, nameError(username)
+	status, key := http.StatusUnprocessableEntity, usernameError(username)
 	if key == "" {
 		_, err = a.db.ExecContext(r.Context(), `UPDATE learners SET username = $1 WHERE id = $2`, username, learner.ID)
 		switch {

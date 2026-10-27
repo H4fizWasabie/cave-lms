@@ -449,6 +449,10 @@ func TestADeploymentOpensAtItsLearnersUsernameAndEveryOtherLinkRedirectsToIt(t *
 		if res.StatusCode != http.StatusMovedPermanently || res.Header.Get("Location") != want {
 			t.Errorf("GET %s = %d to %q, want 301 to %q", old, res.StatusCode, res.Header.Get("Location"), want)
 		}
+		// A sandboxed page still open at an old link fetches its data from a null origin, through the redirect.
+		if got := res.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+			t.Errorf("GET %s allows origin %q, want *", old, got)
+		}
 	}
 	res, body = visitor.get("/d/ada-example-com/nope/")
 	expectStatus(t, res, body, http.StatusNotFound, "")

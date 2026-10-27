@@ -16,11 +16,11 @@ func TestRegisteringNeedsAValidUsernameNobodyHasTaken(t *testing.T) {
 		return s.post("/register", url.Values{"name": {"Ada Lovelace"}, "username": {username}, "email": {email}, "password": {"correct horse battery"}})
 	}
 	for _, c := range []struct{ username, want string }{
-		{"", "must be 3 to 40 characters"},
-		{"ab", "must be 3 to 40 characters"},
-		{"Ada Lovelace", "Use only lowercase letters, numbers and single dashes"},
-		{"ada--l", "Use only lowercase letters, numbers and single dashes"},
-		{"admin", "reserved for CAVELMS"},
+		{"", "The Username must be 3 to 40 characters"},
+		{"ab", "The Username must be 3 to 40 characters"},
+		{"Ada Lovelace", "single dashes in the Username"},
+		{"ada--l", "single dashes in the Username"},
+		{"admin", "That Username is reserved for CAVELMS"},
 	} {
 		res, body := register(c.username, "ada@example.com")
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)

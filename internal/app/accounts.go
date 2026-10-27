@@ -90,7 +90,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 	}
 	form := page{Name: name, Username: username, Email: email}
 	if form.ErrorField, form.Error = accountFieldError(lang, name, email, password); form.Error == "" {
-		if key := nameError(username); key != "" {
+		if key := usernameError(username); key != "" {
 			form.ErrorField, form.Error = "username", text.T(lang, key)
 		}
 	}
