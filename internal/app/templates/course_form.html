@@ -11,13 +11,20 @@
           <form class="form" method="post" action="{{if .DuplicateOf}}/admin/courses/{{.DuplicateOf}}/duplicate{{else if .Course.ID}}/admin/courses/{{.Course.ID}}{{else}}/admin/courses{{end}}" enctype="multipart/form-data">
             <div class="field"><label for="title">{{t .Lang "adm.title"}}</label><input id="title" type="text" name="title" value="{{.Course.Title}}" maxlength="200" required></div>
             <div class="field"><label for="description">{{t .Lang "adm.description"}}</label><textarea id="description" name="description" rows="6" required>{{.Course.Description}}</textarea></div>
-            {{if or .DuplicateOf .Course.Live}}
-            <div class="field field-half"><label for="start_date">{{t .Lang "adm.courses.start-date"}}</label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}" required></div>
-            <div class="field field-half"><label for="end_date">{{t .Lang "adm.courses.end-date"}}</label><input id="end_date" type="date" name="end_date" value="{{.Course.EndDate}}" required></div>
-            <div class="field field-half"><label for="days">{{t .Lang "adm.courses.days"}}</label><input id="days" type="number" name="days" min="1" max="5" value="{{with .Course.Days}}{{.}}{{end}}" required><p class="hint">{{t .Lang "adm.courses.days-hint"}}</p></div>
+            {{$live := or .DuplicateOf (and .Course.ID .Course.Live)}}
+            {{if and (not $live) (not .Course.ID)}}
+            <fieldset class="field"><legend>{{t .Lang "adm.courses.kind"}}</legend>
+              <label class="check"><input type="radio" name="kind" value="self-paced"{{if not .NewLive}} checked{{end}}> {{t .Lang "course.self-paced"}}</label>
+              <label class="check"><input type="radio" name="kind" value="live"{{if .NewLive}} checked{{end}}> {{t .Lang "adm.courses.kind-live"}}</label>
+            </fieldset>
+            {{end}}
+            <div class="field field-half"><label for="start_date">{{t .Lang "adm.courses.start-date"}}{{if not $live}} <span class="opt">{{t .Lang "adm.optional"}}</span>{{end}}</label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}"{{if $live}} required{{end}}></div>
+            {{if or $live (not .Course.ID)}}
+            {{if not $live}}<fieldset class="field"><legend>{{t .Lang "adm.courses.live-only"}}</legend><small>{{t .Lang "adm.courses.live-only-hint"}}</small>{{end}}
+            <div class="field field-half"><label for="end_date">{{t .Lang "adm.courses.end-date"}}</label><input id="end_date" type="date" name="end_date" value="{{.Course.EndDate}}"{{if $live}} required{{end}}></div>
+            <div class="field field-half"><label for="days">{{t .Lang "adm.courses.days"}}</label><input id="days" type="number" name="days" min="1" max="5" value="{{with .Course.Days}}{{.}}{{end}}"{{if $live}} required{{end}}><p class="hint">{{t .Lang "adm.courses.days-hint"}}</p></div>
             <div class="field field-half"><label for="organisation_id">{{t .Lang "adm.courses.organisation"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><select id="organisation_id" name="organisation_id"><option value="">{{t .Lang "adm.courses.no-organisation"}}</option>{{range .Organisations}}<option value="{{.ID}}"{{if eq .ID $.Course.OrganisationID}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
-            {{else}}
-            <div class="field field-half"><label for="start_date">{{t .Lang "adm.courses.start-date"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="start_date" type="date" name="start_date" value="{{.Course.StartDate}}"></div>
+            {{if not $live}}</fieldset>{{end}}
             {{end}}
             {{if not .DuplicateOf}}
             {{with .Course.PictureKey}}<img class="programme-pic" src="/course-pictures/{{.}}" alt="">{{end}}

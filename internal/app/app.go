@@ -130,6 +130,7 @@ type page struct {
 	Settings      *certificateSettings
 	Next          string         // where the login page goes after logging in
 	DuplicateOf   int64          // the Course the Course form duplicates into a Live Course, 0 when none
+	NewLive       bool           // the New Course form has Live Course chosen, not Self-paced
 	AILanguage    string         // the language the Lesson form's Generate writes in
 	Organisations []organisation // the Live Course form's choices
 	CertLogo      string         // the Course's Organisation's logo address, for the Course page's sample Certificate; "" for none

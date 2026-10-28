@@ -350,3 +350,94 @@ func TestALiveCoursesExamWindowIsShownInMalay(t *testing.T) {
 	res, body = s.postAsking("/courses/"+copyID+"/exam/attempts", "ms", nil)
 	expectStatus(t, res, body, http.StatusConflict, "Peperiksaan ditutup pada 3 Februari 2027.")
 }
+
+// newLiveCourse posts the New Course form with the Live Course kind chosen, as the logged-in Admin.
+func (s *site) newLiveCourse(title, start, end, days, org string) (*http.Response, string) {
+	return s.post("/admin/courses", url.Values{"title": {title}, "description": {"For Acme Sdn Bhd."}, "kind": {"live"},
+		"start_date": {start}, "end_date": {end}, "days": {days}, "organisation_id": {org}})
+}
+
+func TestAdminCreatesALiveCourseDirectlyFromNewCourse(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC)
+	s := newSite(t)
+	s.application.SetClock(func() time.Time { return now })
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	org := s.addOrganisation("PDRM", pngFile)
+
+	_, body := s.get("/admin/courses/new")
+	for _, want := range []string{`name="kind" value="self-paced" checked`, `name="kind" value="live"`, `name="end_date"`, `name="days"`, `name="organisation_id"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the New Course form lacks %s: %s", want, body)
+		}
+	}
+
+	res, body := s.newLiveCourse("Go for PDRM", "2027-02-01", "2027-02-03", "3", org)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	id := s.onlyCourseID()
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "What is Go?", [5]string{"A language", "A drink", "", "", ""}, "0", false)
+	s.post("/admin/courses/"+id+"/publish", nil)
+	res, body = s.get("/admin/courses/" + id + "/edit")
+	expectStatus(t, res, body, http.StatusOK, `<option value="`+org+`" selected>`)
+
+	// It is a Live Course, with the dates and the Level its days give, like a duplicated one.
+	s.logOut()
+	res, body = s.get("/courses/" + id)
+	expectStatus(t, res, body, http.StatusOK, "Dates: 1 February 2027 to 3 February 2027")
+	expectStatus(t, res, body, http.StatusOK, "PCC Level: Practitioner")
+
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	s.setICFor("ada@example.com")
+	s.post("/courses/"+id+"/join", nil)
+	now = time.Date(2027, 1, 31, 15, 59, 0, 0, time.UTC) // 23:59 the day before the start date in Malaysia
+	res, body = s.startExam(id)
+	expectStatus(t, res, body, http.StatusConflict, "The Exam opens on 1 February 2027.")
+	now = time.Date(2027, 1, 31, 16, 0, 0, 0, time.UTC)
+	res, body = s.startExam(id)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.logOut()
+	s.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	s.setICFor("bob@example.com")
+	now = time.Date(2027, 2, 2, 9, 0, 0, 0, time.UTC)
+	s.post("/courses/"+id+"/join", nil)
+	now = time.Date(2027, 2, 3, 16, 0, 0, 0, time.UTC) // midnight after the end date in Malaysia
+	res, body = s.startExam(id)
+	expectStatus(t, res, body, http.StatusConflict, "The Exam closed on 3 February 2027.")
+}
+
+func TestNewCourseIsSelfPacedUnlessLiveCourseIsChosenAndLiveNeedsItsDates(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	org := s.addOrganisation("PDRM", pngFile)
+
+	// Live fields sent without choosing Live Course are ignored.
+	res, body := s.post("/admin/courses", url.Values{"title": {"Go Basics"}, "description": {"Learn Go."},
+		"start_date": {"2027-02-01"}, "end_date": {"2027-02-03"}, "days": {"3"}, "organisation_id": {org}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	id := s.onlyCourseID()
+	s.logOut()
+	_, body = s.get("/courses/" + id)
+	expectNone(t, body, "PCC Level")
+	s.login("admin@example.com", "correct horse battery")
+	_, body = s.get("/admin/courses/" + id + "/edit") // a Course stays the kind it was made as
+	expectNone(t, body, "organisation_id")
+
+	for _, bad := range []struct{ start, end, days, want string }{
+		{"", "2027-02-03", "3", "Enter the start date as YYYY-MM-DD."},
+		{"2027-02-01", "", "3", "Enter the end date as YYYY-MM-DD, on or after the start date."},
+		{"2027-02-01", "2027-02-03", "9", "Enter the days as a whole number from 1 to 5."},
+	} {
+		res, body = s.newLiveCourse("Go for PDRM", bad.start, bad.end, bad.days, org)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, bad.want)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, `name="kind" value="live" checked`)
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, `<option value="`+org+`" selected>`)
+	}
+	if _, body = s.get("/admin/courses"); strings.Contains(body, "Go for PDRM") {
+		t.Fatalf("a refused Live Course made a Course: %s", body)
+	}
+
+	s.post("/admin/organisations/"+org+"/delete", confirming) // deleted while the form was open
+	res, body = s.newLiveCourse("Go for PDRM", "2027-02-01", "2027-02-03", "3", org)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose an Organisation from the list.")
+}

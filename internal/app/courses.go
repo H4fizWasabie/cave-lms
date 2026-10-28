@@ -220,7 +220,7 @@ func (a *App) adminCourses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) newCourseForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "course_form", page{Course: &course{}})
+	a.renderCourseForm(w, r, http.StatusOK, page{Course: &course{}})
 }
 
 func (a *App) editCourseForm(w http.ResponseWriter, r *http.Request) {
@@ -248,13 +248,14 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if status, key := readPictureForm(w, r); status != 0 {
-		a.render(w, r, status, "course_form", page{Course: &course{}, Error: text.T(lang, key)})
+		a.renderCourseForm(w, r, status, page{Course: &course{}, NewLive: r.PostFormValue("kind") == "live", Error: text.T(lang, key)})
 		return
 	}
 	if r.MultipartForm != nil {
 		defer r.MultipartForm.RemoveAll()
 	}
-	c, msg := courseFromForm(r, lang, false)
+	live := r.PostFormValue("kind") == "live"
+	c, msg := courseFromForm(r, lang, live)
 	if msg == "" {
 		if msg, err = a.takePicture(r, lang, &c); err != nil {
 			a.serverError(w, r, err)
@@ -262,12 +263,19 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if msg != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "course_form", page{Course: &c, Error: msg})
+		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, NewLive: live, Error: msg})
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`INSERT INTO courses (title, description, start_date, picture_key, picture_type) VALUES ($1, $2, NULLIF($3, '')::date, $4, $5)`,
-		c.Title, c.Description, c.StartDate, c.PictureKey, c.pictureType)
+		`INSERT INTO courses (title, description, start_date, end_date, days, organisation_id, picture_key, picture_type)
+		VALUES ($1, $2, NULLIF($3, '')::date, NULLIF($4, '')::date, NULLIF($5, 0), NULLIF($6, 0), $7, $8)`,
+		c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID, c.PictureKey, c.pictureType)
+	if isForeignKeyError(err) { // the Organisation was deleted while the form was open
+		a.dropPicture(r, c.PictureKey)
+		c.PictureKey, c.pictureType = "", ""
+		a.renderCourseForm(w, r, http.StatusUnprocessableEntity, page{Course: &c, NewLive: live, Error: text.T(lang, "adm.courses.err.organisation")})
+		return
+	}
 	if err != nil {
 		a.dropPicture(r, c.PictureKey)
 		a.serverError(w, r, err)
