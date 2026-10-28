@@ -302,3 +302,30 @@ func TestReissueFormIsPrefilledWithTheLearnersCurrentName(t *testing.T) {
 		t.Fatalf("reissue forms are not prefilled with the Learner's current name: %s", body)
 	}
 }
+
+func TestAdminDownloadsALearnersCertificateFromTheCertificatesAndCoursePages(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	certID := s.earnedCertificate()
+	s.loginAdmin()
+	courseID := s.onlyCourseID()
+	bea := s.second()
+	bea.loginAsNewLearner("Bea Hopper", "bea@example.com", certPassword)
+	bea.post("/courses/"+courseID+"/join", nil)
+	link := `href="/certificates/` + certID + `/pdf"`
+
+	_, body := s.get("/admin/certificates")
+	expectCells(t, body, link)
+	_, body = s.get("/admin/courses/" + courseID)
+	expectCells(t, adminCourseRow(t, body, "ada@example.com"), link)
+	if row := adminCourseRow(t, body, "bea@example.com"); strings.Contains(row, "/pdf") {
+		t.Fatalf("a Learner with no Certificate has a download link: %s", row)
+	}
+	s.pdfBody("/certificates/" + certID + "/pdf")
+
+	s.post("/admin/certificates/"+certID+"/revoke", confirming)
+	_, body = s.get("/admin/certificates")
+	expectCells(t, body, link)
+	_, body = s.get("/admin/courses/" + courseID)
+	expectCells(t, adminCourseRow(t, body, "ada@example.com"), link)
+}
