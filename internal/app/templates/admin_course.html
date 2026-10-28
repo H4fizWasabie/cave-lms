@@ -15,7 +15,7 @@
           </div>
         </div>
         <div class="card card-flush">
-          <div class="card-head card-head-pad"><h2>{{t .Lang "adm.course.enrolled"}}</h2></div>
+          <div class="card-head card-head-pad"><h2>{{t .Lang "adm.course.enrolled"}}</h2>{{if .Certificates}}<a class="btn btn-ghost btn-sm" href="/admin/courses/{{.Course.ID}}/certificates.zip"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t .Lang "adm.course.download-all"}}</a>{{end}}</div>
           <div class="table-wrap">
             <table class="table">
               <tr><th>{{t .Lang "adm.course.name"}}</th><th>{{t .Lang "adm.course.email"}}</th><th>{{t .Lang "my-profile.ic"}}</th><th>{{t .Lang "adm.course.progress"}}</th><th>{{t .Lang "adm.course.best"}}</th><th>{{t .Lang "adm.course.certificate"}}</th><th class="actions"><span class="sr">{{t .Lang "adm.actions"}}</span></th></tr>
