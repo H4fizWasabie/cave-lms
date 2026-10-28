@@ -36,6 +36,12 @@ func TestTheMainHostNeverServesADeploymentAndTheDeploymentsHostServesNothingElse
 			}
 		}
 	}
+	// A trailing dot or the default port is still the Deployments host, not the LMS.
+	for _, host := range []string{"https://pages.cave.example.invalid.", "https://pages.cave.example.invalid:443", "https://PAGES.cave.example.invalid"} {
+		if res, _ := visitor.get(host + "/login"); res.StatusCode != http.StatusNotFound {
+			t.Errorf("GET /login at %s = %d, want 404: it is the Deployments host", host, res.StatusCode)
+		}
+	}
 	res, body := visitor.post(pagesOrigin+"/login", url.Values{"email": {"ada@example.com"}, "password": {"correct horse battery"}})
 	if res.StatusCode != http.StatusMethodNotAllowed || res.Header.Get("Set-Cookie") != "" {
 		t.Fatalf("POST /login on the Deployments host = %d, cookie %q: %s", res.StatusCode, res.Header.Get("Set-Cookie"), body)

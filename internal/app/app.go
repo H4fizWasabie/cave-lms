@@ -188,7 +188,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if err != nil || pagesURL.Host == "" {
 		return nil, fmt.Errorf("PagesBaseURL must be an absolute URL, got %q", cfg.PagesBaseURL)
 	}
-	a.pagesHost = pagesURL.Host
+	a.pagesHost = strings.ToLower(pagesURL.Host)
 	a.dataset = dataset.New(db, datasets, func() time.Time { return a.now() })
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
