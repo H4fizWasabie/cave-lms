@@ -27,7 +27,7 @@
                 <td>{{t $.Lang "adm.course.done-of" .Done .Total}}</td>
                 <td>{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</td>
                 <td>{{.Certificate}}</td>
-                <td class="actions">{{if $.Course.Live}}<form method="post" action="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/certificate"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.course.give"}}</button></form>{{end}}<a class="btn btn-danger btn-sm" href="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/remove">{{t $.Lang "adm.remove"}}</a></td>
+                <td class="actions">{{if .CertificateID}}<a class="btn btn-ghost btn-sm" href="/certificates/{{.CertificateID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>{{end}}{{if $.Course.Live}}<form method="post" action="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/certificate"><button class="btn btn-ghost btn-sm">{{t $.Lang "adm.course.give"}}</button></form>{{end}}<a class="btn btn-danger btn-sm" href="/admin/courses/{{$.Course.ID}}/learners/{{.ID}}/remove">{{t $.Lang "adm.remove"}}</a></td>
               </tr>
               {{else}}
               <tr><td colspan="7">{{t .Lang "adm.course.none-joined"}}</td></tr>

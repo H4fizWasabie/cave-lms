@@ -27,6 +27,7 @@
                 <td>{{if .Revoked}}{{t $.Lang "adm.course.cert-revoked"}}{{else}}{{t $.Lang "adm.certs.valid"}}{{end}}{{if .GivenByAdmin}} · {{t $.Lang "adm.certs.given"}}{{end}}</td>
                 <td><a href="/certificates/{{.ID}}"><code>{{.ID}}</code></a></td>
                 <td class="actions">
+                  <a class="btn btn-ghost btn-sm" href="/certificates/{{.ID}}/pdf"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-download-simple"/></svg>{{t $.Lang "my-certificates.download"}}</a>
                   {{if .Revoked}}
                   <form class="inline-form" method="post" action="/admin/certificates/{{.ID}}/reissue">
                     <div class="field"><label for="name-{{.ID}}">{{t $.Lang "adm.certs.name"}}</label><input id="name-{{.ID}}" type="text" name="learner_name" value="{{.CurrentName}}" maxlength="200" required></div>
