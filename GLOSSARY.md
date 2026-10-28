@@ -290,6 +290,11 @@ The rows of one confirmed upload within a Dataset, from one Workbook, read the s
 _Malay_: Bahagian
 _Avoid_: Chunk, batch, period, file
 
+**Pending Part**:
+A Part Clean-up made from an upload, shown to the Learner as a preview until they confirm it and it joins the Dataset. A Dashboard has at most one; a new upload replaces it.
+_Malay_: not named on the site; the Learner sees it as the Pratonton
+_Avoid_: Draft (which means Course content), staged upload, preview (alone)
+
 **Workbook**:
 A Learner's Excel file, kept as uploaded in their Folder, whether uploaded there or to a Dashboard. A Dashboard's Dataset is cleaned from a Workbook. Only a Learner with an active Plan can add one.
 _Malay_: Buku kerja
