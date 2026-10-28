@@ -180,3 +180,28 @@ func TestTheAdminsUploadsAreNeverRefusedForStorage(t *testing.T) {
 		t.Fatalf("the Admin's Lab shows a Storage allowance: %s", body)
 	}
 }
+
+// A confirm checks the allowance again: one that no longer fits, as the Plan's allowance shrank after the upload, is
+// refused with the one message, naming the Pending Part's share, and changes nothing.
+func TestAConfirmThatNoLongerFitsIsRefusedWithThePendingLine(t *testing.T) {
+	t.Parallel()
+	_, ada, _ := storageSite(t, "3")
+	path := ada.createWork("Kedai")
+	res, body := ada.postFile(path+"/dataset", "data.xlsx", bigFinance(t, 1))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 1`); err != nil {
+		t.Fatal(err)
+	}
+	before := ada.partBytes()
+
+	res, body = ada.post(path+"/dataset/confirm", nil)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
+	expectAll(t, body, "waiting for you to confirm")
+	var current int
+	if err := ada.db.QueryRow(`SELECT count(*) FROM dataset_parts WHERE state = 'current'`).Scan(&current); err != nil || current != 0 {
+		t.Fatalf("%d current Parts after a refused confirm (%v), want 0", current, err)
+	}
+	if after := ada.partBytes(); after != before {
+		t.Fatalf("Part bytes %d after a refused confirm, want %d", after, before)
+	}
+}
