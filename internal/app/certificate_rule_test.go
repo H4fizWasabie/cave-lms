@@ -35,6 +35,48 @@ func TestACertificateNeedsEveryExamPassedAndNeverComesBeforeTheResult(t *testing
 	}
 }
 
+func TestASelfPacedCertificateNeedsOnlyTheExamPassedNotTheLessons(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "Which is right?")
+	s.adminSite().addTextLesson(id, "Functions", "", "Use func.", false) // Ada has not completed it
+
+	res, body := s.startExam(id)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	s.releaseResults()
+
+	_, body = s.get("/my-certificates")
+	if ids := certificateIDs(body); len(ids) != 1 {
+		t.Fatalf("Ada has %d Certificates after passing the Exam with a Lesson unfinished, want 1: %s", len(ids), body)
+	}
+}
+
+func TestASelfPacedCourseWithNoLessonsGivesTheCertificateOnPassingItsExam(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	s.saveExamSettings(id, "50", "", "")
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "Which is right?", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	qids := s.examQuestionIDs(id)
+	s.logOut()
+	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
+	s.setICFor("ada@example.com")
+	s.post("/courses/"+id+"/join", nil)
+
+	res, body := s.startExam(id)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
+	s.releaseResults()
+
+	_, body = s.get("/my-certificates")
+	if ids := certificateIDs(body); len(ids) != 1 {
+		t.Fatalf("Ada has %d Certificates after passing the Exam of a Course with no Lessons, want 1: %s", len(ids), body)
+	}
+}
+
 func TestALearnerWithoutAnICIsToldWhyAndGetsTheCertificateOnSettingIt(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
@@ -93,7 +135,6 @@ func TestALiveCourseCertificateNeedsNoLessonsAndKeepsTheICAndPCCLevelFromIssue(t
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	admin.addTextLesson(id, "Functions", "", "Use func.", false) // a self-paced Course would now hold the Certificate
 
 	ada.releaseResults()
 	_, body = ada.get("/my-certificates")

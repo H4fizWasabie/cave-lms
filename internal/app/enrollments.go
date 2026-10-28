@@ -318,7 +318,7 @@ func (a *App) myCourses(w http.ResponseWriter, r *http.Request) {
 	for _, c := range list {
 		mc := myCourse{Course: c}
 		if mc.Done, mc.Total, err = a.courseProgress(ctx, learner.ID, c.ID); err == nil {
-			if mc.Exams, err = a.courseExams(ctx, learner, c, mc.Done, mc.Total); err == nil {
+			if mc.Exams, err = a.courseExams(ctx, learner, c); err == nil {
 				mc.Step, err = a.nextStep(ctx, learner, c, mc.Exams)
 			}
 		}

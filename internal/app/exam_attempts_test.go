@@ -90,7 +90,7 @@ func (s *site) ageAttempt(attemptPath string, seconds int) {
 	}
 }
 
-func TestExamIsRefusedUntilEveryLessonIsComplete(t *testing.T) {
+func TestSelfPacedExamCanBeStartedBeforeEveryLessonIsComplete(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
@@ -106,13 +106,14 @@ func TestExamIsRefusedUntilEveryLessonIsComplete(t *testing.T) {
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 
 	res, body := s.get("/courses/" + id + "/exam")
-	expectStatus(t, res, body, http.StatusOK, "Complete every Lesson before you sit the Exam (1 of 2 complete).")
-	res, body = s.startExam(id)
-	expectStatus(t, res, body, http.StatusConflict, "Complete every Lesson before you sit the Exam (1 of 2 complete).")
-
-	s.markLesson(id, s.lessonIDByTitle("Functions"), true)
-	res, body = s.get("/courses/" + id + "/exam")
 	expectStatus(t, res, body, http.StatusOK, "Start the Exam")
+	expectNone(t, body, "Complete every Lesson")
+
+	s.logOut()
+	s.loginAsNewLearner("Bob", "bob@example.com", examPassword)
+	s.post("/courses/"+id+"/join", nil) // no Lesson done at all
+	res, body = s.startExam(id)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
 func TestExamPageShowsTimeLimitPassMarkAndAttemptsLeft(t *testing.T) {
@@ -536,7 +537,7 @@ func TestTodaysExamsBecomeMultipleChoiceWithTheirSettingsQuestionsAndAttempts(t 
 	expectInOrder(t, body, "First question text", "Second question text")
 }
 
-func TestACourseWithNoLessonsBlocksItsExam(t *testing.T) {
+func TestACourseWithNoLessonsStillLetsALearnerSitItsExam(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
@@ -549,7 +550,7 @@ func TestACourseWithNoLessonsBlocksItsExam(t *testing.T) {
 	s.post("/courses/"+id+"/join", nil)
 
 	res, body := s.get("/courses/" + id + "/exam")
-	expectStatus(t, res, body, http.StatusOK, "This Course has no Lessons yet, so its Exam is locked.")
+	expectStatus(t, res, body, http.StatusOK, "Start the Exam")
 	res, body = s.startExam(id)
-	expectStatus(t, res, body, http.StatusConflict, "This Course has no Lessons yet, so its Exam is locked.")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 }

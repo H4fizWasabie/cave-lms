@@ -219,7 +219,7 @@ _Malay_: Tahap kesukaran (Mudah, Sederhana, Sukar)
 _Avoid_: Level (which means a PCC Level), grade
 
 **Certificate**:
-A PDF of completion issued automatically once a Learner with an IC has passed every one of a Course's Exams and, on a self-paced Course, finished its Lessons. It is issued when the passing Result is released, never at submit, and copies the Learner's name and IC and the Course's PCC Level at issue. It has a unique ID anyone can check.
+A PDF of completion issued automatically once a Learner with an IC has passed every one of a Course's Exams, whether or not they finished its Lessons; a self-paced Course with no Exam needs its Lessons finished instead. It is issued when the passing Result is released, never at submit, and copies the Learner's name and IC and the Course's PCC Level at issue. It has a unique ID anyone can check.
 _Malay_: Sijil
 _Avoid_: Diploma, award
 

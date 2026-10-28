@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
+	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
 // attemptID is the last part of an attempt's path.
@@ -266,8 +268,9 @@ func TestAPassedResultShowsTheScoreOnceAndLeadsToTheIssuedCertificate(t *testing
 	attempt := res.Header.Get("Location")
 	s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "0"})
 	admin := s.adminSite()
-	admin.addTextLesson(id, "Loops", "", "Use `for`.", false) // Ada has not finished it, so no Certificate yet
-	s.releaseResults()
+	admin.saveWrittenQuestion("/admin/courses/"+id+"/exam/questions?format=written", "Explain :=", "It declares and assigns.")
+	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})
+	s.releaseResults() // the Written Exam is still to pass, so no Certificate yet
 
 	_, body := s.getAsking(attempt, "en")
 	main := content(body)
@@ -277,7 +280,9 @@ func TestAPassedResultShowsTheScoreOnceAndLeadsToTheIssuedCertificate(t *testing
 	}
 	expectNone(t, main, "Score: ", "cert-art", "/pdf", "PCC-")
 
-	s.markLesson(id, s.lessonIDByTitle("Loops"), true) // the Certificate is issued now
+	written, wqids := s.sitWritten(id, "My own words")
+	s.releaseResults()
+	admin.saveMarks(written, map[string]string{wqids[0]: "10"}) // the Certificate is issued now
 	_, mine := s.get("/my-certificates")
 	certID := certificateIDs(mine)[0]
 	for lang, want := range map[string][]string{

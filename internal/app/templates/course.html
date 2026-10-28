@@ -1,7 +1,6 @@
 {{define "title"}}{{.Course.Title}} · CAVELMS{{end}}
 {{define "content"}}
     {{- $member := or .Enrolled (and .Learner .Learner.IsAdmin)}}
-    {{- $locked := and (not .Course.Live) (lt .Done (len .Lessons))}}{{/* a self-paced Exam opens once every Lesson is done */}}
     {{- $outcomes := false}}{{range .Lessons}}{{if .Objective}}{{$outcomes = true}}{{end}}{{end}}
     <section class="cp-hero">
       <div class="wrap cp-hero-in">
@@ -88,7 +87,7 @@
             <li class="cp-exam">
               <div>
                 <span class="ls-n"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg></span>
-                <span class="ls-t">{{if $member}}<a href="{{$e.Path ""}}">{{if $e.Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}</a>{{else}}{{if $e.Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}{{end}}{{if $locked}} <small>{{t $.Lang "course.exam-opens"}}</small>{{end}}</span>
+                <span class="ls-t">{{if $member}}<a href="{{$e.Path ""}}">{{if $e.Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}</a>{{else}}{{if $e.Written}}{{t $.Lang "exam.name.written"}}{{else}}{{t $.Lang "exam.name"}}{{end}}{{end}}</span>
                 <span></span>
               </div>
             </li>
