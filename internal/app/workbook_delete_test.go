@@ -151,17 +151,3 @@ func TestTheDeleteWorkbookScreenAndFolderLinkAreInMalay(t *testing.T) {
 	res, body = ada.getAsking(ada.deletePath(), "ms")
 	expectStatus(t, res, body, http.StatusOK, "Dashboard yang menggunakannya: 1.")
 }
-
-func TestTheStorageFullMessageAdvisesDeletingWorkbooks(t *testing.T) {
-	t.Parallel()
-	_, ada, _ := storageSite(t, "1")
-	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'workbook-filler', 'filler.xlsx', 900000, '\x00')`, ada.adaID()); err != nil {
-		t.Fatal(err)
-	}
-	path := ada.createWork("Kedai")
-	res, body := ada.postFile(path+"/dataset", "besar.xlsx", bigFinance(t, 1))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "delete Workbooks in your Folder")
-	ada.switchLanguage("ms", "/")
-	res, body = ada.postFile(path+"/dataset", "besar.xlsx", bigFinance(t, 1))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "padam Buku kerja")
-}

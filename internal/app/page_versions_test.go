@@ -130,9 +130,9 @@ func TestAFifthPageDropsTheOldestFromTheStoreAndTheRecords(t *testing.T) {
 	expectAll(t, body, strings.TrimSuffix(ada.storedKB(), " of 1 GB"))
 }
 
-func TestANewPageIsCheckedLikeTheFirstAndOverTheAllowanceKeepsTheLiveOne(t *testing.T) {
+func TestANewPageIsCheckedLikeTheFirstAndARefusedOneKeepsTheLiveOne(t *testing.T) {
 	t.Parallel()
-	_, ada, _ := storageSite(t, "1")
+	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", strings.Repeat("a", 600<<10))
 	for _, c := range []struct {
 		post func() (*http.Response, string)
@@ -145,9 +145,6 @@ func TestANewPageIsCheckedLikeTheFirstAndOverTheAllowanceKeepsTheLiveOne(t *test
 		{func() (*http.Response, string) {
 			return ada.postFile(path+"/page", "jualan.html", []byte(strings.Repeat("x", 6<<20)))
 		}, "The page is over 5 MB."},
-		{func() (*http.Response, string) {
-			return ada.post(path+"/page", url.Values{"html": {strings.Repeat("b", 600<<10)}})
-		}, "would take you over your Storage allowance"},
 	} {
 		res, body := c.post()
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)

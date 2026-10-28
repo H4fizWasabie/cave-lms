@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"database/sql"
-	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -88,7 +87,7 @@ func TestTheSameFileUploadedAgainStaysOneWorkbook(t *testing.T) {
 		t.Fatalf("%d Workbooks listed, want 1", n)
 	}
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, fmt.Sprintf("%d KB of 1 GB", (len(file)+1023)>>10))
+	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(file))+ada.partBytes())+" of 1 GB") // the one Workbook, and the Pending Parts
 }
 
 func TestBuildingADashboardFromExcelKeepsTheWorkbookEvenWhenCleanUpFails(t *testing.T) {
@@ -145,13 +144,13 @@ func TestStorageUsedCountsWorkbooksButNotSubmissions(t *testing.T) {
 
 	file := bigFinance(t, 1)
 	path := ada.createWork("Kedai")
-	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", file) // pending: only the Workbook counts
+	res, body = ada.postFile(path+"/dataset", "laporan.xlsx", file) // pending: the Workbook and the Pending Part count
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, fmt.Sprintf("%d KB of 1 GB", (len(file)+1023)>>10))
+	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(file))+ada.partBytes())+" of 1 GB")
 }
 
-func TestAWorkbookThatDoesNotFitIsRefusedAndNothingIsKept(t *testing.T) {
+func TestAWorkbookThatDoesNotFitIsRefusedOnEveryScreenAndNothingIsKept(t *testing.T) {
 	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'workbook-filler', 'filler.xlsx', 900000, '\x00')`, ada.adaID()); err != nil {
@@ -172,6 +171,12 @@ func TestAWorkbookThatDoesNotFitIsRefusedAndNothingIsKept(t *testing.T) {
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
 	if n := ada.storedFiles(); n != 0 {
 		t.Fatalf("%d stored files after a refused build", n)
+	}
+
+	res, body = ada.postFile("/workbooks", "besar.xlsx", bigFinance(t, 1))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
+	if n := ada.storedFiles(); n != 0 {
+		t.Fatalf("%d stored files after a refused Folder upload", n)
 	}
 }
 

@@ -271,7 +271,7 @@ _Malay_: Tempoh Pelan
 _Avoid_: Subscription, term, cycle
 
 **Storage allowance**:
-How much Workbook, Dataset and Deployment page data a Learner may keep while they have an active Plan period, such as 1 GB.
+How much Workbook, Dataset and Deployment page data a Learner may keep while they have an active Plan period, such as 1 GB. Pending Parts and the earlier pages kept to restore count too. What an upload replaces counts as free as soon as it is uploaded, before the Learner confirms it.
 _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 

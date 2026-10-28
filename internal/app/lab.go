@@ -37,7 +37,7 @@ type activePeriod struct {
 	Deployments      int    // the period's allowance: how many Deployments may be awake at once
 	Awake            int    // the Learner's awake Deployments
 	storageAllowance        // the period's, copied from its Plan when it was given
-	Used             int64  // bytes the Learner's Parts, pages and Workbooks take: see storageUsedSQL
+	Used             int64  // bytes the Learner keeps against the allowance: see storageUsedSQL
 }
 
 // DeploymentsLeft is how many more Deployments may be awake: never below zero, even after renewing onto a smaller
@@ -46,18 +46,6 @@ func (p *activePeriod) DeploymentsLeft() int { return max(p.Deployments-p.Awake,
 
 // Full reports whether the Learner already has as many awake Deployments as the period allows.
 func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
-
-// storageUsedSQL is an SQL expression for the bytes a Learner's Parts, pages and Workbooks take against the Storage
-// allowance, learner being an SQL expression for their id: their Dashboards' current Parts (and any earlier Dataset
-// from before Parts, until their Dashboard's data next changes) by saved size, their pages and their Workbooks.
-// Submissions do not count. Pending Parts count only when pendingReserve or keepWorkbook checks an upload.
-func storageUsedSQL(learner string) string {
-	return `((SELECT COALESCE(sum(ds.saved_size), 0) FROM dataset_parts ds JOIN dashboards owner ON owner.id = ds.dashboard_id
-			WHERE owner.learner_id = ` + learner + ` AND ds.state <> 'pending') +
-		(SELECT COALESCE(sum(pg.size), 0) FROM dashboard_pages pg JOIN dashboards pg_owner ON pg_owner.id = pg.dashboard_id
-			WHERE pg_owner.learner_id = ` + learner + `) +
-		(SELECT COALESCE(sum(wb.size), 0) FROM workbooks wb WHERE wb.learner_id = ` + learner + `))`
-}
 
 // labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
 func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {

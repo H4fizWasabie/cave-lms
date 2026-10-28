@@ -665,7 +665,7 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 /* Gallery admin */
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); flex-wrap: wrap; }
 
-.up-err { display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius); background: var(--bad-soft); color: var(--bad); font-size: var(--fs-ui); }
+.up-err { display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius); background: var(--bad-soft); color: var(--bad); font-size: var(--fs-ui); white-space: pre-line; }
 .up-err .i { margin-top: 2px; }
 
 /* Learners + certificates */

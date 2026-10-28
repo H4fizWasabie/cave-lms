@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -120,43 +119,6 @@ func (p *pendingDataset) Rows() [][]string {
 	return out
 }
 
-// queryer is a *sql.DB or a *sql.Tx, for reads that may run inside a caller's transaction.
-type queryer interface {
-	rowQueryer
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-}
-
-// storageRoom is what confirming a pending Part does to the Learner's Storage allowance.
-type storageRoom struct {
-	Used  int64 // the bytes the Learner's Workbooks, pages and confirmed Parts take now
-	Freed int64 // the bytes the confirm deletes: the Parts a Replace removes, and any Dataset from before Parts
-	Fits  bool  // false when the Part does not fit even with those gone
-}
-
-// roomFor is whether a pending Part of size bytes fits the Learner's Storage allowance, counting as free the Parts
-// its confirm deletes (see kind and replaces): every current Part for Replace data, the one Part for a Replace of a Part, none for
-// an Add, and for all three the earlier Datasets from before Parts. dashboardID is 0 for a Dashboard not made yet. The
-// Admin has no allowance.
-func roomFor(ctx context.Context, q queryer, dashboardID, size int64, kind dataset.Kind, replaces int64, acc labAccess) (storageRoom, error) {
-	period := acc.CountedPeriod()
-	if period == nil {
-		return storageRoom{Fits: true}, nil
-	}
-	var room storageRoom
-	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, dashboardID).Scan(&room.Used); err != nil {
-		return storageRoom{}, err
-	}
-	freed, err := dataset.Frees(ctx, q, dashboardID, kind, replaces)
-	if err != nil {
-		return storageRoom{}, err
-	}
-	for _, f := range freed {
-		room.Freed += f.Size
-	}
-	room.Fits = room.Used+size-room.Freed <= period.Storage()
-	return room, nil
-}
-
 // inTx runs f in a transaction, committed when f returns nil.
 func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 	tx, err := a.db.BeginTx(ctx, nil)
@@ -205,40 +167,6 @@ func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.Clean
 // errDatasetStore is keepWorkbook's error when the store refuses the Workbook, and the Dataset module's when it refuses
 // a Part.
 var errDatasetStore = dataset.ErrStore
-
-// pendingReserve is the Storage allowance's check for a pending Part on Dashboard d, for the Dataset module's Upload to
-// call in its transaction. With acc's counted period, the Learner's pending Parts on their other Dashboards count against
-// the allowance too, as the upload replaces the Dashboard's own. A Part that would not fit, even with the Parts its
-// confirm deletes gone (those of kind and replaces; see roomFor), is refused with errStorageFull. size is set to the Part's saved size,
-// and used to the bytes the Learner's Parts, Workbooks and pages take, pending Parts included.
-func pendingReserve(d *dashboard, acc labAccess, kind dataset.Kind, replaces int64, size, used *int64) dataset.Reserve {
-	return func(ctx context.Context, tx *sql.Tx, bytes int64) error {
-		*size = bytes
-		if acc.CountedPeriod() == nil {
-			return nil
-		}
-		// Locking the Learner makes uploads and confirms take turns, so none slips under the allowance.
-		if _, err := tx.ExecContext(ctx, `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
-			return err
-		}
-		var pending int64
-		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(sum(p.saved_size), 0) FROM dataset_parts p
-			JOIN dashboards owner ON owner.id = p.dashboard_id JOIN dashboards this ON this.learner_id = owner.learner_id
-			WHERE this.id = $1 AND p.state = 'pending' AND p.dashboard_id <> $1`, d.ID).Scan(&pending); err != nil {
-			return err
-		}
-		// ponytail: what confirm deletes counts as free before it is, so the store can hold up to about twice the
-		// allowance until the Learner confirms; refusing those uploads would refuse ones that fit once confirmed.
-		room, err := roomFor(ctx, tx, d.ID, pending+bytes, kind, replaces, acc)
-		if err != nil {
-			return err
-		}
-		if *used = room.Used + pending; !room.Fits {
-			return errStorageFull
-		}
-		return nil
-	}
-}
 
 // settingFields are the form fields that choose how Clean-up reads an upload. The mapping form posts them back, so the
 // file is read again as it was; uploadSettings reads them through settingField, so none it reads can be left out.
@@ -381,13 +309,13 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds or the Learner confirms (ADR
 	// 0021). A refused upload shows the Learner the message of the refusal: the Workbook that does not fit, or the
 	// store's.
-	refused := func(size, used int64, err error) bool {
-		switch {
+	refused := func(err error) bool {
+		switch msg := storageMessage(lang, err); {
 		case err == nil:
 			return false
-		case errors.Is(err, errStorageFull):
+		case msg != "":
 			page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
-			page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
+			page.Error = msg
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		case errors.Is(err, errDatasetStore):
 			if err != errDatasetStore { // the module's, wrapped; keepWorkbook logs its own bare one where it happened
@@ -399,8 +327,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		return true
 	}
-	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, kind, replaces, name, data)
-	if refused(int64(len(data)), used, err) {
+	workbook, err := a.keepWorkbook(r, learner.ID, d.ID, acc, kind, replaces, name, data)
+	if refused(err) {
 		return
 	}
 	res, err := a.clean(r, bytes.NewReader(data), settings)
@@ -413,9 +341,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	var size int64
-	pending, err := a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: kind, Replaces: replaces, File: name, Sum: sum, Workbook: workbook,
-		Read: res, Settings: settings, Picks: mapPicks(r.Form), FromWorkbook: pickedID(r) != ""}, pendingReserve(d, acc, kind, replaces, &size, &used))
+	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: kind, Replaces: replaces, File: name, Sum: sum, Workbook: workbook,
+		Read: res, Settings: settings, Picks: mapPicks(r.Form), FromWorkbook: pickedID(r) != ""}, partReserve(acc, learner.ID, d.ID, kind, replaces))
 	var missing *dataset.MissingColumnsError
 	switch {
 	case errors.As(err, &same): // another upload of it got in first
@@ -442,7 +369,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.notFound(w, r)
 		return
 	}
-	if refused(size, used, err) {
+	if refused(err) {
 		return
 	}
 	a.dropDeletedFiles(r.Context(), r)
@@ -450,40 +377,16 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	// rows may repeat ones already there.
 	if d.Config != nil && d.Parts == 0 && allFit(d.Config, res.Dataset) {
 		usual, err := a.dataset.Routine(r.Context(), d.ID, res.Changes)
-		var room storageRoom
-		if err == nil && usual {
-			room, err = roomFor(r.Context(), a.db, d.ID, pending.Size, dataset.ReplaceData, 0, acc)
-		}
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		if usual && room.Fits {
+		if usual {
 			a.confirmWork(w, r, d)
 			return
 		}
 	}
 	http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
-}
-
-// confirmReserve is the Storage allowance's check for confirming a pending Part on Dashboard d, for the Dataset module's
-// Confirm to call in its transaction: a Part that would not fit, even with the Parts the confirm deletes gone (roomFor), is
-// refused with errStorageFull. room is set to what the check found.
-func confirmReserve(d *dashboard, acc labAccess, room *storageRoom) dataset.ConfirmReserve {
-	return func(ctx context.Context, tx *sql.Tx, p *dataset.Pending) error {
-		if acc.CountedPeriod() == nil {
-			return nil
-		}
-		// Locking the Learner makes confirms and uploads take turns, so none slips under the allowance.
-		if _, err := tx.ExecContext(ctx, `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
-			return err
-		}
-		var err error
-		if *room, err = roomFor(ctx, tx, d.ID, p.Size, p.Kind, p.ReplacedPart, acc); err != nil || !room.Fits {
-			return cmp.Or(err, errStorageFull)
-		}
-		return nil
-	}
 }
 
 // confirmWork has the Dataset module make the pending Part current (see dataset.Confirm for what that does to the Parts,
@@ -523,13 +426,18 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			return err
 		}
 	}
-	var room storageRoom
-	_, err = a.dataset.Confirm(r.Context(), d.ID, r.FormValue("part-date"), confirmReserve(d, acc, &room), hook)
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	_, err = a.dataset.Confirm(r.Context(), d.ID, r.FormValue("part-date"), confirmReserve(acc, learner.ID, d.ID), hook)
 	if errors.Is(err, dataset.ErrLostRace) { // the new upload's preview
 		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
 	}
-	if errors.Is(err, dataset.ErrPartDate) || errors.Is(err, errStorageFull) {
+	full := storageMessage(lang, err)
+	if errors.Is(err, dataset.ErrPartDate) || full != "" {
 		// The preview again, with the refusal.
 		p, perr := a.pendingOf(r.Context(), d)
 		if perr != nil {
@@ -544,7 +452,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		if errors.Is(err, dataset.ErrPartDate) {
 			page.Error = text.T(lang, "lab.err.part-date")
 		} else {
-			page.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Size), sizeText(room.Used), sizeText(acc.Period.Storage()))
+			page.Error = full
 		}
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		return
