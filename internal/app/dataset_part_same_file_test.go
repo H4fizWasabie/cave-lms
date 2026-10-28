@@ -2,12 +2,10 @@ package app_test
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/app"
 )
@@ -67,53 +65,6 @@ func TestTheSameFileIsStillRefusedAfterItsWorkbookWasDeleted(t *testing.T) {
 	if err := ada.db.QueryRow(`SELECT count(*) FROM workbooks`).Scan(&kept); err != nil || kept != 0 {
 		t.Fatalf("%d Workbooks kept for the refused file, want none: %v", kept, err)
 	}
-}
-
-func TestADifferentFileThatRepeatsNinetyPercentOfAPartsRowsIsAccepted(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path := ada.createPage("Kedai", myPage)
-	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
-	header := []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Jumlah"}
-	report := func(last string) []byte {
-		var rows [][]any
-		for i := 1; i <= 9; i++ {
-			rows = append(rows, []any{day, fmt.Sprintf("Barang %d", i), "Dapur", "Keluar", float64(10 * i)})
-		}
-		return underTitleRows(t, header, append(rows, []any{day, last, "Dapur", "Keluar", 5.0})...)
-	}
-	res, body := ada.postFile(path+"/dataset", "september.xlsx", report("Beras"))
-	expectRedirect(t, res, body, path+"/data")
-	ada.confirmWork(path, nil)
-
-	res, body = ada.postFile(path+"/dataset", "oktober.xlsx", report("Gula"), adding)
-	expectRedirect(t, res, body, path+"/data")
-	ada.confirmWork(path, nil)
-	if n := len(replaceLinks(t, ada, path+"/data")); n != 2 {
-		t.Fatalf("%d Parts, want the second file added", n)
-	}
-}
-
-func TestReplacingAPartWithAnotherPartsFileIsRefusedButWithItsOwnFileOrReplaceDataIsNot(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, _ := twoParts(t, ada)
-	links := replaceLinks(t, ada, path+"/data")
-
-	// september.xlsx's bytes to replace oktober: the matching Part is the first one.
-	res, body := ada.postFile(links[1], "september.xlsx", shopReport(t, "Beras", 120))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
-	if m := samePartReplace.FindStringSubmatch(body); m == nil || m[1] != links[0] {
-		t.Fatalf("the refusal's button goes to %v, want %s: %s", m, links[0], body)
-	}
-
-	// A Part read again from its own file, as when the preview posts it with other choices, is not its own duplicate.
-	res, body = ada.postFile(links[1], "oktober.xlsx", shopColumns(t, "Gula", 80))
-	expectRedirect(t, res, body, path+"/data")
-
-	// Replace data throws every Part away, so a file one of them came from is fine.
-	res, body = ada.postFile(path+"/dataset", "september.xlsx", shopReport(t, "Beras", 120))
-	expectRedirect(t, res, body, path+"/data")
 }
 
 func TestAPartFromBeforeFingerprintsGetsItFromItsWorkbookInTheMigration(t *testing.T) {

@@ -50,7 +50,7 @@ func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
 // storageUsedSQL is an SQL expression for the bytes a Learner's Parts, pages and Workbooks take against the Storage
 // allowance, learner being an SQL expression for their id: their Dashboards' current Parts (and any earlier Dataset
 // from before Parts, until their Dashboard's data next changes) by saved size, their pages and their Workbooks.
-// Submissions do not count. Pending Parts count only when keepPending checks an upload.
+// Submissions do not count. Pending Parts count only when pendingReserve or keepWorkbook checks an upload.
 func storageUsedSQL(learner string) string {
 	return `((SELECT COALESCE(sum(ds.saved_size), 0) FROM dataset_parts ds JOIN dashboards owner ON owner.id = ds.dashboard_id
 			WHERE owner.learner_id = ` + learner + ` AND ds.state <> 'pending') +

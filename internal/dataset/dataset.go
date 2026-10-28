@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
 )
@@ -17,11 +18,12 @@ import (
 type Dataset struct {
 	db    *sql.DB
 	store storage.Store
+	now   func() time.Time // the clock, which dates a Part that names no date
 }
 
-// New is the Dataset module over db and store.
-func New(db *sql.DB, store storage.Store) *Dataset {
-	return &Dataset{db: db, store: store}
+// New is the Dataset module over db and store, dating Parts by the clock now.
+func New(db *sql.DB, store storage.Store, now func() time.Time) *Dataset {
+	return &Dataset{db: db, store: store, now: now}
 }
 
 // Kind is what an upload does to the Dataset once confirmed (ADR 0022), kept on its Part.

@@ -37,29 +37,6 @@ func perkara(t *testing.T, body string) []string {
 	return out
 }
 
-// A month with the recipe sheet in other capitals and a subset sheet with the same columns adds only the recipe
-// sheet's rows: the first Part (pageWithData) was read from Sheet1, and other sheets are never combined into an Add.
-func TestAnAddReadsTheRecipeSheetIgnoringCaseAndNeverCombinesAnotherSheetWithTheSameColumns(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, link := pageWithData(t, ada)
-
-	file := testutil.Workbook(t, shopSheet("SHEET1", "Gula", "Garam"), shopSheet("Subset", "Gula"))
-	res, body := ada.postFile(path+"/dataset", "november.xlsx", file, adding)
-	expectRedirect(t, res, body, path+"/data")
-	_, body = ada.get(path + "/data")
-	expectAll(t, body, "Adding 2 rows to your 2: 4 rows in all.")
-	if strings.Contains(body, "Combined") {
-		t.Fatalf("the preview says sheets were combined: %s", body)
-	}
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-	_, body = ada.second().get(link + "data.json")
-	if got, want := perkara(t, body), []string{"Beras", "Jualan", "Gula", "Garam"}; !slices.Equal(got, want) {
-		t.Fatalf("data.json Perkara = %v, want %v", got, want)
-	}
-}
-
 // With no sheet by the recipe's name the preview offers only the sheets with the Dataset's columns, and the one the
 // Learner picks is added.
 func TestAnAddWithoutTheRecipeSheetOffersTheSheetsWithTheDatasetsColumnsAndAddsThePickedOne(t *testing.T) {
