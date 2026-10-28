@@ -167,7 +167,7 @@ func TestALiveCourseCertificateNeedsNoLessonsAndKeepsTheICAndPCCLevelFromIssue(t
 	_, body = ada.get("/my-certificates")
 	ids = certificateIDs(body)
 	newID := ids[len(ids)-1]
-	expectAll(t, ada.pdfBody("/certificates/"+newID+"/pdf"), "951206-08-5556", "Ada Lovelace")
+	expectAll(t, ada.pdfBody("/certificates/"+newID+"/pdf"), "951206-08-5556", "ADA LOVELACE")
 	_, body = ada.get("/certificates/" + newID)
 	expectAll(t, body, "PCC Level: Professional")
 }

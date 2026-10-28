@@ -225,7 +225,7 @@ func TestAdminIssuesACorrectedCertificateWithANewID(t *testing.T) {
 	}
 	newID := ids[1]
 	pdf := s.pdfBody("/certificates/" + newID + "/pdf")
-	if !strings.Contains(pdf, "Ada Lovelace") || strings.Contains(pdf, "REVOKED") {
+	if !strings.Contains(pdf, "ADA LOVELACE") || strings.Contains(pdf, "REVOKED") {
 		t.Fatalf("corrected PDF lacks the corrected name or is marked revoked")
 	}
 	res, body = s.get("/")

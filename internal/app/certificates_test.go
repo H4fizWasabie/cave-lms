@@ -108,7 +108,7 @@ func TestLearnerDownloadsACertificatePDFWithTheirDetails(t *testing.T) {
 	certID := certificateIDs(body)[0]
 
 	pdf := s.pdfBody("/certificates/" + certID + "/pdf")
-	for _, want := range []string{certID, "Ada", "Go Basics", "https://cave.example.invalid/certificates/" + certID} {
+	for _, want := range []string{certID, "ADA", "Go Basics", "https://cave.example.invalid/certificates/" + certID} {
 		if !strings.Contains(pdf, want) {
 			t.Fatalf("certificate PDF lacks %q", want)
 		}

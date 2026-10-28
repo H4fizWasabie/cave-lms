@@ -25,7 +25,7 @@ func TestTheCertificatePreviewShowsTheLearnersNameAndNeverAnICAndVisitorsSeeNone
 	for _, path := range []string{"/courses/" + courseID, "/my-certificates"} {
 		_, body := s.get(path)
 		art := certArt(t, body)
-		expectAll(t, art, "CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT", ">Ada<", "demonstrated throughout", ">Go Basics<")
+		expectAll(t, art, "CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT", ">ADA<", "demonstrated throughout", ">Go Basics<")
 		expectNone(t, art, "ADAEXAMPLECOM", "Your name here")
 	}
 
@@ -54,7 +54,7 @@ func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBu
 			t.Fatalf("%s: preview does not draw the uploaded background: %s", path, art)
 		}
 		src = m[1]
-		expectAll(t, art, ">Ada<")
+		expectAll(t, art, ">ADA<")
 		expectNone(t, art, "THIS IS TO CERTIFY THAT", "demonstrated throughout", "cert-seal", "cert-signature")
 	}
 
@@ -108,5 +108,5 @@ func TestTheCertificatePreviewPrintsInThePDFsPalette(t *testing.T) {
 	courseID, _ := s.adaEarns()
 	_, body := s.get("/courses/" + courseID)
 	// The sample's metallic gold and the orange of its Certificate No., as the PDF prints them.
-	expectAll(t, certArt(t, body), "--cert-gold:#cca428", "--cert-number:#d6841c")
+	expectAll(t, certArt(t, body), "--cert-gold:#c9a027", "--cert-number:#d6841c")
 }

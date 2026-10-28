@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	"github.com/go-pdf/fpdf"
+	xdraw "golang.org/x/image/draw"
+	"golang.org/x/image/webp"
 )
 
 // The built-in Certificate artwork: the client's design (sample PCC-2026-00509, laid out as its uploaded background)
@@ -30,9 +32,9 @@ import (
 var (
 	artInk       = [3]int{20, 20, 20}
 	artInk2      = [3]int{40, 40, 40}
-	artGold      = [3]int{204, 164, 40}
-	artGoldDeep  = [3]int{176, 128, 16}
-	artGoldLight = [3]int{234, 216, 92}
+	artGold      = [3]int{201, 160, 39}
+	artGoldDeep  = [3]int{168, 115, 12}
+	artGoldLight = [3]int{242, 228, 104}
 	artGoldText  = [3]int{150, 120, 64}
 	artNumber    = [3]int{214, 132, 28}
 )
@@ -50,13 +52,41 @@ var certPalette = func() template.CSS {
 	return template.CSS(b.String())
 }()
 
-// artworkLogo is the CAVE logo for the artwork, drawn once from its SVG at 1200 pixels wide (about 600 ppi as printed).
+// The CAVE logo's file, the client's "CAVE / THE CAVE CONSULT" wordmark, and its size in pixels. The artwork prints it
+// in the header and, faint and turned upright, as the watermark.
+const (
+	artLogoFile  = "cave-consult-logo.webp"
+	artLogoPxW   = 387
+	artLogoPxH   = 160
+	artLogoScale = 4 // enlarged this many times, so a viewer that doesn't smooth enlarged images still draws smooth edges
+	artLogoW     = 42.0
+)
+
+// The watermark is the same logo, turned upright up the right-hand side: its size (the logo's proportions) and its
+// opacity, which prints the logo's black as the sample's light grey.
+const (
+	artWatermarkW     = 150.0
+	artWatermarkH     = artWatermarkW * artLogoPxH / artLogoPxW
+	artWatermarkAlpha = .18
+)
+
+// artworkLogo is the CAVE logo for the artwork as a PNG (fpdf can't read WebP), enlarged artLogoScale times.
 var artworkLogo = sync.OnceValues(func() ([]byte, error) {
-	svg, err := staticFiles.ReadFile("static/logo-dark.svg")
+	f, err := staticFiles.Open("static/" + artLogoFile)
 	if err != nil {
 		return nil, err
 	}
-	return logoImage(svg)
+	defer f.Close()
+	src, err := webp.Decode(f)
+	if err != nil {
+		return nil, err
+	}
+	b := src.Bounds()
+	big := image.NewNRGBA(image.Rect(0, 0, b.Dx()*artLogoScale, b.Dy()*artLogoScale))
+	xdraw.CatmullRom.Scale(big, big.Rect, src, b, xdraw.Src, nil)
+	var buf bytes.Buffer
+	err = png.Encode(&buf, big)
+	return buf.Bytes(), err
 })
 
 // The Certificate's fixed wording besides the artwork's own (artTexts), in English only like the artwork (ADR 0016):
@@ -196,10 +226,10 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	}
 	opt := fpdf.ImageOptions{ImageType: "png"}
 	pdf.RegisterImageOptionsReader("logo-dark", opt, bytes.NewReader(logo))
-	pdf.SetAlpha(.2, "Normal")
+	pdf.SetAlpha(artWatermarkAlpha, "Normal")
 	pdf.TransformBegin()
 	pdf.TransformRotate(90, 160, 150)
-	pdf.ImageOptions("logo-dark", 85, 116.3, 150, 67.4, false, opt, 0, "")
+	pdf.ImageOptions("logo-dark", 85, 150-artWatermarkH/2, artWatermarkW, artWatermarkH, false, opt, 0, "")
 	pdf.TransformEnd()
 	pdf.SetAlpha(1, "Normal")
 
@@ -211,25 +241,25 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	pdf.Rect(6.4, 6.4, pageW-12.8, pageH-12.8, "D")
 	corner := func(w1, h1, w2, h2 float64) {
 		pdf.ClipPolygon(sweep(w1, h1), false)
-		pdf.LinearGradient(0, 0, w1, h1, artGoldDeep[0], artGoldDeep[1], artGoldDeep[2], artGold[0], artGold[1], artGold[2], 0, 1, .6, .4)
+		pdf.LinearGradient(0, 0, w1, h1, artGold[0], artGold[1], artGold[2], artGoldLight[0], artGoldLight[1], artGoldLight[2], 0, 1, .5, .5)
 		pdf.ClipEnd()
 		pdf.ClipPolygon(sweep(w2, h2), false)
-		pdf.LinearGradient(0, 0, w2, h2, artGold[0], artGold[1], artGold[2], artGoldLight[0], artGoldLight[1], artGoldLight[2], 0, 1, .7, .3)
+		pdf.LinearGradient(0, 0, w2, h2, artGold[0], artGold[1], artGold[2], artGoldDeep[0], artGoldDeep[1], artGoldDeep[2], 0, 1, .7, .3)
 		pdf.ClipEnd()
-		pdf.SetDrawColor(255, 255, 255)
+		pdf.SetDrawColor(artGoldLight[0], artGoldLight[1], artGoldLight[2])
 		pdf.SetLineWidth(.6)
 		pdf.MoveTo(0, h2)
 		pdf.CurveBezierCubicTo(.05*w2, .45*h2, .45*w2, .04*h2, w2, 0)
 		pdf.DrawPath("D")
 	}
-	corner(70, 82, 57, 67)
+	corner(70, 82, 48, 58)
 	pdf.TransformBegin()
 	pdf.TransformRotate(180, pageW/2, pageH/2)
-	corner(62, 112, 50, 96)
+	corner(62, 112, 44, 84)
 	pdf.TransformEnd()
 
 	// Right of centre, where the client's artwork has it, leaving the Organisation's logo room on its left.
-	pdf.ImageOptions("logo-dark", 107, 17, 42, 0, false, opt, 0, "")
+	pdf.ImageOptions("logo-dark", 107, 17, artLogoW, 0, false, opt, 0, "")
 
 	draw(artGold)
 	for _, l := range artRules {
@@ -403,6 +433,7 @@ type certPreview struct {
 // built-in artwork).
 func newCertPreview(name, title, badge, background string) certPreview {
 	pdf := fpdf.New("P", "mm", "A4", "")
+	name = strings.ToUpper(name) // the Certificate prints the name in capitals, as the sample does; the stored name is as typed
 	size, lines := certTitleLines(pdf, title)
 	return certPreview{Name: name, Badge: badge, Title: lines, NameSize: ptMM(certNameSize(pdf, name)),
 		TitleSize: ptMM(size), Background: background, ID: "cert-art"}
@@ -429,6 +460,14 @@ func (certPreview) At() certPlaces {
 	return certPlaces{certNumberX, certNumberY, ptMM(certNumberPt), certQRX, certQRY, certQR, certNameY,
 		certTitleX + certTitleW/2, certBadgeX, certBadgeY, certBadgeW, certBadgeH, certIssuedX, certIssuedY, ptMM(certIssuedPt),
 		certLabelY, ptMM(certLabelPt), certNumberLabel}
+}
+
+// artLogoPlace is the CAVE logo's sizes in mm for the preview: the header's and the watermark's, with its opacity.
+type artLogoPlace struct{ W, H, MarkW, MarkH, MarkY, MarkAlpha float64 }
+
+// Logo is where the preview draws the CAVE logo, as drawArtwork does.
+func (certPreview) Logo() artLogoPlace {
+	return artLogoPlace{artLogoW, artLogoW * artLogoPxH / artLogoPxW, artWatermarkW, artWatermarkH, 150 - artWatermarkH/2, artWatermarkAlpha}
 }
 
 // Palette is the print palette, for the preview to draw in.

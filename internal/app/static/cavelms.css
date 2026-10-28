@@ -1573,7 +1573,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .cert-art-award { font-style: italic; }
 .cert-art-paper { fill: var(--surface); }
 .cert-art-rule { fill: none; stroke: var(--cert-gold); }
-.cert-art-shine { fill: none; stroke: var(--surface); }
+.cert-art-shine { fill: none; stroke: var(--cert-gold-light); }
 .cert-art-ornament { fill: var(--cert-gold); }
 .cert-art-s-deep { stop-color: var(--cert-gold-deep); }
 .cert-art-s-gold { stop-color: var(--cert-gold); }
