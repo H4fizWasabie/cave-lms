@@ -17,21 +17,7 @@ var files embed.FS
 // goose keeps its filesystem and dialect in globals, so one migration runs at a time: tests migrate in parallel.
 var mu sync.Mutex
 
-// UpTo applies the migrations up to and including version.
-func UpTo(ctx context.Context, db *sql.DB, version int64) error {
-	mu.Lock()
-	defer mu.Unlock()
-	if err := use(); err != nil {
-		return err
-	}
-	if err := goose.UpToContext(ctx, db, ".", version); err != nil {
-		return fmt.Errorf("apply database migrations: %w", err)
-	}
-	return nil
-}
-
-// Up applies every migration not yet applied. The App applies them in two steps, UpTo then Up, as Datasets move into the
-// store between 00068, which adds their keys, and 00069, which drops the old column.
+// Up applies every migration not yet applied.
 func Up(ctx context.Context, db *sql.DB) error {
 	mu.Lock()
 	defer mu.Unlock()

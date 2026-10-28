@@ -186,7 +186,7 @@ curl -sL "$base/d/$n/data/$key" | sha256sum
 
 A Dashboard never uploaded to has no blocks until its first confirm, as for a new one.
 
-**Dropped in a later release.** This release (#283) removes every Practice path from the code but keeps the conversion step (`convertPracticeDashboards`) and the columns it reads: `dashboards.kind` and the old `dashboards.dataset_key`, `dataset_file` and `dataset_size`. Migrations run before the conversion at start-up, so dropping them in the same release would lose the Practice Dashboards before they convert. Nothing else reads them now, except new Dashboards being inserted with `kind = 'work'` (the column defaults to `'practice'`). Once production has started on this release and the checks above show no `practice` row, a later release adds a migration dropping those four columns, removes `convertPracticeDashboards` with its test, the `kind` in `createDashboard`'s insert, and `copyDatasetsToStore`, whose old `dashboards.dataset` column 00069 already dropped.
+**Dropped in a later release.** This release (#283) removes every Practice path from the code but keeps the conversion step (`convertPracticeDashboards`) and the columns it reads: `dashboards.kind` and the old `dashboards.dataset_key`, `dataset_file` and `dataset_size`. Migrations run before the conversion at start-up, so dropping them in the same release would lose the Practice Dashboards before they convert. Nothing else reads them now, except new Dashboards being inserted with `kind = 'work'` (the column defaults to `'practice'`). Once production has started on this release and the checks above show no `practice` row, a later release adds a migration dropping those four columns, removes `convertPracticeDashboards` with its test, and the `kind` in `createDashboard`'s insert.
 
 ## Converting engine Dashboards to pages (ADR 0018, #375)
 
@@ -451,6 +451,8 @@ createdb cave && pg_restore --no-owner --dbname=cave /tmp/cave-restore/var/backu
 Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot restored the Admin account and all 10 Gallery items with their files, and the app served them.
 
 The Datasets are at `/tmp/cave-restore/var/backups/cave-lms/datasets`; copy them back with `rclone copy` (below).
+
+**A backup from before #411 (2026-10-27)** holds Datasets in the shape from before Parts, which only a release from before the Parts-conversion removal (#466) rewrites at start-up. Boot such a release once on the restored database and Datasets, let it finish starting, stop it, and only then start the current release. The current release does not convert them.
 
 Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database. Once Query statistics is on, the dump also holds `CREATE EXTENSION pg_stat_statements`: a restore as `cave` reports errors for that and loads everything else; as `postgres` on Postgres 16 it restores in full.
 
