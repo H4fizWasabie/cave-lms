@@ -8,6 +8,7 @@ import (
 // Admin pages render in the admin shell: the Admin sidebar without the public site header and footer, with a way
 // back to the site, the language switch and Log out in the sidebar. A Learner sent away from /admin keeps the site's.
 func TestAdminPagesRenderInTheAdminShellWithoutThePublicHeaderAndFooter(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	for _, path := range []string{"/admin", "/admin/courses", "/admin/courses/new", "/admin/gallery"} {

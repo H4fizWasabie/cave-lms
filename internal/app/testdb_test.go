@@ -12,7 +12,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// newTestApplication returns the app, its recording Mailer, a handle on its isolated schema
+// newTestApplication returns the app, its recording Mailer, a handle on its isolated database
 // and the temp directory that holds its uploaded files. opts may change the config first.
 func newTestApplication(t *testing.T, opts ...func(*config.Config)) (*app.App, *testutil.RecordingMailer, *sql.DB, string) {
 	t.Helper()
@@ -22,7 +22,7 @@ func newTestApplication(t *testing.T, opts ...func(*config.Config)) (*app.App, *
 // newTestApplicationWith is newTestApplication with writer as the AI writer.
 func newTestApplicationWith(t *testing.T, writer aiwriter.Writer, opts ...func(*config.Config)) (*app.App, *testutil.RecordingMailer, *sql.DB, string) {
 	t.Helper()
-	scopedDB, scopedURL := testutil.NewSchema(t)
+	scopedDB, scopedURL := testutil.NewDatabase(t)
 
 	recorder := &testutil.RecordingMailer{}
 	storageDir := t.TempDir()

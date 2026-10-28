@@ -27,6 +27,7 @@ func adaWithWorkAndPlan(t *testing.T) (admin, ada *site, workbook []byte, dashbo
 }
 
 func TestTheAdminOpensALearnersFolderAndDownloadsTheirFiles(t *testing.T) {
+	t.Parallel()
 	admin, _, workbook, dashboard := adaWithWorkAndPlan(t)
 
 	res, body := admin.get("/my-folder/ada-example-com")
@@ -53,6 +54,7 @@ func TestTheAdminOpensALearnersFolderAndDownloadsTheirFiles(t *testing.T) {
 }
 
 func TestTheLearnersPlanNotTheAdminsDecidesTheLabPartOfTheirFolder(t *testing.T) {
+	t.Parallel()
 	admin, _, _, _ := labSetup(t) // Ada has no Plan, the Admin always has the Lab
 	res, body := admin.get("/my-folder/ada-example-com")
 	expectStatus(t, res, body, http.StatusOK, "<h1>Folder of Ada</h1>")
@@ -64,12 +66,14 @@ func TestTheLearnersPlanNotTheAdminsDecidesTheLabPartOfTheirFolder(t *testing.T)
 }
 
 func TestTheAdminSeesTheLearnersFolderInMalay(t *testing.T) {
+	t.Parallel()
 	admin, _, _, _ := adaWithWorkAndPlan(t)
 	res, body := admin.getAsking("/my-folder/ada-example-com", "ms")
 	expectStatus(t, res, body, http.StatusOK, "<h1>Folder Ada</h1>")
 }
 
 func TestTheAdminGetsNotFoundForAnUnknownUsernameAndALearnerIsStillSentToTheirOwnFolder(t *testing.T) {
+	t.Parallel()
 	admin, ada, _, _ := labSetup(t)
 	res, body := admin.get("/my-folder/nobody-here")
 	expectStatus(t, res, body, http.StatusNotFound, "")
@@ -88,6 +92,7 @@ func TestTheAdminGetsNotFoundForAnUnknownUsernameAndALearnerIsStillSentToTheirOw
 }
 
 func TestTheAdminLearnersPageLinksEachLearnerToTheirFolder(t *testing.T) {
+	t.Parallel()
 	admin, _, _, _ := labSetup(t)
 	res, body := admin.get("/admin/learners")
 	expectStatus(t, res, body, http.StatusOK, `href="/my-folder/ada-example-com"`)

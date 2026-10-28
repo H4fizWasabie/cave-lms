@@ -40,6 +40,7 @@ func perkara(t *testing.T, body string) []string {
 // A month with the recipe sheet in other capitals and a subset sheet with the same columns adds only the recipe
 // sheet's rows: the first Part (pageWithData) was read from Sheet1, and other sheets are never combined into an Add.
 func TestAnAddReadsTheRecipeSheetIgnoringCaseAndNeverCombinesAnotherSheetWithTheSameColumns(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 
@@ -62,6 +63,7 @@ func TestAnAddReadsTheRecipeSheetIgnoringCaseAndNeverCombinesAnotherSheetWithThe
 // With no sheet by the recipe's name the preview offers only the sheets with the Dataset's columns, and the one the
 // Learner picks is added.
 func TestAnAddWithoutTheRecipeSheetOffersTheSheetsWithTheDatasetsColumnsAndAddsThePickedOne(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 
@@ -93,6 +95,7 @@ func TestAnAddWithoutTheRecipeSheetOffersTheSheetsWithTheDatasetsColumnsAndAddsT
 
 // Replace data is cleaned as the first Part is, with sheets combined, and sets the recipe the next Add follows.
 func TestReplacingDataCombinesSheetsAndSetsANewRecipe(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 
@@ -122,6 +125,7 @@ func TestReplacingDataCombinesSheetsAndSetsANewRecipe(t *testing.T) {
 // A Dataset Cave built from several sheets has a Sheet column; a later Add reads one sheet, so the column is filled
 // from that sheet's name and the Add is not refused as missing it.
 func TestAnAddToADatasetOfCombinedSheetsFillsTheSheetColumnFromItsSheetName(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	both := testutil.Workbook(t, shopSheet("Okt", "Gula"), shopSheet("Nov", "Garam"))
@@ -145,6 +149,7 @@ func TestAnAddToADatasetOfCombinedSheetsFillsTheSheetColumnFromItsSheetName(t *t
 
 // A renamed sheet that also has an extra column is still offered: it has every column the Dataset has.
 func TestAnAddWithoutTheRecipeSheetOffersASheetWithExtraColumns(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := pageWithData(t, ada)
 	wide := shopSheet("Okt", "Gula")

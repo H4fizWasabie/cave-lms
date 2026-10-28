@@ -7,6 +7,7 @@ import (
 )
 
 func TestTheGalleryPagesAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Poster Kursus", "everyone", pngFile)
@@ -32,6 +33,7 @@ func TestTheGalleryPagesAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestARefusedMembersItemSaysWhyInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Members picture", "course_members", pngFile)
@@ -42,6 +44,7 @@ func TestARefusedMembersItemSaysWhyInMalay(t *testing.T) {
 }
 
 func TestTheNotFoundAndErrorPagesAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, path := range []string{"/no-such-page", "/gallery/999"} {
 		res, body := s.getAsking(path, "ms")
@@ -63,6 +66,7 @@ func TestTheNotFoundAndErrorPagesAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheLabIsInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
 	_, body := ada.get("/lab")
@@ -94,6 +98,7 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheLockedLabSaysSoInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.switchLanguage("ms", "/")
@@ -102,6 +107,7 @@ func TestTheLockedLabSaysSoInMalay(t *testing.T) {
 }
 
 func TestTheLabsFileErrorsAreInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
 	path := ada.createWork("Kewangan")

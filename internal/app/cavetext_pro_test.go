@@ -65,6 +65,7 @@ func near(t *testing.T, what string, got, want time.Time) {
 }
 
 func TestProGivenByTheAdminLastsTwelveMonthsWithUpToTwoThousandSnippets(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -100,6 +101,7 @@ func TestProGivenByTheAdminLastsTwelveMonthsWithUpToTwoThousandSnippets(t *testi
 }
 
 func TestRenewingProEarlyStartsTheNewYearWhenTheRunningOneEnds(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -127,6 +129,7 @@ func TestRenewingProEarlyStartsTheNewYearWhenTheRunningOneEnds(t *testing.T) {
 }
 
 func TestTwoRenewalsWhileProRunsChainOneYearAfterAnother(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -146,6 +149,7 @@ func TestTwoRenewalsWhileProRunsChainOneYearAfterAnother(t *testing.T) {
 }
 
 func TestEndingProEarlyTakesEffectAtOnce(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -176,6 +180,7 @@ func TestEndingProEarlyTakesEffectAtOnce(t *testing.T) {
 }
 
 func TestALapsedLearnerReturnsToTheFreeCapTheirPlaceGivesAndKeepsEverySnippet(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1000)
 	early, earlyToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -215,6 +220,7 @@ func TestALapsedLearnerReturnsToTheFreeCapTheirPlaceGivesAndKeepsEverySnippet(t 
 }
 
 func TestTheCaveTextLearnersPageShowsPlacesProAndTheEarlyPlacesTaken(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(42)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -253,6 +259,7 @@ func TestTheCaveTextLearnersPageShowsPlacesProAndTheEarlyPlacesTaken(t *testing.
 }
 
 func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	give, end := s.proAction("ada@example.com", "pro"), strings.Replace(s.proAction("ada@example.com", "pro"), "/pro", "/end-pro", 1)
@@ -279,6 +286,7 @@ func TestOnlyAnAdminReachesTheCaveTextLearnersAndGivesPro(t *testing.T) {
 }
 
 func TestEndingProAsksOnTheConfirmationPageFirst(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -301,6 +309,7 @@ func TestEndingProAsksOnTheConfirmationPageFirst(t *testing.T) {
 }
 
 func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	give, givePlan := s.proAction("ada@example.com", "pro"), s.proAction("ada@example.com", "pro-plan")
@@ -328,6 +337,7 @@ func TestGivingProAndTheCaveTextSettingsRefuseACrossOriginPost(t *testing.T) {
 }
 
 func TestTheCaveTextPageShowsAVisitorWhatProGivesAndAsksThemToLogIn(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	visitor := s.second()
 	res, body := visitor.get("/cavetext")
@@ -347,6 +357,7 @@ func TestTheCaveTextPageShowsAVisitorWhatProGivesAndAsksThemToLogIn(t *testing.T
 }
 
 func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -403,6 +414,7 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 }
 
 func TestTheCaveTextPageAsksALearnerNewToCaveTextToSignIn(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	cy := s.second()
 	cy.loginAsNewLearner("Cy Tan", "cy@example.com", "correct horse battery")
@@ -419,6 +431,7 @@ func TestTheCaveTextPageAsksALearnerNewToCaveTextToSignIn(t *testing.T) {
 }
 
 func TestAProImportStopsAtTwoThousandSnippetsAndAFullProLearnerCannotAddAnother(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")

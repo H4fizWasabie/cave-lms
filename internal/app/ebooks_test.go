@@ -74,6 +74,7 @@ func expectEbookLocked(t *testing.T, l *site, item string) {
 }
 
 func TestAProPlanPaidWithAnEbooksPromoCodeOpensTheEbooks(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	expectEbookLocked(t, ada, ebook)
@@ -84,6 +85,7 @@ func TestAProPlanPaidWithAnEbooksPromoCodeOpensTheEbooks(t *testing.T) {
 // Only the Pro Plan bought with the code of a Promo that comes with Ebooks opens them: not the Pro Plan at full price
 // or with another Promo's code, and not CaveText Pro, even at the same RM99 and with the same code typed.
 func TestOtherPaymentsLeaveTheEbooksLocked(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	s.addPromo("CAVE89", "pro-plan", "89", "2026-01-01", "2099-12-31") // no Ebooks
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -108,6 +110,7 @@ func TestOtherPaymentsLeaveTheEbooksLocked(t *testing.T) {
 // A Visitor sees the ebook listed but locked, pointed to the COMBO Pro Plan while its Promo runs; Promotional
 // material stays open to all; the Admin opens every ebook.
 func TestVisitorsSeeEbooksLockedButPromotionalOnesOpen(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	fields := titleFields("Free sampler", "everyone")
 	fields["promotional"] = "on"
@@ -137,6 +140,7 @@ func TestVisitorsSeeEbooksLockedButPromotionalOnesOpen(t *testing.T) {
 // A Learner without Ebook access who joined the Course still opens a Lesson whose Gallery item is an ebook: its
 // text, and the ebook locked in place of its download.
 func TestALessonShowsItsEbookLockedToACourseMemberWithoutEbookAccess(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	s.createCourse("Go Basics", "Learn Go.", "")
 	id := s.onlyCourseID()
@@ -165,6 +169,7 @@ func TestALessonShowsItsEbookLockedToACourseMemberWithoutEbookAccess(t *testing.
 // A Learner with Ebook access reads a non-promotional ebook in the browser, in a reader on its page, and cannot
 // download it; the Admin downloads it (ADR 0020).
 func TestLearnersReadEbooksInTheBrowserAndAdminsDownloadThem(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
@@ -179,6 +184,7 @@ func TestLearnersReadEbooksInTheBrowserAndAdminsDownloadThem(t *testing.T) {
 // Ebook access lasts the year of CaveText Pro that came with it: ending that Pro locks the ebooks again, and Pro
 // given again without Ebooks does not reopen them.
 func TestEndingTheComboYearLocksTheEbooksAgain(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
@@ -191,6 +197,7 @@ func TestEndingTheComboYearLocksTheEbooksAgain(t *testing.T) {
 
 // The Admin gives the COMBO Pro Plan by hand, as for a COMBO payment BCL could not match: the Pro Plan with Ebooks.
 func TestTheAdminGivesTheComboProPlanByHand(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	res, body := s.post(s.proAction("ada@example.com", "combo"), nil)
@@ -202,6 +209,7 @@ func TestTheAdminGivesTheComboProPlanByHand(t *testing.T) {
 // Live, BCL's order detail decides, its coupon too. While no live detail has shown whether BCL names the coupon there,
 // a detail without one takes the webhook's code; a detail naming another code wins over the webhook's.
 func TestALiveOrderTakesBCLsCouponCodeOrElseTheWebhooks(t *testing.T) {
+	t.Parallel()
 	combo := func(email, coupon string) bclOrder {
 		o := confirmed(email)
 		o.subtotal, o.discount, o.amount, o.coupon, o.formID = "249", "150", "100", coupon, proPlanFormID
@@ -227,6 +235,7 @@ func TestALiveOrderTakesBCLsCouponCodeOrElseTheWebhooks(t *testing.T) {
 
 // The Admin marks a Pro Plan Promo as coming with Ebooks on the Promos page, which lists it so; no other product's.
 func TestOnlyAProPlanPromoComesWithEbooks(t *testing.T) {
+	t.Parallel()
 	s, _ := ebookSite(t)
 	_, body := s.get("/admin/promos")
 	expectAll(t, body, "CAVE99", "With Ebooks")

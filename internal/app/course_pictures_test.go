@@ -17,6 +17,7 @@ func (s *site) saveCourse(path string, fields map[string]string, picture []byte)
 var coursePictureSrc = regexp.MustCompile(`src="(/course-pictures/[^"]+)"`)
 
 func TestAdminAddsACoursePictureThatTheCourseListShows(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
@@ -38,6 +39,7 @@ func TestAdminAddsACoursePictureThatTheCourseListShows(t *testing.T) {
 // The Course picture route serves Course pictures only: a Gallery item's file, members-only or not, keeps its own
 // access check, and a picture is never sniffed as something else.
 func TestTheCoursePictureRouteServesOnlyCoursePicturesUnsniffed(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
@@ -95,6 +97,7 @@ func drawnCoverIn(t *testing.T, html string) string {
 
 // The title sits right under the cover, so a drawn cover carries only the Level or format and the mark.
 func TestACourseWithoutAPictureShowsADrawnCoverWithItsLevelButNotItsTitle(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -119,6 +122,7 @@ func TestACourseWithoutAPictureShowsADrawnCoverWithItsLevelButNotItsTitle(t *tes
 }
 
 func TestTheCoursePageHeroShowsTheCoursePictureOrItsDrawnCover(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
@@ -135,6 +139,7 @@ func TestTheCoursePageHeroShowsTheCoursePictureOrItsDrawnCover(t *testing.T) {
 }
 
 func TestAdminReplacesThenRemovesACoursePictureFromTheCourseForm(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	fields := map[string]string{"title": "Go Basics", "description": "Learn Go."}
@@ -179,6 +184,7 @@ func TestAdminReplacesThenRemovesACoursePictureFromTheCourseForm(t *testing.T) {
 }
 
 func TestACoursePictureMustBeAPictureOfAtMost20MB(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	fields := map[string]string{"title": "Go Basics", "description": "Learn Go."}
@@ -198,6 +204,7 @@ func TestACoursePictureMustBeAPictureOfAtMost20MB(t *testing.T) {
 }
 
 func TestDeletingACourseRemovesItsPicture(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)
@@ -209,6 +216,7 @@ func TestDeletingACourseRemovesItsPicture(t *testing.T) {
 }
 
 func TestTheCourseListHasNoHeadingSkip(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.courseWithContent()
@@ -230,6 +238,7 @@ func courseCard(t *testing.T, body, title string) string {
 }
 
 func TestACourseCardShowsItsLessonCountExamAndCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent() // "Go Basics": one Lesson and a Multiple-choice Exam
@@ -259,6 +268,7 @@ func TestACourseCardShowsItsLessonCountExamAndCertificate(t *testing.T) {
 // On a phone the side card leads with the call to action: Join or Register comes before the Course picture, which
 // the card repeats for phones, and before a Learner's Certificate art. Desktop keeps the art at the top by CSS alone.
 func TestTheCoursePagesSideCardPutsJoinOrRegisterBeforeThePictureAndTheCertificateArt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)

@@ -67,6 +67,7 @@ var pickedWorkbook = regexp.MustCompile(`name="workbook" value="(\d+)"`)
 // An Add whose columns are renamed is refused as before, naming only the columns neither matched by name nor mapped,
 // and offers a dropdown for each of them of the file's columns the Dataset does not use.
 func TestAnAddWithRenamedColumnsIsRefusedOfferingADropdownPerMissingColumnOfTheFilesUnusedColumns(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 
@@ -112,6 +113,7 @@ var augustPicks = map[string]string{
 // The Learner maps the five columns and the Add goes on from the same Workbook: the preview shows the rows under the
 // Dataset's names with a note for what was matched, mapped and dropped, and confirming adds them.
 func TestMappingTheMissingColumnsAddsThePartUnderTheDatasetsColumnNames(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
@@ -147,6 +149,7 @@ func TestMappingTheMissingColumnsAddsThePartUnderTheDatasetsColumnNames(t *testi
 
 // The mapping is the Dataset's, kept in its recipe: next month's file with the same headers maps itself, and says so.
 func TestTheNextFileWithTheSameHeadersMapsItselfAndSaysSo(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
@@ -168,6 +171,7 @@ func TestTheNextFileWithTheSameHeadersMapsItselfAndSaysSo(t *testing.T) {
 // Replace data starts the Dataset afresh, so the file's columns become the Dataset's with no mapping offered, and the
 // recipe's map goes with the rest of the recipe: the next Add is not mapped by the old choices.
 func TestReplacingDataOffersNoMappingAndClearsTheRecipesMap(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
@@ -197,6 +201,7 @@ var replaceAction = regexp.MustCompile(`href="(/lab/dashboards/\d+/parts/\d+/rep
 // Replace one Part reads its file with the Dataset's columns too, so it offers the mapping, posting back to the Part's
 // own Replace address; the Part keeps its place and takes the mapped rows.
 func TestReplacingOnePartOffersTheMappingAndTakesTheMappedRows(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	replace := replaceAction.FindStringSubmatch(mustGet(t, ada, path+"/data"))[1]
@@ -224,6 +229,7 @@ func TestReplacingOnePartOffersTheMappingAndTakesTheMappedRows(t *testing.T) {
 // choosing another file column replaces the choice, and choosing none refuses the upload naming the column. Nothing is
 // remembered until the Part is confirmed, so a refused re-read leaves the recipe's map as it was.
 func TestAChosenMappingCanBeChangedOrClearedWhenTheFileIsReadAgain(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
@@ -259,6 +265,7 @@ func TestAChosenMappingCanBeChangedOrClearedWhenTheFileIsReadAgain(t *testing.T)
 
 // The mapping form and the notes read in Malay too.
 func TestTheMappingFormAndNotesReadInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	ada.switchLanguage("ms", path)
@@ -289,6 +296,7 @@ func recipeMap(t *testing.T, ada *site, name string) map[string]string {
 // Only a choice of a column the Dataset lacks in this file, by a column of the file the Dataset lacks, counts: any
 // other field on the form is dropped without a word, and never reaches the recipe.
 func TestMappingChoicesThatAreNotRealColumnsAreDroppedAndNeverRemembered(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
@@ -312,6 +320,7 @@ func TestMappingChoicesThatAreNotRealColumnsAreDroppedAndNeverRemembered(t *test
 // One file column cannot be two of the Dataset's: the upload is refused naming the file column and both of the
 // Dataset's, in either language, and the form asks again.
 func TestOneFileColumnPickedForTwoDatasetColumnsIsRefusedNamingBoth(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
@@ -333,6 +342,7 @@ func TestOneFileColumnPickedForTwoDatasetColumnsIsRefusedNamingBoth(t *testing.T
 
 // With the form to match the columns on the page, the refusal says the Learner can match them, not only fix the headers.
 func TestTheRefusalWithAMappingFormSaysTheColumnsCanBeMatched(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	res, body := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA1001", "SK Maju"}), adding)
@@ -359,6 +369,7 @@ func TestTheRefusalWithAMappingFormSaysTheColumnsCanBeMatched(t *testing.T) {
 // The Dataset's types win: a mapped column whose cells are not of the Dataset column's type leaves them empty and lists
 // them, as any Add does.
 func TestAMappedColumnWhoseCellsDoNotFitTheDatasetsTypeLeavesThemEmptyAndListsThem(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	rows := [][]any{
@@ -382,6 +393,7 @@ func TestAMappedColumnWhoseCellsDoNotFitTheDatasetsTypeLeavesThemEmptyAndListsTh
 // The mapping form posts the Workbook it was made from, which is checked like any pick: another Learner's Workbook
 // answers 404 and nothing is added.
 func TestTheMappingFormsWorkbookIsOwnershipChecked(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)

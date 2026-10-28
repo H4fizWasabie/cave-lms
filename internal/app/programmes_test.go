@@ -60,6 +60,7 @@ func (s *site) onlyProgrammeID() string {
 }
 
 func TestAdminAddsAProgrammeAndTheProgramPageListsIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days of hands-on AI.", "", nil)
@@ -72,6 +73,7 @@ func TestAdminAddsAProgrammeAndTheProgramPageListsIt(t *testing.T) {
 }
 
 func TestTheProgramPageShowsAProgrammesPictureAndLinkButTheGalleryDoesNot(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days.", "https://example.com/bootcamp", pngFile)
@@ -93,6 +95,7 @@ func TestTheProgramPageShowsAProgrammesPictureAndLinkButTheGalleryDoesNot(t *tes
 }
 
 func TestAProgrammePictureMustBeAPicture(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": "AI Bootcamp", "starts_on": "2099-03-01", "blurb": "Two days."}, pdfFile)
@@ -103,6 +106,7 @@ func TestAProgrammePictureMustBeAPicture(t *testing.T) {
 }
 
 func TestInvalidProgrammesAreRefusedWithAMessage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	for _, tc := range []struct{ title, startsOn, blurb, link, want string }{
@@ -119,6 +123,7 @@ func TestInvalidProgrammesAreRefusedWithAMessage(t *testing.T) {
 }
 
 func TestAProgrammePictureOver20MBIsRefusedAndNothingIsStored(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	big := append(append([]byte{}, pngFile...), bytes.Repeat([]byte{0}, 20<<20)...)
@@ -130,6 +135,7 @@ func TestAProgrammePictureOver20MBIsRefusedAndNothingIsStored(t *testing.T) {
 }
 
 func TestAdminEditsAProgramme(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days.", "", pngFile)
@@ -145,6 +151,7 @@ func TestAdminEditsAProgramme(t *testing.T) {
 }
 
 func TestAdminDeletesAProgrammeAndItsPictureOnlyAfterConfirming(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days.", "", pngFile)
@@ -171,6 +178,7 @@ func TestAdminDeletesAProgrammeAndItsPictureOnlyAfterConfirming(t *testing.T) {
 }
 
 func TestDeletingAProgrammeSucceedsEvenWhenItsPictureCannotBeRemoved(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root deletes from a read-only directory")
 	}
@@ -191,6 +199,7 @@ func TestDeletingAProgrammeSucceedsEvenWhenItsPictureCannotBeRemoved(t *testing.
 }
 
 func TestThePastProgrammesLeaveTheProgramPageButStayInTheAdminArea(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("Later one", "2099-06-01", "Later.", "", nil)
@@ -209,6 +218,7 @@ func TestThePastProgrammesLeaveTheProgramPageButStayInTheAdminArea(t *testing.T)
 }
 
 func TestTheProgramPageSaysWhenNoneAreComingInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/programmes", "en")
 	expectInOrder(t, content(body), "No upcoming Programmes")
@@ -217,12 +227,14 @@ func TestTheProgramPageSaysWhenNoneAreComingInBothLanguages(t *testing.T) {
 }
 
 func TestTheProgramMenuLeadsToTheProgramPage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.get("/")
 	expectInOrder(t, header(t, body), ">Program<", `href="/programmes"`, ">Certification<")
 }
 
 func TestTheAdminSidebarHasProgrammes(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	_, body := s.get("/admin")
@@ -230,6 +242,7 @@ func TestTheAdminSidebarHasProgrammes(t *testing.T) {
 }
 
 func TestOnlyTheAdminManagesProgrammes(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	res, body := s.saveProgramme("/admin/programmes", map[string]string{"title": "AI Bootcamp", "starts_on": "2099-03-01"}, nil)

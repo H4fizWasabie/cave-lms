@@ -8,6 +8,7 @@ import (
 )
 
 func TestMyMembershipIsInThePricingMenuAndSendsAVisitorToLogIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, header(t, body), ">Pricing<", `href="/cavetext"`, `<a href="/my-membership">My membership</a>`, ">Program<")
@@ -22,6 +23,7 @@ func TestMyMembershipIsInThePricingMenuAndSendsAVisitorToLogIn(t *testing.T) {
 }
 
 func TestMyMembershipWithNoPlanSaysSoAndLinksToThePlans(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 
@@ -33,6 +35,7 @@ func TestMyMembershipWithNoPlanSaysSoAndLinksToThePlans(t *testing.T) {
 }
 
 func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T) {
+	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)
 	ada := s.second()
 	ada.login("ada@example.com", "correct horse battery")
@@ -52,6 +55,7 @@ func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T
 }
 
 func TestMyMembershipShowsCaveTextProAndTheSnippetCapButNoPlanFromCaveTextProAlone(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada", "ada@example.com")
 

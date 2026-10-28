@@ -37,6 +37,7 @@ func expectLanguage(t *testing.T, body, lang, wantText string) {
 }
 
 func TestAVisitorGetsTheBrowsersLanguageElseMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en-GB,en;q=0.9")
 	expectLanguage(t, body, "en", "Welcome to CAVELMS")
@@ -51,6 +52,7 @@ func TestAVisitorGetsTheBrowsersLanguageElseMalay(t *testing.T) {
 }
 
 func TestTheSwitchReturnsToTheSamePageInTheNewLanguageAndIsRemembered(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.switchLanguage("en", "/gallery?format=ebook")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -66,6 +68,7 @@ func TestTheSwitchReturnsToTheSamePageInTheNewLanguageAndIsRemembered(t *testing
 }
 
 func TestTheSwitchRefusesAnOffSiteReturnPathAndAnUnknownLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, next := range []string{"https://evil.example/", "//evil.example", "/\t/evil.example", "/\\evil.example"} {
 		res, body := s.switchLanguage("en", next)
@@ -90,6 +93,7 @@ func TestTheSwitchRefusesAnOffSiteReturnPathAndAnUnknownLanguage(t *testing.T) {
 }
 
 func TestALearnersSavedLanguageWinsOverTheCookieAndIsAppliedAtLogin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	s.switchLanguage("en", "/")
@@ -107,6 +111,7 @@ func TestALearnersSavedLanguageWinsOverTheCookieAndIsAppliedAtLogin(t *testing.T
 }
 
 func TestEveryTemplateTextIsInTheCatalog(t *testing.T) {
+	t.Parallel()
 	keys, err := app.TemplateTextKeys()
 	if err != nil {
 		t.Fatal(err)

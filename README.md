@@ -45,4 +45,4 @@ The password comes from `CAVE_ADMIN_PASSWORD` if set, otherwise from the first l
 
 CI (`.github/workflows/ci.yml`) runs `go vet ./...`, `govulncheck ./...` and `./test.sh` on every pull request and push to main; it does not deploy. govulncheck fails on any known vulnerability the code can reach, in a dependency or in the Go version `go.mod` names, so a new one turns CI red until that module or Go is upgraded.
 
-To use your own database instead, set `TEST_DATABASE_URL` to a dedicated test database and run `go test ./...`. The HTTP integration test creates a unique schema in it and drops it when the test finishes, so the user needs permission to create and drop schemas. Without `TEST_DATABASE_URL`, that test is skipped.
+To use your own database instead, set `TEST_DATABASE_URL` to a dedicated test database and run `go test ./...`. Each test copies a migrated template database of its own, made once per test binary, and drops the copy when it finishes, so the user needs permission to create and drop databases. Without `TEST_DATABASE_URL`, the tests that need a database are skipped.

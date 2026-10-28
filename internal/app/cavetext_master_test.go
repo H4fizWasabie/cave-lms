@@ -30,6 +30,7 @@ func userMasterPrompt(me caveTextMe) string {
 }
 
 func TestAProLearnerSavesOneUserMasterPromptAndDeletesItToReplaceIt(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -62,6 +63,7 @@ func TestAProLearnerSavesOneUserMasterPromptAndDeletesItToReplaceIt(t *testing.T
 
 // Two browsers saving at the same moment: one is kept, the other is told to delete it first, never both overwriting.
 func TestTwoUserMasterPromptsSavedAtOnceKeepOneAndRefuseTheOther(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -97,6 +99,7 @@ func TestTwoUserMasterPromptsSavedAtOnceKeepOneAndRefuseTheOther(t *testing.T) {
 }
 
 func TestAUserMasterPromptOverEightThousandCharactersIsRefused(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -115,6 +118,7 @@ func TestAUserMasterPromptOverEightThousandCharactersIsRefused(t *testing.T) {
 }
 
 func TestSavingAUserMasterPromptNeedsProAndALapsedOneIsKeptAndDeletable(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 
@@ -142,6 +146,7 @@ func TestSavingAUserMasterPromptNeedsProAndALapsedOneIsKeptAndDeletable(t *testi
 }
 
 func TestTheUserMasterPromptIsNotASnippetAndNeverCountsTowardTheCap(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -168,6 +173,7 @@ func (s *site) saveCaveTextQuestion(question string) (*http.Response, string) {
 }
 
 func TestAnyAdminEditsTheQuestionShownBesideTheUserMasterPromptBox(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	res, body := s.get("/admin/cavetext/settings")

@@ -20,6 +20,7 @@ func (s *site) second() *site {
 }
 
 func TestAdminSeesTheLearnersEnrolledInACourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -42,6 +43,7 @@ func TestAdminSeesTheLearnersEnrolledInACourse(t *testing.T) {
 var removeLearnerLink = regexp.MustCompile(`href="/admin/courses/\d+/learners/(\d+)/remove"`)
 
 func TestAdminRemovesALearnerWhoLosesAccessAtOnce(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -87,6 +89,7 @@ func TestAdminRemovesALearnerWhoLosesAccessAtOnce(t *testing.T) {
 }
 
 func TestOnlyTheAdminSeesOrRemovesEnrolledLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -124,6 +127,7 @@ func TestOnlyTheAdminSeesOrRemovesEnrolledLearners(t *testing.T) {
 }
 
 func TestAdminReachesACoursesLearnersFromTheCourseList(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -159,6 +163,7 @@ func expectCells(t *testing.T, row string, cells ...string) {
 }
 
 func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
+	t.Parallel()
 	const pw = "correct horse battery"
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", pw)
@@ -207,6 +212,7 @@ func TestAdminSeesEachLearnersProgressBestScoreAndCertificate(t *testing.T) {
 }
 
 func TestAdminSeesCertificateRevokedAndDashWhenCourseHasNoExam(t *testing.T) {
+	t.Parallel()
 	const pw = "correct horse battery"
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", pw)
@@ -231,6 +237,7 @@ func TestAdminSeesCertificateRevokedAndDashWhenCourseHasNoExam(t *testing.T) {
 }
 
 func TestAdminCoursePageShowsIssuedOnceARevokedCertificateIsReplaced(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()

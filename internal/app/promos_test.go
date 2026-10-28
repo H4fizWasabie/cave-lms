@@ -40,6 +40,7 @@ func (s *site) endPromoLink(code string) string {
 }
 
 func TestAnyAdminAddsListsAndEndsPromosAndPastOnesStayListed(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	res, body := s.get("/admin/promos")
 	expectStatus(t, res, body, http.StatusOK, "<h1>Admin: Promos</h1>")
@@ -69,6 +70,7 @@ func TestAnyAdminAddsListsAndEndsPromosAndPastOnesStayListed(t *testing.T) {
 }
 
 func TestThePromosPageRefusesMistakes(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	for _, c := range []struct {
 		form url.Values
@@ -91,6 +93,7 @@ func TestThePromosPageRefusesMistakes(t *testing.T) {
 }
 
 func TestOnlyAnAdminManagesPromos(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada := s.second()
 	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
@@ -106,6 +109,7 @@ func TestOnlyAnAdminManagesPromos(t *testing.T) {
 }
 
 func TestThePromosPageIsInMalay(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.switchLanguage("ms", "/")
 	s.addPromo("CAVE99", "pro-plan", "99", "2026-01-01", "2099-12-31")
@@ -126,6 +130,7 @@ func promoSite(t *testing.T) *site {
 }
 
 func TestAPaymentAtTheRunningPromoPriceGivesTheProduct(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paidProPlan("LINK-1", "ada@example.com")) // RM99, under the RM249 price
@@ -135,6 +140,7 @@ func TestAPaymentAtTheRunningPromoPriceGivesTheProduct(t *testing.T) {
 }
 
 func TestAPromoPaymentAfterThePromoEndsWaitsAsUnmatched(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t)
 	s.endPromo("CAVE99")
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -149,6 +155,7 @@ func TestAPromoPaymentAfterThePromoEndsWaitsAsUnmatched(t *testing.T) {
 }
 
 func TestWithTwoPromosRunningTheLowestPriceCountsAndOnlyOnItsOwnProduct(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t)
 	s.addPromo("CAVE89", "pro-plan", "89", "2026-01-01", "2099-12-31")
 	s.addPromo("LAB10", "lab-plan", "10", "2026-01-01", "2099-12-31")
@@ -169,6 +176,7 @@ func TestWithTwoPromosRunningTheLowestPriceCountsAndOnlyOnItsOwnProduct(t *testi
 }
 
 func TestAPromoThatHasNotStartedOrIsOverDoesNotCount(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	s.savePrices(map[string]string{"cavetext-pro_link": proFormURL, "lab-plan_link": labFormURL,
 		"pro-plan_link": proPlanFormURL, "pro-plan_price": "249", "pro-plan_normal": ""})
@@ -182,6 +190,7 @@ func TestAPromoThatHasNotStartedOrIsOverDoesNotCount(t *testing.T) {
 }
 
 func TestOffersShowTheRunningPromoPriceButNeverItsCode(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t)
 	visitor := s.second()
 	_, body := visitor.getAsking("/pricing", "en")
@@ -223,6 +232,7 @@ func couponProPlan(order, email, subtotal, discount string) bclPayment {
 }
 
 func TestACouponPaymentCountsWhatWasPaidAfterTheDiscount(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t) // Pro Plan RM249, CAVE99 at RM99 running
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
@@ -242,6 +252,7 @@ func TestACouponPaymentCountsWhatWasPaidAfterTheDiscount(t *testing.T) {
 }
 
 func TestACouponPaymentWithNoPromoRunningWaitsAsUnmatched(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t)
 	s.endPromo("CAVE99")
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -252,6 +263,7 @@ func TestACouponPaymentWithNoPromoRunningWaitsAsUnmatched(t *testing.T) {
 }
 
 func TestAnUnreadableDiscountWaitsForAnAdmin(t *testing.T) {
+	t.Parallel()
 	s := promoSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "lots"))

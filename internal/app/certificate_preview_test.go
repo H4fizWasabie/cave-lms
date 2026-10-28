@@ -19,6 +19,7 @@ func certArt(t *testing.T, body string) string {
 }
 
 func TestTheCertificatePreviewShowsTheLearnersNameAndNeverAnICAndVisitorsSeeNone(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	courseID, _ := s.adaEarns() // Ada's IC is ADAEXAMPLECOM
 	for _, path := range []string{"/courses/" + courseID, "/my-certificates"} {
@@ -36,6 +37,7 @@ func TestTheCertificatePreviewShowsTheLearnersNameAndNeverAnICAndVisitorsSeeNone
 }
 
 func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBuiltInArtwork(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	courseID, _ := s.adaEarns()
 	admin := s.second()
@@ -69,6 +71,7 @@ func TestOnceABackgroundIsUploadedThePreviewShowsItUnderTheDetailsInsteadOfTheBu
 }
 
 func TestEveryCertificatePreviewOnMyCertificatesHasItsOwnIDs(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.adaEarns() // "Go Basics"
 	s.logOut()
@@ -100,6 +103,7 @@ func TestEveryCertificatePreviewOnMyCertificatesHasItsOwnIDs(t *testing.T) {
 }
 
 func TestTheCertificatePreviewPrintsInThePDFsPalette(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	courseID, _ := s.adaEarns()
 	_, body := s.get("/courses/" + courseID)

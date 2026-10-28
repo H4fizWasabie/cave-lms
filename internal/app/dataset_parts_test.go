@@ -57,6 +57,7 @@ func (s *site) perkara(page string) []string {
 }
 
 func TestAddingToABuiltDashboardAddsAPartAndTheDashboardDrawsFromAllTheRows(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
@@ -86,6 +87,7 @@ func TestAddingToABuiltDashboardAddsAPartAndTheDashboardDrawsFromAllTheRows(t *t
 }
 
 func TestReplaceDataLeavesOnePartAndQueuesTheRemovedPartsFilesForDeletion(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
@@ -122,6 +124,7 @@ func TestReplaceDataLeavesOnePartAndQueuesTheRemovedPartsFilesForDeletion(t *tes
 // A current Dataset from before Parts that was last changed by an Add to data still holds the whole table: only a
 // pending Add is cut to its new rows. Production lost rows to this on 2026-10-27.
 func TestACurrentDatasetFromBeforePartsLastChangedByAnAddKeepsEveryRow(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
@@ -157,6 +160,7 @@ func TestACurrentDatasetFromBeforePartsLastChangedByAnAddKeepsEveryRow(t *testin
 
 // Datasets before Parts keep their earlier copies, read-only and counted, until the Dashboard's data next changes.
 func TestADatasetFromBeforePartsBecomesOnePartAndItsEarlierCopiesGoOnTheNextConfirm(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
@@ -237,6 +241,7 @@ func TestADatasetFromBeforePartsBecomesOnePartAndItsEarlierCopiesGoOnTheNextConf
 }
 
 func TestTheDataTabOffersNoEarlierDatasetsOrRestoreAndPointsToTheWorkbooksInTheFolder(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
@@ -281,6 +286,7 @@ func workSized(t *testing.T, seed int64, kb int) []byte {
 
 // A Replace frees the Parts it deletes, so it fits where an Add of the same size does not.
 func TestAReplaceCountsTheDatasetsPartsAsFreeButAnAddDoesNot(t *testing.T) {
+	t.Parallel()
 	// 2048 KB. Each upload also keeps its Workbook, about 3/4 of the Part's size; they are forgotten here, but the upload
 	// being checked has its own.
 	_, ada, _ := storageSite(t, "2")
@@ -310,6 +316,7 @@ func TestAReplaceCountsTheDatasetsPartsAsFreeButAnAddDoesNot(t *testing.T) {
 
 // A Dataset from before Parts still counts in the total, but the confirm that deletes it counts it free.
 func TestEarlierDatasetsFromBeforePartsCountInStorageAndCountFreeOnTheConfirmThatDeletesThem(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "2")
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "1.xlsx", workSized(t, 1, 150))
@@ -331,6 +338,7 @@ func TestEarlierDatasetsFromBeforePartsCountInStorageAndCountFreeOnTheConfirmTha
 }
 
 func TestPartsGoNinetyDaysAfterTheLastPeriodButTheAdminsStay(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))

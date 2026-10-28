@@ -30,6 +30,7 @@ func pngOfSize(t *testing.T, w, h int) []byte {
 func imageSize(w, h int) string { return fmt.Sprintf("/Width %d\n/Height %d\n", w, h) }
 
 func TestAdminUploadsAndReplacesTheCertificateBackground(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, certID := s.adaEarns()
 	path := "/certificates/" + certID + "/pdf"
@@ -64,6 +65,7 @@ func TestAdminUploadsAndReplacesTheCertificateBackground(t *testing.T) {
 }
 
 func TestLiveCourseCertificatePDFPrintsItsDetailsAndPCCBadge(t *testing.T) {
+	t.Parallel()
 	admin, ada, id, qids := liveCourse(t, "4")
 	res, _ := ada.startExam(id)
 	ada.submitExam(res.Header.Get("Location"), map[string]string{qids[0]: "0"})
@@ -80,6 +82,7 @@ func TestLiveCourseCertificatePDFPrintsItsDetailsAndPCCBadge(t *testing.T) {
 }
 
 func TestSelfPacedCertificateHasNoBadgeAndALongTitleWraps(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	title := "Pengintegrasian Dalam Tadbir Urus Dan Automasi Pedagogi STEM Bagi Program Pembangunan Kompetensi Digital Pegawai"
 	id := s.learnerEnrolledIn(title, "Variables")
@@ -95,6 +98,7 @@ func TestSelfPacedCertificateHasNoBadgeAndALongTitleWraps(t *testing.T) {
 var certTitleLine = regexp.MustCompile(`<text class="cert-art-title"[^>]* font-size="([\d.]+)"[^>]*>([^<]*)</text>`)
 
 func TestALongUnbrokenWordInACourseTitleBreaksInsideTheTitleBoxOnThePDFAndThePreview(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	title := strings.Repeat("Kompetensi", 12) // 120 characters, no space
 	id := s.learnerEnrolledIn(title, "Variables")
@@ -131,6 +135,7 @@ var builtInArtwork = []string{"(CERTIFICATE)", "OF COMPETENCY", "THIS IS TO CERT
 	imageSize(1200, 539), imageSize(316, 312), imageSize(206, 200), imageSize(284, 76), imageSize(146, 90)}
 
 func TestACertificatePDFDrawsTheBuiltInArtworkUntilABackgroundIsUploaded(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, certID := s.adaEarns()
 	path := "/certificates/" + certID + "/pdf"
@@ -175,6 +180,7 @@ func hasLogo(t *testing.T, s *site, certID string) bool {
 }
 
 func TestALiveCourseCertificatePrintsItsOrganisationsLogoFromIssueUntilReissued(t *testing.T) {
+	t.Parallel()
 	admin, ada, org, certID := orgCertificate(t, pngOfSize(t, 11, 13))
 	path := "/certificates/" + certID + "/pdf"
 	if !hasLogo(t, admin, certID) {
@@ -200,6 +206,7 @@ func TestALiveCourseCertificatePrintsItsOrganisationsLogoFromIssueUntilReissued(
 }
 
 func TestCertificatesWithoutAnOrganisationRecordAndPrintNoLogo(t *testing.T) {
+	t.Parallel()
 	admin, ada, _, certID := orgCertificate(t, nil)
 	if hasLogo(t, admin, certID) {
 		t.Fatal("a Live Course without an Organisation recorded a logo")
@@ -230,6 +237,7 @@ func nameOnPDF(t *testing.T, pdf, name string) (size, left float64) {
 }
 
 func TestTheLearnersNamePrintsAt14PtAsOnTheSampleAndShrinksToFitItsRule(t *testing.T) {
+	t.Parallel()
 	admin, ada, _, certID := orgCertificate(t, nil)
 	if size, _ := nameOnPDF(t, ada.pdfBody("/certificates/"+certID+"/pdf"), "Ada"); size != 14 {
 		t.Fatalf("a short name prints at %v pt, want 14", size)
@@ -248,11 +256,13 @@ func TestTheLearnersNamePrintsAt14PtAsOnTheSampleAndShrinksToFitItsRule(t *testi
 }
 
 func TestAnSVGLogoPrintsOnTheCertificate(t *testing.T) {
+	t.Parallel()
 	_, ada, _, certID := orgCertificate(t, svgLogo)
 	expectAll(t, ada.pdfBody("/certificates/"+certID+"/pdf"), imageSize(1200, 600))
 }
 
 func TestACourseTitleWithAccentsAndDashesPrintsOnTheCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Café — “Basics”", "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -264,6 +274,7 @@ func TestACourseTitleWithAccentsAndDashesPrintsOnTheCertificate(t *testing.T) {
 
 // The minutely release job issues Live Course Certificates outside any request, where a panic would end the server.
 func TestTheReleaseJobIssuesACertificateForACourseTitleWithAnEmDash(t *testing.T) {
+	t.Parallel()
 	admin, ada, id, qids := liveCourse(t, "1")
 	start, end := liveDates()
 	res, body := admin.post("/admin/courses/"+id, url.Values{"title": {"Go — for Acme"}, "description": {"For Acme."},

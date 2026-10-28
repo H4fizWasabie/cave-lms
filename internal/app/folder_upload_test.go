@@ -9,6 +9,7 @@ import (
 const folderUploadForm = `action="/workbooks"`
 
 func TestAWorkbookUploadedInTheFolderIsListedAndDownloadsByteForByte(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	_, body := ada.getFolder()
 	if !strings.Contains(body, folderUploadForm) {
@@ -31,6 +32,7 @@ func TestAWorkbookUploadedInTheFolderIsListedAndDownloadsByteForByte(t *testing.
 }
 
 func TestAFolderUploadThatIsNotExcelOrIsTooBigIsRefusedWithAMessage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	for _, c := range []struct {
 		name string
@@ -54,6 +56,7 @@ func TestAFolderUploadThatIsNotExcelOrIsTooBigIsRefusedWithAMessage(t *testing.T
 }
 
 func TestAFolderUploadThatDoesNotFitTheStorageAllowanceIsRefusedWithTheStorageFullMessage(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	res, body := ada.postFile("/workbooks", "satu.xlsx", bigFinance(t, 1))
 	expectRedirect(t, res, body, "/my-folder")
@@ -65,6 +68,7 @@ func TestAFolderUploadThatDoesNotFitTheStorageAllowanceIsRefusedWithTheStorageFu
 }
 
 func TestWithoutAnActivePlanThereIsNoUploadFormAndAPostedUploadIsRefused(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
 	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "")
@@ -88,6 +92,7 @@ func TestWithoutAnActivePlanThereIsNoUploadFormAndAPostedUploadIsRefused(t *test
 }
 
 func TestTheFolderUploadFormIsInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.switchLanguage("ms", "/")
 	res, body := ada.getFolder()

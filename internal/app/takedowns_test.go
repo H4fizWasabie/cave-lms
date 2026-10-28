@@ -11,6 +11,7 @@ import (
 var takedownAction = regexp.MustCompile(`action="(/admin/deployments/\d+/takedown)"`)
 
 func TestAdminSeesEveryDeploymentAwakeOnesFirst(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	asleep := ada.deployAs(ada.readyDashboard("Kewangan Lama"), "kewangan-lama")
 	admin.ageAllPeriods(31) // Ada's Plan ends
@@ -29,6 +30,7 @@ func TestAdminSeesEveryDeploymentAwakeOnesFirst(t *testing.T) {
 }
 
 func TestOnlyTheAdminSeesDeploymentsOrTakesThemDown(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	link := ada.deploy(ada.readyDashboard("Kewangan"))
 	_, body := admin.get("/admin/deployments")
@@ -49,6 +51,7 @@ func TestOnlyTheAdminSeesDeploymentsOrTakesThemDown(t *testing.T) {
 }
 
 func TestTakedownNeedsAReasonAndSleepsTheDeploymentAtOnce(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)

@@ -41,6 +41,7 @@ func searchAsking(s *site, q, lang string) (*http.Response, string) {
 func search(s *site, q string) (*http.Response, string) { return searchAsking(s, q, "en") }
 
 func TestTheSearchFormPostsAndAnICInTheURLSearchesNothing(t *testing.T) {
+	t.Parallel()
 	_, ada, _, certID := passedLiveCourse(t)
 	res, body := ada.get("/certificates")
 	expectStatus(t, res, body, http.StatusOK, `<form class="verify-card" method="post" action="/certificates">`)
@@ -50,6 +51,7 @@ func TestTheSearchFormPostsAndAnICInTheURLSearchesNothing(t *testing.T) {
 }
 
 func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
+	t.Parallel()
 	_, ada, _, certID := passedLiveCourse(t)
 	for _, q := range []string{"951206-08-5555", "951206085555", " 951206 08 5555 "} {
 		res, body := search(ada, q)
@@ -61,6 +63,7 @@ func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
 
 // A Certificate No. search shows no IC, since the numbers run in order.
 func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.T) {
+	t.Parallel()
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
 	number := regexp.MustCompile(`PCC-LMS-\d{6}`).FindString(body)
@@ -79,6 +82,7 @@ func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.
 
 // A printed Certificate from before PCC-LMS carries its number in the old form, which still finds it.
 func TestACertificateIsStillFoundByItsNumberAsCertificatesShowedItBeforePCCLMS(t *testing.T) {
+	t.Parallel()
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
 	expectAll(t, body, "PCC-LMS-260001") // Ada's is the first of 2026
@@ -92,6 +96,7 @@ func TestACertificateIsStillFoundByItsNumberAsCertificatesShowedItBeforePCCLMS(t
 
 // The search matches the IC the Certificate was issued with, not the Learner's IC now.
 func TestSearchMatchesTheICTheCertificateWasIssuedWith(t *testing.T) {
+	t.Parallel()
 	admin, ada, id, certID := passedLiveCourse(t)
 	_, body := admin.get("/admin/courses/" + id)
 	correct := correctICLink.FindStringSubmatch(adminCourseRow(t, body, "ada@example.com"))[1]
@@ -104,6 +109,7 @@ func TestSearchMatchesTheICTheCertificateWasIssuedWith(t *testing.T) {
 }
 
 func TestARevokedCertificateShowsAsRevokedInTheResults(t *testing.T) {
+	t.Parallel()
 	admin, ada, _, certID := passedLiveCourse(t)
 	admin.post("/admin/certificates/"+certID+"/revoke", confirming)
 	_, body := search(ada, "951206085555")
@@ -111,6 +117,7 @@ func TestARevokedCertificateShowsAsRevokedInTheResults(t *testing.T) {
 }
 
 func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for range 30 {
 		res, body := search(s, "951206085555")
@@ -126,6 +133,7 @@ func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
 }
 
 func TestTheSearchIsInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada, _, _ := passedLiveCourse(t)
 	res, body := searchAsking(ada, "951206085555", "ms")
 	expectStatus(t, res, body, http.StatusOK, "No. KP atau pasport 951206-08-****")

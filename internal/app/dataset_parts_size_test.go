@@ -36,6 +36,7 @@ func bigReportTitled(t *testing.T, item string, n int) []byte {
 }
 
 func TestAnOwnPageDashboardAddsPartsPastFiftyThousandRowsAndDataJSONReturnsEveryRow(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	for _, name := range []string{"oktober.xlsx", "november.xlsx"} {
@@ -54,6 +55,7 @@ func TestAnOwnPageDashboardAddsPartsPastFiftyThousandRowsAndDataJSONReturnsEvery
 }
 
 func TestAThemeBuiltDashboardRefusesAnAddPastFiftyThousandRowsInTotalAndChangesNothing(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", bigReport(t, "Beras", 25001))
@@ -77,6 +79,7 @@ func TestAThemeBuiltDashboardRefusesAnAddPastFiftyThousandRowsInTotalAndChangesN
 // The Dataset tab, Page tab and Deploy tab know a Dashboard's Parts from their records and columns; with every Part's
 // file gone from the store they still render.
 func TestTheDashboardTabsRenderWithoutReadingAnyPartFromStorage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	page, _ := pageWithData(t, ada)
 	ada.addFile(page, "oktober.xlsx", shopColumns(t, "Gula", 80))

@@ -139,6 +139,7 @@ func expectStatus(t *testing.T, res *http.Response, body string, want int, wantT
 }
 
 func TestRegisterVerifyLogInAndOut(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 
@@ -202,6 +203,7 @@ func TestRegisterVerifyLogInAndOut(t *testing.T) {
 }
 
 func TestRegisteringAUsedEmailAnswersAsANewOneAndTellsItsOwner(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
 	res, body := s.get(s.lastVerifyPath("ada@example.com"))
@@ -230,6 +232,7 @@ func TestRegisteringAUsedEmailAnswersAsANewOneAndTellsItsOwner(t *testing.T) {
 }
 
 func TestRegisteringAnUnverifiedEmailAgainMailsALinkToSetItsPassword(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
 
@@ -246,6 +249,7 @@ func TestRegisteringAnUnverifiedEmailAgainMailsALinkToSetItsPassword(t *testing.
 
 // Registering someone else's email first must not leave that registrant's password on the account its owner confirms.
 func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.register("Mallory", "ada@example.com", "mallory's password")
 	mallorysLink := s.lastVerifyPath("ada@example.com")
@@ -263,6 +267,7 @@ func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *t
 }
 
 func TestEmailsFromRegisteringAUsedAddressStopAfterThreeADay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
 	s.get(s.lastVerifyPath("ada@example.com"))
@@ -276,6 +281,7 @@ func TestEmailsFromRegisteringAUsedAddressStopAfterThreeADay(t *testing.T) {
 }
 
 func TestRegisterRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, tc := range []struct{ name, email, password, want string }{
 		{"", "a@example.com", "long enough", "Enter your name"},
@@ -291,6 +297,7 @@ func TestRegisterRejectsInvalidInput(t *testing.T) {
 }
 
 func TestRegisterSaysWhatIsWrongNextToTheFieldAndKeepsWhatWasTyped(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, tc := range []struct{ name, email, password, field, want, next string }{
 		{"", "a@example.com", "long enough", "name", "Enter your name", `for="username"`},
@@ -305,6 +312,7 @@ func TestRegisterSaysWhatIsWrongNextToTheFieldAndKeepsWhatWasTyped(t *testing.T)
 }
 
 func TestAWrongLoginSaysSoUnderThePasswordAndKeepsTheEmail(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.login("ada@example.com", "wrong password")
 	expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect.")
@@ -313,6 +321,7 @@ func TestAWrongLoginSaysSoUnderThePasswordAndKeepsTheEmail(t *testing.T) {
 }
 
 func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.register("Ada", email, password)
@@ -340,6 +349,7 @@ func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
 }
 
 func TestAccountEmailsLeaveOutTheRegisteredName(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const name, email = "Ada Lovelace", "ada@example.com"
 	s.register(name, email, "correct horse battery")
@@ -356,6 +366,7 @@ func TestAccountEmailsLeaveOutTheRegisteredName(t *testing.T) {
 }
 
 func TestVerificationEmailsToOneAddressStopAfterThreeADay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "correct horse battery")
 	var bodies []string
@@ -375,6 +386,7 @@ func TestVerificationEmailsToOneAddressStopAfterThreeADay(t *testing.T) {
 }
 
 func TestFormsRefuseCrossOriginPosts(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	form := url.Values{"name": {"Mallory"}, "username": {"mallory"}, "email": {"m@example.com"}, "password": {"password123"}}
 	for _, path := range []string{"/register", "/login", "/logout", "/verify/resend"} {

@@ -13,6 +13,7 @@ import (
 )
 
 func TestALearnerSendsOneSubmissionUploadAtATime(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	ben := admin.second()
 	ben.loginAsNewLearner("Ben Bell", "ben@example.com", "correct horse battery")
@@ -123,6 +124,7 @@ func (s *site) fileLinks(path string) []string {
 }
 
 func TestALearnerHandsInFilesAndDownloadsThem(t *testing.T) {
+	t.Parallel()
 	_, ada, path := publishedAssignment(t)
 	res, body := ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn}, upload{"notes.docx", docxHandIn})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -148,6 +150,7 @@ func TestALearnerHandsInFilesAndDownloadsThem(t *testing.T) {
 }
 
 func TestAnUploadOutsideTheLimitsIsRefusedAndNothingIsStored(t *testing.T) {
+	t.Parallel()
 	_, ada, path := publishedAssignment(t)
 	big := make([]byte, 20<<20+1)
 	copy(big, pdfHandIn)
@@ -178,6 +181,7 @@ func TestAnUploadOutsideTheLimitsIsRefusedAndNothingIsStored(t *testing.T) {
 }
 
 func TestALearnersSubmissionsStopAt200MBInTotal(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	// Ada already holds a file of 10 bytes under 200 MB; only its record matters for the total.
 	if _, err := admin.db.Exec(`INSERT INTO submission_files (assignment_id, learner_id, name, size, content_type, storage_key)
@@ -193,6 +197,7 @@ func TestALearnersSubmissionsStopAt200MBInTotal(t *testing.T) {
 }
 
 func TestALearnerDeletesAFileOnlyAfterConfirmingAndAddsAnother(t *testing.T) {
+	t.Parallel()
 	_, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"draft.pdf", pdfHandIn})
 	link := ada.fileLinks(path)[0]
@@ -225,6 +230,7 @@ func TestALearnerDeletesAFileOnlyAfterConfirmingAndAddsAnother(t *testing.T) {
 }
 
 func TestOnlyTheOwnerAndTheAdminDownloadAFile(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	link := ada.fileLinks(path)[0]
@@ -251,6 +257,7 @@ func TestOnlyTheOwnerAndTheAdminDownloadAFile(t *testing.T) {
 }
 
 func TestALearnerWhoLeftTheCourseKeepsTheirFilesReadOnly(t *testing.T) {
+	t.Parallel()
 	_, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	link := ada.fileLinks(path)[0]
@@ -271,6 +278,7 @@ func TestALearnerWhoLeftTheCourseKeepsTheirFilesReadOnly(t *testing.T) {
 }
 
 func TestDeletingAnAssignmentOrALearnerDeletesTheirFilesFromStorage(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	admin.post("/admin/assignments/"+strings.Split(path, "/")[4]+"/delete", confirming)
@@ -297,6 +305,7 @@ func TestDeletingAnAssignmentOrALearnerDeletesTheirFilesFromStorage(t *testing.T
 }
 
 func TestThePrivacyNoticeSaysWhoSeesSubmissions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.getAsking("/privacy", "en")
 	expectStatus(t, res, body, http.StatusOK, "Only you and the Admins see them")
@@ -305,6 +314,7 @@ func TestThePrivacyNoticeSaysWhoSeesSubmissions(t *testing.T) {
 }
 
 func TestTheAdminSeesWhoHandedInAndDownloadsTheirFiles(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	courseID, aid := strings.Split(path, "/")[2], strings.Split(path, "/")[4]
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn}, upload{"notes.docx", docxHandIn})
@@ -363,6 +373,7 @@ func (s *site) adaID() string {
 }
 
 func TestTheAdminCommentsOnASubmissionAndTheLearnerSeesIt(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	aid := strings.Split(path, "/")[4]
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})

@@ -27,6 +27,7 @@ func lessonPageCourse(t *testing.T) (ada *site, id string) {
 }
 
 func TestMarkDoneAndNextGoesToTheNextLessonThenBackToTheCourse(t *testing.T) {
+	t.Parallel()
 	ada, id := lessonPageCourse(t)
 	lesson := func(title string) string { return "/courses/" + id + "/lessons/" + ada.lessonIDByTitle(title) }
 	doneAndNext := url.Values{"then": {"next"}}
@@ -58,6 +59,7 @@ func lessonPager(body string) (prev, next string) {
 }
 
 func TestLessonPageSaysWhereItIsAndLinksThePreviousAndNextLessonsInOrder(t *testing.T) {
+	t.Parallel()
 	ada, id := lessonPageCourse(t)
 	lesson := func(title string) string { return "/courses/" + id + "/lessons/" + ada.lessonIDByTitle(title) }
 
@@ -75,6 +77,7 @@ func TestLessonPageSaysWhereItIsAndLinksThePreviousAndNextLessonsInOrder(t *test
 }
 
 func TestADoneLessonHasOneNextTheFollowingLessonOrOnTheLastLessonTheCoursesNextStep(t *testing.T) {
+	t.Parallel()
 	ada, id := lessonPageCourse(t)
 	lesson := func(title string) string { return "/courses/" + id + "/lessons/" + ada.lessonIDByTitle(title) }
 	ada.markLesson(id, ada.lessonIDByTitle("Functions"), true) // Variables, before it, is not done
@@ -95,6 +98,7 @@ func TestADoneLessonHasOneNextTheFollowingLessonOrOnTheLastLessonTheCoursesNextS
 }
 
 func TestMarkDoneControlsAreNamedForTheirLesson(t *testing.T) {
+	t.Parallel()
 	ada, id := lessonPageCourse(t)
 	path := "/courses/" + id + "/lessons/" + ada.lessonIDByTitle("Functions")
 
@@ -120,6 +124,7 @@ func TestMarkDoneControlsAreNamedForTheirLesson(t *testing.T) {
 }
 
 func TestAMarkdownTableInALessonRendersAsATableThatScrollsInItsOwnBox(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")

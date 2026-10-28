@@ -8,6 +8,7 @@ import (
 )
 
 func TestTheStartPageListsTheQuestionCountAttemptsUsedAndLeftAndWhatStartingUses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "30", "3", "Q1", "Q2")
 
@@ -34,6 +35,7 @@ func TestTheStartPageListsTheQuestionCountAttemptsUsedAndLeftAndWhatStartingUses
 }
 
 func TestTheStartPageOfAnExamWithUnlimitedAttemptsCountsTheAttemptsUsed(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "", "Q1")
 	_, body := s.getAsking("/courses/"+id+"/exam", "en")
@@ -47,6 +49,7 @@ func TestTheStartPageOfAnExamWithUnlimitedAttemptsCountsTheAttemptsUsed(t *testi
 }
 
 func TestSubmittingWithBlankAnswersAsksFirstAndKeepsTheAnswersGiven(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1", "Q2", "Q3")
 	res, _ := s.startExam(id)
@@ -80,6 +83,7 @@ func TestSubmittingWithBlankAnswersAsksFirstAndKeepsTheAnswersGiven(t *testing.T
 }
 
 func TestAnsweringEveryQuestionSubmitsWithoutAsking(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1", "Q2")
 	res, _ := s.startExam(id)
@@ -94,6 +98,7 @@ func TestAnsweringEveryQuestionSubmitsWithoutAsking(t *testing.T) {
 }
 
 func TestABlankWrittenAnswerAsksFirstAndKeepsTheWordsTyped(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=", "Explain func")
 	res, _ := s.post("/courses/"+id+"/exam/attempts?format=written", nil)
@@ -108,6 +113,7 @@ func TestABlankWrittenAnswerAsksFirstAndKeepsTheWordsTyped(t *testing.T) {
 }
 
 func TestWhenTimeIsUpBlankAnswersAreSubmittedWithoutAsking(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "1", "", "Q1", "Q2")
 	res, _ := s.startExam(id)
@@ -126,6 +132,7 @@ func TestWhenTimeIsUpBlankAnswersAreSubmittedWithoutAsking(t *testing.T) {
 // Asking about blank answers costs a round trip; with under a minute left before the server stops taking the
 // submission (the time limit plus its 30 s grace), the answers are submitted as they are instead.
 func TestWithUnderAMinuteLeftBlankAnswersAreSubmittedWithoutAsking(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		age    int // seconds into the one-minute limit
 		status int
@@ -149,6 +156,7 @@ func TestWithUnderAMinuteLeftBlankAnswersAreSubmittedWithoutAsking(t *testing.T)
 }
 
 func TestTheAttemptPageWarnsAtFiveAndOneMinutesInAPoliteLiveRegionAndCountsTheAnswers(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "30", "", "Q1", "Q2")
 	res, _ := s.startExam(id)
@@ -171,6 +179,7 @@ func TestTheAttemptPageWarnsAtFiveAndOneMinutesInAPoliteLiveRegionAndCountsTheAn
 }
 
 func TestAnAttemptWithNoTimeLimitStillCountsTheAnswersButHasNoTimer(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(id)
@@ -183,6 +192,7 @@ func TestAnAttemptWithNoTimeLimitStillCountsTheAnswersButHasNoTimer(t *testing.T
 }
 
 func TestTheSubmittedPageSaysWhenTheResultIsReleasedAndWhereToFindIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(id)
@@ -199,6 +209,7 @@ func TestTheSubmittedPageSaysWhenTheResultIsReleasedAndWhereToFindIt(t *testing.
 }
 
 func TestTheSubmittedPageOfAWrittenExamSaysMarkingCanDelayTheResult(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=")
 	attempt, _ := s.sitWritten(id, "It declares and assigns.")
@@ -207,6 +218,7 @@ func TestTheSubmittedPageOfAWrittenExamSaysMarkingCanDelayTheResult(t *testing.T
 }
 
 func TestMyExamsShowsAwaitingResultBetweenSubmittingAndTheRelease(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1")
 	_, body := s.getAsking("/my-exams", "en")
@@ -237,6 +249,7 @@ func TestMyExamsShowsAwaitingResultBetweenSubmittingAndTheRelease(t *testing.T) 
 }
 
 func TestMyExamsShowsAwaitingResultForAnAttemptLeftOpenPastItsTimeLimit(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "1", "", "Q1")
 	res, _ := s.startExam(id)

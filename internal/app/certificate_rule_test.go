@@ -11,6 +11,7 @@ import (
 )
 
 func TestACertificateNeedsEveryExamPassedAndNeverComesBeforeTheResult(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Which is right?")
 	admin := s.adminSite()
@@ -35,6 +36,7 @@ func TestACertificateNeedsEveryExamPassedAndNeverComesBeforeTheResult(t *testing
 }
 
 func TestALearnerWithoutAnICIsToldWhyAndGetsTheCertificateOnSettingIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.logOut()
@@ -85,6 +87,7 @@ func liveCourse(t *testing.T, days string) (admin, ada *site, id string, qids []
 }
 
 func TestALiveCourseCertificateNeedsNoLessonsAndKeepsTheICAndPCCLevelFromIssue(t *testing.T) {
+	t.Parallel()
 	admin, ada, id, qids := liveCourse(t, "2")
 	res, body := ada.startExam(id)
 	expectStatus(t, res, body, http.StatusSeeOther, "")

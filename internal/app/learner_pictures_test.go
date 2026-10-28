@@ -74,6 +74,7 @@ func (s *site) stored(key string) bool {
 }
 
 func TestALearnerUploadsAProfilePictureStoredAsA256SquareJPEG(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Siti Nur Aisyah", "siti@example.com", "correct horse battery")
 	_, body := s.get("/my-profile")
@@ -106,6 +107,7 @@ func TestALearnerUploadsAProfilePictureStoredAsA256SquareJPEG(t *testing.T) {
 }
 
 func TestReplacingOrRemovingAProfilePictureDeletesTheOldFile(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	expectStatus(t, must(s.uploadPicture(photo(t, 300, 500), "en")), "", http.StatusSeeOther, "")
@@ -130,6 +132,7 @@ func TestReplacingOrRemovingAProfilePictureDeletesTheOldFile(t *testing.T) {
 }
 
 func TestAProfilePictureOfTheWrongTypeTooLargeOrUnreadableIsRefusedInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	before := s.storedFiles()
@@ -159,6 +162,7 @@ func TestAProfilePictureOfTheWrongTypeTooLargeOrUnreadableIsRefusedInMalayAndEng
 // The picture route serves only to logged-in users, and only profile pictures: a Gallery file or a Course picture
 // keeps its own route and access check.
 func TestTheProfilePictureRouteServesOnlyProfilePicturesToLoggedInUsers(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	expectStatus(t, must(s.saveCourse("/admin/courses", map[string]string{"title": "Go Basics", "description": "Learn Go."}, pngFile)), "", http.StatusSeeOther, "")
@@ -187,6 +191,7 @@ func TestTheProfilePictureRouteServesOnlyProfilePicturesToLoggedInUsers(t *testi
 }
 
 func TestChatMessagesShowTheWritersPictureOrTheirInitials(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := communitySite(t)
 	expectStatus(t, must(ada.uploadPicture(photo(t, 300, 300), "en")), "", http.StatusSeeOther, "")
 	path, _ := ada.myPicture()
@@ -229,6 +234,7 @@ func phonePhoto(t *testing.T) []byte {
 }
 
 func TestAPhonePhotoIsTurnedTheWayItsEXIFOrientationSays(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	expectStatus(t, must(s.uploadPicture(phonePhoto(t), "en")), "", http.StatusSeeOther, "")

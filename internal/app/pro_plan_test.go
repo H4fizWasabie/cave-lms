@@ -35,6 +35,7 @@ func (s *site) labPlanName() string {
 }
 
 func TestTheAdminMarksOnePlanAsTheLabPlanAndCanChangeIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createPlan("Lab Monthly", "30", "3")
@@ -91,6 +92,7 @@ func expectLabMonth(t *testing.T, p shownPeriod, status string, starts time.Time
 }
 
 func TestALabPlanPaymentGivesALabPlanPeriodAtOnceAndNoCaveTextPro(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paidLabPlan("LINK-1", "ada@example.com"))
@@ -115,6 +117,7 @@ func TestALabPlanPaymentGivesALabPlanPeriodAtOnceAndNoCaveTextPro(t *testing.T) 
 }
 
 func TestALabPlanPeriodQueuesAfterAHandAssignedPlanPeriod(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	s.createPlan("Lab Week", "7", "3")
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -134,6 +137,7 @@ func TestALabPlanPeriodQueuesAfterAHandAssignedPlanPeriod(t *testing.T) {
 }
 
 func TestLabPlanPaymentsUnderThePriceNamingNoLearnerOrWithNoLabPlanMarkedWaitAsUnmatched(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	under := paidLabPlan("LINK-1", "ada@example.com")
@@ -169,6 +173,7 @@ func expectNoLab(t *testing.T, s, l *site, email string) {
 }
 
 func TestACaveTextProPaymentGivesAYearOfCaveTextProAndNoPlanPeriod(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paid("LINK-1", "ada@example.com"))
@@ -182,6 +187,7 @@ func TestACaveTextProPaymentGivesAYearOfCaveTextProAndNoPlanPeriod(t *testing.T)
 }
 
 func TestTheAdminsGiveProGivesCaveTextProOnly(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -190,6 +196,7 @@ func TestTheAdminsGiveProGivesCaveTextProOnly(t *testing.T) {
 }
 
 func TestEndingProEarlyLeavesAPlanPeriodRunning(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	res, body := s.assignPlan("ada@example.com", s.onlyPlanID())
@@ -237,6 +244,7 @@ func expectProPlan(t *testing.T, s, l *site, token, email string, proUntil time.
 }
 
 func TestAProPlanPaymentGivesAYearOfCaveTextProAndALabPlanPeriod(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paidProPlan("LINK-1", "ada@example.com"))
@@ -250,6 +258,7 @@ func TestAProPlanPaymentGivesAYearOfCaveTextProAndALabPlanPeriod(t *testing.T) {
 }
 
 func TestTheAdminsGiveProPlanGivesCaveTextProAndALabPlanPeriod(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	res, body := s.post(s.proAction("ada@example.com", "pro-plan"), nil)
@@ -261,6 +270,7 @@ func TestTheAdminsGiveProPlanGivesCaveTextProAndALabPlanPeriod(t *testing.T) {
 }
 
 func TestWithNoLabPlanMarkedAProPlanPaymentStillGivesCaveTextProAndWarnsInTheSystemLog(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	res, body := s.savePrices(map[string]string{"pro-plan_link": proPlanFormURL})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -279,6 +289,7 @@ func TestWithNoLabPlanMarkedAProPlanPaymentStillGivesCaveTextProAndWarnsInTheSys
 }
 
 func TestAProPlanPaymentUnderThePriceWaitsAsUnmatched(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	under := paidProPlan("LINK-1", "ada@example.com")

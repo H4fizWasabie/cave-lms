@@ -13,6 +13,7 @@ import (
 )
 
 func TestGenerateWritesANewLessonsTextIntoTheFormAndSavesItOnlyAsADraft(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -47,6 +48,7 @@ func TestGenerateWritesANewLessonsTextIntoTheFormAndSavesItOnlyAsADraft(t *testi
 }
 
 func TestGenerateOnANewLessonKeepsKeepAsDraftAsTheAdminLeftIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -58,6 +60,7 @@ func TestGenerateOnANewLessonKeepsKeepAsDraftAsTheAdminLeftIt(t *testing.T) {
 }
 
 func TestGenerateKeepsTheRemoveLessonImageTick(t *testing.T) {
+	t.Parallel()
 	admin, _, lessonID := imageLessonCourse(t, false)
 	form := url.Values{"title": {"Variables"}, "objective": {"Declare a variable."}, "body": {"Use `:=`."},
 		"image_description": {"A box labelled x"}, "remove_image": {"on"}, "language": {"en"}}
@@ -67,6 +70,7 @@ func TestGenerateKeepsTheRemoveLessonImageTick(t *testing.T) {
 }
 
 func TestGenerateRewritesAPublishedLessonsTextWhichStaysPublishedOnSave(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -102,6 +106,7 @@ func TestGenerateRewritesAPublishedLessonsTextWhichStaysPublishedOnSave(t *testi
 }
 
 func TestGenerateNeedsATitleAndAnObjectiveBeforeAskingTheAI(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -124,6 +129,7 @@ func TestGenerateNeedsATitleAndAnObjectiveBeforeAskingTheAI(t *testing.T) {
 }
 
 func TestGenerateExplainsWhenTheAIFailsAndKeepsTheForm(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -146,6 +152,7 @@ func TestGenerateExplainsWhenTheAIFailsAndKeepsTheForm(t *testing.T) {
 }
 
 func TestLearnersAreRefusedLessonGeneration(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")

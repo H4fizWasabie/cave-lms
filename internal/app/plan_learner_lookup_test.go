@@ -15,6 +15,7 @@ func adminWithTwoLearners(t *testing.T) (*site, string) {
 }
 
 func TestAdminFindsALearnerForPlanPeriodsByPartOfTheNameOrEmail(t *testing.T) {
+	t.Parallel()
 	s, _ := adminWithTwoLearners(t)
 	for q, want := range map[string]string{
 		"aisy":               "Plan periods: Nurul Aisyah",
@@ -31,6 +32,7 @@ func TestAdminFindsALearnerForPlanPeriodsByPartOfTheNameOrEmail(t *testing.T) {
 }
 
 func TestSeveralLearnersMatchingAreListedToChooseFrom(t *testing.T) {
+	t.Parallel()
 	s, _ := adminWithTwoLearners(t)
 	res, body := s.get("/admin/plans/periods?email=nurul")
 	expectStatus(t, res, body, http.StatusOK, "aisyah@example.com")
@@ -39,6 +41,7 @@ func TestSeveralLearnersMatchingAreListedToChooseFrom(t *testing.T) {
 }
 
 func TestWildcardsInTheLearnerLookupAreLiteral(t *testing.T) {
+	t.Parallel()
 	s, _ := adminWithTwoLearners(t)
 	for _, q := range []string{"%", "_", "Nu%h"} {
 		res, body := s.get("/admin/plans/periods?email=" + url.QueryEscape(q))
@@ -48,6 +51,7 @@ func TestWildcardsInTheLearnerLookupAreLiteral(t *testing.T) {
 }
 
 func TestAPlanIsOnlyAssignedToAnExactEmail(t *testing.T) {
+	t.Parallel()
 	s, planID := adminWithTwoLearners(t)
 	res, body := s.assignPlan("aisy", planID)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "No Learner has the email aisy")

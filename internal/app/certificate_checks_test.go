@@ -28,6 +28,7 @@ func (s *site) loginAdmin() {
 }
 
 func TestVisitorSeesOnlyNameCourseDateAndStatus(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.logOut()
@@ -45,12 +46,14 @@ func TestVisitorSeesOnlyNameCourseDateAndStatus(t *testing.T) {
 }
 
 func TestUnknownCertificateIDIsNotFound(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.get("/certificates/not-a-real-certificate-id")
 	expectStatus(t, res, body, http.StatusNotFound, "No Certificate has this ID.")
 }
 
 func TestVerifyFormRedirectsToTheCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.logOut()
@@ -69,6 +72,7 @@ func TestVerifyFormRedirectsToTheCertificate(t *testing.T) {
 }
 
 func TestOnlyAdminCanRevokeOrReissue(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 
@@ -87,6 +91,7 @@ func TestOnlyAdminCanRevokeOrReissue(t *testing.T) {
 }
 
 func TestAdminRevokesACertificateOnlyAfterConfirming(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -115,6 +120,7 @@ func TestAdminRevokesACertificateOnlyAfterConfirming(t *testing.T) {
 }
 
 func TestTheRevokeConfirmationOfARevokedCertificateGoesBackToTheListSayingSo(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -139,6 +145,7 @@ func TestTheRevokeConfirmationOfARevokedCertificateGoesBackToTheListSayingSo(t *
 }
 
 func TestRevokedCertificateShowsRevokedOnTheCheckPageTheListAndThePDF(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -170,6 +177,7 @@ func TestRevokedCertificateShowsRevokedOnTheCheckPageTheListAndThePDF(t *testing
 }
 
 func TestValidCertificatePDFIsNotMarkedRevoked(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	if pdf := s.pdfBody("/certificates/" + certID + "/pdf"); strings.Contains(pdf, "REVOKED") {
@@ -178,6 +186,7 @@ func TestValidCertificatePDFIsNotMarkedRevoked(t *testing.T) {
 }
 
 func TestRevokedCertificateIsNotIssuedAgainAutomatically(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	var courseID string
@@ -199,6 +208,7 @@ func TestRevokedCertificateIsNotIssuedAgainAutomatically(t *testing.T) {
 }
 
 func TestAdminIssuesACorrectedCertificateWithANewID(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	oldID := s.earnedCertificate()
 	s.loginAdmin()
@@ -232,6 +242,7 @@ func TestAdminIssuesACorrectedCertificateWithANewID(t *testing.T) {
 }
 
 func TestReissueNeedsARevokedCertificateAndOneValidAtATime(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -250,6 +261,7 @@ func TestReissueNeedsARevokedCertificateAndOneValidAtATime(t *testing.T) {
 }
 
 func TestAdminFindsCertificatesByNameOrID(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -275,6 +287,7 @@ func TestAdminFindsCertificatesByNameOrID(t *testing.T) {
 }
 
 func TestReissueFormIsPrefilledWithTheLearnersCurrentName(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	oldID := s.earnedCertificate()
 	s.loginAdmin()

@@ -14,6 +14,7 @@ import (
 
 // A new Part is read with the first Part's sheet, but its header row is found afresh, as its title rows may differ.
 func TestAPartIsReadWithItsOwnHeaderRowWhenTheFirstPartsWasFoundByCave(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := pageWithData(t, ada) // shopReport: the header is on row 4
 	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
@@ -26,6 +27,7 @@ func TestAPartIsReadWithItsOwnHeaderRowWhenTheFirstPartsWasFoundByCave(t *testin
 
 // A header row the Learner typed for the first Part is read again for every Part.
 func TestAPartIsReadWithTheFirstPartsHeaderRowWhenTheLearnerTypedIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	// Row 1 looks like a header too; the Learner says the header is row 2.
@@ -44,6 +46,7 @@ func TestAPartIsReadWithTheFirstPartsHeaderRowWhenTheLearnerTypedIt(t *testing.T
 // Changing a Part's columns is what Replace data is for: replacing the only Part is read and checked like replacing one
 // of several.
 func TestReplacingTheOnlyPartNeedsTheDatasetsColumnsAndShowsNoReplaceAllWarning(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
@@ -76,6 +79,7 @@ func TestReplacingTheOnlyPartNeedsTheDatasetsColumnsAndShowsNoReplaceAllWarning(
 
 // date_source says where each Part's date came from: the sources Clean-up finds, the upload day and the Learner's own.
 func TestEachPartRecordsWhereItsDateCameFrom(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	sources := func() string {
@@ -112,6 +116,7 @@ func TestEachPartRecordsWhereItsDateCameFrom(t *testing.T) {
 
 // A Learner's own column called Part date would clash with the key Cave adds to every row.
 func TestAnUploadWithAColumnCalledPartDateIsRefusedInBothLanguages(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	file := testutil.XLSX(t, []string{"Perkara", "part  DATE"}, []any{"Beras", "2026-01-01"})
@@ -127,6 +132,7 @@ func TestAnUploadWithAColumnCalledPartDateIsRefusedInBothLanguages(t *testing.T)
 
 // Deleting a Part changes the Dashboard's data, so the Datasets from before Parts go then too, not only on a confirm.
 func TestDeletingAPartDeletesTheEarlierDatasetsFromBeforeParts(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	earlier := "dataset-earlier-before-parts"
@@ -151,6 +157,7 @@ func TestDeletingAPartDeletesTheEarlierDatasetsFromBeforeParts(t *testing.T) {
 
 // The recipe lasts while a Part remains: with none left, the next upload sets a new one.
 func TestDeletingTheLastPartClearsTheRecipe(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := pageWithData(t, ada)
 	hasRecipe := func() bool {
@@ -174,6 +181,7 @@ func TestDeletingTheLastPartClearsTheRecipe(t *testing.T) {
 // A Part date the Learner changes in the preview is written under a new key, so the Part's object is never rewritten in
 // place; the old object goes.
 func TestChangingThePartDateInThePreviewStoresTheRowsUnderANewKeyAndDeletesTheOldObject(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	ada.postFile(path+"/dataset", "Report_20260702091058.xlsx", shopReport(t, "Beras", 120))

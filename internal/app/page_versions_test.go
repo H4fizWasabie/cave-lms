@@ -44,6 +44,7 @@ func (s *site) earlierPageMatches(path string) [][]string {
 }
 
 func TestANewPageGoesLiveAtTheSameLinkAndAnEarlierOneCanBeRestored(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", versionOf(1))
 	link := ada.deployAs(path, "jualan-ada")
@@ -95,6 +96,7 @@ func (s *site) storedPage(key string) string {
 }
 
 func TestAFifthPageDropsTheOldestFromTheStoreAndTheRecords(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", versionOf(1))
 	var oldest string
@@ -129,6 +131,7 @@ func TestAFifthPageDropsTheOldestFromTheStoreAndTheRecords(t *testing.T) {
 }
 
 func TestANewPageIsCheckedLikeTheFirstAndOverTheAllowanceKeepsTheLiveOne(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	path := ada.createPage("Jualan", strings.Repeat("a", 600<<10))
 	for _, c := range []struct {
@@ -159,6 +162,7 @@ func TestANewPageIsCheckedLikeTheFirstAndOverTheAllowanceKeepsTheLiveOne(t *test
 }
 
 func TestOnlyTheOwnerOrTheAdminChangesAPage(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.createPage("Jualan", versionOf(1))
 	ada.uploadPage(path, versionOf(2))

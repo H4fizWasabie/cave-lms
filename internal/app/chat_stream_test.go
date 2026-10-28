@@ -86,6 +86,7 @@ func (st *chatStream) ends() {
 }
 
 func TestAChatStreamEndsWhenItsLearnerLogsOut(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	stream := ada.openStream(id)
 	ada.post("/logout", nil)
@@ -94,6 +95,7 @@ func TestAChatStreamEndsWhenItsLearnerLogsOut(t *testing.T) {
 }
 
 func TestAChatStreamEndsWhenAPasswordResetSignsItsLearnerOut(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	stream := ada.openStream(id)
 	owner := admin.second()
@@ -104,6 +106,7 @@ func TestAChatStreamEndsWhenAPasswordResetSignsItsLearnerOut(t *testing.T) {
 }
 
 func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	stream := ada.openStream(id)
 	adminStream := admin.openStream(id)
@@ -144,6 +147,7 @@ func TestAnOpenChatStreamReceivesNewAndChangedMessages(t *testing.T) {
 }
 
 func TestAChatEventSplitsAMessageOnEveryKindOfLineEnd(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	stream := ada.openStream(id)
 
@@ -156,6 +160,7 @@ func TestAChatEventSplitsAMessageOnEveryKindOfLineEnd(t *testing.T) {
 }
 
 func TestTheChatStreamIsRefusedToThoseWhoCannotReadTheChat(t *testing.T) {
+	t.Parallel()
 	_, admin, _, id := chatSite(t)
 	cara := admin.second()
 	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
@@ -168,6 +173,7 @@ func TestTheChatStreamIsRefusedToThoseWhoCannotReadTheChat(t *testing.T) {
 }
 
 func TestTheChatsScriptGetsAMessagesFragmentInPlaceOfARedirect(t *testing.T) {
+	t.Parallel()
 	ada, _, _, id := chatSite(t)
 	req, err := http.NewRequest(http.MethodPost, ada.server.URL+"/courses/"+id+"/chat", strings.NewReader(url.Values{"body": {"From the script"}}.Encode()))
 	if err != nil {
@@ -194,6 +200,7 @@ func TestTheChatsScriptGetsAMessagesFragmentInPlaceOfARedirect(t *testing.T) {
 }
 
 func TestDeletingAnAlreadyDeletedMessageSendsNothingToOpenStreams(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	stream := ada.openStream(id)
 	mid := ben.say(id, "Oops")
@@ -255,6 +262,7 @@ func expectSharedFragments(t *testing.T, ada *site, id string, mids []string, vi
 }
 
 func TestASharedChangeRendersEachViewersFragmentAsTheirOwnQueriesDo(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	cara := admin.second()
 	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
@@ -278,6 +286,7 @@ func TestASharedChangeRendersEachViewersFragmentAsTheirOwnQueriesDo(t *testing.T
 }
 
 func TestSeveralOpenStreamsEachGetTheirOwnViewOfOneMessage(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	cara := admin.second()
 	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
@@ -308,6 +317,7 @@ func TestSeveralOpenStreamsEachGetTheirOwnViewOfOneMessage(t *testing.T) {
 }
 
 func TestAChatStreamEndsWhenItsLearnerLeavesTheCourse(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	gone, staying := ada.openStream(id), ben.openStream(id)
 	expectStatus(t, must(ada.leaveCourse(id)), "", http.StatusSeeOther, "")

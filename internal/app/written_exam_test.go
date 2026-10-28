@@ -22,6 +22,7 @@ func (s *site) saveWrittenQuestion(path, prompt, modelAnswer string) (*http.Resp
 }
 
 func TestACourseHasAWrittenExamWithHandWrittenQuestionsThatGoToTheBank(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -119,6 +120,7 @@ func (s *site) sitWritten(courseID, answer string) (string, []string) {
 }
 
 func TestAWrittenAttemptDrawsTenQuestionsAndTakesTextAnswersWithoutShowingModelAnswers(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	var prompts []string
 	for i := 1; i <= 12; i++ {
@@ -172,6 +174,7 @@ func writtenAttemptID(attempt string) string {
 }
 
 func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnswer(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.ai.FailMarks(aiwriter.ErrUnavailable)
 	id := s.writtenCourse("70", "Explain :=", "Explain go vet")
@@ -227,6 +230,7 @@ func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnsw
 }
 
 func TestAWrittenAttemptWithNoAnswersNeedsNoMarking(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=")
 	attempt, _ := s.sitWritten(id, "")
@@ -241,6 +245,7 @@ func TestAWrittenAttemptWithNoAnswersNeedsNoMarking(t *testing.T) {
 }
 
 func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFailFlips(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=", "Explain go vet")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -285,6 +290,7 @@ func TestChangingAMarkAfterReleaseRecalculatesTheResultAndEmailsOnlyWhenPassOrFa
 }
 
 func TestAnAdminMarkThatTurnsAFailIntoAPassIssuesTheCertificateItEarns(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=")
 	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})

@@ -9,6 +9,7 @@ import (
 )
 
 func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "2026-11-03")
@@ -51,6 +52,7 @@ func TestTheCoursePagesAreInMalayAndEnglishWithTheCourseAsWritten(t *testing.T) 
 }
 
 func TestTheLessonPagesAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	s.createCourse("Excel Dashboards", "Dashboards from Excel.", "")
@@ -78,6 +80,7 @@ func TestTheLessonPagesAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheExamPagesAreInMalayAndEnglishWithTheQuestionsAsWritten(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "10", "2", "What does := do?")
 	s.switchLanguage("ms", "/")
@@ -128,6 +131,7 @@ func TestTheExamPagesAreInMalayAndEnglishWithTheQuestionsAsWritten(t *testing.T)
 }
 
 func TestAnExamWithNoLimitsAndATimedOutAttemptAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "What does := do?")
 	s.switchLanguage("ms", "/")
@@ -146,6 +150,7 @@ func TestAnExamWithNoLimitsAndATimedOutAttemptAreInMalay(t *testing.T) {
 }
 
 func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	var issued time.Time

@@ -47,6 +47,7 @@ func (s *site) saveBankQuestion(id, topic, language, prompt string, options [5]s
 }
 
 func TestAQuestionWrittenInAnExamIsSavedToTheQuestionBank(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -59,6 +60,7 @@ func TestAQuestionWrittenInAnExamIsSavedToTheQuestionBank(t *testing.T) {
 }
 
 func TestExistingExamQuestionsAreInTheQuestionBankAfterTheMigration(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.examCourse("50", "", "", "First question text", "Second question text")
 	if err := app.MigrateDownTo(context.Background(), s.db, 78); err != nil {
@@ -78,6 +80,7 @@ func TestExistingExamQuestionsAreInTheQuestionBankAfterTheMigration(t *testing.T
 }
 
 func TestBankQuestionsAndExamCopiesChangeIndependently(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -127,6 +130,7 @@ func TestBankQuestionsAndExamCopiesChangeIndependently(t *testing.T) {
 }
 
 func TestAdminBrowsesTheQuestionBankByTopicAndFormat(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	for _, title := range []string{"Excel", "Word"} {
@@ -158,6 +162,7 @@ func (s *site) addFromBank(courseID, topic, language, count string) (*http.Respo
 }
 
 func TestAdminAddsMatchingPublishedBankQuestionsNotAlreadyInThePool(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -216,6 +221,7 @@ func TestAdminAddsMatchingPublishedBankQuestionsNotAlreadyInThePool(t *testing.T
 }
 
 func TestAddFromTheQuestionBankRejectsABadForm(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -230,6 +236,7 @@ func TestAddFromTheQuestionBankRejectsABadForm(t *testing.T) {
 }
 
 func TestLearnersAreRefusedTheQuestionBankAndItsActions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "What is Go?")
 	s.logOut()
@@ -261,6 +268,7 @@ func TestLearnersAreRefusedTheQuestionBankAndItsActions(t *testing.T) {
 }
 
 func TestTheBankQuestionFormRejectsBadInput(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")

@@ -19,6 +19,7 @@ func (s *site) addHiddenPromo(code, price string) {
 // A Hidden Promo below the public Promo leaves every price a visitor sees alone, yet still accepts its lower payment
 // and opens the Ebooks.
 func TestAHiddenPromoIsPaidAndGivesEbooksButNeverChangesThePricesShown(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t) // CAVE99 at RM99 with Ebooks, public
 	s.addHiddenPromo("TEST10", "9")
 	_, body := s.get("/admin/promos")
@@ -38,6 +39,7 @@ func TestAHiddenPromoIsPaidAndGivesEbooksButNeverChangesThePricesShown(t *testin
 
 // With only a Hidden Promo running, nothing advertises a Promo: no COMBO card, no pointer from a locked ebook.
 func TestAHiddenPromoAloneDoesNotMakeTheComboAppear(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL, "lab-plan_link": labFormURL,
 		"pro-plan_link": proPlanFormURL, "pro-plan_price": "249", "pro-plan_normal": ""})

@@ -16,6 +16,7 @@ func (s *site) markLesson(courseID, lessonID string, done bool) (*http.Response,
 }
 
 func TestEnrolledLearnerMarksALessonCompleteAndUndoesIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -42,6 +43,7 @@ func TestEnrolledLearnerMarksALessonCompleteAndUndoesIt(t *testing.T) {
 }
 
 func TestCoursePageOffersMarkButtonForEachPublishedLesson(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -66,6 +68,7 @@ func TestCoursePageOffersMarkButtonForEachPublishedLesson(t *testing.T) {
 }
 
 func TestDraftLessonIsNotCountedAndCannotBeMarked(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -88,6 +91,7 @@ func TestDraftLessonIsNotCountedAndCannotBeMarked(t *testing.T) {
 }
 
 func TestAddingOrPublishingLessonsLowersProgressAndRemovingOneStopsCounting(t *testing.T) {
+	t.Parallel()
 	admin := newSite(t)
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	admin.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -116,6 +120,7 @@ func TestAddingOrPublishingLessonsLowersProgressAndRemovingOneStopsCounting(t *t
 }
 
 func TestOnlyEnrolledLearnersCanMarkLessons(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -137,6 +142,7 @@ func TestOnlyEnrolledLearnersCanMarkLessons(t *testing.T) {
 }
 
 func TestLeavingAndRejoiningKeepsCompletions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -157,6 +163,7 @@ func TestLeavingAndRejoiningKeepsCompletions(t *testing.T) {
 }
 
 func TestLearnerWhoLeftOrWasRemovedCannotOpenLessons(t *testing.T) {
+	t.Parallel()
 	admin := newSite(t)
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	admin.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -187,6 +194,7 @@ func TestLearnerWhoLeftOrWasRemovedCannotOpenLessons(t *testing.T) {
 }
 
 func TestCompletionsBelongToEachLearner(t *testing.T) {
+	t.Parallel()
 	admin := newSite(t)
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	admin.createCourse("Go Basics", "Learn Go from scratch.", "")

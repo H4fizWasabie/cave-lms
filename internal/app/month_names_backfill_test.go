@@ -31,6 +31,7 @@ func forgetMonthColumns(t *testing.T, ada *site) {
 // find them (BULAN is 6 in every row), reads August's OGOS as 8 with them and saves them on confirm; the next Add
 // reads no Part, so it works with every Part's file gone from the store.
 func TestADatasetWithoutRecordedMonthColumnsFindsThemFromItsPartsOnceOnTheNextAdd(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	forgetMonthColumns(t, ada)
@@ -67,6 +68,7 @@ func TestADatasetWithoutRecordedMonthColumnsFindsThemFromItsPartsOnceOnTheNextAd
 // A Dataset whose Parts have no month column (BULAN holds a 13) gets "none" recorded, not left as never found: the
 // next Add reads no Part either. August's OGOS is left empty, as it was before.
 func TestADatasetWithNoMonthColumnRecordsNoneAndIsNotReadAgain(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kehadiran", myPage)
 	ada.deployAs(path, "kehadiran-ada")

@@ -17,6 +17,7 @@ func (s *site) createPlan(name, days, deployments string) (*http.Response, strin
 }
 
 func TestAdminCreatesAPlan(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.get("/admin/plans/new")
@@ -49,6 +50,7 @@ func (s *site) onlyPlanID() string {
 }
 
 func TestAdminEditsAPlan(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createPlan("Lab Monthly", "30", "3")
@@ -68,6 +70,7 @@ func TestAdminEditsAPlan(t *testing.T) {
 }
 
 func TestInvalidPlansAreRefusedWithAMessage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	for _, tc := range []struct{ name, days, deployments, want string }{
@@ -92,6 +95,7 @@ func TestInvalidPlansAreRefusedWithAMessage(t *testing.T) {
 }
 
 func TestOnlyTheAdminReachesThePlanPages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createPlan("Lab Monthly", "30", "3")
@@ -173,6 +177,7 @@ func adminWithPlanAndLearner(t *testing.T, opts ...func(*config.Config)) (*site,
 }
 
 func TestAssigningAPlanToAnUnknownEmailIsRefused(t *testing.T) {
+	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)
 	res, body := s.assignPlan("nobody@example.com", id)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "No Learner has the email nobody@example.com")
@@ -181,6 +186,7 @@ func TestAssigningAPlanToAnUnknownEmailIsRefused(t *testing.T) {
 }
 
 func TestAPlanAssignedWithNoActivePeriodStartsNow(t *testing.T) {
+	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)
 	res, body := s.assignPlan("ADA@example.com", id)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -213,6 +219,7 @@ func TestAPlanAssignedWithNoActivePeriodStartsNow(t *testing.T) {
 }
 
 func TestPlanPeriodsStackSoNoDaysAreLost(t *testing.T) {
+	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)
 	s.createPlan("Lab Week", "7", "1")
 	_, body := s.get("/admin/plans")
@@ -238,6 +245,7 @@ func TestPlanPeriodsStackSoNoDaysAreLost(t *testing.T) {
 }
 
 func TestEditingAPlanLeavesAssignedPeriodsAlone(t *testing.T) {
+	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)
 	s.assignPlan("ada@example.com", id)
 	s.post("/admin/plans/"+id, url.Values{"name": {"Lab Monthly"}, "days": {"30"}, "deployments": {"9"}, "storage": {"1024"}})
@@ -252,6 +260,7 @@ func TestEditingAPlanLeavesAssignedPeriodsAlone(t *testing.T) {
 var endPeriodButton = regexp.MustCompile(`href="(/admin/plans/periods/\d+/end)"`)
 
 func TestAdminEndsAPeriodEarly(t *testing.T) {
+	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)
 	s.assignPlan("ada@example.com", id)
 	s.assignPlan("ada@example.com", id)

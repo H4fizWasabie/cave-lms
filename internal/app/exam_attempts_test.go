@@ -91,6 +91,7 @@ func (s *site) ageAttempt(attemptPath string, seconds int) {
 }
 
 func TestExamIsRefusedUntilEveryLessonIsComplete(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -115,6 +116,7 @@ func TestExamIsRefusedUntilEveryLessonIsComplete(t *testing.T) {
 }
 
 func TestExamPageShowsTimeLimitPassMarkAndAttemptsLeft(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("70", "30", "3", "What is Go?")
 
@@ -126,6 +128,7 @@ func TestExamPageShowsTimeLimitPassMarkAndAttemptsLeft(t *testing.T) {
 }
 
 func TestTheExamFactsShowEachValueOverItsBareLabelAndSayBothOnce(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("70", "30", "3", "What is Go?")
 
@@ -140,6 +143,7 @@ func TestTheExamFactsShowEachValueOverItsBareLabelAndSayBothOnce(t *testing.T) {
 }
 
 func TestDraftQuestionsAreNeverAsked(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Published question")
 	s.logOut()
@@ -157,6 +161,7 @@ func TestDraftQuestionsAreNeverAsked(t *testing.T) {
 }
 
 func TestAttemptAsksEveryPublishedQuestionWhenThereAreFewerThanTheDrawCount(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6")
 
@@ -189,6 +194,7 @@ func (s *site) drawExam() (string, []string) {
 }
 
 func TestFirstAttemptAsksTheDrawCountFromPublishedQuestionsOnly(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.drawExam()
 
@@ -210,6 +216,7 @@ func TestFirstAttemptAsksTheDrawCountFromPublishedQuestionsOnly(t *testing.T) {
 }
 
 func TestLaterAttemptsAskTheFirstAttemptsQuestionsInTheSameOrder(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.drawExam()
 	res, _ := s.startExam(id)
@@ -232,6 +239,7 @@ func TestLaterAttemptsAskTheFirstAttemptsQuestionsInTheSameOrder(t *testing.T) {
 }
 
 func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.drawExam()
 	res, _ := s.startExam(id)
@@ -270,6 +278,7 @@ func TestARetryShowsPoolEditsAndStillAsksAQuestionDeletedFromThePool(t *testing.
 }
 
 func TestAReleasedResultShowsOnlyTheMarkAndPassOrFail(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Right one", "Wrong one")
 	res, _ := s.startExam(id)
@@ -285,6 +294,7 @@ func TestAReleasedResultShowsOnlyTheMarkAndPassOrFail(t *testing.T) {
 }
 
 func TestTimeLimitIsEnforcedOnTheServer(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "1", "", "Q1")
 
@@ -311,6 +321,7 @@ func TestTimeLimitIsEnforcedOnTheServer(t *testing.T) {
 }
 
 func TestFailedLearnerRetakesWhileAttemptsRemainAndAttemptsAreLimited(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "2", "Q1")
 
@@ -337,6 +348,7 @@ func TestFailedLearnerRetakesWhileAttemptsRemainAndAttemptsAreLimited(t *testing
 }
 
 func TestUnlimitedAttemptsWhenNoMaximumIsSet(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "", "Q1")
 	for i := 0; i < 3; i++ {
@@ -350,6 +362,7 @@ func TestUnlimitedAttemptsWhenNoMaximumIsSet(t *testing.T) {
 }
 
 func TestPassedLearnerCannotRetakeAndSeesTheirBestScore(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(id)
@@ -364,6 +377,7 @@ func TestPassedLearnerCannotRetakeAndSeesTheirBestScore(t *testing.T) {
 }
 
 func TestLaterExamEditsDoNotChangePastAttempts(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Original prompt")
 	res, _ := s.startExam(id)
@@ -388,6 +402,7 @@ func TestLaterExamEditsDoNotChangePastAttempts(t *testing.T) {
 }
 
 func TestExamIsForEnrolledLearnersAndTheirOwnAttempts(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(id)
@@ -413,6 +428,7 @@ func TestExamIsForEnrolledLearnersAndTheirOwnAttempts(t *testing.T) {
 }
 
 func TestAnUnknownAttemptLeadsBackToItsCourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1")
 	for _, attempt := range []string{"999999", "nope"} {
@@ -423,6 +439,7 @@ func TestAnUnknownAttemptLeadsBackToItsCourse(t *testing.T) {
 }
 
 func TestStartingAgainResumesTheOpenAttempt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "1", "Q1")
 	res, _ := s.startExam(id)
@@ -443,6 +460,7 @@ func TestStartingAgainResumesTheOpenAttempt(t *testing.T) {
 }
 
 func TestStartingAnExamNeedsOnlyOneDatabaseConnection(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1")
 	s.application.SetMaxDBConns(1)
@@ -454,6 +472,7 @@ func TestStartingAnExamNeedsOnlyOneDatabaseConnection(t *testing.T) {
 }
 
 func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "What is a slice?")
 	res, _ := s.startExam(id)
@@ -470,6 +489,7 @@ func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 }
 
 func TestExamWithNoPublishedQuestionsRefusesAStart(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "")
 	s.loginAdmin()
@@ -482,6 +502,7 @@ func TestExamWithNoPublishedQuestionsRefusesAStart(t *testing.T) {
 }
 
 func TestTodaysExamsBecomeMultipleChoiceWithTheirSettingsQuestionsAndAttempts(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("70", "30", "3", "First question text", "Second question text")
 	res, _ := s.startExam(id)

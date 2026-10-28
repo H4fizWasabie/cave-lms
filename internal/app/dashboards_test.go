@@ -73,6 +73,7 @@ func labFile(t testing.TB, name string) []byte {
 }
 
 func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, `href="/lab/new"`)
@@ -94,12 +95,14 @@ func TestLearnerWithAccessCreatesADashboard(t *testing.T) {
 }
 
 func TestCreatingADashboardNeedsAName(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	res, body := ada.post("/lab/dashboards", url.Values{"name": {"  "}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Give the Dashboard a name")
 }
 
 func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
+	t.Parallel()
 	_, ada, _, _ := labSetup(t) // no Plan
 	res, body := ada.get("/lab")
 	if strings.Contains(body, `href="/lab/new"`) {
@@ -118,6 +121,7 @@ func TestLearnerWithoutAccessCannotCreateADashboard(t *testing.T) {
 }
 
 func TestPreviewLoadsItsDataAndChartLibraryFromCave(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 
@@ -151,6 +155,7 @@ func TestPreviewLoadsItsDataAndChartLibraryFromCave(t *testing.T) {
 }
 
 func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kewangan")
 	day := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
@@ -173,6 +178,7 @@ func TestCellTextAndColumnNamesAreEscaped(t *testing.T) {
 }
 
 func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kewangan")
 	res, body := ada.postFile(path+"/dataset", "data.csv", []byte("Tarikh,Jumlah\n2026-01-01,5\n"))
@@ -194,6 +200,7 @@ func TestUploadingSomethingThatIsNotAnXLSXIsRefused(t *testing.T) {
 }
 
 func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	data := ada.dataOf(path + "/view/")
@@ -212,6 +219,7 @@ func TestOnlyItsLearnerReachesADashboard(t *testing.T) {
 }
 
 func TestDeletingALearnerDeletesTheirDashboards(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 	// There is no delete-account page yet; deleting the account row must take the Dashboards with it.
@@ -222,6 +230,7 @@ func TestDeletingALearnerDeletesTheirDashboards(t *testing.T) {
 
 // Once the Plan ends every Lab screen, the Learner's own Dashboards too, goes to /pricing; changes stay refused.
 func TestAfterAccessEndsEveryLabScreenGoesToPricing(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	empty := ada.createWork("Kosong")
@@ -254,6 +263,7 @@ func (s *site) dataOf(page string) string {
 }
 
 func TestEachUploadStoresTheDatasetUnderANewAddressAndDeletingRemovesIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	first := ada.dataOf(path + "/view/")
@@ -302,6 +312,7 @@ func (s *site) restart() {
 }
 
 func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	ada.dataOf(path + "/view/")
@@ -348,6 +359,7 @@ func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
 }
 
 func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T) {
+	t.Parallel()
 	if os.Geteuid() == 0 {
 		t.Skip("root writes into a read-only directory")
 	}
@@ -380,6 +392,7 @@ func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T
 }
 
 func TestALearnerPicksAThemeAndTheDashboardDrawsInIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 

@@ -70,6 +70,7 @@ var financeGuess = url.Values{"date": {"Tarikh"}, "amount": {"Jumlah"}, "categor
 
 // The Lab speaks of one kind of Dashboard (ADR 0015): no page names a kind, in either language.
 func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	ada.createWork("Staf")
@@ -92,6 +93,7 @@ func TestTheLabOffersOneNewDashboardAndNamesNoKind(t *testing.T) {
 }
 
 func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 
@@ -128,6 +130,7 @@ func TestAWorkDashboardUploadIsCleanedPreviewedAndConfirmed(t *testing.T) {
 }
 
 func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "september.xlsx", shopReport(t, "Beras", 120))
@@ -155,6 +158,7 @@ func TestUntilConfirmTheDashboardAndDeploymentKeepTheOldDataset(t *testing.T) {
 }
 
 func TestAReUploadDuringAConfirmTakesItsTurnAndLeavesACurrentDataset(t *testing.T) {
+	t.Parallel()
 	for _, uploadFirst := range []bool{false, true} {
 		t.Run(fmt.Sprint("upload first ", uploadFirst), func(t *testing.T) {
 			_, ada := labLearner(t)
@@ -231,6 +235,7 @@ func months(t *testing.T, notes bool, names ...string) []byte {
 }
 
 func TestAWorkUploadCombinesSheetsAndRemembersThePickedSheet(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	upload := func(file []byte, want string, fields ...url.Values) string {
@@ -287,6 +292,7 @@ func (s *site) uploadLive(path string, file []byte, want, not string) {
 }
 
 func TestAFailedOrAbandonedUploadLeavesTheRememberedSettings(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	janAlone := url.Values{"sheet": {"Jan"}, "shown": {"Jan"}, "tickable": {"1"}}
@@ -307,6 +313,7 @@ func TestAFailedOrAbandonedUploadLeavesTheRememberedSettings(t *testing.T) {
 }
 
 func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	header := []any{"Staff"}
@@ -338,6 +345,7 @@ func TestThePreviewAsksTheMonthOfADaysAcrossGrid(t *testing.T) {
 }
 
 func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
@@ -357,6 +365,7 @@ func TestAWorkDashboardOnGeneralNeedsNoChoices(t *testing.T) {
 }
 
 func TestAnUnreadableWorkUploadGivesOneMessage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", []byte("Tarikh,Jumlah\n05/11/2026,RM5\n"))
@@ -370,6 +379,7 @@ func TestAnUnreadableWorkUploadGivesOneMessage(t *testing.T) {
 }
 
 func TestTheLearnerCanUploadAgainNamingATwoRowHeader(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
@@ -405,6 +415,7 @@ func TestTheLearnerCanUploadAgainNamingATwoRowHeader(t *testing.T) {
 }
 
 func TestTheStorageAllowanceCountsWorkbooksAndConfirmedWorkDatasetsBySavedSize(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1024")
 	path := ada.createWork("Kedai")
 	file := shopReport(t, "Beras", 120)
@@ -422,6 +433,7 @@ func TestTheStorageAllowanceCountsWorkbooksAndConfirmedWorkDatasetsBySavedSize(t
 }
 
 func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "4") // each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
 	first := ada.createWork("Satu")
 	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
@@ -436,6 +448,7 @@ func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
 }
 
 func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "2") // 2 MB; each upload keeps its Workbook, about 0.6 MB, and saves its Part, about 1.1 MB
 	first := ada.createWork("Satu")
 	one := bigFinance(t, 1)
@@ -462,6 +475,7 @@ func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
 }
 
 func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
@@ -482,6 +496,7 @@ func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {
 }
 
 func TestDeletingAWorkDashboardDeletesItsParts(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "a.xlsx", shopReport(t, "Beras", 120))
@@ -514,6 +529,7 @@ func stockFile(t *testing.T) []byte {
 }
 
 func TestThePreviewSaysWhichColumnsGeneralLeavesOutOfChartsOrAverages(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Stor")
 	res, body := ada.postFile(path+"/dataset", "stok.xlsx", stockFile(t))

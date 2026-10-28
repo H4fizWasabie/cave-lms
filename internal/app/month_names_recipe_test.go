@@ -14,6 +14,7 @@ import (
 // decide. A later Part that writes OGOS gets it left empty and listed, as it would on a Dataset that never had a month
 // column.
 func TestAConfirmedPartWithAnotherNumberInAMonthColumnDropsItFromTheRecipe(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	if got := recipeMonthColumns(t, ada); !strings.Contains(got, `"BULAN"`) {
@@ -40,6 +41,7 @@ func TestAConfirmedPartWithAnotherNumberInAMonthColumnDropsItFromTheRecipe(t *te
 // Replace one Part leaves out the Part being replaced when it looks for the month columns: the only Part has a 13 in
 // BULAN, which is going away, so the new Part's own values decide and its OGOS is read as 8.
 func TestReplacingTheOnlyPartOfADatasetWithoutRecordedMonthColumnsIsDecidedByTheNewPart(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	replace := replaceAction.FindStringSubmatch(mustGet(t, ada, path+"/data"))[1]
@@ -68,6 +70,7 @@ func TestReplacingTheOnlyPartOfADatasetWithoutRecordedMonthColumnsIsDecidedByThe
 // A store that cannot give a Part to the one-time scan answers as every other upload does when the store fails: the
 // 503 page, not a bare 500.
 func TestAStoreThatFailsWhileFindingMonthColumnsGivesTheFailedPage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := kehadiranPage(t, ada)
 	forgetMonthColumns(t, ada)

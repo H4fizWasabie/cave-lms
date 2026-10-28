@@ -50,6 +50,7 @@ func shelved(t *testing.T, ada *site, name string, file []byte) string {
 }
 
 func TestPickingAWorkbookAddsAPartLinkedToItWithoutANewUploadOrWorkbook(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
@@ -86,6 +87,7 @@ func TestPickingAWorkbookAddsAPartLinkedToItWithoutANewUploadOrWorkbook(t *testi
 }
 
 func TestPickingAWorkbookToReplaceAPartTakesThatPartsPlace(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := threeParts(t, ada)
 	visitor := ada.second()
@@ -117,6 +119,7 @@ func TestPickingAWorkbookToReplaceAPartTakesThatPartsPlace(t *testing.T) {
 }
 
 func TestAnEmptyDatasetTakesAnyReadableWorkbookAsItsFirstPart(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	del := partDeleteLink.FindStringSubmatch(mustGet(t, ada, path+"/data"))[1]
@@ -134,6 +137,7 @@ func TestAnEmptyDatasetTakesAnyReadableWorkbookAsItsFirstPart(t *testing.T) {
 }
 
 func TestAPickedWorkbookWithoutTheDatasetsColumnsIsRefusedAndNothingChanges(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := twoParts(t, ada)
 	id := shelved(t, ada, "markah.xlsx", underTitleRows(t, []any{"Nama", "Markah"}, []any{"Ali", 80.0}))
@@ -152,6 +156,7 @@ func TestAPickedWorkbookWithoutTheDatasetsColumnsIsRefusedAndNothingChanges(t *t
 }
 
 func TestALearnerCanOnlyPickTheirOwnWorkbooks(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	pageWithData(t, ada)
 	adas := ada.workbookID("september.xlsx")
@@ -173,6 +178,7 @@ func TestALearnerCanOnlyPickTheirOwnWorkbooks(t *testing.T) {
 }
 
 func TestDeletingAPickedWorkbookLeavesThePartAndDataJSONAsTheyAre(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	id := shelved(t, ada, "oktober.xlsx", shopColumns(t, "Gula", 80))
@@ -192,6 +198,7 @@ func TestDeletingAPickedWorkbookLeavesThePartAndDataJSONAsTheyAre(t *testing.T) 
 // A picked Workbook with no sheet by the recipe's name offers the sheets that fit; the choice goes back without a
 // file, as the Workbook is not uploaded again.
 func TestAPickedWorkbookWithoutTheRecipeSheetLetsTheLearnerPickASheetWithoutUploadingAgain(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	file := testutil.Workbook(t, shopSheet("Okt", "Gula"), shopSheet("Nov", "Garam", "Lada"))
@@ -215,6 +222,7 @@ func TestAPickedWorkbookWithoutTheRecipeSheetLetsTheLearnerPickASheetWithoutUplo
 
 // A pick goes the way of an upload, so a Workbook that is already a current Part is refused as the same file is.
 func TestPickingTheWorkbookOfACurrentPartIsRefusedAsTheSameFile(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := pageWithData(t, ada)
 	id := ada.workbookID("september.xlsx")

@@ -28,6 +28,7 @@ func imageLessonCourse(t *testing.T, draft bool) (admin *site, id, lessonID stri
 }
 
 func TestAnEnrolledLearnerSeesTheLessonImageAboveTheTextAndItIsNeverInTheGallery(t *testing.T) {
+	t.Parallel()
 	admin, id, lessonID := imageLessonCourse(t, false)
 	ada := admin.second()
 	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
@@ -51,6 +52,7 @@ func TestAnEnrolledLearnerSeesTheLessonImageAboveTheTextAndItIsNeverInTheGallery
 }
 
 func TestTheLessonImageRouteRefusesNonMembersVisitorsAndADraftForALearner(t *testing.T) {
+	t.Parallel()
 	admin, id, lessonID := imageLessonCourse(t, false)
 	_, body := admin.get("/admin/lessons/" + lessonID + "/edit")
 	src := lessonImageSrc.FindStringSubmatch(body)[1]
@@ -85,6 +87,7 @@ func TestTheLessonImageRouteRefusesNonMembersVisitorsAndADraftForALearner(t *tes
 }
 
 func TestAdminReplacesThenRemovesALessonImageOnTheEditForm(t *testing.T) {
+	t.Parallel()
 	admin, _, lessonID := imageLessonCourse(t, false)
 	edit := "/admin/lessons/" + lessonID + "/edit"
 	_, body := admin.get(edit)
@@ -124,6 +127,7 @@ func TestAdminReplacesThenRemovesALessonImageOnTheEditForm(t *testing.T) {
 }
 
 func TestDeletingALessonDeletesItsLessonImage(t *testing.T) {
+	t.Parallel()
 	admin, _, lessonID := imageLessonCourse(t, false)
 	res, body := admin.post("/admin/lessons/"+lessonID+"/delete", confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -133,6 +137,7 @@ func TestDeletingALessonDeletesItsLessonImage(t *testing.T) {
 }
 
 func TestALessonImageIsRefusedWhenWrongTooBigUndescribedWithAGalleryItemOrWithoutText(t *testing.T) {
+	t.Parallel()
 	admin := newSite(t)
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	admin.createCourse("Go Basics", "Learn Go.", "")
@@ -184,6 +189,7 @@ func TestALessonImageIsRefusedWhenWrongTooBigUndescribedWithAGalleryItemOrWithou
 }
 
 func TestGenerateAfterPickingAPictureSaysToPickItAgain(t *testing.T) {
+	t.Parallel()
 	admin := newSite(t)
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	admin.createCourse("Go Basics", "Learn Go.", "")

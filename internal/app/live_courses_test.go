@@ -38,6 +38,7 @@ func (s *site) courseWithContent() string {
 }
 
 func TestAdminDuplicatesACourseIntoADraftLiveCourseWithItsLessonsAndExam(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -95,6 +96,7 @@ func (s *site) firstMatch(path string, re *regexp.Regexp) string {
 }
 
 func TestEditingACopysLessonsOrExamNeverChangesTheOriginalOrAnotherCopy(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -123,6 +125,7 @@ func TestEditingACopysLessonsOrExamNeverChangesTheOriginalOrAnotherCopy(t *testi
 }
 
 func TestAdminSetsAndEditsALiveCoursesDatesAndDaysAndBadValuesAreRefused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -169,6 +172,7 @@ func TestAdminSetsAndEditsALiveCoursesDatesAndDaysAndBadValuesAreRefused(t *test
 var pccBadge = regexp.MustCompile(`(?:<img src="|<image class="cert-art-badge" href=")(/static/pcc-([a-z]+)\.jpg[^"]*)"`)
 
 func TestThePCCLevelFollowsFromDaysAndItsBadgeShowsToTheAdminAndLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -207,6 +211,7 @@ func TestThePCCLevelFollowsFromDaysAndItsBadgeShowsToTheAdminAndLearners(t *test
 }
 
 func TestLiveCoursesAreListedInTheCoursesSectionWithTheirDates(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.courseWithContent()
@@ -225,6 +230,7 @@ func TestLiveCoursesAreListedInTheCoursesSectionWithTheirDates(t *testing.T) {
 }
 
 func TestJoiningALiveCourseWorksUntilTheEndOfItsEndDateInMalaysiaThenItShowsClosed(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC) // before the start date: joining is open from publishing
 	s := newSite(t)
 	s.application.SetClock(func() time.Time { return now })
@@ -270,6 +276,7 @@ func TestJoiningALiveCourseWorksUntilTheEndOfItsEndDateInMalaysiaThenItShowsClos
 }
 
 func TestALiveCoursesExamOpensFromItsStartDateToTheEndOfItsEndDateWithoutTheLessonsFirst(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC)
 	s := newSite(t)
 	s.application.SetClock(func() time.Time { return now })
@@ -326,6 +333,7 @@ func TestALiveCoursesExamOpensFromItsStartDateToTheEndOfItsEndDateWithoutTheLess
 }
 
 func TestALiveCoursesExamWindowIsShownInMalay(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC)
 	s := newSite(t)
 	s.application.SetClock(func() time.Time { return now })

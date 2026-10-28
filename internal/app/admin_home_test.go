@@ -8,6 +8,7 @@ import (
 )
 
 func TestTheAdminHomeCountsSubmissionsToMark(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	_, body := admin.get("/admin")
 	expectAll(t, body, "Nothing needs marking.")
@@ -29,6 +30,7 @@ func TestTheAdminHomeCountsSubmissionsToMark(t *testing.T) {
 }
 
 func TestTheAdminHomeCountsWrittenAnswersAwaitingMarkingAndListsRecentResults(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.ai.FailMarks(aiwriter.ErrUnavailable)
 	id := s.writtenCourse("50", "Explain :=", "Explain go vet")
@@ -51,6 +53,7 @@ func TestTheAdminHomeCountsWrittenAnswersAwaitingMarkingAndListsRecentResults(t 
 }
 
 func TestTheAdminHomeCountsLearnersCoursesAndValidCertificates(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()

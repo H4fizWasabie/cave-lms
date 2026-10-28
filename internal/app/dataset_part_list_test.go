@@ -33,6 +33,7 @@ func twoParts(t *testing.T, ada *site) (path, link string) {
 }
 
 func TestTheDataTabListsEveryPartInOrderWithItsDateFileRowsSizeAndWhenAdded(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 
@@ -55,6 +56,7 @@ func mustGet(t *testing.T, s *site, path string) string {
 }
 
 func TestDeletingAPartAsksFirstThenRemovesItsRowsFreesItsRoomAndDeletesThemFromTheStore(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := twoParts(t, ada)
 	visitor := ada.second()
@@ -99,6 +101,7 @@ func TestDeletingAPartAsksFirstThenRemovesItsRowsFreesItsRoomAndDeletesThemFromT
 }
 
 func TestADeleteOnlyReachesThePartsOfTheLearnersOwnDashboard(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	other := ada.createPage("Lain", myPage)
@@ -113,6 +116,7 @@ func TestADeleteOnlyReachesThePartsOfTheLearnersOwnDashboard(t *testing.T) {
 }
 
 func TestDeletingTheLastPartLeavesDataJSONAnEmptyArrayAndTheNextUploadSetsNewColumns(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
@@ -144,6 +148,7 @@ func TestDeletingTheLastPartLeavesDataJSONAnEmptyArrayAndTheNextUploadSetsNewCol
 }
 
 func TestReplaceDataWarnsHowManyPartsGoAndThatTheirWorkbooksStay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := twoParts(t, ada)
 	visitor := ada.second()

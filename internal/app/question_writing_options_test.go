@@ -49,6 +49,7 @@ func (s *site) publishedBankQuestions(courseID, format, topic, difficulty string
 }
 
 func TestGenerationAsksTheAIForTheChosenDifficultyMediumByDefault(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -72,6 +73,7 @@ func TestGenerationAsksTheAIForTheChosenDifficultyMediumByDefault(t *testing.T) 
 }
 
 func TestAIQuestionsKeepTheirDifficultyInTheExamAndTheBankAndHandWrittenOnesHaveNone(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -94,6 +96,7 @@ func TestAIQuestionsKeepTheirDifficultyInTheExamAndTheBankAndHandWrittenOnesHave
 }
 
 func TestBankFirstTakesOnlyPublishedBankQuestionsOfTheSameDifficulty(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -139,6 +142,7 @@ func TestBankFirstTakesOnlyPublishedBankQuestionsOfTheSameDifficulty(t *testing.
 }
 
 func TestLearnersNeverSeeAQuestionsDifficulty(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Hand written")
 	s.logOut()
@@ -156,6 +160,7 @@ func TestLearnersNeverSeeAQuestionsDifficulty(t *testing.T) {
 }
 
 func TestAdminSetsAndClearsADifficultyOnAnExamQuestion(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -192,6 +197,7 @@ func TestAdminSetsAndClearsADifficultyOnAnExamQuestion(t *testing.T) {
 }
 
 func TestAdminSetsClearsAndFiltersByADifficultyInTheQuestionBank(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -238,6 +244,7 @@ func sameRequest(got, want aiwriter.Request) bool {
 }
 
 func TestGenerationSendsTrimmedKeyPointsAndRefusesOverAThousandCharacters(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -267,6 +274,7 @@ func TestGenerationSendsTrimmedKeyPointsAndRefusesOverAThousandCharacters(t *tes
 }
 
 func TestGenerationTellsTheAIItsBankPromptsOnTheTopicFormatAndLanguageNewestHundred(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")

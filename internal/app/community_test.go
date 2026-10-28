@@ -17,6 +17,7 @@ func communitySite(t *testing.T) (ada, admin, ben *site, id string) {
 }
 
 func TestAVisitorIsToldWhatTheCommunityChatIsAndAskedToLogIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.getAsking("/community", "en")
 	expectStatus(t, res, body, http.StatusOK, "Community Chat")
@@ -27,6 +28,7 @@ func TestAVisitorIsToldWhatTheCommunityChatIsAndAskedToLogIn(t *testing.T) {
 }
 
 func TestALearnerWhoHasNotJoinedSeesJoinButNoMessagesAndIsRefusedTheChat(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, _ := communitySite(t)
 	mid := ada.say(community, "Members only talk")
 
@@ -47,6 +49,7 @@ func TestALearnerWhoHasNotJoinedSeesJoinButNoMessagesAndIsRefusedTheChat(t *test
 }
 
 func TestALearnerJoinsLeavesAndJoinsTheCommunityChatAgain(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, _ := communitySite(t)
 	res, body := ada.get("/community")
 	expectStatus(t, res, body, http.StatusOK, `data-stream="/community/events"`)
@@ -75,6 +78,7 @@ func TestALearnerJoinsLeavesAndJoinsTheCommunityChatAgain(t *testing.T) {
 }
 
 func TestAMemberPostsRepliesReactsDeletesAndReportsInTheCommunityChat(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := communitySite(t)
 	expectStatus(t, must(ben.post("/community/join", nil)), "", http.StatusSeeOther, "")
 	mid := ben.say(community, "Hello from Go Basics")
@@ -107,6 +111,7 @@ func TestAMemberPostsRepliesReactsDeletesAndReportsInTheCommunityChat(t *testing
 }
 
 func TestTheAdminReadsPostsAndHidesInTheCommunityChatWithoutJoining(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, _ := communitySite(t)
 	mid := ada.say(community, "Something nasty")
 	res, body := admin.get("/community")
@@ -125,6 +130,7 @@ func TestTheAdminReadsPostsAndHidesInTheCommunityChatWithoutJoining(t *testing.T
 }
 
 func TestCommunityPostingIsLimitedPerChat(t *testing.T) {
+	t.Parallel()
 	ada, _, _, id := communitySite(t)
 	for i := range 10 {
 		ada.say(community, fmt.Sprintf("Message %d", i))
@@ -135,6 +141,7 @@ func TestCommunityPostingIsLimitedPerChat(t *testing.T) {
 }
 
 func TestTheCommunityStreamCarriesMessagesWithoutEmailOrIC(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, _ := communitySite(t)
 	stream := ada.openStream(community)
 	mid := ada.say(community, "Live hello")
@@ -149,6 +156,7 @@ func TestTheCommunityStreamCarriesMessagesWithoutEmailOrIC(t *testing.T) {
 }
 
 func TestTheHeaderLinksToTheCommunityChat(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, header(t, body), ">Certification<", `href="/community">Community<`)
@@ -157,6 +165,7 @@ func TestTheHeaderLinksToTheCommunityChat(t *testing.T) {
 }
 
 func TestThePrivacyNoticeTellsWhoSeesCommunityChatMessages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/privacy", "en")
 	expectInOrder(t, body, "The Community Chat, if you join it")

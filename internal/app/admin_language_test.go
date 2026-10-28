@@ -19,6 +19,7 @@ func adminIn(t *testing.T, lang string) *site {
 }
 
 func TestTheAdminCourseScreensAreInMalayAndEnglishWithTitlesAsWritten(t *testing.T) {
+	t.Parallel()
 	s := adminIn(t, "ms")
 	s.createCourse("Asas Go", "Belajar Go.", "")
 	id := s.onlyCourseID()
@@ -44,6 +45,7 @@ func TestTheAdminCourseScreensAreInMalayAndEnglishWithTitlesAsWritten(t *testing
 }
 
 func TestTheCourseFormErrorsAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := adminIn(t, "ms")
 	for _, c := range []struct{ title, description, start, want string }{
 		{"", "Belajar Go.", "", "Masukkan tajuk."},
@@ -61,6 +63,7 @@ func TestTheCourseFormErrorsAreInMalay(t *testing.T) {
 }
 
 func TestTheLessonScreensAndTheirErrorsAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := adminIn(t, "ms")
 	s.createCourse("Asas Go", "Belajar Go.", "")
 	id := s.onlyCourseID()
@@ -101,6 +104,7 @@ func TestTheLessonScreensAndTheirErrorsAreInMalay(t *testing.T) {
 }
 
 func TestTheExamScreensAndTheirErrorsAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := adminIn(t, "ms")
 	s.createCourse("Asas Go", "Belajar Go.", "")
 	id := s.onlyCourseID()
@@ -134,6 +138,7 @@ func TestTheExamScreensAndTheirErrorsAreInMalay(t *testing.T) {
 }
 
 func TestTheAdminGalleryScreensAndTheirErrorsAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := adminIn(t, "ms")
 	item := s.uploadAs("Rajah Go", "everyone", pngFile)
 	_, body := s.get("/admin/gallery")
@@ -165,6 +170,7 @@ func TestTheAdminGalleryScreensAndTheirErrorsAreInMalay(t *testing.T) {
 }
 
 func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -199,6 +205,7 @@ func TestTheLearnerAndCertificateScreensAndTheirErrorsAreInMalay(t *testing.T) {
 
 // On a Malay confirmation page "Batal" is the way out, so neither the action nor its warning uses that word.
 func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	certID := s.earnedCertificate()
 	s.loginAdmin()
@@ -246,6 +253,7 @@ func TestMalayConfirmationPagesKeepBatalForCancelOnly(t *testing.T) {
 }
 
 func TestTheAdminOnlyAndQuestionNotFoundPagesAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := adminIn(t, "ms")
 	s.createCourse("Asas Go", "Belajar Go.", "")
 	res, body := s.get("/admin/courses/" + s.onlyCourseID() + "/exam/questions/999/edit")

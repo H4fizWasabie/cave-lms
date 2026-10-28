@@ -23,6 +23,7 @@ func (s *site) deletePath() string {
 }
 
 func TestTheDeleteConfirmationNamesHowManyDashboardsUsedTheWorkbook(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 	ada.readyDashboard("Stok") // the same file, so the same Workbook
@@ -42,6 +43,7 @@ func TestTheDeleteConfirmationNamesHowManyDashboardsUsedTheWorkbook(t *testing.T
 }
 
 func TestDeletingAWorkbookRemovesItAndFreesItsRoomButNotWhatWasCleanedFromIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
@@ -97,6 +99,7 @@ func (s *site) get2(path string) string {
 }
 
 func TestAnotherLearnersWorkbookCannotBeDeleted(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 	del := ada.deletePath()
@@ -120,6 +123,7 @@ func TestAnotherLearnersWorkbookCannotBeDeleted(t *testing.T) {
 }
 
 func TestWithoutAnActivePlanAWorkbookCannotBeDeleted(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 	del := ada.deletePath()
@@ -139,6 +143,7 @@ func TestWithoutAnActivePlanAWorkbookCannotBeDeleted(t *testing.T) {
 }
 
 func TestTheDeleteWorkbookScreenAndFolderLinkAreInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 	res, body := ada.getFolderAsking("ms")
@@ -148,6 +153,7 @@ func TestTheDeleteWorkbookScreenAndFolderLinkAreInMalay(t *testing.T) {
 }
 
 func TestTheStorageFullMessageAdvisesDeletingWorkbooks(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'workbook-filler', 'filler.xlsx', 900000, '\x00')`, ada.adaID()); err != nil {
 		t.Fatal(err)

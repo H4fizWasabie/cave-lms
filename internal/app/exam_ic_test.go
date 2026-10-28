@@ -23,6 +23,7 @@ func (s *site) setExamIC(examPath, ic, again string) (*http.Response, string) {
 }
 
 func TestALearnerWithoutAnICSetsItBeforeTheirFirstExamAttemptAndContinuesToTheExam(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.examCourseForBea()
 	exam, step := "/courses/"+id+"/exam", "/courses/"+id+"/exam/ic"
@@ -49,6 +50,7 @@ func TestALearnerWithoutAnICSetsItBeforeTheirFirstExamAttemptAndContinuesToTheEx
 }
 
 func TestTheExamICStepRefusesMismatchedInvalidOrTakenEntriesAndKeepsTheForm(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.examCourseForBea()
 	step := "/courses/" + id + "/exam/ic"
@@ -76,6 +78,7 @@ func TestTheExamICStepRefusesMismatchedInvalidOrTakenEntriesAndKeepsTheForm(t *t
 }
 
 func TestTheCoursePageRemindsOnlyAnEnrolledLearnerWithoutAnICOnACourseWithAnExam(t *testing.T) {
+	t.Parallel()
 	const reminder = "Set your IC or passport number before your first Exam attempt"
 	s := newSite(t)
 	id := s.examCourseForBea()
@@ -107,6 +110,7 @@ func TestTheCoursePageRemindsOnlyAnEnrolledLearnerWithoutAnICOnACourseWithAnExam
 }
 
 func TestTheCoursePageAsksALearnerWhoPassedWithoutAnICToSetItForTheirCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Which is right?")
 	res, body := s.startExam(id)
@@ -126,6 +130,7 @@ func TestTheCoursePageAsksALearnerWhoPassedWithoutAnICToSetItForTheirCertificate
 }
 
 func TestTheExamPageAsksALearnerWhoPassedWithoutAnICToSetIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Which is right?")
 	res, body := s.startExam(id)
@@ -147,6 +152,7 @@ func TestTheExamPageAsksALearnerWhoPassedWithoutAnICToSetIt(t *testing.T) {
 }
 
 func TestAWrittenExamSendsALearnerWithoutAnICToItsOwnICStepAndBack(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.examCourseForBea()
 	s.adminSite().saveWrittenQuestion("/admin/courses/"+id+"/exam/questions?format=written", "Explain :=", "It declares and assigns.")
@@ -161,6 +167,7 @@ func TestAWrittenExamSendsALearnerWithoutAnICToItsOwnICStepAndBack(t *testing.T)
 }
 
 func TestTheExamICStepSendsALearnerWhoCannotStartTheExamBackToTheCourseSavingNothing(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.examCourseForBea()
 	admin := s.adminSite()
@@ -188,6 +195,7 @@ func TestTheExamICStepSendsALearnerWhoCannotStartTheExamBackToTheCourseSavingNot
 }
 
 func TestTheExamICStepCanBeCancelledBackToTheExam(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.examCourseForBea()
 	exam, step := "/courses/"+id+"/exam", "/courses/"+id+"/exam/ic"
@@ -199,6 +207,7 @@ func TestTheExamICStepCanBeCancelledBackToTheExam(t *testing.T) {
 }
 
 func TestTheExamStartPageTellsOnlyALearnerWithoutAnICTheyWillAddItBeforeStarting(t *testing.T) {
+	t.Parallel()
 	const line = "Before the Exam starts, you will add your IC or passport number."
 	s := newSite(t)
 	id := s.examCourseForBea()
@@ -217,6 +226,7 @@ func TestTheExamStartPageTellsOnlyALearnerWithoutAnICTheyWillAddItBeforeStarting
 }
 
 func TestADirectStartWithoutAnICUsesNoAttempt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "2", "Which is right?")
 	if _, err := s.db.Exec(`UPDATE learners SET ic = NULL WHERE email = 'ada@example.com'`); err != nil {

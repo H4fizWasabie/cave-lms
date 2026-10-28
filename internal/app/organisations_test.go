@@ -81,6 +81,7 @@ func (s *site) liveCourseFor(org string) string {
 }
 
 func TestAdminAddsAnOrganisationAndTheListShowsItsNameLogoAndSearchLink(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.addOrganisation("Kementerian Pendidikan", pngFile)
@@ -100,6 +101,7 @@ func TestAdminAddsAnOrganisationAndTheListShowsItsNameLogoAndSearchLink(t *testi
 }
 
 func TestAnOrganisationNeedsANameAndALogo(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.saveOrganisation("/admin/organisations", "  ", pngFile)
@@ -114,6 +116,7 @@ func TestAnOrganisationNeedsANameAndALogo(t *testing.T) {
 }
 
 func TestAnOrganisationLogoMustBeAPNGJPGOrScriptFreeSVG(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	for name, logo := range map[string][]byte{"PDF": pdfFile, "script": svgScript, "onload": svgOnload, "javascript link": svgJSHref} {
@@ -129,6 +132,7 @@ func TestAnOrganisationLogoMustBeAPNGJPGOrScriptFreeSVG(t *testing.T) {
 }
 
 func TestAnOrganisationLogoOver2MBIsRefusedAndNothingIsStored(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	big := append(append([]byte{}, pngFile...), bytes.Repeat([]byte{0}, 2<<20)...)
@@ -141,6 +145,7 @@ func TestAnOrganisationLogoOver2MBIsRefusedAndNothingIsStored(t *testing.T) {
 }
 
 func TestAnSVGLogoIsStoredAsAPNG(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.addOrganisation("PDRM", svgLogo)
@@ -152,6 +157,7 @@ func TestAnSVGLogoIsStoredAsAPNG(t *testing.T) {
 }
 
 func TestAdminRenamesAnOrganisationAndANewLogoKeepsTheOldFile(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	id := s.addOrganisation("PDMR", pngFile)
@@ -176,6 +182,7 @@ func TestAdminRenamesAnOrganisationAndANewLogoKeepsTheOldFile(t *testing.T) {
 }
 
 func TestAnOrganisationIsDeletedOnlyWhenNoLiveCourseUsesIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	org := s.addOrganisation("PDRM", pngFile)
@@ -207,6 +214,7 @@ func TestAnOrganisationIsDeletedOnlyWhenNoLiveCourseUsesIt(t *testing.T) {
 }
 
 func TestTheLiveCourseFormSetsAndClearsTheOrganisationAndADuplicateKeepsIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	org := s.addOrganisation("PDRM", pngFile)
@@ -242,6 +250,7 @@ func TestTheLiveCourseFormSetsAndClearsTheOrganisationAndADuplicateKeepsIt(t *te
 }
 
 func TestTheLiveCourseFormRefusesAnOrganisationThatIsNotThere(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	org := s.addOrganisation("PDRM", pngFile)

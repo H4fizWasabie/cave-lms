@@ -39,6 +39,7 @@ func (s *site) enrollmentCount(learnerEmail, courseID string) int {
 }
 
 func TestLearnerJoinsAnOpenCourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -59,6 +60,7 @@ func TestLearnerJoinsAnOpenCourse(t *testing.T) {
 }
 
 func TestCoursePageOffersJoinOnlyToLearnersWhoHaveNotJoined(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -80,6 +82,7 @@ func TestCoursePageOffersJoinOnlyToLearnersWhoHaveNotJoined(t *testing.T) {
 }
 
 func TestClosedCourseRefusesNewJoinsButKeepsExistingMembers(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -111,6 +114,7 @@ func TestClosedCourseRefusesNewJoinsButKeepsExistingMembers(t *testing.T) {
 }
 
 func TestVisitorWhoJoinsIsSentToLogIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -128,6 +132,7 @@ func TestVisitorWhoJoinsIsSentToLogIn(t *testing.T) {
 }
 
 func TestLearnerLeavesACourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -164,6 +169,7 @@ func TestLearnerLeavesACourse(t *testing.T) {
 }
 
 func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -196,6 +202,7 @@ func TestMyCoursesListsOnlyTheLearnersCourses(t *testing.T) {
 }
 
 func TestVisitorIsSentToLogInFromMyCourses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.get("/my-courses?tab=all")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -217,6 +224,7 @@ func TestVisitorIsSentToLogInFromMyCourses(t *testing.T) {
 }
 
 func TestVisitorPostingToALearnerPageIsSentToPlainLogIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.post("/lab/dashboards", url.Values{"template": {"finance"}, "name": {"Mine"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -226,6 +234,7 @@ func TestVisitorPostingToALearnerPageIsSentToPlainLogIn(t *testing.T) {
 }
 
 func TestCourseWithEnrollmentsCannotBeDeleted(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")

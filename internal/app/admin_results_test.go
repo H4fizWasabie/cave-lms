@@ -29,6 +29,7 @@ func resultRow(t *testing.T, body, attemptPath string) string {
 }
 
 func TestAdminResultsListEveryAttemptWithItsMarkTimesAndWhoMarkedIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "2", "Q1", "Q2")
 	res, _ := s.startExam(id)
@@ -55,6 +56,7 @@ func TestAdminResultsListEveryAttemptWithItsMarkTimesAndWhoMarkedIt(t *testing.T
 }
 
 func TestAdminResultsFilterByCourseAndExam(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	goID, _ := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(goID)
@@ -97,6 +99,7 @@ func questionBlock(t *testing.T, body, prompt string) string {
 }
 
 func TestAnAttemptOpensToShowItsQuestionsTheLearnersAnswersAndTheCorrectOptions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Got it right", "Got it wrong", "Left blank")
 	res, _ := s.startExam(id)
@@ -119,6 +122,7 @@ func TestAnAttemptOpensToShowItsQuestionsTheLearnersAnswersAndTheCorrectOptions(
 }
 
 func TestGiveAnotherAttemptLetsALearnerWhoUsedEveryAttemptStartOnceMoreWithTheSameQuestions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("100", "", "1", "Q1", "Q2", "Q3", "Q4")
 	res, _ := s.startExam(id)
@@ -166,6 +170,7 @@ func TestGiveAnotherAttemptLetsALearnerWhoUsedEveryAttemptStartOnceMoreWithTheSa
 }
 
 func TestResultsPagesAndGiveAnotherAttemptRefuseVisitorsAndLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("100", "", "1", "Q1")
 	res, _ := s.startExam(id)

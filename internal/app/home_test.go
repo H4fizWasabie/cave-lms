@@ -11,6 +11,7 @@ import (
 )
 
 func TestTheHomePagesTrustStripShowsPlaceholdersForMissingNumbersOnlyOutsideProduction(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, content(body), "TCC", "A platform by The Cave Consult", "HRD Corp", "MOF", "JPK", "Placeholder", "learners trained")
@@ -24,6 +25,7 @@ func TestTheHomePagesTrustStripShowsPlaceholdersForMissingNumbersOnlyOutsideProd
 }
 
 func TestEachHomeSectionHasAtMostOnePrimaryButton(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.courseWithContent()
@@ -43,6 +45,7 @@ func TestEachHomeSectionHasAtMostOnePrimaryButton(t *testing.T) {
 }
 
 func TestTheHomePageShowsThePCCPathwayAndNoCourseCards(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.courseWithContent()
@@ -65,6 +68,7 @@ func TestTheHomePageShowsThePCCPathwayAndNoCourseCards(t *testing.T) {
 }
 
 func TestTheHomePageLeavesTheCostComparisonToPricingWhichShowsTheStoredProPlanPrice(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectNone(t, content(body), "What a year costs", "cost-table", "Supabase Pro")
@@ -87,6 +91,7 @@ func TestTheHomePageLeavesTheCostComparisonToPricingWhichShowsTheStoredProPlanPr
 }
 
 func TestTheHomeHeroCarriesTheClientsTaglineInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, lang := range []string{"en", "ms"} {
 		_, body := s.getAsking("/", lang)
@@ -99,6 +104,7 @@ func TestTheHomeHeroCarriesTheClientsTaglineInBothLanguages(t *testing.T) {
 // The client keeps Certificates off the public front page: the hero shows people building a dashboard, and About CAVELMS comes
 // straight after the trust strip so visitors read about the company first.
 func TestTheHomeHeroShowsADashboardPhotoAndAboutFollowsTheTrustStripInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for lang, about := range map[string]string{"en": "CAVELMS is a digital learning platform", "ms": "CAVELMS ialah platform pembelajaran digital"} {
 		_, body := s.getAsking("/", lang)
@@ -112,6 +118,7 @@ func TestTheHomeHeroShowsADashboardPhotoAndAboutFollowsTheTrustStripInBothLangua
 }
 
 func TestTheMalayHomePagesButtonsAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "ms")
 	main := content(body)
@@ -125,6 +132,7 @@ var homeAnchor = regexp.MustCompile(`href="/#([a-z-]+)"`)
 
 // The header's Home menu jumps to Welcome, Coach Adam and About CAVELMS on the home page: each lands on its section.
 func TestEveryHomeMenuLinkLandsOnItsSectionInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	lands := map[string]map[string]string{
 		"en": {"welcome": "Welcome to CAVELMS", "coach": "Coach Adam Daniel", "about": "CAVELMS is a digital learning platform"},
@@ -153,6 +161,7 @@ func TestEveryHomeMenuLinkLandsOnItsSectionInBothLanguages(t *testing.T) {
 
 // Coach Adam's write-up is the client's marketing copy: the home page carries all of it, word for word, in both languages.
 func TestTheHomePageCarriesCoachAdamsWriteUpInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	keys := []string{"home.learn.title"}
 	for _, n := range []string{"1", "2", "3", "4"} {

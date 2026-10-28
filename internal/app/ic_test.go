@@ -12,6 +12,7 @@ func (s *site) setIC(ic string) (*http.Response, string) {
 }
 
 func TestALearnerSetsAMyKadICOnTheirProfileAndSeesItFormatted(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 
@@ -30,6 +31,7 @@ func TestALearnerSetsAMyKadICOnTheirProfileAndSeesItFormatted(t *testing.T) {
 }
 
 func TestAPassportNumberIsShownAsStoredWithoutSpacesOrDashes(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 
@@ -39,6 +41,7 @@ func TestAPassportNumberIsShownAsStoredWithoutSpacesOrDashes(t *testing.T) {
 }
 
 func TestMyProfileIsInTheClassroomMenuAndSendsAVisitorToLogIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, header(t, body), ">Classroom<", `<a href="/my-profile">My profile</a>`)
@@ -51,6 +54,7 @@ func TestMyProfileIsInTheClassroomMenuAndSendsAVisitorToLogIn(t *testing.T) {
 }
 
 func TestALearnerCannotChangeTheirICOnceSet(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.setIC("951206085555")
@@ -63,6 +67,7 @@ func TestALearnerCannotChangeTheirICOnceSet(t *testing.T) {
 }
 
 func TestAnICAlreadyUsedByAnotherLearnerIsRefused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.setIC("951206-08-5555")
@@ -78,6 +83,7 @@ func TestAnICAlreadyUsedByAnotherLearnerIsRefused(t *testing.T) {
 }
 
 func TestAnICThatIsNotLettersAndDigitsIsRefused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	for _, ic := range []string{" - ", "95/1206", "123456789012345678901"} {
@@ -110,6 +116,7 @@ func adminWithLearnerInCourse(t *testing.T) (admin, ada *site, courseID, correct
 }
 
 func TestTheAdminCorrectsALearnersIC(t *testing.T) {
+	t.Parallel()
 	admin, ada, id, correct := adminWithLearnerInCourse(t)
 	_, body := admin.getAsking("/admin/courses/"+id, "en")
 	expectInOrder(t, body, "IC or passport number", "951206-08-5555")
@@ -129,6 +136,7 @@ func TestTheAdminCorrectsALearnersIC(t *testing.T) {
 }
 
 func TestTheAdminCannotGiveALearnerAnICAnotherLearnerUses(t *testing.T) {
+	t.Parallel()
 	admin, ada, _, correct := adminWithLearnerInCourse(t)
 	bea := admin.second()
 	bea.loginAsNewLearner("Bea", "bea@example.com", "correct horse battery")
@@ -141,6 +149,7 @@ func TestTheAdminCannotGiveALearnerAnICAnotherLearnerUses(t *testing.T) {
 }
 
 func TestLearnersAreRefusedTheAdminsICCorrection(t *testing.T) {
+	t.Parallel()
 	_, ada, _, correct := adminWithLearnerInCourse(t)
 	res, body := ada.post(correct, url.Values{"ic": {"A1234567"}})
 	expectStatus(t, res, body, http.StatusForbidden, "")

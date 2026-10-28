@@ -24,6 +24,7 @@ func (s *site) getFolderAsking(lang string) (*http.Response, string) {
 }
 
 func TestTheFolderListsALearnersSubmissionsByCourseWithComments(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	aid := strings.Split(path, "/")[4]
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
@@ -83,6 +84,7 @@ func TestTheFolderListsALearnersSubmissionsByCourseWithComments(t *testing.T) {
 
 // The Folder is at the Learner's own Username (ADR 0023): /my-folder leads there, and so does another Learner's address.
 func TestTheFolderIsAtTheLearnersUsernameAndNobodyElsesLeadsThere(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	bea := admin.second()
@@ -117,6 +119,7 @@ func TestTheFolderIsAtTheLearnersUsernameAndNobodyElsesLeadsThere(t *testing.T) 
 }
 
 func TestTheFolderIsInTheMyMenuInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := publishedAssignment(t)
 	res, body := ada.getFolderAsking("ms")
 	expectStatus(t, res, body, http.StatusOK, `<a href="/my-folder">Folder saya</a>`)
@@ -136,6 +139,7 @@ func pastIntro(t *testing.T, body string) string {
 const labIntro = "Your Workbooks, your Dashboards&#39; pages and your Submissions"
 
 func TestALearnerWithAPlanAndNoCourseSeesTheLabPartAndNoJoinACourseEmptyState(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, labIntro)
@@ -151,6 +155,7 @@ func TestALearnerWithAPlanAndNoCourseSeesTheLabPartAndNoJoinACourseEmptyState(t 
 }
 
 func TestALearnerWithAPlanAndSubmissionsSeesTheLabPartFirstAndSubmissionsBelow(t *testing.T) {
+	t.Parallel()
 	admin, ada, path := publishedAssignment(t)
 	ada.postFiles(path+"/files", upload{"prompt.pdf", pdfHandIn})
 	admin.createPlan("Lab Monthly", "30", "3")
@@ -170,6 +175,7 @@ func TestALearnerWithAPlanAndSubmissionsSeesTheLabPartFirstAndSubmissionsBelow(t
 }
 
 func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", myPage)
 	ada.uploadPage(path, versionOf(2))
@@ -191,6 +197,7 @@ func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(
 }
 
 func TestAFreeLearnersFolderKeepsTodaysIntroAndEmptyState(t *testing.T) {
+	t.Parallel()
 	_, ada, _, _ := labSetup(t)
 	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "Your Submissions to Assignments, by Course")
@@ -203,6 +210,7 @@ func TestAFreeLearnersFolderKeepsTodaysIntroAndEmptyState(t *testing.T) {
 
 // Once the last Plan period ends the Lab part stays for as long as Workbooks are kept, to download; without any it goes.
 func TestTheLabPartStaysForAnEndedPlanWithWorkbooksAndGoesWithoutThem(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.createPage("Jualan", myPage)
 	ada.postFile("/workbooks", "laporan.xlsx", shopReport(t, "Beras", 120))
@@ -225,6 +233,7 @@ func TestTheLabPartStaysForAnEndedPlanWithWorkbooksAndGoesWithoutThem(t *testing
 }
 
 func TestTheLabAndTheDataTabLinkToTheFolder(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	// The header links to the Folder too, so look for the sentence each page puts before its own link.
 	res, body := ada.get("/lab")
@@ -238,6 +247,7 @@ func TestTheLabAndTheDataTabLinkToTheFolder(t *testing.T) {
 }
 
 func TestTheFolderLabPartIsInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.createPage("Jualan", myPage)
 	ada.switchLanguage("ms", "/")
@@ -250,6 +260,7 @@ func TestTheFolderLabPartIsInMalay(t *testing.T) {
 }
 
 func TestTheFolderListsEveryDashboardAWorkbookWasUsedOnAndSaysWhenNone(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	kewangan := ada.readyDashboard("Kewangan")
 	stok := ada.readyDashboard("Stok") // the same file, so the same Workbook
@@ -268,6 +279,7 @@ func TestTheFolderListsEveryDashboardAWorkbookWasUsedOnAndSaysWhenNone(t *testin
 }
 
 func TestTheAdminSeesWhichDashboardsAWorkbookWasUsedOnAsPlainText(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 

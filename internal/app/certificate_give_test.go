@@ -9,6 +9,7 @@ import (
 var giveCertificateLink = regexp.MustCompile(`action="(/admin/courses/\d+/learners/\d+/certificate)"`)
 
 func TestAdminGivesACertificateInALiveCourseThatLooksEarned(t *testing.T) {
+	t.Parallel()
 	admin, ada, id, _ := liveCourse(t, "1") // Ada has not sat the Exam
 	bea := admin.second()
 	bea.loginAsNewLearner("Bea", "bea@example.com", certPassword)
@@ -58,6 +59,7 @@ func TestAdminGivesACertificateInALiveCourseThatLooksEarned(t *testing.T) {
 }
 
 func TestAnEarnedCertificateIsNotMarkedGivenAndASelfPacedCourseHasNoGiveButton(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.earnedCertificate()
 	s.loginAdmin()

@@ -43,6 +43,7 @@ func expectCertificateEmail(t *testing.T, all []mailer.Message, id, subject, bod
 }
 
 func TestAnEarnedCertificateIsEmailedOnceWithItsPDFAndCheckLink(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -60,6 +61,7 @@ func TestAnEarnedCertificateIsEmailedOnceWithItsPDFAndCheckLink(t *testing.T) {
 }
 
 func TestACertificateIssuedOnSettingTheICIsEmailedInTheSavedLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.logOut()
@@ -81,6 +83,7 @@ func TestACertificateIssuedOnSettingTheICIsEmailedInTheSavedLanguage(t *testing.
 }
 
 func TestAFailedCertificateEmailIsLoggedAndKeepsTheCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" }) // the Admin learnerEnrolledIn makes
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.mail.FailWith(errors.New("mail server down"))
@@ -97,6 +100,7 @@ func TestAFailedCertificateEmailIsLoggedAndKeepsTheCertificate(t *testing.T) {
 }
 
 func TestAReissuedCertificateIsEmailedAndALearnerWithNoICGetsNone(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	oldID := s.earnedCertificate()
 	s.loginAdmin()

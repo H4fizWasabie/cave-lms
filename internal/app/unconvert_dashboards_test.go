@@ -55,6 +55,7 @@ func (s *site) convertToPage(path, page string) {
 // converted page loses it, its file goes from the store, and its link draws its Theme and blocks again. One whose
 // owner uploaded a page of their own, and a pasted one, keep their pages.
 func TestConvertedDashboardsWithOnlyTheirConvertedPageAreBuiltAgain(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	converted := ada.readyDashboard("Kewangan")
 	link := ada.deploy(converted)

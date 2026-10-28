@@ -38,6 +38,7 @@ func (s *site) saveQuestion(path, prompt string, options [5]string, correct stri
 }
 
 func TestAdminSetsAndChangesTheExamSettings(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -62,6 +63,7 @@ func TestAdminSetsAndChangesTheExamSettings(t *testing.T) {
 }
 
 func TestAnExamAsks30QuestionsUnlessTheAdminChangesTheDrawCount(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -83,6 +85,7 @@ func TestAnExamAsks30QuestionsUnlessTheAdminChangesTheDrawCount(t *testing.T) {
 }
 
 func TestExamSettingsRejectInvalidInput(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -101,6 +104,7 @@ func TestExamSettingsRejectInvalidInput(t *testing.T) {
 }
 
 func TestAdminAddsAQuestionThatMakesTheExamUsable(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -120,6 +124,7 @@ func TestAdminAddsAQuestionThatMakesTheExamUsable(t *testing.T) {
 }
 
 func TestQuestionFormRejectsBadQuestions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -143,6 +148,7 @@ func TestQuestionFormRejectsBadQuestions(t *testing.T) {
 }
 
 func TestDraftQuestionsAreNotUsableUntilPublished(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -168,6 +174,7 @@ func TestDraftQuestionsAreNotUsableUntilPublished(t *testing.T) {
 }
 
 func TestAdminEditsAQuestionAndItsCorrectAnswer(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -196,6 +203,7 @@ func TestAdminEditsAQuestionAndItsCorrectAnswer(t *testing.T) {
 var examQuestionID = regexp.MustCompile(`/exam/questions/(\d+)/edit`)
 
 func TestAdminReordersQuestionsWithUpAndDown(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -226,6 +234,7 @@ func TestAdminReordersQuestionsWithUpAndDown(t *testing.T) {
 }
 
 func TestAdminDeletesAQuestionOnlyAfterConfirming(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -259,6 +268,7 @@ func TestAdminDeletesAQuestionOnlyAfterConfirming(t *testing.T) {
 }
 
 func TestExamAdminPagesRefuseVisitorsAndLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -315,6 +325,7 @@ func TestExamAdminPagesRefuseVisitorsAndLearners(t *testing.T) {
 }
 
 func TestUnknownQuestionIsNotFound(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -330,6 +341,7 @@ func TestUnknownQuestionIsNotFound(t *testing.T) {
 }
 
 func TestDeletingACourseRemovesItsExam(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -343,6 +355,7 @@ func TestDeletingACourseRemovesItsExam(t *testing.T) {
 }
 
 func TestAdminReachesTheExamFromTheCourseList(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -355,6 +368,7 @@ func TestAdminReachesTheExamFromTheCourseList(t *testing.T) {
 }
 
 func TestANewExamAllowsTwoAttemptsUntilTheAdminChangesIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -374,6 +388,7 @@ func TestANewExamAllowsTwoAttemptsUntilTheAdminChangesIt(t *testing.T) {
 }
 
 func TestAnExamOfAnUnknownFormatIsNotFound(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -388,6 +403,7 @@ func TestAnExamOfAnUnknownFormatIsNotFound(t *testing.T) {
 }
 
 func TestExamSettingsWarnWhenTheDrawCountIsMoreThanThePublishedQuestions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -416,6 +432,7 @@ func TestExamSettingsWarnWhenTheDrawCountIsMoreThanThePublishedQuestions(t *test
 }
 
 func TestTheDrawWarningForOnePublishedQuestionIsSingular(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")

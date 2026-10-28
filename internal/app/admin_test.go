@@ -9,6 +9,7 @@ import (
 )
 
 func TestAdminAreaRefusesVisitors(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.get("/admin")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -18,6 +19,7 @@ func TestAdminAreaRefusesVisitors(t *testing.T) {
 }
 
 func TestAdminAreaRefusesLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	res, body := s.get("/admin")
@@ -25,6 +27,7 @@ func TestAdminAreaRefusesLearners(t *testing.T) {
 }
 
 func TestAdminAreaLoadsForTheAdmin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.get("/admin")
@@ -32,6 +35,7 @@ func TestAdminAreaLoadsForTheAdmin(t *testing.T) {
 }
 
 func TestHomeLinksToAdminAreaOnlyForTheAdmin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	_, body := s.get("/")
@@ -46,6 +50,7 @@ func TestHomeLinksToAdminAreaOnlyForTheAdmin(t *testing.T) {
 }
 
 func TestRegistrationCannotMakeAnAdmin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "mallory@example.com", "correct horse battery"
 	res, body := s.post("/register", url.Values{"name": {"Mallory"}, "username": {usernameFor(email)}, "email": {email}, "password": {password}, "is_admin": {"true"}})
@@ -67,6 +72,7 @@ func TestRegistrationCannotMakeAnAdmin(t *testing.T) {
 }
 
 func TestCreateAdminMakesAVerifiedAdmin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "admin@example.com", "correct horse battery"
 	s.loginAsNewAdmin("Abah", email, password)
@@ -81,6 +87,7 @@ func TestCreateAdminMakesAVerifiedAdmin(t *testing.T) {
 }
 
 func TestCreateAdminPromotesExistingLearner(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email = "abah@example.com"
 	res, body := s.register("Abah", email, "old password one")
@@ -98,6 +105,7 @@ func TestCreateAdminPromotesExistingLearner(t *testing.T) {
 }
 
 func TestCreateAdminOnAnExistingAccountSignsItOutEverywhere(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	const email = "abah@example.com"
 	s.loginAsNewAdmin("Abah", email, "old password one")
@@ -121,6 +129,7 @@ func TestCreateAdminOnAnExistingAccountSignsItOutEverywhere(t *testing.T) {
 }
 
 func TestCreateAdminRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, tc := range []struct{ name, email, password string }{
 		{"", "admin@example.com", "long enough"},

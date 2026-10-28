@@ -7,6 +7,7 @@ import (
 )
 
 func TestThePrivacyNoticeIsInBothLanguagesAndTheEnglishPrevails(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, c := range []struct {
 		lang string
@@ -37,6 +38,7 @@ func TestThePrivacyNoticeIsInBothLanguagesAndTheEnglishPrevails(t *testing.T) {
 }
 
 func TestEveryPagesFooterLinksToThePrivacyNotice(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, path := range []string{"/", "/courses", "/login", "/gallery", "/privacy"} {
 		_, body := s.get(path)
@@ -48,6 +50,7 @@ func TestEveryPagesFooterLinksToThePrivacyNotice(t *testing.T) {
 }
 
 func TestRegisterAsksForConsentToThePrivacyNoticeInThePagesLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/register", "en")
 	expectLanguage(t, body, "en", `By registering you confirm you are 18 or older and agree to the <a href="/privacy">Privacy Notice</a>.`)

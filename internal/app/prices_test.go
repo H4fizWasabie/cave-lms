@@ -30,6 +30,7 @@ func (s *site) savePrices(changes map[string]string) (*http.Response, string) {
 }
 
 func TestAnyAdminSetsThePricesNormalPricesAndPaymentLinksOfTheThreeProducts(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	res, body := s.get("/admin/prices")
 	expectStatus(t, res, body, http.StatusOK, "<h1>Admin: Prices</h1>")
@@ -52,6 +53,7 @@ func TestAnyAdminSetsThePricesNormalPricesAndPaymentLinksOfTheThreeProducts(t *t
 }
 
 func TestThePricesPageRefusesANormalPriceNotAboveThePriceAndOtherMistakes(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	for _, c := range []struct {
 		changes map[string]string
@@ -82,6 +84,7 @@ func TestThePricesPageRefusesANormalPriceNotAboveThePriceAndOtherMistakes(t *tes
 }
 
 func TestOnlyAnAdminSetsPricesAndNeverCrossOrigin(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada := s.second()
 	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
@@ -108,6 +111,7 @@ func TestOnlyAnAdminSetsPricesAndNeverCrossOrigin(t *testing.T) {
 }
 
 func TestThePricesPageIsInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.switchLanguage("ms", "/")
 	_, body := s.get("/admin/prices")
@@ -121,6 +125,7 @@ func TestThePricesPageIsInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheMoveToPricesKeepsTodaysProPriceLinkAndProPlanMark(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.createPlan("Lab Year", "365", "5")
 	s.createPlan("Staff", "30", "1")
@@ -151,6 +156,7 @@ func TestTheMoveToPricesKeepsTodaysProPriceLinkAndProPlanMark(t *testing.T) {
 }
 
 func TestThePricesPageSavesOptionalStorageAddOnPricesWithTheThreeProducts(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	_, body := s.get("/admin/prices")
 	expectAll(t, body, "Storage add-ons", `name="storage-3gb_price" value=""`, `name="storage-5gb_price" value=""`)

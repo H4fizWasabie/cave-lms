@@ -72,6 +72,7 @@ func describe(list []snippet) string {
 }
 
 func TestASnippetSavedInOneBrowserAppearsInAnother(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	first := s.connect()
@@ -89,6 +90,7 @@ func TestASnippetSavedInOneBrowserAppearsInAnother(t *testing.T) {
 }
 
 func TestTheLastWriteWinsBetweenTwoBrowsers(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	first, second := s.connect(), s.connect()
@@ -117,6 +119,7 @@ func TestTheLastWriteWinsBetweenTwoBrowsers(t *testing.T) {
 }
 
 func TestAnotherLearnersSnippetsAreNeverReadableOrWritable(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	ada := s.connect()
@@ -142,6 +145,7 @@ func TestAnotherLearnersSnippetsAreNeverReadableOrWritable(t *testing.T) {
 }
 
 func TestDeletingALearnerDeletesTheirSnippets(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	s.createSnippet(s.connect(), snippet{Folder: "Work", Name: "Review", Shortcut: "/review", Body: "x"})
@@ -158,6 +162,7 @@ func TestDeletingALearnerDeletesTheirSnippets(t *testing.T) {
 }
 
 func TestShortcutClashesAreRefusedWithAMessage(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()
@@ -192,6 +197,7 @@ func TestShortcutClashesAreRefusedWithAMessage(t *testing.T) {
 }
 
 func TestAnIdBelowOneIsNoSnippet(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()
@@ -205,6 +211,7 @@ func TestAnIdBelowOneIsNoSnippet(t *testing.T) {
 }
 
 func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()
@@ -258,6 +265,7 @@ func TestAnImportReplacesEverySnippetOrNone(t *testing.T) {
 }
 
 func TestASnippetWithAFieldTooLongIsRefused(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -284,6 +292,7 @@ func TestASnippetWithAFieldTooLongIsRefused(t *testing.T) {
 // Without Pro a body has up to 4,500 characters; a 422, so CaveText doesn't take it for the Snippet cap. One kept
 // from a Pro period can still be saved as long as it was, or shorter.
 func TestAFreeSnippetBodyHasUpTo4500Characters(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	const tooLong = "Without CaveText Pro, a Snippet's body can have up to 4,500 characters (about 700 words); this one has 4,501. Shorten it, or get CaveText Pro, which has no limit."
@@ -312,6 +321,7 @@ func TestAFreeSnippetBodyHasUpTo4500Characters(t *testing.T) {
 
 // The clash check runs under the account's row lock, so a full Pro import must not check its shortcuts pair by pair.
 func TestAProImportOfTwoThousandSnippetsChecksTheirShortcutsQuickly(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")

@@ -33,6 +33,7 @@ func using(blocks []lab.WorkBlock, column string) int {
 }
 
 func TestAPickForARenamedColumnSwapsInEveryBlock(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
@@ -54,6 +55,7 @@ func TestAPickForARenamedColumnSwapsInEveryBlock(t *testing.T) {
 }
 
 func TestAnUnchangedReplaceShowsItsPreviewAndGoesLiveOnConfirm(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	link := ada.deploy(path)
@@ -72,6 +74,7 @@ func TestAnUnchangedReplaceShowsItsPreviewAndGoesLiveOnConfirm(t *testing.T) {
 }
 
 func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Hari", "Barang", "Kumpulan", "Jenis", "Amaun"))
@@ -95,6 +98,7 @@ func TestMostBlockColumnsMissingAsksAboutTheHeaderRow(t *testing.T) {
 }
 
 func TestReplacingTheDataWithADatasetThatHasTheColumnUnpausesItsBlocks(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	res, body := ada.postFile(path+"/dataset", "november.xlsx", shopFile(t, "Tarikh", "Perkara", "Kategori", "Jenis", "Amaun"))
@@ -113,6 +117,7 @@ func TestReplacingTheDataWithADatasetThatHasTheColumnUnpausesItsBlocks(t *testin
 }
 
 func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	link := ada.deploy(path)
@@ -143,6 +148,7 @@ func TestALeftOutColumnPausesItsBlocksUntilItComesBack(t *testing.T) {
 }
 
 func TestEvenAReplaceWithTheSameKindsOfChangesShowsThePreviewWithItsWarning(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady() // its title rows were skipped
 	ada.uploadLive(path, shopReport(t, "Gula", 80), "Gula", "Beras")
@@ -155,6 +161,7 @@ func TestEvenAReplaceWithTheSameKindsOfChangesShowsThePreviewWithItsWarning(t *t
 }
 
 func TestARetypedColumnLeftOutPausesItsBlocksUntilTheDataIsReplaced(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	day := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)

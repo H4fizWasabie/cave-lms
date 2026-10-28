@@ -46,6 +46,7 @@ const pageCSP = "sandbox allow-scripts; default-src 'none'; " +
 	"img-src data: https:; connect-src 'self' https://cave.example.invalid; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
 
 func TestAPlanHolderPastesHTMLDeploysAndAVisitorGetsItSandboxed(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", myPage)
 	link := ada.deployAs(path, "jualan-ada")
@@ -71,6 +72,7 @@ func TestAPlanHolderPastesHTMLDeploysAndAVisitorGetsItSandboxed(t *testing.T) {
 }
 
 func TestAPlanHolderPicksAnHTMLFileForTheirPage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	res, body := ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusOK, "")
@@ -89,6 +91,7 @@ func TestAPlanHolderPicksAnHTMLFileForTheirPage(t *testing.T) {
 }
 
 func TestAPageThatIsEmptyTooBigNotHTMLOrOverTheAllowanceIsRefusedAndNothingIsSaved(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	big := strings.Repeat("x", 5<<20+1)
 	for _, c := range []struct {
@@ -134,6 +137,7 @@ func TestAPageThatIsEmptyTooBigNotHTMLOrOverTheAllowanceIsRefusedAndNothingIsSav
 }
 
 func TestTheLabListsPageDashboardsWithTheirLinkAwakeStateAndLastChange(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.createPage("Jualan", myPage)
 	res, body := ada.get("/lab")
@@ -154,6 +158,7 @@ func TestTheLabListsPageDashboardsWithTheirLinkAwakeStateAndLastChange(t *testin
 }
 
 func TestPagesCountInTheStorageTotalAndAgainstDatasetUploads(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	ada.createPage("Besar", strings.Repeat("z", 900<<10))
 	res, body := ada.get("/lab")
@@ -165,6 +170,7 @@ func TestPagesCountInTheStorageTotalAndAgainstDatasetUploads(t *testing.T) {
 }
 
 func TestAPageDeploymentSleepsWakesIsTakenDownRenamedAndDeleted(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.createPage("Jualan", myPage)
 	link := ada.deployAs(path, "jualan-ada")
@@ -207,6 +213,7 @@ func TestAPageDeploymentSleepsWakesIsTakenDownRenamedAndDeleted(t *testing.T) {
 }
 
 func TestWithoutAPlanTheLabGoesToPricingButTheAdminKeepsTheLab(t *testing.T) {
+	t.Parallel()
 	admin, ada, _, _ := labSetup(t)
 	for _, who := range []*site{ada, ada.second()} {
 		res, body := who.get("/lab")

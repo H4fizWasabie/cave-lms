@@ -38,6 +38,7 @@ func markahReport(t *testing.T) []byte {
 }
 
 func TestReplacingTheFirstOfThreePartsKeepsItFirstWithTheNewRowsAndQueuesTheOldRows(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := threeParts(t, ada)
 	visitor := ada.second()
@@ -93,6 +94,7 @@ func TestReplacingTheFirstOfThreePartsKeepsItFirstWithTheNewRowsAndQueuesTheOldR
 }
 
 func TestAReplaceOfOnePartCountsItsOldPartAsFreeAndIsRefusedWhenItFitsNeitherWay(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "4") // each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
 	path := ada.createPage("Kedai", myPage)
 	dataLink := ada.deployAs(path, "kedai-ada")
@@ -140,6 +142,7 @@ func TestAReplaceOfOnePartCountsItsOldPartAsFreeAndIsRefusedWhenItFitsNeitherWay
 }
 
 func TestAThemeBuiltDashboardCountsTheRowTotalWithoutTheReplacedPart(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "september.xlsx", bigReport(t, "Beras", 25000))
@@ -166,6 +169,7 @@ func TestAThemeBuiltDashboardCountsTheRowTotalWithoutTheReplacedPart(t *testing.
 }
 
 func TestDeletingAnotherPartKeepsAPendingReplaceOfOnePartAndDeletingItsPartDropsIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := threeParts(t, ada)
 	visitor := ada.second()
@@ -195,6 +199,7 @@ func TestDeletingAnotherPartKeepsAPendingReplaceOfOnePartAndDeletingItsPartDrops
 }
 
 func TestAReplaceOfOneOfSeveralPartsNeedsTheDatasetsColumnsAndOnlyReachesTheLearnersOwnParts(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	links := replaceLinks(t, ada, path+"/data")
@@ -217,6 +222,7 @@ func TestAReplaceOfOneOfSeveralPartsNeedsTheDatasetsColumnsAndOnlyReachesTheLear
 // A Part replacing one of several is read with the Dataset's recipe, as an Add is: only the recipe sheet, never
 // another sheet with the same columns; and confirming it keeps the recipe.
 func TestAReplaceOfOneOfSeveralPartsIsReadWithTheRecipeAndKeepsIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := twoParts(t, ada)
 	visitor := ada.second()

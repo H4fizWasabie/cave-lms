@@ -6,6 +6,7 @@ import (
 )
 
 func TestTheAboutPageGivesTheClientsCompanyBackgroundInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.getAsking("/about", "en")
 	expectStatus(t, res, body, http.StatusOK, "")
@@ -27,6 +28,7 @@ func TestTheAboutPageGivesTheClientsCompanyBackgroundInBothLanguages(t *testing.
 }
 
 func TestTheFooterLeadsToTheAboutPageAndTheHomePageDropsItsPlaceholder(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectAll(t, body, `<a href="/about">About TCC</a>`)
