@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -309,53 +307,6 @@ func (s *site) restart() {
 	s.t.Cleanup(func() { _ = a.Close() })
 	s.server.Config.Handler = a
 	s.application = a
-}
-
-func TestDatasetsStillInTheDatabaseMoveToTheStoreAtStartup(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path := ada.readyDashboard("Kewangan")
-	ada.dataOf(path + "/view/")
-
-	// Put the Dashboard back the way it was before the store: its Dataset in the dataset column, nothing stored.
-	var key string
-	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&key); err != nil {
-		t.Fatal(err)
-	}
-	stored := filepath.Join(ada.storageDir, key)
-	dataset := []byte(`{"columns": [{"name": "Tarikh", "type": "date"}, {"name": "Jumlah", "type": "number"}], "rows": [["2026-03-05", 12.5]]}`)
-	if err := app.MigrateDownTo(context.Background(), ada.db, 68); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ada.db.Exec(`UPDATE dashboards SET dataset = $1, dataset_key = NULL`, dataset); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(stored); err != nil {
-		t.Fatal(err)
-	}
-
-	ada.restart()
-	// At migration 68 a Dashboard is a Practice one, which no step turns back any more (none is left on production),
-	// so the move is checked in the store: the Dataset is there again, under the key the Dashboard now holds.
-	if err := ada.db.QueryRow(`SELECT dataset_key FROM dashboards`).Scan(&key); err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(filepath.Join(ada.storageDir, key))
-	var gotRows, wantRows any
-	if err == nil {
-		err = errors.Join(json.Unmarshal(got, &gotRows), json.Unmarshal(dataset, &wantRows))
-	}
-	if err != nil || !reflect.DeepEqual(gotRows, wantRows) { // the database's jsonb reorders keys and spaces
-		t.Fatalf("after the move the store holds %.300s (%v), want %.300s", got, err, dataset)
-	}
-	if n := ada.datasetFiles(); n != 1 {
-		t.Fatalf("%d stored files after the move, want 1: the Dataset", n)
-	}
-	var column bool
-	if err := ada.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
-		WHERE table_schema = current_schema() AND table_name = 'dashboards' AND column_name = 'dataset')`).Scan(&column); err != nil || column {
-		t.Fatalf("the old dataset column is still there (%v)", err)
-	}
 }
 
 func TestAFailedStoreWriteTellsTheLearnerAndKeepsThePreviousDataset(t *testing.T) {

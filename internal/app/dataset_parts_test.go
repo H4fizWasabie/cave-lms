@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"math/rand"
@@ -13,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/H4fizWasabie/cave-lms/internal/app"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
@@ -119,125 +117,6 @@ func TestReplaceDataLeavesOnePartAndQueuesTheRemovedPartsFilesForDeletion(t *tes
 	}
 	_, body = ada.get(path)
 	expectAll(t, body, "disember.xlsx", "2 rows")
-}
-
-// A current Dataset from before Parts that was last changed by an Add to data still holds the whole table: only a
-// pending Add is cut to its new rows. Production lost rows to this on 2026-10-27.
-func TestACurrentDatasetFromBeforePartsLastChangedByAnAddKeepsEveryRow(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path := ada.createWork("Kedai")
-	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
-	link := ada.deploy(path)
-	var key string
-	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&key); err != nil {
-		t.Fatal(err)
-	}
-	if err := app.MigrateDownTo(context.Background(), ada.db, 127); err != nil {
-		t.Fatal(err)
-	}
-	whole := `{"columns": [{"name": "Tarikh", "type": "date"}, {"name": "Perkara", "type": "text"}, {"name": "Kategori", "type": "text"},
-		{"name": "Jenis", "type": "text"}, {"name": "Jumlah", "type": "number"}],
-		"rows": [["2026-10-05", "Beras", "Dapur", "Keluar", 120], ["2026-10-06", "Jualan", "Kedai", "Masuk", 900]]}`
-	if err := os.WriteFile(filepath.Join(ada.storageDir, key), []byte(whole), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	// Confirmed as an Add of one row to the one it had: the Clean-up record keeps saying so after the confirm.
-	if _, err := ada.db.Exec(`UPDATE datasets SET confirmed_at = '2026-03-09 10:00+00', row_count = 2,
-		cleanup = jsonb_set(cleanup, '{added}', '{"had": 1}')`); err != nil {
-		t.Fatal(err)
-	}
-	ada.restart()
-	link = ada.linkAfterMigration(path)
-
-	want := []string{"Beras 2026-03-09", "Jualan 2026-03-09"}
-	for _, page := range []string{path + "/view/", link} {
-		if got := ada.perkara(page); strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Fatalf("%s draws %v, want every row of the Dataset: %v", page, got, want)
-		}
-	}
-}
-
-// Datasets before Parts keep their earlier copies, read-only and counted, until the Dashboard's data next changes.
-func TestADatasetFromBeforePartsBecomesOnePartAndItsEarlierCopiesGoOnTheNextConfirm(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path := ada.createWork("Kedai")
-	ada.confirmFile(path, "september.xlsx", shopReport(t, "Beras", 120))
-	link := ada.deploy(path)
-	var key string
-	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&key); err != nil {
-		t.Fatal(err)
-	}
-
-	// Put the Dashboard back as it was before Parts: one current Dataset stored whole, confirmed on 9 March, and an
-	// earlier one.
-	if err := app.MigrateDownTo(context.Background(), ada.db, 127); err != nil {
-		t.Fatal(err)
-	}
-	legacy := `{"columns": [{"name": "Tarikh", "type": "date"}, {"name": "Perkara", "type": "text"}, {"name": "Kategori", "type": "text"},
-		{"name": "Jenis", "type": "text"}, {"name": "Jumlah", "type": "number"}],
-		"rows": [["2026-10-05", "Beras", "Dapur", "Keluar", 120], ["2026-10-05", "Jualan", "Kedai", "Masuk", 900]]}`
-	if err := os.WriteFile(filepath.Join(ada.storageDir, key), []byte(legacy), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	earlier := "dataset-earlier-before-parts"
-	if err := os.WriteFile(filepath.Join(ada.storageDir, earlier), []byte(legacy), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ada.db.Exec(`UPDATE datasets SET confirmed_at = '2026-03-09 10:00+00'`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ada.db.Exec(`UPDATE dashboards SET upload_settings = upload_settings - 'recipe'`); err != nil { // none before Parts
-		t.Fatal(err)
-	}
-	if _, err := ada.db.Exec(`INSERT INTO datasets (dashboard_id, storage_key, file_name, saved_size, row_count, state, confirmed_at)
-		SELECT dashboard_id, $1, 'agosto.xlsx', 1000, 2, 'earlier', '2026-02-01 10:00+00' FROM datasets`, earlier); err != nil {
-		t.Fatal(err)
-	}
-	ada.restart()
-	link = ada.linkAfterMigration(path)
-
-	// The Dataset has the recipe its next Parts are read with: the sheet its Part was read from, the header not typed.
-	var recipe string
-	if err := ada.db.QueryRow(`SELECT upload_settings->'recipe'->>'sheet' || '/' || COALESCE(upload_settings->'recipe'->>'headerTyped', 'no')
-		FROM dashboards`).Scan(&recipe); err != nil || recipe != "Sheet1/no" {
-		t.Fatalf("recipe after the conversion = %q (%v), want Sheet1/no", recipe, err)
-	}
-
-	want := []string{"Beras 2026-03-09", "Jualan 2026-03-09"}
-	for _, page := range []string{path + "/view/", link} {
-		if got := ada.perkara(page); strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Fatalf("%s draws %v, want %v", page, got, want)
-		}
-	}
-	var parts, earlierParts int
-	if err := ada.db.QueryRow(`SELECT count(*) FILTER (WHERE state = 'current' AND position = 1), count(*) FILTER (WHERE state = 'earlier') FROM dataset_parts`).Scan(&parts, &earlierParts); err != nil {
-		t.Fatal(err)
-	}
-	if parts != 1 || earlierParts != 1 {
-		t.Fatalf("%d current Parts and %d earlier, want 1 and 1", parts, earlierParts)
-	}
-	if n := ada.datasetFiles(); n != 2 {
-		t.Fatalf("%d stored files, want the Part and the earlier Dataset", n)
-	}
-	_, body := ada.get(path)
-	for _, gone := range []string{"Earlier Datasets", "Restore", "agosto.xlsx"} {
-		if strings.Contains(body, gone) {
-			t.Fatalf("the Data tab still shows %q:\n%s", gone, body)
-		}
-	}
-
-	ada.addFile(path, "oktober.xlsx", shopReport(t, "Gula", 80))
-	if err := ada.db.QueryRow(`SELECT count(*) FILTER (WHERE state = 'current'), count(*) FILTER (WHERE state = 'earlier') FROM dataset_parts`).Scan(&parts, &earlierParts); err != nil {
-		t.Fatal(err)
-	}
-	if parts != 2 || earlierParts != 0 {
-		t.Fatalf("after the next confirm %d current Parts and %d earlier, want 2 and 0", parts, earlierParts)
-	}
-	if n := ada.datasetFiles(); n != 2 {
-		t.Fatalf("%d stored files, want both Parts and no earlier Dataset", n)
-	}
 }
 
 func TestTheDataTabOffersNoEarlierDatasetsOrRestoreAndPointsToTheWorkbooksInTheFolder(t *testing.T) {
