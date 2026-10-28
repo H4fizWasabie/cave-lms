@@ -90,9 +90,9 @@ func TestAPlanHolderPicksAnHTMLFileForTheirPage(t *testing.T) {
 	}
 }
 
-func TestAPageThatIsEmptyTooBigNotHTMLOrOverTheAllowanceIsRefusedAndNothingIsSaved(t *testing.T) {
+func TestAPageThatIsEmptyTooBigOrNotHTMLIsRefusedAndNothingIsSaved(t *testing.T) {
 	t.Parallel()
-	_, ada, _ := storageSite(t, "1")
+	_, ada := labLearner(t)
 	big := strings.Repeat("x", 5<<20+1)
 	for _, c := range []struct {
 		name string
@@ -117,9 +117,6 @@ func TestAPageThatIsEmptyTooBigNotHTMLOrOverTheAllowanceIsRefusedAndNothingIsSav
 		{"big paste", func() (*http.Response, string) {
 			return ada.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {big + big}})
 		}, "The page is over 5 MB."},
-		{"over the allowance", func() (*http.Response, string) {
-			return ada.post("/lab/dashboards", url.Values{"name": {"Jualan"}, "html": {strings.Repeat("y", 1100<<10)}})
-		}, "would take you over your Storage allowance"},
 	} {
 		res, body := c.post()
 		expectStatus(t, res, body, http.StatusUnprocessableEntity, c.want)

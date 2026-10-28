@@ -59,16 +59,15 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 }
 
 // keepWorkbook keeps data, the .xlsx a Learner uploaded, as their Workbook called name, before Clean-up reads it, so it
-// stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance beside the Learner's
-// Parts, pages and Workbooks and their pending Parts on Dashboards other than dashboardID (0 for a new one); the
-// Dashboard's own pending Part is not counted, as the upload replaces it. The Parts that confirming the upload deletes
-// count as free, as for pendingReserve: those an upload of kind deletes on dashboardID when confirmed (replaces is the
-// Part a ReplacePart one replaces, see roomFor). If it does not fit, nothing is kept and the error is errStorageFull,
-// with used the bytes counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0.
-// A file the Learner already keeps gives that Workbook's id, keeping nothing new.
-func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, kind dataset.Kind, replaces int64, name string, data []byte) (id, used int64, err error) {
+// stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance (see reserve); what
+// confirming the upload deletes from dashboardID (0 for a new one) counts as free, as for the Part's own check: the
+// Parts an upload of kind deletes when confirmed (replaces is the Part a ReplacePart one replaces) and the Dashboard's own
+// Pending Part. If it does not fit, nothing is kept and the error is a *storageFull. A store that refuses the file gives
+// errDatasetStore. An empty file is not kept: id is 0. A file the Learner already keeps gives that Workbook's id, keeping
+// nothing new.
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, kind dataset.Kind, replaces int64, name string, data []byte) (id int64, err error) {
 	if len(data) == 0 {
-		return 0, 0, nil
+		return 0, nil
 	}
 	// The preview's sheet, header row and month post the file again: the same bytes stay one Workbook.
 	// ponytail: two identical uploads racing each other may still keep two; a unique index if that ever matters.
@@ -76,56 +75,29 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 	err = a.db.QueryRowContext(r.Context(), `SELECT id FROM workbooks WHERE learner_id = $1 AND sha256 = $2 LIMIT 1`,
 		learnerID, sum[:]).Scan(&id)
 	if err == nil || !errors.Is(err, sql.ErrNoRows) {
-		return id, 0, err
+		return id, err
 	}
 	token, err := newToken()
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	key := "workbook-" + token[:22]
 	if err := a.datasets.Put(r.Context(), key, data); err != nil {
 		a.logError(r, fmt.Errorf("put Workbook %s: %w", key, err))
-		return 0, 0, errDatasetStore
+		return 0, errDatasetStore
 	}
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		if period := acc.CountedPeriod(); period != nil {
-			// Locking the Learner makes uploads and confirms take turns, so none slips under the allowance.
-			if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learnerID); err != nil {
-				return err
-			}
-			var pending int64 // the Learner's pending Parts on their other Dashboards
-			if err := tx.QueryRowContext(r.Context(), `SELECT COALESCE(sum(ds.saved_size), 0) FROM dataset_parts ds
-				JOIN dashboards owner ON owner.id = ds.dashboard_id
-				WHERE owner.learner_id = $1 AND ds.state = 'pending' AND ds.dashboard_id <> $2`, learnerID, dashboardID).Scan(&pending); err != nil {
-				return err
-			}
-			if dashboardID != 0 {
-				// As pendingReserve: what confirming deletes from this Dashboard counts as free.
-				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), kind, replaces, acc)
-				if err != nil {
-					return err
-				}
-				if used = room.Used + pending; !room.Fits {
-					return errStorageFull
-				}
-			} else {
-				var inUse int64
-				if err := tx.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("$1"), learnerID).Scan(&inUse); err != nil {
-					return err
-				}
-				if used = inUse + pending; used+int64(len(data)) > period.Storage() {
-					return errStorageFull
-				}
-			}
+		if err := reserve(r.Context(), tx, acc, learnerID, int64(len(data)), replacedParts(dashboardID, kind, replaces)); err != nil {
+			return err
 		}
 		return tx.QueryRowContext(r.Context(), `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, $2, $3, $4, $5)
 			RETURNING id`, learnerID, key, name, len(data), sum[:]).Scan(&id)
 	})
 	if err != nil {
 		a.dropDataset(r.Context(), r, key)
-		return 0, used, err
+		return 0, err
 	}
-	return id, used, nil
+	return id, nil
 }
 
 // downloadWorkbook sends a Workbook exactly as uploaded to its Learner, whether or not their Plan has ended, or to the

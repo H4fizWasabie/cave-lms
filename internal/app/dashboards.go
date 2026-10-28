@@ -30,10 +30,6 @@ const (
 	maxDatasetUpload = maxDatasetFile + 64<<10
 )
 
-// errStorageFull is pendingReserve's, keepWorkbook's and confirmReserve's answer when a Dataset would take the Learner over their Storage
-// allowance.
-var errStorageFull = errors.New("over the Storage allowance")
-
 // sizeText writes a number of bytes as people read it: 12 KB, 980 MB, 1.5 GB.
 func sizeText(b int64) string {
 	one := func(x float64) string { return strconv.FormatFloat(math.Round(x*10)/10, 'f', -1, 64) }
@@ -302,10 +298,10 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
-	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, upload, data)
-	switch {
-	case errors.Is(err, errStorageFull):
-		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
+	workbook, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, upload, data)
+	switch msg := storageMessage(lang, err); {
+	case msg != "":
+		refuse(msg)
 		return
 	case errors.Is(err, errDatasetStore):
 		refuse(text.T(lang, "lab.d.upload-failed"))
@@ -330,9 +326,8 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	var size int64
 	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: dataset.ReplaceData, File: upload, Sum: sha256.Sum256(data), Workbook: workbook, Read: res},
-		pendingReserve(d, acc, dataset.ReplaceData, 0, &size, &used))
+		partReserve(acc, learner.ID, d.ID, dataset.ReplaceData, 0))
 	// ponytail: a compensating delete, not one transaction, as Upload runs its own; a crash between the insert and
 	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into Upload
 	// if that turns up.
@@ -341,9 +336,9 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 			a.logError(r, fmt.Errorf("delete refused Dashboard %d: %w", d.ID, err))
 		}
 	}
-	switch {
-	case errors.Is(err, errStorageFull):
-		refuse(text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage())))
+	switch msg := storageMessage(lang, err); {
+	case msg != "":
+		refuse(msg)
 		return
 	case errors.Is(err, errDatasetStore):
 		if err != errDatasetStore { // the module's, wrapped; keepWorkbook logs its own bare one where it happened
@@ -534,12 +529,17 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			return
 		}
 		if p.Pending != nil {
-			var room storageRoom
-			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.Kind, p.Pending.ReplacedPart, p.Access)
-			if err == nil && !room.Fits && p.Error == "" { // the confirm will be refused: say so now
-				var lang string
-				lang, err = a.language(r)
-				p.Error = text.T(lang, "lab.err.storage-full", sizeText(p.Pending.Size), sizeText(room.Used), sizeText(p.Access.Period.Storage()))
+			// The confirm is checked as it will be: if it will be refused, say so now.
+			err = checkStorage(r.Context(), a.db, p.Access, learner.ID, p.Pending.Size, replacedParts(d.ID, p.Pending.Kind, p.Pending.ReplacedPart))
+			var full *storageFull
+			if errors.As(err, &full) {
+				err = nil
+				if p.Error == "" {
+					var lang string
+					if lang, err = a.language(r); err == nil {
+						p.Error = storageMessage(lang, full)
+					}
+				}
 			}
 		}
 		if err != nil {

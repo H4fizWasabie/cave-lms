@@ -182,10 +182,10 @@ func (a *App) uploadWorkbook(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	id, used, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, name, data)
-	switch {
-	case errors.Is(err, errStorageFull):
-		a.renderFolder(w, r, learner, http.StatusUnprocessableEntity, text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
+	id, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, name, data)
+	switch msg := storageMessage(lang, err); {
+	case msg != "":
+		a.renderFolder(w, r, learner, http.StatusUnprocessableEntity, msg)
 	case errors.Is(err, errDatasetStore):
 		a.renderFolder(w, r, learner, http.StatusServiceUnavailable, text.T(lang, "lab.d.upload-failed"))
 	case err != nil:

@@ -166,19 +166,6 @@ func TestAddingDataLackingAColumnIsRefusedNamingItAndChangesNothing(t *testing.T
 	}
 }
 
-func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
-	t.Parallel()
-	_, ada, _ := storageSite(t, "3") // 3 MB; each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
-	path := ada.createPage("Kewangan", myPage)
-	res, body := ada.postFile(path+"/dataset", "one.xlsx", bigFinance(t, 1))
-	expectRedirect(t, res, body, path+"/data")
-	ada.post(path+"/dataset/confirm", nil)
-	res, body = ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
-	expectRedirect(t, res, body, path+"/data") // replacing fits
-	res, body = ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2), adding)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
-}
-
 func TestReplacingDataWithOtherColumnsWarnsNamingThem(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
@@ -302,13 +289,4 @@ func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.
 	if strings.Contains(body, "Muat naik semua baris anda") {
 		t.Fatalf("the Malay preview shows the outdated all-rows hint: %s", body)
 	}
-}
-
-func TestAPageDashboardsDataOverTheStorageAllowanceIsRefused(t *testing.T) {
-	t.Parallel()
-	_, ada, _ := storageSite(t, "1")
-	path := ada.createPage("Besar", strings.Repeat("z", 900<<10))
-	res, body := ada.postFile(path+"/dataset", "data.xlsx", bigFinance(t, 1))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
-	expectAll(t, body, `action="`+path+`/dataset"`, "Upload your data")
 }

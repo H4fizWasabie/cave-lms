@@ -783,6 +783,10 @@ var catalog = map[string]entry{
 		en: "This %s file would take you over your Storage allowance: your Workbooks, Datasets and pages use %s of your %s. Delete a Dashboard you no longer need, delete Workbooks in your Folder, or upload a smaller file.",
 		ms: "Fail %s ini akan melebihi had storan anda: Buku kerja, set data dan halaman anda menggunakan %s daripada %s. Padam Dashboard yang tidak diperlukan lagi, padam Buku kerja dalam Folder anda, atau muat naik fail yang lebih kecil.",
 	},
+	"lab.err.storage-full-pending": {
+		en: "%s of that is in previews waiting for you to confirm.",
+		ms: "%s daripadanya ialah pratonton yang menunggu pengesahan anda.",
+	},
 	"lab.d.upload-failed": {en: "The upload failed. Try again in a few minutes.", ms: "Muat naik gagal. Cuba lagi dalam beberapa minit."},
 	"lab.err.choose-file": {en: "Choose an Excel file (.xlsx) to upload.", ms: "Pilih fail Excel (.xlsx) untuk dimuat naik."},
 	"lab.err.not-xlsx": {

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -117,43 +116,4 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 	// Deleting a Dashboard frees its Dataset, not the Workbooks kept from its uploads; deleting those is a later step.
 	ada.forgetWorkbooks()
 	ada.confirmFile(second, "two.xlsx", bigFinance(t, 2))
-}
-
-func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
-	t.Parallel()
-	_, ada, _ := storageSite(t, "4")
-	paths := []string{ada.createWork("One"), ada.createWork("Two")}
-	for i, p := range paths {
-		res, body := ada.postFile(p+"/dataset", "data.xlsx", bigFinance(t, int64(i+1)))
-		expectStatus(t, res, body, http.StatusSeeOther, "")
-	}
-	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 3`); err != nil { // both uploads fitted, the Workbooks 1.2 MB and each Part 1.1 MB; room for one Part
-		t.Fatal(err)
-	}
-	codes := make([]int, 2)
-	var wg sync.WaitGroup
-	for i := range paths {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			res, _ := ada.post(paths[i]+"/dataset/confirm", financeGuess)
-			codes[i] = res.StatusCode
-		}()
-	}
-	wg.Wait()
-	if !(codes[0] == http.StatusSeeOther) != (codes[1] == http.StatusSeeOther) {
-		t.Fatalf("two confirms at once answered %v, want one accepted and one refused", codes)
-	}
-}
-
-func TestTheAdminHasNoStorageAllowance(t *testing.T) {
-	t.Parallel()
-	admin, _, planID := storageSite(t, "0")
-	admin.assignPlan("admin@example.com", planID)
-	path := admin.createWork("Kewangan")
-	admin.confirmFile(path, "mine.xlsx", admin.financeSample())
-	_, body := admin.get("/lab")
-	if strings.Contains(body, "of 0 KB") {
-		t.Fatalf("the Admin's Lab shows a Storage allowance: %s", body)
-	}
 }

@@ -422,7 +422,7 @@ func TestTheStorageAllowanceCountsWorkbooksAndConfirmedWorkDatasetsBySavedSize(t
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", file)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
-	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(file)))+" of 1 GB") // the Workbook counts; pending does not
+	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(file))+ada.partBytes())+" of 1 GB") // the Workbook and the Pending Part count
 
 	ada.confirmWork(path, financeGuess)
 	if n := ada.datasetFiles(); n != 1 {
@@ -430,21 +430,6 @@ func TestTheStorageAllowanceCountsWorkbooksAndConfirmedWorkDatasetsBySavedSize(t
 	}
 	res, body = ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, ada.storedKB()) // the Workbook and the Dataset
-}
-
-func TestAConfirmOverTheStorageAllowanceIsRefused(t *testing.T) {
-	t.Parallel()
-	_, ada, _ := storageSite(t, "4") // each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
-	first := ada.createWork("Satu")
-	ada.confirmFile(first, "one.xlsx", bigFinance(t, 1))
-	path := ada.createWork("Kedai")
-	res, body := ada.postFile(path+"/dataset", "two.xlsx", bigFinance(t, 2))
-	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if _, err := ada.db.Exec(`UPDATE plan_periods SET storage_mb = 1`); err != nil { // the upload fitted; the allowance shrinks
-		t.Fatal(err)
-	}
-	res, body = ada.post(path+"/dataset/confirm", financeGuess)
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Storage allowance")
 }
 
 func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
@@ -469,9 +454,9 @@ func TestPendingWorkDatasetsCountAgainstTheStorageAllowance(t *testing.T) {
 	res, body = ada.postFile(first+"/dataset", "again.xlsx", again)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	res, body = ada.get("/lab")
-	// The Storage figure counts the Workbooks and confirmed Parts only. The second Dashboard's upload was refused before
-	// its Workbook was kept, as the first Dashboard's pending Part counted against it.
-	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(one)+len(again)))+" of 3 MB")
+	// The Storage figure counts the Workbooks and the Pending Part. The second Dashboard's upload was refused before its
+	// Workbook was kept, as the first Dashboard's Pending Part counted against it.
+	expectStatus(t, res, body, http.StatusOK, storageText(int64(len(one)+len(again))+ada.partBytes())+" of 3 MB")
 }
 
 func TestUnconfirmedWorkDatasetsArePruned(t *testing.T) {

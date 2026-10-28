@@ -190,7 +190,7 @@
           {{- else with $.Error}}
           <div class="ds-err" role="alert">
             <p><strong>{{t $.Lang "lab.d.not-uploaded" $.Upload}}</strong></p>
-            <p>{{.}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
+            <p class="pre-line">{{.}} {{if $.Dashboard.Parts}}{{t $.Lang "lab.d.still-uses" $.Dashboard.File}}{{else}}{{t $.Lang "lab.d.nothing-changed"}}{{end}}</p>
           </div>
           {{- end}}
           {{- with $.Mapping}}

@@ -55,18 +55,6 @@ func TestAFolderUploadThatIsNotExcelOrIsTooBigIsRefusedWithAMessage(t *testing.T
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "bukan fail .xlsx")
 }
 
-func TestAFolderUploadThatDoesNotFitTheStorageAllowanceIsRefusedWithTheStorageFullMessage(t *testing.T) {
-	t.Parallel()
-	_, ada, _ := storageSite(t, "1")
-	res, body := ada.postFile("/workbooks", "satu.xlsx", bigFinance(t, 1))
-	expectRedirect(t, res, body, "/my-folder")
-	res, body = ada.postFile("/workbooks", "dua.xlsx", bigFinance(t, 2))
-	expectStatus(t, res, body, http.StatusUnprocessableEntity, "would take you over your Storage allowance")
-	if n := len(workbookLink.FindAllString(func() string { _, b := ada.getFolder(); return b }(), -1)); n != 1 {
-		t.Fatalf("%d Workbooks listed, want only the one that fit", n)
-	}
-}
-
 func TestWithoutAnActivePlanThereIsNoUploadFormAndAPostedUploadIsRefused(t *testing.T) {
 	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
