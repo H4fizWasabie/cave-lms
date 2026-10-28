@@ -113,3 +113,32 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 		expectNone(t, body, "cost-comparison.webp", "Prompt Library") // the client dropped the KPM Prompt Library row
 	}
 }
+
+func TestThePricingPageOffersBothStorageAddOnsToEveryoneWithNoPriceUntilTheAdminSetsOne(t *testing.T) {
+	s := caveTextAdminSite(t)
+	ada, _ := s.newCaveTextLearner("Ada", "ada@example.com")
+	for name, page := range map[string]*site{"visitor": s.second(), "learner": ada} {
+		_, body := page.getAsking("/pricing", "en")
+		main := content(body)
+		cards, _, _ := strings.Cut(main, `id="comparison"`)
+		expectInOrder(t, cards, `class="offers"`, "Extra storage", "&#43;3 GB", "on top of what your Plan gives", "Upgrade", "Coming soon", "&#43;5 GB", "Upgrade", "Coming soon")
+		expectInOrder(t, main, "Extra storage", `id="comparison"`)
+		if n := strings.Count(cards, "<button"); n != 2 {
+			t.Errorf("%s: %d Upgrade buttons, want 2", name, n)
+		}
+		expectNone(t, cards, "RM0", "storage plan", "quota")
+	}
+	_, body := s.getAsking("/pricing", "ms")
+	expectAll(t, content(body), "Tambahan storan", "Naik taraf", "Akan datang")
+
+	// Once the Admin prices an add-on, its card shows the price; the other, still unpriced, shows none.
+	res, body := s.savePrices(map[string]string{"storage-3gb_price": "20"})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.second().getAsking("/pricing", "en")
+	cards, _, _ := strings.Cut(content(body), `id="comparison"`)
+	expectInOrder(t, cards, "&#43;3 GB", "RM20", "&#43;5 GB")
+	if n := strings.Count(cards, "RM20"); n != 1 {
+		t.Errorf("%d RM20 on the add-on cards, want 1", n)
+	}
+	expectNone(t, strings.SplitN(cards, "&#43;5 GB", 2)[1], "RM")
+}

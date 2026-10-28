@@ -21,6 +21,13 @@
             </div>
             <div class="field"><label for="{{.Product}}_link">{{t $.Lang "plans.payment-link"}} <span class="opt">{{t $.Lang "admin.common.optional"}}</span></label><input id="{{.Product}}_link" type="url" name="{{.Product}}_link" value="{{.PaymentLink}}" placeholder="https://"></div>
             {{end}}
+            <h2>{{t .Lang "prices.addons"}}</h2>
+            <p class="muted">{{t .Lang "prices.addons.intro"}}</p>
+            <div class="field-grid field-grid-2">
+              {{range .AddOns}}
+              <div class="field"><label for="{{.Product}}_price">{{t $.Lang (print "prices." .Product)}} <span class="opt">{{t $.Lang "admin.common.optional"}}</span></label><input id="{{.Product}}_price" type="text" inputmode="decimal" name="{{.Product}}_price" value="{{.PriceIn}}"></div>
+              {{end}}
+            </div>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
           </form>
         </div>

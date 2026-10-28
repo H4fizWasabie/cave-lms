@@ -149,3 +149,37 @@ func TestTheMoveToPricesKeepsTodaysProPriceLinkAndProPlanMark(t *testing.T) {
 	_, body = s.get("/cavetext")
 	expectAll(t, body, "RM35", `href="https://bcl.my/form/19548"`)
 }
+
+func TestThePricesPageSavesOptionalStorageAddOnPricesWithTheThreeProducts(t *testing.T) {
+	s := caveTextAdminSite(t)
+	_, body := s.get("/admin/prices")
+	expectAll(t, body, "Storage add-ons", `name="storage-3gb_price" value=""`, `name="storage-5gb_price" value=""`)
+	expectNone(t, body, "storage-3gb_normal", "storage-3gb_link", "storage-5gb_normal", "storage-5gb_link")
+
+	// Blank add-on prices save, and the three products keep what was posted.
+	res, body := s.savePrices(map[string]string{"lab-plan_price": "79.50", "storage-3gb_price": "", "storage-5gb_price": ""})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/prices?saved")
+	expectAll(t, body, `name="lab-plan_price" value="79.50"`, `name="cavetext-pro_price" value="25"`, `name="pro-plan_price" value="99"`,
+		`name="storage-3gb_price" value=""`, `name="storage-5gb_price" value=""`)
+
+	res, body = s.savePrices(map[string]string{"storage-3gb_price": "20", "storage-5gb_price": "29.90"})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	_, body = s.get("/admin/prices?saved")
+	expectAll(t, body, `name="storage-3gb_price" value="20"`, `name="storage-5gb_price" value="29.90"`)
+
+	// An add-on mistake refuses the whole form and keeps what was typed; nothing is saved.
+	res, body = s.savePrices(map[string]string{"lab-plan_price": "10", "storage-5gb_price": "abc"})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "&#43;5 GB: Enter the price in RM")
+	expectAll(t, body, `name="storage-5gb_price" value="abc"`)
+	res, body = s.savePrices(map[string]string{"storage-3gb_price": "100000"})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "&#43;3 GB: Enter the price in RM")
+	_, body = s.get("/admin/prices")
+	expectAll(t, body, `name="lab-plan_price" value="89"`, `name="storage-5gb_price" value="29.90"`)
+
+	// The three products still refuse a price of 0 and an add-on is no product a Promo can be for.
+	res, body = s.savePrices(map[string]string{"lab-plan_price": "0"})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Lab Plan: Enter a price more than 0")
+	res, body = s.post("/admin/promos", promoForm("EXTRA", "storage-3gb", "10", "2020-01-01", "2099-01-01"))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Choose a product.")
+}
