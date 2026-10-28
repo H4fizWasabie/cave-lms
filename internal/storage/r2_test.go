@@ -56,7 +56,7 @@ func TestSignMatchesAWSExample(t *testing.T) {
 // TestURIEncodeKeepsOnlyUnreservedBytesAndSlashes checks the canonical path escaping Signature Version 4 asks for,
 // which differs from Go's path escaping on characters such as + and $.
 func TestURIEncodeKeepsOnlyUnreservedBytesAndSlashes(t *testing.T) {
-	if got, want := uriEncode("/bucket/a b+c$=~é/x_y-z.json"), "/bucket/a%20b%2Bc%24%3D~%C3%A9/x_y-z.json"; got != want {
+	if got, want := uriEncode("/bucket/a b+c$=~é/x_y-z.json/AZaz09"), "/bucket/a%20b%2Bc%24%3D~%C3%A9/x_y-z.json/AZaz09"; got != want {
 		t.Fatalf("uriEncode = %s, want %s", got, want)
 	}
 }
