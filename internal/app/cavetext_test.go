@@ -89,6 +89,7 @@ func expectSignedOut(t *testing.T, res *http.Response, body string) {
 }
 
 func TestCaveTextConnectSendsAVisitorToLogInAndBack(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	connectPath := "/cavetext/connect?extension=" + extensionID
 
@@ -116,6 +117,7 @@ func TestCaveTextConnectSendsAVisitorToLogInAndBack(t *testing.T) {
 }
 
 func TestLoginRefusesToRedirectOffSite(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.register("Ada Lovelace", email, password)
@@ -141,6 +143,7 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 }
 
 func TestCaveTextConnectRefusesAnUnlistedExtension(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	for _, id := range []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ""} {
@@ -156,6 +159,7 @@ func TestCaveTextConnectRefusesAnUnlistedExtension(t *testing.T) {
 }
 
 func TestCaveTextPlacesAreAssignedOnceAndNeverReused(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	ada := s.connect()
@@ -189,6 +193,7 @@ func TestCaveTextPlacesAreAssignedOnceAndNeverReused(t *testing.T) {
 }
 
 func TestDeletingALearnerSignsOutCaveTextAndRemovesTheirAccount(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()
@@ -210,6 +215,7 @@ func TestDeletingALearnerSignsOutCaveTextAndRemovesTheirAccount(t *testing.T) {
 }
 
 func TestCaveTextTokensAreHashedAndLastAYearRenewedOnUse(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()
@@ -239,6 +245,7 @@ func TestCaveTextTokensAreHashedAndLastAYearRenewedOnUse(t *testing.T) {
 }
 
 func TestCaveTextAPIAcceptsTheBearerTokenOnly(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	s.connect()
@@ -253,6 +260,7 @@ func TestCaveTextAPIAcceptsTheBearerTokenOnly(t *testing.T) {
 }
 
 func TestCaveTextSignOutRevokesTheToken(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()
@@ -266,6 +274,7 @@ func TestCaveTextSignOutRevokesTheToken(t *testing.T) {
 }
 
 func TestLoggingOutOfTheSiteKeepsCaveTextSignedIn(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	token := s.connect()

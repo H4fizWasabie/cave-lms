@@ -45,6 +45,7 @@ func assignmentCourse(t *testing.T) (admin, ada *site, id string) {
 }
 
 func TestAnAssignmentIsADraftUntilTheAdminPublishesIt(t *testing.T) {
+	t.Parallel()
 	admin, ada, id := assignmentCourse(t)
 	res, body := admin.addAssignment(id, "Write a prompt", "Write one prompt.\nUpload it as a PDF. <b>Not bold</b>")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -74,6 +75,7 @@ func TestAnAssignmentIsADraftUntilTheAdminPublishesIt(t *testing.T) {
 }
 
 func TestOnlyEnrolledLearnersSeeAssignments(t *testing.T) {
+	t.Parallel()
 	admin, _, id := assignmentCourse(t)
 	admin.addAssignment(id, "Write a prompt", "Write one prompt.")
 	aid := admin.assignmentIDByTitle("Write a prompt")
@@ -100,6 +102,7 @@ func TestOnlyEnrolledLearnersSeeAssignments(t *testing.T) {
 }
 
 func TestTheAdminEditsReordersAndDeletesAssignments(t *testing.T) {
+	t.Parallel()
 	admin, ada, id := assignmentCourse(t)
 	admin.addAssignment(id, "First", "One.")
 	admin.addAssignment(id, "Second", "Two.")
@@ -138,6 +141,7 @@ func TestTheAdminEditsReordersAndDeletesAssignments(t *testing.T) {
 }
 
 func TestAssignmentPagesAreInMalay(t *testing.T) {
+	t.Parallel()
 	admin, _, id := assignmentCourse(t)
 	req, _ := http.NewRequest(http.MethodGet, admin.server.URL+"/admin/courses/"+id+"/assignments", nil)
 	req.Header.Set("Accept-Language", "ms")
@@ -146,6 +150,7 @@ func TestAssignmentPagesAreInMalay(t *testing.T) {
 }
 
 func TestDuplicatingACourseCopiesItsAssignmentsWithoutSubmissions(t *testing.T) {
+	t.Parallel()
 	admin, ada, id := assignmentCourse(t)
 	admin.addAssignment(id, "Write a prompt", "Write one prompt.")
 	admin.addAssignment(id, "Still a draft", "Later.")
@@ -172,6 +177,7 @@ func TestDuplicatingACourseCopiesItsAssignmentsWithoutSubmissions(t *testing.T) 
 }
 
 func TestTheAssignmentsPageWithNoneYetKeepsItsHeadingsInOrder(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")

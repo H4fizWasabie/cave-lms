@@ -11,6 +11,7 @@ import (
 )
 
 func TestHomePage(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
 	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -38,6 +39,7 @@ func TestHomePage(t *testing.T) {
 }
 
 func TestDatabasePoolIsCapped(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 	if got := application.DBStats().MaxOpenConnections; got != 25 {
 		t.Fatalf("MaxOpenConnections = %d, want 25", got)
@@ -45,6 +47,7 @@ func TestDatabasePoolIsCapped(t *testing.T) {
 }
 
 func TestEveryForeignKeyHasAnIndex(t *testing.T) {
+	t.Parallel()
 	_, _, db, _ := newTestApplication(t)
 	// conkey is 1-based and indkey 0-based, so both pick the first column. A partial index doesn't count: it can't
 	// serve a plain lookup by the key, such as a cascading delete.
@@ -73,6 +76,7 @@ func TestEveryForeignKeyHasAnIndex(t *testing.T) {
 var _ http.Handler = (*app.App)(nil)
 
 func TestStaticFilesAreServedWithCachingAndMissingOnesAre404(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 
 	recorder := httptest.NewRecorder()
@@ -95,6 +99,7 @@ func TestStaticFilesAreServedWithCachingAndMissingOnesAre404(t *testing.T) {
 }
 
 func TestGalleryShowsEbooksAreComingSoonWhileThereAreNone(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/gallery?format=ebook", nil)
@@ -107,6 +112,7 @@ func TestGalleryShowsEbooksAreComingSoonWhileThereAreNone(t *testing.T) {
 }
 
 func TestPagesLinkTheStylesheetByAFingerprintedURL(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
 	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -128,6 +134,7 @@ func TestPagesLinkTheStylesheetByAFingerprintedURL(t *testing.T) {
 // The policy keeps every page to Cave's own scripts, forms and framing, so an escaping slip can't run someone
 // else's script or send a form off-site, and no other site can frame a page to trick a click.
 func TestEveryPageCarriesTheContentSecurityPolicy(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 	const want = "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
 	for _, path := range []string{"/", "/no-such-page"} {
@@ -143,6 +150,7 @@ func TestEveryPageCarriesTheContentSecurityPolicy(t *testing.T) {
 }
 
 func TestTheHomePageShowsCoachAdamDanielsCardWithHisCredentialsAsText(t *testing.T) {
+	t.Parallel()
 	application, _, _, _ := newTestApplication(t)
 	recorder := httptest.NewRecorder()
 	application.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))

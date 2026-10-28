@@ -24,6 +24,7 @@ func (s *site) expectImage(body, alt string) {
 }
 
 func TestTheHeaderFooterAndAdminBarShowTheCAVELMSLogoAndTheFaviconStaysTheCaveConsultsInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	brand := map[string]string{"en": "CAVELMS, your digital learning hub", "ms": "CAVELMS, hab pembelajaran digital anda"}
 	for lang, alt := range brand {
@@ -56,6 +57,7 @@ func TestTheHeaderFooterAndAdminBarShowTheCAVELMSLogoAndTheFaviconStaysTheCaveCo
 }
 
 func TestTheTrustStripShowsALogoBesideEachHeadingInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for lang, alts := range map[string][]string{
 		"en": {"The Cave Consult logo", "TCC", "HRD Corp logo", "HRD Corp", "ePerolehan logo", "MOF", "JPK logo", "JPK"},
@@ -72,6 +74,7 @@ func TestTheTrustStripShowsALogoBesideEachHeadingInBothLanguages(t *testing.T) {
 }
 
 func TestCoachAdamsCardShowsHisPhotoThenTheIssuerLogosWithTheHRDCorpBadgeInOneRowInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for lang, alts := range map[string][]string{
 		"en": {"Coach Adam Daniel speaking at a podium", "UMPSA logo", "ICTC logo", "HRD Corp logo", "HRD Corp Registered Training Provider badge", "JPK logo", "Exemplar Global logo"},
@@ -93,6 +96,7 @@ func TestCoachAdamsCardShowsHisPhotoThenTheIssuerLogosWithTheHRDCorpBadgeInOneRo
 }
 
 func TestTheAboutPageShowsTheKPMCrestInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for lang, alt := range map[string]string{"en": "Crest of the Ministry of Education Malaysia (KPM)", "ms": "Jata Kementerian Pendidikan Malaysia (KPM)"} {
 		_, body := s.getAsking("/about", lang)

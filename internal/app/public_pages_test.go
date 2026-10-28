@@ -26,6 +26,7 @@ func expectHeadingsInOrder(t *testing.T, path, body string) {
 }
 
 func TestThePublicPagesKeepTheirHeadingsInOrderInBothLanguages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.addProgramme("AI Bootcamp", "2099-03-01", "Two days of hands-on AI.", "https://example.com/bootcamp", nil)

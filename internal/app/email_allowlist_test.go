@@ -10,6 +10,7 @@ import (
 
 // Staging emails only the allow-list; anyone else's email is kept in the System log for the Owner instead (ADR 0010).
 func TestWithAnAllowListEmailToAnyoneElseGoesToTheSystemLogInstead(t *testing.T) {
+	t.Parallel()
 	s := newSite(t, func(c *config.Config) {
 		c.OwnerEmail = ownerEmail
 		c.EmailAllowlist = []string{"Abah@Example.com", "@client.example"}

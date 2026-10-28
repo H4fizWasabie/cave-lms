@@ -8,6 +8,7 @@ import (
 )
 
 func TestCoursesNoLongerOfferTheLab(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -23,6 +24,7 @@ func TestCoursesNoLongerOfferTheLab(t *testing.T) {
 }
 
 func TestAVisitorSeesNoLabLinkAndTheLabGoesToPricing(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for _, path := range []string{"/", "/gallery", "/pricing"} {
 		res, body := s.get(path)
@@ -49,6 +51,7 @@ func expectLabLinks(t *testing.T, s *site, path string) {
 
 // The Lab link shows only to those the Lab is open to: a Learner in an active Plan period, and the Admin (ADR 0018).
 func TestTheLabLinkShowsOnlyToAPlanHolderAndTheAdmin(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
 	for _, path := range []string{"/", "/my-courses"} {
 		_, body := ada.get(path)
@@ -79,6 +82,7 @@ func labSetup(t *testing.T, opts ...func(*config.Config)) (admin, ada *site, pla
 }
 
 func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
 	ends := admin.periodsOf("ada@example.com")[0].ends.Format("2006-01-02 15:04 UTC")
@@ -94,6 +98,7 @@ func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
 }
 
 func TestLearnerInACourseWithoutAPlanGoesToPricing(t *testing.T) {
+	t.Parallel()
 	_, ada, _, courseID := labSetup(t)
 	ada.post("/courses/"+courseID+"/join", nil)
 
@@ -102,6 +107,7 @@ func TestLearnerInACourseWithoutAPlanGoesToPricing(t *testing.T) {
 }
 
 func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
 
@@ -120,6 +126,7 @@ func TestAnEndedPlanGivesNoLabAccess(t *testing.T) {
 }
 
 func TestLeavingACourseNeverWarnsAboutTheLab(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, courseID := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
 	ada.post("/courses/"+courseID+"/join", nil)

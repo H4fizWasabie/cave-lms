@@ -19,6 +19,7 @@ func (s *site) addTextLesson(courseID, title, objective, body string, draft bool
 }
 
 func TestAdminAddsATextLessonToACourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -32,6 +33,7 @@ func TestAdminAddsATextLessonToACourse(t *testing.T) {
 }
 
 func TestEnrolledLearnerOpensLessonsInAnyOrder(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -54,6 +56,7 @@ func TestEnrolledLearnerOpensLessonsInAnyOrder(t *testing.T) {
 }
 
 func TestLessonTextIsSanitisedMarkdown(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -83,6 +86,7 @@ func (s *site) lessonIDByTitle(title string) string {
 }
 
 func TestNonMemberIsAskedToJoinBeforeOpeningALesson(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -105,6 +109,7 @@ func TestNonMemberIsAskedToJoinBeforeOpeningALesson(t *testing.T) {
 }
 
 func TestLessonShowsItsObjectivesAsAListAtTheTop(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	itemID := strings.TrimPrefix(s.uploadAs("Diagram", "everyone", pngFile), "/gallery/")
@@ -128,6 +133,7 @@ func TestLessonShowsItsObjectivesAsAListAtTheTop(t *testing.T) {
 }
 
 func TestLessonTakesUpToFiveObjectivesOfOneSentenceEach(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -146,6 +152,7 @@ func TestLessonTakesUpToFiveObjectivesOfOneSentenceEach(t *testing.T) {
 }
 
 func TestAdminMovesLessonsUpAndDown(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -178,6 +185,7 @@ func TestAdminMovesLessonsUpAndDown(t *testing.T) {
 }
 
 func TestAdminEditsAndRemovesALesson(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -202,6 +210,7 @@ func TestAdminEditsAndRemovesALesson(t *testing.T) {
 var confirming = url.Values{"confirm": {"yes"}}
 
 func TestAdminRemovesALessonOnlyAfterConfirming(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -247,6 +256,7 @@ func (s *site) addItemLesson(courseID, itemID, title string, draft bool) (*http.
 }
 
 func TestLessonKeepsTextWrittenUnderItsGalleryItem(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	itemID := strings.TrimPrefix(s.uploadAs("Diagram", "everyone", pngFile), "/gallery/")
@@ -263,6 +273,7 @@ func TestLessonKeepsTextWrittenUnderItsGalleryItem(t *testing.T) {
 }
 
 func TestLessonWithNeitherTextNorAGalleryItemIsRefused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -276,6 +287,7 @@ func TestLessonWithNeitherTextNorAGalleryItemIsRefused(t *testing.T) {
 }
 
 func TestCourseMembersItemIsVisibleToMembersOfAnyCourseUsingIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Diagram", "course_members", pngFile)
@@ -316,6 +328,7 @@ func TestCourseMembersItemIsVisibleToMembersOfAnyCourseUsingIt(t *testing.T) {
 }
 
 func TestDraftLessonIsHiddenFromLearnersEverywhere(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Secret diagram", "course_members", pngFile)
@@ -345,6 +358,7 @@ func TestDraftLessonIsHiddenFromLearnersEverywhere(t *testing.T) {
 }
 
 func TestAdminPublishesAndUnpublishesLessons(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -384,6 +398,7 @@ func TestAdminPublishesAndUnpublishesLessons(t *testing.T) {
 }
 
 func TestCourseWithLessonsCannotBeDeleted(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -397,6 +412,7 @@ func TestCourseWithLessonsCannotBeDeleted(t *testing.T) {
 }
 
 func TestGalleryItemUsedByALessonCannotBeDeleted(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Diagram", "everyone", pngFile)
@@ -416,6 +432,7 @@ func TestGalleryItemUsedByALessonCannotBeDeleted(t *testing.T) {
 }
 
 func TestVideoAndEbookUsedInALessonDefaultToCourseMembersOnly(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	video := strings.TrimPrefix(s.uploadAs("Lecture", "everyone", mp4File), "/gallery/")
@@ -446,6 +463,7 @@ func TestVideoAndEbookUsedInALessonDefaultToCourseMembersOnly(t *testing.T) {
 }
 
 func TestLessonAdminPagesRefuseLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -466,6 +484,7 @@ func TestLessonAdminPagesRefuseLearners(t *testing.T) {
 }
 
 func TestAdminCourseListLinksToItsLessons(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -476,6 +495,7 @@ func TestAdminCourseListLinksToItsLessons(t *testing.T) {
 }
 
 func TestEveryoneSeesTheOrderedPublishedLessonTitlesOnTheCoursePage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -504,6 +524,7 @@ func TestEveryoneSeesTheOrderedPublishedLessonTitlesOnTheCoursePage(t *testing.T
 }
 
 func TestVideoBecomesCourseMembersOnlyOnlyOnceItsLessonIsPublished(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	video := s.uploadAs("Lecture", "everyone", mp4File)
@@ -523,6 +544,7 @@ func TestVideoBecomesCourseMembersOnlyOnlyOnceItsLessonIsPublished(t *testing.T)
 }
 
 func TestLessonFormSaysWhenAVideoBecomesCourseMembersOnly(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -531,6 +553,7 @@ func TestLessonFormSaysWhenAVideoBecomesCourseMembersOnly(t *testing.T) {
 }
 
 func TestTheNewAndEditLessonFormsShowEveryFieldOnceWithNoContentKind(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go.", "")
@@ -551,6 +574,7 @@ func TestTheNewAndEditLessonFormsShowEveryFieldOnceWithNoContentKind(t *testing.
 }
 
 func TestAdminAddsAndRemovesTheTextOrGalleryItemOfASavedLesson(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	itemID := strings.TrimPrefix(s.uploadAs("Diagram", "everyone", pngFile), "/gallery/")

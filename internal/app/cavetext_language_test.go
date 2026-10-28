@@ -20,6 +20,7 @@ func expectAll(t *testing.T, body string, wants ...string) {
 }
 
 func TestTheCaveTextPageIsInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 
@@ -76,6 +77,7 @@ func (s *site) createSnippetAsking(token, acceptLanguage string, sn snippet) str
 }
 
 func TestCaveTextMessagesComeInTheSavedLanguageElseTheBrowsers(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(1001)
 	blank := snippet{Folder: "Work", Name: " ", Shortcut: "/x", Body: "x"}

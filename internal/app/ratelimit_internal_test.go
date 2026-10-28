@@ -10,6 +10,7 @@ import (
 
 // Keys whose attempts have all aged out of the window are dropped, so the limiter doesn't grow with every address.
 func TestTheLimiterForgetsKeysOnceTheirWindowHasPassed(t *testing.T) {
+	t.Parallel()
 	var l rateLimiter
 	start := time.Now()
 	for _, key := range []string{"POST /login 192.0.2.1", "POST /login 192.0.2.2"} {
@@ -23,6 +24,7 @@ func TestTheLimiterForgetsKeysOnceTheirWindowHasPassed(t *testing.T) {
 
 // A key whose only attempt is taken back holds nothing, so it is dropped, not kept until the sweep.
 func TestTheLimiterDropsAKeyWhoseAttemptIsTakenBack(t *testing.T) {
+	t.Parallel()
 	var l rateLimiter
 	l.allow("POST /login 192.0.2.1 ada@example.com", 10, rateLimitWindow, time.Now())
 	l.forget("POST /login 192.0.2.1 ada@example.com")
@@ -33,6 +35,7 @@ func TestTheLimiterDropsAKeyWhoseAttemptIsTakenBack(t *testing.T) {
 
 // Once an address has used its login budget, logins from it to new emails add no keys: the address is checked first.
 func TestABlockedAddressAddsNoAccountKeys(t *testing.T) {
+	t.Parallel()
 	var l rateLimiter
 	now := time.Now()
 	const address = "POST /login 192.0.2.1"
@@ -49,6 +52,7 @@ func TestABlockedAddressAddsNoAccountKeys(t *testing.T) {
 // Failed logins to one email from many addresses stop at loginFailuresPerEmail, and the first refusal is reported
 // once, not on every refusal after it.
 func TestLoginsToOneEmailFromManyAddressesStopAtTheEmailLimit(t *testing.T) {
+	t.Parallel()
 	var l rateLimiter
 	now := time.Now()
 	allowed, reported := 0, 0

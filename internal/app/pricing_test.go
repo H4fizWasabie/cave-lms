@@ -8,6 +8,7 @@ import (
 )
 
 func TestThePricingMenuLinksPlansToThePricingPageBeforeCaveText(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, header(t, body), ">Pricing<", `<a href="/pricing">Plans</a>`, `href="/cavetext"`, ">Program<")
@@ -18,6 +19,7 @@ func TestThePricingMenuLinksPlansToThePricingPageBeforeCaveText(t *testing.T) {
 }
 
 func TestTheOldPlansAddressMovesToPricingKeepingItsQuery(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.get("/plans?utm_source=fb&x=1")
 	expectStatus(t, res, body, http.StatusMovedPermanently, "")
@@ -32,6 +34,7 @@ func TestTheOldPlansAddressMovesToPricingKeepingItsQuery(t *testing.T) {
 }
 
 func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedByHand(t *testing.T) {
+	t.Parallel()
 	s, _ := adminWithPlanAndLearner(t)
 
 	// A Visitor sees each card top to bottom: logo, name, tagline, price, benefits; only the Pro Plan has a Normal price.
@@ -72,6 +75,7 @@ func TestThePricingPageShowsTheThreeProductsWithTheirPricesButNotPlansAssignedBy
 }
 
 func TestThePricingPageOffersToRenewCaveTextProWhileItRuns(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.savePrices(map[string]string{"cavetext-pro_link": "https://pay.example.com/cavetext", "lab-plan_link": "https://pay.example.com/lab",
 		"pro-plan_link": "https://pay.example.com/pro"})
@@ -83,6 +87,7 @@ func TestThePricingPageOffersToRenewCaveTextProWhileItRuns(t *testing.T) {
 
 // The comparison transcribes the client's picture (static/cost-comparison.webp): its Malay word for word, its English a translation.
 func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for lang, want := range map[string][]string{
 		"ms": {"Perbandingan Kos Tahunan", "<table",
@@ -115,6 +120,7 @@ func TestThePricingPageComparesYearlyCostsInThePicturesOwnWords(t *testing.T) {
 }
 
 func TestThePricingPageOffersBothStorageAddOnsToEveryoneWithNoPriceUntilTheAdminSetsOne(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, _ := s.newCaveTextLearner("Ada", "ada@example.com")
 	for name, page := range map[string]*site{"visitor": s.second(), "learner": ada} {

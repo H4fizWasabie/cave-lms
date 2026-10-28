@@ -37,6 +37,7 @@ func describePrompts(me caveTextMe) string {
 }
 
 func TestTheImageAndDashboardMasterPromptsGoInFullToProAndByNameToFreeLearners(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 
@@ -66,6 +67,7 @@ func TestTheImageAndDashboardMasterPromptsGoInFullToProAndByNameToFreeLearners(t
 }
 
 func TestNoSnippetTakesOrClashesWithAMasterPromptShortcut(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	mine := ada.createSnippet(token, snippet{Folder: "Work", Name: "Review", Shortcut: "/review", Body: "x"})
@@ -99,6 +101,7 @@ func TestNoSnippetTakesOrClashesWithAMasterPromptShortcut(t *testing.T) {
 }
 
 func TestAnyAdminEditsTheImageAndDashboardMasterPrompts(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.givePro("ada@example.com")
@@ -158,6 +161,7 @@ func TestAnyAdminEditsTheImageAndDashboardMasterPrompts(t *testing.T) {
 }
 
 func TestAMasterPromptShortcutSomeSnippetsClashWithIsSavedAndTheAdminSeesHowManyLearners(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	bob, bobToken := s.newCaveTextLearner("Bob Byte", "bob@example.com")
@@ -191,6 +195,7 @@ func TestAMasterPromptShortcutSomeSnippetsClashWithIsSavedAndTheAdminSeesHowMany
 }
 
 func TestOneLearnerWithAClashingSnippetIsCountedAsOne(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	ada.createSnippet(token, snippet{Folder: "Work", Name: "Pic", Shortcut: "/pic", Body: "x"})

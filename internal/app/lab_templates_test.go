@@ -8,6 +8,7 @@ import (
 )
 
 func TestVisitorCannotBuild(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, _ := s.get("/lab/new")
 	if res.StatusCode == http.StatusOK {
@@ -20,6 +21,7 @@ func TestVisitorCannotBuild(t *testing.T) {
 }
 
 func TestLearnerWithoutAccessCannotBuild(t *testing.T) {
+	t.Parallel()
 	_, ada, _, _ := labSetup(t)
 	res, body := ada.get("/lab/new")
 	expectRedirect(t, res, body, "/pricing")
@@ -28,6 +30,7 @@ func TestLearnerWithoutAccessCannotBuild(t *testing.T) {
 }
 
 func TestGeneralNeedsNoColumnChoices(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Mine")
 	res, body := ada.postFile(path+"/dataset", "general.xlsx", labFile(t, "general.xlsx"))

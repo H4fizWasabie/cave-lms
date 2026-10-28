@@ -11,6 +11,7 @@ import (
 )
 
 func TestTheAIMarksEachWrittenAnswerSentWithOnlyItsQuestionAndModelAnswer(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("70", "Explain :=", "Explain go vet")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -59,6 +60,7 @@ func (s *site) ageMarkingTry(attempt string, seconds int) {
 const markingLate = "still has unmarked Written answers an hour after its release time"
 
 func TestAFailedMarkIsRetriedEveryFiveMinutesAndStillUnmarkedAnHourPastReleaseWritesASystemLogLine(t *testing.T) {
+	t.Parallel()
 	s := newSite(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
 	id := s.writtenCourse("50", "Explain :=")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -114,6 +116,7 @@ func TestAFailedMarkIsRetriedEveryFiveMinutesAndStillUnmarkedAnHourPastReleaseWr
 }
 
 func TestAnAnswerWhoseMarkComesBackInTheWrongShapeThreeRunsIsLeftForTheAdmin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
 	id := s.writtenCourse("50", "Explain :=")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -159,6 +162,7 @@ func TestAnAnswerWhoseMarkComesBackInTheWrongShapeThreeRunsIsLeftForTheAdmin(t *
 }
 
 func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("50", "Explain :=", "Explain go vet")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -188,6 +192,7 @@ func TestAnAdminsMarkWinsOverTheAIsBeforeAndAfterRelease(t *testing.T) {
 }
 
 func TestALaterAttemptStartsWithNoneOfTheAIsReasonsFromTheFirst(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.writtenCourse("100", "Explain :=")
 	s.ai.ReplyMarks(testutil.FakeMark{Marking: aiwriter.Marking{Mark: 2, Reason: "Too vague."}})

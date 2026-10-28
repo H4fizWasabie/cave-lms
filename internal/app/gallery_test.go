@@ -123,6 +123,7 @@ func (s *site) datasetFiles() int {
 }
 
 func TestAdminUploadsPictureAndItDisplays(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 
@@ -150,6 +151,7 @@ func TestAdminUploadsPictureAndItDisplays(t *testing.T) {
 }
 
 func TestUploadAcceptsEachAllowedFormatByContent(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	for _, tc := range []struct {
@@ -173,6 +175,7 @@ func TestUploadAcceptsEachAllowedFormatByContent(t *testing.T) {
 }
 
 func TestUploadRefusesWrongTypeAndStoresNothing(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 
@@ -188,6 +191,7 @@ func TestUploadRefusesWrongTypeAndStoresNothing(t *testing.T) {
 }
 
 func TestUploadRefusesMissingTitleAndStoresNothing(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 
@@ -199,6 +203,7 @@ func TestUploadRefusesMissingTitleAndStoresNothing(t *testing.T) {
 }
 
 func TestUploadRefusesTooLargeAndStoresNothing(t *testing.T) {
+	t.Parallel()
 	s := newSite(t, func(c *config.Config) { c.MaxUploadBytes = 1024 })
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 
@@ -211,6 +216,7 @@ func TestUploadRefusesTooLargeAndStoresNothing(t *testing.T) {
 }
 
 func TestOnlyTheAdminCanUpload(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.upload(titleFields("Poster", "everyone"), pngFile)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -227,6 +233,7 @@ func TestOnlyTheAdminCanUpload(t *testing.T) {
 }
 
 func TestVideoRangeRequestSeeks(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Lesson video", "everyone", mp4File)
@@ -244,6 +251,7 @@ func TestVideoRangeRequestSeeks(t *testing.T) {
 }
 
 func TestEbookDownloads(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Workbook", "everyone", pdfFile)
@@ -256,6 +264,7 @@ func TestEbookDownloads(t *testing.T) {
 }
 
 func TestVisitorIsRefusedLoggedInOnlyItem(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Members picture", "learners", pngFile)
@@ -278,6 +287,7 @@ func TestVisitorIsRefusedLoggedInOnlyItem(t *testing.T) {
 }
 
 func TestGalleryListShowsOnlyWhatTheViewerMaySee(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Open poster", "everyone", pngFile)
@@ -292,6 +302,7 @@ func TestGalleryListShowsOnlyWhatTheViewerMaySee(t *testing.T) {
 }
 
 func TestCourseMembersItemIsHiddenFromLearnersOutsideItsCourses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Course picture", "everyone", pngFile)
@@ -311,6 +322,7 @@ func TestCourseMembersItemIsHiddenFromLearnersOutsideItsCourses(t *testing.T) {
 }
 
 func TestStoredFilesAreNotPublic(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Poster", "everyone", pngFile)
@@ -326,6 +338,7 @@ func TestStoredFilesAreNotPublic(t *testing.T) {
 }
 
 func TestGalleryFiltersByFormat(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Snapshot", "everyone", pngFile)
@@ -340,6 +353,7 @@ func TestGalleryFiltersByFormat(t *testing.T) {
 }
 
 func TestGalleryFiltersByCategory(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Algebra", "everyone", pngFile) // category Maths
@@ -355,6 +369,7 @@ func TestGalleryFiltersByCategory(t *testing.T) {
 }
 
 func TestPromotionalItemsShowOnTheHomePage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.upload(map[string]string{"title": "Taster lesson", "category": "Maths", "promotional": "on", "visibility": "everyone"}, pngFile)
@@ -370,6 +385,7 @@ func TestPromotionalItemsShowOnTheHomePage(t *testing.T) {
 }
 
 func TestPromotionalItemDefaultsToEveryone(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	// No visibility field sent: a promotional item must still be public.
@@ -382,6 +398,7 @@ func TestPromotionalItemDefaultsToEveryone(t *testing.T) {
 }
 
 func TestHiddenItemsNeverLeakIntoListings(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.upload(map[string]string{"title": "Members promo", "category": "Secret", "promotional": "on", "visibility": "learners"}, pngFile)
@@ -404,6 +421,7 @@ func TestHiddenItemsNeverLeakIntoListings(t *testing.T) {
 }
 
 func TestAdminListsEveryItemWithEditAndDeleteLinks(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.uploadAs("Open poster", "everyone", pngFile)
@@ -417,6 +435,7 @@ func TestAdminListsEveryItemWithEditAndDeleteLinks(t *testing.T) {
 }
 
 func TestOnlyTheAdminManagesTheGallery(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Poster", "everyone", pngFile)
@@ -444,6 +463,7 @@ func TestOnlyTheAdminManagesTheGallery(t *testing.T) {
 }
 
 func TestAdminEditsAGalleryItem(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Old title", "everyone", pngFile)
@@ -474,6 +494,7 @@ func TestAdminEditsAGalleryItem(t *testing.T) {
 }
 
 func TestEditRefusesInvalidInputAndKeepsTheItem(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Keep me", "everyone", pngFile)
@@ -489,6 +510,7 @@ func TestEditRefusesInvalidInputAndKeepsTheItem(t *testing.T) {
 }
 
 func TestAdminDeletesAGalleryItemAndItsFile(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Doomed", "everyone", realPNG(t, 1600, 900))
@@ -524,6 +546,7 @@ func TestAdminDeletesAGalleryItemAndItsFile(t *testing.T) {
 }
 
 func TestGalleryFormsOfferCourseMembersOnly(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Diagram", "everyone", pngFile)
@@ -535,6 +558,7 @@ func TestGalleryFormsOfferCourseMembersOnly(t *testing.T) {
 }
 
 func TestLearnerWhoLeftOrWasRemovedCannotDownloadACourseMembersFile(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	file := s.uploadAs("Diagram", "course_members", pngFile) + "/file"
@@ -577,6 +601,7 @@ func realPNG(t *testing.T, w, h int) []byte {
 }
 
 func TestPictureThumbnailIsASmallJPEG(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Big photo", "everyone", realPNG(t, 1600, 900))
@@ -600,6 +625,7 @@ func TestPictureThumbnailIsASmallJPEG(t *testing.T) {
 }
 
 func TestVisitorIsRefusedALoggedInOnlyThumbnail(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Members picture", "learners", realPNG(t, 1600, 900))
@@ -613,6 +639,7 @@ func TestVisitorIsRefusedALoggedInOnlyThumbnail(t *testing.T) {
 }
 
 func TestPictureThatCannotBeThumbnailedIsServedWhole(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Broken picture", "everyone", pngFile)
@@ -628,6 +655,7 @@ func TestPictureThatCannotBeThumbnailedIsServedWhole(t *testing.T) {
 }
 
 func TestGalleryTilesShowThumbnails(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.upload(map[string]string{"title": "Taster", "promotional": "on", "visibility": "everyone"}, realPNG(t, 1600, 900))
@@ -642,6 +670,7 @@ func TestGalleryTilesShowThumbnails(t *testing.T) {
 
 // The Gallery tile and the item page name the picture alike, so the browser grows one into the other.
 func TestAGalleryTileAndItsPageShareTheTransitionName(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	path := s.uploadAs("Poster", "everyone", pngFile)
@@ -654,6 +683,7 @@ func TestAGalleryTileAndItsPageShareTheTransitionName(t *testing.T) {
 }
 
 func TestBrowsersKeepGalleryFilesForADay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	location := s.uploadAs("Photo", "everyone", realPNG(t, 1600, 900))

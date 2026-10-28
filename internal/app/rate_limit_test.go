@@ -12,6 +12,7 @@ import (
 
 // A class on one network shares one address; only failed logins count, so everyone gets in.
 func TestAClassLoggingInFromOneAddressAllGetsIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for i := 0; i < 30; i++ {
 		s.second().loginAsNewLearner("Learner", fmt.Sprintf("learner%d@example.com", i), "correct horse battery")
@@ -19,6 +20,7 @@ func TestAClassLoggingInFromOneAddressAllGetsIn(t *testing.T) {
 }
 
 func TestTenWrongPasswordsBlockThatAccountFromThatAddressOnly(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const password = "correct horse battery"
 	s.second().loginAsNewLearner("Ada", "ada@example.com", password)
@@ -38,6 +40,7 @@ func TestTenWrongPasswordsBlockThatAccountFromThatAddressOnly(t *testing.T) {
 
 // Guesses sent all at once still get only ten tries at the password.
 func TestWrongPasswordsSentAtOnceGetTenTriesInAll(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.second().loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	var wg sync.WaitGroup
@@ -65,6 +68,7 @@ func TestWrongPasswordsSentAtOnceGetTenTriesInAll(t *testing.T) {
 
 // One password tried against many accounts from one address is still stopped.
 func TestAHundredFailedLoginsFromOneAddressBlockIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for i := 0; i < 100; i++ {
 		res, body := s.login(fmt.Sprintf("guess%d@example.com", i), "password123")
@@ -76,6 +80,7 @@ func TestAHundredFailedLoginsFromOneAddressBlockIt(t *testing.T) {
 
 // A whole class can sign up together from one network.
 func TestRegisterIsRateLimitedPerClient(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for i := 0; i < 100; i++ {
 		res, body := s.register("Visitor", fmt.Sprintf("v%d@example.com", i), "correct horse battery")
@@ -89,6 +94,7 @@ func TestRegisterIsRateLimitedPerClient(t *testing.T) {
 }
 
 func TestRateLimitCountsEachClientAddressSeparately(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for i := 0; i < 10; i++ {
 		s.login("nobody@example.com", "wrong password")
@@ -133,6 +139,7 @@ func (s *site) postVia(forwardedFor, path string, form url.Values) (*http.Respon
 // from a new address, like the per-account one. The Owner sees one masked line in the System log, and a password
 // reset still works.
 func TestFailedLoginsToOneEmailFromManyAddressesBlockItAndResetStillWorks(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.second().loginAsNewLearner("Ada", email, password)
@@ -166,6 +173,7 @@ func TestFailedLoginsToOneEmailFromManyAddressesBlockItAndResetStillWorks(t *tes
 }
 
 func TestBehindALocalProxyEachForwardedClientHasItsOwnBudget(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for i := 0; i < 10; i++ {
 		s.loginFrom("198.51.100.1")
@@ -181,6 +189,7 @@ func TestBehindALocalProxyEachForwardedClientHasItsOwnBudget(t *testing.T) {
 }
 
 func TestForwardedForFromANonLocalAddressIsIgnored(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	post := func(i int) int {
 		form := url.Values{"email": {"nobody@example.com"}, "password": {"wrong password"}}
@@ -202,6 +211,7 @@ func TestForwardedForFromANonLocalAddressIsIgnored(t *testing.T) {
 
 // One address gets 100 tries at each account-recovery form in 15 minutes; at reset-password only bad links count.
 func TestForgotPasswordResendAndResetAreRateLimited(t *testing.T) {
+	t.Parallel()
 	for _, path := range []string{"/forgot-password", "/verify/resend", "/reset-password"} {
 		s := newSite(t)
 		form := url.Values{"email": {"ada@example.com"}, "token": {"not-a-token"}, "password": {"correct horse battery"}}
@@ -216,6 +226,7 @@ func TestForgotPasswordResendAndResetAreRateLimited(t *testing.T) {
 // Learners who signed up together on one network can each resend a verification email, ask for a reset and use it,
 // and their good reset links leave the address's budget for bad ones untouched.
 func TestLearnersOnOneAddressCanEachRecoverTheirAccount(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const learners = 30
 	email := func(i int) string { return fmt.Sprintf("learner%d@example.com", i) }
@@ -250,6 +261,7 @@ func TestLearnersOnOneAddressCanEachRecoverTheirAccount(t *testing.T) {
 // Asking for resets to one email from many addresses stops sending past resetEmailsPerAddress, answers as if it had
 // sent, and leaves the last link working.
 func TestResetEmailsToOneEmailAreCappedFromAllAddresses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email = "ada@example.com"
 	s.second().loginAsNewLearner("Ada", email, "correct horse battery")
@@ -266,6 +278,7 @@ func TestResetEmailsToOneEmailAreCappedFromAllAddresses(t *testing.T) {
 }
 
 func TestFailedLoginsDoNotBlockAPasswordReset(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for i := 0; i < 10; i++ {
 		s.login("ada@example.com", "wrong password")

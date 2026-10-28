@@ -76,6 +76,7 @@ func (s *site) pdfBody(path string) string {
 }
 
 func TestLearnerGetsCertificateWhenLastLessonIsCompleted(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 
@@ -88,6 +89,7 @@ func TestLearnerGetsCertificateWhenLastLessonIsCompleted(t *testing.T) {
 }
 
 func TestNoCertificateWhileALessonIsStillIncomplete(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables", "Functions")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -97,6 +99,7 @@ func TestNoCertificateWhileALessonIsStillIncomplete(t *testing.T) {
 }
 
 func TestLearnerDownloadsACertificatePDFWithTheirDetails(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -113,6 +116,7 @@ func TestLearnerDownloadsACertificatePDFWithTheirDetails(t *testing.T) {
 }
 
 func TestCertificateIDIsLongAndUniquePerCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -129,6 +133,7 @@ func TestCertificateIDIsLongAndUniquePerCertificate(t *testing.T) {
 }
 
 func TestOtherLearnersAndVisitorsCannotDownloadACertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -147,6 +152,7 @@ func TestOtherLearnersAndVisitorsCannotDownloadACertificate(t *testing.T) {
 }
 
 func TestAdminCanDownloadAnyCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -159,6 +165,7 @@ func TestAdminCanDownloadAnyCertificate(t *testing.T) {
 }
 
 func TestDraftLessonDoesNotHoldBackACertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	s.createCourse("Go Basics", "Learn it.", "")
@@ -175,6 +182,7 @@ func TestDraftLessonDoesNotHoldBackACertificate(t *testing.T) {
 }
 
 func TestUsableExamNeedsAPassAndAnUnusableOneDoesNot(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "What is a slice?")
 
@@ -197,6 +205,7 @@ func TestUsableExamNeedsAPassAndAnUnusableOneDoesNot(t *testing.T) {
 }
 
 func TestCertificateStaysValidWhenTheCourseChanges(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -265,6 +274,7 @@ func pngBytes(t *testing.T) []byte {
 }
 
 func TestCertificateSettingsRefuseLearnersAndBadImages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
 	res, body := s.get("/admin/certificate-settings")
@@ -291,6 +301,7 @@ func TestCertificateSettingsRefuseLearnersAndBadImages(t *testing.T) {
 }
 
 func TestCertificateSettingsRefuseATooLargeImageOrANonMultipartForm(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	big := append(pngBytes(t), make([]byte, 20<<20)...)
@@ -306,6 +317,7 @@ func TestCertificateSettingsRefuseATooLargeImageOrANonMultipartForm(t *testing.T
 }
 
 func TestRemovingTheLastIncompleteLessonIssuesTheCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.learnerEnrolledIn("Go Basics", "Variables", "Functions")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)

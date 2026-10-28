@@ -11,7 +11,7 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// world is a Dashboard in a migrated test schema with the Dataset module over it. Upload and Confirm do not exist yet,
+// world is a Dashboard in a migrated test database with the Dataset module over it. Upload and Confirm do not exist yet,
 // so the helpers below make and change Parts with SQL: the only place the tests do.
 type world struct {
 	t         *testing.T
@@ -22,7 +22,7 @@ type world struct {
 
 func newWorld(t *testing.T) *world {
 	t.Helper()
-	db, _ := testutil.NewSchema(t)
+	db, _ := testutil.NewDatabase(t)
 	store, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)

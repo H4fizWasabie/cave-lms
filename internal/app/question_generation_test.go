@@ -17,6 +17,7 @@ func (s *site) generate(courseID, topic, language, count string) (*http.Response
 }
 
 func TestTheAIWritesGeneratedQuestionsAsDraftsInTheBankAndThePool(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -41,6 +42,7 @@ func TestTheAIWritesGeneratedQuestionsAsDraftsInTheBankAndThePool(t *testing.T) 
 }
 
 func TestGenerationTakesMatchingBankQuestionsFirstAndAsksTheAIOnlyForTheRest(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -89,6 +91,7 @@ func TestGenerationTakesMatchingBankQuestionsFirstAndAsksTheAIOnlyForTheRest(t *
 }
 
 func TestAIOutputInTheWrongShapeIsRetriedOnceThenReportedAndNothingIsSaved(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -141,6 +144,7 @@ func TestAIOutputInTheWrongShapeIsRetriedOnceThenReportedAndNothingIsSaved(t *te
 }
 
 func TestGenerationExplainsWhenTheAIIsNotConfiguredUnavailableOrOverItsLimitAndSavesNothing(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -173,6 +177,7 @@ func TestGenerationExplainsWhenTheAIIsNotConfiguredUnavailableOrOverItsLimitAndS
 }
 
 func TestLearnersAreRefusedGeneration(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "What is Go?")
 	s.logOut()
@@ -186,6 +191,7 @@ func TestLearnersAreRefusedGeneration(t *testing.T) {
 }
 
 func TestGeneratingForAWrittenExamGivesDraftsWithAModelAnswerInTheBankAndThePool(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -218,6 +224,7 @@ func TestGeneratingForAWrittenExamGivesDraftsWithAModelAnswerInTheBankAndThePool
 }
 
 func TestAWrittenQuestionWithoutAModelAnswerIsRetriedOnceThenReportedAndNothingIsSaved(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -248,6 +255,7 @@ func TestAWrittenQuestionWithoutAModelAnswerIsRetriedOnceThenReportedAndNothingI
 }
 
 func TestPublishingAnAIDraftInAnExamPublishesItsBankQuestionSoGenerationReusesIt(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")

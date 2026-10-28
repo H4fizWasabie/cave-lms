@@ -44,6 +44,7 @@ func (s *site) earns(name, email, courseID string) string {
 }
 
 func TestCertificatesAreNumberedInIssueOrderOnEveryPage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.at("2026-03-01 10:00:00")
 	courseID, adaID := s.adaEarns()
@@ -65,6 +66,7 @@ func TestCertificatesAreNumberedInIssueOrderOnEveryPage(t *testing.T) {
 }
 
 func TestCertificateNumberRestartsEachYear(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.at("2026-12-31 15:59:00") // 23:59 in Malaysia
 	courseID, _ := s.adaEarns()
@@ -76,6 +78,7 @@ func TestCertificateNumberRestartsEachYear(t *testing.T) {
 }
 
 func TestRevokedCertificateKeepsItsNumberAndNoNumberIsReused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.at("2026-03-01 10:00:00")
 	courseID, adaID := s.adaEarns()
@@ -96,6 +99,7 @@ func TestRevokedCertificateKeepsItsNumberAndNoNumberIsReused(t *testing.T) {
 }
 
 func TestCertificatesIssuedBeforeNumbersAreNumberedByIssueDate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	courseID, _ := s.adaEarns()
 	s.earns("Bob", "bob@example.com", courseID)
@@ -125,6 +129,7 @@ func TestCertificatesIssuedBeforeNumbersAreNumberedByIssueDate(t *testing.T) {
 // Half past midnight on 1 January 2027 in Malaysia is still 2026 in UTC: the Certificate No. and the issue date are
 // Malaysia's everywhere they show.
 func TestACertificateIsNumberedAndDatedInMalaysiaTime(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.at("2026-12-31 16:30:00")
 	courseID, certID := s.adaEarns()

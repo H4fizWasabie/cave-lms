@@ -120,6 +120,7 @@ func expectProForAYear(t *testing.T, l *site, token string) time.Time {
 }
 
 func TestPayingOnTheProFormGivesTheLearnerAYearOfProAtOnce(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paid("LINK-1", "ADA@example.com"))
@@ -132,6 +133,7 @@ func TestPayingOnTheProFormGivesTheLearnerAYearOfProAtOnce(t *testing.T) {
 
 // Staging counts BCL Test Mode orders and ignores live ones, so the TEST forms can be tried end to end (ADR 0010).
 func TestWithTestPaymentsATestModeOrderGivesProAndALiveOneDoesNot(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t, func(c *config.Config) { c.BCLTestPayments = true })
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
@@ -146,6 +148,7 @@ func TestWithTestPaymentsATestModeOrderGivesProAndALiveOneDoesNot(t *testing.T) 
 }
 
 func TestTheSameOrderSentTwiceGivesOneYear(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(paid("LINK-1", "ada@example.com"))
@@ -160,6 +163,7 @@ func TestTheSameOrderSentTwiceGivesOneYear(t *testing.T) {
 }
 
 func TestALearnerWhoPaysBeforeSigningInToCaveTextHasProAtTheirFirstSignIn(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	bea := s.second()
 	bea.loginAsNewLearner("Bea Lim", "bea@example.com", "correct horse battery")
@@ -168,6 +172,7 @@ func TestALearnerWhoPaysBeforeSigningInToCaveTextHasProAtTheirFirstSignIn(t *tes
 }
 
 func TestTheCAVELMSEmailFieldWinsAndThePayerEmailIsTheFallback(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
@@ -187,6 +192,7 @@ func TestTheCAVELMSEmailFieldWinsAndThePayerEmailIsTheFallback(t *testing.T) {
 }
 
 func TestWebhooksThatAreNotAPaidProOrderGiveNoPro(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	other := testOrder("LINK-1", "ada@example.com") // as BCL marks every order on the Test Mode copy
@@ -215,6 +221,7 @@ func TestWebhooksThatAreNotAPaidProOrderGiveNoPro(t *testing.T) {
 }
 
 func TestAPaymentNamingNoLearnerWaitsOnTheAdminPageUntilMarkedDone(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	s.bclPay(paid("LINK-7", "nobody@example.com"))
 	elsewhere := paid("LINK-9", "ada@example.com")
@@ -270,6 +277,7 @@ func unmatchedProduct(t *testing.T, body, order string) string {
 }
 
 func TestABCLWebhookWithAWrongKeyIsRefused(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	for _, key := range []string{"wrong", ""} {
@@ -283,6 +291,7 @@ func TestABCLWebhookWithAWrongKeyIsRefused(t *testing.T) {
 }
 
 func TestBCLWebhooksAreRefusedWhenNoKeyIsSet(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	if code := s.bclPost("", bclPayload(paid("FAKE-1", "a@example.com"))); code != http.StatusNotFound {
 		t.Errorf("webhook with no key set: status %d, want 404", code)
@@ -290,6 +299,7 @@ func TestBCLWebhooksAreRefusedWhenNoKeyIsSet(t *testing.T) {
 }
 
 func TestAFailedBCLWebhookIsLoggedWithoutItsKeyAndAnswered500SoBCLRetries(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	if _, err := s.db.Exec(`ALTER TABLE cavetext_payments RENAME TO cavetext_payments_gone`); err != nil {
 		t.Fatal(err)
@@ -311,6 +321,7 @@ func TestAFailedBCLWebhookIsLoggedWithoutItsKeyAndAnswered500SoBCLRetries(t *tes
 }
 
 func TestBCLAmountsSentAsNumbersStillCount(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	body := strings.Replace(bclPayload(paid("LINK-1", "ada@example.com")), `"subtotal_amount":"25.00"`, `"subtotal_amount":25`, 1)
@@ -321,6 +332,7 @@ func TestBCLAmountsSentAsNumbersStillCount(t *testing.T) {
 }
 
 func TestATestModePaymentIsLoggedWithItsAmountsAndAnyCoupon(t *testing.T) {
+	t.Parallel()
 	s := bclSite(t)
 	test := testOrder("LINK-5", "ada@example.com")
 	test.formURL, test.subtotal = testFormURL, "249.00"
@@ -547,6 +559,7 @@ func confirmingSite(t *testing.T, bcl *fakeBCL, opts ...func(*config.Config)) *s
 
 // The order's detail at BCL names the CAVELMS account, so a webhook without the field still gives it to that account.
 func TestAnOrderBCLConfirmsGoesToBCLsCAVELMSEmailAndIsLookedUpWithTheToken(t *testing.T) {
+	t.Parallel()
 	o := confirmed("bea@example.com")
 	o.cavelms = " Ada@Example.com " // Bea paid for Ada
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": o})
@@ -575,6 +588,7 @@ func TestAnOrderBCLConfirmsGoesToBCLsCAVELMSEmailAndIsLookedUpWithTheToken(t *te
 // Someone with the webhook key who knows a real order can race BCL's own webhook with another CAVELMS email. BCL's
 // order names the account, so that one gets it and the forged one nothing; the System log names neither email.
 func TestAWebhookNamingAnotherCAVELMSAccountThanBCLsOrderGivesItToBCLs(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl)
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -595,6 +609,7 @@ func TestAWebhookNamingAnotherCAVELMSAccountThanBCLsOrderGivesItToBCLs(t *testin
 // BCL's amounts and payer decide, not the webhook's: a body claiming less still gives what BCL says was paid, and one
 // claiming more is held at what BCL says. Each difference is logged.
 func TestAnOrderIsTakenAtBCLsAmountsNotTheWebhooks(t *testing.T) {
+	t.Parallel()
 	short := confirmed("bea@example.com")
 	short.subtotal, short.amount = "10", "11"
 	under := confirmed("bea@example.com")
@@ -625,6 +640,7 @@ func TestAnOrderIsTakenAtBCLsAmountsNotTheWebhooks(t *testing.T) {
 // says the order bought, to the account BCL's order names: BCL's form id picks the product, not the webhook's address.
 // BCL's real webhook after it is a repeat.
 func TestAForgedWebhookNamingARealOrderWithAnotherFormsAddressGivesWhatBCLsFormSells(t *testing.T) {
+	t.Parallel()
 	lab := confirmed("ada@example.com")
 	lab.subtotal, lab.amount, lab.formID = "89.00", "90.00", labPlanFormID
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": lab})
@@ -660,6 +676,7 @@ func TestAForgedWebhookNamingARealOrderWithAnotherFormsAddressGivesWhatBCLsFormS
 // An order names its form by id, so two BCL forms with one title are still told apart: one paid on a form that is no
 // product's is kept for an Admin, whatever form address the webhook gives.
 func TestAnOrderOnABCLFormThatIsNoProductsIsKeptForAnAdmin(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, nil)
 	bcl.addForm("cavetext-pro-copy", bclForm{19999, "CaveText Pro (1 tahun / 1 year)"}) // same title as cavetext-pro
 	copied := confirmed("ada@example.com")
@@ -692,6 +709,7 @@ func TestAnOrderOnABCLFormThatIsNoProductsIsKeptForAnAdmin(t *testing.T) {
 
 // BCL's case for an order's transaction type is not relied on.
 func TestAnOrderBCLHasAsLiveInAnyCaseGivesPro(t *testing.T) {
+	t.Parallel()
 	o := confirmed("ada@example.com")
 	o.kind = "LIVE"
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": o})
@@ -703,6 +721,7 @@ func TestAnOrderBCLHasAsLiveInAnyCaseGivesPro(t *testing.T) {
 
 // BCL may send the form's address with a trailing slash, a query string or another case: it is still that form.
 func TestAnOrderWhoseFormAddressDiffersOnlyInSlashQueryOrCaseStillGivesPro(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -715,6 +734,7 @@ func TestAnOrderWhoseFormAddressDiffersOnlyInSlashQueryOrCaseStillGivesPro(t *te
 // An order BCL does not know yet, or has not settled as paid and live, may be a real payment BCL is still writing
 // down: it is answered 500, so BCL retries, and gives nothing until BCL confirms it.
 func TestBCLDoesNotKnowTheOrderYetSo500ThenOnRetryItIsConfirmedAndGranted(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, nil)
 	s := confirmingSite(t, bcl)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -751,6 +771,7 @@ func TestBCLDoesNotKnowTheOrderYetSo500ThenOnRetryItIsConfirmedAndGranted(t *tes
 // An order whose detail names no form is never matched to a form BCL lists without an id: BCL retries, and a form
 // listed with no id gives nothing.
 func TestAnOrderWhoseDetailNamesNoFormIsAnswered500(t *testing.T) {
+	t.Parallel()
 	noForm := confirmed("ada@example.com")
 	noForm.formID = 0
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": noForm})
@@ -768,6 +789,7 @@ func TestAnOrderWhoseDetailNamesNoFormIsAnswered500(t *testing.T) {
 }
 
 func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	bcl.setDown(true)
 	s := confirmingSite(t, bcl)
@@ -790,6 +812,7 @@ func TestWhileBCLIsDownAnOrderIsAnswered500SoBCLRetriesAndGivesNothingUntilThen(
 // The form check reading BCL's forms is part of confirming the order: BCL failing there is answered 500 too, so BCL
 // retries and the real payment is given then.
 func TestWhileBCLsFormsAreDownAnOrderIsAnswered500AndGivenOnRetry(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	bcl.setFormsDown(true)
 	s := confirmingSite(t, bcl)
@@ -811,6 +834,7 @@ func TestWhileBCLsFormsAreDownAnOrderIsAnswered500AndGivenOnRetry(t *testing.T) 
 // Staging counts Test Mode orders, which BCL's /transactions/<order> does not find, so it asks /transaction/<order>,
 // which names no form and no custom fields: staging asks BCL for neither (ADR 0010).
 func TestWithTestPaymentsATestModeOrderIsLookedUpWhereBCLFindsTestOrders(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -825,6 +849,7 @@ func TestWithTestPaymentsATestModeOrderIsLookedUpWhereBCLFindsTestOrders(t *test
 
 // On staging BCL's /transaction/<order> gives no amounts but the charge, so the webhook's must agree with it.
 func TestWithTestPaymentsAnOrderBCLReportsDifferentlyIsLoggedAndGivesNothing(t *testing.T) {
+	t.Parallel()
 	order := func(amount, payer string) bclOrder { return bclOrder{amount: amount, payer: payer, status: "3"} }
 	bcl := newFakeBCL(t, map[string]bclOrder{
 		"LINK-1": order("1.00", "ada@example.com"),   // cheaper than the webhook says
@@ -859,6 +884,7 @@ func TestWithTestPaymentsAnOrderBCLReportsDifferentlyIsLoggedAndGivesNothing(t *
 // BCL's payer: one naming another account is kept for an Admin, linked to BCL's payer's account, gives nothing to
 // either, and the System log names neither email.
 func TestWithTestPaymentsAWebhookNamingAnotherCAVELMSAccountThanBCLsPayerIsKeptForAnAdmin(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -886,6 +912,7 @@ func TestWithTestPaymentsAWebhookNamingAnotherCAVELMSAccountThanBCLsPayerIsKeptF
 // On staging the CAVELMS account email matches BCL's payer ignoring case and spaces, and a webhook with no CAVELMS
 // email field gives the order to BCL's payer.
 func TestWithTestPaymentsTheCAVELMSEmailMatchesBCLsPayerInAnyCaseAndItsAbsenceFallsBackToThePayer(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com"), "LINK-2": confirmed("bea@example.com")})
 	s := confirmingSite(t, bcl, func(c *config.Config) { c.BCLTestPayments = true })
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -904,6 +931,7 @@ func TestWithTestPaymentsTheCAVELMSEmailMatchesBCLsPayerInAnyCaseAndItsAbsenceFa
 // order sent with a dearer TEST form's address gives nothing, and a dearer one sent with a cheaper form's address
 // gives only the cheaper product.
 func TestWithTestPaymentsAnOrderSentWithAnotherTESTFormsAddressGivesNoMoreThanItPaidFor(t *testing.T) {
+	t.Parallel()
 	const proPlanTestFormURL = "https://shop.bcl.my/form/pro-plan-test"
 	dear := bclOrder{amount: "250.00", payer: "bea@example.com", status: "3"}
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com"), "LINK-2": dear})
@@ -937,6 +965,7 @@ const tokenRefused = "BCL API token refused"
 
 // A revoked, expired or wrong token is named as the cause, so an Admin knows to replace it; BCL still retries.
 func TestAWebhookBCLRefusesTheTokenForIsAnswered500AndLogsTheTokenAsTheCause(t *testing.T) {
+	t.Parallel()
 	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
@@ -957,6 +986,7 @@ func TestAWebhookBCLRefusesTheTokenForIsAnswered500AndLogsTheTokenAsTheCause(t *
 }
 
 func TestAWebhookWhileBCLFailsIsNotBlamedOnTheToken(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": confirmed("ada@example.com")})
 	s := confirmingSite(t, bcl)
 	bcl.setDown(true)
@@ -969,6 +999,7 @@ func TestAWebhookWhileBCLFailsIsNotBlamedOnTheToken(t *testing.T) {
 }
 
 func TestStartingWithATokenBCLRefusesLogsItAndStillServes(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, nil)
 	bcl.setRefuse(http.StatusUnauthorized)
 	s := confirmingSite(t, bcl) // it started: the site answers
@@ -980,6 +1011,7 @@ func TestStartingWithATokenBCLRefusesLogsItAndStillServes(t *testing.T) {
 }
 
 func TestStartingWhileBCLIsOutOfReachLogsItUnreachableNotRefused(t *testing.T) {
+	t.Parallel()
 	gone := httptest.NewServer(http.NotFoundHandler())
 	gone.Close()
 	s := confirmingSite(t, &fakeBCL{url: gone.URL})
@@ -989,6 +1021,7 @@ func TestStartingWhileBCLIsOutOfReachLogsItUnreachableNotRefused(t *testing.T) {
 }
 
 func TestTheDailyTokenCheckLogsARefusedTokenAndNothingForAnAcceptedOne(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, nil)
 	s := confirmingSite(t, bcl)
 	s.application.CheckBCLToken(context.Background())
@@ -1002,6 +1035,7 @@ func TestTheDailyTokenCheckLogsARefusedTokenAndNothingForAnAcceptedOne(t *testin
 }
 
 func TestWithoutATokenBCLIsNeverAskedAtStartup(t *testing.T) {
+	t.Parallel()
 	bcl := newFakeBCL(t, nil)
 	s := bclSite(t, func(c *config.Config) { c.BCLAPIURL = bcl.url })
 	s.application.CheckBCLToken(context.Background())

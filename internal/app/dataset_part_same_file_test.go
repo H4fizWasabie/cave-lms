@@ -23,6 +23,7 @@ func partCount(t *testing.T, ada *site) (n int) {
 }
 
 func TestAddingTheSameFileTwiceIsRefusedNamingThePartWithAWorkingReplaceButton(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	if n := len(replaceLinks(t, ada, path+"/data")); n != 2 {
@@ -51,6 +52,7 @@ func TestAddingTheSameFileTwiceIsRefusedNamingThePartWithAWorkingReplaceButton(t
 }
 
 func TestTheSameFileIsStillRefusedAfterItsWorkbookWasDeleted(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	ada.forgetWorkbooks()
@@ -68,6 +70,7 @@ func TestTheSameFileIsStillRefusedAfterItsWorkbookWasDeleted(t *testing.T) {
 }
 
 func TestADifferentFileThatRepeatsNinetyPercentOfAPartsRowsIsAccepted(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
@@ -92,6 +95,7 @@ func TestADifferentFileThatRepeatsNinetyPercentOfAPartsRowsIsAccepted(t *testing
 }
 
 func TestReplacingAPartWithAnotherPartsFileIsRefusedButWithItsOwnFileOrReplaceDataIsNot(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	links := replaceLinks(t, ada, path+"/data")
@@ -113,6 +117,7 @@ func TestReplacingAPartWithAnotherPartsFileIsRefusedButWithItsOwnFileOrReplaceDa
 }
 
 func TestAPartFromBeforeFingerprintsGetsItFromItsWorkbookInTheMigration(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := twoParts(t, ada)
 	if err := app.MigrateDownTo(context.Background(), ada.db, 128); err != nil {

@@ -7,6 +7,7 @@ import (
 )
 
 // A login to an email with no account takes as long as a wrong password, so timing doesn't tell which emails exist.
+// Not parallel: it compares timings, which other tests running at once would skew.
 func TestALoginToAnUnknownEmailTakesAsLongAsAWrongPassword(t *testing.T) {
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")

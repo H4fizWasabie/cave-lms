@@ -58,6 +58,7 @@ func expectInOrder(t *testing.T, body string, wants ...string) {
 
 // A Plan holder's header has eight sections; a Visitor's has seven, without the Lab.
 func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	_, s := labLearner(t)
 	for _, path := range []string{"/", "/courses", "/certificates"} {
 		_, body := s.getAsking(path, "en")
@@ -74,6 +75,7 @@ func TestTheHeaderShowsTheEightSectionsInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheCoursesMenuListsTheThreeLatestOpenCoursesThenAllCourses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	s.createCourse("Alpha", "First.", "")
@@ -92,6 +94,7 @@ func TestTheCoursesMenuListsTheThreeLatestOpenCoursesThenAllCourses(t *testing.T
 }
 
 func TestTheErrorPageKeepsTheCoursesMenuAndDropsItWhenCoursesFail(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
 	s.createCourse("Alpha", "First.", "")
@@ -112,6 +115,7 @@ func TestTheErrorPageKeepsTheCoursesMenuAndDropsItWhenCoursesFail(t *testing.T) 
 }
 
 func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.get("/")
 	head := header(t, body)
@@ -124,6 +128,7 @@ func TestMyCertificatesIsInTheCertificationMenuOnlyWhenLoggedIn(t *testing.T) {
 }
 
 func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/gallery", "en")
 	head := header(t, body)
@@ -138,6 +143,7 @@ func TestTheHomeMenuReachesTheHomeSectionsAndTheAboutPage(t *testing.T) {
 
 // The header holds the nav twice: once for wide screens and once in the narrow-screen Menu.
 func TestLabIsAPlainLinkInTheHeader(t *testing.T) {
+	t.Parallel()
 	_, s := labLearner(t)
 	for _, lang := range []string{"en", "ms"} {
 		_, body := s.getAsking("/gallery", lang)
@@ -151,6 +157,7 @@ func TestLabIsAPlainLinkInTheHeader(t *testing.T) {
 
 // A section with one link is that link; Certification has a second, My certificates, once logged in.
 func TestHeaderSectionsWithOneLinkArePlainLinks(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	head := header(t, body)
@@ -173,6 +180,7 @@ func TestHeaderSectionsWithOneLinkArePlainLinks(t *testing.T) {
 }
 
 func TestTheLearnerFooterReachesTheirPagesAndLogsOut(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", certPassword)
 	_, body := s.getAsking("/courses", "en")
@@ -182,6 +190,7 @@ func TestTheLearnerFooterReachesTheirPagesAndLogsOut(t *testing.T) {
 }
 
 func TestEveryPageOpensWithALinkThatSkipsTheHeaderToTheContent(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, body, "<body>", `<a class="skip" href="#main">Skip to content</a>`, `<header class="site-header">`, `<main id="main">`)

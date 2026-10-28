@@ -48,6 +48,7 @@ func bigFinance(t *testing.T, seed int64) []byte {
 }
 
 func TestTheAdminSetsAStorageAllowanceOnEachPlan(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.get("/admin/plans/new")
@@ -68,6 +69,7 @@ func TestTheAdminSetsAStorageAllowanceOnEachPlan(t *testing.T) {
 }
 
 func TestTheLabShowsStorageUsedAndPeriodsKeepTheirAllowance(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID := storageSite(t, "1024")
 	res, body := ada.get("/lab")
 	expectStatus(t, res, body, http.StatusOK, "0 KB of 1 GB")
@@ -83,6 +85,7 @@ func TestTheLabShowsStorageUsedAndPeriodsKeepTheirAllowance(t *testing.T) {
 }
 
 func TestALabPlanPeriodGetsTheLabPlansStorageAllowance(t *testing.T) {
+	t.Parallel()
 	s := labPlanSite(t)
 	res, body := s.post("/admin/plans", url.Values{"name": {"Lab Year"}, "days": {"365"}, "deployments": {"5"}, "storage": {"3"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -94,6 +97,7 @@ func TestALabPlanPeriodGetsTheLabPlansStorageAllowance(t *testing.T) {
 }
 
 func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "2")
 	first := ada.createWork("One")
 	second := ada.createWork("Two")
@@ -116,6 +120,7 @@ func TestAnUploadOverTheStorageAllowanceIsRefusedAndDeletingFreesSpace(t *testin
 }
 
 func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "4")
 	paths := []string{ada.createWork("One"), ada.createWork("Two")}
 	for i, p := range paths {
@@ -142,6 +147,7 @@ func TestTwoConfirmsAtOnceCannotBothSlipUnderTheAllowance(t *testing.T) {
 }
 
 func TestTheAdminHasNoStorageAllowance(t *testing.T) {
+	t.Parallel()
 	admin, _, planID := storageSite(t, "0")
 	admin.assignPlan("admin@example.com", planID)
 	path := admin.createWork("Kewangan")

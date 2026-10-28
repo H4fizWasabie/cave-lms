@@ -18,6 +18,7 @@ func namedCertificate(t *testing.T, name string) (admin *site, certID string) {
 }
 
 func TestAdminFindsACertificateByPartOfTheName(t *testing.T) {
+	t.Parallel()
 	admin, certID := namedCertificate(t, "Nurul Aisyah")
 	for _, q := range []string{"aisy", "NURUL", "rul ais"} {
 		res, body := admin.get("/admin/certificates?q=" + url.QueryEscape(q))
@@ -29,6 +30,7 @@ func TestAdminFindsACertificateByPartOfTheName(t *testing.T) {
 }
 
 func TestAdminFindsACertificateDespiteATypo(t *testing.T) {
+	t.Parallel()
 	admin, certID := namedCertificate(t, "Nurul Aisyah")
 	for _, q := range []string{"Nurl Aisyah", "Nurul Aisya", "nurul aysah"} {
 		res, body := admin.get("/admin/certificates?q=" + url.QueryEscape(q))
@@ -37,6 +39,7 @@ func TestAdminFindsACertificateDespiteATypo(t *testing.T) {
 }
 
 func TestWildcardsInTheCertificateSearchAreLiteral(t *testing.T) {
+	t.Parallel()
 	admin, certID := namedCertificate(t, "Nurul Aisyah")
 	for _, q := range []string{"%", "_", "Nu%h", `\`} {
 		res, body := admin.get("/admin/certificates?q=" + url.QueryEscape(q))

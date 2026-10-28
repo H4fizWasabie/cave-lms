@@ -15,6 +15,7 @@ func (s *site) joinedAt(email, at string) {
 }
 
 func TestAdminSeesEveryAccountNewestFirst(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -42,6 +43,7 @@ func TestAdminSeesEveryAccountNewestFirst(t *testing.T) {
 }
 
 func TestOnlyTheAdminSeesAllLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	ada := s.second()

@@ -7,6 +7,7 @@ import (
 )
 
 func TestOnlyThePassResultEmailCarriesTheAnswerSheetWithHeadingsInTheSavedLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "What does := do?", "What does go vet do?")
 	s.switchLanguage("en", "/") // saved on Ada's account
@@ -43,6 +44,7 @@ func TestOnlyThePassResultEmailCarriesTheAnswerSheetWithHeadingsInTheSavedLangua
 }
 
 func TestOnlyAPassedLearnerDownloadsTheirAnswerSheetFromTheExamPage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "What does := do?")
 	s.switchLanguage("ms", "/") // saved on Ada's account; the download still asks for English
@@ -71,6 +73,7 @@ func TestOnlyAPassedLearnerDownloadsTheirAnswerSheetFromTheExamPage(t *testing.T
 }
 
 func TestAFailedLearnerIsRefusedTheAnswerSheet(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "", "What does := do?")
 	res, _ := s.startExam(id)

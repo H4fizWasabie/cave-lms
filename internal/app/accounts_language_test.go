@@ -23,6 +23,7 @@ func (s *site) postAsking(path, acceptLanguage string, form url.Values) (*http.R
 }
 
 func TestTheAccountPagesAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	for path, want := range map[string][2]string{
 		"/register":              {"Cipta akaun percuma untuk menyertai kursus.", "Create a free account to join courses."},
@@ -38,6 +39,7 @@ func TestTheAccountPagesAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestAccountFormErrorsAndAnswersAreInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	register := func(name, email, password string) (*http.Response, string) {
@@ -110,6 +112,7 @@ func expectEmail(t *testing.T, m mailer.Message, subject, body string) {
 }
 
 func TestVerifyAndResetEmailsComeInTheSavedLanguageElseTheRequests(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const ada, cy, password = "ada@example.com", "cy@example.com", "correct horse battery"
 
@@ -131,6 +134,7 @@ func TestVerifyAndResetEmailsComeInTheSavedLanguageElseTheRequests(t *testing.T)
 }
 
 func TestTheTooManyAttemptsPageIsInMalay(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	var res *http.Response
 	var body string

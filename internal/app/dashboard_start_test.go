@@ -8,6 +8,7 @@ import (
 )
 
 func TestANewDashboardOffersNoTemplateOrKindAndAPastedOneIsItsPage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	res, body := ada.get("/lab/new")
 	expectStatus(t, res, body, http.StatusOK, `name="name"`)
@@ -33,6 +34,7 @@ func TestANewDashboardOffersNoTemplateOrKindAndAPastedOneIsItsPage(t *testing.T)
 // A built Dashboard, on General, is offered no Template, even on data a Template fits, and its blocks come from the
 // General rules whatever its confirm names (ADR 0019).
 func TestABuiltDashboardIsOfferedNoTemplateAndBuildsByTheGeneralRules(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
@@ -54,6 +56,7 @@ func TestABuiltDashboardIsOfferedNoTemplateAndBuildsByTheGeneralRules(t *testing
 
 // The Samples are gone (ADR 0019): naming one starts no Dashboard, as the form then has no page.
 func TestASampleNoLongerStartsADashboard(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	for _, key := range []string{"finance", "general"} {
 		res, body := ada.post("/lab/dashboards", url.Values{"name": {"Cuba"}, "sample": {key}})

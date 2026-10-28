@@ -21,6 +21,7 @@ func monthNamedReport(t *testing.T, month any, schools ...[2]string) []byte {
 // added with BULAN = 8, the preview lists the names read as numbers on their own, apart from the cells left empty, and
 // the recipe keeps the month column, so September's SEP is read the same way after the August Part is confirmed.
 func TestAMapPartOfMonthNamesAddsAsTheMonthNumberInTheDatasetsMonthColumn(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := kehadiranPage(t, ada)
 	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", monthNamedReport(t, "OGOS", [2]string{"JBA2002", "SK Jaya"}, [2]string{"JBA2003", "SK Baru"}), adding)

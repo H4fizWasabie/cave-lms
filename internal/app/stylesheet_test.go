@@ -53,6 +53,7 @@ func declarations(rules string, property string) []string {
 }
 
 func TestTheStylesheetsColoursAreAllTokensDefinedAtTheTop(t *testing.T) {
+	t.Parallel()
 	all, rules := stylesheet(t)
 	if got := regexp.MustCompile(`#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(`).FindAllString(rules, -1); len(got) > 0 {
 		t.Errorf("rules hard-code %d colours (%v); use the colour tokens in :root", len(got), got)
@@ -67,6 +68,7 @@ func TestTheStylesheetsColoursAreAllTokensDefinedAtTheTop(t *testing.T) {
 }
 
 func TestTheStylesheetUsesEightFontSizesAndTheFontVariables(t *testing.T) {
+	t.Parallel()
 	all, rules := stylesheet(t)
 	if got := tokens(all, "fs-"); len(got) != 8 {
 		t.Errorf("type scale has %d sizes (%v), want 8", len(got), got)
@@ -84,6 +86,7 @@ func TestTheStylesheetUsesEightFontSizesAndTheFontVariables(t *testing.T) {
 }
 
 func TestTheStylesheetSpacesWithEightSteps(t *testing.T) {
+	t.Parallel()
 	all, rules := stylesheet(t)
 	if got := tokens(all, "space-"); len(got) != 8 {
 		t.Errorf("spacing scale has %d steps (%v), want 8", len(got), got)
@@ -101,6 +104,7 @@ func TestTheStylesheetSpacesWithEightSteps(t *testing.T) {
 }
 
 func TestTheStylesheetRoundsCornersWithTheRadiusTokens(t *testing.T) {
+	t.Parallel()
 	_, rules := stylesheet(t)
 	for _, v := range declarations(rules, "border(?:-[a-z]+)*-radius") {
 		for _, part := range splitValue(v) {
@@ -113,6 +117,7 @@ func TestTheStylesheetRoundsCornersWithTheRadiusTokens(t *testing.T) {
 
 // Windows High Contrast drops box-shadows, so a text field that swaps its outline for a shadow on focus shows no ring.
 func TestTextFieldsKeepAFocusOutlineInForcedColours(t *testing.T) {
+	t.Parallel()
 	_, rules := stylesheet(t)
 	for _, m := range regexp.MustCompile(`([^{}]*:focus[^{}]*)\{([^}]*)\}`).FindAllStringSubmatch(rules, -1) {
 		if regexp.MustCompile(`outline\s*:\s*(none|0)\b`).MatchString(m[2]) {
@@ -122,6 +127,7 @@ func TestTextFieldsKeepAFocusOutlineInForcedColours(t *testing.T) {
 }
 
 func TestLabLinksKeepMainsUnderlineLongTitlesWrapAndWideTablesShowAScrollCue(t *testing.T) {
+	t.Parallel()
 	all, _ := stylesheet(t)
 	expectAll(t, all,
 		`:where(.lab-page) a { text-underline-offset: auto; }`,
@@ -131,6 +137,7 @@ func TestLabLinksKeepMainsUnderlineLongTitlesWrapAndWideTablesShowAScrollCue(t *
 }
 
 func TestTheStylesheetHasThreeBreakpoints(t *testing.T) {
+	t.Parallel()
 	all, _ := stylesheet(t)
 	seen := map[string]bool{}
 	for _, m := range regexp.MustCompile(`\((?:max|min)-width:\s*([^)]+)\)`).FindAllStringSubmatch(all, -1) {

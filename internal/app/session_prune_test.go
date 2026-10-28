@@ -7,6 +7,7 @@ import (
 
 // The daily prune deletes sessions past their expiry and keeps live ones.
 func TestTheDailyPruneDeletesExpiredSessions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	s.second().loginAsNewLearner("Bea", "bea@example.com", "correct horse battery")

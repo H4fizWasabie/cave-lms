@@ -11,6 +11,7 @@ import (
 var randomUsername = regexp.MustCompile(`^learner-[a-z0-9]{6}$`)
 
 func TestRegisteringNeedsAValidUsernameNobodyHasTaken(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	register := func(username, email string) (*http.Response, string) {
 		return s.post("/register", url.Values{"name": {"Ada Lovelace"}, "username": {username}, "email": {email}, "password": {"correct horse battery"}})
@@ -46,6 +47,7 @@ func TestRegisteringNeedsAValidUsernameNobodyHasTaken(t *testing.T) {
 }
 
 func TestTheRegisterFormExplainsTheUsernameInMalayToo(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/register", "en")
 	expectLanguage(t, body, "en", "so do not use your real name")
@@ -56,6 +58,7 @@ func TestTheRegisterFormExplainsTheUsernameInMalayToo(t *testing.T) {
 }
 
 func TestALearnerChangesTheirUsernameInMyProfile(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 	bea := s.second()
@@ -101,6 +104,7 @@ func TestALearnerChangesTheirUsernameInMyProfile(t *testing.T) {
 }
 
 func TestMyProfileSaysSavedOnlyAfterASave(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
 
@@ -115,6 +119,7 @@ func TestMyProfileSaysSavedOnlyAfterASave(t *testing.T) {
 }
 
 func TestTheAdminGetsARandomUsername(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	var username string

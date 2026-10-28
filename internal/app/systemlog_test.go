@@ -34,6 +34,7 @@ func breakCourses(t *testing.T, s *site) (restore func()) {
 }
 
 func TestTheOwnerSeesAServerErrorInTheSystemLog(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	restore := breakCourses(t, s)
 	res, body := s.get("/courses?token=s3cret")
@@ -53,6 +54,7 @@ func TestTheOwnerSeesAServerErrorInTheSystemLog(t *testing.T) {
 }
 
 func TestAVisitorWhoLeavesMidRequestIsNotAServerError(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // the browser closed the connection before the page was drawn
@@ -68,6 +70,7 @@ func TestAVisitorWhoLeavesMidRequestIsNotAServerError(t *testing.T) {
 }
 
 func TestTheServerErrorPageLinksHomeAndToTryAgain(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	restore := breakCourses(t, s)
 	defer restore()
@@ -95,6 +98,7 @@ func TestTheServerErrorPageLinksHomeAndToTryAgain(t *testing.T) {
 }
 
 func TestOnlyTheOwnerFindsTheSystemLog(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	_, body := s.get("/admin")
 	if !strings.Contains(body, `href="/admin/log"`) {
@@ -126,6 +130,7 @@ func TestOnlyTheOwnerFindsTheSystemLog(t *testing.T) {
 }
 
 func TestWithoutOwnerEmailNobodyFindsTheSystemLog(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", ownerEmail, "correct horse battery")
 	res, body := s.get("/admin/log")
@@ -133,6 +138,7 @@ func TestWithoutOwnerEmailNobodyFindsTheSystemLog(t *testing.T) {
 }
 
 func TestTheSystemLogShowsStartUpsAndFiltersToErrors(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	s.application.Started(":8080")
 	restore := breakCourses(t, s)
@@ -152,6 +158,7 @@ func TestTheSystemLogShowsStartUpsAndFiltersToErrors(t *testing.T) {
 }
 
 func TestTheSystemLogKeepsThirtyDays(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	if _, err := s.db.Exec(`INSERT INTO system_log (at, level, message) VALUES
 		(now() - interval '31 days', 'error', 'too old to keep'),
@@ -168,6 +175,7 @@ func TestTheSystemLogKeepsThirtyDays(t *testing.T) {
 }
 
 func TestAPanicInABackgroundJobIsLoggedNotRaised(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.application.Survive("Result release", func() { panic("bad record") })
 
@@ -175,6 +183,7 @@ func TestAPanicInABackgroundJobIsLoggedNotRaised(t *testing.T) {
 }
 
 func TestNotFoundAndForbiddenPagesOfferTheHomePage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.getAsking("/no-such-page", "en")
 	expectStatus(t, res, body, http.StatusNotFound, "")

@@ -25,6 +25,7 @@ func (s *site) lastLogLine(part string) string {
 }
 
 func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
@@ -64,6 +65,7 @@ func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersDatasetsAreDeleted(t *testin
 }
 
 func TestALearnerWhoRenewedOrHasAnUpcomingPeriodKeepsTheirDatasets(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 
@@ -87,6 +89,7 @@ func TestALearnerWhoRenewedOrHasAnUpcomingPeriodKeepsTheirDatasets(t *testing.T)
 }
 
 func TestNinetyDaysAfterTheLastPeriodEndsTheLearnersWorkbooksAreDeletedToo(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.readyDashboard("Kewangan")
 	link := ada.workbookPath()

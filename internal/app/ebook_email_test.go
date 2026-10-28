@@ -19,6 +19,7 @@ func (s *site) ebookEmails(to string) int {
 }
 
 func TestAComboPaymentEmailsTheEbookLinkInTheLearnersLanguage(t *testing.T) {
+	t.Parallel()
 	s, _ := ebookSite(t)
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	ada.switchLanguage("en", "/") // saved on Ada's account
@@ -43,6 +44,7 @@ func TestAComboPaymentEmailsTheEbookLinkInTheLearnersLanguage(t *testing.T) {
 
 // A Learner who never chose a language gets the default one, as for the Certificate email.
 func TestTheEbookEmailFallsBackToTheDefaultLanguage(t *testing.T) {
+	t.Parallel()
 	s, _ := ebookSite(t)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
@@ -52,6 +54,7 @@ func TestTheEbookEmailFallsBackToTheDefaultLanguage(t *testing.T) {
 }
 
 func TestOtherPaymentsAndGivesSendNoEbookEmail(t *testing.T) {
+	t.Parallel()
 	s, _ := ebookSite(t)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.newCaveTextLearner("Bea Lim", "bea@example.com")
@@ -70,6 +73,7 @@ func TestOtherPaymentsAndGivesSendNoEbookEmail(t *testing.T) {
 
 // Each COMBO the Admin gives sends one, a renewal too.
 func TestTheAdminsComboSendsAnEbookEmailEachTime(t *testing.T) {
+	t.Parallel()
 	s, _ := ebookSite(t)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	for want := 1; want <= 2; want++ {
@@ -83,6 +87,7 @@ func TestTheAdminsComboSendsAnEbookEmailEachTime(t *testing.T) {
 
 // A failed send never undoes the COMBO or the payment: the System log has the error.
 func TestAFailedEbookEmailIsLoggedAndKeepsTheCombo(t *testing.T) {
+	t.Parallel()
 	s, ebook := ebookSite(t)
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.newCaveTextLearner("Bea Lim", "bea@example.com")
@@ -102,6 +107,7 @@ func TestAFailedEbookEmailIsLoggedAndKeepsTheCombo(t *testing.T) {
 
 // The Admin resends the link from the CaveText Learners page, for a Learner whose Ebook access is running.
 func TestTheAdminResendsTheEbookLinkOnlyWhileTheAccessRuns(t *testing.T) {
+	t.Parallel()
 	s, _ := ebookSite(t)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.newCaveTextLearner("Bea Lim", "bea@example.com")

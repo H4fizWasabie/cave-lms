@@ -63,6 +63,7 @@ func (s *site) emailsTo(to string) []mailer.Message {
 }
 
 func TestSubmittingSaysTheAnswersAreInAndWhenTheResultIsReadyButNoMarkAndNoCongratulations(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Right one", "Wrong one")
 	res, _ := s.startExam(id)
@@ -88,6 +89,7 @@ func TestSubmittingSaysTheAnswersAreInAndWhenTheResultIsReadyButNoMarkAndNoCongr
 }
 
 func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearnersLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "", "Right one", "Wrong one")
 	s.switchLanguage("ms", "/") // saved on Ada's account
@@ -138,6 +140,7 @@ func (s *site) releaseResults() {
 }
 
 func TestAttemptTwoOpensOnlyOnceAttemptOneIsReleasedAndFailed(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "2", "Q1")
 	res, _ := s.startExam(id)
@@ -157,6 +160,7 @@ func TestAttemptTwoOpensOnlyOnceAttemptOneIsReleasedAndFailed(t *testing.T) {
 }
 
 func TestTheReleaseJobSubmitsAnAttemptLeftOpenPastItsTimeLimitWithNoAnswers(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "1", "", "Q1")
 	res, _ := s.startExam(id)
@@ -182,6 +186,7 @@ func TestTheReleaseJobSubmitsAnAttemptLeftOpenPastItsTimeLimitWithNoAnswers(t *t
 var secondsLeft = regexp.MustCompile(`data-seconds-left="(\d+)"`)
 
 func TestTheAttemptPageCountsDownAndSubmitsTheFormAtZero(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "1", "", "Q1")
 	res, _ := s.startExam(id)
@@ -208,6 +213,7 @@ func TestTheAttemptPageCountsDownAndSubmitsTheFormAtZero(t *testing.T) {
 var timerScript = regexp.MustCompile(`<script src="(/static/exam-timer\.js[^"]*)" defer></script>`)
 
 func TestALearnerWhoSitsBothExamsGetsResultsThatNameEachExamInTheirLanguage(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Which is right?")
 	admin := s.adminSite()
@@ -253,6 +259,7 @@ func TestALearnerWhoSitsBothExamsGetsResultsThatNameEachExamInTheirLanguage(t *t
 // is issued to them, leads to it with its number and a thumbnail. Until it is issued, or once it is revoked, there
 // is no Certificate to show.
 func TestAPassedResultShowsTheScoreOnceAndLeadsToTheIssuedCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("50", "", "", "Right one", "Wrong one")
 	res, _ := s.startExam(id)

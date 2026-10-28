@@ -14,6 +14,7 @@ func (s *site) forgotPassword(email string) (*http.Response, string) {
 }
 
 func TestForgotPasswordGivesTheSameResponseWhetherOrNotTheEmailExists(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.loginAsNewLearner("Ada", email, password)
@@ -37,6 +38,7 @@ func TestForgotPasswordGivesTheSameResponseWhetherOrNotTheEmailExists(t *testing
 }
 
 func TestLoginPageLinksToPasswordReset(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.get("/login")
 	expectStatus(t, res, body, http.StatusOK, "Forgot your password?")
@@ -47,6 +49,7 @@ func TestLoginPageLinksToPasswordReset(t *testing.T) {
 
 // The keyboard goes email, password, Log in, and only then to "Forgot your password?", so it never sits between the two fields.
 func TestTheLoginPageTabsFromEmailToPasswordToLogInThenForgotPassword(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.get("/login")
 	form, rest, _ := strings.Cut(mainOf(body), "</button>")
@@ -72,6 +75,7 @@ func (s *site) resetPassword(token, password string) (*http.Response, string) {
 }
 
 func TestResetLinkSetsANewPasswordOnce(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, oldPassword, newPassword = "ada@example.com", "correct horse battery", "new horse staple"
 	s.loginAsNewLearner("Ada", email, oldPassword)
@@ -98,6 +102,7 @@ func TestResetLinkSetsANewPasswordOnce(t *testing.T) {
 }
 
 func TestExpiredResetLinkIsRefused(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.loginAsNewLearner("Ada", email, password)
@@ -115,6 +120,7 @@ func TestExpiredResetLinkIsRefused(t *testing.T) {
 }
 
 func TestResetSignsOutEverySessionOfTheLearnerAndCaveText(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.loginAsNewLearner("Ada", email, password)
@@ -139,6 +145,7 @@ func TestResetSignsOutEverySessionOfTheLearnerAndCaveText(t *testing.T) {
 }
 
 func TestAFailedEmailSendStillGivesTheNormalAnswer(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.loginAsNewLearner("Ada", email, password)
@@ -153,6 +160,7 @@ func TestAFailedEmailSendStillGivesTheNormalAnswer(t *testing.T) {
 
 // A reset link proves the Learner reads that email, so an unverified account is verified by the reset.
 func TestAResetVerifiesTheEmail(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const email = "ada@example.com"
 	res, body := s.register("Ada", email, "correct horse battery")

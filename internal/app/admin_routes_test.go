@@ -21,6 +21,7 @@ const minAdminRoutes = 80
 
 // Every registered /admin route refuses a Visitor and a Learner, so a route added without its guard fails here.
 func TestEveryAdminRouteRefusesNonAdmins(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	visitor := s.second()
 	learner := s.second()

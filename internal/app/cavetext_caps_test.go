@@ -51,6 +51,7 @@ func (s *site) saveCaps(places, early, late string) (*http.Response, string) {
 }
 
 func TestTheFirstThousandLearnersMayKeepTenSnippetsAndLaterOnesFive(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.nextPlace(1000)
 	ada, adaToken := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -74,6 +75,7 @@ func TestTheFirstThousandLearnersMayKeepTenSnippetsAndLaterOnesFive(t *testing.T
 }
 
 func TestAddingPastTheCapIsRefusedWhileEditingAndDeletingStillWork(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -102,6 +104,7 @@ func TestAddingPastTheCapIsRefusedWhileEditingAndDeletingStillWork(t *testing.T)
 }
 
 func TestRaisingTheEarlyCapLetsAnEarlyLearnerAddMoreAtOnce(t *testing.T) {
+	t.Parallel()
 	s := caveTextOwnerSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	ada.fillSnippets(token, 10)
@@ -127,6 +130,7 @@ func TestRaisingTheEarlyCapLetsAnEarlyLearnerAddMoreAtOnce(t *testing.T) {
 }
 
 func TestAnImportOverTheCapStopsAtTheCapAndSaysHowManyWereSkipped(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -163,6 +167,7 @@ func TestAnImportOverTheCapStopsAtTheCapAndSaysHowManyWereSkipped(t *testing.T) 
 }
 
 func TestOnlyTheOwnerEditsTheCaveTextCaps(t *testing.T) {
+	t.Parallel()
 	s := caveTextOwnerSite(t)
 	for _, path := range []string{"/admin", "/admin/plans"} {
 		_, body := s.get(path)
@@ -209,6 +214,7 @@ func TestOnlyTheOwnerEditsTheCaveTextCaps(t *testing.T) {
 }
 
 func TestAnImportOverTheCapChecksOnlyTheSnippetsItKeeps(t *testing.T) {
+	t.Parallel()
 	s := newCaveTextSite(t)
 	s.nextPlace(1001)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -233,6 +239,7 @@ func TestAnImportOverTheCapChecksOnlyTheSnippetsItKeeps(t *testing.T) {
 }
 
 func TestTheCaveTextCapsRefuseACrossOriginSave(t *testing.T) {
+	t.Parallel()
 	s := caveTextOwnerSite(t)
 	form := url.Values{"early_places": {"1"}, "early_cap": {"1"}, "late_cap": {"1"}}
 	for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
@@ -247,6 +254,7 @@ func TestTheCaveTextCapsRefuseACrossOriginSave(t *testing.T) {
 }
 
 func TestSavingTheCaveTextCapsSaysSaved(t *testing.T) {
+	t.Parallel()
 	s := caveTextOwnerSite(t)
 	res, body := s.get("/admin/cavetext/caps")
 	expectStatus(t, res, body, http.StatusOK, "")

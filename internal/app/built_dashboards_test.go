@@ -35,6 +35,7 @@ func (s *site) countDashboards() int {
 // New Dashboard offers two ways in both languages (ADR 0019): Build from Excel, a name and an .xlsx, and Paste your
 // own page.
 func TestNewDashboardOffersBuildFromExcelAndPasteYourOwnPage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	for lang, words := range map[string][]string{
 		"en": {"Build from Excel", "Paste your own page"},
@@ -56,6 +57,7 @@ func TestNewDashboardOffersBuildFromExcelAndPasteYourOwnPage(t *testing.T) {
 // Build from Excel cleans the upload and previews it, with no Template pick, Sample or page to paste; the confirm
 // builds the blocks by the General rules and opens the Preview, in Corporate Executive with the five Themes to pick.
 func TestBuildFromExcelPreviewsTheCleanUpAndOpensThePreviewOnConfirm(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.build("Kedai", shopReport(t, "Beras", 120))
 
@@ -85,6 +87,7 @@ func TestBuildFromExcelPreviewsTheCleanUpAndOpensThePreviewOnConfirm(t *testing.
 
 // A refused build saves nothing and says why, on New Dashboard.
 func TestARefusedBuildSavesNothing(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	for _, c := range []struct {
 		name, file string
@@ -115,6 +118,7 @@ func TestARefusedBuildSavesNothing(t *testing.T) {
 
 // A refused New Dashboard keeps the typed name in the card that was sent, Build or Paste, and leaves the other empty.
 func TestARefusedNewDashboardKeepsTheNameOnlyInTheCardSent(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	res, body := ada.postFile("/lab/dashboards/build", "laporan.csv", []byte("a,b"), url.Values{"name": {"Kedai"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, `id="build-name" type="text" name="name" value="Kedai"`)
@@ -127,6 +131,7 @@ func TestARefusedNewDashboardKeepsTheNameOnlyInTheCardSent(t *testing.T) {
 
 // The Lab list names each Dashboard's kind, and a built one's Theme.
 func TestTheLabListShowsBuiltWithItsThemeOrOwnPage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.build("Kedai", shopReport(t, "Beras", 120))
 	ada.confirmWork(path, url.Values{})
@@ -144,6 +149,7 @@ func TestTheLabListShowsBuiltWithItsThemeOrOwnPage(t *testing.T) {
 // A built Dashboard's Deployment draws its current Dataset in its current Theme: a Theme saved, a Replace and an Add
 // all reach the live page, and a restart leaves it built.
 func TestABuiltDashboardsLivePageFollowsItsThemeAndItsNewData(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.build("Kedai", shopReport(t, "Beras", 120))
 	ada.confirmWork(path, url.Values{})
@@ -200,6 +206,7 @@ func idOf(path string) string { return path[strings.LastIndex(path, "/")+1:] }
 // Paste is only for own-page Dashboards: a page posted to a built one, before or after its first confirm, is refused
 // in both languages and saves nothing.
 func TestABuiltDashboardRefusesAPastedPage(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	pending := ada.build("Kedai", shopReport(t, "Beras", 120))
 	confirmed := ada.readyDashboard("Kewangan")
@@ -230,6 +237,7 @@ func TestABuiltDashboardRefusesAPastedPage(t *testing.T) {
 // Each Dashboard's own address opens its own home, whichever kind was opened before it: a page Dashboard's Page tab,
 // a built one's Dataset tab.
 func TestEachDashboardsAddressOpensItsOwnHomeTab(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	page := ada.createPage("Halaman", myPage)
 	built := ada.build("Kedai", shopReport(t, "Beras", 120))
@@ -244,6 +252,7 @@ func TestEachDashboardsAddressOpensItsOwnHomeTab(t *testing.T) {
 // A Dashboard built on Finance before the Templates went (ADR 0019) keeps the blocks it was given, its locked
 // Balance card included, on its Preview and its Deployment, and a new Dataset with the same columns keeps them too.
 func TestADashboardBuiltOnAnotherTemplateKeepsDrawingItsBlocks(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	finance := `{"blocks": [

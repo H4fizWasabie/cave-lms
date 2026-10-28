@@ -65,6 +65,7 @@ func (s *site) chatCount(id string) int {
 }
 
 func TestEnrolledLearnersAndTheAdminReadAndPostInACoursesChat(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 
 	res, body := ada.get("/courses/" + id)
@@ -88,6 +89,7 @@ func TestEnrolledLearnersAndTheAdminReadAndPostInACoursesChat(t *testing.T) {
 }
 
 func TestOthersAreRefusedACoursesChat(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	cara := admin.second()
 	cara.loginAsNewLearner("Cara", "cara@example.com", "correct horse battery")
@@ -116,6 +118,7 @@ func TestOthersAreRefusedACoursesChat(t *testing.T) {
 }
 
 func TestALiveCourseHasItsOwnChat(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	ada.say(id, "Only on the original")
 	copyID := admin.copiedCourseID(id, "Go Basics for Acme", "2026-11-02", "2026-11-03", "2")
@@ -126,6 +129,7 @@ func TestALiveCourseHasItsOwnChat(t *testing.T) {
 }
 
 func TestBadMessagesAreRefusedAndNotSaved(t *testing.T) {
+	t.Parallel()
 	ada, _, _, id := chatSite(t)
 	for _, c := range []struct{ body, want string }{
 		{"  \n ", "Write a Message"},
@@ -141,6 +145,7 @@ func TestBadMessagesAreRefusedAndNotSaved(t *testing.T) {
 }
 
 func TestMessagesAreShownAsEscapedPlainText(t *testing.T) {
+	t.Parallel()
 	ada, _, _, id := chatSite(t)
 	ada.say(id, `<script>alert(1)</script> see https://evil.example/x`)
 	_, body := ada.get("/courses/" + id + "/chat")
@@ -151,6 +156,7 @@ func TestMessagesAreShownAsEscapedPlainText(t *testing.T) {
 }
 
 func TestTheLatestMessagesShowOldestFirstWithEarlierOnesAPageBack(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	for i := 1; i <= 55; i++ {
 		admin.say(id, fmt.Sprintf("Note %02d.", i))
@@ -172,6 +178,7 @@ func TestTheLatestMessagesShowOldestFirstWithEarlierOnesAPageBack(t *testing.T) 
 }
 
 func TestALearnerDeletesOnlyTheirOwnMessage(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	mid := ada.say(id, "Oops, wrong Course")
 
@@ -203,6 +210,7 @@ func TestALearnerDeletesOnlyTheirOwnMessage(t *testing.T) {
 }
 
 func TestPostingIsLimitedToTenMessagesAMinuteForLearnersButNotTheAdmin(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	for i := range 10 {
 		ada.say(id, fmt.Sprintf("Message %d", i))
@@ -218,6 +226,7 @@ func TestPostingIsLimitedToTenMessagesAMinuteForLearnersButNotTheAdmin(t *testin
 }
 
 func TestDeletingIsLimitedToTenAMinuteForLearnersButNotTheAdmin(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	mid := ada.say(id, "Oops")
 	for range 10 {
@@ -235,6 +244,7 @@ func TestDeletingIsLimitedToTenAMinuteForLearnersButNotTheAdmin(t *testing.T) {
 }
 
 func TestDeletingALearnerDeletesTheirMessages(t *testing.T) {
+	t.Parallel()
 	ada, _, _, id := chatSite(t)
 	ada.say(id, "Hello")
 	if _, err := ada.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
@@ -246,6 +256,7 @@ func TestDeletingALearnerDeletesTheirMessages(t *testing.T) {
 }
 
 func TestThePrivacyNoticeTellsLearnersWhoSeesTheirChatMessages(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/privacy", "en")
 	expectLanguage(t, body, "en", "Chat Messages")
@@ -262,6 +273,7 @@ func (s *site) reply(id, mid, body string) string {
 }
 
 func TestAReplyQuotesItsOriginalAndLinksToIt(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	mid := ada.say(id, "How long is the Exam?\nI have a meeting at 3.")
 
@@ -280,6 +292,7 @@ func TestAReplyQuotesItsOriginalAndLinksToIt(t *testing.T) {
 }
 
 func TestAReplyToADeletedMessageShowsItRemoved(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	mid := ada.say(id, "Secret plans")
 	rid := ben.reply(id, mid, "Nice")
@@ -296,6 +309,7 @@ func TestAReplyToADeletedMessageShowsItRemoved(t *testing.T) {
 }
 
 func TestARepliesOriginalMustBeInTheSameCourse(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	admin.createCourse("Rust Basics", "Learn Rust.", "")
 	other := admin.courseIDByTitle("Rust Basics")
@@ -308,6 +322,7 @@ func TestARepliesOriginalMustBeInTheSameCourse(t *testing.T) {
 }
 
 func TestRepliesCountTowardTheMessageLimit(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	mid := ben.say(id, "Question")
 	for i := range 10 {
@@ -359,6 +374,7 @@ func (s *site) reactionCount() int {
 }
 
 func TestEachPersonHasAtMostOneReactionPerMessage(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	mid := admin.say(id, "The Exam opens tomorrow.")
 
@@ -386,6 +402,7 @@ func TestEachPersonHasAtMostOneReactionPerMessage(t *testing.T) {
 }
 
 func TestOnlyTheSixReactionsOnVisibleMessagesByChatMembersAreTaken(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	mid := ben.say(id, "Hello")
 	res, body := ada.react(id, mid, clown)
@@ -405,6 +422,7 @@ func TestOnlyTheSixReactionsOnVisibleMessagesByChatMembersAreTaken(t *testing.T)
 }
 
 func TestReactingIsLimitedToThirtyAMinuteForLearnersButNotTheAdmin(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	mid := admin.say(id, "React away")
 	for i := range 30 {
@@ -423,6 +441,7 @@ func TestReactingIsLimitedToThirtyAMinuteForLearnersButNotTheAdmin(t *testing.T)
 }
 
 func TestDeletingALearnerDeletesTheirReactions(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	mid := admin.say(id, "Hello")
 	ada.react(id, mid, clap)
@@ -448,6 +467,7 @@ func (s *site) openReports() int {
 }
 
 func TestALearnerReportsAMessageOnceAndItStaysVisible(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	mid := ben.say(id, "Buy cheap watches")
 
@@ -467,6 +487,7 @@ func TestALearnerReportsAMessageOnceAndItStaysVisible(t *testing.T) {
 }
 
 func TestTheEleventhReportInAnHourIsRefused(t *testing.T) {
+	t.Parallel()
 	ada, admin, _, id := chatSite(t)
 	var mids []string
 	for i := range 11 {
@@ -483,6 +504,7 @@ func TestTheEleventhReportInAnHourIsRefused(t *testing.T) {
 }
 
 func TestHidingAMessageRemovesItForLearnersAndClosesItsReports(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	mid := ben.say(id, "Something nasty")
 	rid := ada.reply(id, mid, "Not nice")
@@ -545,6 +567,7 @@ func adminLi(s *site, id, mid string) string {
 }
 
 func TestDismissingAReportClosesOnlyThatOne(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	mid := ben.say(id, "Edgy joke")
 	ada.report(id, mid, "Not funny")
@@ -562,6 +585,7 @@ func TestDismissingAReportClosesOnlyThatOne(t *testing.T) {
 }
 
 func TestLearnersCannotHideOrSeeReports(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	mid := ben.say(id, "Hi")
 	res, body := ada.post("/admin/chat/"+mid+"/hide", confirming)
@@ -574,6 +598,7 @@ func TestLearnersCannotHideOrSeeReports(t *testing.T) {
 }
 
 func TestDeletingALearnerDeletesTheirReports(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	mid := ben.say(id, "Hi")
 	ada.report(id, mid, "")
@@ -586,6 +611,7 @@ func TestDeletingALearnerDeletesTheirReports(t *testing.T) {
 }
 
 func TestTheAdminAndWritersCannotReportAndARepeatReportCostsNothing(t *testing.T) {
+	t.Parallel()
 	ada, admin, ben, id := chatSite(t)
 	mid := ben.say(id, "Hi")
 	expectStatus(t, must(admin.report(id, mid, "")), "", http.StatusUnprocessableEntity, "")
@@ -605,6 +631,7 @@ func TestTheAdminAndWritersCannotReportAndARepeatReportCostsNothing(t *testing.T
 }
 
 func TestAWritersMessagesInARowAreGroupedUnderOneNameAndEachDayHasAHeading(t *testing.T) {
+	t.Parallel()
 	ada, _, ben, id := chatSite(t)
 	first := ada.say(id, "One")
 	second := ada.say(id, "Two")

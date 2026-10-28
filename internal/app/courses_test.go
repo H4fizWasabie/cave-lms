@@ -38,6 +38,7 @@ func (s *site) onlyCourseID() string {
 }
 
 func TestAdminCreatesACourseThatVisitorsCanSee(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.createCourse("Go Basics", "Learn Go from scratch.", "2027-01-15")
@@ -52,6 +53,7 @@ func TestAdminCreatesACourseThatVisitorsCanSee(t *testing.T) {
 }
 
 func TestCourseListAndPageShowTheCourseToLearnersToo(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -68,6 +70,7 @@ func TestCourseListAndPageShowTheCourseToLearnersToo(t *testing.T) {
 }
 
 func TestUnknownCourseIsNotFound(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	res, body := s.get("/courses/999")
 	expectStatus(t, res, body, http.StatusNotFound, "There is no Course at this address.")
@@ -76,6 +79,7 @@ func TestUnknownCourseIsNotFound(t *testing.T) {
 }
 
 func TestAdminEditsACourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -96,6 +100,7 @@ func TestAdminEditsACourse(t *testing.T) {
 }
 
 func TestCourseFormRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := s.createCourse("  ", "Learn Go.", "")
@@ -110,6 +115,7 @@ func TestCourseFormRejectsInvalidInput(t *testing.T) {
 }
 
 func TestAdminOpensAndClosesACourse(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -127,6 +133,7 @@ func TestAdminOpensAndClosesACourse(t *testing.T) {
 }
 
 func TestAdminDeletesACourseAfterConfirming(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -152,6 +159,7 @@ func TestAdminDeletesACourseAfterConfirming(t *testing.T) {
 }
 
 func TestCourseAdminPagesRefuseVisitorsAndLearners(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")

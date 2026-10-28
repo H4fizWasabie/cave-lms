@@ -146,7 +146,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if mailer == nil || writer == nil {
 		return nil, fmt.Errorf("mailer and AI writer are required")
 	}
-	pages, err := parsePages()
+	pages, err := sitePages()
 	if err != nil {
 		return nil, err
 	}
@@ -619,6 +619,10 @@ type courseCard struct {
 
 // card is the template function behind {{template "course-card" (card . $.Lang)}}.
 func card(c course, lang string) courseCard { return courseCard{c, lang} }
+
+// sitePages parses the pages once for the process: they never change, and Apps made side by side, as tests do, share them
+// instead of each holding a copy.
+var sitePages = sync.OnceValues(parsePages)
 
 // parsePages pairs each page template with layout.html and the partials in _*.html, keyed by file name without
 // extension.

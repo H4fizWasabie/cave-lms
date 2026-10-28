@@ -44,6 +44,7 @@ func (s *site) sitExam(courseID, slot string) {
 }
 
 func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	fresh := s.examOnlyCourse("Fresh", "60")
@@ -79,6 +80,7 @@ func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {
 }
 
 func TestMyExamsWithNoExamsSaysSoAndLinksToTheCourses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	id := s.examOnlyCourse("Examless", "")
@@ -94,6 +96,7 @@ func TestMyExamsWithNoExamsSaysSoAndLinksToTheCourses(t *testing.T) {
 }
 
 func TestMyExamsIsInTheClassroomMenuAndSendsAVisitorToLogIn(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/", "en")
 	expectInOrder(t, header(t, body), ">Classroom<", `href="/my-courses"`, `<a href="/my-exams">My exams</a>`, ">Pricing<")

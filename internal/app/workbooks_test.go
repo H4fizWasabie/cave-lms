@@ -13,6 +13,7 @@ import (
 var workbookLink = regexp.MustCompile(`href="(/workbooks/\d+)"`)
 
 func TestAnUploadOnADashboardIsKeptAsAWorkbookInTheFolder(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	file := shopReport(t, "Beras", 120)
@@ -52,6 +53,7 @@ func (s *site) workbookPath() string {
 }
 
 func TestAWorkbookStaysWhenCleanUpFailsOrIsNeverConfirmed(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.postFile(path+"/dataset", "rosak.xlsx", []byte("not a workbook"))
@@ -69,6 +71,7 @@ func TestAWorkbookStaysWhenCleanUpFailsOrIsNeverConfirmed(t *testing.T) {
 
 // Picking another sheet, header row or month posts the same file again: it stays one Workbook, counted once.
 func TestTheSameFileUploadedAgainStaysOneWorkbook(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	file := bigFinance(t, 1)
 	path := ada.createWork("Kedai")
@@ -89,6 +92,7 @@ func TestTheSameFileUploadedAgainStaysOneWorkbook(t *testing.T) {
 }
 
 func TestBuildingADashboardFromExcelKeepsTheWorkbookEvenWhenCleanUpFails(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	file := shopReport(t, "Beras", 120)
 	res, body := ada.postFile("/lab/dashboards/build", "laporan.xlsx", file, url.Values{"name": {"Kedai"}})
@@ -109,6 +113,7 @@ func TestBuildingADashboardFromExcelKeepsTheWorkbookEvenWhenCleanUpFails(t *test
 }
 
 func TestTheDatasetConfirmedFromAnUploadRecordsItsWorkbook(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	ada.confirmFile(path, "laporan.xlsx", shopReport(t, "Beras", 120))
@@ -128,6 +133,7 @@ func TestTheDatasetConfirmedFromAnUploadRecordsItsWorkbook(t *testing.T) {
 }
 
 func TestStorageUsedCountsWorkbooksButNotSubmissions(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, courseID := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
 	admin.addAssignment(courseID, "Write a prompt", "Write one prompt.")
@@ -146,6 +152,7 @@ func TestStorageUsedCountsWorkbooksButNotSubmissions(t *testing.T) {
 }
 
 func TestAWorkbookThatDoesNotFitIsRefusedAndNothingIsKept(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'workbook-filler', 'filler.xlsx', 900000, '\x00')`, ada.adaID()); err != nil {
 		t.Fatal(err)
@@ -169,6 +176,7 @@ func TestAWorkbookThatDoesNotFitIsRefusedAndNothingIsKept(t *testing.T) {
 }
 
 func TestOnlyTheOwnerAndTheAdminDownloadAWorkbookAndAnEndedPlanStillCan(t *testing.T) {
+	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
 	file := shopReport(t, "Beras", 120)
@@ -202,6 +210,7 @@ func TestOnlyTheOwnerAndTheAdminDownloadAWorkbookAndAnEndedPlanStillCan(t *testi
 }
 
 func TestAFreeLearnersFolderHasNoWorkbooksPart(t *testing.T) {
+	t.Parallel()
 	_, ada, _, _ := labSetup(t)
 	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, "You have not handed in anything yet.")
@@ -211,6 +220,7 @@ func TestAFreeLearnersFolderHasNoWorkbooksPart(t *testing.T) {
 }
 
 func TestTheFoldersWorkbooksPartIsInMalay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.postFile(ada.createWork("Kedai")+"/dataset", "laporan.xlsx", shopReport(t, "Beras", 120))
 	res, body := ada.getFolderAsking("ms")

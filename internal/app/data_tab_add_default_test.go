@@ -7,6 +7,7 @@ import (
 )
 
 func TestTheDataTabsUploadFormAndWorkbookPickerDefaultToAddOnceTheDatasetHasParts(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, _ := pageWithData(t, ada)
 	shelved(t, ada, "oktober.xlsx", shopColumns(t, "Gula", 80))

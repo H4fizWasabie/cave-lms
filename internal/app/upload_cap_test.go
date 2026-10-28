@@ -12,6 +12,7 @@ import (
 // waitedLine is how the System log says an upload waited for its turn to be read.
 const waitedLine = "for its turn to be read"
 
+// Not parallel: the fifth upload must reach Clean-up within 300 ms, which a busy machine does not promise.
 func TestWithFourCleanUpsRunningAFifthUploadWaitsThenFinishes(t *testing.T) {
 	admin, ada := labLearner(t, func(c *config.Config) { c.OwnerEmail = "admin@example.com" })
 	path := ada.createWork("Kedai")
@@ -49,6 +50,7 @@ func TestWithFourCleanUpsRunningAFifthUploadWaitsThenFinishes(t *testing.T) {
 }
 
 func TestTheUploadFormShowsTheFileIsBeingRead(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createWork("Kedai")
 	res, body := ada.get(path)

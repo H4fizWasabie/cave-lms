@@ -43,6 +43,7 @@ func searchableCourses(t *testing.T) *site {
 }
 
 func TestCourseSearchFindsAWordInTheTitleOrDescription(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	for _, visitor := range []bool{false, true} {
 		if visitor {
@@ -58,6 +59,7 @@ func TestCourseSearchFindsAWordInTheTitleOrDescription(t *testing.T) {
 }
 
 func TestCourseSearchFindsMalayWords(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	for _, q := range []string{"kebun", "berkebun"} {
 		body := s.searchCourses(q)
@@ -68,6 +70,7 @@ func TestCourseSearchFindsMalayWords(t *testing.T) {
 }
 
 func TestCourseSearchFindsTheCourseOfALessonByTitleOrObjectiveWhoeverAsks(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	for _, visitor := range []bool{false, true} {
 		if visitor {
@@ -83,6 +86,7 @@ func TestCourseSearchFindsTheCourseOfALessonByTitleOrObjectiveWhoeverAsks(t *tes
 }
 
 func TestCourseSearchMatchesLessonBodiesOnlyForALearnerEnrolledInThatCourse(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	kebun := s.courseIDByTitle("Kebun Sayur")
 	garden := s.courseIDByTitle("Garden Basics")
@@ -107,6 +111,7 @@ func TestCourseSearchMatchesLessonBodiesOnlyForALearnerEnrolledInThatCourse(t *t
 }
 
 func TestCourseSearchMatchesLessonBodiesForTheAdminWithoutEnrolling(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	// A Learner who is not enrolled still does not.
 	if body := s.searchCourses("kompos"); strings.Contains(body, "Kebun Sayur") {
@@ -122,6 +127,7 @@ func TestCourseSearchMatchesLessonBodiesForTheAdminWithoutEnrolling(t *testing.T
 }
 
 func TestCourseSearchIgnoresUnpublishedLessons(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	s.post("/courses/"+s.courseIDByTitle("Kebun Sayur")+"/join", nil) // enrolled, so bodies are searched
 	if body := s.searchCourses("kompos"); !strings.Contains(body, "Kebun Sayur") {
@@ -133,6 +139,7 @@ func TestCourseSearchIgnoresUnpublishedLessons(t *testing.T) {
 }
 
 func TestCourseSearchHidesDraftCourses(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Garden Basics", "Grow tomatoes on a balcony.", "")
@@ -157,6 +164,7 @@ func TestCourseSearchHidesDraftCourses(t *testing.T) {
 }
 
 func TestCourseSearchStillShowsAClosedCourseLikeTheList(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	s.createCourse("Garden Basics", "Grow tomatoes on a balcony.", "")
@@ -168,6 +176,7 @@ func TestCourseSearchStillShowsAClosedCourseLikeTheList(t *testing.T) {
 }
 
 func TestEmptyCourseSearchShowsTheWholeList(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	for _, q := range []string{"", "   "} {
 		body := s.searchCourses(q)
@@ -180,6 +189,7 @@ func TestEmptyCourseSearchShowsTheWholeList(t *testing.T) {
 }
 
 func TestCourseSearchWithNoMatchSaysSo(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	body := s.searchCourses("xylophone")
 	if !strings.Contains(body, "No Courses match your search.") || strings.Contains(body, "Garden Basics") {
@@ -188,6 +198,7 @@ func TestCourseSearchWithNoMatchSaysSo(t *testing.T) {
 }
 
 func TestCourseSearchSurvivesOddPunctuation(t *testing.T) {
+	t.Parallel()
 	s := searchableCourses(t)
 	for _, q := range []string{`"`, `"garden`, `'`, `&`, `|`, `!`, `(`, `)`, `:*`, `garden &`, `-garden`, `garden OR kebun`, `\`, `%`, `<script>`} {
 		s.searchCourses(q) // any 200 will do: input never raises a syntax error

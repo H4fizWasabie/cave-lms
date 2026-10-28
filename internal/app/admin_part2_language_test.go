@@ -8,6 +8,7 @@ import (
 )
 
 func TestThePlanPagesAndTheirErrorsAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s, planID := adminWithPlanAndLearner(t)
 	s.switchLanguage("ms", "/")
 
@@ -53,6 +54,7 @@ func TestThePlanPagesAndTheirErrorsAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheDeploymentsPageAndTakedownErrorsAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	ada.deploy(ada.readyDashboard("Kewangan Lama"))
 	admin.ageAllPeriods(31) // Ada's Deployment sleeps
@@ -78,6 +80,7 @@ func TestTheDeploymentsPageAndTakedownErrorsAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheCaveTextLearnersPageIsInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	s.nextPlace(42)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
@@ -98,6 +101,7 @@ func TestTheCaveTextLearnersPageIsInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheCaveTextSettingsPageAndItsErrorsAreInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	ada.createSnippet(token, snippet{Folder: "Work", Name: "Pic", Shortcut: "/pic", Body: "x"})
@@ -140,6 +144,7 @@ func TestTheCaveTextSettingsPageAndItsErrorsAreInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheCaveTextCapsPageAndItsErrorIsInMalayAndEnglish(t *testing.T) {
+	t.Parallel()
 	s := caveTextOwnerSite(t)
 	s.switchLanguage("ms", "/")
 	_, body := s.get("/admin/cavetext/caps")
@@ -157,6 +162,7 @@ func TestTheCaveTextCapsPageAndItsErrorIsInMalayAndEnglish(t *testing.T) {
 }
 
 func TestTheSystemLogPageIsInMalayAndEnglishWithEntriesAsLogged(t *testing.T) {
+	t.Parallel()
 	s := ownerSite(t)
 	s.application.Started(":8080")
 	s.switchLanguage("ms", "/")

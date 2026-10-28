@@ -17,6 +17,7 @@ func expectNone(t *testing.T, body string, unwanted ...string) {
 }
 
 func TestTheCaveTextPageOffersCaveTextProAndTheProPlanWithTheirPrices(t *testing.T) {
+	t.Parallel()
 	s := caveTextAdminSite(t)
 	cy := s.second()
 	cy.loginAsNewLearner("Cy Tan", "cy@example.com", "correct horse battery")

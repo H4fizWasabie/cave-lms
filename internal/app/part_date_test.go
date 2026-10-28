@@ -31,6 +31,7 @@ func partDates(body string) []string {
 }
 
 func TestAFileNamedWithADatePreviewsItFromTheFileNameAndDataJSONRowsCarryIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	link := ada.deployAs(path, "kedai-ada")
@@ -52,6 +53,7 @@ func TestAFileNamedWithADatePreviewsItFromTheFileNameAndDataJSONRowsCarryIt(t *t
 }
 
 func TestAFileNamedWithAMonthAndYearPreviewsTheFirstOfThatMonthFromTheFileName(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	ada.postFile(path+"/dataset", "kehadiran_062026.xlsx", shopReport(t, "Beras", 120))
@@ -60,6 +62,7 @@ func TestAFileNamedWithAMonthAndYearPreviewsTheFirstOfThatMonthFromTheFileName(t
 }
 
 func TestAnExcelWithADateInItsTitleRowsPreviewsItFromThatCellAndAnUploadWithNoneTakesTheUploadDay(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	ada.postFile(path+"/dataset", "stok_20260702.xlsx", stockReport(t, "Gula", "01.09.2026"))
@@ -76,6 +79,7 @@ func TestAnExcelWithADateInItsTitleRowsPreviewsItFromThatCellAndAnUploadWithNone
 }
 
 func TestTheLearnerChangesThePartDateInThePreviewAndTheRowsCarryTheNewDate(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	link := ada.deployAs(path, "kedai-ada")

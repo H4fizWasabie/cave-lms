@@ -12,9 +12,10 @@ trap '"$bindir/pg_ctl" -D "$dir/data" -m immediate stop >/dev/null 2>&1 || true;
 
 "$bindir/initdb" -D "$dir/data" -U cave -A trust -E UTF8 >/dev/null
 # Unix socket only, inside the temp dir: nothing is exposed on the network.
-"$bindir/pg_ctl" -D "$dir/data" -o "-k $dir -c listen_addresses=''" -l "$dir/pg.log" -w start >/dev/null
+"$bindir/pg_ctl" -D "$dir/data" -o "-k $dir -c listen_addresses='' -c max_connections=500 -c fsync=off" -l "$dir/pg.log" -w start >/dev/null
 "$bindir/createdb" -h "$dir" -U cave cave_lms_test
 
 export TEST_DATABASE_URL="postgres://cave@/cave_lms_test?host=$dir&sslmode=disable"
-# The whole app package can take over the default 10 minutes on a loaded machine; a later -timeout overrides it.
-go test -count=1 -timeout 30m "${@:-./...}"
+# Tests copy a migrated template database and run in parallel; eight at once peaks under 1 GB and the app package takes
+# about a minute here; the timeout leaves room for a slow CI runner. A later -parallel or -timeout overrides these.
+go test -count=1 -parallel 8 -timeout 30m "${@:-./...}"

@@ -55,6 +55,7 @@ func (s *site) ageAllDeployments(days int) {
 
 // A PUBLIC_BASE_URL with a path names only Cave's origin in the CSP, since a source with a path matches that exact path.
 func TestADeploymentsCSPNamesOnlyCavesOrigin(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t, func(c *config.Config) { c.PublicBaseURL = "https://cave.example.invalid:8443/lms/" })
 	path := ada.readyDashboard("Kewangan")
 	res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-ada"}, "right": {"yes"}})
@@ -69,6 +70,7 @@ func TestADeploymentsCSPNamesOnlyCavesOrigin(t *testing.T) {
 }
 
 func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 
@@ -128,6 +130,7 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 }
 
 func TestADeploymentIsAwakeWhileThePlanIsActiveSleepsWhenItEndsAndWakesOnRenewal(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
@@ -170,6 +173,7 @@ func TestADeploymentIsAwakeWhileThePlanIsActiveSleepsWhenItEndsAndWakesOnRenewal
 }
 
 func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
@@ -186,6 +190,7 @@ func TestReuploadingTheDatasetChangesWhatTheDeploymentShows(t *testing.T) {
 }
 
 func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingFreesASlot(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t) // the Plan allows 3 Deployments awake at once
 	first := ada.readyDashboard("One")
 	res, body := ada.get(first + "/deploy")
@@ -218,6 +223,7 @@ func TestDeployingBeyondTheAllowanceIsRefusedAndDeletingFreesASlot(t *testing.T)
 }
 
 func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t) // 3 awake at once
 	var links, paths []string
 	for _, name := range []string{"One", "Two", "Three"} {
@@ -253,6 +259,7 @@ func TestRenewingOntoASmallerAllowanceWakesEveryDeploymentButRefusesNewOnes(t *t
 }
 
 func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 
@@ -295,6 +302,7 @@ func TestLearnerRenamesAndDeletesADashboard(t *testing.T) {
 }
 
 func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
+	t.Parallel()
 	admin := newSite(t)
 	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
 	res, body := admin.get("/lab")
@@ -333,6 +341,7 @@ func TestAnAdminUsesTheWholeLabWithoutAPlan(t *testing.T) {
 }
 
 func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	taken := ada.readyDashboard("Lama")
 	ada.deployAs(taken, "kedai-lama")
@@ -375,6 +384,7 @@ func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
 }
 
 func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	ada.deploy(ada.readyDashboard("Kewangan"))
 	old := "AbC_xyz-0123456789abcd" // a random slug from before names, kept as the name
@@ -392,6 +402,7 @@ func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
 // A Deployment's page is made from the Dashboard's columns, so it needs no read of the store; its data is read Part by
 // Part on each request and held nowhere, so a Dataset of any size is never in memory whole.
 func TestADeploymentsPageNeedsNoReadOfTheStoreAndItsDataIsReadPartByPart(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.readyDashboard("Kewangan")
 	link := ada.deploy(path)
@@ -420,6 +431,7 @@ func TestADeploymentsPageNeedsNoReadOfTheStoreAndItsDataIsReadPartByPart(t *test
 // A Deployment is found by its name alone, so the Username in its link is for show (ADR 0023): the earlier link and a
 // link with any other Username redirect for good to the owner's current one, whatever file they ask for.
 func TestADeploymentOpensAtItsLearnersUsernameAndEveryOtherLinkRedirectsToIt(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	link := ada.deployAs(ada.readyDashboard("Kewangan"), "kedai-ada")
 	if link != "/d/ada-example-com/kedai-ada/" {
@@ -461,6 +473,7 @@ func TestADeploymentOpensAtItsLearnersUsernameAndEveryOtherLinkRedirectsToIt(t *
 }
 
 func TestChangingTheUsernameMovesDeploymentLinksAndTheOldOnesRedirect(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	link := ada.deploy(ada.readyDashboard("Kewangan"))
 	name := strings.Split(link, "/")[3]

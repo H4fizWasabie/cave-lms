@@ -58,6 +58,7 @@ func (s *site) nextStepCourse(withExam bool, lessons ...string) string {
 }
 
 func TestTheNextStepIsTheFirstLessonNotDoneAndNeverTheExamWhileLessonsRemain(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables", "Functions", "Loops")
 	lesson := func(title string) string { return "/courses/" + id + "/lessons/" + s.lessonIDByTitle(title) }
@@ -83,6 +84,7 @@ func (s *site) answerAll(attemptPath, slot string) {
 }
 
 func TestTheNextStepGoesFromTheExamToAwaitingTheResultToTheCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables")
 	exam := "/courses/" + id + "/exam"
@@ -106,6 +108,7 @@ func TestTheNextStepGoesFromTheExamToAwaitingTheResultToTheCertificate(t *testin
 }
 
 func TestTheNextStepSkipsAPendingExamForTheNextOneThenAwaitsItsResult(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables")
 	s.adminSite().saveWrittenQuestion("/admin/courses/"+id+"/exam/questions?format=written", "Explain :=", "It declares and assigns.")
@@ -120,6 +123,7 @@ func TestTheNextStepSkipsAPendingExamForTheNextOneThenAwaitsItsResult(t *testing
 }
 
 func TestACourseWithNoExamEndsAtTheCertificateOrCompleteWithoutAnIC(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(false, "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -157,6 +161,7 @@ func (s *site) liveNextStepCourse(now *time.Time, start, end, days string, withE
 }
 
 func TestALiveCourseWithNothingToDoBeforeItsStartDateSaysWhenItStarts(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 1, 31, 15, 59, 0, 0, time.UTC) // 23:59 the day before the start date in Malaysia
 	s := newSite(t)
 	id := s.liveNextStepCourse(&now, "2027-02-01", "2027-02-03", "2", false)
@@ -169,6 +174,7 @@ func TestALiveCourseWithNothingToDoBeforeItsStartDateSaysWhenItStarts(t *testing
 }
 
 func TestALiveCourseWithNothingToDoBetweenItsDatesSaysWhenItRuns(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 1, 31, 16, 0, 0, 0, time.UTC) // midnight on the start date in Malaysia
 	s := newSite(t)
 	id := s.liveNextStepCourse(&now, "2027-02-01", "2027-02-03", "2", false, "Variables")
@@ -188,6 +194,7 @@ func TestALiveCourseWithNothingToDoBetweenItsDatesSaysWhenItRuns(t *testing.T) {
 }
 
 func TestASingleDayLiveCourseWithNothingToDoOnTheDayShowsThatDateOnly(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 2, 1, 1, 0, 0, 0, time.UTC)
 	s := newSite(t)
 	id := s.liveNextStepCourse(&now, "2027-02-01", "2027-02-01", "1", false)
@@ -197,6 +204,7 @@ func TestASingleDayLiveCourseWithNothingToDoOnTheDayShowsThatDateOnly(t *testing
 }
 
 func TestALiveCourseWithNothingToDoIsCompleteAfterItsEndDate(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 2, 2, 9, 0, 0, 0, time.UTC)
 	s := newSite(t)
 	id := s.liveNextStepCourse(&now, "2027-02-01", "2027-02-03", "2", false)
@@ -206,6 +214,7 @@ func TestALiveCourseWithNothingToDoIsCompleteAfterItsEndDate(t *testing.T) {
 }
 
 func TestALiveCourseWithAnOpenExamStillShowsTheExam(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2027, 1, 20, 9, 0, 0, 0, time.UTC)
 	s := newSite(t)
 	id := s.liveNextStepCourse(&now, "2027-02-01", "2027-02-03", "2", true)
@@ -252,6 +261,7 @@ func (s *site) sitExamAt(courseID, slot string) string {
 }
 
 func TestAPassedResultLeadsToTheCertificate(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -267,6 +277,7 @@ func TestAPassedResultLeadsToTheCertificate(t *testing.T) {
 }
 
 func TestAfterAPassTheExamPageLeadsToTheCertificateWithTheAnswerSheetSecond(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
@@ -278,6 +289,7 @@ func TestAfterAPassTheExamPageLeadsToTheCertificateWithTheAnswerSheetSecond(t *t
 }
 
 func TestAFailedResultOffersTheRetakeWhileAttemptsRemainAndOtherwiseOnlyTheWayBack(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables")
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)

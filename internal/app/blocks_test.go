@@ -77,6 +77,7 @@ func (s *site) paused(page string) int {
 
 // Block editing and Reset are gone (ADR 0019): the Blocks tab is not found, and posting an edit changes nothing.
 func TestTheBlocksTabIsGone(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.workReady()
 	before, _ := ada.pageBlocks(path + "/view/")

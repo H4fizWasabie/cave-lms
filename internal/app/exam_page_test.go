@@ -17,6 +17,7 @@ func expectRedirect(t *testing.T, res *http.Response, body, want string) {
 }
 
 func TestEachActionOnAnExamQuestionReturnsToItsCard(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -45,6 +46,7 @@ func TestEachActionOnAnExamQuestionReturnsToItsCard(t *testing.T) {
 }
 
 func TestActionsOnAWrittenExamQuestionKeepTheFormat(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Go Basics", "Learn Go from scratch.", "")
@@ -63,6 +65,7 @@ func TestActionsOnAWrittenExamQuestionKeepTheFormat(t *testing.T) {
 }
 
 func TestEachActionOnABankQuestionReturnsToItsCardUnderTheSameFilters(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -102,6 +105,7 @@ func TestEachActionOnABankQuestionReturnsToItsCardUnderTheSameFilters(t *testing
 }
 
 func TestPublishAllDraftsPublishesEveryDraftOnTheExamAndItsBankQuestions(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -127,6 +131,7 @@ func TestPublishAllDraftsPublishesEveryDraftOnTheExamAndItsBankQuestions(t *test
 }
 
 func TestLearnersAreRefusedPublishAllDrafts(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "What is Go?")
 	res, body := s.post("/admin/courses/"+id+"/exam/publish-drafts", nil)
@@ -134,6 +139,7 @@ func TestLearnersAreRefusedPublishAllDrafts(t *testing.T) {
 }
 
 func TestGenerateHasItsOwnCardAboveAddFromTheBankWithABusyIndicator(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -147,6 +153,7 @@ func TestGenerateHasItsOwnCardAboveAddFromTheBankWithABusyIndicator(t *testing.T
 }
 
 func TestTheAdminExamPageHasOnePrimaryButtonSaveExam(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
 	s.createCourse("Excel", "A Course.", "")
@@ -159,6 +166,7 @@ func TestTheAdminExamPageHasOnePrimaryButtonSaveExam(t *testing.T) {
 }
 
 func TestTheExamStartPageSaysWhenTheResultIsReleased(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1")
 	_, body := s.getAsking("/courses/"+id+"/exam", "en")
@@ -175,6 +183,7 @@ func TestTheExamStartPageSaysWhenTheResultIsReleased(t *testing.T) {
 }
 
 func TestADraftCoursesExamIsNotFoundToLearnersButOpenToTheAdmin(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id, _ := s.examCourse("50", "30", "3", "Q1")
 	exam := "/courses/" + id + "/exam"

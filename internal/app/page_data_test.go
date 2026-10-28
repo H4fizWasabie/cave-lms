@@ -55,6 +55,7 @@ func pageWithData(t *testing.T, ada *site) (path, link string) {
 func partDate() string { return time.Now().UTC().Format(time.DateOnly) }
 
 func TestConfirmingAnAddCreatesASecondPartAndDataJSONReturnsBothPartsInOrderEachRowWithItsPartDate(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	visitor := ada.second()
@@ -98,6 +99,7 @@ func TestConfirmingAnAddCreatesASecondPartAndDataJSONReturnsBothPartsInOrderEach
 // Added rows keep the current Dataset's column types: a cell that does not fit its column is left empty and the
 // preview says so, as Clean-up does.
 func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	day := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
@@ -121,6 +123,7 @@ func TestAddingDataKeepsTheColumnTypesAndSaysWhichCellsDidNotFit(t *testing.T) {
 // A Part may have columns the Dataset lacks, in any order: the preview lists them as dropped, and only the Dataset's
 // columns reach data.json.
 func TestAddingDataWithExtraColumnsDropsThemListsThemAndKeepsTheDatasetsColumns(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	extra := underTitleRows(t, []any{"Nota", "Jumlah", "Jenis", "Rak", "Kategori", "Perkara", "Warna", "Tarikh"},
@@ -144,6 +147,7 @@ func TestAddingDataWithExtraColumnsDropsThemListsThemAndKeepsTheDatasetsColumns(
 }
 
 func TestAddingDataLackingAColumnIsRefusedNamingItAndChangesNothing(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	short := underTitleRows(t, []any{"Tarikh", "Perkara", "Kategori", "Jenis", "Nota"},
@@ -163,6 +167,7 @@ func TestAddingDataLackingAColumnIsRefusedNamingItAndChangesNothing(t *testing.T
 }
 
 func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "3") // 3 MB; each bigFinance is about 0.6 MB as a Workbook and 1.1 MB as a Part
 	path := ada.createPage("Kewangan", myPage)
 	res, body := ada.postFile(path+"/dataset", "one.xlsx", bigFinance(t, 1))
@@ -175,6 +180,7 @@ func TestAnAddOverTheStorageAllowanceIsRefused(t *testing.T) {
 }
 
 func TestReplacingDataWithOtherColumnsWarnsNamingThem(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := pageWithData(t, ada)
 	lower := testutil.XLSX(t, []string{"Tarikh", "Perkara", "Kategori", "Jenis", "jumlah"},
@@ -201,6 +207,7 @@ func TestReplacingDataWithOtherColumnsWarnsNamingThem(t *testing.T) {
 }
 
 func TestAPageDashboardsDataIsUploadedConfirmedAndServedAtDataJSON(t *testing.T) {
+	t.Parallel()
 	admin, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	link := ada.deployAs(path, "kedai-ada")
@@ -272,6 +279,7 @@ func TestAPageDashboardsDataIsUploadedConfirmedAndServedAtDataJSON(t *testing.T)
 }
 
 func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.T) {
+	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
 	for _, c := range []struct{ lang, sentence, copy, readsOnly string }{
@@ -297,6 +305,7 @@ func TestThePageAndDataScreensGiveTheStandardSentenceToCopyInBMAndEN(t *testing.
 }
 
 func TestAPageDashboardsDataOverTheStorageAllowanceIsRefused(t *testing.T) {
+	t.Parallel()
 	_, ada, _ := storageSite(t, "1")
 	path := ada.createPage("Besar", strings.Repeat("z", 900<<10))
 	res, body := ada.postFile(path+"/dataset", "data.xlsx", bigFinance(t, 1))

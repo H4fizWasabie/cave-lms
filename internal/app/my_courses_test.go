@@ -20,6 +20,7 @@ func (s *site) expectLoginLandsOn(email, password, next, want string) {
 }
 
 func TestLoggingInTakesALearnerOrAnAdminToTheHomePageUnlessNextSaysOtherwise(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	const password = "correct horse battery"
 	s.loginAsNewLearner("Ada", "ada@example.com", password)
@@ -85,6 +86,7 @@ func (s *site) expectMyCourse(courseID, progress, label, href string, wants ...s
 }
 
 func TestMyCoursesShowsEachCoursesProgressNextStepAndExamStatus(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(true, "Variables", "Functions")
 	lesson := func(title string) string { return "/courses/" + id + "/lessons/" + s.lessonIDByTitle(title) }
@@ -116,6 +118,7 @@ func TestMyCoursesShowsEachCoursesProgressNextStepAndExamStatus(t *testing.T) {
 }
 
 func TestMyCoursesSaysCompleteForACourseWithNothingLeftAndShowsNoProgressBarWithoutLessons(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	id := s.nextStepCourse(false)
 	s.logOut()
@@ -125,6 +128,7 @@ func TestMyCoursesSaysCompleteForACourseWithNothingLeftAndShowsNoProgressBarWith
 }
 
 func TestMyCoursesWithoutCoursesPointsToTheCatalogue(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	expectInOrder(t, s.myCourses(), `class="empty-state`, "You have not joined any Courses yet.",
@@ -135,6 +139,7 @@ func TestMyCoursesWithoutCoursesPointsToTheCatalogue(t *testing.T) {
 
 // The Learner's own pages are named in sentence case everywhere, as the header and footer already name them.
 func TestTheLearnersOwnPagesAreNamedInSentenceCase(t *testing.T) {
+	t.Parallel()
 	s := newSite(t)
 	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
 	for _, c := range []struct{ path, en, ms string }{
