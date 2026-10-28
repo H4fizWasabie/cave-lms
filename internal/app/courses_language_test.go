@@ -165,7 +165,7 @@ func TestCertificatesAndTheirCheckPageAreInTheRequestsLanguage(t *testing.T) {
 
 	s.switchLanguage("ms", "/")
 	pdf := s.pdfBody("/certificates/" + certID + "/pdf")
-	expectAll(t, pdf, "Ada", "Go Basics", "Issued on: "+issuedEN) // the Certificate itself is English-only, like its artwork
+	expectAll(t, pdf, "ADA", "Go Basics", "Issued on: "+issuedEN) // the Certificate itself is English-only, like its artwork
 	expectNone(t, pdf, "Dikeluarkan")
 	s.logOut()
 

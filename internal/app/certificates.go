@@ -387,7 +387,8 @@ func (a *App) certificatePDF(ctx context.Context, c certificate) ([]byte, error)
 	}
 	pdf.LinkString(certQRX, certQRY, certQR, certQR, checkURL)
 
-	centred(pageW/2, certNameY, "Times", "B", certNameSize(pdf, c.LearnerName), c.LearnerName)
+	name := strings.ToUpper(c.LearnerName) // in capitals, as the sample prints it; the stored name is as typed
+	centred(pageW/2, certNameY, "Times", "B", certNameSize(pdf, name), name)
 	if c.LearnerIC != "" {
 		centred(pageW/2, certICY, "Times", "", 10, formatIC(c.LearnerIC))
 	}

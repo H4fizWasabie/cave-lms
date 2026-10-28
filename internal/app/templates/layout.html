@@ -258,28 +258,28 @@ images and the places of the details come from Go (certificate_artwork.go), shar
 logo, ornament and QR sketch are drawn here and in drawArtwork, so change those two together. With an uploaded
 background it draws that in place of the built-in artwork, as the PDF does. It shows a name and never an IC; the QR
 code is only sketched. It is decorative: the page says in words what it shows. */}}
-{{define "certificate-preview"}}{{$at := .At}}<svg class="cert-art" style="{{.Palette}}" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
+{{define "certificate-preview"}}{{$at := .At}}{{$logo := .Logo}}<svg class="cert-art" style="{{.Palette}}" viewBox="0 0 210 297" aria-hidden="true" focusable="false">
   <defs>
-    <linearGradient id="{{.ID}}-g1" x2=".6" y2=".6"><stop class="cert-art-s-deep" offset="0"/><stop class="cert-art-s-gold" offset="1"/></linearGradient>
-    <linearGradient id="{{.ID}}-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
+    <linearGradient id="{{.ID}}-g1" x2=".5" y2=".5"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-light" offset="1"/></linearGradient>
+    <linearGradient id="{{.ID}}-g2" x2=".7" y2=".7"><stop class="cert-art-s-gold" offset="0"/><stop class="cert-art-s-deep" offset="1"/></linearGradient>
     <clipPath id="{{.ID}}-badge-edge" clipPathUnits="objectBoundingBox"><rect x=".0088" y=".0062" width=".9825" height=".9876"/></clipPath>
   </defs>
   <rect class="cert-art-paper" width="210" height="297"/>
   {{- if .Background}}
   <image href="{{.Background}}" x="0" y="0" width="210" height="297" preserveAspectRatio="none"/>
   {{- else}}
-  <image href="{{static "logo-dark.svg"}}" x="85" y="116.3" width="150" height="67.4" opacity=".2" transform="rotate(-90 160 150)"/>
+  <image href="{{static "cave-consult-logo.webp"}}" x="85" y="{{printf "%.2f" $logo.MarkY}}" width="{{$logo.MarkW}}" height="{{printf "%.2f" $logo.MarkH}}" opacity="{{$logo.MarkAlpha}}" transform="rotate(-90 160 150)"/>
   <rect class="cert-art-rule" x="5" y="5" width="200" height="287" stroke-width=".35"/>
   <rect class="cert-art-rule" x="6.4" y="6.4" width="197.2" height="284.2" stroke-width=".15"/>
   <path fill="url(#{{$.ID}}-g1)" d="M0 0V82C3.5 36.9 31.5 3.28 70 0Z"/>
-  <path fill="url(#{{$.ID}}-g2)" d="M0 0V67C2.85 30.15 25.65 2.68 57 0Z"/>
-  <path class="cert-art-shine" d="M0 67C2.85 30.15 25.65 2.68 57 0" stroke-width=".6"/>
+  <path fill="url(#{{$.ID}}-g2)" d="M0 0V58C2.4 26.1 21.6 2.32 48 0Z"/>
+  <path class="cert-art-shine" d="M0 58C2.4 26.1 21.6 2.32 48 0" stroke-width=".6"/>
   <g transform="rotate(180 105 148.5)">
     <path fill="url(#{{$.ID}}-g1)" d="M0 0V112C3.1 50.4 27.9 4.48 62 0Z"/>
-    <path fill="url(#{{$.ID}}-g2)" d="M0 0V96C2.5 43.2 22.5 3.84 50 0Z"/>
-    <path class="cert-art-shine" d="M0 96C2.5 43.2 22.5 3.84 50 0" stroke-width=".6"/>
+    <path fill="url(#{{$.ID}}-g2)" d="M0 0V84C2.2 37.8 19.8 3.36 44 0Z"/>
+    <path class="cert-art-shine" d="M0 84C2.2 37.8 19.8 3.36 44 0" stroke-width=".6"/>
   </g>
-  <image href="{{static "logo-dark.svg"}}" x="107" y="17" width="42" height="18.88"/>
+  <image href="{{static "cave-consult-logo.webp"}}" x="107" y="17" width="{{$logo.W}}" height="{{printf "%.2f" $logo.H}}"/>
   {{- range .Rules}}
   <path class="cert-art-rule" d="M{{printf "%.2f %.2f" .X1 .Y}}H{{printf "%.2f" .X2}}" stroke-width="{{.Width}}"/>{{end}}
   <path class="cert-art-ornament" d="M105 161.6 107.6 163.4 105 165.2 102.4 163.4Z"/>
