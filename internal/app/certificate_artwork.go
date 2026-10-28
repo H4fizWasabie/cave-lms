@@ -394,23 +394,25 @@ type certPreview struct {
 	TitleSize      float64 // in mm
 	Number, Issued string
 	Background     string
+	OrgLogo        string // the address of the Organisation's logo, drawn in certLogo's box, or "" for none
 	ID             string // prefixes the SVG's own ids, so several previews on one page keep theirs apart
 }
 
 // newCertPreview is the template function certPreview: the preview of a Certificate for name on the Course titled title
 // with the PCC badge static file badge ("" for none), over the background at the address background ("" for the
-// built-in artwork).
-func newCertPreview(name, title, badge, background string) certPreview {
+// built-in artwork), with the Organisation's logo at the address logo ("" for none).
+func newCertPreview(name, title, badge, background, logo string) certPreview {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	name = strings.ToUpper(name) // the Certificate prints the name in capitals, as the sample does; the stored name is as typed
 	size, lines := certTitleLines(pdf, title)
 	return certPreview{Name: name, Badge: badge, Title: lines, NameSize: ptMM(certNameSize(pdf, name)),
-		TitleSize: ptMM(size), Background: background, ID: "cert-art"}
+		TitleSize: ptMM(size), Background: background, OrgLogo: logo, ID: "cert-art"}
 }
 
-// Preview is the Certificate's preview, as issued, over the background at the address background.
+// Preview is the Certificate's preview, as issued, over the background at the address background, with the logo it
+// copied at issue.
 func (c certificate) Preview(background string) certPreview {
-	p := newCertPreview(c.LearnerName, c.CourseTitle, c.Badge(), background)
+	p := newCertPreview(c.LearnerName, c.CourseTitle, c.Badge(), background, certLogoURL(c.LogoKey))
 	p.Number, p.Issued = c.Number(), certIssuedOn+c.IssuedIn("en")
 	p.ID = "cert-art-" + c.ID
 	return p
@@ -420,7 +422,7 @@ func (c certificate) Preview(background string) certPreview {
 type certPlaces struct {
 	NumberX, NumberY, NumberSize, QRX, QRY, QR, NameY, TitleX    float64
 	BadgeX, BadgeY, BadgeW, BadgeH, IssuedX, IssuedY, IssuedSize float64
-	LabelY, LabelSize                                            float64
+	LabelY, LabelSize, LogoX, LogoY, LogoW, LogoH                float64
 	Label                                                        string
 }
 
@@ -428,7 +430,7 @@ type certPlaces struct {
 func (certPreview) At() certPlaces {
 	return certPlaces{certNumberX, certNumberY, ptMM(certNumberPt), certQRX, certQRY, certQR, certNameY,
 		certTitleX + certTitleW/2, certBadgeX, certBadgeY, certBadgeW, certBadgeH, certIssuedX, certIssuedY, ptMM(certIssuedPt),
-		certLabelY, ptMM(certLabelPt), certNumberLabel}
+		certLabelY, ptMM(certLabelPt), certLogoX, certLogoY, certLogoW, certLogoH, certNumberLabel}
 }
 
 // artLogoPlace is the CAVE logo's sizes in mm for the preview: the header's and the watermark's, with its opacity.

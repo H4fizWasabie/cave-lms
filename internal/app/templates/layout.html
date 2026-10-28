@@ -253,7 +253,7 @@ Pass (card .Course .Lang); it fills its container's width at 16:9. */}}
           </div>{{end}}{{end}}
 
 {{/* certificate-preview draws a Certificate as the PDF prints it, from a certPreview: (certPreview <name> <Course title>
-<badge> .CertBackground), or a Certificate's (.Preview $.CertBackground). The same A4 page in mm: the wording, rules,
+<badge> .CertBackground .CertLogo), or a Certificate's (.Preview $.CertBackground). The same A4 page in mm: the wording, rules,
 images and the places of the details come from Go (certificate_artwork.go), shared with the PDF; the logo,
 ornament and QR sketch are drawn here and in drawArtwork, so change those two together. With an uploaded
 background it draws that in place of the built-in artwork, as the PDF does. It shows a name and never an IC; the QR
@@ -290,6 +290,8 @@ code is only sketched. It is decorative: the page says in words what it shows. *
   <text class="cert-art-name" x="105" y="{{$at.NameY}}" font-size="{{printf "%.2f" .NameSize}}" text-anchor="middle">{{.Name}}</text>
   {{- range .Title}}
   <text class="cert-art-title" x="{{$at.TitleX}}" y="{{printf "%.2f" .Y}}" font-size="{{printf "%.2f" $.TitleSize}}" text-anchor="middle">{{.Text}}</text>{{end}}
+  {{- with .OrgLogo}}
+  <image href="{{.}}" x="{{$at.LogoX}}" y="{{$at.LogoY}}" width="{{$at.LogoW}}" height="{{$at.LogoH}}" preserveAspectRatio="xMidYMid meet"/>{{end}}
   {{- with .Badge}}
   <image class="cert-art-badge" href="{{static .}}" clip-path="url(#{{$.ID}}-badge-edge)" x="{{$at.BadgeX}}" y="{{$at.BadgeY}}" width="{{$at.BadgeW}}" height="{{$at.BadgeH}}"/>{{end}}
   {{- with .Issued}}
