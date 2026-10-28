@@ -205,7 +205,7 @@ func TestWithTheAIDownAWrittenResultIsReleasedOnlyOnceTheAdminHasMarkedEveryAnsw
 		t.Fatalf("%d emails with one answer still unmarked, want %d", n, before)
 	}
 	_, body = s.get(attempt)
-	expectAll(t, body, "Your Result is ready at")
+	expectAll(t, body, "Your Result will be ready by")
 	expectNone(t, body, "Score")
 
 	admin.saveMarks(attempt, map[string]string{qids[1]: "5"})

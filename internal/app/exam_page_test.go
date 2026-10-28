@@ -170,9 +170,9 @@ func TestTheExamStartPageSaysWhenTheResultIsReleased(t *testing.T) {
 	s := newSite(t)
 	id, _ := s.examCourse("50", "", "", "Q1")
 	_, body := s.getAsking("/courses/"+id+"/exam", "en")
-	expectInOrder(t, mainOf(body), "Your Result is ready 10 minutes after you submit.", "Start the Exam")
+	expectInOrder(t, mainOf(body), "Your Result is ready within 10 minutes after you submit.", "Start the Exam")
 	_, body = s.getAsking("/courses/"+id+"/exam", "ms")
-	expectInOrder(t, mainOf(body), "Keputusan anda sedia 10 minit selepas anda menghantar.", "Mulakan Peperiksaan")
+	expectInOrder(t, mainOf(body), "Keputusan anda sedia dalam masa 10 minit selepas anda menghantar.", "Mulakan Peperiksaan")
 
 	w := newSite(t)
 	wid := w.writtenCourse("50", "Explain :=")
