@@ -78,7 +78,9 @@ func TestAnExcelWithADateInItsTitleRowsPreviewsItFromThatCellAndAnUploadWithNone
 	expectAll(t, body, `value="`+partDate()+`"`, "hari muat naik")
 }
 
-func TestTheLearnerChangesThePartDateInThePreviewAndTheRowsCarryTheNewDate(t *testing.T) {
+// The Dataset module decides which dates are refused and what the rows carry; the handler answers 422 with the message,
+// keeps the Part pending, and redirects once the date is accepted.
+func TestAPartDateThatIsNotADateIsRefusedWithAMessageAndAnAcceptedOneRedirects(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Kedai", myPage)
@@ -86,7 +88,6 @@ func TestTheLearnerChangesThePartDateInThePreviewAndTheRowsCarryTheNewDate(t *te
 	visitor := ada.second()
 	ada.postFile(path+"/dataset", "Report_20260702091058.xlsx", shopReport(t, "Beras", 120))
 
-	// A date that is not a date is refused and the Part stays pending.
 	res, body := ada.post(path+"/dataset/confirm", url.Values{"part-date": {"2026-13-45"}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Part date")
 	if res, _ := visitor.get(link + "data.json"); res.StatusCode != http.StatusNotFound {
@@ -95,8 +96,4 @@ func TestTheLearnerChangesThePartDateInThePreviewAndTheRowsCarryTheNewDate(t *te
 
 	res, body = ada.post(path+"/dataset/confirm", url.Values{"part-date": {"2026-07-09"}})
 	expectRedirect(t, res, body, path+"/data")
-	_, body = visitor.get(link + "data.json")
-	if got := strings.Join(partDates(body), ","); got != "2026-07-09,2026-07-09" {
-		t.Fatalf("data.json Part dates = %s, want the Learner's date on both rows: %s", got, body)
-	}
 }

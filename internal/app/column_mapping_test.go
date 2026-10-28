@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -264,50 +263,5 @@ func TestTheMappingFormsWorkbookIsOwnershipChecked(t *testing.T) {
 	}
 	if list := partItems(t, mustGet(t, bea, hers+"/data")); strings.Contains(list, "kehadiran_082026.xlsx") {
 		t.Fatalf("the refused remap added a Part: %s", list)
-	}
-}
-
-// recipeMap is the Dashboard's remembered map of the files' columns to the Dataset's, as the recipe holds it.
-func recipeMap(t *testing.T, ada *site, name string) map[string]string {
-	t.Helper()
-	var raw []byte
-	if err := ada.db.QueryRow(`SELECT COALESCE(upload_settings->'recipe'->'map', '{}'::jsonb) FROM dashboards WHERE name = $1`, name).Scan(&raw); err != nil {
-		t.Fatal(err)
-	}
-	var got map[string]string
-	if err := json.Unmarshal(raw, &got); err != nil {
-		t.Fatal(err)
-	}
-	return got
-}
-
-// The Dataset module's Upload reads and remembers the Learner's picks; the confirm saves them in the recipe, and Replace
-// data clears them with the recipe. This checks the confirm and moves to the module with it (#460).
-func TestConfirmingAMappedPartSavesThePicksInTheRecipeAndConfirmingReplaceDataClearsThem(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, link := kehadiranPage(t, ada)
-	_, refused := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", augustReport(t, [2]string{"JBA2002", "SK Jaya"}), adding)
-	res, body := postMapping(t, ada, path+"/dataset", refused, augustPicks, adding)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-
-	want := map[string]string{"NAMA INSTITUSI": "NAMA_PENUH_INSTITUSI", "KOD TAHUN TINGKATAN": "KOD_THN_TING",
-		"JUMLAH PATUT HADIR": "JUMPATUTHADIR", "JUMLAH HADIR": "JUMHADIR", "JUMLAH TIDAK HADIR": "JUMTHADIR"}
-	if got := recipeMap(t, ada, "Kehadiran"); !reflect.DeepEqual(got, want) {
-		t.Fatalf("recipe map = %v, want the five picks %v", got, want)
-	}
-	_, body = ada.second().get(link + "data.json")
-	if rows := dataRows(t, body); len(rows) != 2 || rows[1]["NAMA_PENUH_INSTITUSI"] != "SK Jaya" || rows[1]["JUMHADIR"] != 108.0 {
-		t.Fatalf("data.json = %s, want the mapped rows under the Dataset's names", body)
-	}
-
-	res, body = ada.postFile(path+"/dataset", "kehadiran_062026.xlsx", juneReport(t, [2]string{"JBA1001", "SK Maju"}), url.Values{"mode": {"replace"}})
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-	if got := recipeMap(t, ada, "Kehadiran"); len(got) != 0 {
-		t.Fatalf("recipe map after Replace data = %v, want none", got)
 	}
 }

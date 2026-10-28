@@ -12,8 +12,9 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// world is a Dashboard in a migrated test database with the Dataset module over it and a store in a temp directory. Confirm
-// does not exist yet, so the helpers below make and change Parts with SQL: the only place the tests do.
+// world is a Dashboard in a migrated test database with the Dataset module over it and a store in a temp directory. The
+// helpers below make and change Parts with SQL for the tests of Keys and Delete, which need Parts the module's own calls
+// do not make.
 type world struct {
 	t         *testing.T
 	db        *sql.DB
