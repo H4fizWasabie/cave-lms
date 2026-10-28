@@ -33,4 +33,8 @@ func TestAStoreThatFailsWhileFindingMonthColumnsGivesTheFailedPage(t *testing.T)
 	}
 	res, body := ada.postFile(path+"/dataset", "kehadiran_082026.xlsx", monthNamedReport(t, "OGOS", [2]string{"JBA2002", "SK Jaya"}), adding)
 	expectStatus(t, res, body, http.StatusServiceUnavailable, "The upload failed")
+	var logged int
+	if err := ada.db.QueryRow(`SELECT count(*) FROM system_log WHERE level = 'error' AND path = $1`, path+"/dataset").Scan(&logged); err != nil || logged == 0 {
+		t.Fatalf("%d error lines logged for the store's refusal (%v), want one", logged, err)
+	}
 }

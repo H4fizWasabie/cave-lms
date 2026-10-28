@@ -346,6 +346,9 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage())))
 		return
 	case errors.Is(err, errDatasetStore):
+		if err != errDatasetStore { // the module's, wrapped; keepWorkbook logs its own bare one where it happened
+			a.logError(r, err)
+		}
 		refuse(text.T(lang, "lab.d.upload-failed"))
 		return
 	case err != nil:
