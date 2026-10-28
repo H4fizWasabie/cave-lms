@@ -173,7 +173,7 @@ func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(
 	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", myPage)
 	ada.uploadPage(path, versionOf(2))
-	ada.readyDashboard("Kewangan") // a built Dashboard has no page
+	built := ada.readyDashboard("Kewangan") // a built Dashboard has no page, only its Workbook's "used on" line
 
 	_, body := ada.getFolder()
 	rest := pastIntro(t, body)
@@ -185,7 +185,7 @@ func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(
 			t.Errorf("the Folder lacks %q: %s", want, rest)
 		}
 	}
-	if strings.Contains(rest, "Kewangan") {
+	if strings.Contains(rest, "<h3><a href=\""+built+"\">") {
 		t.Errorf("the Folder lists a Dashboard with no page: %s", rest)
 	}
 }
@@ -247,4 +247,33 @@ func TestTheFolderLabPartIsInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Semasa")
 	res, body = ada.getAsking("/lab", "ms")
 	expectStatus(t, res, body, http.StatusOK, `Buku kerja dan halaman Dashboard anda ada di <a href="/my-folder">Folder saya</a>.`)
+}
+
+func TestTheFolderListsEveryDashboardAWorkbookWasUsedOnAndSaysWhenNone(t *testing.T) {
+	_, ada := labLearner(t)
+	kewangan := ada.readyDashboard("Kewangan")
+	stok := ada.readyDashboard("Stok") // the same file, so the same Workbook
+	ada.postFile("/workbooks", "rak.xlsx", shopReport(t, "Gula", 80))
+
+	_, body := ada.getFolder()
+	rest := pastIntro(t, body)
+	expectAll(t, rest, `<a href="`+kewangan+`">Kewangan</a>`, `<a href="`+stok+`">Stok</a>`, "not used on a Dashboard yet")
+	if n := strings.Count(rest, "not used on a Dashboard yet"); n != 1 {
+		t.Errorf("%d unused Workbooks, want only rak.xlsx: %s", n, rest)
+	}
+
+	ada.switchLanguage("ms", "/")
+	_, body = ada.getFolderAsking("ms")
+	expectAll(t, body, "belum digunakan pada Dashboard")
+}
+
+func TestTheAdminSeesWhichDashboardsAWorkbookWasUsedOnAsPlainText(t *testing.T) {
+	admin, ada := labLearner(t)
+	path := ada.readyDashboard("Kewangan")
+
+	res, body := admin.get("/my-folder/ada-example-com")
+	expectStatus(t, res, body, http.StatusOK, "Kewangan")
+	if strings.Contains(body, `href="`+path+`"`) {
+		t.Errorf("the Admin is linked to a Dashboard that is not theirs to open: %s", body)
+	}
 }

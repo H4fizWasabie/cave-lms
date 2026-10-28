@@ -204,7 +204,7 @@ _Malay_: Serahan
 _Avoid_: Upload, hand-in, entry
 
 **Folder**:
-A Learner's private page listing their Submissions by Course, with the Admin's comments, and, with a Plan, their Workbooks and their Dashboards' pages. Only they and the Admin see it.
+A Learner's private page listing their Submissions by Course, with the Admin's comments, and, with a Plan, their Workbooks, each with the Dashboards it was used on, and their Dashboards' pages. Only they and the Admin see it.
 _Malay_: Folder
 _Avoid_: Dashboard (which means a Lab Dashboard), drive, locker
 

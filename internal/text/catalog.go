@@ -1461,6 +1461,7 @@ var catalog = map[string]entry{
 	"my-folder.intro-admin":    {en: "Their Workbooks, their Dashboards' pages and their Submissions to Assignments, by Course, with your comments. You can download them here but not change them.", ms: "Buku kerja, halaman Dashboard dan Serahan mereka kepada Tugasan, mengikut Kursus, bersama ulasan anda. Anda boleh memuat turunnya di sini tetapi tidak boleh mengubahnya."},
 	"my-folder.workbooks":      {en: "Workbooks", ms: "Buku kerja"},
 	"my-folder.delete":         {en: "Delete", ms: "Padam"},
+	"my-folder.unused":         {en: "not used on a Dashboard yet", ms: "belum digunakan pada Dashboard"},
 	"my-folder.intro-lab":      {en: "Your Workbooks, your Dashboards' pages and your Submissions to Assignments, by Course, with the Admin's comments. Only you and the Admin see them.", ms: "Buku kerja, halaman Dashboard dan Serahan anda kepada Tugasan, mengikut Kursus, bersama ulasan Pentadbir. Hanya anda dan Pentadbir yang melihatnya."},
 	"my-folder.workbooks-none": {en: "No Workbooks yet. Upload an Excel file here, or on a Dashboard.", ms: "Belum ada Buku kerja. Muat naik fail Excel di sini, atau pada Dashboard."},
 	"my-folder.pages":          {en: "Dashboard pages", ms: "Halaman Dashboard"},
