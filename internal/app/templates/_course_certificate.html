@@ -3,7 +3,7 @@ with the Learner's name, the Course title and its PCC badge. Visitors see none. 
 (.Course, .Learner, .Lang). */}}
 {{define "course-certificate"}}
           <figure class="cp-cert">
-            {{template "certificate-preview" (certPreview .Learner.Name .Course.Title .Course.Badge .CertBackground)}}
+            {{template "certificate-preview" (certPreview .Learner.Name .Course.Title .Course.Badge .CertBackground .CertLogo)}}
             <figcaption>{{t .Lang "course.cert-caption"}}</figcaption>
           </figure>
 {{end}}

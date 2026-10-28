@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -131,6 +132,7 @@ type page struct {
 	DuplicateOf   int64          // the Course the Course form duplicates into a Live Course, 0 when none
 	AILanguage    string         // the language the Lesson form's Generate writes in
 	Organisations []organisation // the Live Course form's choices
+	CertLogo      string         // the Course's Organisation's logo address, for the Course page's sample Certificate; "" for none
 }
 
 func (p *page) learnerField() **learner { return &p.Learner }
@@ -291,6 +293,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /programmes/pictures/{key}", a.programmePicture)
 	mux.HandleFunc("GET /course-pictures/{key}", a.coursePicture)
 	mux.HandleFunc("GET /certificate-background/{key}", a.certificateBackground)
+	mux.HandleFunc("GET /certificate-logo/{key}", a.certificateLogo)
 	mux.HandleFunc("GET /admin/programmes", a.admin(a.adminProgrammes))
 	mux.HandleFunc("GET /admin/programmes/new", a.admin(a.newProgrammeForm))
 	mux.HandleFunc("POST /admin/programmes", a.admin(a.createProgramme))
@@ -672,6 +675,15 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 	}
 	if p, ok := data.(*page); ok && name == "message" && (status == http.StatusNotFound || status == http.StatusForbidden) {
 		p.OfferHome = true // every not-found or refused page leads somewhere
+	}
+	if p, ok := data.(*page); ok && p.Course != nil && p.Course.OrganisationID != 0 {
+		var key string // the sample Certificate on the Course page prints the Organisation's current logo
+		err := a.db.QueryRowContext(r.Context(), `SELECT logo_key FROM organisations WHERE id = $1`, p.Course.OrganisationID).Scan(&key)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			a.serverError(w, r, err)
+			return
+		}
+		p.CertLogo = certLogoURL(key)
 	}
 	withLearner, ok := data.(interface{ learnerField() **learner })
 	if !ok {

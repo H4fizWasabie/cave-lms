@@ -536,6 +536,32 @@ func (a *App) certificateBackground(w http.ResponseWriter, r *http.Request) {
 	a.serveImage(w, r, s.BackgroundKey)
 }
 
+// certLogoURL is the public address of the Organisation logo with storage key key, "" for none.
+func certLogoURL(key string) string {
+	if key == "" {
+		return ""
+	}
+	return "/certificate-logo/" + key
+}
+
+// certificateLogo serves an Organisation's logo to everyone, for the Certificate preview to draw. Only a key that is
+// an Organisation's logo or a Certificate's copy of one is found, so no other stored file is served. A logo is not
+// secret: it is printed on every Certificate of the Organisation's Courses.
+func (a *App) certificateLogo(w http.ResponseWriter, r *http.Request) {
+	var found bool
+	err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM organisations WHERE logo_key = $1)
+		OR EXISTS (SELECT 1 FROM certificates WHERE logo_key = $1)`, r.PathValue("key")).Scan(&found)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if !found {
+		a.notFound(w, r)
+		return
+	}
+	a.serveImage(w, r, r.PathValue("key"))
+}
+
 // serveImage serves a stored image as the type its content is sniffed as. Only JPEG and PNG pass the upload checks.
 func (a *App) serveImage(w http.ResponseWriter, r *http.Request, key string) {
 	f, err := a.store.Open(key)
