@@ -182,20 +182,15 @@ func (a *App) withDashboard(h func(http.ResponseWriter, *http.Request, *dashboar
 	})
 }
 
-// learnerAccess applies the Lab access rule to the logged-in Learner.
-func (a *App) learnerAccess(r *http.Request) (labAccess, error) {
-	learner, err := a.currentLearner(r)
-	if err != nil {
-		return labAccess{}, err
-	}
-	return a.labAccessOf(r.Context(), learner)
-}
-
 // labOpen applies the Lab access rule to a request that builds or changes something,
 // answering 403 when the Learner may not. ok is false when it has answered.
 func (a *App) labOpen(w http.ResponseWriter, r *http.Request) (acc labAccess, ok bool) {
-	acc, err := a.learnerAccess(r)
+	learner, err := a.currentLearner(r)
 	if err != nil {
+		a.serverError(w, r, err)
+		return acc, false
+	}
+	if acc, err = a.labAccessOf(r.Context(), learner); err != nil {
 		a.serverError(w, r, err)
 		return acc, false
 	}
@@ -227,12 +222,10 @@ func (a *App) labScreen(h http.HandlerFunc) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		var acc labAccess
-		if learner != nil {
-			if acc, err = a.labAccessOf(r.Context(), learner); err != nil {
-				a.serverError(w, r, err)
-				return
-			}
+		acc, err := a.labAccessOf(r.Context(), learner)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
 		}
 		if !acc.Open() {
 			http.Redirect(w, r, "/pricing", http.StatusSeeOther)
@@ -327,6 +320,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: dataset.ReplaceData, File: upload, Sum: sha256.Sum256(data), Workbook: workbook, Read: res},
 		partReserve(acc, learner.ID, d.ID, dataset.ReplaceData, 0))
+	forgetLabAccess(r.Context())
 	// ponytail: a compensating delete, not one transaction, as Upload runs its own; a crash between the insert and
 	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into Upload
 	// if that turns up.
@@ -466,7 +460,12 @@ type dashboardPage struct {
 
 func (a *App) dashboardTab(tab string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
-		acc, err := a.learnerAccess(r)
+		learner, err := a.currentLearner(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		acc, err := a.labAccessOf(r.Context(), learner)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
