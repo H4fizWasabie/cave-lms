@@ -24,6 +24,7 @@
         </div>
       </section>
       <form class="card form acct-form" method="post" action="/my-profile/username">
+        {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
         <div class="field">
           <label for="username">{{t .Lang "account.username"}}</label>
           <input id="username" name="username" value="{{if .TypedUsername}}{{.TypedUsername}}{{else}}{{.Learner.Username}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" required{{if .UsernameError}} aria-invalid="true" aria-describedby="username-err"{{end}}>
