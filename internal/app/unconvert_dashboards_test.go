@@ -20,7 +20,7 @@ import (
 func (s *site) linkAfterMigration(path string) string {
 	s.t.Helper()
 	_, body := s.get(path + "/deploy")
-	m := regexp.MustCompile(`/d/learner-[a-z0-9]{6}/dash-\d+/`).FindString(body)
+	m := regexp.MustCompile(`https://pages\.cave\.example\.invalid/learner-[a-z0-9]{6}/dash-\d+/`).FindString(body)
 	if m == "" {
 		s.t.Fatalf("after the migration the Deployment's link has no random Username: %s", body)
 	}

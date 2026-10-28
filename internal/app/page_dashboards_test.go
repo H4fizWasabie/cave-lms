@@ -43,7 +43,7 @@ const pageCSP = "sandbox allow-scripts; default-src 'none'; " +
 	"script-src 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 	"style-src 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com; " +
 	"font-src data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.gstatic.com; " +
-	"img-src data: https:; connect-src 'self' https://cave.example.invalid; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
+	"img-src data: https:; connect-src 'self' https://pages.cave.example.invalid; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
 
 func TestAPlanHolderPastesHTMLDeploysAndAVisitorGetsItSandboxed(t *testing.T) {
 	t.Parallel()
@@ -143,7 +143,7 @@ func TestTheLabListsPageDashboardsWithTheirLinkAwakeStateAndLastChange(t *testin
 
 	link := ada.deployAs(path, "jualan-ada")
 	_, body = ada.get("/lab")
-	expectAll(t, body, `href="`+link+`"`, "https://cave.example.invalid"+link, "Online")
+	expectAll(t, body, `href="`+link+`"`, "Online")
 	if strings.Contains(body, "Not deployed") || strings.Contains(body, "Template") {
 		t.Fatalf("a deployed page Dashboard is listed as not deployed or with a Template: %s", body)
 	}

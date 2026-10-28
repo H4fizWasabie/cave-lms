@@ -17,10 +17,7 @@ var languageSwitch = regexp.MustCompile(`(?s)<form class="lang-switch".*?</form>
 // getAsking requests path with the browser asking for acceptLanguage.
 func (s *site) getAsking(path, acceptLanguage string) (*http.Response, string) {
 	s.t.Helper()
-	req, err := http.NewRequest(http.MethodGet, s.server.URL+path, nil)
-	if err != nil {
-		s.t.Fatal(err)
-	}
+	req := s.newRequest(http.MethodGet, path, nil)
 	req.Header.Set("Accept-Language", acceptLanguage)
 	return s.do(req)
 }

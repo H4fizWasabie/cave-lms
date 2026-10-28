@@ -13,7 +13,10 @@ import (
 type Config struct {
 	DatabaseURL   string
 	PublicBaseURL string
-	EmailFrom     string
+	// PagesBaseURL, from PAGES_BASE_URL, is where Deployments live, on a host of their own so a flagged Deployment
+	// cannot lock Learners out of the LMS (ADR 0024). Optional: unset, it is "pages." in front of PublicBaseURL's host.
+	PagesBaseURL string
+	EmailFrom    string
 	// ResendAPIKey is optional; when set, email is sent through Resend.
 	ResendAPIKey string
 	ListenAddr   string
@@ -63,6 +66,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		DatabaseURL:    strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		PublicBaseURL:  strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")),
+		PagesBaseURL:   strings.TrimRight(strings.TrimSpace(os.Getenv("PAGES_BASE_URL")), "/"),
 		EmailFrom:      strings.TrimSpace(os.Getenv("EMAIL_FROM")),
 		ResendAPIKey:   strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
 		ListenAddr:     strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
@@ -102,6 +106,17 @@ func Load() (Config, error) {
 	publicURL, err := url.Parse(cfg.PublicBaseURL)
 	if err != nil || publicURL.Host == "" || (publicURL.Scheme != "http" && publicURL.Scheme != "https") || publicURL.User != nil || publicURL.RawQuery != "" || publicURL.Fragment != "" {
 		return Config{}, fmt.Errorf("PUBLIC_BASE_URL must be an absolute http or https URL")
+	}
+	if cfg.PagesBaseURL == "" {
+		cfg.PagesBaseURL = publicURL.Scheme + "://pages." + publicURL.Host
+	}
+	pagesURL, err := url.Parse(cfg.PagesBaseURL)
+	if err != nil || pagesURL.Host == "" || (pagesURL.Scheme != "http" && pagesURL.Scheme != "https") || pagesURL.User != nil || pagesURL.Path != "" || pagesURL.RawQuery != "" || pagesURL.Fragment != "" {
+		return Config{}, fmt.Errorf("PAGES_BASE_URL must be an absolute http or https URL without a path")
+	}
+	// Cave tells the two hosts apart by name, so they cannot be the same.
+	if strings.EqualFold(pagesURL.Host, publicURL.Host) {
+		return Config{}, fmt.Errorf("PAGES_BASE_URL must be on a different host from PUBLIC_BASE_URL")
 	}
 	if cfg.EmailFrom == "" {
 		return Config{}, fmt.Errorf("EMAIL_FROM is required")

@@ -19,6 +19,22 @@ cavelms.com {
 	reverse_proxy 127.0.0.1:8088
 }
 
+# Deployments live on their own host, so a Deployment flagged as phishing flags this host and not cavelms.com
+# (docs/adr/0024-deployments-move-to-the-pages-subdomain.md). The same app answers, by host. DNS: an A record for
+# `pages` at the VPS before the deploy that adds this block, or Caddy cannot get its certificate.
+pages.cavelms.com {
+	bind 13.140.65.183
+	# The same headers as cavelms.com above. The host serves GETs only, so it has no request_body cap.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8088
+}
+
 # Old and alternate addresses redirect forever, keeping the path (ADR 0002).
 www.cavelms.com, lms.wasabietech.com {
 	bind 13.140.65.183

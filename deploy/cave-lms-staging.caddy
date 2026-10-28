@@ -20,3 +20,18 @@ staging.cavelms.com {
 	}
 	reverse_proxy 127.0.0.1:8089
 }
+
+# Staging's Deployments host (docs/adr/0024-deployments-move-to-the-pages-subdomain.md). It has no login: a sandboxed page
+# cannot send one with its data requests, and staging holds test data only. DNS: an A record for `pages.staging`.
+pages.staging.cavelms.com {
+	bind 13.140.65.183
+	# The same headers as production (cave-lms.caddy).
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8089
+}

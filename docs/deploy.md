@@ -1,6 +1,6 @@
 # Deploying Cave LMS
 
-The app runs on the SG VPS (`ssh vps`, Ubuntu 24.04, with the other apps; the old FR box, `ssh vps-fr`, is kept stopped as a fallback) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (`www.cavelms.com` and the old `lms.wasabietech.com` redirect to it) from `/etc/caddy/sites/cave-lms.caddy`. Other services share this VPS and this Caddy, so touch only the files named here.
+The app runs on the SG VPS (`ssh vps`, Ubuntu 24.04, with the other apps; the old FR box, `ssh vps-fr`, is kept stopped as a fallback) as the `cave-lms` systemd service, listening on `127.0.0.1:8088`. The existing Caddy serves it over HTTPS at `cavelms.com` (`www.cavelms.com` and the old `lms.wasabietech.com` redirect to it) from `/etc/caddy/sites/cave-lms.caddy`. Learners' Deployments are served by the same app on `pages.cavelms.com` (`docs/adr/0024-deployments-move-to-the-pages-subdomain.md`), from the same Caddy file; its A record must exist before a deploy that adds or changes that block, or Caddy cannot get the certificate. Other services share this VPS and this Caddy, so touch only the files named here.
 
 | What | Where on the VPS |
 |---|---|
@@ -58,6 +58,7 @@ It ships only the staging binary, unit and Caddy site, and leaves production and
 
 - **Email** goes only to the addresses in `EMAIL_ALLOWLIST` (comma-separated; `@example.com` allows a whole domain). Any other message is not sent: it goes to the System log (and journald) in full, link included, so the Owner can read it at `staging.cavelms.com/admin/log`. Production leaves `EMAIL_ALLOWLIST` unset and emails everyone.
 - **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Each is confirmed with BCL's API when `BCL_API_TOKEN` is set, as on production, though BCL gives nothing for a Test Mode order but its amount, payer and status, so the form is checked only by amount and price, and the CAVELMS account email on the form must be the payer's email (`docs/runbook.md`, First install of staging, step 2). Testers pay with the email of their staging account, or an Admin gives the product by hand. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
+- **Deployments** are on `pages.staging.cavelms.com`, a second Caddy block in the staging site file. It has no login, unlike `staging.cavelms.com`: a sandboxed page cannot send one with its data requests. Staging holds test data only.
 - **Placeholders**: the staging unit sets `CAVE_ENV=staging`, so the home page shows its marked placeholders for numbers the client has not supplied yet. Production leaves `CAVE_ENV` unset (production) and never shows them. Run locally with `CAVE_ENV=development` to see them.
 - **Data** starts empty. Set up Courses, Exams and prices by hand in staging's Admin.
 - **CaveText** can't sign in to staging: `CAVETEXT_EXTENSION_IDS` is unset and the extension would trip over the login. A Test Mode payment still gives Pro, and the System log says so.

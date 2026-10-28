@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"sync"
@@ -47,6 +48,8 @@ type App struct {
 	writer               aiwriter.Writer // writes Exam questions and Lesson text and marks Written answers
 	pages                map[string]*template.Template
 	publicBaseURL        string
+	pagesBaseURL         string // where Deployments live (ADR 0024): scheme and host alone, no trailing slash
+	pagesHost            string // pagesBaseURL's host, to tell its requests from the main host's
 	store                *storage.Disk
 	dataset              *dataset.Dataset
 	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
@@ -179,8 +182,13 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, err
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), pagesBaseURL: strings.TrimRight(cfg.PagesBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
+	pagesURL, err := url.Parse(a.pagesBaseURL)
+	if err != nil || pagesURL.Host == "" {
+		return nil, fmt.Errorf("PagesBaseURL must be an absolute URL, got %q", cfg.PagesBaseURL)
+	}
+	a.pagesHost = pagesURL.Host
 	a.dataset = dataset.New(db, datasets, func() time.Time { return a.now() })
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
@@ -265,7 +273,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.labScreen(a.withDashboard(a.confirmDeleteDashboard)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/delete", a.withDashboard(a.deleteDashboard))
-	mux.HandleFunc("GET /"+deploymentPrefix+"/{rest...}", a.deploymentRoute)
+	mux.HandleFunc("GET /"+oldDeploymentPrefix+"/{rest...}", a.oldDeploymentRoute)
 	mux.HandleFunc("GET /admin", a.admin(a.adminHome))
 	mux.HandleFunc("GET /admin/learners", a.admin(a.adminLearners))
 	mux.HandleFunc("GET /admin/gallery/new", a.admin(a.galleryUploadForm))
@@ -460,7 +468,16 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("DELETE /cavetext/api/snippets/{id}", a.caveTextAPI(a.deleteCaveTextSnippet))
 	mux.HandleFunc("PUT /cavetext/api/user-master-prompt", a.caveTextAPI(a.saveUserMasterPrompt))
 	mux.HandleFunc("DELETE /cavetext/api/user-master-prompt", a.caveTextAPI(a.deleteUserMasterPrompt))
-	a.handler = rejectCrossOrigin(mux)
+	// The Deployments host serves Deployments and nothing else, and the main host none (ADR 0024).
+	onPages := http.NewServeMux()
+	onPages.HandleFunc("GET /{rest...}", a.deploymentRoute)
+	a.handler = rejectCrossOrigin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.onPagesHost(r) {
+			onPages.ServeHTTP(w, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	}))
 	return a, nil
 }
 

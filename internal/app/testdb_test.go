@@ -29,6 +29,7 @@ func newTestApplicationWith(t *testing.T, writer aiwriter.Writer, opts ...func(*
 	cfg := config.Config{
 		DatabaseURL:    scopedURL,
 		PublicBaseURL:  "https://cave.example.invalid",
+		PagesBaseURL:   "https://pages.cave.example.invalid",
 		EmailFrom:      "Cave LMS <courses@example.invalid>",
 		ListenAddr:     ":8080",
 		StorageDir:     storageDir,

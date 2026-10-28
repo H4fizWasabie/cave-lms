@@ -710,7 +710,7 @@ func dashboardURL(d *dashboard) string { return "/lab/dashboards/" + strconv.For
 
 // dashboardFile serves the generated Dashboard to its Learner for the preview: index.html, charts.js and
 // the data at data/<key> under it, so the page loads the others by relative path.
-// A Deployment serves the same files under /<prefix>/<name>/ (deploymentFile).
+// A Deployment serves the same files on the Deployments host (deploymentFile).
 func (a *App) dashboardFile(name string) http.HandlerFunc {
 	return a.withDashboard(func(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		a.serveDashboardFile(w, r, d, name, previewCSP, "private, max-age=31536000, immutable")
