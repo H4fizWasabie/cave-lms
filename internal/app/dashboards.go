@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -138,19 +137,21 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	var pageSize sql.NullInt64
 	var pageUploaded sql.NullTime
 	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.name, d.theme, d.config, d.upload_settings, d.dataset_columns,
-			ds.parts, ds.rows, ds.key, ds.file, d.updated_at, pg.storage_key, pg.size, pg.uploaded_at
+			ds.parts, ds.rows, ds.file, d.updated_at, pg.storage_key, pg.size, pg.uploaded_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
 		CROSS JOIN LATERAL (SELECT count(*) AS parts, COALESCE(sum(p.row_count), 0) AS rows,
-				COALESCE(md5(string_agg(p.storage_key, ',' ORDER BY p.position)), '') AS key,
 				COALESCE((array_agg(p.file_name ORDER BY p.position DESC))[1], '') AS file
 			FROM dataset_parts p WHERE p.dashboard_id = d.id AND p.state = 'current') ds
 		LEFT JOIN dashboard_pages pg ON pg.dashboard_id = d.id AND pg.current`, args...).
-		Scan(&d.ID, &d.Name, &d.Theme, &config, &settings, &columns, &d.Parts, &d.Rows, &d.Key, &d.File, &updated,
+		Scan(&d.ID, &d.Name, &d.Theme, &config, &settings, &columns, &d.Parts, &d.Rows, &d.File, &updated,
 			&pageKey, &pageSize, &pageUploaded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	if _, d.Key, err = a.dataset.Keys(ctx, d.ID); err != nil {
 		return nil, err
 	}
 	d.Updated = updated.UTC().Format(periodTime)
@@ -909,14 +910,20 @@ func (a *App) serveDashboardFile(w http.ResponseWriter, r *http.Request, d *dash
 // ponytail: one Part is in memory at a time, as the store reads whole objects; stream from the store (R2) if Parts
 // get big enough to matter.
 func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, key, cache string) {
-	all, withRows, err := a.partKeys(r.Context(), d.ID, 0)
+	parts, datasetKey, err := a.dataset.Keys(r.Context(), d.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if key != "" && datasetKey(all) != key {
+	if key != "" && datasetKey != key {
 		a.notFound(w, r)
 		return
+	}
+	var withRows []string
+	for _, p := range parts {
+		if p.HasRows {
+			withRows = append(withRows, p.Key)
+		}
 	}
 	var first []byte
 	if len(withRows) > 0 {
@@ -939,36 +946,4 @@ func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, k
 		_, _ = w.Write(data)
 	}
 	_, _ = w.Write([]byte("\n]\n"))
-}
-
-// partKeys lists the store keys of the Dashboard's current Parts in position order, and of those that have rows, leaving
-// out the Part except (an ID; 0 leaves out none).
-func (a *App) partKeys(ctx context.Context, dashboardID, except int64) (all, withRows []string, err error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT storage_key, row_count > 0 FROM dataset_parts
-		WHERE dashboard_id = $1 AND state = 'current' AND id <> $2 ORDER BY position`, dashboardID, except)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var key string
-		var has bool
-		if err := rows.Scan(&key, &has); err != nil {
-			return nil, nil, err
-		}
-		all = append(all, key)
-		if has {
-			withRows = append(withRows, key)
-		}
-	}
-	return all, withRows, rows.Err()
-}
-
-// datasetKey names the Parts stored under keys, in order: dashboard.Key as loadDashboard's SQL makes it, md5 in hex of
-// the keys joined by commas; empty without Parts.
-func datasetKey(keys []string) string {
-	if len(keys) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(keys, ","))))
 }
