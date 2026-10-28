@@ -294,7 +294,7 @@ func TestDeletingAnAssignmentOrALearnerDeletesTheirFilesFromStorage(t *testing.T
 	if n := ada.storedFiles(); n != 1 {
 		t.Fatalf("%d stored files, want 1", n)
 	}
-	// There is no delete-account page; the Admin deletes the account row by hand (docs/deploy.md, Data requests).
+	// There is no delete-account page; the Admin deletes the account row by hand (docs/runbook.md, Data requests).
 	if _, err := admin.db.Exec(`DELETE FROM learners WHERE email = 'ada@example.com'`); err != nil {
 		t.Fatal(err)
 	}

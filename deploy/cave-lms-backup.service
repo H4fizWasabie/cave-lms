@@ -1,4 +1,4 @@
-# Installed to /etc/systemd/system/cave-lms-backup.service by deploy/deploy.sh. See docs/deploy.md, Backups.
+# Installed to /etc/systemd/system/cave-lms-backup.service by deploy/deploy.sh. See docs/runbook.md, Backups.
 [Unit]
 Description=Cave LMS nightly backup (database, uploads and Datasets, local and R2)
 After=network-online.target postgresql.service

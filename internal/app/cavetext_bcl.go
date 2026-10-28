@@ -180,7 +180,7 @@ func (a *App) bclWebhook(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case a.bclAPIToken == "":
 			// No token: the order is taken as the webhook sends it, unconfirmed, as before BCL's API was used; the app
-			// warns at startup (see docs/deploy.md).
+			// warns at startup (see docs/runbook.md, First install).
 		case a.bclTestPayments:
 			refused, held, err = a.confirmBCLTestOrder(r.Context(), &b, order)
 		default:

@@ -2,7 +2,7 @@
 # Nightly backup of Cave LMS: a dump of the cave database, the uploads directory and a mirror of the R2
 # Datasets bucket, written with restic
 # to a repository on the VPS and to one in Cloudflare R2. Installed to /usr/local/bin/cave-lms-backup by
-# deploy/deploy.sh and run by cave-lms-backup.timer. See docs/deploy.md, Backups.
+# deploy/deploy.sh and run by cave-lms-backup.timer. See docs/runbook.md, Backups.
 # deploy/deploy.sh sets CAVE_PREDEPLOY_SHA before a commit that adds a migration: the snapshot is then tagged
 # pre-deploy and the commit instead of nightly, so the nightly forget never prunes it.
 set -euo pipefail
