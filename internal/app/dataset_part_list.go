@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+
+	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 )
 
 // partRow is a current Part as the Data tab lists it, in the Dataset's order.
@@ -103,42 +105,15 @@ func (a *App) uploadPartReplacement(w http.ResponseWriter, r *http.Request, d *d
 	}
 }
 
-// deletePart deletes a Part once its confirmation page is posted: its rows leave data.json, its room is free in the
-// Storage allowance and its rows are queued for deletion from the store. The other Parts keep their order, and any
-// Dataset from before Parts goes, as the Dashboard's data changed. Deleting the last Part leaves the Dataset empty: its
-// columns are cleared to the empty list (NULL is a Dataset never uploaded, which data.json answers 404) and so is its
-// recipe, so the next upload sets new ones. An Add waiting to be confirmed was put together from the Parts as they
-// were, so it goes too, and so does a Replace of this Part; a Replace of the data, or of another Part, stays.
+// deletePart deletes a Part once its confirmation page is posted, as the Dataset module does (Delete): its rows leave
+// data.json, its room is free in the Storage allowance and its rows are queued for deletion from the store.
 func (a *App) deletePart(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	p, _, ok := a.partFor(w, r, d)
 	if !ok || unconfirmed(w, r) {
 		return
 	}
-	gone := errors.New("Part already deleted")
-	err := a.inTx(r.Context(), func(tx *sql.Tx) error {
-		// Locking the Learner makes deletes, confirms and uploads take turns.
-		if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, d.ID); err != nil {
-			return err
-		}
-		res, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE id = $1 AND dashboard_id = $2 AND state = 'current'`, p.ID, d.ID)
-		if err != nil {
-			return err
-		}
-		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return errors.Join(err, gone)
-		}
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier'
-				OR state = 'pending' AND (cleanup ? 'added' OR cleanup->'replaces'->>'part' = $2::bigint::text))`, d.ID, p.ID); err != nil {
-			return err
-		}
-		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now(),
-				dataset_columns = CASE WHEN left_over.none THEN '[]' ELSE dataset_columns END,
-				upload_settings = CASE WHEN left_over.none THEN upload_settings - 'recipe' ELSE upload_settings END
-			FROM (SELECT NOT EXISTS (SELECT 1 FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current') AS none) left_over
-			WHERE id = $1`, d.ID)
-		return err
-	})
-	if errors.Is(err, gone) {
+	err := a.dataset.Delete(r.Context(), d.ID, p.ID)
+	if errors.Is(err, dataset.ErrPartGone) {
 		a.notFound(w, r)
 		return
 	}

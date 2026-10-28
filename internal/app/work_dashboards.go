@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -90,6 +91,19 @@ const (
 	replacePart                   // the upload takes the place of one Part and the others stay
 )
 
+// dbKind is the kind as dataset_parts.upload_kind holds it.
+// ponytail: two enums for one kind, mapped here and in pendingOf, until the upload and confirm move into the Dataset
+// module (#459, #460) and #461 deletes uploadKind.
+func (k uploadKind) dbKind() dataset.Kind {
+	switch k {
+	case addPart:
+		return dataset.Add
+	case replacePart:
+		return dataset.ReplacePart
+	}
+	return dataset.ReplaceData
+}
+
 // uploadMode is an upload's kind, with the Part it replaces for replacePart. The zero value is Replace data.
 type uploadMode struct {
 	Kind uploadKind
@@ -99,17 +113,6 @@ type uploadMode struct {
 // intoDataset reports whether the upload joins the Dataset's Parts, an Add or a Replace of one Part, so it is read with
 // the Dataset's recipe and columns. Replace data starts the Dataset afresh.
 func (m uploadMode) intoDataset() bool { return m.Kind != replaceData }
-
-// mode is the pending Part's kind: an Add, a Replace of the Part it names, else Replace data.
-func (c cleaned) mode() uploadMode {
-	switch {
-	case c.Added != nil:
-		return uploadMode{Kind: addPart}
-	case c.Replaces != nil:
-		return uploadMode{Kind: replacePart, Part: c.Replaces.Part}
-	}
-	return uploadMode{}
-}
 
 // addition is what an Add to data put together: the upload's rows and the rows the Dataset had before them.
 type addition struct {
@@ -122,12 +125,12 @@ func (a addition) Total() int { return a.Rows + a.Had }
 
 // otherRows is the rows the Dataset keeps besides this Part's once it is confirmed: 0 for a Part that is the whole
 // Dataset.
-func (c cleaned) otherRows() int {
+func (p *pendingDataset) otherRows() int {
 	switch {
-	case c.Added != nil:
-		return c.Added.Had
-	case c.Replaces != nil:
-		return c.Replaces.Had
+	case p.Mode.Kind == addPart && p.Added != nil:
+		return p.Added.Had
+	case p.Mode.Kind == replacePart && p.Replaces != nil:
+		return p.Replaces.Had
 	}
 	return 0
 }
@@ -142,7 +145,17 @@ type pendingDataset struct {
 	Size     int64 // saved size, which counts against the Storage allowance once confirmed
 	Workbook int64 // the Workbook it was read from, 0 once that Workbook is deleted
 	Dataset  *lab.Dataset
+	Mode     uploadMode // what confirming it does, from the Part's columns
 }
+
+// IsAdd reports whether confirming the Part adds it to the Dataset.
+func (p *pendingDataset) IsAdd() bool { return p.Mode.Kind == addPart }
+
+// IsReplace reports whether confirming the Part replaces one Part of the Dataset.
+func (p *pendingDataset) IsReplace() bool { return p.Mode.Kind == replacePart }
+
+// ReplacedPart is the ID of the Part it replaces, 0 unless IsReplace.
+func (p *pendingDataset) ReplacedPart() int64 { return p.Mode.Part }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
 func (p *pendingDataset) Picked() string { return p.PickedSheet }
@@ -272,13 +285,21 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, error) {
 	var p pendingDataset
 	var c []byte
-	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup, COALESCE(workbook_id, 0) FROM dataset_parts
-		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &p.Key, &p.File, &p.Size, &c, &p.Workbook)
+	var kind dataset.Kind
+	var replaces sql.NullInt64
+	err := a.db.QueryRowContext(ctx, `SELECT id, storage_key, file_name, saved_size, cleanup, COALESCE(workbook_id, 0), upload_kind, replaces_part_id FROM dataset_parts
+		WHERE dashboard_id = $1 AND state = 'pending'`, d.ID).Scan(&p.ID, &p.Key, &p.File, &p.Size, &c, &p.Workbook, &kind, &replaces)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	switch kind {
+	case dataset.Add:
+		p.Mode.Kind = addPart
+	case dataset.ReplacePart:
+		p.Mode = uploadMode{Kind: replacePart, Part: replaces.Int64}
 	}
 	if err := json.Unmarshal(c, &p.cleaned); err != nil {
 		return nil, err
@@ -323,9 +344,9 @@ var errDatasetStore = errors.New("the store refused the Dataset")
 // keepPending keeps Clean-up's result on the file called name as the Dashboard's pending Part, replacing any earlier
 // pending one, and returns its saved size. With acc's counted period, the Learner's other pending Parts count against
 // the Storage allowance too. A Part that would not fit, even with the Parts its confirm deletes gone (those of
-// res.mode(); see roomFor), is dropped with errStorageFull; used is then the bytes the Learner's Parts, Workbooks and
+// mode; see roomFor), is dropped with errStorageFull; used is then the bytes the Learner's Parts, Workbooks and
 // pages take, pending Parts included. workbook is the Workbook the upload was kept as, 0 for none.
-func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, name string, workbook int64) (size, used int64, err error) {
+func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res cleaned, mode uploadMode, name string, workbook int64) (size, used int64, err error) {
 	res.Columns = res.Dataset.Columns
 	if res.PartDate == "" { // the Excel names no date: the upload day
 		res.PartDate, res.DateFrom, res.DateCell = a.now().UTC().Format(time.DateOnly), lab.DateFromUpload, ""
@@ -366,7 +387,7 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 			}
 			// ponytail: what confirm deletes counts as free before it is, so the store can hold up to about twice the
 			// allowance until the Learner confirms; refusing those uploads would refuse ones that fit once confirmed.
-			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), res.mode(), acc)
+			room, err := roomFor(r.Context(), tx, d.ID, pending+int64(len(data)), mode, acc)
 			if err != nil {
 				return err
 			}
@@ -378,9 +399,13 @@ func (a *App) keepPending(r *http.Request, d *dashboard, acc labAccess, res clea
 		if workbook != 0 {
 			from = workbook
 		}
-		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, date_source, sha256)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, (SELECT sha256 FROM workbooks WHERE id = $7))`,
-			d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom)
+		var replaces any // NULL unless the upload replaces one Part
+		if mode.Kind == replacePart {
+			replaces = mode.Part
+		}
+		_, err := tx.ExecContext(r.Context(), `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, cleanup, workbook_id, part_date, date_source, sha256, upload_kind, replaces_part_id)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, (SELECT sha256 FROM workbooks WHERE id = $7), $10, $11)`,
+			d.ID, key, name, len(data), len(res.Dataset.Rows), c, from, day, res.DateFrom, string(mode.Kind.dbKind()), replaces)
 		return err
 	})
 	if err != nil {
@@ -691,7 +716,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			return
 		}
 	}
-	size, used, err := a.keepPending(r, d, acc, kept, name, workbook)
+	size, used, err := a.keepPending(r, d, acc, kept, mode, name, workbook)
 	if refused(size, used, err) {
 		return
 	}
@@ -820,7 +845,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 			return
 		}
 	}
-	mode := p.mode()
+	mode := p.Mode
 	if recipe := p.Settings.Recipe; mode.intoDataset() && recipe != nil {
 		// The Dataset's values decide the month columns: with this Part's, a recorded one holding a number outside 1 to
 		// 12 is dropped. A Part that is all the Dataset has is a first Part: its own values decide.
