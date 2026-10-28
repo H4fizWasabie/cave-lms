@@ -54,7 +54,7 @@ _Malay_: Kursus
 _Avoid_: Programme, class, module
 
 **Live Course**:
-A Course run for an Organisation on agreed dates, made by the Admin duplicating a Course: it has its own copies of the Lessons, Exams and Assignments, a start date, an end date and a number of days (1 to 5) that need not match the dates. Learners can join it until the end of its end date, Malaysia time; after that it is closed but still viewable.
+A Course run for an Organisation on agreed dates, made by the Admin duplicating a Course, or created directly from New Course by choosing Live Course instead of Self-paced: a duplicate has its own copies of the Lessons, Exams and Assignments, a start date, an end date and a number of days (1 to 5) that need not match the dates. Learners can join it until the end of its end date, Malaysia time; after that it is closed but still viewable.
 _Malay_: Kursus Langsung
 _Avoid_: Cohort, class, session, event
 
