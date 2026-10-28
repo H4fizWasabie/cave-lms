@@ -106,7 +106,7 @@ func (a *App) lockEbook(ctx context.Context, viewer *learner, item *galleryItem)
 		}
 	}
 	item.Locked = true
-	return a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM promos WHERE ebooks AND product = $1 AND `+runningPromoSQL+`)`,
+	return a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM promos WHERE ebooks AND NOT hidden AND product = $1 AND `+runningPromoSQL+`)`,
 		proPlanProduct).Scan(&item.ComboOnSale)
 }
 

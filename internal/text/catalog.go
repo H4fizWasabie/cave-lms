@@ -1958,11 +1958,13 @@ var catalog = map[string]entry{
 
 	"promos.heading": {en: "Admin: Promos", ms: "Pentadbir: Promosi"},
 	"promos.intro": {
-		en: "A Promo lowers one product's price between two dates for Learners who enter its code on the payment form. Create the matching coupon in BCL, which holds the code and limits how often it is used; here you only set the price CAVELMS accepts while the Promo runs.",
-		ms: "Promosi menurunkan harga satu produk antara dua tarikh bagi Pelajar yang memasukkan kodnya di borang pembayaran. Cipta kupon yang sepadan dalam BCL, yang menyimpan kod dan menghadkan berapa kali ia digunakan; di sini anda hanya menetapkan harga yang diterima CAVELMS sepanjang Promosi berjalan.",
+		en: "A Promo lowers one product's price between two dates for Learners who enter its code on the payment form. In BCL, create the matching coupon and add it to the payment form's Allowed Coupons; BCL holds the code and limits how often it is used, here you only set the price CAVELMS accepts while the Promo runs.",
+		ms: "Promosi menurunkan harga satu produk antara dua tarikh bagi Pelajar yang memasukkan kodnya di borang pembayaran. Dalam BCL, cipta kupon yang sepadan dan tambahkannya ke Allowed Coupons borang pembayaran; BCL menyimpan kod dan menghadkan berapa kali ia digunakan, di sini anda hanya menetapkan harga yang diterima CAVELMS sepanjang Promosi berjalan.",
 	},
 	"promos.code":        {en: "Code", ms: "Kod"},
 	"promos.with-ebooks": {en: "With Ebooks", ms: "Dengan Ebook"},
+	"promos.hidden":      {en: "Hidden", ms: "Tersembunyi"},
+	"promos.hidden-sub":  {en: "Visitors never see this Promo's price. Payments with its code still count. For an Admin checking payments; it cannot be changed later, so end it and add another.", ms: "Pelawat tidak pernah melihat harga Promosi ini. Pembayaran dengan kodnya tetap dikira. Untuk Admin menyemak pembayaran; ia tidak boleh diubah kemudian, jadi tamatkannya dan tambah yang lain."},
 	"promos.ebooks":      {en: "Comes with Ebooks", ms: "Disertakan dengan Ebook"},
 	"promos.ebooks-sub":  {en: "Pro Plan only. Paying with this code also opens the Gallery's ebooks for that year: the COMBO Pro Plan.", ms: "Pelan Pro sahaja. Membayar dengan kod ini turut membuka ebook Galeri untuk tahun itu: Pelan Pro COMBO."},
 	"promos.product":     {en: "Product", ms: "Produk"},
