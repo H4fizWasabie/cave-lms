@@ -1,4 +1,4 @@
-# Installed to /etc/systemd/system/cave-lms.service by deploy/deploy.sh. See docs/deploy.md.
+# Installed to /etc/systemd/system/cave-lms.service by deploy/deploy.sh. See docs/runbook.md, First install.
 [Unit]
 Description=Cave LMS
 After=network.target postgresql.service

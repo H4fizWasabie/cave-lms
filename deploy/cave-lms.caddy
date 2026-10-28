@@ -1,4 +1,4 @@
-# Installed to /etc/caddy/sites/cave-lms.caddy by deploy/deploy.sh. See docs/deploy.md before changing the domain.
+# Installed to /etc/caddy/sites/cave-lms.caddy by deploy/deploy.sh. See docs/runbook.md, Changing the domain.
 cavelms.com {
 	bind 13.140.65.183
 	# The app caps one upload at 2 GB and explains the refusal; this is the outer limit with room for multipart framing.

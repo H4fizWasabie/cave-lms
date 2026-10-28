@@ -12,11 +12,11 @@ go run ./cmd/cave-lms
 
 `STORAGE_DIR` is a directory on the VPS disk that holds every uploaded Gallery file. It is created if missing, must not be under a public web root, and must be included in the nightly backups together with the database. Uploads are capped at about 2 GB each.
 
-To run it on the VPS, see `docs/deploy.md`.
+To run it on the VPS, see `docs/deploy.md` for deploys and `docs/runbook.md` for the first install.
 
 `OWNER_EMAIL` is optional. It names the Owner, the one Admin who sees the System log at `/admin/log`; without it nobody does, though errors are still logged.
 
-`CAVETEXT_EXTENSION_IDS` is optional: the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`. Unset, CaveText sign-in is refused. The unpacked development build's ID is `omcdclpagggfcjlhpkohpcgdmfbelohd`, the zip shared before store approval (built by CaveText's `package.sh`, with a fixed key) is `akkjngndkjadciijkjblnojfgbbhhmnl`, and the Chrome Web Store item is `ckbckpnpljpmcoeajhokjpombijphbkd`.
+`CAVETEXT_EXTENSION_IDS` is optional: the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`. Unset, CaveText sign-in is refused. The IDs are in `docs/deploy.md` (CaveText).
 
 `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` are optional. With both, the AI writes Exam questions and Lesson text and marks Written answers through OpenRouter; without them, Written attempts with non-blank answers wait for the Admin to mark them. `OPENROUTER_WEB_SEARCH` (`true` by default) turns its web search on or off. There is no built-in model. **Set a monthly credit limit on the OpenRouter key**: the app has no spending cap of its own. See `docs/deploy.md` (AI writer).
 

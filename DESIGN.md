@@ -112,7 +112,7 @@ Read this before any UI edit. The stylesheet is one file, `internal/app/static/c
 
 CAVELMS sells accredited training to civil servants and HRD Corp-claimable companies. The direction chosen from the prototype (`prototype/premium-refresh`) is **variant B's structure set in variant A's typography and spacing**. From B, the site is credentials first: dark charcoal bands, people building a dashboard beside the headline, a trust strip, the four-step PCC pathway, Course cards with pictures, and a two-column Course page with a sticky card. From A, it is calm and editorial: large, light Source Serif display headlines, generous white space, ruled lists instead of boxes where a list reads better, and a printed-journal rhythm.
 
-The identity is fixed: the CAVELMS logo, charcoal with logo gold, Source Serif 4 for display and Public Sans for everything else, all self-hosted. There is no dark mode. Gold is an accent, never a fill for whole sections; charcoal carries the weight.
+The identity is fixed: the CAVELMS logo, charcoal with logo gold, the two self-hosted font families. There is no dark mode. Gold is an accent, never a fill for whole sections; charcoal carries the weight.
 
 The Lab (Lab pages, the Dashboard builder, Lab Plans) is outside the refresh and keeps the look it had on main. Its pages are wrapped in `.lab-page`, and the stylesheet's `Lab: as on main` section (see Page section convention) gives every class they use main's values, so the refreshed shared components don't reach it. It shares the colour tokens only; don't restyle it from a page ticket.
 
@@ -156,21 +156,21 @@ The one exception is the Certificate's print palette: its metallic gold, ink and
 
 ## Typography
 
-**Display Font:** Source Serif 4 (400, 600, 700; fallback Georgia) via `--font-display`
-**Body Font:** Public Sans (400, 600, 700; fallback system-ui) via `--font-body`
+**Display Font:** `--font-display` (weights 400, 600, 700)
+**Body Font:** `--font-body` (weights 400, 600, 700)
 **Mono:** the platform monospace via `--font-mono`, only for code, Certificate numbers and other data.
 
 **Character:** A light, large serif speaks for the brand like a journal masthead; a plain, sturdy sans does the work.
 
 ### Hierarchy (eight roles, `--fs-*`)
-- **Display** (`--fs-display`, 40-80px fluid; with `.display`: weight 400, line-height 1.04, tracking -0.03em): hero headlines and the Exam score. One per page at most.
-- **Page** (`--fs-page`, 32-44px fluid): the page `h1` (`.page-head h1`, `.adm-head h1`, the Course title), weight 700 today. The public-page tickets may set their page titles light (400) in the editorial voice; admin and the Lab keep 700.
-- **Heading** (`--fs-heading`, 28px): section `h2`.
-- **Title** (`--fs-title`, 22px): card and block titles (`h3`), big numbers in panels.
-- **Lede** (`--fs-lede`, 18px): the paragraph under a page title, Lesson prose, small card titles, the confirmation question.
-- **Body** (`--fs-body`, 16px): running text and every text field (16px stops iOS zooming on focus).
-- **UI** (`--fs-ui`, 15px): buttons, nav, labels, table cells, secondary copy.
-- **Meta** (`--fs-meta`, 13px): badges, table heads, captions, crumbs, footnotes, `.btn-sm`.
+- **Display** (`--fs-display`; with `.display`): hero headlines and the Exam score. One per page at most.
+- **Page** (`--fs-page`): the page `h1` (`.page-head h1`, `.adm-head h1`, the Course title), weight 700 today. The public-page tickets may set their page titles light (400) in the editorial voice; admin and the Lab keep 700.
+- **Heading** (`--fs-heading`): section `h2`.
+- **Title** (`--fs-title`): card and block titles (`h3`), big numbers in panels.
+- **Lede** (`--fs-lede`): the paragraph under a page title, Lesson prose, small card titles, the confirmation question.
+- **Body** (`--fs-body`): running text and every text field (16px stops iOS zooming on focus).
+- **UI** (`--fs-ui`): buttons, nav, labels, table cells, secondary copy.
+- **Meta** (`--fs-meta`): badges, table heads, captions, crumbs, footnotes, `.btn-sm`.
 
 Headings balance (`text-wrap: balance`), paragraphs avoid orphans (`text-wrap: pretty`). Body measure stays at 65-75ch (`max-width: 42-44rem` on prose and ledes). Numbers that change or line up get `.num` (tabular, lining figures).
 
@@ -184,7 +184,7 @@ Headings balance (`text-wrap: balance`), paragraphs avoid orphans (`text-wrap: p
 ## Layout
 
 - **Container:** `.wrap` (max 82rem plus gutters, centred; side padding `--gutter`, 24-64px fluid). `.wrap-narrow` for reading pages (43rem).
-- **Spacing scale** (`--space-1` to `--space-8`): 4, 8, 12, 16, 24, 32, 48px, then `--space-8` (48-72px fluid) between page sections. Every `padding`, `margin` and `gap` is a step, `0`, `auto`, a 1-2px hairline, `--gutter`, or a `calc()` of those (`calc(-1 * var(--space-3))` for a negative margin). Tight inside a group, a step or two up between groups, more space above a heading than below it.
+- **Spacing scale** (`--space-1` to `--space-8`): `--space-8` goes between page sections. Every `padding`, `margin` and `gap` is a step, `0`, `auto`, a 1-2px hairline, `--gutter`, or a `calc()` of those (`calc(-1 * var(--space-3))` for a negative margin). Tight inside a group, a step or two up between groups, more space above a heading than below it.
 - **Inner page frame:** `.page-pad` (top `--space-7`, bottom `--space-8`) then `.page-head` (`h1` + muted `p`) or `.page-head-row` (title left, actions right, wraps).
 - **Sections:** `.section` (`--space-8` top and bottom) and `.section-alt` (surface band between hairlines); `.section-head` / `.section-head-row` above the content.
 - **Breakpoints (three, no more):** `max-width: 1279px` (header folds into the Menu), `max-width: 999px` (two columns become one, admin sidebar becomes a scroller), `max-width: 720px` (phone). Write desktop-first overrides inside these; for a min-width rule use `not all and (max-width: 720px)`.
@@ -204,7 +204,7 @@ Flat by default. Depth comes from paper versus surface, hairline borders and cha
 
 ## Shapes
 
-Gently squared: `--radius` (4px) on controls, badges and small cards; `--radius-lg` (8px) on cards, panels and menus; `--radius-xl` (12px) on Chat shells and bubbles; `--radius-pill` for counters, chips and avatars; `50%` for circles. `--radius-phone` (26px) is the Lab's phone-preview bezel only. Nested corners are concentric: an inner corner is the outer radius minus the padding, never the same radius.
+Gently squared: `--radius` on controls, badges and small cards; `--radius-lg` on cards, panels and menus; `--radius-xl` on Chat shells and bubbles; `--radius-pill` for counters, chips and avatars; `50%` for circles. `--radius-phone` (26px) is the Lab's phone-preview bezel only. Nested corners are concentric: an inner corner is the outer radius minus the padding, never the same radius.
 
 **The No Accent Stripe Rule.** No coloured `border-left`/`border-top` thicker than 1px on rounded cards, list items or callouts. (The Lab's `.lab-hero`, `.lab-steps`, `.lab-plan` and `.tp-card.is-picked` still carry them; they are Lab legacy, not a pattern to copy.)
 
@@ -213,26 +213,26 @@ Gently squared: `--radius` (4px) on controls, badges and small cards; `--radius-
 All live in `cavelms.css`; find a component by its class. Class names below are the API.
 
 ### Buttons
-Squared, confident, one weight (600, `--fs-ui`). `.btn` plus one variant:
+Squared, confident, one weight. `.btn` plus one variant:
 - **Primary** `.btn-solid`: charcoal fill. One per view: the next step.
 - **Secondary** `.btn-ghost`: charcoal outline. Alternatives beside a primary.
 - **Ghost** `.btn-quiet`: text only, tinted on hover. Cancel, Back, low-stakes actions.
 - **Danger** `.btn-danger-solid`: red fill, only as the confirm button of a confirmation page. `.btn-danger` (red text) for a quiet destructive link that leads to that page.
 - **Accent** `.btn-gold`: gold fill, on charcoal bands only.
-- **Sizes:** default (min-height 40px), `.btn-sm` (32px, `--fs-meta`), `.btn-lg` (48px, `--fs-body`); `.btn-block` fills its row. An icon goes first: `<svg class="i">` from `/static/icons.svg`.
+- **Sizes:** default, `.btn-sm` (32px, `--fs-meta`), `.btn-lg` (48px, `--fs-body`); `.btn-block` fills its row. An icon goes first: `<svg class="i">` from `/static/icons.svg`.
 - **States:** hover darkens or tints (150ms colour fade), press scales to .96 (only without reduced motion), `:disabled` / `aria-disabled="true"` at 50% opacity, focus is the shared 2px charcoal outline at 2px offset.
 
 ### Badges
-`.badge` (13px, 600, 4px radius) plus `.badge-open` (green), `.badge-closed` (grey), `.badge-joined` (gold tint), `.badge-revoked` (red), `.badge-difficulty` (outlined). A badge states a status; it is never a button.
+`.badge` plus `.badge-open` (green), `.badge-closed` (grey), `.badge-joined` (gold tint), `.badge-revoked` (red), `.badge-difficulty` (outlined). A badge states a status; it is never a button.
 
 ### Cards and panels
-- `.card`: surface, 1px `--line`, `--radius-lg`, padding `--space-5`. `.card-head` (title + actions, wraps), `.card-head h2` at Title, `.card-sub` muted; `.card-flush` drops the padding for a table (`.card-head-pad` puts it back on the head).
+- `.card`: 1px `--line`. `.card-head` (title + actions, wraps), `.card-head h2` at Title, `.card-sub` muted; `.card-flush` drops the padding for a table (`.card-head-pad` puts it back on the head).
 - `.panel`: the Course page's side card (`.panel-k` label, `.panel-big` big value, `.panel-msg` note).
 - Never nest a card in a card. Prefer a ruled list (rows split by `--line`, like `.lesson-list`) where items are read in order.
 
 ### Form fields
 - `.form` (grid, `--space-4` gaps) of `.field` (label, control, `small` hint, `.field-err` / `.field-ok`). `.opt` marks "(optional)" in a label. `.field-grid` / `.field-grid-2` put fields side by side (one column on phones); `.field-half` limits a short field; `.suffix` adds a unit after an input; `.check` and `.check-card` for checkboxes; `.search` for a search box with its icon; `.inline-form` for a one-line filter.
-- Text fields: surface, 1px `--line-strong`, `--radius`, `--fs-body`; hover darkens the border; focus sets a charcoal border, the gold `--focus` halo and a transparent 2px outline, which Windows High Contrast draws as a real ring. Never set `outline: none` on focus (the stylesheet test fails).
+- Text fields: 1px `--line-strong`; hover darkens the border; focus sets a charcoal border, the gold `--focus` halo and a transparent 2px outline, which Windows High Contrast draws as a real ring. Never set `outline: none` on focus (the stylesheet test fails).
 - Errors: `aria-invalid="true"` turns the border red; `.field-err` with `role="alert"` says what is wrong and how to fix it.
 - `.form-foot`: the form's last row, a hairline above, secondary action left, primary right.
 
@@ -252,7 +252,7 @@ Squared, confident, one weight (600, `--fs-ui`). `.btn` plus one variant:
 `.lab-tabs` / `.lab-tab` with `aria-current="page"`: a gold bar under the current tab. Shared by the Lab and the Course tabs (`course-tabs` template).
 
 ### Header
-The eight sections stay as the client specified (`docs/top-nav-spec.md`): Home, Courses, Lab, Classroom, Pricing, Program, Certification, Community. A section with one link is that link (`a.hdr-link`): Lab, Program, Community, and Certification for a Visitor. Each other is a `<details class="hdr-drop" name="hdr">` with a `summary.hdr-link`, so opening one closes the others; `header.js` closes the open one on Escape and returns focus to its button.
+The eight sections stay as the client specified, in this order: Home, Courses, Lab, Classroom, Pricing, Program, Certification, Community. A section with one link is that link (`a.hdr-link`): Lab, Program, Community, and Certification for a Visitor. Each other is a `<details class="hdr-drop" name="hdr">` with a `summary.hdr-link`, so opening one closes the others; `header.js` closes the open one on Escape and returns focus to its button.
 - **Wide (1280px and up):** surface bar, logo 44px tall, menus in `--fs-ui` ink-2. A gold 2px rule grows under a link on hover and stays under an open menu's button. The menu (`.hdr-panel`) is a surface card with `--shadow-pop`; its links are full-width rows tinted on hover; a Courses menu's last link (All courses) sits under a rule.
 - **Phone and tablet (below 1280px):** BM | EN and a Menu button; the Menu is a sheet across the screen under the header, each site menu a full-width row with a caret (`.hdr-caret`) that turns when its group opens, then the account links.
 - The account (`.hdr-account`) is Log in + Register (`.btn-solid.btn-sm`) for a Visitor, or the Learner's name opening their menu.

@@ -11,53 +11,7 @@ The app runs on the SG VPS (`ssh vps`, Ubuntu 24.04, with the other apps; the ol
 | Uploads | `/var/lib/cave-lms/uploads` |
 | Database | `cave` on the local Postgres 16, peer auth over the Unix socket. Postgres allows 100 connections shared with the other apps on the VPS; the app holds at most 25 (`maxDBConns` in `internal/app/app.go`) |
 
-Both the database and the uploads directory are backed up every night (see Backups).
-
-## First install
-
-Once per VPS. Run as root on the VPS.
-
-1. Point A records for `cavelms.com` and `www.cavelms.com` at `13.140.65.183` (DNS is at NetKL) and wait until `dig +short cavelms.com` returns it. Caddy can't get a certificate before that.
-2. Create the system user, database and settings:
-
-   ```sh
-   useradd --system --home /var/lib/cave-lms --shell /usr/sbin/nologin cave
-   sudo -u postgres createuser cave
-   sudo -u postgres createdb --owner cave cave
-   install -d -m 0755 /etc/cave-lms
-   install -m 0600 /dev/null /etc/cave-lms/env
-   cat > /etc/cave-lms/env <<'EOF'
-   DATABASE_URL=postgres:///cave?host=/var/run/postgresql
-   PUBLIC_BASE_URL=https://cavelms.com
-   EMAIL_FROM="Cave LMS <noreply@cavelms.com>"
-   STORAGE_DIR=/var/lib/cave-lms/uploads
-   LISTEN_ADDR=127.0.0.1:8088
-   OWNER_EMAIL=hafizwasabie@gmail.com
-   CAVETEXT_EXTENSION_IDS=omcdclpagggfcjlhpkohpcgdmfbelohd,akkjngndkjadciijkjblnojfgbbhhmnl,ckbckpnpljpmcoeajhokjpombijphbkd
-   EOF
-   ```
-
-   Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see Email below).
-
-   For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only live orders on the form that Admin > CaveText settings > Payment link points to give Pro; Test Mode orders are only logged. The Test Mode copies of the forms send to staging instead (see Staging). Without the key every webhook gets 404.
-
-   BCL signs no webhook, so also add `BCL_API_TOKEN`: in BCL, Platform Setup > Integrations > Developer, create an API token with Read access, named for production. Each paid order is then read from BCL's order detail, `https://bcl.my/api/transactions/<order>` (live orders only), and gives nothing unless BCL has it successful (status 3), paid and live. Everything that decides the grant comes from that detail, not the webhook, whose body gives only the event and the order number: the payer email, the amounts (subtotal, discount, amount charged), the CAVELMS account email field and the form. The form is BCL's form id for the order (`formable_id`), matched to a product through `https://bcl.my/api/forms`, read on every order: the product is the one whose payment link (Admin > Prices) ends in the slug BCL lists with that id, so two forms with one title are told apart and renaming a form is safe. A webhook value that disagrees with BCL's (its `form_url`, payer email, amounts, or another CAVELMS account than BCL's order names) is noted in the order's System log line, as an error, without any email, and BCL's is used: a forged body racing BCL's own webhook gives what BCL's order bought to the account BCL's order names, and BCL's webhook after it is a repeat. An order paid on a form that is no product's, or that BCL charged under its subtotal less discount, may still be a real payment: it gives nothing, is answered 200, is kept under Payments not matched on Admin > CaveText Learners for an Admin to give by hand, and writes a System log error naming the order and why. An order BCL does not know yet (404) or has not marked successful, paid and live (any case), whose detail names no form, or BCL out of reach or failing (10 s timeout), is answered 500 and logged, and BCL retries: a real payment is given once BCL confirms it. A forged order number keeps failing that way, so many such System log errors for one order need a look. A revoked, expired or wrong token fails every order the same way, logged as `BCL API token refused (401): replace BCL_API_TOKEN` (or 403). The app also reads BCL's forms with the token at startup and once a day, and writes that same System log error when BCL refuses it, or one saying it could not check when BCL is out of reach; it starts either way. To replace the token: in BCL, Platform Setup > Integrations > Developer, create a new API token with Read access, named for production (or staging); set `BCL_API_TOKEN` to it in `/etc/cave-lms/env` (production) or `/etc/cave-lms/staging.env` (staging); restart with `systemctl restart cave-lms` (or `cave-lms-staging`); check the System log has no refused-token error after the start-up line; then delete the old token in BCL. Orders BCL retried meanwhile are given on their next retry. Without the token, orders are not confirmed, the app says so at startup, and anyone who learns the webhook address can forge one. `BCL_API_URL` (default `https://bcl.my/api`) is for tests only.
-
-   For Datasets in R2, add the four `R2_` settings the same way (see Datasets in R2 below). Without them Datasets are kept under `STORAGE_DIR`.
-
-   For AI-written Exam questions and Lesson text, add the `OPENROUTER_` settings the same way (see AI writer below). Without them the Exam page and the Lesson form say the AI writer is not configured.
-
-3. From your machine, run `deploy/deploy.sh` (next section).
-4. Create the Admin on the VPS. `systemd-run` runs it as `cave` with the service's own env file. `read -s` hides the password as you type, and passing it on stdin keeps it out of shell history and process lists:
-
-   ```sh
-   read -rsp 'Admin password: ' pw; echo
-   printf '%s\n' "$pw" | systemd-run --quiet --pipe --wait --collect -p User=cave -p EnvironmentFile=/etc/cave-lms/env \
-     /usr/local/bin/cave-lms create-admin --name "Abah" --email you@example.com
-   unset pw
-   ```
-
-   Running it again for an email that already has an account replaces that password, makes the account an Admin and signs it out everywhere: every session and CaveText token ends, as with a password reset. Use it to recover an Admin account.
+Both the database and the uploads directory are backed up every night. First install, changing the domain, backups and restores, data requests and breaches are in `docs/runbook.md`.
 
 ## Deploying an update
 
@@ -68,11 +22,11 @@ CAVE_ENV=staging deploy/deploy.sh
 deploy/deploy.sh            # CAVE_HOST=other-host deploy/deploy.sh to target another SSH host
 ```
 
-It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. A production deploy also refuses a commit that has not passed the smoke test on staging; for an emergency fix, `CAVE_SKIP_STAGING=1 deploy/deploy.sh` skips that check. When the commit adds a migration since the one production runs, or production's commit is not known, it runs a backup first and waits for it; that snapshot is tagged `pre-deploy` and kept out of the nightly pruning (see Backups). A merge makes a new commit, so after merging a pull request, deploy main to staging again before production.
+It refuses a checkout with uncommitted changes or a commit whose CI run (`.github/workflows/ci.yml`) has not passed, so `gh` must be signed in. A production deploy also refuses a commit that has not passed the smoke test on staging; for an emergency fix, `CAVE_SKIP_STAGING=1 deploy/deploy.sh` skips that check. When the commit adds a migration since the one production runs, or production's commit is not known, it runs a backup first and waits for it; that snapshot is tagged `pre-deploy` and kept out of the nightly pruning (`docs/runbook.md`, Backups). A merge makes a new commit, so after merging a pull request, deploy main to staging again before production.
 
 Then it builds a Linux binary and copies the binary, unit, Caddy site and smoke test to the VPS. The Caddy site is replaced only if the whole Caddyfile still validates; otherwise the previous one is kept and the script fails before anything else changes. Then it swaps the binary, restarts `cave-lms` and waits for it to answer. Migrations and any startup work run before it listens, so after a migration (and always on staging) it waits up to 120 seconds, and 15 seconds otherwise; it gives up at once if the service crashes or exits while starting. Migrations run on start. Logs: `journalctl -u cave-lms -n 100`.
 
-Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. **After a migration there is no rollback**: when the commit may have added one (the backup above was due), a failed start or smoke test leaves the new binary in place, prints `journalctl -u cave-lms -n 50` and fails, because the previous binary is likely broken against the migrated schema (on 2026-10-27 it ran for 2 minutes with `relation "datasets" does not exist`). Fix forward and deploy again, or restore the pre-deploy snapshot (see Backups, Restoring a pre-deploy snapshot); the old binary is `/usr/local/bin/cave-lms.prev` if it is wanted. Run it by hand with `ssh vps cave-lms-smoke production` or `ssh vps cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
+Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. **After a migration there is no rollback**: when the commit may have added one (the backup above was due), a failed start or smoke test leaves the new binary in place, prints `journalctl -u cave-lms -n 50` and fails, because the previous binary is likely broken against the migrated schema. Fix forward and deploy again, or restore the pre-deploy snapshot (`docs/runbook.md`, Restoring a pre-deploy snapshot); the old binary is `/usr/local/bin/cave-lms.prev` if it is wanted. Run it by hand with `ssh vps cave-lms-smoke production` or `ssh vps cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
 
 ## Promos
 
@@ -98,145 +52,15 @@ Deploy the current checkout, from any branch, once it is committed, pushed and C
 CAVE_ENV=staging deploy/deploy.sh
 ```
 
-It ships only the staging binary, unit and Caddy site, and leaves production and the backups alone. A failed smoke test leaves staging as it is, to be looked at. Logs: `journalctl -u cave-lms-staging -n 100`.
+It ships only the staging binary, unit and Caddy site, and leaves production and the backups alone. A failed smoke test leaves staging as it is, to be looked at. Logs: `journalctl -u cave-lms-staging -n 100`. Setting staging up from nothing is `docs/runbook.md`, First install of staging.
 
 ### What keeps staging off the real world
 
 - **Email** goes only to the addresses in `EMAIL_ALLOWLIST` (comma-separated; `@example.com` allows a whole domain). Any other message is not sent: it goes to the System log (and journald) in full, link included, so the Owner can read it at `staging.cavelms.com/admin/log`. Production leaves `EMAIL_ALLOWLIST` unset and emails everyone.
-- **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Each is confirmed with BCL's API when `BCL_API_TOKEN` is set, as on production, though BCL gives nothing for a Test Mode order but its amount, payer and status, so the form is checked only by amount and price, and the CAVELMS account email on the form must be the payer's email (see step 2 below). Testers pay with the email of their staging account, or an Admin gives the product by hand. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
+- **BCL**: `BCL_PAYMENTS=test` counts Test Mode orders as paid and ignores live ones. Each is confirmed with BCL's API when `BCL_API_TOKEN` is set, as on production, though BCL gives nothing for a Test Mode order but its amount, payer and status, so the form is checked only by amount and price, and the CAVELMS account email on the form must be the payer's email (`docs/runbook.md`, First install of staging, step 2). Testers pay with the email of their staging account, or an Admin gives the product by hand. Production leaves it unset (`live`), so it keeps ignoring Test Mode. The TEST forms send their webhooks to staging.
 - **Placeholders**: the staging unit sets `CAVE_ENV=staging`, so the home page shows its marked placeholders for numbers the client has not supplied yet. Production leaves `CAVE_ENV` unset (production) and never shows them. Run locally with `CAVE_ENV=development` to see them.
 - **Data** starts empty. Set up Courses, Exams and prices by hand in staging's Admin.
 - **CaveText** can't sign in to staging: `CAVETEXT_EXTENSION_IDS` is unset and the extension would trip over the login. A Test Mode payment still gives Pro, and the System log says so.
-
-### First install of staging
-
-Run as root on the VPS unless a step says otherwise.
-
-1. At NetKL, add an A record `staging.cavelms.com` → `13.140.65.183`, then wait until `dig +short staging.cavelms.com` returns it.
-2. Create the system user, database and settings:
-
-   ```sh
-   useradd --system --home /var/lib/cave-lms-staging --shell /usr/sbin/nologin cave_staging
-   sudo -u postgres createuser cave_staging
-   sudo -u postgres createdb --owner cave_staging cave_staging
-   install -m 0600 /dev/null /etc/cave-lms/staging.env
-   cat > /etc/cave-lms/staging.env <<'EOF'
-   DATABASE_URL=postgres:///cave_staging?host=/var/run/postgresql
-   PUBLIC_BASE_URL=https://staging.cavelms.com
-   EMAIL_FROM="Cave LMS Staging <noreply@cavelms.com>"
-   EMAIL_ALLOWLIST=hafizwasabie@gmail.com
-   STORAGE_DIR=/var/lib/cave-lms-staging/uploads
-   LISTEN_ADDR=127.0.0.1:8089
-   OWNER_EMAIL=hafizwasabie@gmail.com
-   BCL_PAYMENTS=test
-   EOF
-   ```
-
-   Add the client's addresses to `EMAIL_ALLOWLIST`. Then, with an editor, add `RESEND_API_KEY` (a new Resend key with Sending access only, named for staging, so it can be revoked alone; it shares production's 100 emails a day), `BCL_WEBHOOK_KEY` (a new one, `openssl rand -hex 24`, not production's) and `BCL_API_TOKEN` (a new BCL API token with Read access, from Platform Setup > Integrations > Developer, named for staging so it can be revoked alone). With `BCL_PAYMENTS=test` orders are looked up at `https://bcl.my/api/transaction/<order>`, which also finds Test Mode orders; production's `/transactions/<order>` answers 404 for them. This lookup gives only the order's amount charged, payer email and status: no form and no custom fields. BCL's API has no other record of a Test Mode order (its order detail, list and customer records leave them out), so the form and the CAVELMS account email can only come from the webhook. Staging therefore checks the form only by amount and price: a dearer Test Mode order can be claimed as a cheaper TEST product, never the reverse. It binds the account to BCL's payer (see the BCL bullet above, under What keeps staging off the real world). A CAVELMS account email that is not BCL's payer email (ignoring case and spaces) gives nothing and is answered 200. The order is kept under Payments not matched for an Admin, and a System log error notes it without either email. A webhook without the field gives the order to the payer. An order BCL reports for another amount or payer email, or charged under the webhook's subtotal less discount, is answered 200, gives nothing and is only logged as an error.
-3. Create the login, user `cave`. The password is generated into a root-only file; read it there (`cat /etc/cave-lms/staging-login-password`) and give it to the client out of band:
-
-   ```sh
-   (umask 077; openssl rand -base64 18 > /etc/cave-lms/staging-login-password)
-   pw=$(cat /etc/cave-lms/staging-login-password)
-   echo "cave $(printf '%s\n%s\n' "$pw" "$pw" | caddy hash-password 2>/dev/null)" > /etc/caddy/cave-lms-staging-login
-   unset pw; chmod 644 /etc/caddy/cave-lms-staging-login
-   ```
-
-   To change it, rerun these lines, then `systemctl reload caddy`.
-4. From your machine, run `CAVE_ENV=staging deploy/deploy.sh`.
-5. Create the Admin as in First install, step 4, with `-p User=cave_staging -p EnvironmentFile=/etc/cave-lms/staging.env /usr/local/bin/cave-lms-staging`.
-6. In BCL, set each TEST form (19556, 19624, 19625) under Advanced > Webhook Settings to `https://staging.cavelms.com/cavetext/bcl/<staging key>` with the Payment Success event. In staging's Admin > Prices, set each payment link to the matching TEST form's address (`https://ideaniagaventures.bcl.my/form/cavetext-pro-test`, `lab-plan-test`, `pro-plan-test`) and each price to no more than that form charges, or a TEST payment is kept for an Admin instead of giving the product.
-
-## Converting Practice Dashboards (one-off, ADR 0015)
-
-The first start of the release with spec #273 converts every Practice Dashboard (`dashboards.kind = 'practice'`) into a normal Dashboard: nothing to type but the deploy. Its Template opens with its saved column choices onto its Dataset as its blocks (`dashboards.config`), and its Dataset becomes its current one in `datasets` under the same store key, so no object is copied or deleted and its Deployment, drawn from the Dashboard on each visit, keeps its link and data. Theme, Template, choices and name stay. Each Dashboard converts in one transaction; a converted one is no longer Practice, so later starts change nothing. A Practice Dashboard whose Dataset the store cannot give stops the start (`journalctl -u cave-lms -n 20` names it), so the app never answers and the deploy puts the previous binary back; the Dashboards converted before it stay converted. Its saved size becomes the stored Dataset's size, as for any Dataset, in place of the uploaded file's.
-
-The command is the deploy itself, `CAVE_ENV=staging deploy/deploy.sh` then `deploy/deploy.sh`. The production deploy backs up first only when the release adds a migration; if it adds none, back up by hand before it (`ssh vps systemctl start cave-lms-backup`, then `journalctl -u cave-lms-backup -n 20`).
-
-**Rehearsing it on a copy of production.** Restore the latest backup into a scratch database (see Restoring), then start the new binary on it. Production's Datasets are in R2, which the backup does not hold, so give it a new R2 token with Object Read only on `cave-lms-datasets`: the conversion only reads, and the start-up prune's deletes then fail harmlessly instead of deleting what production still uses. Leave out `RESEND_API_KEY`, the BCL and the OpenRouter settings.
-
-```sh
-DATABASE_URL=postgres:///cave_rehearsal PUBLIC_BASE_URL=http://127.0.0.1:8090 LISTEN_ADDR=127.0.0.1:8090 \
-  EMAIL_FROM="Cave LMS <noreply@cavelms.com>" STORAGE_DIR=/tmp/cave-rehearsal-uploads \
-  R2_ACCOUNT_ID=... R2_BUCKET=cave-lms-datasets R2_ACCESS_KEY_ID=<read-only> R2_SECRET_ACCESS_KEY=<read-only> \
-  ./cave-lms   # stop it with Ctrl-C once it listens
-```
-
-**Checks, before and after** (on the rehearsal, then on production with `sudo -u postgres psql cave` and `https://cavelms.com` as `$base`):
-
-```sql
-SELECT kind, count(*) FROM dashboards GROUP BY kind;            -- after: no practice, same total
-SELECT count(*) FROM deployments;                               -- after: the same
--- before: the Practice Dashboards and their Deployments
-SELECT d.id, d.theme, d.dataset_key, d.dataset_file, dep.name
-  FROM dashboards d LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.kind = 'practice' ORDER BY d.id;
--- after, for those ids: same theme; storage_key the old dataset_key; current; blocks there
-SELECT d.id, d.kind, d.theme, ds.storage_key, ds.file_name, ds.state, jsonb_array_length(d.config->'blocks') AS blocks, dep.name
-  FROM dashboards d LEFT JOIN datasets ds ON ds.dashboard_id = d.id AND ds.state = 'current'
-  LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.id IN (...) ORDER BY d.id;
-```
-
-For each Deployment `$n` with Dataset key `$key`, before and after, the page answers 200 with the same Theme and block labels, and the data is the same:
-
-```sh
-curl -sL -o /dev/null -w '%{http_code}\n' "$base/d/$n/"
-curl -sL "$base/d/$n/" | grep -o '"\(theme\|label\)": "[^"]*"'
-curl -sL "$base/d/$n/data/$key" | sha256sum
-```
-
-A Dashboard never uploaded to has no blocks until its first confirm, as for a new one.
-
-**Dropped in a later release.** This release (#283) removes every Practice path from the code but keeps the conversion step (`convertPracticeDashboards`) and the columns it reads: `dashboards.kind` and the old `dashboards.dataset_key`, `dataset_file` and `dataset_size`. Migrations run before the conversion at start-up, so dropping them in the same release would lose the Practice Dashboards before they convert. Nothing else reads them now, except new Dashboards being inserted with `kind = 'work'` (the column defaults to `'practice'`). Once production has started on this release and the checks above show no `practice` row, a later release adds a migration dropping those four columns, removes `convertPracticeDashboards` with its test, and the `kind` in `createDashboard`'s insert.
-
-## Converting engine Dashboards to pages (ADR 0018, #375)
-
-The start-up step that gave each engine Dashboard with a Dataset the engine's page as its own ran on production on 2026-10-27 and is gone (ADR 0019, #388): a start converts nothing now, so a Dashboard Cave builds stays built. #389 turns the Dashboards it converted back into built ones.
-
-**Migration 00125 (#389)** deletes the page record of every Dashboard that still has its engine settings (`config` a JSON object) and exactly one page record, the converted one. Each is a built Dashboard again, served by the engine at the same link, in its Theme, with its Dataset. The `dashboard_pages` delete trigger queues the page's file in `stored_file_deletions`, the start-up prune deletes it from the store, and the Storage totals drop by its size. A Dashboard whose owner has since uploaded a page of their own (more than one record) stays a page Dashboard; a pasted one (no `config`) is untouched. On a database with no converted Dashboards it deletes nothing. Its Down does nothing: a converted page cannot be rebuilt in SQL.
-
-**Stop before deploying.** Run the first query below on production (`ssh vps`, then `sudo -u postgres psql cave`) before deploying this release. It must list exactly the 6 Dashboards converted on 2026-10-27, the ones with Deployments `/d/try/` and `/d/inv2/` among them, each with one page. If it lists any other Dashboard, or not all six, do not deploy: 00125 would delete that Dashboard's only page. Tell Abah, with the rows it listed.
-
-The deploy backs up production first, as the release adds a migration. Checks, on staging then production (`sudo -u postgres psql cave`), before and after:
-
-```sql
--- before: the six converted Dashboards, one page each; after: none of these rows
-SELECT d.id, d.name, d.theme, dep.name AS deployment, count(pg.id) AS pages
-  FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id
-  LEFT JOIN deployments dep ON dep.dashboard_id = d.id
-  WHERE jsonb_typeof(d.config) = 'object' GROUP BY d.id, dep.name HAVING count(pg.id) = 1 ORDER BY d.id;
--- the page records left: after, the before count less the six
-SELECT count(*) FROM dashboard_pages;
-SELECT count(*) FROM stored_file_deletions;   -- after the start-up prune: 0
-```
-
-After, `/d/try/` and `/d/inv2/` (which redirect to their Learner's Username, ADR 0023, hence `-L`) answer 200 with the engine's settings, their Theme and block labels, not the converted page, and each of the six Dashboards' Preview draws its Theme and blocks:
-
-```sh
-curl -sL "$base/d/try/" | grep -o '"\(theme\|label\)": "[^"]*"'
-curl -sL "$base/d/inv2/" | grep -o '"\(theme\|label\)": "[^"]*"'
-```
-
-## Changing the domain
-
-The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in `/etc/cave-lms/env`.
-
-1. Point the new domain's A record at the VPS (as in First install, step 1).
-2. In `deploy/cave-lms.caddy`, change the site address to the new domain and add a block that redirects the old one, keeping the path:
-
-   ```caddy
-   old.example.com {
-   	bind 13.140.65.183
-   	redir https://new.example.com{uri} 308
-   }
-   ```
-
-3. Set `PUBLIC_BASE_URL` to the new domain in `/etc/cave-lms/env`.
-4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
-5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see Email below). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
-
-A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect.
-
-**Standing rule: an old domain keeps redirecting forever.** Never remove an old domain's redirect block, and keep renewing the old domain. A printed or saved Certificate carries its verification link on the domain that was current when the PDF was downloaded. See `docs/adr/0002-old-domains-redirect-forever.md`.
 
 ## Upload limit
 
@@ -317,6 +141,14 @@ On the Lesson form, Generate text has the AI write the Lesson's text, about 500 
 
 There is no built-in model: with the key or model unset the app starts, the Exam page and the Lesson form say the AI writer is not configured, and Written attempts with non-blank answers wait for the Admin to mark them on Admin > Results; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt` for questions, `internal/aiwriter/mark_answer.txt` for marks and `internal/aiwriter/write_lesson.txt` for Lesson text, built into the binary: edit them and deploy to change the wording.
 
+## CaveText
+
+`CAVETEXT_EXTENSION_IDS` is the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`; unset, sign-in is refused (staging leaves it unset). Production lists three:
+
+- `omcdclpagggfcjlhpkohpcgdmfbelohd`: the unpacked development build.
+- `akkjngndkjadciijkjblnojfgbbhhmnl`: the zip shared before store approval, built by CaveText's `package.sh` with a fixed key.
+- `ckbckpnpljpmcoeajhokjpombijphbkd`: the Chrome Web Store item.
+
 ## Email
 
 Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records at NetKL (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
@@ -325,211 +157,4 @@ A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) wi
 
 ## Query statistics
 
-`pg_stat_statements` records per-query timing, so index decisions rest on evidence (spec #321). It is a one-time step on the VPS's Postgres 16, done as the `postgres` superuser. It is not a goose migration: the extension is not trusted, so the app's `cave` role cannot create it, and a migration that tried would stop the app starting.
-
-The preload setting is for the whole Postgres cluster, which production, staging and the other apps on the VPS share, so there is **one restart for all of them**, not one each, and staging cannot soak it first. Pick a quiet hour: connections drop for a few seconds, for the other apps too. Staging comes first only for the extension: its database gets it, and is checked, before production's does.
-
-Run as root on the VPS:
-
-1. Read the current setting, which is empty on a fresh Ubuntu install, so the new value keeps anything already there:
-
-   ```sh
-   sudo -u postgres psql -Atc 'SHOW shared_preload_libraries'
-   ```
-
-   If it prints nothing, set it to `pg_stat_statements`. If it prints a list, set it to that list with `pg_stat_statements` added, for example `'pg_cron,pg_stat_statements'`. If it already contains `pg_stat_statements`, skip to step 3.
-
-   ```sh
-   sudo -u postgres psql -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements'"
-   ```
-
-   `ALTER SYSTEM` writes `postgresql.auto.conf` in the data directory, which wins over `postgresql.conf` and `conf.d`.
-2. Restart, then check the cluster and both apps are back (`pg_lsclusters` shows the cluster name; Ubuntu's is `16/main`):
-
-   ```sh
-   systemctl restart postgresql@16-main
-   pg_lsclusters
-   systemctl is-active cave-lms cave-lms-staging
-   sudo -u postgres psql -Atc 'SHOW shared_preload_libraries'
-   ```
-
-   Open `staging.cavelms.com` and `cavelms.com` and check a page loads; `journalctl -u cave-lms -u cave-lms-staging -n 50` shows any database error from the restart.
-3. Create the extension in staging first, then production. It is once per database and needs no restart, so production's can wait until staging has shown rows (below):
-
-   ```sh
-   sudo -u postgres psql -d cave_staging -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
-   # after staging has shown rows:
-   sudo -u postgres psql -d cave -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements'
-   ```
-
-**Confirm it works.** Click around staging as a few users, then list its most-called statements: the app's own queries should be there, with `calls` growing as you click.
-
-```sh
-sudo -u postgres psql -d cave_staging -c "SELECT calls, left(query, 80) AS query FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AND query NOT LIKE '%pg_stat_statements%' ORDER BY calls DESC LIMIT 10"
-```
-
-`pg_stat_statements must be loaded via "shared_preload_libraries"` means the restart (or the setting) did not happen. `relation "pg_stat_statements" does not exist` means step 3 was skipped for that database.
-
-**Read the slowest queries**, per database (`-d cave` or `-d cave_staging`). The view holds every database in the cluster, so keep the `dbid` filter. Times are milliseconds. Slowest on average, ignoring one-off queries:
-
-```sql
-SELECT round(mean_exec_time::numeric, 1) AS mean_ms, calls,
-       round(total_exec_time::numeric) AS total_ms, left(query, 100) AS query
-FROM pg_stat_statements
-WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database()) AND calls >= 5
-ORDER BY mean_exec_time DESC LIMIT 20;
-```
-
-Most total time, which is where an index pays most:
-
-```sql
-SELECT round(total_exec_time::numeric) AS total_ms, calls,
-       round(mean_exec_time::numeric, 1) AS mean_ms, left(query, 100) AS query
-FROM pg_stat_statements
-WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
-ORDER BY total_exec_time DESC LIMIT 20;
-```
-
-To clear this database's counters, for a clean before and after around a new index (superuser; the three zeros mean every user, every query):
-
-```sql
-SELECT pg_stat_statements_reset(0, (SELECT oid FROM pg_database WHERE datname = current_database()), 0);
-```
-
-**Grants.** None are needed. As `postgres` the whole view is readable. `cave` and `cave_staging` can read it too, and see `query` text for their own statements, which is every statement the app runs. Only `GRANT pg_read_all_stats TO cave` would show other roles' text.
-
-## Backups
-
-Every night at 03:00 (VPS time, MYT) `cave-lms-backup.timer` runs `/usr/local/bin/cave-lms-backup` (`deploy/backup.sh`). It dumps the `cave` database with `pg_dump`, mirrors the Datasets bucket `cave-lms-datasets` (ADR 0008, Datasets and Assignment Submission files) into `/var/backups/cave-lms/datasets` with `rclone sync` using the app's R2 settings in `/etc/cave-lms/env`, and backs up the dump, `/var/lib/cave-lms/uploads` and that mirror with [restic](https://restic.net) to two encrypted repositories:
-
-| Where | Repository |
-|---|---|
-| On the VPS | `/var/backups/cave-lms/restic` (quick restores after a mistake) |
-| Cloudflare R2 | bucket `cave-lms-backups` (survives losing the VPS) |
-
-Each keeps the last 7 days, 4 weeks and 6 months of the nightly snapshots (tag `nightly`), and is checked after every run. The backup `deploy/deploy.sh` takes before a commit that adds a migration is a separate snapshot tagged `pre-deploy` and `commit-<first 12 characters of the commit>`; the nightly pruning never touches it, and its own policy keeps the last 10 in each repository. It also leaves a copy of its dump in `/var/backups/cave-lms/pre-deploy/` (last 10), which later runs do not overwrite, and it does not ping `HEALTHCHECK_URL`. It runs through `systemctl start cave-lms-backup` with `CAVE_PREDEPLOY_SHA` set in systemd's environment for that call. A nightly run still in progress when the deploy starts would be joined, not repeated, and would leave no `pre-deploy` snapshot. If the VPS was off at 03:00, the backup runs at boot.
-
-Each snapshot therefore holds the database rows and the Dataset objects from the same moment. A Learner's Delete still removes the object from R2 at once, and it leaves the backups with the last snapshot that holds it: within 6 months, as the privacy notice promises. Backup copies do not count against the Storage allowance. A Dataset created and deleted between two nightly runs is never backed up. The mirror is a full copy on the VPS disk (112 GB free in October 2026); once the bucket passes about 50 GB, switch to a bucket-to-bucket copy or a soft delete in the app.
-
-| File on the VPS | Holds |
-|---|---|
-| `/etc/cave-lms/backup.env` | `R2_ENDPOINT`, `R2_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (an R2 token with Object Read & Write on the bucket only), `ALERT_EMAIL`, optional `HEALTHCHECK_URL` |
-| `/etc/cave-lms/restic-password` | the encryption password for both repositories |
-
-Both are root-only (mode 0600). **Keep a copy of the restic password in a password manager**: without it the R2 backups cannot be opened, and if the VPS is lost so is the file.
-
-**A failed backup is noticed.** `cave-lms-backup-failed.service` emails `ALERT_EMAIL` through Resend with the last log lines. If `HEALTHCHECK_URL` is set (a free healthchecks.io check with a 1-day period and grace), a missed or silently skipped backup also raises an email.
-
-Useful commands on the VPS:
-
-```sh
-systemctl start cave-lms-backup            # run a backup now
-journalctl -u cave-lms-backup -n 50        # what the last run did
-systemctl list-timers cave-lms-backup      # when the next run is
-set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
-restic -r /var/backups/cave-lms/restic snapshots
-restic -r "s3:$R2_ENDPOINT/$R2_BUCKET" snapshots
-restic -r /var/backups/cave-lms/restic snapshots --tag pre-deploy    # only the ones taken before a migration
-```
-
-First install: `install -m 600 /dev/null /etc/cave-lms/backup.env` and fill it in, create the password with `(umask 077; openssl rand -base64 32 > /etc/cave-lms/restic-password)`, copy the password into a password manager, then run `deploy/deploy.sh`, which installs restic and enables the timer once both files exist.
-
-### Restoring
-
-On any machine with restic, Postgres and the R2 settings and restic password (from the password manager):
-
-```sh
-export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... RESTIC_PASSWORD=...
-repo="s3:https://<account id>.r2.cloudflarestorage.com/cave-lms-backups"
-restic -r "$repo" snapshots                       # pick one, or use latest
-restic -r "$repo" restore latest --target /tmp/cave-restore
-# the dump is at /tmp/cave-restore/var/backups/cave-lms/staging/cave.dump
-# the uploads are at /tmp/cave-restore/var/lib/cave-lms/uploads
-createdb cave && pg_restore --no-owner --dbname=cave /tmp/cave-restore/var/backups/cave-lms/staging/cave.dump
-```
-
-Tested 2026-10-20 on a laptop as the fresh machine: the latest R2 snapshot restored the Admin account and all 10 Gallery items with their files, and the app served them.
-
-The Datasets are at `/tmp/cave-restore/var/backups/cave-lms/datasets`; copy them back with `rclone copy` (below).
-
-**A backup from before #411 (2026-10-27)** holds Datasets in the shape from before Parts, which only a release from before the Parts-conversion removal (#466) rewrites at start-up. Boot such a release once on the restored database and Datasets, let it finish starting, stop it, and only then start the current release. The current release does not convert them.
-
-Then point `DATABASE_URL` at that database and `STORAGE_DIR` at the restored uploads directory and start the app (on a new VPS: follow First install, restore into the `cave` database as the `cave` user, and copy the uploads to `/var/lib/cave-lms/uploads` owned by `cave`). After a mistake on the live VPS, restore from the local repository instead and stop `cave-lms` while swapping the database. Once Query statistics is on, the dump also holds `CREATE EXTENSION pg_stat_statements`: a restore as `cave` reports errors for that and loads everything else; as `postgres` on Postgres 16 it restores in full.
-
-### Restoring a pre-deploy snapshot
-
-After a bad migration, restore the snapshot taken just before it. Its dump, uploads and Datasets mirror are from the same moment. `restic snapshots --tag pre-deploy` lists them with their time and `commit-<sha>` tag; take the last one before the deploy that failed. The dump is at the same path as in any snapshot, and a copy sits in `/var/backups/cave-lms/pre-deploy/`:
-
-```sh
-set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
-repo=/var/backups/cave-lms/restic            # or "s3:$R2_ENDPOINT/$R2_BUCKET"
-restic -r $repo snapshots --tag pre-deploy
-systemctl stop cave-lms
-restic -r $repo restore <snapshot> --target /tmp/r
-runuser -u postgres -- dropdb cave && runuser -u postgres -- createdb --owner cave cave
-runuser -u postgres -- pg_restore --no-owner --role=cave --dbname=cave /tmp/r/var/backups/cave-lms/staging/cave.dump
-mv /usr/local/bin/cave-lms.prev /usr/local/bin/cave-lms   # the binary that matches this schema, if the deploy swapped it out
-systemctl start cave-lms
-```
-
-The Datasets objects are in `/tmp/r/var/backups/cave-lms/datasets`; put back only the ones the migration or conversion removed or rewrote, with `rclone copy` as in the next section. Drop `/tmp/r` afterwards.
-
-### Restoring one deleted Dashboard's Datasets
-
-On the VPS, from the local repository (use the R2 one if the VPS repository is gone). Pick the last snapshot taken before the delete:
-
-```sh
-set -a; . /etc/cave-lms/backup.env; set +a; export RESTIC_PASSWORD_FILE=/etc/cave-lms/restic-password
-repo=/var/backups/cave-lms/restic
-restic -r $repo snapshots
-# the database rows: restore that snapshot's dump into a scratch database and read the Dashboard's Dataset keys
-restic -r $repo restore <snapshot> --include /var/backups/cave-lms/staging/cave.dump --target /tmp/r
-runuser -u postgres -- createdb cave_restore
-runuser -u postgres -- pg_restore --no-owner --dbname=cave_restore /tmp/r/var/backups/cave-lms/staging/cave.dump
-# the objects: one --include per key
-restic -r $repo restore <snapshot> --include /var/backups/cave-lms/datasets/<key> --target /tmp/r
-# put them back in the Datasets bucket with the app's R2 settings
-(set -a; . /etc/cave-lms/env; set +a
- export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true \
-   RCLONE_CONFIG_R2_ENDPOINT="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
-   RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
- rclone copy /tmp/r/var/backups/cave-lms/datasets "r2:$R2_BUCKET")
-```
-
-Then copy the Dashboard's rows from `cave_restore` into `cave` by hand with SQL, and drop `cave_restore` and `/tmp/r`.
-
-Tested 2026-10-25 on the VPS with a scratch restic repository: a Dataset object mirrored, backed up, deleted locally and restored came back byte-identical to the live object. The final `rclone copy` into the bucket was not run, to leave production data untouched.
-
-## Data requests
-
-The privacy notice (`/privacy`, see `docs/adr/0006-the-client-is-the-data-user-and-no-one-reads-snippets.md`) promises a copy, a correction or a deletion within 21 days of an email to the contact. Act only on a request sent from the account's own email address. On the VPS, `sudo -u cave psql cave`, then:
-
-```sql
--- find the account
-SELECT id, name, email, verified_at, created_at FROM learners WHERE lower(email) = lower('ada@example.com');
--- correct a name (it changes on every Certificate too)
-UPDATE learners SET name = 'Ada Lovelace' WHERE id = 42;
--- delete the account: everything on it goes with it, Certificates and Submissions included
--- (Submission files leave R2 at the next daily prune)
-DELETE FROM learners WHERE id = 42;
-```
-
-For a copy, `SELECT *` from `learners` and from each table with a `learner_id` column for that id, leaving out `password_hash` and the token tables (`sessions`, `one_time_tokens`, `cavetext_tokens`), and send the result. Deleted data leaves the backups as they expire, within 6 months.
-
-## Personal data breach
-
-A breach is personal data seen, copied, changed or lost by someone who should not have it: a leaked key, a stolen backup, a bug that showed one Learner's data to another. The PDPA sets the deadlines below. Keep notes with times as you go.
-
-1. **Find and contain.** Work out what was reached and since when (`journalctl -u cave-lms`, `/admin/log`, the VPS's auth log). Stop it: fix or roll back the bug, or stop the site (`systemctl stop cave-lms`) while it still leaks.
-2. **Tell the client the same day.** The Cave Consult is the data user; Wasabie Tech, its processor, tells them what happened, whose data and what kind, and what has been done.
-3. **The client notifies the Personal Data Protection Commissioner within 72 hours** of the breach being found, when it is likely to cause significant harm (for example password hashes, many accounts, or Snippets and master prompts). Give them the facts for the form.
-4. **Tell the affected Learners without delay, within 7 days** of the notification to the Commissioner: what was reached, what was done, and what they should do (for example change a password they reuse elsewhere).
-5. **Rotate whatever key was exposed.** `RESEND_API_KEY`: see Email. R2: create a new token in Cloudflare with Object Read & Write on `cave-lms-backups` only, put it in `/etc/cave-lms/backup.env`, run a backup, then delete the old token. restic password: for each repository `restic key add` with the new password, update `/etc/cave-lms/restic-password` and the password manager, then `restic key list` and `restic key remove <old id>`.
-6. **Revoke every login**, so a stolen cookie or token stops working (Learners log in again, CaveText signs in again, unused verify and reset links die):
-
-   ```sh
-   sudo -u cave psql cave -c 'DELETE FROM sessions; DELETE FROM cavetext_tokens; DELETE FROM one_time_tokens;'
-   ```
-
-7. **Restore if data was changed or lost**: from the local repository after a mistake, from R2 when the VPS itself is not trusted (see Restoring). After a break-in, restore onto a fresh VPS and rotate every key above, since the old server held them all.
-8. **Record what happened**: when it started and was found, what was reached, who was told and when, and what now stops it happening again. Keep the record even when no one had to be notified.
+`pg_stat_statements` is installed on production and staging (#321).

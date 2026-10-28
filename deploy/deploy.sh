@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds Cave LMS, ships it to the VPS with its systemd unit and Caddy site, restarts it and smoke-tests it (ADR 0011).
 # Run from anywhere in the repo: deploy/deploy.sh for production, CAVE_ENV=staging deploy/deploy.sh for staging.
-# First install steps are in docs/deploy.md.
+# First install steps are in docs/runbook.md.
 set -euo pipefail
 
 # vps: the SG box, where Cave runs with the other apps. The old FR box (vps-fr) is kept stopped as a fallback.
@@ -81,7 +81,7 @@ systemctl daemon-reload
 
 # Everything that can fail goes before the binary swap, so a failure leaves the running site as it was.
 if [ "$name" = cave-lms ]; then
-	# Backups need restic, rclone and the R2 settings in /etc/cave-lms/backup.env (docs/deploy.md, Backups).
+	# Backups need restic, rclone and the R2 settings in /etc/cave-lms/backup.env (docs/runbook.md, Backups).
 	chmod 755 /usr/local/bin/cave-lms-backup /usr/local/bin/cave-lms-backup-failed
 	for tool in restic rclone; do
 		command -v $tool >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $tool >/dev/null
@@ -157,9 +157,9 @@ if up_and_smoke_tested; then
 	exit 0
 fi
 # A rollback cannot undo a migration, and the previous binary likely fails against the new schema, so after one the new
-# binary stays for a human; the pre-deploy snapshot is in docs/deploy.md, Backups.
+# binary stays for a human; the pre-deploy snapshot is in docs/runbook.md, Backups.
 if [ "$env" = production ] && [ "$backup" = yes ]; then
-	echo "$name failed after a migration may have run. NOT rolling back: the previous binary ($bin.prev) is likely broken against the new schema. Fix forward, or restore the pre-deploy snapshot (docs/deploy.md, Backups)." >&2
+	echo "$name failed after a migration may have run. NOT rolling back: the previous binary ($bin.prev) is likely broken against the new schema. Fix forward, or restore the pre-deploy snapshot (docs/runbook.md, Backups)." >&2
 	journalctl -u "$name" -n 50 --no-pager >&2 || true
 	exit 1
 fi
