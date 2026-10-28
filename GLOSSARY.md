@@ -258,11 +258,12 @@ _Avoid_: Original price, list price, RRP
 **Promo**:
 A lower price for one product between two dates, which a Learner gets by entering the Promo's code on that product's payment form. The code itself lives in BCL, which limits how many times it is used in all (it cannot limit one person to one use) and which payment forms take it; CAVELMS only accepts a Payment of at least the Promo's price while the Promo runs. Several Promos may run at once; the lowest running price counts. Ending a Promo early keeps it listed. An Admin gives products by hand, but may pay with a Hidden Promo's code from a Learner account to check payments. A Pro Plan Promo may come with Ebooks: paying with its code gives Ebook access too, which the COMBO Pro Plan card advertises.
 _Malay_: Promosi
+_Avoid_: Coupon, voucher, discount
 
 **Hidden Promo**:
 A Promo an Admin adds with Hidden ticked, to check a real payment at a low price without telling the public. CAVELMS accepts a Payment at its price and gives Ebooks for its code like any Promo, but never shows it: not in the prices, not on the COMBO Pro Plan card, not in a locked ebook's pointer to it. Set when added; to change one, end it and add another. Not a "test" Promo: Test Mode and the Staging site already own that word.
 _Malay_: Promosi tersembunyi
-_Avoid_: Coupon, voucher, discount
+_Avoid_: Test Promo
 
 **Plan period**:
 One stretch of a Learner's Plan, from its start to its end. A Plan assigned while another period is running starts when that one ends. When a Learner's last period ends, their Workbooks, Datasets and Deployment pages are kept for 90 days, then deleted unless a new period has started.

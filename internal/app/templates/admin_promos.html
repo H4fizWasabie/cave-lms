@@ -42,7 +42,7 @@
               <div class="field"><label for="ends_on">{{t .Lang "promos.ends"}}</label><input id="ends_on" type="date" name="ends_on" value="{{.Form.EndsIn}}" required></div>
             </div>
             <label class="check-card"><input type="checkbox" name="ebooks" value="on"{{if .Form.Ebooks}} checked{{end}}><span><strong>{{t .Lang "promos.ebooks"}}</strong><small>{{t .Lang "promos.ebooks-sub"}}</small></span></label>
-            <label class="check-card"><input type="checkbox" name="hidden" value="on"{{if .Form.Hidden}} checked{{end}}><span><strong>{{t .Lang "promos.hidden-check"}}</strong><small>{{t .Lang "promos.hidden-sub"}}</small></span></label>
+            <label class="check-card"><input type="checkbox" name="hidden" value="on"{{if .Form.Hidden}} checked{{end}}><span><strong>{{t .Lang "promos.hidden"}}</strong><small>{{t .Lang "promos.hidden-sub"}}</small></span></label>
             <div class="form-actions"><button class="btn btn-solid">{{t .Lang "promos.add"}}</button></div>
           </form>
         </div>
