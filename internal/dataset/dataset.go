@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/md5"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,6 +23,19 @@ type Dataset struct {
 func New(db *sql.DB, store storage.Store) *Dataset {
 	return &Dataset{db: db, store: store}
 }
+
+// Kind is what an upload does to the Dataset once confirmed (ADR 0022), kept on its Part.
+type Kind string
+
+const (
+	ReplaceData Kind = "replace-data" // every current Part is deleted and the upload is the Dataset
+	Add         Kind = "add"          // the upload becomes the last Part and the others stay
+	ReplacePart Kind = "replace-part" // the upload takes the place of one Part and the others stay
+)
+
+// ErrPartGone is Delete's error for a Part that is not a current Part of the Dashboard: another delete or confirm
+// already took it.
+var ErrPartGone = errors.New("Part gone")
 
 // Part is a current Part as Keys lists it.
 type Part struct {
@@ -61,4 +75,44 @@ func datasetKey(keys []string) string {
 		return ""
 	}
 	return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(keys, ","))))
+}
+
+// Delete removes the Dashboard's current Part partID, and with it the Datasets from before Parts and the pending Part
+// that depended on it: an Add, which was put together from the Parts as they were, or a Replace of this Part. A Replace
+// of the data, or of another Part, stays. With no Part left the Dataset's columns are cleared to the empty list (NULL
+// is a Dataset never uploaded, which data.json answers 404) and so is its recipe, so the next upload is a first Part.
+// The stored rows of what it deletes are queued for deletion from the store by the database. It returns ErrPartGone
+// for a Part already deleted.
+func (d *Dataset) Delete(ctx context.Context, dashboardID, partID int64) error {
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Locking the Learner makes deletes, confirms and uploads take turns.
+	if _, err := tx.ExecContext(ctx, `SELECT 1 FROM learners WHERE id = (SELECT learner_id FROM dashboards WHERE id = $1) FOR UPDATE`, dashboardID); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM dataset_parts WHERE id = $1 AND dashboard_id = $2 AND state = 'current'`, partID, dashboardID)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n == 0 {
+		return ErrPartGone
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND (state = 'earlier'
+			OR state = 'pending' AND (upload_kind = $3 OR upload_kind = $4 AND replaces_part_id = $2))`,
+		dashboardID, partID, Add, ReplacePart); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE dashboards SET updated_at = now(),
+			dataset_columns = CASE WHEN left_over.none THEN '[]' ELSE dataset_columns END,
+			upload_settings = CASE WHEN left_over.none THEN upload_settings - 'recipe' ELSE upload_settings END
+		FROM (SELECT NOT EXISTS (SELECT 1 FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current') AS none) left_over
+		WHERE id = $1`, dashboardID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

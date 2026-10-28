@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -333,7 +334,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, upload, workbook)
+	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, uploadMode{}, upload, workbook)
 	// ponytail: a compensating delete, not one transaction, as keepPending runs its own; a crash between the insert and
 	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into keepPending
 	// if that turns up.
@@ -500,7 +501,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.AskHeader = p.Pending.HeaderRow
 		}
 	}
-	if p.Pending != nil && !p.Pending.mode().intoDataset() && d.Page != nil && d.Parts > 0 {
+	if p.Pending != nil && !p.Pending.Mode.intoDataset() && d.Page != nil && d.Parts > 0 {
 		// By exact name, as data.json's keys are: a Replace serves the new names as they are, so a page reading Jumlah
 		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.ColumnChanges) as it keeps the
 		// current names, so data.json's keys stay.
@@ -532,7 +533,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		if p.Pending != nil {
 			var room storageRoom
-			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.mode(), p.Access)
+			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.Mode, p.Access)
 			if err == nil && !room.Fits && p.Error == "" { // the confirm will be refused: say so now
 				var lang string
 				lang, err = a.language(r)
@@ -757,20 +758,20 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 // table; its Part is the new rows alone. The earlier Datasets are left as they are. With nothing left to convert it
 // reads one row.
 func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store) error {
-	rows, err := db.QueryContext(ctx, `SELECT id, dashboard_id, storage_key, state, part_date::text, cleanup FROM dataset_parts
+	rows, err := db.QueryContext(ctx, `SELECT id, dashboard_id, storage_key, state, part_date::text, cleanup, upload_kind FROM dataset_parts
 		WHERE legacy AND state <> 'earlier' ORDER BY state = 'pending', id`)
 	if err != nil {
 		return err
 	}
 	type old struct {
-		id, dashboard    int64
-		key, state, date string
-		cleanup          []byte
+		id, dashboard          int64
+		key, state, date, kind string
+		cleanup                []byte
 	}
 	var todo []old
 	for rows.Next() {
 		var o old
-		if err := rows.Scan(&o.id, &o.dashboard, &o.key, &o.state, &o.date, &o.cleanup); err != nil {
+		if err := rows.Scan(&o.id, &o.dashboard, &o.key, &o.state, &o.date, &o.cleanup, &o.kind); err != nil {
 			rows.Close()
 			return err
 		}
@@ -795,7 +796,7 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 		key, rows, rewrite := o.key, -1, json.Unmarshal(data, &d) == nil && len(d.Columns) > 0
 		if rewrite {
 			// Only a pending Add holds rows it has not added yet; a confirmed one's record still names its Add.
-			if o.state == "pending" && c.Added != nil && c.Added.Had <= len(d.Rows) {
+			if o.state == "pending" && o.kind == string(dataset.Add) && c.Added != nil && c.Added.Had <= len(d.Rows) {
 				d.Rows = d.Rows[c.Added.Had:]
 			}
 			c.Columns, rows = d.Columns, len(d.Rows)

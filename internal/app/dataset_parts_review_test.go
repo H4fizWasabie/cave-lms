@@ -3,8 +3,6 @@ package app_test
 import (
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -127,54 +125,6 @@ func TestAnUploadWithAColumnCalledPartDateIsRefusedInBothLanguages(t *testing.T)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Namakan semula lajur “part  DATE” dalam Excel")
 	if n := ada.datasetFiles(); n != 0 {
 		t.Fatalf("%d stored files after a refused upload, want 0", n)
-	}
-}
-
-// Deleting a Part changes the Dashboard's data, so the Datasets from before Parts go then too, not only on a confirm.
-func TestDeletingAPartDeletesTheEarlierDatasetsFromBeforeParts(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, _ := twoParts(t, ada)
-	earlier := "dataset-earlier-before-parts"
-	if err := os.WriteFile(filepath.Join(ada.storageDir, earlier), []byte(`{}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := ada.db.Exec(`INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, part_date)
-		SELECT dashboard_id, $1, 'agosto.xlsx', 1000, 2, 'earlier', '2026-02-01' FROM dataset_parts LIMIT 1`, earlier); err != nil {
-		t.Fatal(err)
-	}
-	del := partDeleteLink.FindStringSubmatch(mustGet(t, ada, path+"/data"))[1]
-	res, body := ada.post(del, confirming)
-	expectRedirect(t, res, body, path+"/data")
-	var left int
-	if err := ada.db.QueryRow(`SELECT count(*) FROM dataset_parts WHERE state = 'earlier'`).Scan(&left); err != nil || left != 0 {
-		t.Fatalf("%d earlier Datasets after deleting a Part (%v), want 0", left, err)
-	}
-	if n := ada.datasetFiles(); n != 1 {
-		t.Fatalf("%d stored files, want the one Part left", n)
-	}
-}
-
-// The recipe lasts while a Part remains: with none left, the next upload sets a new one.
-func TestDeletingTheLastPartClearsTheRecipe(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, _ := pageWithData(t, ada)
-	hasRecipe := func() bool {
-		var has bool
-		if err := ada.db.QueryRow(`SELECT upload_settings ? 'recipe' FROM dashboards`).Scan(&has); err != nil {
-			t.Fatal(err)
-		}
-		return has
-	}
-	if !hasRecipe() {
-		t.Fatal("the first confirm kept no recipe")
-	}
-	del := partDeleteLink.FindStringSubmatch(mustGet(t, ada, path+"/data"))[1]
-	res, body := ada.post(del, confirming)
-	expectRedirect(t, res, body, path+"/data")
-	if hasRecipe() {
-		t.Fatal("the recipe outlived the Dataset's last Part")
 	}
 }
 

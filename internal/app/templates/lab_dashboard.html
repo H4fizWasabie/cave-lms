@@ -100,10 +100,12 @@
           <section class="card ds-preview">
             <div>
               <h2 class="h-md">{{t $.Lang "lab.w.preview" .File}}</h2>
-              {{- with .Added}}
+              {{- if .IsAdd}}{{with .Added}}
               <p class="muted">{{tn $.Lang "lab.data.adds" .Rows .Had .Total}}</p>
-              {{- else with .Replaces}}
+              {{- end}}
+              {{- else if .IsReplace}}{{with .Replaces}}
               <p class="muted">{{tn $.Lang "lab.data.replaces" (len $.Pending.Dataset.Rows) .File (.Total (len $.Pending.Dataset.Rows))}}</p>
+              {{- end}}
               {{- else}}
               <p class="muted">{{tn $.Lang "lab.w.read" (len .Dataset.Rows)}}</p>
               {{- end}}
@@ -169,7 +171,7 @@
                 <input id="part-date" type="date" name="part-date" value="{{.PartDate}}" min="1900-01-01" max="2100-12-31" required>
                 <small>{{t $.Lang "lab.w.part-date-help"}}</small>
               </div>
-              {{- if and (not .Added) (not .Replaces) (gt $.Dashboard.Parts 0)}}
+              {{- if and (not .IsAdd) (not .IsReplace) (gt $.Dashboard.Parts 0)}}
               <div class="ds-err" role="alert"><p><strong>{{tn $.Lang "lab.data.replace-warn" $.Dashboard.Parts}}</strong></p></div>
               {{- end}}
               <div class="form-foot">
@@ -208,7 +210,7 @@
           </form>
           {{- end}}
           {{- end}}
-          {{- $replace := 0}}{{with .Replacing}}{{$replace = .ID}}{{end}}{{with .Pending}}{{with .Replaces}}{{$replace = .Part}}{{end}}{{end}}
+          {{- $replace := 0}}{{with .Replacing}}{{$replace = .ID}}{{end}}{{with .Pending}}{{if .IsReplace}}{{$replace = .ReplacedPart}}{{end}}{{end}}
           {{- $picked := false}}{{with .Pending}}{{$picked = .FromWorkbook}}{{end}}
           <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}"{{if not $picked}} enctype="multipart/form-data"{{end}} data-busy>
             {{- with .Pending}}{{if gt (len .Sheets) 1}}
@@ -256,7 +258,7 @@
             </fieldset>
             {{- end}}{{end}}
             {{- if and .Dashboard.Key (not $replace)}}
-            {{- $add := gt .Dashboard.Parts 0}}{{with .Pending}}{{$add = false}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            {{- $add := gt .Dashboard.Parts 0}}{{with .Pending}}{{$add = .IsAdd}}{{end}}
             <fieldset class="field">
               <legend>{{t .Lang "lab.data.mode"}}</legend>
               <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>
@@ -283,7 +285,7 @@
           <p class="muted">{{t .Lang "lab.d.pick-body"}}</p>
           <form class="form" method="post" action="{{if $replace}}{{$url}}/parts/{{$replace}}/replace{{else}}{{$url}}/dataset{{end}}" data-busy>
             {{- if and .Dashboard.Key (not $replace)}}
-            {{- $add := gt .Dashboard.Parts 0}}{{with .Pending}}{{$add = false}}{{if .Added}}{{$add = true}}{{end}}{{end}}
+            {{- $add := gt .Dashboard.Parts 0}}{{with .Pending}}{{$add = .IsAdd}}{{end}}
             <fieldset class="field">
               <legend>{{t .Lang "lab.data.mode"}}</legend>
               <label class="check"><input type="radio" name="mode" value="replace"{{if not $add}} checked{{end}}> {{t .Lang "lab.data.replace"}}</label>

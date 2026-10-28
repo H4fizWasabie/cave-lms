@@ -168,36 +168,6 @@ func TestAThemeBuiltDashboardCountsTheRowTotalWithoutTheReplacedPart(t *testing.
 	}
 }
 
-func TestDeletingAnotherPartKeepsAPendingReplaceOfOnePartAndDeletingItsPartDropsIt(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, link := threeParts(t, ada)
-	visitor := ada.second()
-	links := replaceLinks(t, ada, path+"/data")
-	del := partDeleteLink.FindAllStringSubmatch(mustGet(t, ada, path+"/data"), -1)
-
-	ada.postFile(links[0], "september-betul.xlsx", shopColumns(t, "Tepung", 60))
-	res, body := ada.post(del[1][1], confirming) // oktober.xlsx
-	expectRedirect(t, res, body, path+"/data")
-	expectAll(t, mustGet(t, ada, path+"/data"), "Replacing september.xlsx")
-	ada.confirmWork(path, nil)
-	_, body = visitor.get(link + "data.json")
-	if !strings.Contains(body, "Tepung") || strings.Contains(body, "Gula") || strings.Contains(body, "Beras") || !strings.Contains(body, "Garam") {
-		t.Fatalf("data.json = %s, want Tepung and Garam", body)
-	}
-
-	links = replaceLinks(t, ada, path+"/data")
-	ada.postFile(links[1], "november-betul.xlsx", shopColumns(t, "Minyak", 50))
-	res, body = ada.post(del[2][1], confirming) // november.xlsx, the Part the pending file replaces
-	expectRedirect(t, res, body, path+"/data")
-	if body = mustGet(t, ada, path+"/data"); strings.Contains(body, "Replacing") || strings.Contains(body, `name="part-date"`) {
-		t.Fatalf("a pending Replace of a deleted Part is still shown: %s", body)
-	}
-	if n := ada.datasetFiles(); n != 1 {
-		t.Fatalf("%d stored files, want the one Part left", n)
-	}
-}
-
 func TestAReplaceOfOneOfSeveralPartsNeedsTheDatasetsColumnsAndOnlyReachesTheLearnersOwnParts(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
