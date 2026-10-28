@@ -19,6 +19,10 @@ const (
 
 var products = []string{caveTextProProduct, labPlanProduct, proPlanProduct}
 
+// storageAddOns are the Storage add-ons, keyed in the prices table too but kept out of products: they are not sold, so
+// no Promo, payment link or webhook may name them and the Admin may leave their price at 0, which means no price set.
+var storageAddOns = []string{"storage-3gb", "storage-5gb"}
+
 // price is one product's price, Normal price (0 when none) and payment link (empty when none).
 type price struct {
 	Product           string
@@ -91,6 +95,7 @@ func (a *App) offersOf(ctx context.Context, products ...string) ([]offer, error)
 type pricesPage struct {
 	pageBase
 	Prices []price
+	AddOns []price // the Storage add-ons' prices, after the products'
 }
 
 func (a *App) adminPrices(w http.ResponseWriter, r *http.Request) {
@@ -107,6 +112,17 @@ func (a *App) adminPrices(w http.ResponseWriter, r *http.Request) {
 		}
 		p.Prices = append(p.Prices, pr)
 	}
+	for _, product := range storageAddOns {
+		pr, err := a.priceOf(r.Context(), product)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if pr.Sen > 0 {
+			pr.PriceIn = strings.TrimPrefix(rm(pr.Sen), "RM")
+		}
+		p.AddOns = append(p.AddOns, pr)
+	}
 	if r.URL.Query().Has("saved") {
 		lang, err := a.language(r)
 		if err != nil {
@@ -118,7 +134,7 @@ func (a *App) adminPrices(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_prices", p)
 }
 
-// savePrices saves every product's price at once, or none when any is refused.
+// savePrices saves every product's and Storage add-on's price at once, or none when any is refused.
 func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 	lang, err := a.language(r)
 	if err != nil {
@@ -156,6 +172,18 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 		}
 		p.Prices = append(p.Prices, pr)
 	}
+	for _, product := range storageAddOns { // optional: blank saves as 0, no price set
+		pr := price{Product: product, PriceIn: strings.TrimSpace(r.PostFormValue(product + "_price"))}
+		if pr.PriceIn != "" {
+			var ok bool
+			if pr.Sen, ok = parseRM(pr.PriceIn); !ok || pr.Sen > maxPriceSen {
+				if p.Error == "" {
+					p.Error = text.T(lang, "prices."+product) + ": " + text.T(lang, "prices.err.price")
+				}
+			}
+		}
+		p.AddOns = append(p.AddOns, pr)
+	}
 	if p.Error != "" {
 		a.render(w, r, http.StatusUnprocessableEntity, "admin_prices", p)
 		return
@@ -169,6 +197,9 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+		for i := 0; err == nil && i < len(p.AddOns); i++ {
+			_, err = tx.ExecContext(r.Context(), `UPDATE prices SET price_sen = $2 WHERE product = $1`, p.AddOns[i].Product, p.AddOns[i].Sen)
+		}
 		if err == nil {
 			err = tx.Commit()
 		}
@@ -180,12 +211,28 @@ func (a *App) savePrices(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/prices?saved", http.StatusSeeOther)
 }
 
-// pricing is the public Pricing page: the three products the Admin sells, as offers.
+// storageAddOn is one Storage add-on as the Pricing page shows it: Price in RM, empty while the Admin has set none.
+type storageAddOn struct{ Product, Price string }
+
+// pricing is the public Pricing page: the three products the Admin sells, as offers, and the Storage add-ons.
 func (a *App) pricing(w http.ResponseWriter, r *http.Request) {
 	offers, err := a.offersOf(r.Context(), products...)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	var addOns []storageAddOn
+	for _, product := range storageAddOns {
+		p, err := a.priceOf(r.Context(), product)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		add := storageAddOn{Product: product}
+		if p.Sen > 0 {
+			add.Price = rm(p.Sen)
+		}
+		addOns = append(addOns, add)
 	}
 	learner, err := a.currentLearner(r)
 	if err != nil {
@@ -206,6 +253,7 @@ func (a *App) pricing(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "pricing", &struct {
 		pageBase
 		Offers []offer
+		AddOns []storageAddOn
 		Pro    offer // the comparison's CAVELMS column
-	}{pageBase: pageBase{Learner: learner}, Offers: offers, Pro: offers[slices.Index(products, proPlanProduct)]})
+	}{pageBase: pageBase{Learner: learner}, Offers: offers, AddOns: addOns, Pro: offers[slices.Index(products, proPlanProduct)]})
 }

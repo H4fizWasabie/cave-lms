@@ -7,6 +7,23 @@
       </div>
       <h2 class="sr">{{t .Lang "offers.heading"}}</h2>
       {{- template "offers" .}}
+      <section class="storage-addons" aria-labelledby="storage-addons-h">
+        <h2 id="storage-addons-h">{{t .Lang "storage.heading"}}</h2>
+        <p>{{t .Lang "storage.intro"}}</p>
+        <ul class="offers">
+          {{- range .AddOns}}
+          <li class="offer">
+            <h3>{{t $.Lang (print "prices." .Product)}}</h3>
+            <p class="offer-tagline">{{t $.Lang "storage.card"}}</p>
+            {{- with .Price}}
+            <p class="offer-price"><strong>{{.}}</strong></p>
+            {{- end}}
+            <button type="button" class="btn btn-ghost" popovertarget="{{.Product}}-soon">{{t $.Lang "storage.upgrade"}}</button>
+            <div popover id="{{.Product}}-soon" class="storage-soon" role="status">{{t $.Lang "storage.soon"}}</div>
+          </li>
+          {{- end}}
+        </ul>
+      </section>
       <section class="cost-compare" id="comparison">
         <h2>{{t .Lang "cost.title"}}</h2>
         <p>{{t .Lang "plans.comparison-caption"}}</p>

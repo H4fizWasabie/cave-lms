@@ -752,6 +752,9 @@ input[type=file]::file-selector-button:hover { background: var(--bg); }
 .offer-benefits { list-style: none; padding: var(--space-4) 0 0; margin: var(--space-2) 0 var(--space-3); border-top: 1px solid var(--line); align-self: stretch; display: grid; gap: var(--space-2); font-size: var(--fs-ui); }
 .offer-benefits li { display: flex; gap: var(--space-2); align-items: flex-start; }
 .offer-benefits .i { flex: none; margin-top: var(--space-1); color: var(--brand-gold-deep); }
+.storage-addons { margin-bottom: var(--space-4); }
+.storage-addons > p { color: var(--muted); }
+.storage-soon { margin: auto; padding: var(--space-4) var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-pop); font-weight: 600; }
 .offer .btn { margin-top: auto; align-self: stretch; white-space: normal; text-align: center; }
 @media (max-width: 999px) { .lab-steps { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px) { .lab-hero { padding: var(--space-5) var(--space-4); } .lab-steps { grid-template-columns: 1fr; } }

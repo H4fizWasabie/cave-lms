@@ -275,6 +275,11 @@ How much Workbook, Dataset and Deployment page data a Learner may keep while the
 _Malay_: Had storan
 _Avoid_: Quota, space, storage plan, subscription
 
+**Storage add-on**:
+Extra Storage allowance on top of what a Learner's Plan gives: 3 GB or 5 GB. The Pricing page shows both, with a price once the Admin sets one, but they are not sold yet: Upgrade only says they are coming soon.
+_Malay_: Tambahan storan
+_Avoid_: Storage plan, storage upgrade, quota
+
 **Dataset**:
 The table Cave keeps for a Dashboard: one Part or more with the same columns, each cleaned from a Workbook after Clean-up and the Learner's confirmation. It belongs to exactly one Dashboard, so two Dashboards using one Workbook each have their own, and deleting the Workbook leaves it as it is. Adding data adds a Part; replacing the data makes the new Part the only one. Cave keeps no earlier Datasets: the Workbooks in the Folder are the way back. Never a Gallery item.
 _Malay_: Set data
