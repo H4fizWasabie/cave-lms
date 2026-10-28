@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -48,6 +49,21 @@ func TestTheOwnerSeesAServerErrorInTheSystemLog(t *testing.T) {
 	}
 	if strings.Contains(body, "s3cret") {
 		t.Errorf("System log kept the query string:\n%s", body)
+	}
+}
+
+func TestAVisitorWhoLeavesMidRequestIsNotAServerError(t *testing.T) {
+	s := newSite(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // the browser closed the connection before the page was drawn
+	s.application.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx))
+
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM system_log WHERE level = 'error'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("want no error lines for a visitor who left, got %d", n)
 	}
 }
 
