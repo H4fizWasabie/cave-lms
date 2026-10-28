@@ -173,3 +173,32 @@ func TestAResetVerifiesTheEmail(t *testing.T) {
 	res, body = s.login(email, "new horse staple")
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
+
+func TestResetToAPasswordOver72BytesIsRefusedWithAMessageNotAServerError(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	const email, password = "ada@example.com", "correct horse battery"
+	s.loginAsNewLearner("Ada", email, password)
+	s.forgotPassword(email)
+	link := s.lastEmailLinkPath(email, "/reset-password")
+	res, body := s.resetPassword(resetToken(t, link), strings.Repeat("é", 37)) // 37 characters, 74 bytes
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Use a password of at most 72 characters.")
+	res, body = s.resetPassword(resetToken(t, link), "new horse staple") // the link was not spent
+	expectStatus(t, res, body, http.StatusOK, "Your password has been changed")
+}
+
+func TestAResetWhenTheDatabaseFailsIsAServerErrorAndChangesNothing(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	const email, password = "ada@example.com", "correct horse battery"
+	s.loginAsNewLearner("Ada", email, password)
+	s.forgotPassword(email)
+	link := s.lastEmailLinkPath(email, "/reset-password")
+	if _, err := s.db.Exec(`ALTER TABLE one_time_tokens RENAME TO one_time_tokens_gone`); err != nil {
+		t.Fatal(err)
+	}
+	res, body := s.resetPassword(resetToken(t, link), "new horse staple")
+	expectStatus(t, res, body, http.StatusInternalServerError, "")
+	res, body = s.login(email, password)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}

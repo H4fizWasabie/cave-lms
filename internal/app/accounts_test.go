@@ -409,3 +409,16 @@ func TestFormsRefuseCrossOriginPosts(t *testing.T) {
 	res, body := s.do(req)
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
 }
+
+// bcrypt reads 72 bytes, so the limit counts bytes: 37 two-byte letters are 37 characters but 74 bytes.
+func TestAPasswordOver72BytesIsRefusedWithAMessageNotAServerError(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	const email = "ada@example.com"
+	tooLong := strings.Repeat("é", 37)
+	res, body := s.register("Ada", email, tooLong)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Use a password of at most 72 characters.")
+	expectFieldError(t, body, "password", "at most 72 characters", "</button>")
+	res, body = s.register("Ada", email, strings.Repeat("é", 36)) // exactly 72 bytes
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+}

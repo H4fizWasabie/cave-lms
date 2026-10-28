@@ -535,3 +535,21 @@ func TestTodaysExamsBecomeMultipleChoiceWithTheirSettingsQuestionsAndAttempts(t 
 	expectStatus(t, res, body, http.StatusOK, "Attempts allowed: 3")
 	expectInOrder(t, body, "First question text", "Second question text")
 }
+
+func TestACourseWithNoLessonsBlocksItsExam(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", examPassword)
+	s.createCourse("Go Basics", "Learn Go from scratch.", "")
+	id := s.onlyCourseID()
+	s.saveExamSettings(id, "50", "", "")
+	s.saveQuestion("/admin/courses/"+id+"/exam/questions", "What is Go?", [5]string{"Right answer", "Wrong answer", "", "", ""}, "0", false)
+	s.logOut()
+	s.loginAsNewLearner("Ada", "ada@example.com", examPassword)
+	s.post("/courses/"+id+"/join", nil)
+
+	res, body := s.get("/courses/" + id + "/exam")
+	expectStatus(t, res, body, http.StatusOK, "This Course has no Lessons yet, so its Exam is locked.")
+	res, body = s.startExam(id)
+	expectStatus(t, res, body, http.StatusConflict, "This Course has no Lessons yet, so its Exam is locked.")
+}

@@ -1045,3 +1045,63 @@ func TestWithoutATokenBCLIsNeverAskedAtStartup(t *testing.T) {
 		t.Fatalf("BCL's API was asked %d times without a token", len(bcl.asked))
 	}
 }
+
+func TestAPaidOrderWithNoOrderNumberIsLoggedAndGivesNothing(t *testing.T) {
+	t.Parallel()
+	s := bclSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.bclPay(paid("", "ada@example.com"))
+	if ada.me(token).Pro {
+		t.Fatalf("a paid order with no order number gave Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "paid order with no order number on "+proFormURL+"; ignored")
+}
+
+// failMarkingPayments makes every UPDATE of a kept payment fail, as markPayment does when it gives or holds an order.
+func (s *site) failMarkingPayments() {
+	s.t.Helper()
+	for _, q := range []string{
+		`CREATE FUNCTION refuse_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'refused'; END $$`,
+		`CREATE TRIGGER refuse_update BEFORE UPDATE ON cavetext_payments FOR EACH ROW EXECUTE FUNCTION refuse_update()`,
+	} {
+		if _, err := s.db.Exec(q); err != nil {
+			s.t.Fatal(err)
+		}
+	}
+}
+
+func TestWhenKeepingAnUnderpaidOrderForAnAdminFailsItIsAnswered500AndGivesNothing(t *testing.T) {
+	t.Parallel()
+	s := bclSite(t)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.failMarkingPayments()
+	low := paid("LINK-1", "ada@example.com")
+	low.subtotal = "10.00"
+	if code := s.bclPost(bclKey, bclPayload(low)); code != http.StatusInternalServerError {
+		t.Errorf("status %d, want 500", code)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("an underpaid order gave Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: mark payment")
+}
+
+func TestWhenKeepingAHeldOrderForAnAdminFailsItIsAnswered500AndGivesNothing(t *testing.T) {
+	t.Parallel()
+	under := confirmed("ada@example.com")
+	under.amount = "20" // BCL charged less than the subtotal, so the order is held
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": under})
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	s.failMarkingPayments()
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Errorf("status %d, want 500", code)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("a held order gave Pro")
+	}
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: mark payment")
+}
