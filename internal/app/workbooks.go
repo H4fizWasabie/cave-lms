@@ -21,12 +21,20 @@ type workbook struct {
 	Name     string
 	Size     int64
 	Uploaded string // formatted as periodTime
+	UsedOn   []workbookDashboard
+}
+
+// workbookDashboard is a Dashboard that has a Part cleaned from a Workbook.
+type workbookDashboard struct {
+	ID   int64
+	Name string
 }
 
 // SizeText is the Workbook's size as people read it, such as 12 KB.
 func (w workbook) SizeText() string { return sizeText(w.Size) }
 
-// workbooksOf lists a Learner's Workbooks, newest first.
+// workbooksOf lists a Learner's Workbooks, newest first, each with the Dashboards that currently have a Part cleaned
+// from it, by name.
 func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT id, name, size, uploaded_at FROM workbooks
 		WHERE learner_id = $1 ORDER BY uploaded_at DESC, id DESC`, learnerID)
@@ -44,7 +52,31 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 		w.Uploaded = at.UTC().Format(periodTime)
 		out = append(out, w)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	at := make(map[int64]int, len(out)) // Workbook ID to its place in out
+	for i, w := range out {
+		at[w.ID] = i
+	}
+	used, err := a.db.QueryContext(ctx, `SELECT ds.workbook_id, d.id, d.name FROM dataset_parts ds
+		JOIN dashboards d ON d.id = ds.dashboard_id WHERE d.learner_id = $1 AND ds.workbook_id IS NOT NULL
+		GROUP BY ds.workbook_id, d.id, d.name ORDER BY lower(d.name), d.id`, learnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer used.Close()
+	for used.Next() {
+		var workbookID int64
+		var d workbookDashboard
+		if err := used.Scan(&workbookID, &d.ID, &d.Name); err != nil {
+			return nil, err
+		}
+		if i, ok := at[workbookID]; ok { // a Workbook kept between the two queries waits for the next visit
+			out[i].UsedOn = append(out[i].UsedOn, d)
+		}
+	}
+	return out, used.Err()
 }
 
 // keepWorkbook keeps data, the .xlsx a Learner uploaded, as their Workbook called name, before Clean-up reads it, so it

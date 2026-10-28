@@ -17,7 +17,8 @@
         <script src="{{static "forms.js"}}" defer></script>
         {{end}}
         {{if not .Workbooks}}<p class="muted">{{t .Lang "my-folder.workbooks-none"}}</p>{{end}}
-        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small>{{if and $.LabPart (not $.Owner)}} <a href="/workbooks/{{.ID}}/delete">{{t $.Lang "my-folder.delete"}}</a>{{end}}</li>{{end}}</ul>
+        <ul class="file-list">{{range .Workbooks}}<li><a href="/workbooks/{{.ID}}">{{.Name}}</a> <small>{{size .Size}} · {{.Uploaded}}</small>{{if and $.LabPart (not $.Owner)}} <a href="/workbooks/{{.ID}}/delete">{{t $.Lang "my-folder.delete"}}</a>{{end}}
+          <br><small>{{range $i, $d := .UsedOn}}{{if $i}}, {{end}}{{if and $.LabPart (not $.Owner)}}<a href="/lab/dashboards/{{$d.ID}}">{{$d.Name}}</a>{{else}}{{$d.Name}}{{end}}{{else}}{{t $.Lang "my-folder.unused"}}{{end}}</small></li>{{end}}</ul>
       </section>
       {{end}}
       {{if .Dashboards}}
