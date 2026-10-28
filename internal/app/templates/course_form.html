@@ -23,9 +23,12 @@
             {{if not $live}}<fieldset class="field"><legend>{{t .Lang "adm.courses.live-only"}}</legend><small>{{t .Lang "adm.courses.live-only-hint"}}</small>{{end}}
             <div class="field field-half"><label for="end_date">{{t .Lang "adm.courses.end-date"}}</label><input id="end_date" type="date" name="end_date" value="{{.Course.EndDate}}"{{if $live}} required{{end}}></div>
             <div class="field field-half"><label for="days">{{t .Lang "adm.courses.days"}}</label><input id="days" type="number" name="days" min="1" max="5" value="{{with .Course.Days}}{{.}}{{end}}"{{if $live}} required{{end}}><p class="hint">{{t .Lang "adm.courses.days-hint"}}</p></div>
-            <div class="field field-half"><label for="organisation_id">{{t .Lang "adm.courses.organisation"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><select id="organisation_id" name="organisation_id"><option value="">{{t .Lang "adm.courses.no-organisation"}}</option>{{range .Organisations}}<option value="{{.ID}}"{{if eq .ID $.Course.OrganisationID}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
             {{if not $live}}</fieldset>{{end}}
             {{end}}
+            {{if not $live}}
+            <div class="field field-half"><label for="pcc_days">{{t .Lang "adm.courses.pcc-level"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><select id="pcc_days" name="pcc_days"><option value="">{{t .Lang "adm.courses.no-organisation"}}</option><option value="1"{{if eq .Course.PCCDays 1}} selected{{end}}>Basic</option><option value="2"{{if eq .Course.PCCDays 2}} selected{{end}}>Foundation</option><option value="3"{{if eq .Course.PCCDays 3}} selected{{end}}>Practitioner</option><option value="4"{{if ge .Course.PCCDays 4}} selected{{end}}>Professional</option></select></div>
+            {{end}}
+            <div class="field field-half"><label for="organisation_id">{{t .Lang "adm.courses.organisation"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><select id="organisation_id" name="organisation_id"><option value="">{{t .Lang "adm.courses.no-organisation"}}</option>{{range .Organisations}}<option value="{{.ID}}"{{if eq .ID $.Course.OrganisationID}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
             {{if not .DuplicateOf}}
             {{with .Course.PictureKey}}<img class="programme-pic" src="/course-pictures/{{.}}" alt="">{{end}}
             <div class="field"><label for="picture">{{t .Lang "programmes.form.picture"}} <span class="opt">{{t .Lang "adm.optional"}}</span></label><input id="picture" type="file" name="picture" accept="image/jpeg,image/png,image/webp"><small>{{t .Lang "programmes.form.picture-hint"}}</small></div>

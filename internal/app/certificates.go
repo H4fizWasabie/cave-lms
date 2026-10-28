@@ -135,7 +135,7 @@ func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, g
 	}
 	res, err := tx.ExecContext(ctx, `
 		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin, logo_key)
-		SELECT $1, l.id, c.id, l.name, l.ic, c.title, c.days, $4, $5, $6, $7, o.logo_key FROM learners l, courses c
+		SELECT $1, l.id, c.id, l.name, l.ic, c.title, COALESCE(c.days, c.pcc_days), $4, $5, $6, $7, o.logo_key FROM learners l, courses c
 		LEFT JOIN organisations o ON o.id = c.organisation_id
 		WHERE l.id = $2 AND c.id = $3 AND l.ic IS NOT NULL
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)

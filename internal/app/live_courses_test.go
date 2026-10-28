@@ -413,7 +413,7 @@ func TestNewCourseIsSelfPacedUnlessLiveCourseIsChosenAndLiveNeedsItsDates(t *tes
 
 	// Live fields sent without choosing Live Course are ignored.
 	res, body := s.post("/admin/courses", url.Values{"title": {"Go Basics"}, "description": {"Learn Go."},
-		"start_date": {"2027-02-01"}, "end_date": {"2027-02-03"}, "days": {"3"}, "organisation_id": {org}})
+		"start_date": {"2027-02-01"}, "end_date": {"2027-02-03"}, "days": {"3"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	id := s.onlyCourseID()
 	s.logOut()
@@ -421,7 +421,8 @@ func TestNewCourseIsSelfPacedUnlessLiveCourseIsChosenAndLiveNeedsItsDates(t *tes
 	expectNone(t, body, "PCC Level")
 	s.login("admin@example.com", "correct horse battery")
 	_, body = s.get("/admin/courses/" + id + "/edit") // a Course stays the kind it was made as
-	expectNone(t, body, "organisation_id")
+	expectAll(t, body, "organisation_id", "pcc_days")
+	expectNone(t, body, "end_date")
 
 	for _, bad := range []struct{ start, end, days, want string }{
 		{"", "2027-02-03", "3", "Enter the start date as YYYY-MM-DD."},

@@ -358,6 +358,7 @@ var catalog = map[string]entry{
 	"adm.courses.days":                {en: "Days", ms: "Bilangan hari"},
 	"adm.courses.days-hint":           {en: "1 to 5. Sets the PCC Level: 1 Basic, 2 Foundation, 3 Practitioner, 4 or 5 Professional.", ms: "1 hingga 5. Menentukan Tahap PCC: 1 Basic, 2 Foundation, 3 Practitioner, 4 atau 5 Professional."},
 	"adm.courses.organisation":        {en: "Organisation", ms: "Organisasi"},
+	"adm.courses.pcc-level":           {en: "PCC Level", ms: "Tahap PCC"},
 	"adm.courses.no-organisation":     {en: "None", ms: "Tiada"},
 	"adm.courses.err.organisation":    {en: "Choose an Organisation from the list. The one chosen no longer exists.", ms: "Pilih Organisasi daripada senarai. Organisasi yang dipilih tidak lagi wujud."},
 	"adm.courses.kind":                {en: "Kind", ms: "Jenis"},
