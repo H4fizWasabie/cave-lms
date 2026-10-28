@@ -76,6 +76,7 @@ func (w *world) put(u upload) *dataset.Pending {
 
 // confirm makes the pending Part p current and settles the Dataset's columns and recipe as a confirm does. Confirm is not
 // in the module yet, so this is the one place the tests do it.
+// ponytail: a copy of confirmWork's settle without its month-column scan; #460 replaces it with Confirm.
 func (w *world) confirm(p *dataset.Pending) *dataset.Pending {
 	w.t.Helper()
 	var position any

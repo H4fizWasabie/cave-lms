@@ -351,7 +351,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage())))
 		return
 	case errors.Is(err, errDatasetStore):
-		if err != errDatasetStore { // the Workbook's refusal is logged where it happened
+		if !errors.Is(err, errDatasetStore) { // the Workbook's refusal is logged where it happened
 			a.logError(r, err)
 		}
 		refuse(text.T(lang, "lab.d.upload-failed"))

@@ -500,7 +500,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		case errors.Is(err, errDatasetStore):
-			if err != errDatasetStore { // the Workbook's refusal is logged where it happened
+			if !errors.Is(err, errDatasetStore) { // the Workbook's refusal is logged where it happened
 				a.logError(r, err)
 			}
 			a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Failed: true})
