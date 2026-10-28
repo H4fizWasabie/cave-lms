@@ -29,6 +29,10 @@ func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 	a.logError(r, err)
+	if a.onPagesHost(r) {
+		a.pagesMessage(w, r, http.StatusInternalServerError, "error.title", "error")
+		return
+	}
 	l, lookupErr := a.currentLearner(r)
 	saved := ""
 	if lookupErr != nil {
@@ -64,6 +68,10 @@ func retryPath(r *http.Request) string {
 
 // notFound answers 404 with the not-found page in the request's language.
 func (a *App) notFound(w http.ResponseWriter, r *http.Request) {
+	if a.onPagesHost(r) {
+		a.pagesMessage(w, r, http.StatusNotFound, "notfound.title", "notfound")
+		return
+	}
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)

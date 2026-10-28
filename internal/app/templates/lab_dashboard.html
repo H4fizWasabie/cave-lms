@@ -365,7 +365,7 @@
         <div class="dep-link">
           <label class="sr" for="dep-url">{{t $.Lang "lab.dep.link"}}</label>
           <input id="dep-url" type="text" readonly value="{{.Link}}" title="{{t $.Lang "lab.dep.select-link"}}">
-          <a class="btn btn-ghost btn-sm" href="{{.Path}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.open"}}</a>
+          <a class="btn btn-ghost btn-sm" href="{{.Link}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.open"}}</a>
         </div>
         {{- if and .Awake $.Dashboard.Page}}
         <p class="muted">{{t $.Lang "lab.page.share"}}</p>

@@ -19,7 +19,7 @@
                 <td>{{if .Dashboard}}{{.Dashboard}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
                 <td><code>{{.Name}}</code></td>
-                <td><a href="{{.Path}}" target="_blank" rel="noopener">{{.Link}}</a></td>
+                <td><a href="{{.Link}}" target="_blank" rel="noopener">{{.Link}}</a></td>
                 <td>{{if .Awake}}{{t $.Lang "deployments.awake"}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .TakenDown}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else}}{{t $.Lang "deployments.asleep"}}{{end}}</td>
                 <td class="actions">{{if and .Dashboard (not .TakenDown)}}
                   <form class="takedown" method="post" action="/admin/deployments/{{.ID}}/takedown">

@@ -62,19 +62,32 @@ func (s *site) do(req *http.Request) (*http.Response, string) {
 	return res, string(body)
 }
 
-func (s *site) get(path string) (*http.Response, string) {
-	req, err := http.NewRequest(http.MethodGet, s.server.URL+path, nil)
+// newRequest is a request for path on the test server. A path is on the main host; a full URL, such as a Deployment's
+// link, is sent to the same server with the Host it names, as Caddy would.
+func (s *site) newRequest(method, path string, body io.Reader) *http.Request {
+	s.t.Helper()
+	addr, host := s.server.URL+path, ""
+	if strings.HasPrefix(path, "https://") {
+		u, err := url.Parse(path)
+		if err != nil {
+			s.t.Fatal(err)
+		}
+		addr, host = s.server.URL+u.RequestURI(), u.Host
+	}
+	req, err := http.NewRequest(method, addr, body)
 	if err != nil {
 		s.t.Fatal(err)
 	}
-	return s.do(req)
+	req.Host = host
+	return req
+}
+
+func (s *site) get(path string) (*http.Response, string) {
+	return s.do(s.newRequest(http.MethodGet, path, nil))
 }
 
 func (s *site) post(path string, form url.Values) (*http.Response, string) {
-	req, err := http.NewRequest(http.MethodPost, s.server.URL+path, strings.NewReader(form.Encode()))
-	if err != nil {
-		s.t.Fatal(err)
-	}
+	req := s.newRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return s.do(req)
 }

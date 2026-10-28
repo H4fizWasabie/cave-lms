@@ -3,8 +3,10 @@ package app
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"html/template"
+	"net"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,8 +15,9 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// deploymentPrefix is the path Deployments live under, /<prefix>/<username>/<name>/ (ADR 0007, ADR 0023). The client picks the word.
-const deploymentPrefix = "d"
+// oldDeploymentPrefix is the path Deployments lived under on the main host, /d/<username>/<name>/ (ADR 0007, ADR 0023). They
+// now live at the root of the Deployments host (ADR 0024), and the old links redirect there for good.
+const oldDeploymentPrefix = "d"
 
 // deploymentName is what a Learner may pick: 3 to 40 lowercase letters, digits and single dashes, no dash at
 // either end. Deployments made before names keep their random slug as their name, outside these rules.
@@ -57,8 +60,7 @@ func usernameError(username string) string {
 type deployment struct {
 	Name      string
 	Username  string // the Username of the Learner it belongs to, in its link
-	Path      string // /<prefix>/<username>/<name>/
-	Link      string // the full link to share
+	Link      string // the full link to share, on the Deployments host
 	Deployed  string // formatted as periodTime
 	Awake     bool
 	TakenDown string // when Cave took it down, formatted as periodTime; empty if it was not
@@ -82,8 +84,7 @@ func (a *App) scanDeployment(row interface{ Scan(...any) error }, lead ...any) (
 	if err := row.Scan(append(lead, &dep.Name, &dep.Username, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
 		return dep, err
 	}
-	dep.Path = "/" + deploymentPrefix + "/" + dep.Username + "/" + dep.Name + "/"
-	dep.Link = a.publicBaseURL + dep.Path
+	dep.Link = a.pagesBaseURL + "/" + dep.Username + "/" + dep.Name + "/"
 	dep.Deployed = deployed.UTC().Format(periodTime)
 	if takenDown.Valid {
 		dep.TakenDown = takenDown.Time.UTC().Format(periodTime)
@@ -127,7 +128,7 @@ func (a *App) renderDeployTab(w http.ResponseWriter, r *http.Request, status int
 		a.serverError(w, r, err)
 		return
 	}
-	p.Prefix = a.publicBaseURL + "/" + deploymentPrefix + "/" + learner.Username + "/"
+	p.Prefix = a.pagesBaseURL + "/" + learner.Username + "/"
 	if p.Deployment, err = a.deploymentOf(r, p.Dashboard.ID); err != nil {
 		a.serverError(w, r, err)
 		return
@@ -221,18 +222,12 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 }
 
 // deploymentCSP sandboxes a Deployment's page (ADR 0007) and keeps it to Cave's own scripts and data, unframed.
-// The sandbox gives the page an opaque origin, where some browsers match nothing to 'self', so Cave's address
-// is named too, by its origin alone, as a source with a path would match only that exact path.
+// The sandbox gives the page an opaque origin, where some browsers match nothing to 'self', so the Deployments
+// host is named too (ADR 0024), by its origin alone, which pagesBaseURL is: it has no path.
 func (a *App) deploymentCSP() string {
-	origin := a.origin()
+	origin := a.pagesBaseURL
 	return "sandbox allow-scripts; default-src 'none'; script-src 'self' " + origin + " 'unsafe-inline'; " +
 		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' " + origin + "; frame-ancestors 'none'"
-}
-
-// origin is Cave's address by its origin alone: scheme and host.
-func (a *App) origin() string {
-	u, _ := url.Parse(a.publicBaseURL) // config.Load has checked it
-	return u.Scheme + "://" + u.Host
 }
 
 // deploymentFileOf names the file asked for by the path segments after a Deployment's name: "" for the name alone,
@@ -251,9 +246,35 @@ func deploymentFileOf(tail []string) (file, key string, ok bool) {
 	return "", "", false
 }
 
-// deploymentRoute serves everything under /<prefix>/. A Deployment's address is /<prefix>/<username>/<name>/ (ADR 0023),
-// but Cave finds it by its name alone, so the Username is for show: any other Username, and the earlier
-// /<prefix>/<name>/ addresses, redirect for good to the owner's current one, keeping the file asked for.
+// onPagesHost is whether r asks for the Deployments host (ADR 0024) rather than the main one.
+// A trailing dot and the scheme's default port do not make it another host.
+func (a *App) onPagesHost(r *http.Request) bool {
+	host := strings.TrimSuffix(strings.ToLower(r.Host), ".")
+	if h, port, err := net.SplitHostPort(host); err == nil && (port == "443" || port == "80") {
+		host = strings.TrimSuffix(h, ".")
+	}
+	return host == a.pagesHost
+}
+
+// oldDeploymentRoute answers every old /d/... link, on the main host, with a permanent redirect to the same path on the
+// Deployments host, keeping the file and the query. It stays for good, as ADR 0002 does for old domains: Cave never
+// serves a Deployment from the main host, so a flagged Deployment cannot flag the login page (ADR 0024). The Deployments
+// host then redirects a wrong Username or the earlier /d/<name>/ form to the right address, as before.
+func (a *App) oldDeploymentRoute(w http.ResponseWriter, r *http.Request) {
+	to := a.pagesBaseURL + strings.TrimPrefix(r.URL.EscapedPath(), "/"+oldDeploymentPrefix)
+	if r.URL.RawQuery != "" {
+		to += "?" + r.URL.RawQuery
+	}
+	// A sandboxed page still open at an old link fetches its data from a null origin, through this redirect.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, to, http.StatusMovedPermanently)
+}
+
+// deploymentRoute serves everything on the Deployments host. A Deployment's address is /<username>/<name>/ (ADR 0023,
+// ADR 0024), but Cave finds it by its name alone, so the Username is for show: any other Username, and the earlier
+// /<name>/ address, redirect for good to the owner's current one, keeping the file asked for. Whatever is not a
+// Deployment's address is not found, so the host is never a second copy of the LMS.
 func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.PathValue("rest"), "/")
 	// Names hold no dots, so /<name>/data.json is never a Username and a name. A path that fits as both, such as
@@ -277,7 +298,7 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err == nil && (username != owner || file == "") {
-		to := "/" + deploymentPrefix + "/" + owner + "/" + name + "/"
+		to := "/" + owner + "/" + name + "/"
 		switch file {
 		case "data":
 			to += "data/" + key
@@ -301,7 +322,18 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 	a.deploymentFile(file)(w, r)
 }
 
-// deploymentFile serves a Deployment's files at /<prefix>/<username>/<name>/ to anyone while it is awake. The page is
+// pagesMessage writes a bare page, in the visitor's language, saying the catalog's titleKey and bodyKey. The Deployments host
+// serves none of the site's chrome or links, and never reads a session.
+func (a *App) pagesMessage(w http.ResponseWriter, r *http.Request, status int, titleKey, bodyKey string) {
+	lang := requestLanguage("", r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	fmt.Fprintf(w, "<!doctype html>\n<html lang=\"%s\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"+
+		"<title>%[2]s</title></head><body><h1>%[2]s</h1><p>%s</p></body></html>\n",
+		lang, template.HTMLEscapeString(text.T(lang, titleKey)), template.HTMLEscapeString(text.T(lang, bodyKey)))
+}
+
+// deploymentFile serves a Deployment's files at /<username>/<name>/ on the Deployments host to anyone while it is awake. The page is
 // sandboxed (ADR 0007), so its null origin needs CORS to load its data. Asleep or taken down: an
 // inactive page; deleted Dashboard or unknown name: not found.
 func (a *App) deploymentFile(name string) http.HandlerFunc {
@@ -341,18 +373,13 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			a.serverError(w, r, err)
 			return
 		}
-		lang, langErr := a.language(r)
-		if langErr != nil {
-			a.serverError(w, r, langErr)
-			return
-		}
 		switch {
 		case err != nil:
-			a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "lab.dep.gone.title"), Message: text.T(lang, "lab.dep.gone")})
+			a.pagesMessage(w, r, http.StatusNotFound, "lab.dep.gone.title", "lab.dep.gone")
 		case takenDown:
-			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"), Message: text.T(lang, "lab.dep.sleeping-taken")})
+			a.pagesMessage(w, r, http.StatusOK, "lab.dep.sleeping.title", "lab.dep.sleeping-taken")
 		default:
-			a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "lab.dep.sleeping.title"), Message: text.T(lang, "lab.dep.sleeping")})
+			a.pagesMessage(w, r, http.StatusOK, "lab.dep.sleeping.title", "lab.dep.sleeping")
 		}
 	}
 }

@@ -6,7 +6,7 @@ Done once, or only when something goes wrong. Routine deploys, Staging, Promos, 
 
 Once per VPS. Run as root on the VPS.
 
-1. Point A records for `cavelms.com` and `www.cavelms.com` at `13.140.65.183` (DNS is at NetKL) and wait until `dig +short cavelms.com` returns it. Caddy can't get a certificate before that.
+1. Point A records for `cavelms.com`, `www.cavelms.com` and `pages.cavelms.com` (the Deployments host, ADR 0024) at `13.140.65.183` (DNS is at NetKL) and wait until `dig +short cavelms.com` and `dig +short pages.cavelms.com` return it. Caddy can't get a certificate before that.
 2. Create the system user, database and settings:
 
    ```sh
@@ -27,6 +27,8 @@ Once per VPS. Run as root on the VPS.
    ```
 
    Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see `docs/deploy.md`, Email).
+
+   `PAGES_BASE_URL` (the Deployments host, ADR 0024) is optional: unset, it is `https://pages.` in front of `PUBLIC_BASE_URL`'s host, `https://pages.cavelms.com` here. Set it only to put Deployments on another host, which needs its own Caddy block and A record. It must be a host of its own, with no path.
 
    For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only live orders on the form that Admin > CaveText settings > Payment link points to give Pro; Test Mode orders are only logged. The Test Mode copies of the forms send to staging instead (see `docs/deploy.md`, Staging). Without the key every webhook gets 404.
 
@@ -52,7 +54,7 @@ Once per VPS. Run as root on the VPS.
 
 Run as root on the VPS unless a step says otherwise.
 
-1. At NetKL, add an A record `staging.cavelms.com` → `13.140.65.183`, then wait until `dig +short staging.cavelms.com` returns it.
+1. At NetKL, add A records `staging.cavelms.com` and `pages.staging.cavelms.com` (staging's Deployments host) → `13.140.65.183`, then wait until `dig +short staging.cavelms.com` and `dig +short pages.staging.cavelms.com` return it. Staging's `PAGES_BASE_URL` is left unset: it defaults to `https://pages.staging.cavelms.com`.
 2. Create the system user, database and settings:
 
    ```sh
@@ -89,10 +91,10 @@ Run as root on the VPS unless a step says otherwise.
 
 ## Changing the domain
 
-The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in `/etc/cave-lms/env`.
+The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in `/etc/cave-lms/env`. Deployments are on `pages.` in front of it (ADR 0024), so they move with it unless `PAGES_BASE_URL` is set.
 
-1. Point the new domain's A record at the VPS (as in First install, step 1).
-2. In `deploy/cave-lms.caddy`, change the site address to the new domain and add a block that redirects the old one, keeping the path:
+1. Point the new domain's A record, and the `pages.` one, at the VPS (as in First install, step 1).
+2. In `deploy/cave-lms.caddy`, change the site address and the `pages.` block's to the new domain and add a block that redirects the old one, keeping the path:
 
    ```caddy
    old.example.com {
@@ -102,7 +104,7 @@ The domain lives in two places: `deploy/cave-lms.caddy` and `PUBLIC_BASE_URL` in
    ```
 
 3. Set `PUBLIC_BASE_URL` to the new domain in `/etc/cave-lms/env`.
-4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one.
+4. Run `deploy/deploy.sh`, then open a Certificate verification link that uses the old domain and check that it lands on the same Certificate on the new one. A Deployment link shared at the old domain's `pages.` host is not redirected by Cave: keep a `redir` block for it too, or those links die.
 5. Email: add the new domain in Resend, copy the DNS records it lists into the new domain's DNS, wait for Verified, then set the new address in `EMAIL_FROM` (see `docs/deploy.md`, Email). Once nothing sends from the old domain, delete it in Resend: the free plan allows 3 domains.
 
 A redirect drops a request's sign-in header and webhook senders may not follow it, so when callers outside the browser use the old domain, serve both domains from one site block first (`new.example.com, old.example.com {`), move the callers, then switch the old one to the redirect.

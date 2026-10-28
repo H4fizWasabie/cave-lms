@@ -93,7 +93,7 @@ func TestTheLabIsInMalayAndEnglish(t *testing.T) {
 	admin.ageAllPeriods(31)
 	_, body = ada.second().getAsking(link, "ms")
 	expectLanguage(t, body, "ms", "Dashboard ini sedang tidur")
-	_, body = ada.second().getAsking("/d/nope/", "ms")
+	_, body = ada.second().getAsking(pagesOrigin+"/nope/", "ms")
 	expectLanguage(t, body, "ms", "Tiada Dashboard di pautan ini.")
 }
 

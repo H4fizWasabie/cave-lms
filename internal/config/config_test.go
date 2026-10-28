@@ -9,6 +9,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Helper()
 	t.Setenv("DATABASE_URL", "postgres://localhost/cave_lms")
 	t.Setenv("PUBLIC_BASE_URL", "https://courses.example.test")
+	t.Setenv("PAGES_BASE_URL", "")
 	t.Setenv("EMAIL_FROM", "Cave LMS <courses@example.test>")
 	t.Setenv("LISTEN_ADDR", "")
 	t.Setenv("STORAGE_DIR", "/var/lib/cave-lms/uploads")
@@ -231,5 +232,31 @@ func TestTheSiteIsProductionUnlessCaveEnvSaysStagingOrDevelopment(t *testing.T) 
 	t.Setenv("CAVE_ENV", "prod")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CAVE_ENV") {
 		t.Fatalf("Load() error = %v, want CAVE_ENV error", err)
+	}
+}
+
+func TestLoadPutsDeploymentsOnAPagesHostOfThePublicOneUnlessTold(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("PUBLIC_BASE_URL", "https://staging.example.test:8443/lms/")
+	cfg, err := Load()
+	if err != nil || cfg.PagesBaseURL != "https://pages.staging.example.test:8443" {
+		t.Fatalf("default PagesBaseURL = %q, %v", cfg.PagesBaseURL, err)
+	}
+
+	t.Setenv("PAGES_BASE_URL", "https://sites.other.test/")
+	cfg, err = Load()
+	if err != nil || cfg.PagesBaseURL != "https://sites.other.test" {
+		t.Fatalf("PagesBaseURL = %q, %v", cfg.PagesBaseURL, err)
+	}
+}
+
+func TestLoadRefusesAPagesBaseURLThatIsNotAHostOfItsOwn(t *testing.T) {
+	for _, bad := range []string{"/pages", "pages.example.test", "ftp://pages.example.test", "https://pages.example.test/d", "https://u@pages.example.test",
+		"https://pages.example.test?x=1", "https://COURSES.example.test"} {
+		setValidEnvironment(t)
+		t.Setenv("PAGES_BASE_URL", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PAGES_BASE_URL") {
+			t.Errorf("Load() with PAGES_BASE_URL %q: error = %v, want a PAGES_BASE_URL error", bad, err)
+		}
 	}
 }
