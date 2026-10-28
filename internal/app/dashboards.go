@@ -133,43 +133,38 @@ func (a *App) ownDashboard(r *http.Request) (*dashboard, error) {
 // Its Parts stay in the store.
 func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*dashboard, error) {
 	var d dashboard
-	var config, settings, columns []byte
+	var config []byte
 	var updated time.Time
 	var pageKey sql.NullString
 	var pageSize sql.NullInt64
 	var pageUploaded sql.NullTime
-	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.name, d.theme, d.config, d.upload_settings, d.dataset_columns,
-			ds.parts, ds.rows, ds.file, d.updated_at, pg.storage_key, pg.size, pg.uploaded_at
+	err := a.db.QueryRowContext(ctx, `SELECT d.id, d.name, d.theme, d.config, d.updated_at, pg.storage_key, pg.size, pg.uploaded_at
 		FROM (SELECT * FROM dashboards WHERE `+where+`) d
-		CROSS JOIN LATERAL (SELECT count(*) AS parts, COALESCE(sum(p.row_count), 0) AS rows,
-				COALESCE((array_agg(p.file_name ORDER BY p.position DESC))[1], '') AS file
-			FROM dataset_parts p WHERE p.dashboard_id = d.id AND p.state = 'current') ds
 		LEFT JOIN dashboard_pages pg ON pg.dashboard_id = d.id AND pg.current`, args...).
-		Scan(&d.ID, &d.Name, &d.Theme, &config, &settings, &columns, &d.Parts, &d.Rows, &d.File, &updated,
-			&pageKey, &pageSize, &pageUploaded)
+		Scan(&d.ID, &d.Name, &d.Theme, &config, &updated, &pageKey, &pageSize, &pageUploaded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if _, d.Key, err = a.dataset.Keys(ctx, d.ID); err != nil {
+	parts, key, err := a.dataset.Keys(ctx, d.ID)
+	if err != nil {
+		return nil, err
+	}
+	d.Key, d.Parts = key, len(parts)
+	for _, p := range parts {
+		d.Rows, d.File = d.Rows+p.Rows, p.File
+	}
+	if d.Settings, d.Columns, err = a.dataset.Settings(ctx, d.ID); err != nil {
 		return nil, err
 	}
 	d.Updated = updated.UTC().Format(periodTime)
 	if pageKey.Valid {
 		d.Page = &htmlPage{Key: pageKey.String, Size: pageSize.Int64, Uploaded: pageUploaded.Time.UTC().Format(periodTime)}
 	}
-	if err := json.Unmarshal(settings, &d.Settings); err != nil {
-		return nil, err
-	}
 	if config != nil {
 		if err := json.Unmarshal(config, &d.Config); err != nil {
-			return nil, err
-		}
-	}
-	if columns != nil {
-		if err := json.Unmarshal(columns, &d.Columns); err != nil {
 			return nil, err
 		}
 	}
@@ -307,7 +302,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
-	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, uploadMode{}, upload, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, upload, data)
 	switch {
 	case errors.Is(err, errStorageFull):
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(int64(len(data))), sizeText(used), sizeText(acc.Period.Storage())))
@@ -337,7 +332,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	var size int64
 	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: dataset.ReplaceData, File: upload, Sum: sha256.Sum256(data), Workbook: workbook, Read: res},
-		pendingReserve(d, acc, uploadMode{}, &size, &used))
+		pendingReserve(d, acc, dataset.ReplaceData, 0, &size, &used))
 	// ponytail: a compensating delete, not one transaction, as Upload runs its own; a crash between the insert and
 	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into Upload
 	// if that turns up.
@@ -351,7 +346,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage())))
 		return
 	case errors.Is(err, errDatasetStore):
-		if !errors.Is(err, errDatasetStore) { // the Workbook's refusal is logged where it happened
+		if err != errDatasetStore { // the module's, wrapped; keepWorkbook logs its own bare one where it happened
 			a.logError(r, err)
 		}
 		refuse(text.T(lang, "lab.d.upload-failed"))
@@ -508,7 +503,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			p.AskHeader = p.Pending.HeaderRow
 		}
 	}
-	if p.Pending != nil && !p.Pending.Mode.intoDataset() && d.Page != nil && d.Parts > 0 {
+	if p.Pending != nil && p.Pending.Kind == dataset.ReplaceData && d.Page != nil && d.Parts > 0 {
 		// By exact name, as data.json's keys are: a Replace serves the new names as they are, so a page reading Jumlah
 		// breaks on jumlah. An Add matches columns ignoring case and spaces (lab.ColumnChanges) as it keeps the
 		// current names, so data.json's keys stay.
@@ -540,7 +535,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		if p.Pending != nil {
 			var room storageRoom
-			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.Mode, p.Access)
+			room, err = roomFor(r.Context(), a.db, d.ID, p.Pending.Size, p.Pending.Kind, p.Pending.ReplacedPart, p.Access)
 			if err == nil && !room.Fits && p.Error == "" { // the confirm will be refused: say so now
 				var lang string
 				lang, err = a.language(r)
@@ -684,13 +679,23 @@ const lapsedSQL = `NOT l.is_admin AND NOT EXISTS (SELECT 1 FROM plan_periods pp
 // Dashboards and their Deployments stay, the Deployments asleep. The Admin's Parts are never pruned. Parts left
 // pending past pendingKeepHours go too, the Admin's included.
 func (a *App) pruneDatasets(ctx context.Context) (int, error) {
-	work, err := a.db.ExecContext(ctx, `DELETE FROM dataset_parts ds USING dashboards d JOIN learners l ON l.id = d.learner_id
-		WHERE d.id = ds.dashboard_id AND (ds.state = 'pending' AND ds.uploaded_at < now() - make_interval(hours => $2) OR `+lapsedSQL+`)`,
-		datasetKeepDays, pendingKeepHours)
+	var lapsed []int64
+	rows, err := a.db.QueryContext(ctx, `SELECT l.id FROM learners l WHERE `+lapsedSQL, datasetKeepDays)
 	if err != nil {
 		return 0, err
 	}
-	deleted, err := work.RowsAffected()
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		lapsed = append(lapsed, id)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	deleted, err := a.dataset.Prune(ctx, lapsed, pendingKeepHours)
 	if err != nil {
 		return 0, err
 	}
@@ -700,7 +705,7 @@ func (a *App) pruneDatasets(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	a.dropDeletedFiles(ctx, nil)
-	return int(deleted), nil
+	return deleted, nil
 }
 
 // copyDatasetsToStore is a one-off step at startup: it moves every Dataset still in the old dataset column into
@@ -785,7 +790,7 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 			return fmt.Errorf("get Dataset %s: %w", o.key, err)
 		}
 		var d lab.Dataset
-		var c cleaned
+		var c dataset.Preview
 		if err := json.Unmarshal(o.cleanup, &c); err != nil {
 			return fmt.Errorf("read Dataset %s: %w", o.key, err)
 		}
@@ -920,7 +925,7 @@ func (a *App) serveParts(w http.ResponseWriter, r *http.Request, d *dashboard, k
 	}
 	var withRows []string
 	for _, p := range parts {
-		if p.HasRows {
+		if p.Rows > 0 {
 			withRows = append(withRows, p.Key)
 		}
 	}

@@ -26,10 +26,6 @@ import (
 // previewRows is how many cleaned rows a Dashboard's upload preview shows.
 const previewRows = 20
 
-// cleaned is what Clean-up found on an upload besides its data, kept with the Part as dataset_parts.cleanup: the
-// preview shows it, the next upload compares its changes, and the Dashboard remembers its Settings on confirm.
-type cleaned = dataset.Preview
-
 // mapPick is a column of the Dataset the Learner may read an upload's column as, for a dropdown: File is the upload's
 // column now read as it, if any, and Options the upload's columns to pick from.
 type mapPick struct {
@@ -61,64 +57,16 @@ type columnMapping struct {
 	Picks  []mapPick
 }
 
-// addition and replacement are what an Add and a Replace of one Part put together.
-type (
-	addition    = dataset.Addition
-	replacement = dataset.Replacement
-)
-
-// uploadKind is what an upload does to the Dataset once confirmed (ADR 0022).
-type uploadKind int
-
-const (
-	replaceData uploadKind = iota // every current Part is deleted and the upload is the Dataset
-	addPart                       // the upload becomes the last Part and the others stay
-	replacePart                   // the upload takes the place of one Part and the others stay
-)
-
-// dbKind is the kind as dataset_parts.upload_kind holds it.
-// ponytail: two enums for one kind, mapped here and in modeOf, until #461 deletes uploadKind.
-func (k uploadKind) dbKind() dataset.Kind {
-	switch k {
-	case addPart:
-		return dataset.Add
-	case replacePart:
-		return dataset.ReplacePart
-	}
-	return dataset.ReplaceData
-}
-
-// uploadMode is an upload's kind, with the Part it replaces for replacePart. The zero value is Replace data.
-type uploadMode struct {
-	Kind uploadKind
-	Part int64 // the ID of the Part replaced; 0 unless Kind is replacePart, which matches no Part
-}
-
-// intoDataset reports whether the upload joins the Dataset's Parts, an Add or a Replace of one Part, so it is read with
-// the Dataset's recipe and columns. Replace data starts the Dataset afresh.
-func (m uploadMode) intoDataset() bool { return m.Kind != replaceData }
-
-// pendingDataset is a Dashboard's upload after Clean-up, a pending Part waiting for its Learner to confirm the preview.
-// Until then the Dashboard and its Deployment keep the current Dataset. Dataset holds the upload's rows alone.
-type pendingDataset struct {
-	cleaned
-	ID       int64
-	Key      string // where the Part's rows are stored
-	File     string
-	Size     int64 // saved size, which counts against the Storage allowance once confirmed
-	Workbook int64 // the Workbook it was read from, 0 once that Workbook is deleted
-	Dataset  *lab.Dataset
-	Mode     uploadMode // what confirming it does, from the Part's columns
-}
+// pendingDataset is a Dashboard's upload after Clean-up, a pending Part waiting for its Learner to confirm the preview,
+// with what the preview shows of it. Until then the Dashboard and its Deployment keep the current Dataset. Its Dataset
+// holds the upload's rows alone.
+type pendingDataset struct{ *dataset.Pending }
 
 // IsAdd reports whether confirming the Part adds it to the Dataset.
-func (p *pendingDataset) IsAdd() bool { return p.Mode.Kind == addPart }
+func (p *pendingDataset) IsAdd() bool { return p.Kind == dataset.Add }
 
 // IsReplace reports whether confirming the Part replaces one Part of the Dataset.
-func (p *pendingDataset) IsReplace() bool { return p.Mode.Kind == replacePart }
-
-// ReplacedPart is the ID of the Part it replaces, 0 unless IsReplace.
-func (p *pendingDataset) ReplacedPart() int64 { return p.Mode.Part }
+func (p *pendingDataset) IsReplace() bool { return p.Kind == dataset.ReplacePart }
 
 // Picked is the sheet Clean-up read first, the one the others joined.
 func (p *pendingDataset) Picked() string { return p.PickedSheet }
@@ -186,10 +134,10 @@ type storageRoom struct {
 }
 
 // roomFor is whether a pending Part of size bytes fits the Learner's Storage allowance, counting as free the Parts
-// its confirm deletes (see mode): every current Part for Replace data, the one Part for a Replace of a Part, none for
+// its confirm deletes (see kind and replaces): every current Part for Replace data, the one Part for a Replace of a Part, none for
 // an Add, and for all three the earlier Datasets from before Parts. dashboardID is 0 for a Dashboard not made yet. The
 // Admin has no allowance.
-func roomFor(ctx context.Context, q queryer, dashboardID, size int64, mode uploadMode, acc labAccess) (storageRoom, error) {
+func roomFor(ctx context.Context, q queryer, dashboardID, size int64, kind dataset.Kind, replaces int64, acc labAccess) (storageRoom, error) {
 	period := acc.CountedPeriod()
 	if period == nil {
 		return storageRoom{Fits: true}, nil
@@ -198,7 +146,7 @@ func roomFor(ctx context.Context, q queryer, dashboardID, size int64, mode uploa
 	if err := q.QueryRowContext(ctx, `SELECT `+storageUsedSQL("this.learner_id")+` FROM dashboards this WHERE this.id = $1`, dashboardID).Scan(&room.Used); err != nil {
 		return storageRoom{}, err
 	}
-	freed, err := dataset.Frees(ctx, q, dashboardID, mode.Kind.dbKind(), mode.Part)
+	freed, err := dataset.Frees(ctx, q, dashboardID, kind, replaces)
 	if err != nil {
 		return storageRoom{}, err
 	}
@@ -228,18 +176,7 @@ func (a *App) pendingOf(ctx context.Context, d *dashboard) (*pendingDataset, err
 	if p == nil || err != nil {
 		return nil, err
 	}
-	return &pendingDataset{cleaned: p.Preview, ID: p.ID, Key: p.Key, File: p.File, Size: p.Size, Workbook: p.Workbook, Dataset: p.Dataset, Mode: modeOf(p)}, nil
-}
-
-// modeOf is what confirming the pending Part p does, as an uploadMode.
-func modeOf(p *dataset.Pending) uploadMode {
-	switch p.Kind {
-	case dataset.Add:
-		return uploadMode{Kind: addPart}
-	case dataset.ReplacePart:
-		return uploadMode{Kind: replacePart, Part: p.ReplacedPart}
-	}
-	return uploadMode{}
+	return &pendingDataset{p}, nil
 }
 
 // maxCleanUps is how many uploads Clean-up reads at once: a 1.5 MB workbook peaks near 300 MB.
@@ -272,9 +209,9 @@ var errDatasetStore = dataset.ErrStore
 // pendingReserve is the Storage allowance's check for a pending Part on Dashboard d, for the Dataset module's Upload to
 // call in its transaction. With acc's counted period, the Learner's pending Parts on their other Dashboards count against
 // the allowance too, as the upload replaces the Dashboard's own. A Part that would not fit, even with the Parts its
-// confirm deletes gone (those of mode; see roomFor), is refused with errStorageFull. size is set to the Part's saved size,
+// confirm deletes gone (those of kind and replaces; see roomFor), is refused with errStorageFull. size is set to the Part's saved size,
 // and used to the bytes the Learner's Parts, Workbooks and pages take, pending Parts included.
-func pendingReserve(d *dashboard, acc labAccess, mode uploadMode, size, used *int64) dataset.Reserve {
+func pendingReserve(d *dashboard, acc labAccess, kind dataset.Kind, replaces int64, size, used *int64) dataset.Reserve {
 	return func(ctx context.Context, tx *sql.Tx, bytes int64) error {
 		*size = bytes
 		if acc.CountedPeriod() == nil {
@@ -292,7 +229,7 @@ func pendingReserve(d *dashboard, acc labAccess, mode uploadMode, size, used *in
 		}
 		// ponytail: what confirm deletes counts as free before it is, so the store can hold up to about twice the
 		// allowance until the Learner confirms; refusing those uploads would refuse ones that fit once confirmed.
-		room, err := roomFor(ctx, tx, d.ID, pending+bytes, mode, acc)
+		room, err := roomFor(ctx, tx, d.ID, pending+bytes, kind, replaces, acc)
 		if err != nil {
 			return err
 		}
@@ -362,14 +299,14 @@ func mapPicks(form url.Values) map[string]string {
 // mappingForm is the form to map the columns of a refused upload that the Dataset still lacks, from the file's columns
 // that are left; nil when none are left to pick from. Choices already made, for columns not asked about again, and the
 // upload's other settings go in it as hidden fields, so the file is read again as it was.
-func mappingForm(r *http.Request, d *dashboard, e *dataset.MissingColumnsError, workbook int64, mode uploadMode) *columnMapping {
+func mappingForm(r *http.Request, d *dashboard, e *dataset.MissingColumnsError, workbook int64, kind dataset.Kind, replaces int64) *columnMapping {
 	missing, unused := e.Missing, e.Unused
 	if len(unused) == 0 {
 		return nil
 	}
 	form := &columnMapping{Action: dashboardURL(d) + "/dataset", Hidden: []hiddenField{{"workbook", strconv.FormatInt(workbook, 10)}}}
-	if mode.Kind == replacePart {
-		form.Action = fmt.Sprintf("%s/parts/%d/replace", dashboardURL(d), mode.Part)
+	if kind == dataset.ReplacePart {
+		form.Action = fmt.Sprintf("%s/parts/%d/replace", dashboardURL(d), replaces)
 	} else {
 		form.Hidden = append(form.Hidden, hiddenField{"mode", "add"})
 	}
@@ -403,15 +340,16 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		a.serverError(w, r, err)
 		return
 	}
-	// Add to data on a Dashboard with a Dataset adds a Part; any other upload replaces the data (ADR 0022).
-	var mode uploadMode
+	// The form asks for Add to data or Replace data; the Dataset module makes an Add on a Dataset without Parts Replace
+	// data (ADR 0022).
+	kind, replaces := dataset.ReplaceData, int64(0)
 	switch {
 	case replacing != nil:
-		mode = uploadMode{Kind: replacePart, Part: replacing.ID}
-	case r.FormValue("mode") == "add" && d.Parts > 0:
-		mode.Kind = addPart
+		kind, replaces = dataset.ReplacePart, replacing.ID
+	case r.FormValue("mode") == "add":
+		kind = dataset.Add
 	}
-	recipe, err := a.dataset.Recipe(r.Context(), d.ID, mode.Kind.dbKind())
+	recipe, err := a.dataset.Recipe(r.Context(), d.ID, kind)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -430,7 +368,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	// The exact same file as a current Part is refused before anything is kept (the Dataset module's Upload refuses it
 	// too).
 	sum := sha256.Sum256(data)
-	err = a.dataset.SameFile(r.Context(), d.ID, mode.Kind.dbKind(), mode.Part, sum)
+	err = a.dataset.SameFile(r.Context(), d.ID, kind, replaces, sum)
 	var same *dataset.SameFileError
 	if errors.As(err, &same) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name, Same: &samePart{ID: same.ID, File: same.File, Date: same.Date}})
@@ -452,7 +390,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 			page.Error = text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage()))
 			a.renderDashboard(w, r, http.StatusUnprocessableEntity, page)
 		case errors.Is(err, errDatasetStore):
-			if !errors.Is(err, errDatasetStore) { // the Workbook's refusal is logged where it happened
+			if err != errDatasetStore { // the module's, wrapped; keepWorkbook logs its own bare one where it happened
 				a.logError(r, err)
 			}
 			a.renderDashboard(w, r, http.StatusServiceUnavailable, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Failed: true})
@@ -461,7 +399,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		return true
 	}
-	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, mode, name, data)
+	workbook, used, err := a.keepWorkbook(r, learner.ID, d.ID, acc, kind, replaces, name, data)
 	if refused(int64(len(data)), used, err) {
 		return
 	}
@@ -476,8 +414,8 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		return
 	}
 	var size int64
-	pending, err := a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: mode.Kind.dbKind(), Replaces: mode.Part, File: name, Sum: sum, Workbook: workbook,
-		Read: res, Settings: settings, Picks: mapPicks(r.Form), FromWorkbook: pickedID(r) != ""}, pendingReserve(d, acc, mode, &size, &used))
+	pending, err := a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: kind, Replaces: replaces, File: name, Sum: sum, Workbook: workbook,
+		Read: res, Settings: settings, Picks: mapPicks(r.Form), FromWorkbook: pickedID(r) != ""}, pendingReserve(d, acc, kind, replaces, &size, &used))
 	var missing *dataset.MissingColumnsError
 	switch {
 	case errors.As(err, &same): // another upload of it got in first
@@ -487,7 +425,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		page := &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Upload: name}
 		problem = missing.Problem
 		if workbook != 0 {
-			page.Mapping = mappingForm(r, d, missing, workbook, mode)
+			page.Mapping = mappingForm(r, d, missing, workbook, kind, replaces)
 			if page.Mapping != nil && problem.Key == "lab.err.add-columns" {
 				problem.Key = "lab.err.add-columns-map" // the refusal says the columns can be matched below
 			}
@@ -514,7 +452,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		usual, err := a.dataset.Routine(r.Context(), d.ID, res.Changes)
 		var room storageRoom
 		if err == nil && usual {
-			room, err = roomFor(r.Context(), a.db, d.ID, pending.Size, uploadMode{}, acc)
+			room, err = roomFor(r.Context(), a.db, d.ID, pending.Size, dataset.ReplaceData, 0, acc)
 		}
 		if err != nil {
 			a.serverError(w, r, err)
@@ -541,7 +479,7 @@ func confirmReserve(d *dashboard, acc labAccess, room *storageRoom) dataset.Conf
 			return err
 		}
 		var err error
-		if *room, err = roomFor(ctx, tx, d.ID, p.Size, modeOf(p), acc); err != nil || !room.Fits {
+		if *room, err = roomFor(ctx, tx, d.ID, p.Size, p.Kind, p.ReplacedPart, acc); err != nil || !room.Fits {
 			return cmp.Or(err, errStorageFull)
 		}
 		return nil

@@ -118,13 +118,112 @@ func TestKeysListsPartsInPositionOrderAndNamesThemByTheirKeys(t *testing.T) {
 	}
 }
 
-func TestKeysTellsWhichPartsHaveRows(t *testing.T) {
+func TestPartsTellHowManyRowsEachHasAndWhatTheDataTabShowsOfThem(t *testing.T) {
 	w := newWorld(t)
 	w.addPart("a", "current", 1, 0)
 	w.addPart("b", "current", 2, 3)
 	parts, _ := w.parts()
-	if len(parts) != 2 || parts[0].HasRows || !parts[1].HasRows {
-		t.Fatalf("parts = %+v, want the first without rows and the second with", parts)
+	if len(parts) != 2 || parts[0].Rows != 0 || parts[1].Rows != 3 {
+		t.Fatalf("parts = %+v, want the first without rows and the second with 3", parts)
+	}
+	if b := parts[1]; b.File != "b.xlsx" || b.Date != "2026-10-01" || b.Size != 1 {
+		t.Fatalf("part b = %+v, want its file, Part date and saved size", b)
+	}
+}
+
+func TestAConfirmedPartIsListedWithItsFileDateRowsSizeAndWhenItWasConfirmed(t *testing.T) {
+	w := newWorld(t)
+	before := time.Now().Add(-time.Minute)
+	w.junePart()
+	parts, _ := w.parts()
+	if len(parts) != 1 {
+		t.Fatalf("parts = %+v, want one", parts)
+	}
+	p := parts[0]
+	if p.File != "jun.xlsx" || p.Date != uploadDay || p.Rows != 2 || p.Size <= 0 || p.Confirmed.Before(before) {
+		t.Fatalf("part = %+v, want jun.xlsx, %s, 2 rows, a size and a confirm time of now", p, uploadDay)
+	}
+}
+
+func TestSettingsGiveWhatTheDashboardRemembersAndItsColumnsNilUntilTheFirstUploadAndEmptyOnceTheLastPartIsDeleted(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	settings, columns, err := w.ds.Settings(ctx, w.dashboard)
+	if err != nil || settings.Recipe != nil || columns != nil {
+		t.Fatalf("before an upload: %+v, %v, %v, want no recipe and nil columns", settings, columns, err)
+	}
+
+	w.junePart()
+	settings, columns, err = w.ds.Settings(ctx, w.dashboard)
+	if err != nil || settings.Recipe == nil || settings.Recipe.Sheet == "" || len(columns) != 3 {
+		t.Fatalf("after a first Part: %+v, %v, %v, want its recipe and 3 columns", settings, columns, err)
+	}
+
+	parts, _ := w.parts()
+	if err := w.ds.Delete(ctx, w.dashboard, parts[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	settings, columns, err = w.ds.Settings(ctx, w.dashboard)
+	if err != nil || settings.Recipe != nil || columns == nil || len(columns) != 0 {
+		t.Fatalf("after deleting the last Part: %+v, %#v, %v, want no recipe and an empty, not nil, list", settings, columns, err)
+	}
+}
+
+func TestUsesListsOnceEachDashboardThatHasAPartCleanedFromAWorkbookByNameForTheLearnersWorkbooksOnly(t *testing.T) {
+	w := newWorld(t)
+	var workbook, other, second, stranger, strangersDashboard int64
+	w.exec(&workbook, `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'wb1', 'a.xlsx', 1, '\x01') RETURNING id`, w.learner)
+	w.exec(&other, `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'wb2', 'b.xlsx', 1, '\x02') RETURNING id`, w.learner)
+	w.exec(&second, `INSERT INTO dashboards (learner_id, name) VALUES ($1, 'akaun') RETURNING id`, w.learner)
+	w.exec(&stranger, `INSERT INTO learners (name, username, email, password_hash) VALUES ('Bob', 'bob', 'bob@example.invalid', 'x') RETURNING id`)
+	w.exec(&strangersDashboard, `INSERT INTO dashboards (learner_id, name) VALUES ($1, 'Lain') RETURNING id`, stranger)
+	part := func(dashboard int64, key string, workbook any) {
+		w.exec(nil, `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, position, part_date, workbook_id)
+			VALUES ($1, $2, $2, 1, 1, 'current', $3, '2026-10-01', $4)`, dashboard, key, len(key), workbook)
+	}
+	part(w.dashboard, "p1", workbook)
+	part(w.dashboard, "p22", workbook) // a second Part of the same Dashboard from it
+	part(second, "p3", workbook)
+	part(w.dashboard, "p444", nil) // not cleaned from a Workbook
+	part(strangersDashboard, "p5", workbook)
+
+	uses, err := w.ds.Uses(context.Background(), w.learner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// By name ignoring case, so akaun comes before Kedai; none for the other Workbook.
+	want := []dataset.Use{{ID: second, Name: "akaun"}, {ID: w.dashboard, Name: "Kedai"}}
+	if len(uses) != 1 || !slices.Equal(uses[workbook], want) {
+		t.Fatalf("uses = %+v, want only Workbook %d on %+v (not %d)", uses, workbook, want, other)
+	}
+}
+
+func TestPruneDeletesTheGivenLearnersPartsAndEveryPendingPartLeftPastTheHoursAndReportsHowMany(t *testing.T) {
+	w := newWorld(t)
+	var stranger, strangersDashboard int64
+	w.exec(&stranger, `INSERT INTO learners (name, username, email, password_hash) VALUES ('Bob', 'bob', 'bob@example.invalid', 'x') RETURNING id`)
+	w.exec(&strangersDashboard, `INSERT INTO dashboards (learner_id, name) VALUES ($1, 'Lain') RETURNING id`, stranger)
+	w.addPart("a", "current", 1, 1)
+	w.addPart("old", "pending", 0, 1)
+	w.exec(nil, `UPDATE dataset_parts SET uploaded_at = now() - interval '25 hours' WHERE storage_key = 'old'`)
+	w.exec(nil, `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, position, part_date)
+		VALUES ($1, 'theirs', 'theirs.xlsx', 1, 1, 'current', 1, '2026-10-01')`, strangersDashboard)
+	w.exec(nil, `INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, part_date)
+		VALUES ($1, 'waiting', 'waiting.xlsx', 1, 1, 'pending', '2026-10-01')`, strangersDashboard)
+
+	ctx := context.Background()
+	n, err := w.ds.Prune(ctx, nil, 24)
+	if err != nil || n != 1 || w.count("pending") != 0 || w.count("current") != 1 {
+		t.Fatalf("Prune of no Learner = %d, %v, want 1: only the pending Part left past 24 hours", n, err)
+	}
+	n, err = w.ds.Prune(ctx, []int64{w.learner}, 24)
+	if err != nil || n != 1 || w.count("current") != 0 {
+		t.Fatalf("Prune of the Learner = %d, %v, want their 1 Part", n, err)
+	}
+	var theirs int
+	w.exec(&theirs, `SELECT count(*) FROM dataset_parts WHERE dashboard_id = $1`, strangersDashboard)
+	if theirs != 2 {
+		t.Fatalf("%d Parts of the Learner not given, want their 2 kept", theirs)
 	}
 }
 

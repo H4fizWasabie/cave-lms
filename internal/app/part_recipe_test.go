@@ -70,35 +70,6 @@ func TestAnAddWithoutTheRecipeSheetOffersTheSheetsWithTheDatasetsColumnsAndAddsT
 	}
 }
 
-// Replace data is cleaned as the first Part is, with sheets combined, and sets the recipe the next Add follows.
-func TestReplacingDataCombinesSheetsAndSetsANewRecipe(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, link := pageWithData(t, ada)
-
-	both := testutil.Workbook(t, shopSheet("Okt", "Gula"), shopSheet("Nov", "Garam"))
-	res, body := ada.postFile(path+"/dataset", "semua.xlsx", both)
-	expectRedirect(t, res, body, path+"/data")
-	_, body = ada.get(path + "/data")
-	expectAll(t, body, "Combined 2 sheets")
-
-	res, body = ada.postFile(path+"/dataset", "okt.xlsx", testutil.Workbook(t, shopSheet("Okt", "Gula")))
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-
-	// The recipe's sheet is now Okt, not Sheet1.
-	more := testutil.Workbook(t, shopSheet("Sheet1", "Salah"), shopSheet("OKT", "Lada"))
-	res, body = ada.postFile(path+"/dataset", "bulan.xlsx", more, adding)
-	expectRedirect(t, res, body, path+"/data")
-	res, body = ada.post(path+"/dataset/confirm", nil)
-	expectRedirect(t, res, body, path+"/data")
-	_, body = ada.second().get(link + "data.json")
-	if got, want := perkara(t, body), []string{"Gula", "Lada"}; !slices.Equal(got, want) {
-		t.Fatalf("data.json Perkara = %v, want %v", got, want)
-	}
-}
-
 // A Dataset Cave built from several sheets has a Sheet column; a later Add reads one sheet, so the column is filled
 // from that sheet's name and the Add is not refused as missing it.
 func TestAnAddToADatasetOfCombinedSheetsFillsTheSheetColumnFromItsSheetName(t *testing.T) {
