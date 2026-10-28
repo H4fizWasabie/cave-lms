@@ -255,3 +255,9 @@ func TestBracketsAndPercentsThatAreNotAmountsStayText(t *testing.T) {
 		t.Fatalf("columns = %v, want text", res.Dataset.Columns)
 	}
 }
+
+func TestALastRowWithOnlyAnUncachedFormulaIsDataNotANote(t *testing.T) {
+	file := handMade(t, sheet1, `<row r="1">`+inlineCell("A1", "Nama")+inlineCell("B1", "Jumlah")+`</row><row r="2">`+
+		inlineCell("A2", "a")+`<c r="B2"><v>1</v></c></row><row r="3"><c r="A3"><f>1+1</f></c><c r="B3"><v></v></c></row>`, "")
+	wantRows(t, clean(t, file), []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Number}}, [][]any{{"a", 1.0}, {nil, nil}})
+}

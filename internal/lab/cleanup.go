@@ -1231,6 +1231,7 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 			}
 		}
 		_, isNumber := number(last)
+		isNumber = isNumber || blank(last) // a null cell is a value that is missing, not a label
 		if !total && (filled != 1 || raw[n-1][0].v == "" || width < 2 || isNumber) {
 			break
 		}
