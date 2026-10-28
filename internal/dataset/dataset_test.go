@@ -5,32 +5,38 @@ import (
 	"database/sql"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// world is a Dashboard in a migrated test database with the Dataset module over it. Upload and Confirm do not exist yet,
-// so the helpers below make and change Parts with SQL: the only place the tests do.
+// world is a Dashboard in a migrated test database with the Dataset module over it and a store in a temp directory. Confirm
+// does not exist yet, so the helpers below make and change Parts with SQL: the only place the tests do.
 type world struct {
 	t         *testing.T
 	db        *sql.DB
+	dir       string // where the store keeps the objects
+	store     storage.Store
+	learner   int64
 	dashboard int64
 	ds        *dataset.Dataset
+	now       time.Time // the clock; tests may set it before an upload
 }
 
 func newWorld(t *testing.T) *world {
 	t.Helper()
 	db, _ := testutil.NewDatabase(t)
-	store, err := storage.Open(t.TempDir())
+	dir := t.TempDir()
+	store, err := storage.Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := &world{t: t, db: db, ds: dataset.New(db, store)}
-	var learner int64
-	w.exec(&learner, `INSERT INTO learners (name, username, email, password_hash) VALUES ('Ada', 'ada', 'ada@example.invalid', 'x') RETURNING id`)
-	w.exec(&w.dashboard, `INSERT INTO dashboards (learner_id, name) VALUES ($1, 'Kedai') RETURNING id`, learner)
+	w := &world{t: t, db: db, dir: dir, store: store, now: uploadAt}
+	w.ds = dataset.New(db, store, func() time.Time { return w.now })
+	w.exec(&w.learner, `INSERT INTO learners (name, username, email, password_hash) VALUES ('Ada', 'ada', 'ada@example.invalid', 'x') RETURNING id`)
+	w.exec(&w.dashboard, `INSERT INTO dashboards (learner_id, name) VALUES ($1, 'Kedai') RETURNING id`, w.learner)
 	return w
 }
 

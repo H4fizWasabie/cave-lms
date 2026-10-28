@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,7 @@ const (
 	maxDatasetUpload = maxDatasetFile + 64<<10
 )
 
-// errStorageFull is keepPending's and confirmWork's answer when a Dataset would take the Learner over their Storage
+// errStorageFull is pendingReserve's, keepWorkbook's and confirmWork's answer when a Dataset would take the Learner over their Storage
 // allowance.
 var errStorageFull = errors.New("over the Storage allowance")
 
@@ -334,11 +335,13 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	size, used, err := a.keepPending(r, d, acc, cleaned{CleanUp: *res}, uploadMode{}, upload, workbook)
-	// ponytail: a compensating delete, not one transaction, as keepPending runs its own; a crash between the insert and
-	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into keepPending
+	var size int64
+	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: dataset.ReplaceData, File: upload, Sum: sha256.Sum256(data), Workbook: workbook, Read: res},
+		pendingReserve(d, acc, uploadMode{}, &size, &used))
+	// ponytail: a compensating delete, not one transaction, as Upload runs its own; a crash between the insert and
+	// here leaves an empty built Dashboard in the Lab list, which its Learner can delete. Pass a tx into Upload
 	// if that turns up.
-	if err != nil { // the Dashboard goes with its Dataset, which keepPending has dropped
+	if err != nil { // the Dashboard goes with its Dataset, which Upload has dropped
 		if _, err := a.db.ExecContext(context.WithoutCancel(r.Context()), `DELETE FROM dashboards WHERE id = $1`, d.ID); err != nil {
 			a.logError(r, fmt.Errorf("delete refused Dashboard %d: %w", d.ID, err))
 		}
@@ -348,12 +351,16 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		refuse(text.T(lang, "lab.err.storage-full", sizeText(size), sizeText(used), sizeText(acc.Period.Storage())))
 		return
 	case errors.Is(err, errDatasetStore):
+		if err != errDatasetStore { // the Workbook's refusal is logged where it happened
+			a.logError(r, err)
+		}
 		refuse(text.T(lang, "lab.d.upload-failed"))
 		return
 	case err != nil:
 		a.serverError(w, r, err)
 		return
 	}
+	a.dropDeletedFiles(r.Context(), r)
 	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
 }
 
