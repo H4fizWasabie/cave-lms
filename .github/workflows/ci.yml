@@ -22,3 +22,30 @@ jobs:
       # Fails on a known CVE that the code can reach, in a dependency or in the Go standard library.
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - run: ./test.sh
+
+  # Mutates only the lines a pull request changes and fails if a test misses one. It runs beside test and is not a
+  # required check. It has no database, so it leaves out the packages whose tests need one (app, dataset, migrations):
+  # their tests would skip and every mutant pass unchecked. A database would rerun app's minutes-long suite per run.
+  mutation:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true # report-only until its noise is known
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # --diff needs the base branch
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      # gremlins v0.6.0: --threshold-efficacy never fails the run, so a surviving mutant is found by its LIVED line; and
+      # --diff matches only from the module root, where its paths are repo-relative like git's. The timeout coefficient is
+      # high because these tests take milliseconds, and at the default a mutant times out instead of failing a test.
+      - shell: bash # with pipefail, so a gremlins crash is not hidden behind tee
+        run: |
+          go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --diff "origin/$GITHUB_BASE_REF" \
+            --timeout-coefficient 10 --exclude-files '^internal/(app|dataset|migrations)/' --output-statuses l . | tee mutants.txt
+          if grep -q LIVED mutants.txt; then
+            { echo '### Changed lines no test checks'; echo '```'; grep LIVED mutants.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
