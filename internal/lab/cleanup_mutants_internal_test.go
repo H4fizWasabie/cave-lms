@@ -401,7 +401,7 @@ func TestSerialsCountsNumbersOnlyWhenEveryOneIsADateSerialFrom1950To2100(t *test
 		{"no numbers", col("", "x"), 0},
 	}
 	for _, c := range cases {
-		if got := serials(c.raw, 0); got != c.want {
+		if got := serials(c.raw, 0, false); got != c.want {
 			t.Errorf("%s: serials = %d, want %d", c.name, got, c.want)
 		}
 	}
