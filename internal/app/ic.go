@@ -54,7 +54,16 @@ func (a *App) renderMyProfile(w http.ResponseWriter, r *http.Request, status int
 		a.serverError(w, r, err)
 		return
 	}
-	a.render(w, r, status, "my_profile", &myProfilePage{pageBase: pageBase{Learner: learner}, IC: formatIC(ic), PictureError: pictureError})
+	page := &myProfilePage{pageBase: pageBase{Learner: learner}, IC: formatIC(ic), PictureError: pictureError}
+	if r.URL.Query().Has("saved") {
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		page.Message = text.T(lang, "admin.common.saved")
+	}
+	a.render(w, r, status, "my_profile", page)
 }
 
 // setMyIC is the Learner setting their IC or passport number, once. After that only the Admin can change it.

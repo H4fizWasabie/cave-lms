@@ -84,11 +84,12 @@ func TestALearnerChangesTheirUsernameInMyProfile(t *testing.T) {
 
 	res, body = s.post("/my-profile/username", url.Values{"username": {"ada-l"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	if res.Header.Get("Location") != "/my-profile" {
+	if res.Header.Get("Location") != "/my-profile?saved" {
 		t.Fatalf("saving went to %q", res.Header.Get("Location"))
 	}
-	res, body = s.get("/my-profile")
+	res, body = s.get("/my-profile?saved")
 	expectStatus(t, res, body, http.StatusOK, `value="ada-l"`)
+	expectStatus(t, res, body, http.StatusOK, `<p class="field-ok" role="status">Saved.</p>`)
 	// Giving up a Username frees it for another Learner.
 	res, body = bea.post("/my-profile/username", url.Values{"username": {"ada-example-com"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
@@ -97,6 +98,20 @@ func TestALearnerChangesTheirUsernameInMyProfile(t *testing.T) {
 	if res.StatusCode != http.StatusSeeOther || !strings.HasPrefix(res.Header.Get("Location"), "/login") {
 		t.Fatalf("a Visitor got %d to %q, want sent to log in", res.StatusCode, res.Header.Get("Location"))
 	}
+}
+
+func TestMyProfileSaysSavedOnlyAfterASave(t *testing.T) {
+	s := newSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+
+	_, body := s.get("/my-profile")
+	expectNone(t, body, "Saved.")
+	res, body := s.post("/my-profile/username", url.Values{"username": {"x"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "must be 3 to 40 characters")
+	expectNone(t, body, "Saved.")
+
+	_, body = s.getAsking("/my-profile?saved", "ms")
+	expectLanguage(t, body, "ms", `<p class="field-ok" role="status">Disimpan.</p>`)
 }
 
 func TestTheAdminGetsARandomUsername(t *testing.T) {

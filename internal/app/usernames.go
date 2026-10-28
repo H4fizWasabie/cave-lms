@@ -45,7 +45,7 @@ func (a *App) setMyUsername(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		default:
-			http.Redirect(w, r, "/my-profile", http.StatusSeeOther)
+			http.Redirect(w, r, "/my-profile?saved", http.StatusSeeOther)
 			return
 		}
 	}
