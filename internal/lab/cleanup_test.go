@@ -684,7 +684,7 @@ func TestCleanUpReadsExcelDateSerialsInADateNamedColumnAsDates(t *testing.T) {
 
 // handMade is a workbook of one sheet, Sheet1, whose XML is rows (the inside of sheetData) then tail, kept at
 // part in the archive, as a workbook may keep a sheet anywhere its relationships point.
-func handMade(t *testing.T, part, rows, tail string) []byte {
+func handMade(t testing.TB, part, rows, tail string) []byte {
 	t.Helper()
 	parts := map[string]string{
 		"[Content_Types].xml":        `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/` + part + `" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
