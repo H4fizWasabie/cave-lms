@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -103,6 +104,7 @@ func Main(m *testing.M) int {
 
 // migratedTemplate makes a database with pg_trgm and every migration applied and nothing connected to it, which
 // CREATE DATABASE ... TEMPLATE requires.
+// A template that fails to migrate is dropped, so a run on a database that outlives it leaves none behind.
 func migratedTemplate(ctx context.Context, adminDB *sql.DB, pgConfig *pgx.ConnConfig) (string, error) {
 	name := randomName("cave_lms_template_")
 	if _, err := adminDB.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
@@ -111,12 +113,14 @@ func migratedTemplate(ctx context.Context, adminDB *sql.DB, pgConfig *pgx.ConnCo
 	templateConfig := pgConfig.Copy()
 	templateConfig.Database = name
 	templateDB := stdlib.OpenDB(*templateConfig)
-	defer templateDB.Close()
-	if _, err := templateDB.ExecContext(ctx, "CREATE EXTENSION pg_trgm SCHEMA public"); err != nil {
-		return "", err
+	_, err := templateDB.ExecContext(ctx, "CREATE EXTENSION pg_trgm SCHEMA public")
+	if err == nil {
+		err = migrations.Up(ctx, templateDB)
 	}
-	if err := migrations.Up(ctx, templateDB); err != nil {
-		return "", err
+	err = errors.Join(err, templateDB.Close())
+	if err != nil {
+		_, dropErr := adminDB.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", name))
+		return "", errors.Join(err, dropErr)
 	}
 	return name, nil
 }
