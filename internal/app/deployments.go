@@ -106,7 +106,12 @@ func (a *App) deploymentOf(r *http.Request, dashboardID int64) (*deployment, err
 
 // deployTab is the Deploy tab: the facts and a link to the confirm step (?confirm), or the Deployment.
 func (a *App) deployTab(w http.ResponseWriter, r *http.Request, d *dashboard) {
-	acc, err := a.learnerAccess(r)
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	acc, err := a.labAccessOf(r.Context(), learner)
 	if err != nil {
 		a.serverError(w, r, err)
 		return

@@ -164,3 +164,28 @@ func (a *App) FragmentsBothWays(courseID, id int64, tokens []string) (shared, ap
 	}
 	return shared, apart, nil
 }
+
+// LabAccessReads is how many times Lab access has been read from the database, for tests.
+func (a *App) LabAccessReads() int64 { return a.labReads.Load() }
+
+// UsedAcrossSave reads a Learner's Lab access in one request's memo, saves a Workbook of size bytes, then reads it
+// again in the same request: what the second read says is used, and what the first did, for tests.
+func (a *App) UsedAcrossSave(ctx context.Context, learnerID, size int64) (before, after int64, err error) {
+	ctx = context.WithValue(ctx, labMemoKey{}, &labMemo{acc: map[int64]labAccess{}})
+	l := &learner{ID: learnerID}
+	acc, err := a.labAccessOf(ctx, l)
+	if err != nil || acc.Period == nil {
+		return 0, 0, fmt.Errorf("no active period: %v", err)
+	}
+	if err = a.inTx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'k', 'n', $2, 'x')`, learnerID, size)
+		return err
+	}); err != nil {
+		return 0, 0, err
+	}
+	again, err := a.labAccessOf(ctx, l)
+	if err != nil {
+		return 0, 0, err
+	}
+	return acc.Period.Used, again.Period.Used, nil
+}

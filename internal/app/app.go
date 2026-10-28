@@ -14,6 +14,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
@@ -39,6 +40,7 @@ const (
 )
 
 type App struct {
+	labReads             atomic.Int64 // how many times Lab access was read from the database, for tests
 	db                   *sql.DB
 	handler              http.Handler
 	mailer               mailer.Mailer
@@ -469,7 +471,9 @@ const sitePolicy = "default-src 'self'; img-src 'self' data: https:; style-src '
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", sitePolicy)
 	lookup := sync.OnceValues(func() (*learner, error) { return a.lookUpLearner(r) })
-	a.handler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), learnerKey{}, lookup)))
+	ctx := context.WithValue(r.Context(), learnerKey{}, lookup)
+	ctx = context.WithValue(ctx, labMemoKey{}, &labMemo{acc: map[int64]labAccess{}})
+	a.handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func (a *App) Close() error {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -47,8 +48,49 @@ func (p *activePeriod) DeploymentsLeft() int { return max(p.Deployments-p.Awake,
 // Full reports whether the Learner already has as many awake Deployments as the period allows.
 func (p *activePeriod) Full() bool { return p.Awake >= p.Deployments }
 
-// labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it.
+// labMemoKey keys the per-request memo of Lab access that ServeHTTP installs.
+type labMemoKey struct{}
+
+// labMemo holds what a request has read of Lab access, by Learner.
+type labMemo struct {
+	mu  sync.Mutex
+	acc map[int64]labAccess
+}
+
+// forgetLabAccess drops what the request read of Lab access, after a save has changed the storage used.
+func forgetLabAccess(ctx context.Context) {
+	if m, ok := ctx.Value(labMemoKey{}).(*labMemo); ok {
+		m.mu.Lock()
+		clear(m.acc)
+		m.mu.Unlock()
+	}
+}
+
+// labAccessOf applies the Lab access rule to a Learner. Every Lab request goes through it, and reads the access once:
+// later calls in the request get the same answer until a save calls forgetLabAccess. A failed read is not kept.
+// A Visitor (nil) has no access.
 func (a *App) labAccessOf(ctx context.Context, l *learner) (labAccess, error) {
+	if l == nil {
+		return labAccess{}, nil
+	}
+	m, ok := ctx.Value(labMemoKey{}).(*labMemo)
+	if !ok {
+		return a.readLabAccess(ctx, l)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if acc, ok := m.acc[l.ID]; ok {
+		return acc, nil
+	}
+	acc, err := a.readLabAccess(ctx, l)
+	if err == nil {
+		m.acc[l.ID] = acc
+	}
+	return acc, err
+}
+
+func (a *App) readLabAccess(ctx context.Context, l *learner) (labAccess, error) {
+	a.labReads.Add(1)
 	acc := labAccess{Admin: l.IsAdmin}
 	var p activePeriod
 	var ends time.Time
@@ -85,11 +127,9 @@ func (a *App) lab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := &labPage{pageBase: pageBase{Learner: learner, Title: "Lab"}}
-	if learner != nil {
-		if p.Access, err = a.labAccessOf(r.Context(), learner); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
+	if p.Access, err = a.labAccessOf(r.Context(), learner); err != nil {
+		a.serverError(w, r, err)
+		return
 	}
 	if !p.Access.Open() {
 		http.Redirect(w, r, "/pricing", http.StatusSeeOther)

@@ -129,7 +129,11 @@ func (a *App) inTx(ctx context.Context, f func(*sql.Tx) error) error {
 	if err := f(tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	forgetLabAccess(ctx) // the save changed the storage used
+	return nil
 }
 
 // pendingOf loads the Dashboard's pending Part, its rows read from the store; nil if it has none.
@@ -343,6 +347,7 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	}
 	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: kind, Replaces: replaces, File: name, Sum: sum, Workbook: workbook,
 		Read: res, Settings: settings, Picks: mapPicks(r.Form), FromWorkbook: pickedID(r) != ""}, partReserve(acc, learner.ID, d.ID, kind, replaces))
+	forgetLabAccess(r.Context())
 	var missing *dataset.MissingColumnsError
 	switch {
 	case errors.As(err, &same): // another upload of it got in first
@@ -432,6 +437,7 @@ func (a *App) confirmWork(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		return
 	}
 	_, err = a.dataset.Confirm(r.Context(), d.ID, r.FormValue("part-date"), confirmReserve(acc, learner.ID, d.ID), hook)
+	forgetLabAccess(r.Context())
 	if errors.Is(err, dataset.ErrLostRace) { // the new upload's preview
 		http.Redirect(w, r, dataURL(d), http.StatusSeeOther)
 		return
