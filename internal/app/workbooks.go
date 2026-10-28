@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 )
 
 // xlsxType is the content type a Workbook is served with.
@@ -20,14 +22,8 @@ type workbook struct {
 	ID       int64
 	Name     string
 	Size     int64
-	Uploaded string // formatted as periodTime
-	UsedOn   []workbookDashboard
-}
-
-// workbookDashboard is a Dashboard that has a Part cleaned from a Workbook.
-type workbookDashboard struct {
-	ID   int64
-	Name string
+	Uploaded string        // formatted as periodTime
+	UsedOn   []dataset.Use // the Dashboards that have a Part cleaned from it
 }
 
 // SizeText is the Workbook's size as people read it, such as 12 KB.
@@ -55,38 +51,22 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	at := make(map[int64]int, len(out)) // Workbook ID to its place in out
-	for i, w := range out {
-		at[w.ID] = i
+	uses, err := a.dataset.Uses(ctx, learnerID)
+	for i := range out { // a Workbook kept between the two queries waits for the next visit
+		out[i].UsedOn = uses[out[i].ID]
 	}
-	used, err := a.db.QueryContext(ctx, `SELECT ds.workbook_id, d.id, d.name FROM dataset_parts ds
-		JOIN dashboards d ON d.id = ds.dashboard_id WHERE d.learner_id = $1 AND ds.workbook_id IS NOT NULL
-		GROUP BY ds.workbook_id, d.id, d.name ORDER BY lower(d.name), d.id`, learnerID)
-	if err != nil {
-		return nil, err
-	}
-	defer used.Close()
-	for used.Next() {
-		var workbookID int64
-		var d workbookDashboard
-		if err := used.Scan(&workbookID, &d.ID, &d.Name); err != nil {
-			return nil, err
-		}
-		if i, ok := at[workbookID]; ok { // a Workbook kept between the two queries waits for the next visit
-			out[i].UsedOn = append(out[i].UsedOn, d)
-		}
-	}
-	return out, used.Err()
+	return out, err
 }
 
 // keepWorkbook keeps data, the .xlsx a Learner uploaded, as their Workbook called name, before Clean-up reads it, so it
 // stays whatever Clean-up finds. With acc's counted period it must fit the Storage allowance beside the Learner's
 // Parts, pages and Workbooks and their pending Parts on Dashboards other than dashboardID (0 for a new one); the
 // Dashboard's own pending Part is not counted, as the upload replaces it. The Parts that confirming the upload deletes
-// count as free, as for pendingReserve: those of mode on dashboardID (see roomFor). If it does not fit, nothing is kept
-// and the error is errStorageFull, with used the bytes counted. A store that refuses the file gives errDatasetStore. An
-// empty file is not kept: id is 0. A file the Learner already keeps gives that Workbook's id, keeping nothing new.
-func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, mode uploadMode, name string, data []byte) (id, used int64, err error) {
+// count as free, as for pendingReserve: those an upload of kind deletes on dashboardID when confirmed (replaces is the
+// Part a ReplacePart one replaces, see roomFor). If it does not fit, nothing is kept and the error is errStorageFull,
+// with used the bytes counted. A store that refuses the file gives errDatasetStore. An empty file is not kept: id is 0.
+// A file the Learner already keeps gives that Workbook's id, keeping nothing new.
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, kind dataset.Kind, replaces int64, name string, data []byte) (id, used int64, err error) {
 	if len(data) == 0 {
 		return 0, 0, nil
 	}
@@ -121,7 +101,7 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 			}
 			if dashboardID != 0 {
 				// As pendingReserve: what confirming deletes from this Dashboard counts as free.
-				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), mode, acc)
+				room, err := roomFor(r.Context(), tx, dashboardID, pending+int64(len(data)), kind, replaces, acc)
 				if err != nil {
 					return err
 				}
@@ -197,18 +177,20 @@ func (a *App) deletableWorkbook(w http.ResponseWriter, r *http.Request) (id int6
 		a.notFound(w, r)
 		return 0, "", 0, false
 	}
-	err = a.db.QueryRowContext(r.Context(), `SELECT name,
-		(SELECT count(DISTINCT ds.dashboard_id) FROM dataset_parts ds WHERE ds.workbook_id = wb.id)
-		FROM workbooks wb WHERE wb.id = $1 AND wb.learner_id = $2`, id, learner.ID).Scan(&name, &uses)
+	err = a.db.QueryRowContext(r.Context(), `SELECT name FROM workbooks WHERE id = $1 AND learner_id = $2`, id, learner.ID).Scan(&name)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return 0, "", 0, false
+	}
+	var used map[int64][]dataset.Use
+	if err == nil {
+		used, err = a.dataset.Uses(r.Context(), learner.ID)
 	}
 	if err != nil {
 		a.serverError(w, r, err)
 		return 0, "", 0, false
 	}
-	return id, name, uses, true
+	return id, name, len(used[id]), true
 }
 
 // confirmDeleteWorkbook asks the Learner to confirm deleting one of their Workbooks, naming how many Dashboards used it.

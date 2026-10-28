@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/H4fizWasabie/cave-lms/internal/dataset"
@@ -39,23 +39,12 @@ type samePart struct {
 
 // partsOf lists the Dashboard's current Parts in order.
 func (a *App) partsOf(ctx context.Context, dashboardID int64) ([]partRow, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, file_name, part_date::text, row_count, saved_size, confirmed_at
-		FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current' ORDER BY position`, dashboardID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	parts, err := a.dataset.Parts(ctx, dashboardID)
 	var list []partRow
-	for rows.Next() {
-		var p partRow
-		var added sql.NullTime
-		if err := rows.Scan(&p.ID, &p.File, &p.Date, &p.Rows, &p.Size, &added); err != nil {
-			return nil, err
-		}
-		p.Added = added.Time.UTC().Format(periodTime)
-		list = append(list, p)
+	for _, p := range parts {
+		list = append(list, partRow{ID: p.ID, File: p.File, Date: p.Date, Rows: p.Rows, Size: p.Size, Added: p.Confirmed.UTC().Format(periodTime)})
 	}
-	return list, rows.Err()
+	return list, err
 }
 
 // partFor applies the Lab access rule, which it returns, and loads the ID, file name and rows of Dashboard d's current
@@ -65,21 +54,22 @@ func (a *App) partFor(w http.ResponseWriter, r *http.Request, d *dashboard) (p *
 	if !ok {
 		return nil, acc, false
 	}
-	p = &partRef{}
-	var err error
-	if p.ID, err = strconv.ParseInt(r.PathValue("part"), 10, 64); err == nil {
-		err = a.db.QueryRowContext(r.Context(), `SELECT file_name, row_count FROM dataset_parts WHERE id = $1 AND dashboard_id = $2 AND state = 'current'`,
-			p.ID, d.ID).Scan(&p.File, &p.Rows)
-	}
-	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, strconv.ErrSyntax) || errors.Is(err, strconv.ErrRange) {
+	id, err := strconv.ParseInt(r.PathValue("part"), 10, 64)
+	if err != nil { // not a number: no such Part
 		a.notFound(w, r)
 		return nil, acc, false
 	}
+	parts, err := a.dataset.Parts(r.Context(), d.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return nil, acc, false
 	}
-	return p, acc, true
+	i := slices.IndexFunc(parts, func(p dataset.Part) bool { return p.ID == id })
+	if i < 0 {
+		a.notFound(w, r)
+		return nil, acc, false
+	}
+	return &partRef{ID: id, File: parts[i].File, Rows: parts[i].Rows}, acc, true
 }
 
 // confirmDeletePart asks before deleting a Part.

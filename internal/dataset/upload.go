@@ -424,7 +424,7 @@ func (d *Dataset) findMonthColumns(ctx context.Context, dashboardID int64, cols 
 	}
 	scan := lab.NewMonthScan(cols)
 	for _, p := range parts {
-		if !p.HasRows || p.ID == except {
+		if p.Rows == 0 || p.ID == except {
 			continue
 		}
 		data, err := d.store.Get(ctx, p.Key)
