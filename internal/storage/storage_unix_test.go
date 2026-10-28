@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// Not parallel: the file size limit is process-wide.
 // TestPutWhoseWriteFailsLeavesNoTempFileAndKeepsEarlierData makes the temp file's write fail by capping file size.
 func TestPutWhoseWriteFailsLeavesNoTempFileAndKeepsEarlierData(t *testing.T) {
 	ctx := context.Background()
