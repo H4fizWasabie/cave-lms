@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,8 +22,12 @@ const systemLogPage = 100
 
 // serverError records err in the System log against the request that failed, then answers 500 with the
 // error page. It renders without render, which may be what failed: a Learner lookup that failed counts as
-// a Visitor, and a page that cannot be drawn falls back to plain text.
+// a Visitor, and a page that cannot be drawn falls back to plain text. A request the visitor walked away from
+// (their browser closed the connection) is no error of the site's, so it is neither logged nor answered.
 func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, context.Canceled) && r.Context().Err() != nil {
+		return
+	}
 	a.logError(r, err)
 	l, lookupErr := a.currentLearner(r)
 	saved := ""
