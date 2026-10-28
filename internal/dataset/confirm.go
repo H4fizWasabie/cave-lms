@@ -37,7 +37,7 @@ type Confirmed struct {
 type ConfirmReserve func(ctx context.Context, tx *sql.Tx, p *Pending) error
 
 // Hook is called in Confirm's transaction, last, with what the confirm made; the error it returns rolls the confirm
-// back. The app builds or updates a Cave-built Dashboard's blocks with it.
+// back. The caller makes its own writes that must land with the confirm in it.
 type Hook func(ctx context.Context, tx *sql.Tx, c *Confirmed) error
 
 // Queryer is a *sql.DB or a *sql.Tx, for reads that may run inside a caller's transaction.
@@ -193,13 +193,17 @@ func (d *Dataset) Confirm(ctx context.Context, dashboardID int64, date string, r
 		p.Key, p.PartDate, p.DateFrom, p.DateCell = key, day, lab.DateFromChosen, ""
 	}
 	c, err := d.confirm(ctx, dashboardID, p, oldKey, settings, columns, reserve, hook)
-	if err != nil && p.Key != oldKey {
+	// A failed commit may still have committed, so the new rows may be the Part's: they stay.
+	if err != nil && p.Key != oldKey && !errors.Is(err, errCommit) {
 		// A failed delete leaves only an unused object.
 		// ponytail: not logged, as the module has no logger; the object is lost until the store is swept.
 		_ = d.store.Delete(context.WithoutCancel(ctx), p.Key)
 	}
 	return c, err
 }
+
+// errCommit marks a confirm whose commit failed, which may have committed all the same.
+var errCommit = errors.New("commit")
 
 // confirm is Confirm's transaction. p.Key differs from oldKey when the Part date was changed.
 func (d *Dataset) confirm(ctx context.Context, dashboardID int64, p *Pending, oldKey string, settings, columns []byte, reserve ConfirmReserve, hook Hook) (*Confirmed, error) {
@@ -270,7 +274,7 @@ func (d *Dataset) confirm(ctx context.Context, dashboardID int64, p *Pending, ol
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, errors.Join(errCommit, err)
 	}
 	return c, nil
 }
