@@ -25,7 +25,8 @@ func TestTheCertificatePreviewShowsTheLearnersNameAndNeverAnICAndVisitorsSeeNone
 	for _, path := range []string{"/courses/" + courseID, "/my-certificates"} {
 		_, body := s.get(path)
 		art := certArt(t, body)
-		expectAll(t, art, "CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT", ">ADA<", "demonstrated throughout", ">Go Basics<")
+		expectAll(t, art, "CERTIFICATE", "OF COMPETENCY", "THIS IS TO CERTIFY THAT", ">ADA<", "demonstrated throughout", ">Go Basics<",
+			"cert-corner-top-left", "cert-corner-bottom-right") // the sample's own gold corners
 		expectNone(t, art, "ADAEXAMPLECOM", "Your name here")
 	}
 
