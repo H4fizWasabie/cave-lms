@@ -293,7 +293,8 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 	for _, tb := range used {
 		res.addChanges(tb.changes)
 	}
-	res.Dataset = typed(d, raw, d.RowNumbers, res, s.Recipe == nil)
+	props, _ := f.GetWorkbookProps()
+	res.Dataset = typed(d, raw, d.RowNumbers, res, s.Recipe == nil, props.Date1904 != nil && *props.Date1904)
 	if slices.ContainsFunc(used, func(tb *table) bool { return tb.days > 0 }) {
 		res.Month, res.Year = int(month), year
 		res.Changes = append(res.Changes, Change{Key: "lab.clean.unpivoted", Args: []int{len(raw), res.Month, year}})
@@ -379,6 +380,9 @@ func readTable(f *excelize.File, name string, l layout, s Settings) (*table, err
 		return tb, err
 	}
 
+	if cells, err = l.mark(cells, first); err != nil {
+		return nil, err
+	}
 	if cells, err = fillDown(l.merges, cells, first, res); err != nil {
 		return nil, err
 	}
@@ -723,7 +727,7 @@ func retyped(v any, typ Type) (any, bool) {
 	if day, ok := otherDate(s); ok && typ == Date {
 		return day, true
 	}
-	return parse(cell{v: s}, typ)
+	return parse(cell{v: s}, typ, false)
 }
 
 // sheetColumn names the column Clean-up adds to a Dataset combined from several sheets, holding each row's sheet.
@@ -821,6 +825,9 @@ type layout struct {
 	cells []int        // the cells with a style of their own, as (0-based row*excelize.MaxColumns + column)<<1 | date, sorted
 	rows  map[int]bool // by 0-based row
 	cols  []styledCols
+	// The cells that hold an Excel error, and those that hold a formula with no cached value, each as
+	// 0-based row*excelize.MaxColumns + column, sorted.
+	errs, uncached []int
 }
 
 // styledCols are the columns from min to max, 1-based, that have a style.
@@ -844,6 +851,41 @@ func (l layout) date(row, col int) bool {
 	return false
 }
 
+// nullCell and errorCell stand in a cell's text for a cell that is null: a formula with no cached value, and an
+// Excel error. A cell is never written with a NUL, so neither is ever a Learner's text. They count as filled when
+// columns and rows with no data are dropped, and are left out of what types a column.
+const (
+	nullCell  = "\x00"
+	errorCell = "\x01"
+)
+
+// mark puts nullCell or errorCell in the cells of rows from first down that are such, past the end of a row too.
+func (l layout) mark(cells [][]string, first int) ([][]string, error) {
+	held := 0
+	for _, row := range cells {
+		held += len(row)
+	}
+	for _, kind := range []struct {
+		keys []int
+		mark string
+	}{{l.uncached, nullCell}, {l.errs, errorCell}} {
+		for _, key := range kind.keys {
+			r, c := key/excelize.MaxColumns, key%excelize.MaxColumns
+			if r < first || r >= len(cells) {
+				continue
+			}
+			if grow := c + 1 - len(cells[r]); grow > 0 {
+				if held += grow; held > maxSheetCells {
+					return nil, Problem{"lab.err.too-many-cells", nil}
+				}
+				cells[r] = append(cells[r], make([]string, grow)...)
+			}
+			cells[r][c] = kind.mark
+		}
+	}
+	return cells, nil
+}
+
 // readLayout reads sheet's layout, stopping once it has more than MaxMerges merges. A sheet whose part it cannot
 // find or read has none.
 func readLayout(f *excelize.File, sheet string) layout {
@@ -862,10 +904,39 @@ func readLayout(f *excelize.File, sheet string) layout {
 		return isDate[style]
 	}
 	row, col := 0, 0 // the cell's, 1-based, counted as excelize counts them
+	var cur struct { // the cell being read
+		key            int
+		isErr, text    bool // an error (t="e"), or a formula's string result (t="str"), which may be empty
+		formula, value bool
+		inValue        bool
+	}
 	for len(l.merges) <= MaxMerges {
 		tok, err := d.Token()
 		if err != nil {
 			break // as excelize stops reading a sheet at its first bad token
+		}
+		switch t := tok.(type) {
+		case xml.CharData:
+			if cur.inValue && len(bytes.TrimSpace(t)) > 0 {
+				cur.value = true
+			}
+			continue
+		case xml.EndElement:
+			switch t.Name.Local {
+			case "v":
+				cur.inValue = false
+			case "c":
+				if cur.key < 0 {
+					break
+				}
+				if cur.isErr {
+					l.errs = append(l.errs, cur.key)
+				} else if cur.formula && !cur.value {
+					l.uncached = append(l.uncached, cur.key)
+				}
+				cur.key = -1
+			}
+			continue
 		}
 		el, ok := tok.(xml.StartElement)
 		if !ok {
@@ -890,6 +961,12 @@ func readLayout(f *excelize.File, sheet string) layout {
 			if col++; attrs["r"] != "" {
 				col, _, _ = excelize.CellNameToCoordinates(attrs["r"])
 			}
+			cur.key = -1
+			if row >= 1 && col >= 1 && col <= excelize.MaxColumns {
+				cur.key = (row-1)*excelize.MaxColumns + col - 1
+				cur.isErr, cur.formula, cur.value, cur.inValue = attrs["t"] == "e", false, false, false
+				cur.text = attrs["t"] == "str"
+			}
 			if style != 0 && row >= 1 && col >= 1 && col <= excelize.MaxColumns {
 				key := ((row-1)*excelize.MaxColumns + col - 1) << 1
 				if date(style) {
@@ -897,6 +974,10 @@ func readLayout(f *excelize.File, sheet string) layout {
 				}
 				l.cells = append(l.cells, key)
 			}
+		case "f":
+			cur.formula = true
+		case "v":
+			cur.inValue, cur.value = true, cur.value || cur.text
 		case "col":
 			lo, _ := strconv.Atoi(attrs["min"])
 			hi, _ := strconv.Atoi(attrs["max"])
@@ -913,6 +994,8 @@ func readLayout(f *excelize.File, sheet string) layout {
 		}
 	}
 	slices.Sort(l.cells)
+	slices.Sort(l.errs)
+	slices.Sort(l.uncached)
 	return l
 }
 
@@ -1165,16 +1248,16 @@ func dropBottom(raw [][]cell, rowNo []int, res *CleanUp) ([][]cell, []int) {
 // typed fills d's rows from raw, each column typed by its cells. Unlike Read, a lone - in a Number column is
 // left empty, dates may be written in more ways (see otherDate), and a cell that does not fit its column's type is
 // left empty; each is listed as a change, the last once per column.
-func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first bool) *Dataset {
-	dashes, others, misfits, monthNamed := 0, 0, make([]int, len(d.Columns)), make([]int, len(d.Columns))
+func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first, d1904 bool) *Dataset {
+	errored, dashes, others, misfits, monthNamed := 0, 0, 0, make([]int, len(d.Columns)), make([]int, len(d.Columns))
 	for ci, col := range d.Columns {
 		d.Columns[ci].Type = workType(raw, ci)
 		// Years are groups, not amounts: typed as Text, they can be grouped and filtered by, and never added up.
 		if d.Columns[ci].Type == Number && yearNamed(col.Name) &&
-			!slices.ContainsFunc(raw, func(vals []cell) bool { return vals[ci].v != "" && !isYear(vals[ci].v) }) {
+			!slices.ContainsFunc(raw, func(vals []cell) bool { return !blank(vals[ci].v) && !isYear(vals[ci].v) }) {
 			d.Columns[ci].Type = Text
 		}
-		if n := serials(raw, ci); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
+		if n := serials(raw, ci, d1904); d.Columns[ci].Type == Number && n > 0 && dateNamed(col.Name) {
 			d.Columns[ci].Type = Date
 			res.Changes = append(res.Changes, Change{Key: "lab.clean.serial-dates", Args: []int{n}, Column: col.Name})
 		}
@@ -1196,7 +1279,10 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first bool) *Dat
 		row := make([]any, len(d.Columns))
 		for ci, c := range vals[:len(d.Columns)] {
 			typ := d.Columns[ci].Type
-			if c.v == "" {
+			if c.v == errorCell {
+				errored++
+			}
+			if blank(c.v) {
 				continue
 			}
 			if c.v == "-" && typ == Number { // not known, so left empty: 0 would say none
@@ -1213,7 +1299,7 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first bool) *Dat
 				monthNamed[ci]++
 				continue
 			}
-			v, ok := parse(c, typ)
+			v, ok := parse(c, typ, d1904)
 			if !ok {
 				misfits[ci]++
 				continue
@@ -1225,6 +1311,9 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first bool) *Dat
 	d.RowNumbers = rowNo
 	if dashes > 0 {
 		res.change("lab.clean.dash-empty", dashes)
+	}
+	if errored > 0 {
+		res.change("lab.clean.error-cells", errored)
 	}
 	if others > 0 {
 		res.change("lab.clean.other-dates", others)
@@ -1238,6 +1327,9 @@ func typed(d *Dataset, raw [][]cell, rowNo []int, res *CleanUp, first bool) *Dat
 	return d
 }
 
+// blank reports whether a cell's text v has no value to type: it is empty, or null.
+func blank(v string) bool { return v == "" || v == nullCell || v == errorCell }
+
 // monthLike reports whether every filled cell of column ci, bar a lone -, is a whole number from 1 to 12 or a month
 // name (monthNames, the whole cell), and at least one is; names counts the month names. It does not look at the
 // column's name: a column is a month column by its values.
@@ -1245,7 +1337,7 @@ func monthLike(raw [][]cell, ci int) (names int, ok bool) {
 	filled := 0
 	for _, vals := range raw {
 		v := vals[ci].v
-		if v == "" || v == "-" {
+		if blank(v) || v == "-" {
 			continue
 		}
 		if _, isName := monthOf(v); isName {
@@ -1265,7 +1357,7 @@ func workType(raw [][]cell, ci int) Type {
 	dates, numbers, dashes, filled := 0, 0, 0, 0
 	for _, vals := range raw {
 		c := vals[ci]
-		if c.v == "" {
+		if blank(c.v) {
 			continue
 		}
 		filled++
@@ -1295,12 +1387,15 @@ func workType(raw [][]cell, ci int) Type {
 
 // serials counts column ci's numbers when every one of them is an Excel date serial from 1950 to 2100; 0 if not.
 // ponytail: day numbers 1 to 31 are not read as serials, which would date them in January 1900.
-func serials(raw [][]cell, ci int) int {
-	n := 0
+func serials(raw [][]cell, ci int, d1904 bool) int {
+	n, shift := 0, 0.0
+	if d1904 {
+		shift = 1462 // the 1904 system counts that many days fewer
+	}
 	for _, vals := range raw {
 		v, ok := number(vals[ci].v)
 		switch {
-		case vals[ci].v == "-" || ok && (v < 18264 || v > 73415):
+		case vals[ci].v == "-" || ok && (v < 18264-shift || v > 73415-shift):
 			return 0
 		case ok:
 			n++
@@ -1312,6 +1407,7 @@ func serials(raw [][]cell, ci int) int {
 var (
 	dateTime  = regexp.MustCompile(`(?i)^(\d{1,2}[/.-]\d{1,2}[/.-]\d{4}),?\s+\d{1,2}:\d{2}(:\d{2})?(\s*[ap]\.?m\.?)?$`)
 	shortDate = regexp.MustCompile(`^(\d{1,2})\.(\d{1,2})\.(\d{2})$`)
+	nameDate  = regexp.MustCompile(`(?i)^(\d{1,2})[\s._-]+(` + monthAlternatives() + `)[\s._-]*(\d{4})$`)
 	isoDate   = regexp.MustCompile(`^(\d{4}-\d{1,2}-\d{1,2})([T ]\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$`)
 )
 
@@ -1324,6 +1420,12 @@ func otherDate(s string) (string, bool) {
 	}
 	if m := shortDate.FindStringSubmatch(s); m != nil {
 		return textDate(m[1] + "/" + m[2] + "/20" + m[3])
+	}
+	if m := nameDate.FindStringSubmatch(s); m != nil {
+		mon, _ := monthOf(m[2])
+		y, d := atoi(m[3]), atoi(m[1])
+		day := time.Date(y, mon, d, 0, 0, 0, 0, time.UTC)
+		return day.Format("2006-01-02"), day.Day() == d
 	}
 	if m := isoDate.FindStringSubmatch(s); m != nil {
 		day, err := time.Parse("2006-1-2", m[1])

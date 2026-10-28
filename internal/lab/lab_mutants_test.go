@@ -328,13 +328,13 @@ func TestSheetRowsReadsASheetOfExactlyTheMostCellsAndTrimsTrailingEmptyRows(t *t
 }
 
 func TestParseReadsADateSerialNumberFromTheFirstDayToTheLastExcelHas(t *testing.T) {
-	for in, want := range map[string]string{"1": "1899-12-31", "2958465": "9999-12-31", "45000": "2023-03-15"} {
-		if got, ok := parse(cell{v: in}, Date); !ok || got != want {
+	for in, want := range map[string]string{"1": "1900-01-01", "2958465": "9999-12-31", "45000": "2023-03-15"} {
+		if got, ok := parse(cell{v: in}, Date, false); !ok || got != want {
 			t.Errorf("parse(%s) = %v, %t; want %s", in, got, ok, want)
 		}
 	}
 	for _, in := range []string{"0", "0.5", "2958466", "-1", "abc", ""} {
-		if got, ok := parse(cell{v: in}, Date); ok {
+		if got, ok := parse(cell{v: in}, Date, false); ok {
 			t.Errorf("parse(%q) = %v, want no date", in, got)
 		}
 	}

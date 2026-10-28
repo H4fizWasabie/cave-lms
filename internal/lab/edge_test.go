@@ -107,24 +107,31 @@ func TestAFormulaCellGivesItsCachedValue(t *testing.T) {
 	wantRows(t, clean(t, file), []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Number}}, [][]any{{"a", 2.0}, {"b", 4.0}})
 }
 
-// Pinned: a formula the file never calculated has no value to read, so its column is dropped as empty and the last
-// row, now blank in Jumlah, goes with the totals and notes at the bottom.
-func TestAFormulaCellWithNoCachedValueIsEmpty(t *testing.T) {
+// A formula the file never calculated has no value to read: it is null, so its column is kept and no row is
+// taken for a total or note.
+func TestAFormulaCellWithNoCachedValueIsNull(t *testing.T) {
 	file := handMade(t, sheet1, namesAndAmounts(`<c r="B2"><f>1+1</f></c>`, `<c r="B3"><f>2+2</f></c>`), "")
 	res := clean(t, file)
-	wantRows(t, res, []lab.Column{{"Nama", lab.Text}}, [][]any{{"a"}})
-	want := []string{"Dropped row 3 at the bottom: a total or note, not data.", "Columns with no data dropped: 1."}
-	if got := changesIn(res, "en"); !reflect.DeepEqual(got, want) {
-		t.Fatalf("changes = %q, want %q", got, want)
+	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Text}}, [][]any{{"a", nil}, {"b", nil}})
+	if got := changesIn(res, "en"); len(got) != 0 {
+		t.Fatalf("changes = %q, want none", got)
 	}
 }
 
-// Pinned: an error cell is its text, so a column with one reads as text.
-func TestErrorCellsAreKeptAsTheirTextAndMakeTheColumnText(t *testing.T) {
+// An error cell is null, counted in a change note, so it does not turn a number column into text.
+func TestErrorCellsAreNullAndCounted(t *testing.T) {
 	file := handMade(t, sheet1, namesAndAmounts(
-		`<c r="B2" t="e"><v>#DIV/0!</v></c>`, `<c r="B3" t="e"><v>#N/A</v></c>`, `<c r="B4" t="e"><v>#REF!</v></c>`, `<c r="B5"><v>7</v></c>`), "")
-	wantRows(t, clean(t, file), []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Text}},
-		[][]any{{"a", "#DIV/0!"}, {"b", "#N/A"}, {"c", "#REF!"}, {"d", "7"}})
+		`<c r="B2" t="e"><v>#DIV/0!</v></c>`, `<c r="B3" t="e"><v>#N/A</v></c>`, `<c r="B4" t="e"><v>#REF!</v></c>`, `<c r="B5"><v>7</v></c>`,
+		`<c r="B6"><v>8</v></c>`, `<c r="B7"><v>9</v></c>`, `<c r="B8"><v>1</v></c>`, `<c r="B9"><v>2</v></c>`, `<c r="B10"><v>3</v></c>`, `<c r="B11"><v>4</v></c>`), "")
+	res := clean(t, file)
+	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Number}},
+		[][]any{{"a", nil}, {"b", nil}, {"c", nil}, {"d", 7.0}, {"e", 8.0}, {"f", 9.0}, {"g", 1.0}, {"h", 2.0}, {"i", 3.0}, {"j", 4.0}})
+	if got, want := changesIn(res, "en"), []string{"Excel error cells (such as #N/A) left empty (null): 3."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
+	if got, want := changesIn(res, "ms"), []string{"Sel ralat Excel (seperti #N/A) dibiarkan kosong (null): 3."}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changes = %q, want %q", got, want)
+	}
 }
 
 // jumlah is the Jumlah column of a sheet whose cells are all text.
@@ -137,10 +144,9 @@ func jumlah(t *testing.T, cells ...string) *lab.CleanUp {
 	return clean(t, testutil.XLSX(t, []string{"Nama", "Jumlah"}, rows...))
 }
 
-// Pinned: an accounting negative in brackets is not read as a number, so -500 is the Learner's to write with a minus.
-func TestABracketedAmountIsNotANumber(t *testing.T) {
+func TestABracketedAmountIsNegative(t *testing.T) {
 	res := jumlah(t, "(500)", "10", "(20)")
-	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Text}}, [][]any{{"a", "(500)"}, {"b", "10"}, {"c", "(20)"}})
+	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Number}}, [][]any{{"a", -500.0}, {"b", 10.0}, {"c", -20.0}})
 }
 
 func TestRMWithASpaceAndThousandsIsANumber(t *testing.T) {
@@ -148,10 +154,9 @@ func TestRMWithASpaceAndThousandsIsANumber(t *testing.T) {
 	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Number}}, [][]any{{"a", 1234.5}, {"b", 10.0}})
 }
 
-// Pinned: a percent sign keeps the column text.
-func TestAPercentIsNotANumber(t *testing.T) {
-	res := jumlah(t, "12%", "10")
-	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Text}}, [][]any{{"a", "12%"}, {"b", "10"}})
+func TestAPercentIsTheFractionExcelStores(t *testing.T) {
+	res := jumlah(t, "12%", "10", "7.1%")
+	wantRows(t, res, []lab.Column{{"Nama", lab.Text}, {"Jumlah", lab.Number}}, [][]any{{"a", 0.12}, {"b", 10.0}, {"c", 0.071}})
 }
 
 func TestNumbersStoredAsTextAreNumbers(t *testing.T) {
@@ -187,24 +192,23 @@ func dateBook(t *testing.T, d1904 bool, serials ...float64) []byte {
 	return buf.Bytes()
 }
 
-// Pinned: the 1904 date system (Excel for Mac, old files) is read as 1900, so its dates come out 1,462 days early.
-func TestA1904WorkbookIsReadWithThe1900DateSystem(t *testing.T) {
-	res := clean(t, dateBook(t, true, 46000, 46001))
+// The 1904 date system (Excel for Mac, old files) counts from 1 January 1904, so 46000 is 1,462 days later in 1904.
+func TestA1904WorkbookIsReadFrom1904(t *testing.T) {
+	res := clean(t, dateBook(t, true, 44538, 44539))
 	wantRows(t, res, []lab.Column{{"Tarikh", lab.Date}, {"Jumlah", lab.Number}}, [][]any{{"2025-12-09", 0.0}, {"2025-12-10", 1.0}})
 }
 
-// Pinned: serial 60, Excel's 29 February 1900 that never was, reads as 28 February 1900; the days before it are a day early.
-func TestExcelsFake29February1900ReadsAs28February(t *testing.T) {
+// Serials 1 to 59 are 1 January to 28 February 1900 as Excel shows them; 60, its 29 February 1900 that never was, is null.
+func TestExcelsFake29February1900IsNull(t *testing.T) {
 	res := clean(t, dateBook(t, false, 59, 60, 61))
 	wantRows(t, res, []lab.Column{{"Tarikh", lab.Date}, {"Jumlah", lab.Number}},
-		[][]any{{"1900-02-27", 0.0}, {"1900-02-28", 1.0}, {"1900-03-01", 2.0}})
+		[][]any{{"1900-02-28", 0.0}, {nil, 1.0}, {"1900-03-01", 2.0}})
 }
 
-// Pinned: a date written in text with Malay month names stays text; only day/month/year numbers are dates.
-func TestATextDateWithAMalayMonthNameStaysText(t *testing.T) {
+func TestATextDateWithAMalayMonthNameIsADate(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{"5 Mac 2026", 1}, []any{"12 Mei 2026", 2}, []any{"1 Ogos 2026", 3})
-	wantRows(t, clean(t, file), []lab.Column{{"Tarikh", lab.Text}, {"Jumlah", lab.Number}},
-		[][]any{{"5 Mac 2026", 1.0}, {"12 Mei 2026", 2.0}, {"1 Ogos 2026", 3.0}})
+	wantRows(t, clean(t, file), []lab.Column{{"Tarikh", lab.Date}, {"Jumlah", lab.Number}},
+		[][]any{{"2026-03-05", 1.0}, {"2026-05-12", 2.0}, {"2026-08-01", 3.0}})
 }
 
 func TestAFileThatIsNotAZipRenamedXLSXIsNotAWorkbook(t *testing.T) {
@@ -230,5 +234,24 @@ func TestATruncatedXLSXIsNotAWorkbook(t *testing.T) {
 	file := testutil.XLSX(t, []string{"Nama", "Jumlah"}, []any{"a", 1})
 	if got := problemKey(t, file[:len(file)/2]); got != "lab.err.not-workbook" {
 		t.Fatalf("problem = %q", got)
+	}
+}
+
+func TestATextDateThatDoesNotExistStaysText(t *testing.T) {
+	file := testutil.XLSX(t, []string{"Tarikh", "Jumlah"}, []any{"30 Feb 2026", 1}, []any{"5 Mac 2026", 2})
+	wantRows(t, clean(t, file), []lab.Column{{"Tarikh", lab.Text}, {"Jumlah", lab.Number}},
+		[][]any{{"30 Feb 2026", 1.0}, {"5 Mac 2026", 2.0}})
+}
+
+func TestAFractionOfSerial60IsNullToo(t *testing.T) {
+	res := clean(t, dateBook(t, false, 59.5, 60.5, 61))
+	wantRows(t, res, []lab.Column{{"Tarikh", lab.Date}, {"Jumlah", lab.Number}},
+		[][]any{{"1900-02-28", 0.0}, {nil, 1.0}, {"1900-03-01", 2.0}})
+}
+
+func TestBracketsAndPercentsThatAreNotAmountsStayText(t *testing.T) {
+	res := jumlah(t, "(-5)", "()", "%", "(5", "5%%")
+	if res.Dataset.Columns[1].Type != lab.Text {
+		t.Fatalf("columns = %v, want text", res.Dataset.Columns)
 	}
 }

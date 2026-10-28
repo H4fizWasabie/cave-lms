@@ -288,17 +288,15 @@ type cell struct {
 }
 
 // parse reads a filled cell as typ; false when it does not fit.
-func parse(c cell, typ Type) (any, bool) {
+func parse(c cell, typ Type, d1904 bool) (any, bool) {
 	switch typ {
 	case Date:
 		if day, ok := textDate(c.v); ok {
 			return day, true
 		}
 		// A real Excel date and a date serial number are both a count of days.
-		if n, err := strconv.ParseFloat(c.v, 64); err == nil && n >= 1 && n < 2958466 {
-			if day, err := excelize.ExcelDateToTime(n, false); err == nil {
-				return day.Format("2006-01-02"), true
-			}
+		if n, err := strconv.ParseFloat(c.v, 64); err == nil {
+			return serialDay(n, d1904)
 		}
 		return nil, false
 	case Number:
@@ -310,18 +308,58 @@ func parse(c cell, typ Type) (any, bool) {
 	return c.v, true
 }
 
+// serialDay is the date Excel shows for serial n, as "2006-01-02". Serials 1 to 59 are 1 January to 28 February
+// 1900, and 60, Excel's 29 February 1900 that never was, has no date. d1904 counts from 1 January 1904.
+func serialDay(n float64, d1904 bool) (string, bool) {
+	if n < 1 || n >= 2958466 {
+		return "", false
+	}
+	var day time.Time
+	switch {
+	case d1904 || n >= 61:
+		var err error
+		if day, err = excelize.ExcelDateToTime(n, d1904); err != nil {
+			return "", false
+		}
+	case n >= 60:
+		return "", false
+	default: // before the fake day, Excel's day 1 is 1 January 1900
+		day = time.Date(1899, 12, 31, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(n))
+	}
+	return day.Format("2006-01-02"), true
+}
+
 var (
 	amount  = regexp.MustCompile(`(?i)^-?(rm)?\s*-?(\d{1,3}(,\d{3})+|\d*)(\.\d+)?(e[-+]?\d+)?$`)
 	ringgit = regexp.MustCompile(`(?i)rm|,|\s`)
 	dmy     = regexp.MustCompile(`^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$`)
 )
 
-// number reads 1200, 1,200, RM1,200.00, RM 50 and -RM12.50.
+// number reads 1200, 1,200, RM1,200.00, RM 50, -RM12.50, an accounting negative (500) as -500 and a percent 12% as
+// 0.12, the value Excel stores.
 func number(s string) (float64, bool) {
+	neg, pct := false, false
+	if len(s) > 2 && s[0] == '(' && s[len(s)-1] == ')' && s[1] != '-' {
+		s, neg = s[1:len(s)-1], true
+	}
+	if t, ok := strings.CutSuffix(s, "%"); ok {
+		s, pct = t, true
+	}
 	if !amount.MatchString(s) {
 		return 0, false
 	}
-	n, err := strconv.ParseFloat(ringgit.ReplaceAllString(s, ""), 64)
+	s = ringgit.ReplaceAllString(s, "")
+	if pct && !strings.ContainsAny(s, "eE") {
+		s += "e-2" // shifts the decimal point, so 7.1% is the 0.071 Excel stores
+		pct = false
+	}
+	n, err := strconv.ParseFloat(s, 64)
+	if pct {
+		n /= 100
+	}
+	if neg {
+		n = -n
+	}
 	return n, err == nil
 }
 
