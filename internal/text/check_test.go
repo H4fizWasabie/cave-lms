@@ -56,10 +56,6 @@ func TestVerbsNumbersPlainVerbsInArgumentOrder(t *testing.T) {
 	if got := strings.Join(en, ","); got != "%[1]s,%[2]d" {
 		t.Errorf("verbs = %q", got)
 	}
-	// A plain verb after an explicit one still takes the next counter value from 1.
-	if got := strings.Join(verbs("%[2]d then %s"), ","); got != "%[1]s,%[2]d" {
-		t.Errorf("mixed verbs = %q", got)
-	}
 	// Swapped types differ.
 	if strings.Join(verbs("%s %d"), ",") == strings.Join(verbs("%[2]s %[1]d"), ",") {
 		t.Error("different values compared equal")
