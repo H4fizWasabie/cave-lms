@@ -1,12 +1,16 @@
 package app
 
 import (
+	"archive/zip"
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -66,6 +70,7 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	var p page
 	// ponytail: three small queries per Learner (N+1). Fine for one Course's roster; batch them if a Course grows past a few hundred.
 	for i := range list {
 		e := &list[i]
@@ -82,7 +87,55 @@ func (a *App) adminCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	a.render(w, r, http.StatusOK, "admin_course", page{Course: &c, Enrollees: list})
+	if p.Certificates, err = a.courseCertificates(r.Context(), c.ID); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p.Course, p.Enrollees = &c, list
+	a.render(w, r, http.StatusOK, "admin_course", p)
+}
+
+// courseCertificates are the Course's valid (not revoked) Certificates, in the order they were issued.
+func (a *App) courseCertificates(ctx context.Context, courseID int64) ([]certificate, error) {
+	return a.queryCertificates(ctx, `SELECT `+certificateColumns+` FROM certificates
+		WHERE course_id = $1 AND revoked_at IS NULL ORDER BY issued_at, year, number`, courseID)
+}
+
+var notNameChars = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+
+// downloadCourseCertificates sends one ZIP with the PDF of every valid Certificate issued for the Course.
+func (a *App) downloadCourseCertificates(w http.ResponseWriter, r *http.Request) {
+	c, ok := a.courseFor(w, r)
+	if !ok {
+		return
+	}
+	list, err := a.courseCertificates(r.Context(), c.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="certificates-course-%d.zip"`, c.ID))
+	zw := zip.NewWriter(w)
+	for _, cert := range list {
+		pdf, err := a.certificatePDF(r.Context(), cert)
+		if err != nil {
+			a.logError(r, err) // the ZIP is already streaming, so the client sees a truncated download
+			return
+		}
+		// The Certificate No. is unique, so the file name is.
+		f, err := zw.Create(cert.Number() + "-" + strings.Trim(notNameChars.ReplaceAllString(cert.LearnerName, "-"), "-") + ".pdf")
+		if err == nil {
+			_, err = f.Write(pdf)
+		}
+		if err != nil {
+			a.logError(r, err)
+			return
+		}
+	}
+	if err := zw.Close(); err != nil {
+		a.logError(r, err)
+	}
 }
 
 // confirmRemoveLearner asks the Admin to confirm removing a Learner who joined the Course.

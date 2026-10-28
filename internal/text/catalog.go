@@ -577,6 +577,7 @@ var catalog = map[string]entry{
 
 	// A Course's enrolled Learners
 	"adm.course.enrolled":       {en: "Enrolled Learners", ms: "Pelajar yang menyertai"},
+	"adm.course.download-all":   {en: "Download all Certificates", ms: "Muat turun semua Sijil"},
 	"adm.course.name":           {en: "Name", ms: "Nama"},
 	"adm.course.email":          {en: "Email", ms: "E-mel"},
 	"adm.course.progress":       {en: "Progress", ms: "Kemajuan"},
