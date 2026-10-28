@@ -22,21 +22,19 @@ import (
 // certificatePDF fills in the details on top, at the same places as on an uploaded background. The web preview,
 // template certificate-preview in layout.html, draws the same artwork in SVG in the same millimetre coordinates: its
 // wording, rules, images and the places of the details come from artTexts, artRules, artImages and the layout constants
-// in certificates.go, so the two can't drift. Only the frame, the gold corners, the logo, the ornament and the sketched
-// QR code are drawn twice: change those together.
+// in certificates.go, so the two can't drift. The gold corners are the sample's own artwork, two PNGs the preview draws
+// too (artCorners). Only the logo, the ornament and the sketched QR code are drawn twice: change those together.
 
 // Colours, after the client's sample PCC-2026-00509 rather than the brand's tokens: near-black ink, ink 2, a metallic
-// gold, its deep and light ends, the bronze of the gold wording and the orange of the Certificate No. They are the
+// gold, the bronze of the gold wording and the orange of the Certificate No. They are the
 // Certificate's print palette, outside the stylesheet's Eleven Rule (DESIGN.md): the preview takes them from here, as
 // certPalette, so it prints in the PDF's colours.
 var (
-	artInk       = [3]int{20, 20, 20}
-	artInk2      = [3]int{40, 40, 40}
-	artGold      = [3]int{201, 160, 39}
-	artGoldDeep  = [3]int{168, 115, 12}
-	artGoldLight = [3]int{242, 228, 104}
-	artGoldText  = [3]int{150, 120, 64}
-	artNumber    = [3]int{214, 132, 28}
+	artInk      = [3]int{20, 20, 20}
+	artInk2     = [3]int{40, 40, 40}
+	artGold     = [3]int{201, 160, 39}
+	artGoldText = [3]int{150, 120, 64}
+	artNumber   = [3]int{214, 132, 28}
 )
 
 // certPalette is the print palette as the CSS custom properties the stylesheet's .cert-art rules use.
@@ -45,8 +43,7 @@ var certPalette = func() template.CSS {
 	for _, c := range []struct {
 		name string
 		rgb  [3]int
-	}{{"ink", artInk}, {"ink-2", artInk2}, {"gold", artGold}, {"gold-deep", artGoldDeep}, {"gold-light", artGoldLight},
-		{"gold-text", artGoldText}, {"number", artNumber}} {
+	}{{"ink", artInk}, {"ink-2", artInk2}, {"gold", artGold}, {"gold-text", artGoldText}, {"number", artNumber}} {
 		fmt.Fprintf(&b, "--cert-%s:#%02x%02x%02x;", c.name, c.rgb[0], c.rgb[1], c.rgb[2])
 	}
 	return template.CSS(b.String())
@@ -177,24 +174,15 @@ var artImages = []artImage{
 	{"cert-signature-2.png", 128.6, 259.6, 24.8, 15.3},
 }
 
-// sweep is one gold corner of the frame: the corner out to a curve from (0, h) to (w, 0), as a polygon. The preview
-// draws the same curve as the path "M0 0V{h}C{.05w} {.45h} {.45w} {.04h} {w} 0Z".
-func sweep(w, h float64) []fpdf.PointType {
-	pts := []fpdf.PointType{{X: 0, Y: 0}}
-	for i := 0; i <= 48; i++ {
-		t := float64(i) / 48
-		u := 1 - t
-		pts = append(pts, fpdf.PointType{
-			X: 3*u*u*t*.05*w + 3*u*t*t*.45*w + t*t*t*w,
-			Y: u*u*u*h + 3*u*u*t*.45*h + 3*u*t*t*.04*h,
-		})
-	}
-	return pts
+// artCorners are the sample's two gold corners, photographic ribbons cropped from it (top left and bottom right) with the
+// white page made transparent. They are the first layer, under everything else.
+var artCorners = []artImage{
+	{"cert-corner-top-left.png", 0, 0, 57.72, 67.07},
+	{"cert-corner-bottom-right.png", 129.02, 198.68, 80.98, 98.32},
 }
 
 // drawArtwork draws the built-in artwork's constant layer on the page.
 func drawArtwork(pdf *fpdf.Fpdf) error {
-	pageW, pageH := pdf.GetPageSize()
 	k := pdf.GetConversionRatio()
 	fill := func(c [3]int) { pdf.SetFillColor(c[0], c[1], c[2]) }
 	draw := func(c [3]int) { pdf.SetDrawColor(c[0], c[1], c[2]) }
@@ -219,7 +207,13 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 		return pdf.Error()
 	}
 
-	// The watermark: the logo up the right-hand side, faint, under everything else.
+	for _, im := range artCorners {
+		if err := image(im.Name, im.X, im.Y, im.W, im.H); err != nil {
+			return err
+		}
+	}
+
+	// The watermark: the logo up the right-hand side, faint, under everything else but the corners.
 	logo, err := artworkLogo()
 	if err != nil {
 		return err
@@ -232,31 +226,6 @@ func drawArtwork(pdf *fpdf.Fpdf) error {
 	pdf.ImageOptions("logo-dark", 85, 150-artWatermarkH/2, artWatermarkW, artWatermarkH, false, opt, 0, "")
 	pdf.TransformEnd()
 	pdf.SetAlpha(1, "Normal")
-
-	// The frame: a double gold rule round the page, under two gold sweeps in opposite corners.
-	draw(artGold)
-	pdf.SetLineWidth(.35)
-	pdf.Rect(5, 5, pageW-10, pageH-10, "D")
-	pdf.SetLineWidth(.15)
-	pdf.Rect(6.4, 6.4, pageW-12.8, pageH-12.8, "D")
-	corner := func(w1, h1, w2, h2 float64) {
-		pdf.ClipPolygon(sweep(w1, h1), false)
-		pdf.LinearGradient(0, 0, w1, h1, artGold[0], artGold[1], artGold[2], artGoldLight[0], artGoldLight[1], artGoldLight[2], 0, 1, .5, .5)
-		pdf.ClipEnd()
-		pdf.ClipPolygon(sweep(w2, h2), false)
-		pdf.LinearGradient(0, 0, w2, h2, artGold[0], artGold[1], artGold[2], artGoldDeep[0], artGoldDeep[1], artGoldDeep[2], 0, 1, .7, .3)
-		pdf.ClipEnd()
-		pdf.SetDrawColor(artGoldLight[0], artGoldLight[1], artGoldLight[2])
-		pdf.SetLineWidth(.6)
-		pdf.MoveTo(0, h2)
-		pdf.CurveBezierCubicTo(.05*w2, .45*h2, .45*w2, .04*h2, w2, 0)
-		pdf.DrawPath("D")
-	}
-	corner(70, 82, 48, 58)
-	pdf.TransformBegin()
-	pdf.TransformRotate(180, pageW/2, pageH/2)
-	corner(62, 112, 44, 84)
-	pdf.TransformEnd()
 
 	// Right of centre, where the client's artwork has it, leaving the Organisation's logo room on its left.
 	pdf.ImageOptions("logo-dark", 107, 17, artLogoW, 0, false, opt, 0, "")
@@ -473,7 +442,8 @@ func (certPreview) Logo() artLogoPlace {
 // Palette is the print palette, for the preview to draw in.
 func (certPreview) Palette() template.CSS { return certPalette }
 
-// Texts, Rules and Images are the built-in artwork's, for the preview to draw.
-func (certPreview) Texts() []artText   { return artTexts }
-func (certPreview) Rules() []artRule   { return artRules }
-func (certPreview) Images() []artImage { return artImages }
+// Corners, Texts, Rules and Images are the built-in artwork's, for the preview to draw.
+func (certPreview) Corners() []artImage { return artCorners }
+func (certPreview) Texts() []artText    { return artTexts }
+func (certPreview) Rules() []artRule    { return artRules }
+func (certPreview) Images() []artImage  { return artImages }
