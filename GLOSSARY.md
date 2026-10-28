@@ -184,7 +184,7 @@ _Malay_: Peperiksaan Subjektif
 _Avoid_: Subjective exam, essay test
 
 **Result**:
-A Learner's mark and pass or fail on one Exam attempt, released 10 minutes after they submit, on the site and by email. It never shows answers; those come only once the Learner passes.
+A Learner's mark and pass or fail on one Exam attempt, released on the site and by email: 1 minute after they submit for a failed Multiple-choice Result, 10 minutes for every other. It never shows answers; those come only once the Learner passes.
 _Malay_: Keputusan
 _Avoid_: Grade, score report
 

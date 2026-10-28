@@ -12,10 +12,27 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
-// resultDelayMinutes is how long after an attempt is submitted its Result is released; the Exam page says so.
-const resultDelayMinutes = 10
+// resultDelayMinutes is how long after an attempt is submitted its Result is released, at most; the Exam page says so.
+// failedChoiceDelayMinutes is the delay of a failed Multiple-choice attempt, so the Learner can retake sooner. A Written
+// attempt keeps the full delay, win or lose: the Admin may override its marks in that time (ADR 0009).
+const (
+	resultDelayMinutes       = 10
+	failedChoiceDelayMinutes = 1
+)
 
-var resultDelaySQL = fmt.Sprintf("interval '%d minutes'", resultDelayMinutes)
+// resultLatestSQL is the longest delay, the one the Learner is told: what they see before release must not show a
+// pass or a fail.
+var resultLatestSQL = fmt.Sprintf("interval '%d minutes'", resultDelayMinutes)
+
+// answersPassSQL holds for an attempt whose answers reach its pass mark, as markQuestions works it out. Nothing is
+// saved as passed until release, so the delay reads the answers.
+var answersPassSQL = `(SELECT count(*) FILTER (WHERE (q->>'Chosen')::int >= 0 AND (q->'Options'->((q->>'Chosen')::int)->>'Correct')::bool) * 100
+	/ greatest(jsonb_array_length(questions), 1) FROM jsonb_array_elements(questions) q) >= pass_mark`
+
+// resultDelaySQL is how long after it is submitted an attempt's Result is released. Every release and every check of
+// one goes through it.
+var resultDelaySQL = fmt.Sprintf(`CASE WHEN (SELECT format FROM exams WHERE exams.id = exam_id) = 'multiple-choice' AND NOT `+answersPassSQL+`
+	THEN interval '%d minutes' ELSE %s END`, failedChoiceDelayMinutes, resultLatestSQL)
 
 // submittedAtSQL is when an attempt was submitted, NULL while it is open. An attempt left open past its time limit
 // and grace counts as submitted at its limit, with the answers sent so far, which is none.
@@ -25,7 +42,7 @@ var submittedAtSQL = `COALESCE(finished_at, CASE WHEN time_limit_minutes IS NOT 
 // malaysia is the time zone release times are shown in. Malaysia has no daylight saving time.
 var malaysia = time.FixedZone("MYT", 8*60*60)
 
-// ReadyAt is when the attempt's Result is released, in lang, as "2 January 2099, 11:14" Malaysia time.
+// ReadyAt is the latest time the attempt's Result is released, in lang, as "2 January 2099, 11:14" Malaysia time.
 func (att examAttempt) ReadyAt(lang string) string {
 	return dateTimeIn(lang, att.ReleaseAt)
 }
@@ -165,8 +182,8 @@ func (a *App) saveAIMark(ctx context.Context, attemptID int64, i int, m aiwriter
 	return err
 }
 
-// releaseResults has the AI mark Written answers waiting for a mark, then releases every Result submitted at least
-// 10 minutes ago and fully marked, an attempt left open past its time limit included. It reads only the database, so
+// releaseResults has the AI mark Written answers waiting for a mark, then releases every Result submitted longer ago than its
+// delay (resultDelaySQL) and fully marked, an attempt left open past its time limit included. It reads only the database, so
 // a restart loses nothing.
 // ponytail: marking runs before releasing in one goroutine, so a slow AI service delays releases; mark in its own
 // goroutine if that bites.

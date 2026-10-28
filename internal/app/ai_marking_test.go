@@ -82,7 +82,7 @@ func TestAFailedMarkIsRetriedEveryFiveMinutesAndStillUnmarkedAnHourPastReleaseWr
 		t.Fatalf("%d emails with the answer unmarked, want %d", n, before)
 	}
 	_, body := s.get(attempt)
-	expectAll(t, body, "Your Result is ready at")
+	expectAll(t, body, "Your Result will be ready by")
 
 	s.ai.FailMarks(aiwriter.ErrUnavailable)
 	s.ageMarkingTry(attempt, 4*60+50)

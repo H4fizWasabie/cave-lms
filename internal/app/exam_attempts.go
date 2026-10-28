@@ -68,7 +68,7 @@ type examAttempt struct {
 	Questions   []attemptQuestion
 	Finished    bool      // submitted
 	TimedOut    bool      // unsubmitted and past the time limit: it counts as submitted at its limit, with no answers
-	ReleaseAt   time.Time // when the Result is released, once Finished or TimedOut
+	ReleaseAt   time.Time // the latest time the Result is released, once Finished or TimedOut
 	Released    bool
 	Score       int // percent, set when Released
 	Passed      bool
@@ -99,7 +99,7 @@ func (att examAttempt) blanks() (n int) {
 var attemptColumns = `id, exam_id, COALESCE(time_limit_minutes, 0), pass_mark, questions,
 	finished_at IS NOT NULL, COALESCE(score, 0), COALESCE(passed, false),
 	finished_at IS NULL AND time_limit_minutes IS NOT NULL AND ` + examLateSQL + `,
-	COALESCE(` + submittedAtSQL + `, now()) + ` + resultDelaySQL + `,
+	COALESCE(` + submittedAtSQL + `, now()) + ` + resultLatestSQL + `,
 	released_at IS NOT NULL,
 	GREATEST(EXTRACT(EPOCH FROM started_at + make_interval(mins => COALESCE(time_limit_minutes, 0)) - now()), 0)::int`
 

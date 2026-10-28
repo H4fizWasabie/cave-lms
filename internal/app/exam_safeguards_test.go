@@ -201,7 +201,7 @@ func TestTheSubmittedPageSaysWhenTheResultIsReleasedAndWhereToFindIt(t *testing.
 	s.setSubmitTime(attempt, "2099-01-02 03:04:00+00")
 
 	_, body := s.getAsking(attempt, "en")
-	expectInOrder(t, content(body), "Your Result is ready at 2 January 2099, 11:14",
+	expectInOrder(t, content(body), "Your Result will be ready by 2 January 2099, 11:14",
 		"Once it is released, you will find it on this page and in My exams.", `href="/my-exams"`)
 	expectNone(t, content(body), "Written answers are marked first")
 	_, body = s.getAsking(attempt, "ms")
@@ -214,7 +214,7 @@ func TestTheSubmittedPageOfAWrittenExamSaysMarkingCanDelayTheResult(t *testing.T
 	id := s.writtenCourse("50", "Explain :=")
 	attempt, _ := s.sitWritten(id, "It declares and assigns.")
 	_, body := s.getAsking(attempt, "en")
-	expectInOrder(t, content(body), "Your Result is ready at", "Written answers are marked first", `href="/my-exams"`)
+	expectInOrder(t, content(body), "Your Result will be ready by", "Written answers are marked first", `href="/my-exams"`)
 }
 
 func TestMyExamsShowsAwaitingResultBetweenSubmittingAndTheRelease(t *testing.T) {

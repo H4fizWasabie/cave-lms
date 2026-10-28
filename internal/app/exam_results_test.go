@@ -81,16 +81,16 @@ func TestSubmittingSaysTheAnswersAreInAndWhenTheResultIsReadyButNoMarkAndNoCongr
 
 	res, body = s.get(attempt)
 	expectStatus(t, res, body, http.StatusOK, "Your answers are in")
-	expectAll(t, body, "Your Result is ready at 2 January 2099, 11:14", "emailed to you")
+	expectAll(t, body, "Your Result will be ready by 2 January 2099, 11:14", "emailed to you")
 	expectNone(t, body, "Congratulations", "Score", "50%", "Passed", "Failed", "Right one", "Wrong one", "Right answer", "Wrong answer")
 
 	res, body = s.get("/courses/" + id + "/exam")
-	expectStatus(t, res, body, http.StatusOK, "Submitted, your Result is ready at 2 January 2099, 11:14.")
+	expectStatus(t, res, body, http.StatusOK, "Submitted. Your Result will be ready by 2 January 2099, 11:14.")
 	expectAll(t, body, "No score yet")
 	expectNone(t, body, "Best score:", "Start the Exam", "You have passed") // the bare "Best score" label shows over "-"
 }
 
-func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearnersLanguage(t *testing.T) {
+func TestAFailedResultIsReleasedAMinuteAfterSubmittingOnceAndEmailedInTheLearnersLanguage(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	id, qids := s.examCourse("100", "", "", "Right one", "Wrong one")
@@ -100,16 +100,16 @@ func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearners
 	s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "1"})
 	before := len(s.emailsTo("ada@example.com"))
 
-	s.ageSubmit(attempt, 9*60+50)
+	s.ageSubmit(attempt, 50)
 	s.runReleaseJob()
 	if n := len(s.emailsTo("ada@example.com")); n != before {
-		t.Fatalf("%d emails before 10 minutes, want %d", n, before)
+		t.Fatalf("%d emails before 1 minute, want %d", n, before)
 	}
 	_, body := s.getAsking(attempt, "en")
 	expectAll(t, body, "Jawapan anda telah dihantar")
 	expectNone(t, body, "Tahniah", "Markah: ")
 
-	s.ageSubmit(attempt, 10*60+1)
+	s.ageSubmit(attempt, 61)
 	s.runReleaseJob()
 	s.runReleaseJob()
 	emails := s.emailsTo("ada@example.com")[before:]
@@ -127,6 +127,69 @@ func TestTheResultIsReleasedTenMinutesAfterSubmittingOnceAndEmailedInTheLearners
 	}
 	_, body = s.get("/courses/" + id + "/exam")
 	expectAll(t, body, "Markah terbaik: 50%", "Percubaan berbaki: Tanpa had", "Mulakan Peperiksaan")
+}
+
+// sitAndAge sits an Exam as a new Site would and moves its submit time back by seconds. It returns how many Result
+// emails Ada has by then, after the release job has run.
+func sitAndAge(t *testing.T, written bool, passMark string, seconds int) int {
+	t.Helper()
+	s := newSite(t)
+	var attempt string
+	if written {
+		id := s.writtenCourse(passMark, "Explain :=")
+		s.switchLanguage("en", "/")       // saved on Ada's account, so her Result emails say "Exam Result"
+		attempt, _ = s.sitWritten(id, "") // a blank answer needs no marking and scores 0
+		attempt = strings.TrimSuffix(attempt, "?format=written")
+	} else {
+		id, qids := s.examCourse(passMark, "", "", "Right one", "Wrong one")
+		s.switchLanguage("en", "/")
+		res, _ := s.startExam(id)
+		attempt = res.Header.Get("Location")
+		s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "1"}) // 50%
+	}
+	s.ageSubmit(attempt, seconds)
+	s.runReleaseJob()
+	return len(s.resultEmailsTo("ada@example.com"))
+}
+
+func TestOnlyAFailedMultipleChoiceResultIsReleasedAfterAMinuteEveryOtherAfterTenMinutes(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name     string
+		written  bool
+		passMark string
+		delay    int // seconds
+	}{
+		{"failed Multiple-choice", false, "100", 60},
+		{"passed Multiple-choice", false, "50", 600},
+		{"failed Written", true, "50", 600},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			if n := sitAndAge(t, c.written, c.passMark, c.delay-10); n != 0 {
+				t.Fatalf("%d Result emails 10 seconds before %d seconds, want 0", n, c.delay)
+			}
+			if n := sitAndAge(t, c.written, c.passMark, c.delay+1); n != 1 {
+				t.Fatalf("%d Result emails after %d seconds, want 1", n, c.delay)
+			}
+		})
+	}
+}
+
+func TestWhilePendingAPassedAndAFailedResultShowTheSameReadyTime(t *testing.T) {
+	t.Parallel()
+	for _, passMark := range []string{"50", "100"} { // the attempt scores 50%: a pass, then a fail
+		s := newSite(t)
+		id, qids := s.examCourse(passMark, "", "", "Right one", "Wrong one")
+		res, _ := s.startExam(id)
+		attempt := res.Header.Get("Location")
+		s.submitExam(attempt, map[string]string{qids[0]: "0", qids[1]: "1"})
+		s.setSubmitTime(attempt, "2099-01-02 03:04:00+00")
+		_, body := s.getAsking("/courses/"+id+"/exam", "en")
+		expectAll(t, body, "Submitted. Your Result will be ready by 2 January 2099, 11:14.")
+		_, body = s.getAsking("/courses/"+id+"/exam", "ms")
+		expectAll(t, body, "Telah dihantar. Keputusan anda akan sedia selewat-lewatnya pada ", "11:14.")
+	}
 }
 
 // releaseResults moves every submitted or timed-out, unreleased attempt back 10 minutes, as if the Learner had
@@ -150,7 +213,7 @@ func TestAttemptTwoOpensOnlyOnceAttemptOneIsReleasedAndFailed(t *testing.T) {
 	s.submitExam(first, map[string]string{qids[0]: "1"})
 
 	res, body := s.startExam(id)
-	expectStatus(t, res, body, http.StatusConflict, "Submitted, your Result is ready at")
+	expectStatus(t, res, body, http.StatusConflict, "Submitted. Your Result will be ready by")
 	expectAll(t, body, "Attempts left: 1")
 
 	s.releaseResults()
@@ -167,12 +230,12 @@ func TestTheReleaseJobSubmitsAnAttemptLeftOpenPastItsTimeLimitWithNoAnswers(t *t
 	id, qids := s.examCourse("50", "1", "", "Q1")
 	res, _ := s.startExam(id)
 	attempt := res.Header.Get("Location")
-	s.ageAttempt(attempt, 120) // the tab was closed; the one-minute limit and its grace are over
+	s.ageAttempt(attempt, 100) // the tab was closed; the one-minute limit and its grace are over, but its minute to release is not
 
 	s.runReleaseJob()
 	res, body := s.get(attempt)
 	expectStatus(t, res, body, http.StatusOK, "Time ran out before your answers were sent, so none of them count.")
-	expectAll(t, body, "Your Result is ready at")
+	expectAll(t, body, "Your Result will be ready by")
 	expectNone(t, body, "Score")
 	res, body = s.submitExam(attempt, map[string]string{qids[0]: "0"}) // too late to count
 	expectStatus(t, res, body, http.StatusSeeOther, "")
