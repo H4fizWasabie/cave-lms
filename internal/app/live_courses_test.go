@@ -326,10 +326,10 @@ func TestALiveCoursesExamOpensFromItsStartDateToTheEndOfItsEndDateWithoutTheLess
 	expectStatus(t, res, body, http.StatusOK, "The Exam closed on 3 February 2027.")
 	expectNone(t, body, "Start the Exam")
 
-	// The self-paced original still wants its Lessons first.
+	// The self-paced original opens its Exam without the Lessons too.
 	s.post("/courses/"+id+"/join", nil)
 	res, body = s.startExam(id)
-	expectStatus(t, res, body, http.StatusConflict, "Complete every Lesson before you sit the Exam (0 of 1 complete).")
+	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
 func TestALiveCoursesExamWindowIsShownInMalay(t *testing.T) {

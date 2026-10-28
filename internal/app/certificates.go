@@ -86,9 +86,8 @@ func newCertificateID() (string, error) {
 }
 
 // issueCertificateIfEarned issues the Learner a Certificate for a Course once they have passed every Exam it has
-// (an Exam with no published questions can't be sat, so it doesn't count) and, for a self-paced Course, completed
-// every published Lesson. A Live Course needs at least one Exam passed; a self-paced one with no Exam needs only its
-// Lessons. It is called when a Result is released, never at submit, so a Certificate can't give a Result away.
+// (an Exam with no published questions can't be sat, so it doesn't count), Lessons or not, self-paced or Live. A
+// self-paced Course with no Exam needs every published Lesson completed instead; a Live one with no Exam issues none. It is called when a Result is released, never at submit, so a Certificate can't give a Result away.
 func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID int64) error {
 	var live bool
 	var exams, passed int
@@ -101,10 +100,13 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 	if errors.Is(err, sql.ErrNoRows) { // the Course is gone
 		return nil
 	}
-	if err != nil || passed < exams || (live && exams == 0) {
+	if err != nil || passed < exams {
 		return err
 	}
-	if !live {
+	if exams == 0 {
+		if live {
+			return nil
+		}
 		done, total, err := a.courseProgress(ctx, learnerID, courseID)
 		if err != nil || total == 0 || done < total {
 			return err

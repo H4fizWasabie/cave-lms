@@ -119,8 +119,6 @@ type examStatus struct {
 	Enrolled bool
 	Course   course
 	Exam     exam
-	Done     int
-	Total    int
 	Passed   bool
 	Used     int // attempts started, finished or not
 	Extra    int // attempts the Admin gave on top of the Exam's limit
@@ -190,11 +188,6 @@ func (s examStatus) Blocker(lang string) string {
 		return text.T(lang, "exam.blocked.not-open", s.Course.StartOn(lang))
 	case s.Course.Live() && s.Course.Ended:
 		return text.T(lang, "exam.blocked.closed", s.Course.EndOn(lang))
-	// A Live Course's Exam is open between its dates without the Lessons first (ADR 0012).
-	case !s.Course.Live() && s.Total == 0:
-		return text.T(lang, "exam.blocked.no-lessons")
-	case !s.Course.Live() && s.Done < s.Total:
-		return text.T(lang, "exam.blocked.lessons", s.Done, s.Total)
 	case s.usedAll():
 		return text.T(lang, "exam.blocked.no-attempts")
 	}
@@ -206,9 +199,6 @@ func (a *App) examStatusFor(ctx context.Context, l *learner, c course, e exam) (
 	s := examStatus{Course: c, Exam: e}
 	var err error
 	if s.Enrolled, err = a.enrolled(ctx, l.ID, e.CourseID); err != nil {
-		return s, err
-	}
-	if s.Done, s.Total, err = a.courseProgress(ctx, l.ID, e.CourseID); err != nil {
 		return s, err
 	}
 	if err = s.readAttempts(ctx, a.db, l.ID, e.ID); err != nil {

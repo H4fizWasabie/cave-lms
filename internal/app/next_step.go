@@ -79,7 +79,7 @@ func (a *App) nextStep(ctx context.Context, l *learner, c course, exams []course
 		}
 	}
 	if exams == nil {
-		if exams, err = a.courseExams(ctx, l, c, len(lessons), len(lessons)); err != nil {
+		if exams, err = a.courseExams(ctx, l, c); err != nil {
 			return nextStep{}, err
 		}
 	}
@@ -160,9 +160,9 @@ func (x courseExam) Badge() badge {
 }
 
 // courseExams reads where the Learner stands on each usable Exam of a Course they have joined, Multiple-choice
-// first; done and total count their Lessons. An Exam with no published question isn't usable, so it isn't listed.
+// first. An Exam with no published question isn't usable, so it isn't listed.
 // The list is never nil, so nextStep can tell it was read.
-func (a *App) courseExams(ctx context.Context, l *learner, c course, done, total int) ([]courseExam, error) {
+func (a *App) courseExams(ctx context.Context, l *learner, c course) ([]courseExam, error) {
 	list := []courseExam{}
 	for _, format := range []string{multipleChoice, written} {
 		e, err := a.loadExam(ctx, c.ID, format)
@@ -173,7 +173,7 @@ func (a *App) courseExams(ctx context.Context, l *learner, c course, done, total
 			continue
 		}
 		x := courseExam{Name: "exam.name", URL: e.Path(""),
-			Status: examStatus{Enrolled: true, Course: c, Exam: e, Done: done, Total: total}}
+			Status: examStatus{Enrolled: true, Course: c, Exam: e}}
 		if e.Written() {
 			x.Name = "exam.name.written"
 		}
