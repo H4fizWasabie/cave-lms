@@ -739,12 +739,16 @@ func numberColumns(cols []lab.Column) []string {
 // cannot give a Part is errDatasetStore.
 func (a *App) findMonthColumns(r *http.Request, d *dashboard, except int64) ([]string, error) {
 	ctx := r.Context()
-	_, keys, err := a.partKeys(ctx, d.ID, except)
+	parts, _, err := a.dataset.Keys(ctx, d.ID)
 	if err != nil {
 		return nil, err
 	}
 	scan := lab.NewMonthScan(d.Columns)
-	for _, k := range keys {
+	for _, p := range parts {
+		if !p.HasRows || p.ID == except {
+			continue
+		}
+		k := p.Key
 		data, err := a.datasets.Get(ctx, k)
 		if err != nil {
 			a.logError(r, fmt.Errorf("get Part %s: %w", k, err))

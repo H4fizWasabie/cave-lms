@@ -9,13 +9,12 @@ import (
 	"text/template/parse"
 	"time"
 
-	"github.com/pressly/goose/v3"
+	"github.com/H4fizWasabie/cave-lms/internal/migrations"
 )
 
 // MigrateDownTo undoes every migration after version, as if the database were from before them, for tests.
 func MigrateDownTo(ctx context.Context, db *sql.DB, version int64) error {
-	goose.SetBaseFS(appFiles)
-	return goose.DownToContext(ctx, db, "migrations", version)
+	return migrations.DownTo(ctx, db, version)
 }
 
 // PruneSystemLog runs the daily System log prune now, for tests.

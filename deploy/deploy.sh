@@ -50,7 +50,7 @@ if [ "$env" = production ]; then
 	# A rollback cannot undo a migration, so back up first when this commit adds one, or production's commit is unknown.
 	running="$(ssh "$host" cat "$records/production" 2>/dev/null || true)"
 	if [ -z "$running" ] || ! git cat-file -e "$running^{commit}" 2>/dev/null ||
-		[ -n "$(git diff --name-only --diff-filter=A "$running" HEAD -- internal/app/migrations)" ]; then
+		[ -n "$(git diff --name-only --diff-filter=A "$running" HEAD -- internal/migrations)" ]; then
 		backup=yes
 	fi
 fi

@@ -18,14 +18,15 @@ import (
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/config"
+	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
+	"github.com/H4fizWasabie/cave-lms/internal/migrations"
 	"github.com/H4fizWasabie/cave-lms/internal/storage"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 )
 
-//go:embed migrations/*.sql templates/*.html
+//go:embed templates/*.html
 var appFiles embed.FS
 
 //go:embed static
@@ -45,6 +46,7 @@ type App struct {
 	pages                map[string]*template.Template
 	publicBaseURL        string
 	store                *storage.Disk
+	dataset              *dataset.Dataset
 	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
 	maxUpload            int64
 	limiter              rateLimiter
@@ -171,26 +173,22 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	if cfg.R2Bucket != "" {
 		datasets = storage.NewR2(cfg.R2AccountID, cfg.R2Bucket, cfg.R2AccessKeyID, cfg.R2SecretAccessKey)
 	}
-	goose.SetBaseFS(appFiles)
-	if err = goose.SetDialect("postgres"); err != nil {
-		return nil, fmt.Errorf("set migration dialect: %w", err)
-	}
 	// Datasets move into the store between 00068, which adds their keys, and 00069, which drops the old column.
-	if err = goose.UpToContext(ctx, db, "migrations", 68); err != nil {
-		return nil, fmt.Errorf("apply database migrations: %w", err)
+	if err = migrations.UpTo(ctx, db, 68); err != nil {
+		return nil, err
 	}
 	if err = copyDatasetsToStore(ctx, db, datasets); err != nil {
 		return nil, fmt.Errorf("copy Datasets to the store: %w", err)
 	}
-	if err = goose.UpContext(ctx, db, "migrations"); err != nil {
-		return nil, fmt.Errorf("apply database migrations: %w", err)
+	if err = migrations.Up(ctx, db); err != nil {
+		return nil, err
 	}
 
 	if err = convertDatasetsToParts(ctx, db, datasets); err != nil {
 		return nil, fmt.Errorf("convert Datasets to Parts: %w", err)
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), store: store, datasets: datasets, dataset: dataset.New(db, datasets), maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
