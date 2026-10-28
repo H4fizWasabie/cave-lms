@@ -25,6 +25,7 @@ type promo struct {
 	Sen              int
 	StartsOn, EndsOn time.Time
 	Ebooks           bool   // paying with its code gives Ebook access (ADR 0020); Pro Plan Promos only
+	Hidden           bool   // accepted and gives Ebooks, but never shown to visitors; set when added
 	Running, Ended   bool   // Ended: ended early by an Admin
 	Upcoming         bool   // not started yet
 	PriceIn          string // the form's price as typed, kept when refused
@@ -42,10 +43,18 @@ type promosPage struct {
 	Products []string
 }
 
-// lowestPromoSen is the lowest running Promo price for product, or 0 when none runs.
+// lowestPromoSen is the lowest running Promo price for product, Hidden ones too, or 0 when none runs. A Payment is
+// enough at this price.
 func lowestPromoSen(ctx context.Context, q rowQueryer, product string) (int, error) {
 	var sen int
 	err := q.QueryRowContext(ctx, `SELECT COALESCE(min(price_sen), 0) FROM promos WHERE product = $1 AND `+runningPromoSQL, product).Scan(&sen)
+	return sen, err
+}
+
+// lowestPublicPromoSen is lowestPromoSen without the Hidden Promos: the price visitors are shown.
+func lowestPublicPromoSen(ctx context.Context, q rowQueryer, product string) (int, error) {
+	var sen int
+	err := q.QueryRowContext(ctx, `SELECT COALESCE(min(price_sen), 0) FROM promos WHERE product = $1 AND NOT hidden AND `+runningPromoSQL, product).Scan(&sen)
 	return sen, err
 }
 
@@ -68,7 +77,7 @@ func (a *App) adminPromos(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) renderPromos(w http.ResponseWriter, r *http.Request, status int, p *promosPage) {
-	rows, err := a.db.QueryContext(r.Context(), `SELECT id, code, product, price_sen, ebooks, starts_on, ends_on, `+runningPromoSQL+`, ended_at IS NOT NULL,
+	rows, err := a.db.QueryContext(r.Context(), `SELECT id, code, product, price_sen, ebooks, hidden, starts_on, ends_on, `+runningPromoSQL+`, ended_at IS NOT NULL,
 		ended_at IS NULL AND starts_on > (now() AT TIME ZONE 'Asia/Kuala_Lumpur')::date
 		FROM promos ORDER BY starts_on DESC, id DESC`)
 	if err != nil {
@@ -78,7 +87,7 @@ func (a *App) renderPromos(w http.ResponseWriter, r *http.Request, status int, p
 	defer rows.Close()
 	for rows.Next() {
 		var pr promo
-		if err := rows.Scan(&pr.ID, &pr.Code, &pr.Product, &pr.Sen, &pr.Ebooks, &pr.StartsOn, &pr.EndsOn, &pr.Running, &pr.Ended, &pr.Upcoming); err != nil {
+		if err := rows.Scan(&pr.ID, &pr.Code, &pr.Product, &pr.Sen, &pr.Ebooks, &pr.Hidden, &pr.StartsOn, &pr.EndsOn, &pr.Running, &pr.Ended, &pr.Upcoming); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -99,7 +108,7 @@ func (a *App) addPromo(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	f := promo{Code: strings.TrimSpace(r.PostFormValue("code")), Product: r.PostFormValue("product"), Ebooks: r.PostFormValue("ebooks") != "",
+	f := promo{Code: strings.TrimSpace(r.PostFormValue("code")), Product: r.PostFormValue("product"), Ebooks: r.PostFormValue("ebooks") != "", Hidden: r.PostFormValue("hidden") != "",
 		PriceIn:  strings.TrimSpace(r.PostFormValue("price")),
 		StartsIn: strings.TrimSpace(r.PostFormValue("starts_on")), EndsIn: strings.TrimSpace(r.PostFormValue("ends_on"))}
 	sen, priceOK := parseRM(f.PriceIn)
@@ -124,8 +133,8 @@ func (a *App) addPromo(w http.ResponseWriter, r *http.Request) {
 		a.renderPromos(w, r, http.StatusUnprocessableEntity, &promosPage{pageBase: pageBase{Error: text.T(lang, msg)}, Form: f})
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), `INSERT INTO promos (code, product, price_sen, starts_on, ends_on, ebooks) VALUES ($1, $2, $3, $4, $5, $6)`,
-		f.Code, f.Product, sen, starts, ends, f.Ebooks); err != nil {
+	if _, err := a.db.ExecContext(r.Context(), `INSERT INTO promos (code, product, price_sen, starts_on, ends_on, ebooks, hidden) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		f.Code, f.Product, sen, starts, ends, f.Ebooks, f.Hidden); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

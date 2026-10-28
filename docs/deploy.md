@@ -74,6 +74,10 @@ Then it builds a Linux binary and copies the binary, unit, Caddy site and smoke 
 
 Last comes the smoke test, `deploy/smoke.sh` (installed as `cave-lms-smoke`, and as `cave-lms-staging-smoke` for staging): signed out, over the public HTTPS address, it requests the home page and its stylesheet, `/login`, `/courses`, `/gallery`, `/programmes`, `/pricing` and `/certificates`, and checks that `/plans` redirects to `/pricing`, `/admin` redirects to `/login` and a wrong BCL key gets 404. If it fails on production, the previous binary goes back and the script fails; the binary is all a rollback restores, not the unit, the Caddy site or the database. **After a migration there is no rollback**: when the commit may have added one (the backup above was due), a failed start or smoke test leaves the new binary in place, prints `journalctl -u cave-lms -n 50` and fails, because the previous binary is likely broken against the migrated schema (on 2026-10-27 it ran for 2 minutes with `relation "datasets" does not exist`). Fix forward and deploy again, or restore the pre-deploy snapshot (see Backups, Restoring a pre-deploy snapshot); the old binary is `/usr/local/bin/cave-lms.prev` if it is wanted. Run it by hand with `ssh vps cave-lms-smoke production` or `ssh vps cave-lms-staging-smoke staging`. `/var/lib/cave-lms-deploys/` on the VPS holds the commit that last passed on staging and the one production runs.
 
+## Promos
+
+A Promo needs its coupon in BCL as well as a row on Admin > Promos. In BCL, create the coupon, then add it to each payment form's Allowed Coupons (Edit Payment Form > Form Configuration > Coupon Settings). When that list is not empty, BCL refuses every code not on it with "This coupon is not available for this form".
+
 ## Staging
 
 `staging.cavelms.com` is a second copy of the app on the same VPS, where the client tries new work before it goes live (`docs/adr/0010-staging-runs-beside-production.md`). It shares nothing with production but Postgres, Caddy and the Resend account, and it is not backed up.

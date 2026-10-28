@@ -73,7 +73,7 @@ func (a *App) offersOf(ctx context.Context, products ...string) ([]offer, error)
 			return nil, err
 		}
 		o := offer{Product: product, Price: rm(p.Sen), PaymentLink: p.PaymentLink}
-		promoSen, err := lowestPromoSen(ctx, a.db, product)
+		promoSen, err := lowestPublicPromoSen(ctx, a.db, product)
 		if err != nil {
 			return nil, err
 		}
