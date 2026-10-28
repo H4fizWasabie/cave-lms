@@ -43,7 +43,7 @@ const pageCSP = "sandbox allow-scripts; default-src 'none'; " +
 	"script-src 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 	"style-src 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com; " +
 	"font-src data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.gstatic.com; " +
-	"img-src data: https:; connect-src 'self' https://pages.cave.example.invalid; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
+	"img-src data: https:; connect-src 'self' https://pages.cave.example.invalid https://cave.example.invalid; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
 
 func TestAPlanHolderPastesHTMLDeploysAndAVisitorGetsItSandboxed(t *testing.T) {
 	t.Parallel()

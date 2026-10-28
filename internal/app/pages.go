@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -40,13 +41,15 @@ const pageCDNs = "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://
 
 // pageCSP sandboxes a Deployment's own page (ADR 0017): inline code and the CDNs, images from anywhere over https,
 // and nothing sent out but reads from the Deployments host, by its origin as deploymentCSP explains; no form posts anywhere, and no
-// <base> to point its relative links, such as ./data.json, elsewhere.
+// <base> to point its relative links, such as ./data.json, elsewhere. The main host is named too, so a page that wrote in its old
+// cavelms.com/d/... data address still reads it through the redirect (ADR 0024); it sends no cookies from the sandbox.
 func (a *App) pageCSP() string {
+	main, _ := url.Parse(a.publicBaseURL) // config.Load has checked it
 	return "sandbox allow-scripts; default-src 'none'; " +
 		"script-src 'unsafe-inline' " + pageCDNs + "; " +
 		"style-src 'unsafe-inline' " + pageCDNs + " https://fonts.googleapis.com; " +
 		"font-src data: " + pageCDNs + " https://fonts.gstatic.com; " +
-		"img-src data: https:; connect-src 'self' " + a.pagesBaseURL + "; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
+		"img-src data: https:; connect-src 'self' " + a.pagesBaseURL + " " + main.Scheme + "://" + main.Host + "; form-action 'none'; frame-ancestors 'none'; base-uri 'none'"
 }
 
 // servePage writes a Deployment's page under pageCSP, cached five minutes so sleep and Takedown take effect soon.
