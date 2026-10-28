@@ -8,7 +8,7 @@ ALTER TABLE dataset_parts
     ADD CONSTRAINT dataset_parts_replaces_part CHECK ((upload_kind = 'replace-part') = (replaces_part_id IS NOT NULL));
 UPDATE dataset_parts SET upload_kind = 'add' WHERE state = 'pending' AND cleanup ? 'added';
 UPDATE dataset_parts SET upload_kind = 'replace-part', replaces_part_id = (cleanup->'replaces'->>'part')::bigint
-    WHERE state = 'pending' AND cleanup ? 'replaces';
+    WHERE state = 'pending' AND cleanup->'replaces'->>'part' IS NOT NULL;
 
 -- +goose Down
 ALTER TABLE dataset_parts DROP CONSTRAINT dataset_parts_replaces_part, DROP COLUMN replaces_part_id, DROP COLUMN upload_kind;

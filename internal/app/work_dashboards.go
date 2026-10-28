@@ -92,6 +92,8 @@ const (
 )
 
 // dbKind is the kind as dataset_parts.upload_kind holds it.
+// ponytail: two enums for one kind, mapped here and in pendingOf, until the upload and confirm move into the Dataset
+// module (#459, #460) and #461 deletes uploadKind.
 func (k uploadKind) dbKind() dataset.Kind {
 	switch k {
 	case addPart:
