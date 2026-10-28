@@ -74,36 +74,14 @@ func (w *world) put(u upload) *dataset.Pending {
 	return p
 }
 
-// confirm makes the pending Part p current and settles the Dataset's columns and recipe as a confirm does. Confirm is not
-// in the module yet, so this is the one place the tests do it.
-// ponytail: a copy of confirmWork's settle without its month-column scan; #460 replaces it with Confirm.
+var noConfirmReserve dataset.ConfirmReserve = func(context.Context, *sql.Tx, *dataset.Pending) error { return nil }
+
+// confirm confirms the Dashboard's pending Part p, keeping the date it has, and returns p.
 func (w *world) confirm(p *dataset.Pending) *dataset.Pending {
 	w.t.Helper()
-	var position any
-	switch p.Kind {
-	case dataset.ReplaceData:
-		w.exec(nil, `DELETE FROM dataset_parts WHERE dashboard_id = $1 AND state = 'current'`, w.dashboard)
-	case dataset.ReplacePart:
-		var at int
-		w.exec(&at, `DELETE FROM dataset_parts WHERE id = $1 RETURNING position`, p.ReplacedPart)
-		position = at
-	}
-	w.exec(nil, `UPDATE dataset_parts SET state = 'current', confirmed_at = now(),
-		position = COALESCE($3::integer, (SELECT COALESCE(max(position), 0) + 1 FROM dataset_parts WHERE dashboard_id = $2 AND state = 'current'))
-		WHERE id = $1`, p.ID, w.dashboard, position)
-	recipe := p.Settings.Recipe
-	if p.Kind == dataset.ReplaceData {
-		recipe = &lab.Recipe{Sheet: p.PickedSheet, HeaderRow: p.HeaderRow, HeaderTyped: p.HeaderTyped, MonthColumns: append([]string{}, p.MonthColumns...)}
-	}
-	settings, err := json.Marshal(lab.Settings{Recipe: recipe})
-	if err != nil {
+	if _, err := w.ds.Confirm(context.Background(), w.dashboard, "", noConfirmReserve, nil); err != nil {
 		w.t.Fatal(err)
 	}
-	columns, err := json.Marshal(p.Columns)
-	if err != nil {
-		w.t.Fatal(err)
-	}
-	w.exec(nil, `UPDATE dashboards SET upload_settings = $2, dataset_columns = $3 WHERE id = $1`, w.dashboard, settings, columns)
 	return p
 }
 

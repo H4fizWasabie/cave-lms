@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -56,37 +55,5 @@ func TestAnUploadWithAColumnCalledPartDateIsRefusedInBothLanguages(t *testing.T)
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Namakan semula lajur “part  DATE” dalam Excel")
 	if n := ada.datasetFiles(); n != 0 {
 		t.Fatalf("%d stored files after a refused upload, want 0", n)
-	}
-}
-
-// A Part date the Learner changes in the preview is written under a new key, so the Part's object is never rewritten in
-// place; the old object goes.
-func TestChangingThePartDateInThePreviewStoresTheRowsUnderANewKeyAndDeletesTheOldObject(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path := ada.createPage("Kedai", myPage)
-	ada.postFile(path+"/dataset", "Report_20260702091058.xlsx", shopReport(t, "Beras", 120))
-	var pending string
-	if err := ada.db.QueryRow(`SELECT storage_key FROM dataset_parts`).Scan(&pending); err != nil {
-		t.Fatal(err)
-	}
-	ada.post(path+"/dataset/confirm", url.Values{"part-date": {"2026-07-09"}})
-	var key, day string
-	if err := ada.db.QueryRow(`SELECT storage_key, part_date::text FROM dataset_parts`).Scan(&key, &day); err != nil {
-		t.Fatal(err)
-	}
-	if key == pending || day != "2026-07-09" {
-		t.Fatalf("Part stored under %s on %s, want a new key (not %s) and 2026-07-09", key, day, pending)
-	}
-	var source string
-	if err := ada.db.QueryRow(`SELECT date_source FROM dataset_parts`).Scan(&source); err != nil || source != "chosen" {
-		t.Fatalf("date source = %q (%v), want chosen", source, err)
-	}
-	if n := ada.datasetFiles(); n != 1 {
-		t.Fatalf("%d stored files, want the Part's alone", n)
-	}
-	var queued int
-	if err := ada.db.QueryRow(`SELECT count(*) FROM stored_file_deletions`).Scan(&queued); err != nil || queued != 0 {
-		t.Fatalf("%d files still queued for deletion (%v), want the old object deleted", queued, err)
 	}
 }

@@ -30,7 +30,7 @@ const (
 	maxDatasetUpload = maxDatasetFile + 64<<10
 )
 
-// errStorageFull is pendingReserve's, keepWorkbook's and confirmWork's answer when a Dataset would take the Learner over their Storage
+// errStorageFull is pendingReserve's, keepWorkbook's and confirmReserve's answer when a Dataset would take the Learner over their Storage
 // allowance.
 var errStorageFull = errors.New("over the Storage allowance")
 
@@ -657,15 +657,6 @@ func xlsxOf(w http.ResponseWriter, r *http.Request, lang string) (file multipart
 	return nil, name, problem
 }
 
-// newDatasetKey is a new key in the Dataset store: a new one every upload, so a cached copy is never stale.
-func newDatasetKey() (string, error) {
-	token, err := newToken()
-	if err != nil {
-		return "", err
-	}
-	return "dataset-" + token[:22], nil
-}
-
 // dropDataset deletes the Dataset stored under key, if any, even after the request that asked is over. A failure
 // leaves only an unused object, so it is logged; r is nil outside a request.
 func (a *App) dropDataset(ctx context.Context, r *http.Request, key string) {
@@ -743,7 +734,7 @@ func copyDatasetsToStore(ctx context.Context, db *sql.DB, store storage.Store) e
 		return err
 	}
 	for _, r := range todo {
-		key, err := newDatasetKey()
+		key, err := dataset.NewKey()
 		if err != nil {
 			return err
 		}
@@ -811,7 +802,7 @@ func convertDatasetsToParts(ctx context.Context, db *sql.DB, store storage.Store
 			if err != nil {
 				return err
 			}
-			if key, err = newDatasetKey(); err != nil {
+			if key, err = dataset.NewKey(); err != nil {
 				return err
 			}
 			if err := store.Put(ctx, key, part); err != nil {

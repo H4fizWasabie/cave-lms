@@ -84,6 +84,7 @@ type Pending struct {
 	Key          string // where its rows are stored
 	File         string
 	Size         int64 // saved size, which counts against the Storage allowance once confirmed
+	Workbook     int64 // the Workbook it was read from, 0 for none or once that Workbook is deleted
 	Kind         Kind
 	ReplacedPart int64 // the Part a ReplacePart one replaces, else 0
 }
@@ -266,14 +267,14 @@ func (d *Dataset) Upload(ctx context.Context, dashboardID int64, u Uploaded, res
 	if err != nil {
 		return nil, err
 	}
-	key, err := newKey()
+	key, err := NewKey()
 	if err != nil {
 		return nil, err
 	}
 	if err := d.store.Put(ctx, key, rows); err != nil {
 		return nil, fmt.Errorf("%w: put Part %s: %v", ErrStore, key, err)
 	}
-	p := &Pending{Preview: pv, Key: key, File: u.File, Size: int64(len(rows)), Kind: kind, ReplacedPart: u.Replaces}
+	p := &Pending{Preview: pv, Key: key, File: u.File, Workbook: u.Workbook, Size: int64(len(rows)), Kind: kind, ReplacedPart: u.Replaces}
 	if err := d.keep(ctx, dashboardID, p, u, cleanup, len(pv.Dataset.Rows), reserve); err != nil {
 		// A failed delete leaves only an unused object.
 		// ponytail: not logged, as the module has no logger; the object is lost until the store is swept.
@@ -439,8 +440,8 @@ func (d *Dataset) findMonthColumns(ctx context.Context, dashboardID int64, cols 
 	return scan.Columns(), nil
 }
 
-// newKey is a new key in the store: a new one every upload, so a cached copy is never stale.
-func newKey() (string, error) {
+// NewKey is a new key in the store: a new one every upload, so a cached copy is never stale.
+func NewKey() (string, error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err

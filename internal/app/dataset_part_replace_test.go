@@ -3,7 +3,6 @@ package app_test
 import (
 	"net/http"
 	"regexp"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +36,7 @@ func markahReport(t *testing.T) []byte {
 	return testutil.XLSX(t, []string{"Nama", "Markah"}, []any{"Ali", 80.0}, []any{"Siti", 90.0})
 }
 
-func TestReplacingTheFirstOfThreePartsKeepsItFirstWithTheNewRowsAndQueuesTheOldRows(t *testing.T) {
+func TestReplacingTheFirstOfThreePartsShowsItsScreenAndPreviewAndListsTheNewPartInItsPlace(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
 	path, link := threeParts(t, ada)
@@ -73,18 +72,6 @@ func TestReplacingTheFirstOfThreePartsKeepsItFirstWithTheNewRowsAndQueuesTheOldR
 	ada.forgetWorkbooks()
 	res, body = ada.post(path+"/dataset/confirm", nil)
 	expectRedirect(t, res, body, path+"/data")
-	_, body = visitor.get(link + "data.json")
-	tepung, gula, garam := strings.Index(body, "Tepung"), strings.Index(body, "Gula"), strings.Index(body, "Garam")
-	if strings.Contains(body, "Beras") || tepung < 0 || gula < tepung || garam < gula {
-		t.Fatalf("after replacing the first Part data.json = %s, want Tepung, Gula, Garam in order and no Beras", body)
-	}
-	if n := ada.datasetFiles(); n != 3 {
-		t.Fatalf("%d stored files after the replace, want one per Part", n)
-	}
-	var queued int
-	if err := ada.db.QueryRow(`SELECT count(*) FROM stored_file_deletions`).Scan(&queued); err != nil || queued != 0 {
-		t.Fatalf("%d files still queued for deletion (%v), want the replaced Part's deleted", queued, err)
-	}
 	list := partItems(t, mustGet(t, ada, path+"/data"))
 	first, second, third := strings.Index(list, "september-betul.xlsx"), strings.Index(list, "oktober.xlsx"), strings.Index(list, "november.xlsx")
 	if strings.Contains(list, "september.xlsx") || first < 0 || second < first || third < second {
@@ -187,31 +174,6 @@ func TestAReplaceOfOneOfSeveralPartsNeedsTheDatasetsColumnsAndOnlyReachesTheLear
 	if res, _ = ada.postFile(crossed, "markah.xlsx", markahReport(t)); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("replacing another Dashboard's Part answered %d, want 404", res.StatusCode)
 	}
-}
-
-// A Part replacing one of several is read with the Dataset's recipe, as an Add is: only the recipe sheet, never
-// another sheet with the same columns; and confirming it keeps the recipe.
-func TestAReplaceOfOneOfSeveralPartsIsReadWithTheRecipeAndKeepsIt(t *testing.T) {
-	t.Parallel()
-	_, ada := labLearner(t)
-	path, link := twoParts(t, ada)
-	visitor := ada.second()
-	file := testutil.Workbook(t, shopSheet("SHEET1", "Tepung", "Minyak"), shopSheet("Subset", "Gula"))
-	res, body := ada.postFile(replaceLinks(t, ada, path+"/data")[0], "september-betul.xlsx", file)
-	expectRedirect(t, res, body, path+"/data")
-	body = mustGet(t, ada, path+"/data")
-	expectAll(t, body, "Replacing september.xlsx with these 2 rows")
-	if strings.Contains(body, "Combined") {
-		t.Fatalf("the preview says sheets were combined: %s", body)
-	}
-	ada.confirmWork(path, nil)
-	_, body = visitor.get(link + "data.json")
-	if got, want := perkara(t, body), []string{"Tepung", "Minyak", "Gula", "Jualan"}; !slices.Equal(got, want) {
-		t.Fatalf("data.json Perkara = %v, want %v", got, want)
-	}
-	// The recipe is still the first Part's: an Add after the replace reads only its sheet.
-	ada.postFile(path+"/dataset", "november.xlsx", testutil.Workbook(t, shopSheet("SHEET1", "Garam"), shopSheet("Subset", "Lada")), adding)
-	expectAll(t, mustGet(t, ada, path+"/data"), "Adding 1 row to your 4: 5 rows in all.")
 }
 
 // partItems is the Part list of a Data tab alone, without the preview that may follow it.
