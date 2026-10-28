@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -21,7 +22,8 @@ type course struct {
 	StartDate      string
 	EndDate        string
 	Days           int
-	OrganisationID int64  // the Organisation a Live Course is run for, 0 when none
+	PCCDays        int    // a self-paced Course's PCC Level, as the days that give it (1 to 5), 0 when none
+	OrganisationID int64  // the Organisation whose logo the Course's Certificates print, 0 when none
 	Open           bool   // the Admin's open or closed to new joins
 	Published      bool   // false for a Draft, which only the Admin sees
 	Ended          bool   // a Live Course past the end of its end date, Malaysia time
@@ -38,9 +40,9 @@ func (c course) Live() bool { return c.Days > 0 }
 // Joinable reports whether a Learner may join the Course now.
 func (c course) Joinable() bool { return c.Open && !c.Ended }
 
-// Level is the Live Course's PCC Level, following from its days, or "" for a self-paced Course.
+// Level is the Course's PCC Level: a Live Course's follows from its days, a self-paced one's is set by the Admin, or "" for none.
 func (c course) Level() string {
-	switch c.Days {
+	switch cmp.Or(c.Days, c.PCCDays) {
 	case 0:
 		return ""
 	case 1:
@@ -54,9 +56,9 @@ func (c course) Level() string {
 	}
 }
 
-// Badge is the static file of the PCC Level's badge, or "" for a self-paced Course.
+// Badge is the static file of the PCC Level's badge, or "" for a Course with no Level.
 func (c course) Badge() string {
-	if c.Days == 0 {
+	if c.Level() == "" {
 		return ""
 	}
 	return "pcc-" + strings.ToLower(c.Level()) + ".jpg"
@@ -81,7 +83,7 @@ func (c course) StartOn(lang string) string {
 }
 
 const courseColumns = `id, title, description, COALESCE(start_date::text, ''), COALESCE(end_date::text, ''),
-	COALESCE(days, 0), is_open, published, COALESCE(organisation_id, 0), picture_key, picture_type,
+	COALESCE(days, 0), COALESCE(pcc_days, 0), is_open, published, COALESCE(organisation_id, 0), picture_key, picture_type,
 	(SELECT count(*) FROM lessons l WHERE l.course_id = courses.id AND l.published),
 	EXISTS (SELECT 1 FROM exams e JOIN exam_questions q ON q.exam_id = e.id WHERE e.course_id = courses.id AND NOT q.is_draft)`
 
@@ -267,9 +269,9 @@ func (a *App) createCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(),
-		`INSERT INTO courses (title, description, start_date, end_date, days, organisation_id, picture_key, picture_type)
-		VALUES ($1, $2, NULLIF($3, '')::date, NULLIF($4, '')::date, NULLIF($5, 0), NULLIF($6, 0), $7, $8)`,
-		c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID, c.PictureKey, c.pictureType)
+		`INSERT INTO courses (title, description, start_date, end_date, days, organisation_id, picture_key, picture_type, pcc_days)
+		VALUES ($1, $2, NULLIF($3, '')::date, NULLIF($4, '')::date, NULLIF($5, 0), NULLIF($6, 0), $7, $8, NULLIF($9, 0))`,
+		c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID, c.PictureKey, c.pictureType, c.PCCDays)
 	if isForeignKeyError(err) { // the Organisation was deleted while the form was open
 		a.dropPicture(r, c.PictureKey)
 		c.PictureKey, c.pictureType = "", ""
@@ -318,9 +320,9 @@ func (a *App) updateCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err = a.db.ExecContext(r.Context(), `UPDATE courses SET title = $2, description = $3, start_date = NULLIF($4, '')::date,
-		end_date = NULLIF($5, '')::date, days = NULLIF($6, 0), organisation_id = NULLIF($7, 0), picture_key = $8, picture_type = $9
-		WHERE id = $1`,
-		c.ID, c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID, c.PictureKey, c.pictureType)
+		end_date = NULLIF($5, '')::date, days = NULLIF($6, 0), organisation_id = NULLIF($7, 0), picture_key = $8, picture_type = $9,
+		pcc_days = NULLIF($10, 0) WHERE id = $1`,
+		c.ID, c.Title, c.Description, c.StartDate, c.EndDate, c.Days, c.OrganisationID, c.PictureKey, c.pictureType, c.PCCDays)
 	if err != nil && c.PictureKey != existing.PictureKey {
 		a.dropPicture(r, c.PictureKey)
 	}
@@ -441,7 +443,7 @@ func (a *App) courseByID(ctx context.Context, id int64) (course, error) {
 // scanCourse reads one row of courseColumns.
 func (a *App) scanCourse(row interface{ Scan(...any) error }) (course, error) {
 	var c course
-	err := row.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.EndDate, &c.Days, &c.Open, &c.Published, &c.OrganisationID,
+	err := row.Scan(&c.ID, &c.Title, &c.Description, &c.StartDate, &c.EndDate, &c.Days, &c.PCCDays, &c.Open, &c.Published, &c.OrganisationID,
 		&c.PictureKey, &c.pictureType, &c.LessonCount, &c.HasExam)
 	if end, perr := time.ParseInLocation(time.DateOnly, c.EndDate, malaysia); perr == nil {
 		c.Ended = !a.now().Before(end.AddDate(0, 0, 1))
@@ -493,14 +495,18 @@ func courseFromForm(r *http.Request, lang string, live bool) (c course, msg stri
 	var end time.Time
 	endErr := errors.New("self-paced")
 	daysText := ""
-	var orgErr error
+	var orgErr, pccErr error
+	if v := r.PostFormValue("organisation_id"); v != "" { // empty is none
+		c.OrganisationID, orgErr = strconv.ParseInt(v, 10, 64)
+	}
 	if live {
 		c.EndDate = strings.TrimSpace(r.PostFormValue("end_date"))
 		end, endErr = time.Parse(time.DateOnly, c.EndDate)
 		daysText = strings.TrimSpace(r.PostFormValue("days"))
 		c.Days, _ = strconv.Atoi(daysText)
-		if v := r.PostFormValue("organisation_id"); v != "" { // empty is none
-			c.OrganisationID, orgErr = strconv.ParseInt(v, 10, 64)
+	} else if v := r.PostFormValue("pcc_days"); v != "" { // empty is none
+		if c.PCCDays, _ = strconv.Atoi(v); c.PCCDays < 1 || c.PCCDays > 5 || strconv.Itoa(c.PCCDays) != v {
+			pccErr = errors.New("not 1 to 5")
 		}
 	}
 	switch {
@@ -513,6 +519,8 @@ func courseFromForm(r *http.Request, lang string, live bool) (c course, msg stri
 	case live && (endErr != nil || end.Before(start)):
 		msg = text.T(lang, "adm.courses.err.end-date")
 	case live && (c.Days < 1 || c.Days > 5 || strconv.Itoa(c.Days) != daysText):
+		msg = text.T(lang, "adm.courses.err.days")
+	case pccErr != nil:
 		msg = text.T(lang, "adm.courses.err.days")
 	case orgErr != nil:
 		msg = text.T(lang, "adm.courses.err.organisation")

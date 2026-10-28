@@ -59,12 +59,12 @@ _Malay_: Kursus Langsung
 _Avoid_: Cohort, class, session, event
 
 **Organisation**:
-The body a Live Course is run for, such as a ministry, a police force or a training institute, with a name and a logo printed on its Live Courses' Certificates.
+The body a Course is run for, such as a ministry, a police force or a training institute, with a name and a logo printed on the Certificates of its Live Courses and of any self-paced Course the Admin gives it.
 _Malay_: Organisasi
 _Avoid_: Company, client (which means The Cave Consult), agency
 
 **PCC Level**:
-The level of a Live Course, set by its days: 1 Basic, 2 Foundation, 3 Practitioner, 4 or 5 Professional. Each Level has the client's badge. Never picked by hand.
+The level of a Course. A Live Course's is set by its days: 1 Basic, 2 Foundation, 3 Practitioner, 4 or 5 Professional. A self-paced Course has none unless the Admin picks one. Each Level has the client's badge.
 _Malay_: Tahap PCC
 _Avoid_: Grade, tier, rank
 

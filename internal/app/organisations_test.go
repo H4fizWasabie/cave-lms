@@ -243,6 +243,10 @@ func TestTheLiveCourseFormSetsAndClearsTheOrganisationAndADuplicateKeepsIt(t *te
 	s.post("/admin/courses/"+course, live)
 	_, body = s.get("/admin/courses/" + course + "/edit")
 	expectNone(t, body, selected)
+
+	// A self-paced Course's form has the Organisation and the PCC Level too.
+	_, body = s.get("/admin/courses/new")
+	expectAll(t, body, "organisation_id", "pcc_days")
 }
 
 func TestTheLiveCourseFormRefusesAnOrganisationThatIsNotThere(t *testing.T) {

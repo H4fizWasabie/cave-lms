@@ -94,6 +94,40 @@ func TestSelfPacedCertificateHasNoBadgeAndALongTitleWraps(t *testing.T) {
 	expectNone(t, pdf, title, imageSize(904, 1280), "/Width 904\n") // no PCC badge, of any Level
 }
 
+func TestSelfPacedCourseWithAnOrganisationAndPCCLevelPrintsTheLogoAndBadgeOnItsCertificate(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	id := s.learnerEnrolledIn("Go Basics", "Variables")
+	s.loginAdmin()
+	org := s.addOrganisation("KPM", pngOfSize(t, 11, 13))
+	s.postCertificateSettings(nil, map[string][]byte{"background": pngOfSize(t, 3, 5)})
+	edit := url.Values{"title": {"Go Basics"}, "description": {"Learn it."}, "organisation_id": {org}, "pcc_days": {"4"}}
+	res, body := s.post("/admin/courses/"+id, edit)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+
+	_, body = s.get("/admin/courses/" + id + "/edit") // the form shows both again
+	expectAll(t, body, `<option value="`+org+`" selected>`, `<option value="4" selected>`, "PCC Level: Professional")
+	if res, body := s.get("/admin/courses"); !strings.Contains(body, "Professional") {
+		t.Fatalf("the Admin Course list shows no Level: %d %s", res.StatusCode, body)
+	}
+	edit.Set("pcc_days", "9")
+	res, body = s.post("/admin/courses/"+id, edit)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Enter the days as a whole number from 1 to 5.")
+
+	res, body = s.post("/admin/courses", url.Values{"title": {"Go Next"}, "description": {"More."}, "organisation_id": {org}, "pcc_days": {"2"}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if _, body = s.get("/admin/courses"); !strings.Contains(body, "Go Next") || !strings.Contains(body, "Foundation") {
+		t.Fatalf("the new Course was not saved with its Level: %s", body)
+	}
+
+	s.logOut()
+	s.login("ada@example.com", certPassword)
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	_, body = s.get("/my-certificates")
+	expectAll(t, s.pdfBody("/certificates/"+certificateIDs(body)[0]+"/pdf"),
+		imageSize(11, 13), imageSize(904, 1280)) // the Organisation's logo and the Professional badge
+}
+
 // certTitleLine is a Course title line in a Certificate preview: its font size in mm and its text.
 var certTitleLine = regexp.MustCompile(`<text class="cert-art-title"[^>]* font-size="([\d.]+)"[^>]*>([^<]*)</text>`)
 
