@@ -117,6 +117,23 @@ func TestMyCoursesShowsEachCoursesProgressNextStepAndExamStatus(t *testing.T) {
 	expectAll(t, mainOf(body), ">Lulus</span>", "Sijil yang diperoleh")
 }
 
+func TestMyCoursesHasNoCertificatesButtonInItsHeadAndLinksToMyCertificatesFromTheCertificatesHeading(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	id := s.nextStepCourse(true, "Variables")
+	if body := s.myCourses(); strings.Contains(body, `href="/my-certificates"`) {
+		t.Fatalf("My courses links to My certificates before a Certificate is earned: %s", body)
+	}
+	s.sitExam(id, "0") // passed, and the Certificate is issued
+	body := s.myCourses()
+	if head := body[:strings.Index(body, `class="mc-courses"`)]; strings.Contains(head, "/my-certificates") {
+		t.Errorf("the My courses head still has a My certificates link: %s", head)
+	}
+	expectAll(t, body, `<h2><a href="/my-certificates">Certificates earned</a></h2>`)
+	_, ms := s.getAsking("/my-courses", "ms")
+	expectAll(t, mainOf(ms), `<h2><a href="/my-certificates">Sijil yang diperoleh</a></h2>`)
+}
+
 func TestMyCoursesSaysCompleteForACourseWithNothingLeftAndShowsNoProgressBarWithoutLessons(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
