@@ -70,8 +70,11 @@ type App struct {
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
-	// emailing counts the runs of emails a Result release has sent in the background, so Close waits for them.
-	emailing sync.WaitGroup
+	// emailKick wakes the background sender of the emails a Result release leaves owed (sendOwedEmails); sending is
+	// held while it sends, so sends stay serial; emailing is held by the sender's loop, so Close waits for it.
+	emailKick chan struct{}
+	sending   sync.Mutex
+	emailing  sync.WaitGroup
 	// uploading holds the IDs of Learners with a Submission upload in flight, so each sends one at a time and holds
 	// at most one request's files (5 x 20 MB) in memory.
 	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
@@ -191,7 +194,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, err
 	}
 
-	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), pagesBaseURL: strings.TrimRight(cfg.PagesBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), now: time.Now,
+	a := &App{db: db, mailer: mailer, writer: writer, pages: pages, publicBaseURL: strings.TrimRight(cfg.PublicBaseURL, "/"), pagesBaseURL: strings.TrimRight(cfg.PagesBaseURL, "/"), store: store, datasets: datasets, maxUpload: cfg.MaxUploadBytes, ownerEmail: cfg.OwnerEmail, caveTextExtensionIDs: cfg.CaveTextExtensionIDs, bclWebhookKey: cfg.BCLWebhookKey, bclTestPayments: cfg.BCLTestPayments, bclAPIToken: cfg.BCLAPIToken, bclAPIURL: cfg.BCLAPIURL, production: cfg.Production, done: make(chan struct{}), emailKick: make(chan struct{}, 1), now: time.Now,
 		cleaning: make(chan struct{}, maxCleanUps), cleanUpWaitLog: cleanUpWaitLog}
 	pagesURL, err := url.Parse(a.pagesBaseURL)
 	if err != nil || pagesURL.Host == "" {
@@ -206,6 +209,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
+	a.emailing.Add(1)
+	go a.sendEmailsWhenKicked()
+	a.kickEmails() // whatever a restart left owed
 	mux := routeMux{http.NewServeMux(), &a.routes}
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("/", a.notFound) // any other address
@@ -509,7 +515,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) Close() error {
 	close(a.done)
-	a.emailing.Wait() // the emails of released Results read the database
+	a.emailing.Wait() // the sender of owed emails reads the database
 	return a.db.Close()
 }
 
