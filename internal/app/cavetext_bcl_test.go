@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -358,6 +359,7 @@ const (
 type bclOrder struct {
 	amount, subtotal, discount, payer, cavelms, status, kind string
 	coupon                                                   string // coupon_code, left out when empty
+	order                                                    string // order_number, the one asked for when empty
 	paid                                                     bool
 	formID                                                   int
 }
@@ -447,7 +449,7 @@ func newFakeBCL(t *testing.T, orders map[string]bclOrder) *fakeBCL {
 			if o.formID != 0 {
 				formID = o.formID
 			}
-			main := map[string]any{"id": 1, "order_number": order, "payer_name": "BCL Payer", "payer_email": o.payer,
+			main := map[string]any{"id": 1, "order_number": cmp.Or(o.order, order), "payer_name": "BCL Payer", "payer_email": o.payer,
 				"payer_telephone_number": "+60123456789", "transaction_type": o.kind, "currency": "MYR",
 				"subtotal_amount": number(o.subtotal), "discount_amount": number(o.discount), "fee_amount": 1,
 				"additional_fee_amount": 0, "amount": number(o.amount), "payment_channel": "FPX", "status": code,
@@ -766,6 +768,27 @@ func TestBCLDoesNotKnowTheOrderYetSo500ThenOnRetryItIsConfirmedAndGranted(t *tes
 	bcl.setOrder("LINK-1", confirmed("ada@example.com"))
 	s.bclPay(paid("LINK-1", "ada@example.com")) // BCL's retry
 	expectProForAYear(t, ada, token)
+}
+
+// BCL's detail must name the very order number the webhook did, case and all: it is the payment's key, so one that
+// differs gives nothing, is answered 500 and is logged, whatever else in the detail is right.
+func TestAnOrderWhoseDetailNamesAnotherOrderNumberThanTheWebhooksIsAnswered500(t *testing.T) {
+	t.Parallel()
+	other := confirmed("ada@example.com")
+	other.order = "link-1" // another case than the webhook's LINK-1
+	bcl := newFakeBCL(t, map[string]bclOrder{"LINK-1": other})
+	s := confirmingSite(t, bcl)
+	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	if code := s.bclPost(bclKey, bclPayload(paid("LINK-1", "ada@example.com"))); code != http.StatusInternalServerError {
+		t.Fatalf("webhook for an order whose detail names another order number: status %d, want 500", code)
+	}
+	if ada.me(token).Pro {
+		t.Fatalf("an order whose detail names another order number gave Pro")
+	}
+	_, body := s.get("/admin/cavetext")
+	expectNone(t, body, "LINK-1", "link-1")
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "order LINK-1: confirm with BCL: BCL", "order detail names another order number than the webhook")
 }
 
 // An order whose detail names no form is never matched to a form BCL lists without an id: BCL retries, and a form
