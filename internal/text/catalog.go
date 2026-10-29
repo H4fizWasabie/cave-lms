@@ -1286,6 +1286,9 @@ var catalog = map[string]entry{
 
 	// CaveText API messages, shown by the extension as they come
 	"cavetext.api.sign-in-again":       {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
+	"cavetext.connect.title":           {en: "Connect CaveText", ms: "Sambungkan CaveText"},
+	"cavetext.connect":                 {en: "CaveText wants to connect to your CAVELMS account, %s.", ms: "CaveText mahu disambungkan ke akaun CAVELMS anda, %s."},
+	"cavetext.connect.button":          {en: "Connect", ms: "Sambungkan"},
 	"cavetext.unknown-extension.title": {en: "Unknown extension", ms: "Sambungan tidak dikenali"},
 	"cavetext.unknown-extension": {
 		en: "This extension can't sign in to CAVELMS. Install CaveText from the Chrome Web Store.",
