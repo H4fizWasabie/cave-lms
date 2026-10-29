@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/dataset"
@@ -31,12 +32,15 @@ type folderCourse struct {
 
 // folderDashboard is a Dashboard with pages in a Learner's Folder, its pages current first.
 type folderDashboard struct {
-	ID    int64
-	Name  string
-	Pages []folderPageFile
+	ID        int64
+	Name      string
+	Live      string // the link to its Deployment, as the Deploy tab shows it; empty unless the Deployment is awake
+	Pages     []folderPageFile
+	Workbooks []workbook // the Workbooks it has a Part cleaned from, as far as the Folder lists them
 }
 
 type folderPageFile struct {
+	ID       int64
 	Current  bool
 	Size     int64
 	Uploaded string // Malaysia time, in the page's language
@@ -49,6 +53,7 @@ type folderPage struct {
 	Workbooks  []workbook        // a Learner with none sees no Workbooks part
 	Dashboards []folderDashboard // with pages, only while the Lab is open to the Learner
 	Courses    []folderCourse
+	Restored   bool  // the Learner has just restored an earlier page from here
 	Used       int64 // bytes kept against the Storage allowance, shown when the Workbooks part is
 	Allowance  int64 // the active Plan period's, 0 without one
 }
@@ -122,7 +127,7 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 		a.serverError(w, r, err)
 		return
 	}
-	page := &folderPage{pageBase: pageBase{Learner: viewer, Error: problem}, Workbooks: books, Courses: list}
+	page := &folderPage{pageBase: pageBase{Learner: viewer, Error: problem}, Workbooks: books, Courses: list, Restored: r.URL.Query().Has("restored")}
 	if viewer.ID != learner.ID {
 		page.Owner = learner
 	}
@@ -130,6 +135,14 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 	page.LabPart = acc.Open()
 	if err == nil && page.LabPart { // the Dashboards open only with the Lab
 		page.Dashboards, err = a.folderDashboards(r.Context(), lang, learner.ID)
+		for i := range page.Dashboards {
+			d := &page.Dashboards[i]
+			for _, w := range books {
+				if slices.ContainsFunc(w.UsedOn, func(u dataset.Use) bool { return u.ID == d.ID }) {
+					d.Workbooks = append(d.Workbooks, w)
+				}
+			}
+		}
 	}
 	if err == nil && page.Part() {
 		if acc.Period != nil {
@@ -146,9 +159,10 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 }
 
 // folderDashboards lists the Learner's Dashboards that have pages, most recently changed first, each with its current
-// page, then its earlier ones newest first. A built Dashboard has no page and is left out.
+// page, then its earlier ones newest first, and the link to its Deployment if that is awake. A built Dashboard has no
+// page and is left out.
 func (a *App) folderDashboards(ctx context.Context, lang string, learnerID int64) ([]folderDashboard, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT d.id, d.name, pg.current, pg.size, pg.uploaded_at
+	rows, err := a.db.QueryContext(ctx, `SELECT d.id, d.name, pg.id, pg.current, pg.size, pg.uploaded_at
 		FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id WHERE d.learner_id = $1
 		ORDER BY d.updated_at DESC, d.id DESC, pg.current DESC, pg.uploaded_at DESC, pg.id DESC`, learnerID)
 	if err != nil {
@@ -160,7 +174,7 @@ func (a *App) folderDashboards(ctx context.Context, lang string, learnerID int64
 		var d folderDashboard
 		var f folderPageFile
 		var at time.Time
-		if err := rows.Scan(&d.ID, &d.Name, &f.Current, &f.Size, &at); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &f.ID, &f.Current, &f.Size, &at); err != nil {
 			return nil, err
 		}
 		f.Uploaded = dateTimeIn(lang, at)
@@ -170,7 +184,29 @@ func (a *App) folderDashboards(ctx context.Context, lang string, learnerID int64
 		last := &list[len(list)-1]
 		last.Pages = append(last.Pages, f)
 	}
-	return list, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	deps, err := a.db.QueryContext(ctx, `SELECT dep.dashboard_id, `+deploymentColumns+` FROM deployments dep
+		WHERE dep.learner_id = $1 AND dep.dashboard_id IS NOT NULL`, learnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer deps.Close()
+	for deps.Next() {
+		var id int64
+		dep, err := a.scanDeployment(lang, deps, &id)
+		if err != nil {
+			return nil, err
+		}
+		for i := range list {
+			if list[i].ID == id && dep.Awake {
+				list[i].Live = dep.Link
+			}
+		}
+	}
+	return list, deps.Err()
 }
 
 // uploadWorkbook keeps an .xlsx the Learner uploaded in their Folder as their Workbook, with no Clean-up. It takes the

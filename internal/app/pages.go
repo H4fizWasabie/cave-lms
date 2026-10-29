@@ -297,7 +297,8 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 }
 
 // restorePage makes an earlier page current at once, POST /lab/dashboards/{id}/pages/{pg}/restore; the current one
-// turns earlier.
+// turns earlier. It sends the Learner back to the form's local next if it has one (the Folder), else to the Dashboard.
+// It asks nothing first: the page it replaces is kept.
 func (a *App) restorePage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -330,5 +331,5 @@ func (a *App) restorePage(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+	http.Redirect(w, r, cmp.Or(localPath(r.PostFormValue("next")), dashboardURL(d)), http.StatusSeeOther)
 }

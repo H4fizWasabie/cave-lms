@@ -173,7 +173,7 @@ func TestALearnerWithAPlanAndSubmissionsSeesTheLabPartFirstAndSubmissionsBelow(t
 	}
 }
 
-func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(t *testing.T) {
+func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesUnderItsNameLinkedToTheDashboard(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
 	path := ada.createPage("Jualan", myPage)
@@ -182,10 +182,10 @@ func TestTheFolderListsEachDashboardsCurrentAndEarlierPagesLinkedToTheDashboard(
 
 	_, body := ada.getFolder()
 	rest := pastIntro(t, body)
-	if n := strings.Count(rest, `href="`+path+`"`); n != 3 { // its name and each of its two pages
-		t.Errorf("%d links to the page Dashboard, want 3: %s", n, rest)
+	if n := strings.Count(rest, `href="`+path+`"`); n != 1 { // its name; the pages have Restore instead
+		t.Errorf("%d links to the page Dashboard, want 1: %s", n, rest)
 	}
-	for _, want := range []string{"Jualan", "Current", "Earlier"} {
+	for _, want := range []string{"Jualan", "Current page", "Earlier page"} {
 		if !strings.Contains(rest, want) {
 			t.Errorf("the Folder lacks %q: %s", want, rest)
 		}
@@ -253,7 +253,7 @@ func TestTheFolderLabPartIsInMalay(t *testing.T) {
 	res, body := ada.getFolderAsking("ms")
 	expectStatus(t, res, body, http.StatusOK, "Buku kerja, halaman Dashboard dan Serahan anda")
 	expectStatus(t, res, body, http.StatusOK, "Halaman Dashboard")
-	expectStatus(t, res, body, http.StatusOK, "Semasa")
+	expectStatus(t, res, body, http.StatusOK, "Halaman semasa")
 	res, body = ada.getAsking("/lab", "ms")
 	expectStatus(t, res, body, http.StatusOK, `Buku kerja dan halaman Dashboard anda ada di <a href="/my-folder">Folder saya</a>.`)
 }

@@ -1669,6 +1669,22 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .folder-table .folder-name { min-width: 0; }
 }
 
+/* Dashboard cards (#515): one card per Dashboard, its name and Live link, a ruled list of pages, the Workbooks it used. */
+.folder-restored { margin-bottom: var(--space-3); font-size: var(--fs-ui); }
+.folder-dash { margin-bottom: var(--space-4); }
+.folder-dash-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
+.folder-dash-name { font-size: var(--fs-lede); overflow-wrap: anywhere; }
+.folder-dash-name a { text-decoration: none; }
+.folder-dash-name a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); text-underline-offset: 0.2em; }
+.folder-live { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: 600; font-size: var(--fs-ui); }
+.folder-dash-head .muted { font-size: var(--fs-meta); }
+.folder-pages { list-style: none; margin: 0; padding: 0; }
+.folder-pages li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.folder-page-what { font-weight: 600; min-width: 8rem; }
+.folder-page-meta { color: var(--muted); font-size: var(--fs-ui); }
+.folder-page-act { margin-left: auto; }
+.folder-uses { margin: var(--space-3) 0 0; font-size: var(--fs-ui); overflow-wrap: anywhere; }
+
 /* My exams (#516): a table; below 720px each row stacks into a card, a cell's label (data-label) above its value. */
 .exam-course { font-weight: 600; overflow-wrap: anywhere; }
 .exam-course a { text-decoration: none; }
