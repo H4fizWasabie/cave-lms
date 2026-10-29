@@ -1125,7 +1125,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 @media (max-width: 720px) {
   .acct-list > div { grid-template-columns: minmax(0, 1fr); }
-  .exam-list .mc-row-plain { grid-template-columns: minmax(0, 1fr); } /* no picture column: the text takes the row */
 }
 
 /* === Page: Course cards (#309) === */
@@ -1612,6 +1611,22 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* The four Classroom pages (My courses, My exams, My folder, My profile) open with the same .lab-tabs links. They scroll
    sideways on a narrow screen (.lab-tabs has overflow-x) and never widen the page. Later Classroom tickets add below. */
 .classroom-tabs { max-width: 100%; margin-bottom: var(--space-5); }
+
+/* My exams (#516): a table; below 720px each row stacks into a card, a cell's label (data-label) above its value. */
+.exam-course { font-weight: 600; overflow-wrap: anywhere; }
+.exam-course a { text-decoration: none; }
+.exam-course a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); text-underline-offset: 0.2em; }
+@media (max-width: 720px) {
+  .exam-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } /* the heads are the data-labels now */
+  .exam-table, .exam-table tbody, .exam-table tr, .exam-table td { display: block; }
+  .exam-table tbody tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+  .exam-table tbody tr:last-child { border-bottom: 0; }
+  .exam-table td { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-1) 0; border-bottom: 0; text-align: right; }
+  .exam-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; text-align: left; }
+  .exam-table td.exam-course { display: block; padding-bottom: var(--space-2); text-align: left; }
+  .exam-table td.actions { display: block; padding-top: var(--space-2); text-align: left; }
+  .exam-table td.actions .btn { width: 100%; }
+}
 
 /* === Lab: as on main (QA, #307) ===
    The Lab is out of the refresh, so it keeps the look it had on main: these are main's rules for every class the Lab
