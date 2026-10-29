@@ -1107,7 +1107,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* A Learner's picture beside their name, or their initials in a circle; bigger on their profile page. */
 .avatar { width: 1.75rem; height: 1.75rem; flex: none; border-radius: 50%; display: inline-grid; place-items: center; vertical-align: middle; font-size: var(--fs-meta); font-weight: 700; background: var(--line); color: var(--ink-2); }
 .hdr-link .avatar { margin-inline-end: var(--space-2); }
-.profile-picture { margin-bottom: var(--space-5); }
 .profile-picture-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); }
 .profile-picture-row > .avatar { width: 6rem; height: 6rem; font-size: var(--fs-heading); }
 .profile-picture-row > .form { min-width: 0; }
@@ -1612,6 +1611,15 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* The four Classroom pages (My courses, My exams, My folder, My profile) open with the same .lab-tabs links. They scroll
    sideways on a narrow screen (.lab-tabs has overflow-x) and never widen the page. Later Classroom tickets add below. */
 .classroom-tabs { max-width: 100%; margin-bottom: var(--space-5); }
+
+/* My profile (#517): one card, three ruled sections (Picture, Username, IC), each with its own form and ghost Save. */
+.profile-card { padding-block: 0; }
+.profile-section { display: grid; gap: var(--space-4); padding: var(--space-5) 0; }
+.profile-section + .profile-section { border-top: 1px solid var(--line); }
+.profile-section h2 { font-size: var(--fs-title); }
+.profile-ic { display: grid; gap: var(--space-1); justify-items: start; margin: 0; }
+.profile-ic strong { font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; }
+.profile-ic span { color: var(--muted); font-size: var(--fs-ui); }
 
 /* === Lab: as on main (QA, #307) ===
    The Lab is out of the refresh, so it keeps the look it had on main: these are main's rules for every class the Lab

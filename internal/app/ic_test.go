@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -155,4 +156,28 @@ func TestLearnersAreRefusedTheAdminsICCorrection(t *testing.T) {
 	expectStatus(t, res, body, http.StatusForbidden, "")
 	_, body = ada.get("/my-profile")
 	expectInOrder(t, content(body), "951206-08-5555")
+}
+
+func TestMyProfileIsOneCardWithPictureUsernameAndICSectionsEachSavingWithAGhostButton(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+
+	for _, lang := range []string{"en", "ms"} {
+		_, body := s.getAsking("/my-profile", lang)
+		m := mainOf(body)
+		if n := strings.Count(m, `class="card`); n != 1 {
+			t.Fatalf("%s: My profile has %d cards, want 1; body:\n%s", lang, n, m)
+		}
+		if n := strings.Count(m, `class="profile-section"`); n != 3 {
+			t.Fatalf("%s: My profile has %d sections, want 3; body:\n%s", lang, n, m)
+		}
+		if strings.Contains(m, "btn-solid") {
+			t.Fatalf("%s: My profile has a primary button, want none", lang)
+		}
+		expectInOrder(t, m, `action="/my-profile/picture"`, `action="/my-profile/username"`, `action="/my-profile/ic"`)
+		for _, id := range []string{"picture", "username", "ic"} {
+			expectAll(t, m, `<label class="sr" for="`+id+`">`)
+		}
+	}
 }
