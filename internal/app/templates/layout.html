@@ -224,13 +224,13 @@ the tab being "course" or "chat". */}}
       </nav>
 {{end}}
 
-{{/* classroom-tabs are the tabs the four Classroom pages open with; pass (classroomTab "<tab>" .Lang), the tab being
+{{/* classroom-tabs are the tabs the four Classroom pages open with; pass (classroomTab "<tab>" .Lang .Learner.Username), the tab being
 "courses", "exams", "folder" or "profile". */}}
 {{define "classroom-tabs"}}
       <nav class="lab-tabs classroom-tabs" aria-label="{{t .Lang "classroom.tabs"}}">
         <a class="lab-tab" href="/my-courses"{{if eq .Tab "courses"}} aria-current="page"{{end}}>{{t .Lang "nav.my-courses"}}</a>
         <a class="lab-tab" href="/my-exams"{{if eq .Tab "exams"}} aria-current="page"{{end}}>{{t .Lang "nav.my-exams"}}</a>
-        <a class="lab-tab" href="/my-folder"{{if eq .Tab "folder"}} aria-current="page"{{end}}>{{t .Lang "nav.my-folder"}}</a>
+        <a class="lab-tab" href="/my-folder/{{.Username}}"{{if eq .Tab "folder"}} aria-current="page"{{end}}>{{t .Lang "nav.my-folder"}}</a>
         <a class="lab-tab" href="/my-profile"{{if eq .Tab "profile"}} aria-current="page"{{end}}>{{t .Lang "nav.my-profile"}}</a>
       </nav>
 {{end}}

@@ -1,7 +1,7 @@
 {{define "title"}}{{t .Lang "my-profile.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
-      {{template "classroom-tabs" (classroomTab "profile" .Lang)}}
+      {{template "classroom-tabs" (classroomTab "profile" .Lang .Learner.Username)}}
       <div class="page-head">
         <h1>{{t .Lang "my-profile.title"}}</h1>
         <p>{{t .Lang "my-profile.intro"}}</p>
