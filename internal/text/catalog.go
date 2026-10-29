@@ -1510,6 +1510,10 @@ var catalog = map[string]entry{
 	"my-exams.not-taken":  {en: "Not taken", ms: "Belum diambil"},
 	"my-exams.passed":     {en: "Passed", ms: "Lulus"},
 	"my-exams.failed":     {en: "Failed", ms: "Gagal"},
+	"my-exams.course":     {en: "Course", ms: "Kursus"},
+	"my-exams.format":     {en: "Format", ms: "Format"},
+	"my-exams.status":     {en: "Status", ms: "Status"},
+	"my-exams.score":      {en: "Best / Pass mark", ms: "Terbaik / Markah lulus"},
 
 	"my-membership.title":     {en: "My membership", ms: "Keahlian saya"},
 	"my-membership.intro":     {en: "Your Plan, CaveText Pro and Snippet cap.", ms: "Pelan, CaveText Pro dan had Snippet anda."},
