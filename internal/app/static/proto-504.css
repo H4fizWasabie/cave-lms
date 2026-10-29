@@ -1,0 +1,120 @@
+/* PROTOTYPE (#504, throwaway): the Folder layouts and the variant switcher. Tokens only, as DESIGN.md asks.
+   Delete with the prototype branch. */
+
+.pf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.pf-count { color: var(--muted); font-size: var(--fs-ui); font-weight: 600; font-family: var(--font-body); }
+.pf-sec { margin-bottom: var(--space-6); }
+.pf-sec > h2 { margin-bottom: var(--space-4); }
+.pf h2 { overflow-wrap: anywhere; }
+
+/* Storage */
+.pf-storage { display: grid; gap: var(--space-2); min-width: min(100%, 15rem); }
+.pf-storage-text { margin: 0; font-size: var(--fs-ui); color: var(--ink-2); }
+.pf-meter { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: var(--space-2); border: 0; border-radius: var(--radius-pill); background: var(--line); overflow: hidden; }
+.pf-meter::-webkit-meter-bar { background: var(--line); border: 0; border-radius: var(--radius-pill); height: var(--space-2); }
+.pf-meter::-webkit-meter-optimum-value, .pf-meter::-webkit-meter-suboptimum-value, .pf-meter::-webkit-meter-even-less-good-value { background: var(--brand-gold-deep); border-radius: var(--radius-pill); }
+.pf-meter::-moz-meter-bar { background: var(--brand-gold-deep); border-radius: var(--radius-pill); }
+
+/* Upload: one button; without script the file input shows beside it */
+.pf-upload { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.pf-file { max-width: 100%; font-size: var(--fs-meta); }
+
+/* Empty state drop area: the file input covers the dashed box */
+.pf-drop { display: grid; gap: var(--space-4); }
+.pf-drop-box { position: relative; }
+.pf-drop-box:hover { border-color: var(--brand-ink); }
+.pf-drop-box:has(:focus-visible) { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+.pf-drop-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.pf-drop-name { font-weight: 600; color: var(--ink-2); min-height: 1lh; }
+.pf-drop-foot { display: grid; justify-items: start; gap: var(--space-2); }
+.pf-drop-foot p { margin: 0; font-size: var(--fs-ui); }
+
+/* Workbooks table */
+.pf-table .pf-name { overflow-wrap: anywhere; min-width: 12rem; }
+.pf-table .pf-name a { font-weight: 600; }
+.pf-table td.num { white-space: nowrap; }
+
+/* Dashboard pages: a ruled list of rows */
+.pf-rule { list-style: none; margin: 0; padding: 0; }
+.pf-rule li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.pf-rule-what { font-weight: 600; min-width: 8rem; }
+.pf-rule-meta { color: var(--muted); font-size: var(--fs-ui); }
+.pf-rule-act { margin-left: auto; }
+.pf-live { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: 600; font-size: var(--fs-ui); }
+.pf-nolive { color: var(--muted); font-size: var(--fs-meta); }
+.pf-dash-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
+.pf-dash-head h3 { font-size: var(--fs-lede); overflow-wrap: anywhere; }
+.pf-dash + .pf-dash { margin-top: var(--space-5); }
+
+/* Submissions */
+.pf-course { margin-bottom: var(--space-5); }
+.pf-course-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); font-size: var(--fs-title); margin-bottom: var(--space-3); overflow-wrap: anywhere; }
+.pf-course-h a { text-decoration: none; }
+.pf-assign + .pf-assign { border-top: 1px solid var(--line); padding-top: var(--space-4); margin-top: var(--space-4); }
+.pf-assign h4 { font-size: var(--fs-lede); margin-bottom: var(--space-2); }
+
+/* A: stacked, one column */
+.pf-head { align-items: flex-end; margin-bottom: var(--space-5); }
+.pf-a { max-width: calc(56rem + 2 * var(--gutter)); } /* wrap-narrow is too tight for five columns */
+.pf-head .page-head { flex: 1 1 20rem; margin-bottom: 0; }
+.pf-head .pf-storage { flex: 0 1 15rem; }
+.pf-a .pf-table .pf-name { min-width: 9rem; }
+
+/* B: side index */
+.pf-grid { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--space-7); align-items: start; }
+.pf-rail { position: sticky; top: var(--space-5); display: grid; gap: var(--space-5); }
+.pf-index { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.pf-index li { border-bottom: 1px solid var(--line); }
+.pf-index a { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; text-decoration: none; font-weight: 600; }
+.pf-index a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.pf-rail .pf-upload { justify-content: flex-start; }
+.pf-dash-row { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: var(--space-4); padding: var(--space-4) 0; border-top: 1px solid var(--line-strong); }
+.pf-dash-id { display: grid; align-content: start; gap: var(--space-1); }
+.pf-dash-id h3 { font-size: var(--fs-lede); overflow-wrap: anywhere; }
+.pf-dash-row .pf-rule li:first-child { border-top: 0; padding-top: 0; }
+
+/* C: dashboard-first */
+.pf-c { max-width: calc(64rem + 2 * var(--gutter)); }
+.pf-bar { display: grid; gap: var(--space-2); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+.pf-bar .pf-meter { height: var(--space-1); }
+.pf-bar .pf-meter::-webkit-meter-bar { height: var(--space-1); }
+.pf-legend { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); margin: 0; padding: 0; color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
+.pf-dash-card { margin-bottom: var(--space-4); }
+.pf-uses { margin: var(--space-3) 0 0; font-size: var(--fs-ui); overflow-wrap: anywhere; }
+.pf-all { margin-bottom: var(--space-6); padding: var(--space-3) var(--space-5); }
+.pf-all[open] { padding-bottom: var(--space-5); }
+.pf-all summary { cursor: pointer; font-weight: 600; padding: var(--space-2) 0; }
+.pf-all .table-wrap { margin-top: var(--space-3); }
+
+@media (max-width: 999px) {
+  .pf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .pf-rail { position: static; }
+}
+
+/* Under 720px the Workbook rows stack as label / value */
+@media (max-width: 720px) {
+  .pf-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .pf-table, .pf-table tbody, .pf-table tr { display: block; }
+  .pf-table tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+  .pf-table td { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) 0; border: 0; }
+  .pf-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
+  .pf-table td.actions { display: block; text-align: left; padding-top: var(--space-2); }
+  .pf-table td.actions::before { content: none; }
+  .pf-table td.when { white-space: normal; }
+  .pf-table .pf-name { min-width: 0; }
+  .pf-dash-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+  .pf-head { align-items: stretch; }
+  .pf-all { padding-inline: var(--space-4); }
+}
+
+/* The switcher: fixed, high contrast, obviously not part of the design under test */
+body:has(.pf-switch) { padding-bottom: var(--space-8); }
+.pf-switch { position: fixed; z-index: 100; left: 50%; bottom: var(--space-4); transform: translateX(-50%); display: flex; align-items: center; gap: var(--space-3); max-width: calc(100vw - var(--space-4)); padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); background: var(--brand-ink); color: var(--surface); box-shadow: var(--shadow-pop); font-size: var(--fs-meta); font-weight: 600; white-space: nowrap; }
+.pf-switch a { color: var(--surface); text-decoration: none; }
+.pf-switch a:focus-visible { outline-color: var(--brand-gold); }
+.pf-sw-btn { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; font-size: var(--fs-body); }
+.pf-sw-btn:hover { background: var(--ink-2); }
+.pf-sw-label { min-width: 9rem; text-align: center; }
+.pf-sw-empty { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.pf-sw-tag { color: var(--on-dark-muted); }
+@media (max-width: 720px) { .pf-sw-tag { display: none; } .pf-sw-label { min-width: 0; } }

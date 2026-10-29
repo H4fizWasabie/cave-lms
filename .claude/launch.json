@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "proto-504",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [".scratch/prototype-504.sh"],
+      "port": 8504,
+      "url": "http://localhost:8504"
+    }
+  ]
+}

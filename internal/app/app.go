@@ -405,6 +405,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /my-exams", a.requireLearner(a.myExams))
 	mux.HandleFunc("GET /my-folder", a.requireLearner(a.myFolderRedirect))
 	mux.HandleFunc("GET /my-folder/{username}", a.requireLearner(a.myFolder))
+	if !a.production { // PROTOTYPE (#504): throwaway Folder layouts with stub data, never on the live site
+		mux.HandleFunc("GET /prototype/my-folder", a.prototypeMyFolder)
+		mux.HandleFunc("POST /prototype/my-folder", prototypeBack)
+	}
 	mux.HandleFunc("GET /my-membership", a.requireLearner(a.myMembership))
 	mux.HandleFunc("GET /my-profile", a.requireLearner(a.myProfile))
 	mux.HandleFunc("POST /my-profile/ic", a.requireLearner(a.setMyIC))

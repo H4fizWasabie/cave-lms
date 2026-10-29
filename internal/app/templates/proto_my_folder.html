@@ -1,0 +1,231 @@
+{{/* PROTOTYPE (#504, throwaway): three layouts of the redesigned Classroom Folder, stub data, dev only.
+   Variants: A Stacked, B Side index, C Dashboard-first. Delete with prototype_folder.go and static/proto-504.*. */}}
+{{define "title"}}Prototype: My folder ({{.Variant}}) · CAVELMS{{end}}
+{{define "head"}}<link rel="stylesheet" href="{{static "proto-504.css"}}">{{end}}
+{{define "content"}}
+{{if eq .Variant "B"}}{{template "pf-b" .}}{{else if eq .Variant "C"}}{{template "pf-c" .}}{{else}}{{template "pf-a" .}}{{end}}
+{{template "pf-switcher" .}}
+<script src="{{static "proto-504.js"}}" defer></script>
+{{end}}
+
+{{/* ---------- shared bits ---------- */}}
+
+{{define "pf-tabs"}}
+      <nav class="lab-tabs" aria-label="Classroom">
+        <a class="lab-tab" href="/my-courses">My courses</a>
+        <a class="lab-tab" href="/my-exams">My exams</a>
+        <a class="lab-tab" href="/prototype/my-folder?variant={{.Variant}}{{if .Empty}}&amp;empty=1{{end}}" aria-current="page">My folder</a>
+        <a class="lab-tab" href="/my-profile">My profile</a>
+      </nav>
+{{end}}
+
+{{define "pf-meter"}}
+      <div class="pf-storage">
+        <p class="pf-storage-text num"><strong>{{.UsedMB}} MB</strong> of 1 GB</p>
+        <meter class="pf-meter" min="0" max="{{.CapMB}}" value="{{.UsedMB}}" aria-label="Storage used">{{.UsedMB}} MB of 1 GB</meter>
+      </div>
+{{end}}
+
+{{define "pf-upload"}}
+      <form class="pf-upload" method="post" action="/prototype/my-folder" enctype="multipart/form-data" data-pf-upload>
+        <input class="pf-file" type="file" name="file" accept=".xlsx" required aria-label="Excel file (.xlsx)">
+        <button class="btn btn-solid btn-sm" type="submit"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>Upload Workbook</button>
+      </form>
+{{end}}
+
+{{define "pf-empty"}}
+      <form class="pf-drop" method="post" action="/prototype/my-folder" enctype="multipart/form-data">
+        <div class="empty-state pf-drop-box">
+          <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>
+          <h2>Drop an Excel file here</h2>
+          <p>or choose one. .xlsx only, up to 10 MB, kept as you upload it.</p>
+          <p class="pf-drop-name" data-pf-name aria-live="polite"></p>
+          <input class="pf-drop-input" type="file" name="file" accept=".xlsx" required aria-label="Excel file (.xlsx)">
+        </div>
+        <div class="pf-drop-foot">
+          <button class="btn btn-solid" type="submit">Upload Workbook</button>
+          <p class="muted">Your Submissions to Assignments will show here too.</p>
+        </div>
+      </form>
+{{end}}
+
+{{define "pf-live"}}{{if .Live}}<a class="pf-live" href="{{.Live}}" rel="noopener" aria-label="Open the live Deployment of {{.Name}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>Live</a>{{else}}<span class="pf-nolive">Not deployed</span>{{end}}{{end}}
+
+{{define "pf-wb-table"}}
+      <div class="table-wrap">
+        <table class="table pf-table">
+          <thead><tr><th scope="col">Name</th><th scope="col">Size</th><th scope="col">Uploaded (MYT)</th><th scope="col">Used on</th><th scope="col"><span class="pf-sr">Actions</span></th></tr></thead>
+          <tbody>
+          {{range .}}<tr>
+            <td data-label="Name" class="pf-name"><a href="/workbooks/{{.ID}}">{{.Name}}</a></td>
+            <td data-label="Size" class="num">{{size .Size}}</td>
+            <td data-label="Uploaded" class="when">{{.Uploaded}}</td>
+            <td data-label="Used on"><span>{{range $i, $d := .UsedOn}}{{if $i}}, {{end}}<a href="/lab/dashboards/{{$d.ID}}">{{$d.Name}}</a>{{else}}<span class="muted">Unused</span>{{end}}</span></td>
+            <td class="actions"><a class="btn btn-danger btn-sm" href="/workbooks/{{.ID}}/delete" aria-label="Delete {{.Name}}">Delete</a></td>
+          </tr>{{end}}
+          </tbody>
+        </table>
+      </div>
+{{end}}
+
+{{/* one Dashboard's pages: current first, then earlier ones with Restore */}}
+{{define "pf-pages"}}
+      <ul class="pf-rule">
+        {{range .Pages}}<li>
+          <span class="pf-rule-what">{{if .Current}}Current page{{else}}Earlier page{{end}}</span>
+          <span class="pf-rule-meta num">{{size .Size}} · {{.Uploaded}}</span>
+          {{if not .Current}}<form class="pf-rule-act" method="post" action="/prototype/my-folder"><button class="btn btn-ghost btn-sm" aria-label="Restore the earlier page from {{.Uploaded}}">Restore</button></form>{{end}}
+        </li>{{end}}
+      </ul>
+{{end}}
+
+{{define "pf-course"}}
+      <section class="card pf-course">
+        <h3 class="pf-course-h"><a href="/courses/{{.ID}}">{{.Title}}</a>{{if not .Enrolled}} <span class="badge badge-closed">Read only</span>{{end}}</h3>
+        {{if not .Enrolled}}<p class="muted">You left this Course, so these files can be downloaded but not changed.</p>{{end}}
+        {{range .Assignments}}
+        <div class="pf-assign">
+          <h4>{{.Title}}</h4>
+          <ul class="file-list">{{range .Files}}<li><a href="/submission-files/{{.ID}}">{{.Name}}</a> <small>{{size .Size}}</small></li>{{end}}</ul>
+          {{with .Comment}}<div class="callout"><p><strong>Comment</strong><br>{{.}}</p></div>{{end}}
+        </div>
+        {{end}}
+      </section>
+{{end}}
+
+{{define "pf-switcher"}}
+<div class="pf-switch" role="region" aria-label="Prototype variants, issue 504, stub data">
+  <a class="pf-sw-btn" href="{{.Prev}}" data-pf-prev aria-label="Previous variant">&larr;</a>
+  <span class="pf-sw-label" aria-live="polite">{{range .Variants}}{{if .Current}}{{.Key}} ({{.Name}}){{end}}{{end}}</span>
+  <a class="pf-sw-btn" href="{{.Next}}" data-pf-next aria-label="Next variant">&rarr;</a>
+  <a class="pf-sw-empty" href="{{.EmptyURL}}">{{if .Empty}}Show data{{else}}Show empty{{end}}</a>
+  <span class="pf-sw-tag">Prototype #504</span>
+</div>
+{{end}}
+
+{{/* ---------- A: Stacked ---------- */}}
+
+{{define "pf-a"}}
+    <div class="wrap wrap-narrow page-pad pf pf-a">
+      {{template "pf-tabs" .}}
+      <div class="page-head-row pf-head">
+        <div class="page-head">
+          <h1>My folder</h1>
+          <p>Your Workbooks, your Dashboards' pages and your Submissions.</p>
+        </div>
+        {{template "pf-meter" .}}
+      </div>
+      {{if .Empty}}{{template "pf-empty" .}}{{else}}
+      <section class="card card-flush pf-sec" aria-labelledby="pf-a-wb">
+        <div class="card-head card-head-pad">
+          <h2 id="pf-a-wb">Workbooks <span class="pf-count num">{{len .Workbooks}}</span></h2>
+          {{template "pf-upload" .}}
+        </div>
+        {{template "pf-wb-table" .Workbooks}}
+      </section>
+      <section class="card pf-sec" aria-labelledby="pf-a-pg">
+        <div class="card-head"><h2 id="pf-a-pg">Dashboard pages</h2></div>
+        {{range .Dashboards}}
+        <article class="pf-dash">
+          <header class="pf-dash-head"><h3>{{.Name}}</h3>{{template "pf-live" .}}</header>
+          {{template "pf-pages" .}}
+        </article>
+        {{end}}
+      </section>
+      <h2 class="h-md">Submissions</h2>
+      {{range .Courses}}{{template "pf-course" .}}{{end}}
+      {{end}}
+    </div>
+{{end}}
+
+{{/* ---------- B: Side index ---------- */}}
+
+{{define "pf-b"}}
+    <div class="wrap page-pad pf pf-b">
+      {{template "pf-tabs" .}}
+      <div class="page-head">
+        <h1>My folder</h1>
+        <p>Your Workbooks, your Dashboards' pages and your Submissions.</p>
+      </div>
+      <div class="pf-grid">
+        <aside class="pf-rail" aria-label="Folder summary">
+          {{template "pf-meter" .}}
+          {{if not .Empty}}
+          <nav aria-label="Folder sections">
+            <ul class="pf-index">
+              <li><a href="#pf-b-wb">Workbooks <span class="pf-count num">{{len .Workbooks}}</span></a></li>
+              <li><a href="#pf-b-pg">Dashboard pages <span class="pf-count num">{{len .Dashboards}}</span></a></li>
+              <li><a href="#pf-b-sub">Submissions <span class="pf-count num">{{len .Courses}}</span></a></li>
+            </ul>
+          </nav>
+          {{template "pf-upload" .}}
+          {{end}}
+        </aside>
+        <div class="pf-main">
+          {{if .Empty}}{{template "pf-empty" .}}{{else}}
+          <section id="pf-b-wb" class="pf-sec" aria-labelledby="pf-b-wb-h">
+            <h2 id="pf-b-wb-h">Workbooks</h2>
+            <div class="card card-flush">{{template "pf-wb-table" .Workbooks}}</div>
+          </section>
+          <section id="pf-b-pg" class="pf-sec" aria-labelledby="pf-b-pg-h">
+            <h2 id="pf-b-pg-h">Dashboard pages</h2>
+            {{range .Dashboards}}
+            <article class="pf-dash-row">
+              <header class="pf-dash-id"><h3>{{.Name}}</h3>{{template "pf-live" .}}</header>
+              {{template "pf-pages" .}}
+            </article>
+            {{end}}
+          </section>
+          <section id="pf-b-sub" class="pf-sec" aria-labelledby="pf-b-sub-h">
+            <h2 id="pf-b-sub-h">Submissions</h2>
+            {{range .Courses}}{{template "pf-course" .}}{{end}}
+          </section>
+          {{end}}
+        </div>
+      </div>
+    </div>
+{{end}}
+
+{{/* ---------- C: Dashboard-first ---------- */}}
+
+{{define "pf-c"}}
+    <div class="wrap page-pad pf pf-c">
+      {{template "pf-tabs" .}}
+      <div class="page-head-row pf-head">
+        <div class="page-head">
+          <h1>My folder</h1>
+          <p>Your Dashboards first, then the Workbooks behind them.</p>
+        </div>
+        {{if not .Empty}}{{template "pf-upload" .}}{{end}}
+      </div>
+      <div class="pf-bar">
+        <p class="pf-storage-text num"><strong>{{.UsedMB}} MB</strong> of 1 GB</p>
+        <meter class="pf-meter" min="0" max="{{.CapMB}}" value="{{.UsedMB}}" aria-label="Storage used">{{.UsedMB}} MB of 1 GB</meter>
+        {{if not .Empty}}<ul class="pf-legend num"><li>Workbooks {{.WorkbooksMB}} MB</li><li>Dashboard pages {{.PagesMB}} MB</li><li>Dashboard data {{.PartsMB}} MB</li></ul>{{end}}
+      </div>
+      {{if .Empty}}{{template "pf-empty" .}}{{else}}
+      <section class="pf-sec" aria-labelledby="pf-c-d">
+        <h2 id="pf-c-d">Dashboards <span class="pf-count num">{{len .Dashboards}}</span></h2>
+        {{range .Dashboards}}
+        <article class="card pf-dash-card">
+          <header class="pf-dash-head"><h3>{{.Name}}</h3>{{template "pf-live" .}}</header>
+          {{template "pf-pages" .}}
+          <p class="pf-uses"><span class="muted">Workbooks used:</span> {{range $i, $w := .Workbooks}}{{if $i}}, {{end}}<a href="/workbooks/{{$w.ID}}">{{$w.Name}}</a>{{else}}<span class="muted">none</span>{{end}}</p>
+        </article>
+        {{end}}
+      </section>
+      <section class="pf-sec" aria-labelledby="pf-c-u">
+        <h2 id="pf-c-u">Workbooks not used on any Dashboard <span class="pf-count num">{{len .Unused}}</span></h2>
+        {{if .Unused}}<div class="card card-flush">{{template "pf-wb-table" .Unused}}</div>{{else}}<p class="empty">Every Workbook is used on a Dashboard.</p>{{end}}
+      </section>
+      <details class="card pf-all">
+        <summary>All Workbooks ({{len .Workbooks}})</summary>
+        {{template "pf-wb-table" .Workbooks}}
+      </details>
+      <section class="pf-sec" aria-labelledby="pf-c-s">
+        <h2 id="pf-c-s">Submissions</h2>
+        {{range .Courses}}{{template "pf-course" .}}{{end}}
+      </section>
+      {{end}}
+    </div>
+{{end}}
