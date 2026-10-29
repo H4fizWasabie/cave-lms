@@ -34,8 +34,8 @@ type Config struct {
 	// ignores live ones. BCL_PAYMENTS unset or live: the reverse.
 	BCLTestPayments bool
 	// BCLAPIToken, from BCL_API_TOKEN, is a BCL API Read token. Set, each paid order is looked up at BCLAPIURL and
-	// gives nothing unless BCL reports it paid, for the same amount and payer email. Empty: orders are not confirmed,
-	// so anyone who learns the webhook address can forge one.
+	// gives nothing unless BCL reports it paid, for the same amount and payer email. Empty is refused with a webhook
+	// key unless BCL_PAYMENTS=test: orders would not be confirmed, so anyone who learns the webhook address could forge one.
 	BCLAPIToken string
 	// BCLAPIURL, from BCL_API_URL, is BCL's API; https://bcl.my/api when unset. Tests point it elsewhere.
 	BCLAPIURL string
@@ -152,6 +152,10 @@ func Load() (Config, error) {
 	// The key is the webhook's only proof of origin, so a short one is refused.
 	if k := cfg.BCLWebhookKey; k != "" && len(k) < 32 {
 		return Config{}, fmt.Errorf("BCL_WEBHOOK_KEY must be at least 32 characters")
+	}
+	// BCL signs no webhook, so a live order is believed only once BCL's API confirms it; Test Mode (staging) may run without.
+	if cfg.BCLWebhookKey != "" && !cfg.BCLTestPayments && cfg.BCLAPIToken == "" {
+		return Config{}, fmt.Errorf("BCL_API_TOKEN is required with BCL_WEBHOOK_KEY unless BCL_PAYMENTS=test: BCL signs no webhook, so without it a forged order would count")
 	}
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("CAVE_ENV"))) {
 	case "", "production":
