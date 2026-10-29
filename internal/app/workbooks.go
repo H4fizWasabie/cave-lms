@@ -22,7 +22,7 @@ type workbook struct {
 	ID       int64
 	Name     string
 	Size     int64
-	Uploaded string        // formatted as periodTime
+	Uploaded string        // Malaysia time, in the page's language
 	UsedOn   []dataset.Use // the Dashboards that have a Part cleaned from it
 }
 
@@ -31,7 +31,7 @@ func (w workbook) SizeText() string { return sizeText(w.Size) }
 
 // workbooksOf lists a Learner's Workbooks, newest first, each with the Dashboards that currently have a Part cleaned
 // from it, by name.
-func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, error) {
+func (a *App) workbooksOf(ctx context.Context, lang string, learnerID int64) ([]workbook, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT id, name, size, uploaded_at FROM workbooks
 		WHERE learner_id = $1 ORDER BY uploaded_at DESC, id DESC`, learnerID)
 	if err != nil {
@@ -45,7 +45,7 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 		if err := rows.Scan(&w.ID, &w.Name, &w.Size, &at); err != nil {
 			return nil, err
 		}
-		w.Uploaded = at.UTC().Format(periodTime)
+		w.Uploaded = dateTimeIn(lang, at)
 		out = append(out, w)
 	}
 	if err := rows.Err(); err != nil {

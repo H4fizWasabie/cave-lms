@@ -519,8 +519,12 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 		}
 		// Every Workbook is offered: whether it fits is checked when it is picked, as reading each one here would not be bounded.
 		learner, err := a.currentLearner(r)
+		var lang string
 		if err == nil {
-			p.Workbooks, err = a.workbooksOf(r.Context(), learner.ID)
+			lang, err = a.language(r)
+		}
+		if err == nil {
+			p.Workbooks, err = a.workbooksOf(r.Context(), lang, learner.ID)
 		}
 		if err != nil {
 			a.serverError(w, r, err)
@@ -533,10 +537,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 			if errors.As(err, &full) {
 				err = nil
 				if p.Error == "" {
-					var lang string
-					if lang, err = a.language(r); err == nil {
-						p.Error = storageMessage(lang, full)
-					}
+					p.Error = storageMessage(lang, full)
 				}
 			}
 		}

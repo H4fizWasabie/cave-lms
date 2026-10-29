@@ -39,7 +39,7 @@ type folderDashboard struct {
 type folderPageFile struct {
 	Current  bool
 	Size     int64
-	Uploaded string // formatted as periodTime
+	Uploaded string // Malaysia time, in the page's language
 }
 
 type folderPage struct {
@@ -99,12 +99,17 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 		a.serverError(w, r, err)
 		return
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	list, err := a.folder(r.Context(), learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	books, err := a.workbooksOf(r.Context(), learner.ID)
+	books, err := a.workbooksOf(r.Context(), lang, learner.ID)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -116,7 +121,7 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 	acc, err := a.labAccessOf(r.Context(), learner)
 	page.LabPart = acc.Open()
 	if err == nil && page.LabPart { // the Dashboards open only with the Lab
-		page.Dashboards, err = a.folderDashboards(r.Context(), learner.ID)
+		page.Dashboards, err = a.folderDashboards(r.Context(), lang, learner.ID)
 	}
 	if err != nil {
 		a.serverError(w, r, err)
@@ -127,7 +132,7 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 
 // folderDashboards lists the Learner's Dashboards that have pages, most recently changed first, each with its current
 // page, then its earlier ones newest first. A built Dashboard has no page and is left out.
-func (a *App) folderDashboards(ctx context.Context, learnerID int64) ([]folderDashboard, error) {
+func (a *App) folderDashboards(ctx context.Context, lang string, learnerID int64) ([]folderDashboard, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT d.id, d.name, pg.current, pg.size, pg.uploaded_at
 		FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id WHERE d.learner_id = $1
 		ORDER BY d.updated_at DESC, d.id DESC, pg.current DESC, pg.uploaded_at DESC, pg.id DESC`, learnerID)
@@ -143,7 +148,7 @@ func (a *App) folderDashboards(ctx context.Context, learnerID int64) ([]folderDa
 		if err := rows.Scan(&d.ID, &d.Name, &f.Current, &f.Size, &at); err != nil {
 			return nil, err
 		}
-		f.Uploaded = at.UTC().Format(periodTime)
+		f.Uploaded = dateTimeIn(lang, at)
 		if len(list) == 0 || list[len(list)-1].ID != d.ID {
 			list = append(list, d)
 		}
