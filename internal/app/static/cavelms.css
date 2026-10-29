@@ -1613,6 +1613,10 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
    sideways on a narrow screen (.lab-tabs has overflow-x) and never widen the page. Later Classroom tickets add below. */
 .classroom-tabs { max-width: 100%; margin-bottom: var(--space-5); }
 
+/* My courses (#518): the certificates section heading is the link to My certificates, underlined in gold like the course titles. */
+.mc-certs h2 a { text-decoration: none; text-underline-offset: 0.2em; }
+.mc-certs h2 a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+
 /* === Lab: as on main (QA, #307) ===
    The Lab is out of the refresh, so it keeps the look it had on main: these are main's rules for every class the Lab
    pages use, scoped to .lab-page (the Lab templates' wrapper) so the refreshed components elsewhere stay as they are.
