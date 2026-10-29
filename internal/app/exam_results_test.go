@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
+	"github.com/H4fizWasabie/cave-lms/internal/config"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
@@ -370,12 +371,13 @@ func TestAPassedResultShowsTheScoreOnceAndLeadsToTheIssuedCertificate(t *testing
 	expectNone(t, main, "cert-art", certID)
 }
 
-func TestASlowMailServiceDoesNotDelayReleasingResultsAndTheirCertificates(t *testing.T) {
-	t.Parallel()
-	s := newSite(t)
+// twoLearnersWithResultsDue gives Ada and Bea each a passing attempt on the same Course, old enough to be released, and
+// returns their attempt paths.
+func twoLearnersWithResultsDue(s *site) (ada, bea string) {
+	s.t.Helper()
 	id, qids := s.examCourse("50", "", "", "Q1")
 	res, _ := s.startExam(id)
-	ada := res.Header.Get("Location")
+	ada = res.Header.Get("Location")
 	s.submitExam(ada, map[string]string{qids[0]: "0"})
 	s.logOut()
 	s.loginAsNewLearner("Bea", "bea@example.com", examPassword)
@@ -383,10 +385,32 @@ func TestASlowMailServiceDoesNotDelayReleasingResultsAndTheirCertificates(t *tes
 	s.post("/courses/"+id+"/join", nil)
 	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
 	res, _ = s.startExam(id)
-	bea := res.Header.Get("Location")
+	bea = res.Header.Get("Location")
 	s.submitExam(bea, map[string]string{qids[0]: "0"})
 	s.ageSubmit(ada, 600)
 	s.ageSubmit(bea, 600)
+	return ada, bea
+}
+
+// emailSubjects lists the emails as "to: subject", oldest first.
+func emailSubjects(msgs []mailer.Message) []string {
+	var subjects []string
+	for _, m := range msgs {
+		subjects = append(subjects, m.To+": "+m.Subject)
+	}
+	return subjects
+}
+
+// Neither Learner has picked a language, so their emails are in Malay, and each one's Certificate comes before their Result.
+var adaAndBeaEmails = []string{
+	"ada@example.com: Sijil anda untuk Go Basics", "ada@example.com: Keputusan Peperiksaan Objektif anda untuk Go Basics",
+	"bea@example.com: Sijil anda untuk Go Basics", "bea@example.com: Keputusan Peperiksaan Objektif anda untuk Go Basics",
+}
+
+func TestASlowMailServiceDoesNotDelayReleasingResultsAndTheirCertificates(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	ada, bea := twoLearnersWithResultsDue(s)
 
 	before := len(s.mail.Messages())
 	release := s.mail.HoldSends()
@@ -415,16 +439,55 @@ func TestASlowMailServiceDoesNotDelayReleasingResultsAndTheirCertificates(t *tes
 
 	release()
 	s.application.WaitForResultEmails()
-	// Neither has picked a language, so the emails are in Malay, and each Learner's Certificate comes before their Result.
-	var subjects []string
-	for _, m := range s.mail.Messages()[before:] {
-		subjects = append(subjects, m.To+": "+m.Subject)
+	if got := emailSubjects(s.mail.Messages()[before:]); !slices.Equal(got, adaAndBeaEmails) {
+		t.Fatalf("emails after the mail service came back = %q, want %q", got, adaAndBeaEmails)
 	}
-	want := []string{
-		"ada@example.com: Sijil anda untuk Go Basics", "ada@example.com: Keputusan Peperiksaan Objektif anda untuk Go Basics",
-		"bea@example.com: Sijil anda untuk Go Basics", "bea@example.com: Keputusan Peperiksaan Objektif anda untuk Go Basics",
+}
+
+// aRestartOf is a second site on the same database as s, with its own mail service, as the server is after a restart.
+func aRestartOf(s *site) *site {
+	s.t.Helper()
+	return newSite(s.t, func(c *config.Config) { c.DatabaseURL = s.cfg.DatabaseURL })
+}
+
+func TestEmailsOwedWhenTheServerRestartedAreSentAfterTheNextStart(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	twoLearnersWithResultsDue(s)
+	release := s.mail.HoldSends()
+	t.Cleanup(release) // lets the stopped server's one stuck send end before it closes
+	s.application.ReleaseResultsWithoutWaiting(context.Background())
+
+	after := aRestartOf(s)
+	var got []string
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if got = emailSubjects(after.mail.Messages()); len(got) >= len(adaAndBeaEmails) {
+			break
+		}
 	}
-	if !slices.Equal(subjects, want) {
-		t.Fatalf("emails after the mail service came back = %q, want %q", subjects, want)
+	after.application.WaitForResultEmails()
+	if got = emailSubjects(after.mail.Messages()); !slices.Equal(got, adaAndBeaEmails) {
+		t.Fatalf("emails sent after the restart = %q, want %q", got, adaAndBeaEmails)
+	}
+}
+
+func TestAnEmailAlreadySentIsNotSentAgainOnALaterTickOrRestart(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	twoLearnersWithResultsDue(s)
+	before := len(s.mail.Messages())
+	s.runReleaseJob()
+	if got := emailSubjects(s.mail.Messages()[before:]); !slices.Equal(got, adaAndBeaEmails) {
+		t.Fatalf("emails sent by the release = %q, want %q", got, adaAndBeaEmails)
+	}
+
+	s.runReleaseJob()
+	after := aRestartOf(s)
+	after.runReleaseJob()
+	if n := len(s.mail.Messages()) - before; n != len(adaAndBeaEmails) {
+		t.Fatalf("%d emails after a later tick, want %d", n, len(adaAndBeaEmails))
+	}
+	if got := emailSubjects(after.mail.Messages()); len(got) != 0 {
+		t.Fatalf("emails sent again after a restart = %q, want none", got)
 	}
 }

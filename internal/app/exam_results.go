@@ -90,6 +90,7 @@ type dueResult struct {
 	questions                     []attemptQuestion
 	name, email, language, course string
 	released, passed              bool
+	score                         int
 }
 
 // unmarkedSQL holds for a submitted attempt not yet released with a Written answer still waiting for its mark.
@@ -184,11 +185,12 @@ func (a *App) saveAIMark(ctx context.Context, attemptID int64, i int, m aiwriter
 
 // releaseResults has the AI mark Written answers waiting for a mark, then releases every Result submitted longer ago than its
 // delay (resultDelaySQL) and fully marked, an attempt left open past its time limit included. It reads only the database, so
-// a restart loses nothing. The Certificates and Result emails of what it released go out in one background run, in
-// order, so a slow mail service never holds up a release or bursts sends at once; Close waits for the run.
+// a restart loses nothing. What it released is saved as owing its Certificate and Result emails, and the background
+// sender is kicked to send them (sendOwedEmails), so a slow mail service never holds up a release.
 // ponytail: marking runs before releasing in one goroutine, so a slow AI service delays releases; mark in its own
 // goroutine if that bites.
 func (a *App) releaseResults(ctx context.Context) {
+	defer a.kickEmails() // also sends what an earlier run or a restart left owed
 	a.markWritten(ctx)
 	a.releasing.Lock()
 	defer a.releasing.Unlock()
@@ -197,27 +199,11 @@ func (a *App) releaseResults(ctx context.Context) {
 		a.logError(nil, fmt.Errorf("find due Results: %w", err))
 		return
 	}
-	var emails []func(context.Context)
 	for _, d := range due {
-		send, err := a.releaseResult(ctx, d)
-		if err != nil {
+		if err := a.releaseResult(ctx, d); err != nil {
 			a.logError(nil, fmt.Errorf("release Result of attempt %d: %w", d.attemptID, err))
 		}
-		if send != nil {
-			emails = append(emails, send)
-		}
 	}
-	if len(emails) == 0 {
-		return
-	}
-	a.emailing.Add(1)
-	go func() {
-		defer a.emailing.Done()
-		ctx := context.WithoutCancel(ctx)
-		for _, send := range emails {
-			a.survive("Result emails", func() { send(ctx) })
-		}
-	}()
 }
 
 func (a *App) dueResults(ctx context.Context) ([]dueResult, error) {
@@ -228,7 +214,7 @@ func (a *App) dueResults(ctx context.Context) ([]dueResult, error) {
 func (a *App) queryDue(ctx context.Context, where string, args ...any) ([]dueResult, error) {
 	rows, err := a.db.QueryContext(ctx, `
 		SELECT t.id, t.learner_id, x.course_id, x.format, t.pass_mark, t.questions, l.name, l.email,
-			COALESCE(l.language, ''), c.title, t.released_at IS NOT NULL, COALESCE(t.passed, false)
+			COALESCE(l.language, ''), c.title, t.released_at IS NOT NULL, COALESCE(t.passed, false), COALESCE(t.score, 0)
 		FROM (SELECT * FROM exam_attempts WHERE `+where+`) t
 		JOIN exams x ON x.id = t.exam_id
 		JOIN learners l ON l.id = t.learner_id
@@ -243,7 +229,7 @@ func (a *App) queryDue(ctx context.Context, where string, args ...any) ([]dueRes
 		var d dueResult
 		var questions []byte
 		if err := rows.Scan(&d.attemptID, &d.learnerID, &d.exam.CourseID, &d.exam.Format, &d.passMark, &questions,
-			&d.name, &d.email, &d.language, &d.course, &d.released, &d.passed); err != nil {
+			&d.name, &d.email, &d.language, &d.course, &d.released, &d.passed, &d.score); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(questions, &d.questions); err != nil {
@@ -255,32 +241,112 @@ func (a *App) queryDue(ctx context.Context, where string, args ...any) ([]dueRes
 }
 
 // releaseResult marks the attempt, closes it if it was left open, and saves its mark and pass or fail, unless it is
-// already released or a Written answer is still unmarked. Then it issues any Certificate it earns. It returns what
-// emails the Certificate and the Result, for the caller to run when it likes, nil when nothing was released.
-func (a *App) releaseResult(ctx context.Context, d dueResult) (sendEmails func(context.Context), err error) {
+// already released or a Written answer is still unmarked. Then it issues any Certificate it earns. The Result and the
+// Certificate are saved as owing their emails, which the background sender sends.
+func (a *App) releaseResult(ctx context.Context, d dueResult) error {
 	score, marked := markAttempt(d.exam.Format, d.questions)
 	if !marked {
-		return nil, nil
+		return nil
 	}
 	passed := score >= d.passMark
 	res, err := a.db.ExecContext(ctx, `UPDATE exam_attempts SET finished_at = `+submittedAtSQL+`,
-		released_at = now(), score = $2, passed = $3 WHERE id = $1 AND released_at IS NULL`, d.attemptID, score, passed)
+		released_at = now(), score = $2, passed = $3, result_email_owed = true WHERE id = $1 AND released_at IS NULL`, d.attemptID, score, passed)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		return nil, err
+		return err
 	}
-	certificateID, err := a.issueCertificateIfEarnedUnsent(ctx, d.learnerID, d.exam.CourseID)
-	if err != nil {
+	if _, err := a.issueCertificateIfEarnedUnsent(ctx, d.learnerID, d.exam.CourseID, true); err != nil {
 		a.logError(nil, fmt.Errorf("issue Certificate on releasing attempt %d: %w", d.attemptID, err))
 	}
-	return func(ctx context.Context) {
-		if certificateID != "" {
-			a.emailCertificate(ctx, certificateID)
+	return nil
+}
+
+// kickEmails wakes the sender of owed emails; kicks that come while it is already awake count as one.
+func (a *App) kickEmails() {
+	select {
+	case a.emailKick <- struct{}{}:
+	default:
+	}
+}
+
+// sendEmailsWhenKicked is the one background sender of owed emails, until Close.
+func (a *App) sendEmailsWhenKicked() {
+	defer a.emailing.Done()
+	for {
+		select {
+		case <-a.done:
+			return
+		case <-a.emailKick:
+			a.survive("Result emails", func() { a.sendOwedEmails(context.Background()) })
 		}
-		a.emailResult(ctx, d, score, passed, "email.result.subject")
-	}, nil
+	}
+}
+
+// sendOwedEmails sends the emails the released Results and the Certificates issued with them owe, one at a time so a
+// slow mail service is never hit in a burst: oldest attempt first, each Learner's Certificate email before their Result
+// email. It clears each flag once the send has been tried, so a failed send is only logged, not retried (the Result and
+// Certificate are on the site). A restart in the middle of a send may send that one email twice. It stops between
+// emails when Close is called; the rest stay owed for the next start.
+func (a *App) sendOwedEmails(ctx context.Context) {
+	a.sending.Lock()
+	defer a.sending.Unlock()
+	due, err := a.queryDue(ctx, `result_email_owed`)
+	if err != nil {
+		a.logError(nil, fmt.Errorf("find owed Result emails: %w", err))
+		return
+	}
+	for _, d := range due {
+		certificates, err := a.owedCertificates(ctx, d.learnerID, d.exam.CourseID)
+		if err != nil {
+			a.logError(nil, fmt.Errorf("find owed Certificate emails of attempt %d: %w", d.attemptID, err))
+			return
+		}
+		for _, id := range certificates {
+			if !a.sendOwed(ctx, "Certificate email", func() { a.emailCertificate(ctx, id) }, `UPDATE certificates SET email_owed = false WHERE id = $1`, id) {
+				return
+			}
+		}
+		if !a.sendOwed(ctx, "Result email", func() { a.emailResult(ctx, d, d.score, d.passed, "email.result.subject") },
+			`UPDATE exam_attempts SET result_email_owed = false WHERE id = $1`, d.attemptID) {
+			return
+		}
+	}
+}
+
+// owedCertificates lists the IDs of the Learner's Certificates for the Course that owe their email.
+func (a *App) owedCertificates(ctx context.Context, learnerID, courseID int64) ([]string, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT id FROM certificates WHERE learner_id = $1 AND course_id = $2 AND email_owed ORDER BY issued_at`, learnerID, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// sendOwed tries one owed email, then runs the UPDATE that clears its flag for id. It returns false when the server is
+// closing or the flag could not be cleared, to stop the sender.
+func (a *App) sendOwed(ctx context.Context, job string, send func(), clear string, id any) bool {
+	select {
+	case <-a.done:
+		return false
+	default:
+	}
+	a.survive(job, send)
+	if _, err := a.db.ExecContext(ctx, clear, id); err != nil {
+		a.logError(nil, fmt.Errorf("clear owed %s %v: %w", job, id, err))
+		return false
+	}
+	return true
 }
 
 // emailResult emails the attempt's Result in the Learner's saved language, under the subject the key names, naming

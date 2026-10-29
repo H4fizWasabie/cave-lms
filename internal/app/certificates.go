@@ -89,7 +89,7 @@ func newCertificateID() (string, error) {
 // (an Exam with no published questions can't be sat, so it doesn't count), Lessons or not, self-paced or Live. A
 // self-paced Course with no Exam needs every published Lesson completed instead; a Live one with no Exam issues none. It is called when a Result is released, never at submit, so a Certificate can't give a Result away.
 func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID int64) error {
-	id, err := a.issueCertificateIfEarnedUnsent(ctx, learnerID, courseID)
+	id, err := a.issueCertificateIfEarnedUnsent(ctx, learnerID, courseID, false)
 	if id != "" {
 		a.emailCertificate(ctx, id)
 	}
@@ -97,8 +97,9 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 }
 
 // issueCertificateIfEarnedUnsent is issueCertificateIfEarned without the email: it returns the ID of the Certificate
-// it issued, empty when it issued none, for the caller to email when it can wait.
-func (a *App) issueCertificateIfEarnedUnsent(ctx context.Context, learnerID, courseID int64) (string, error) {
+// it issued, empty when it issued none, for the caller to email. With emailOwed the Certificate is saved as owing its
+// email, for the background sender (sendOwedEmails) to send.
+func (a *App) issueCertificateIfEarnedUnsent(ctx context.Context, learnerID, courseID int64, emailOwed bool) (string, error) {
 	var live bool
 	var exams, passed int
 	err := a.db.QueryRowContext(ctx, `
@@ -122,7 +123,7 @@ func (a *App) issueCertificateIfEarnedUnsent(ctx context.Context, learnerID, cou
 			return "", err
 		}
 	}
-	return a.issueCertificateUnsent(ctx, learnerID, courseID, false)
+	return a.issueCertificateUnsent(ctx, learnerID, courseID, false, emailOwed)
 }
 
 // issueCertificate issues the Learner a Certificate for the Course, copying their name and IC and the Course's title,
@@ -130,7 +131,7 @@ func (a *App) issueCertificateIfEarnedUnsent(ctx context.Context, learnerID, cou
 // only by the Admin's reissue. Every Certificate is issued through here, once its rule is met, so calling it again
 // changes nothing. givenByAdmin records that the Admin gave it, skipping the Exam check.
 func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, givenByAdmin bool) error {
-	id, err := a.issueCertificateUnsent(ctx, learnerID, courseID, givenByAdmin)
+	id, err := a.issueCertificateUnsent(ctx, learnerID, courseID, givenByAdmin, false)
 	if id != "" {
 		a.emailCertificate(ctx, id)
 	}
@@ -138,8 +139,8 @@ func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, g
 }
 
 // issueCertificateUnsent is issueCertificate without the email: it returns the ID of the Certificate it issued, empty
-// when it issued none.
-func (a *App) issueCertificateUnsent(ctx context.Context, learnerID, courseID int64, givenByAdmin bool) (string, error) {
+// when it issued none. emailOwed saves the Certificate as owing its email, in the same statement that issues it.
+func (a *App) issueCertificateUnsent(ctx context.Context, learnerID, courseID int64, givenByAdmin, emailOwed bool) (string, error) {
 	id, err := newCertificateID()
 	if err != nil {
 		return "", err
@@ -154,12 +155,12 @@ func (a *App) issueCertificateUnsent(ctx context.Context, learnerID, courseID in
 		return "", err
 	}
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin, logo_key)
-		SELECT $1, l.id, c.id, l.name, l.ic, c.title, COALESCE(c.days, c.pcc_days), $4, $5, $6, $7, o.logo_key FROM learners l, courses c
+		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin, logo_key, email_owed)
+		SELECT $1, l.id, c.id, l.name, l.ic, c.title, COALESCE(c.days, c.pcc_days), $4, $5, $6, $7, o.logo_key, $8 FROM learners l, courses c
 		LEFT JOIN organisations o ON o.id = c.organisation_id
 		WHERE l.id = $2 AND c.id = $3 AND l.ic IS NOT NULL
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
-		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number, givenByAdmin)
+		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number, givenByAdmin, emailOwed)
 	if err != nil {
 		return "", err
 	}

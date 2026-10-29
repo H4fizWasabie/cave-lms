@@ -92,17 +92,17 @@ func (a *App) SetMaxDBConns(n int) { a.db.SetMaxOpenConns(n) }
 // Survive runs one turn of a background loop the way the loops do, for tests.
 func (a *App) Survive(job string, run func()) { a.survive(job, run) }
 
-// RunReleaseResults runs the minutely Result release now and waits for the emails it sends in the background, for tests.
+// RunReleaseResults runs the minutely Result release now and waits for the emails it owes to be sent, for tests.
 func (a *App) RunReleaseResults(ctx context.Context) {
 	a.releaseResults(ctx)
 	a.WaitForResultEmails()
 }
 
-// ReleaseResultsWithoutWaiting runs the minutely Result release now, leaving its emails to the background, for tests.
+// ReleaseResultsWithoutWaiting runs the minutely Result release now, leaving its emails to the background sender, for tests.
 func (a *App) ReleaseResultsWithoutWaiting(ctx context.Context) { a.releaseResults(ctx) }
 
-// WaitForResultEmails waits for the emails the Result releases have sent in the background, for tests.
-func (a *App) WaitForResultEmails() { a.emailing.Wait() }
+// WaitForResultEmails waits for the background sender to finish, then sends whatever is still owed, for tests.
+func (a *App) WaitForResultEmails() { a.sendOwedEmails(context.Background()) }
 
 // SetClock makes the app read the time from now, for tests.
 func (a *App) SetClock(now func() time.Time) { a.now = now }
