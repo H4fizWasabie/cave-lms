@@ -372,3 +372,25 @@ _Avoid_: Subscription, purchase, transaction, Pro payment
 A ready prompt a CaveText Pro Learner inserts with one click or its shortcut. There are three. The User master prompt is the Learner's own context, written by an AI chatbot they asked what it knows about them and pasted into CaveText; it cannot be edited, only deleted and replaced, and it sits above a Snippet's task when inserted. The Image and Dashboard master prompts are written by the client, the same for every Pro Learner, and inserted as they are.
 _Malay_: Master prompt (kept in English)
 _Avoid_: Meta prompt, profile, system prompt, Prompt set
+
+### CaveHost
+
+**CaveHost**:
+The premium area where a Learner puts their own HTML page online with its data kept in a Google Spreadsheet they share by link, so editing the Spreadsheet updates the page. Separate from the Lab: it needs a CaveHost Plan, not a Plan, and a Lab Dashboard never reads a Spreadsheet. Nothing to do with a Live Course.
+_Malay_: CaveHost (kept in English)
+_Avoid_: Live Data, Lab, live course, hosting plan
+
+**CaveHost Plan**:
+Access to CaveHost for a set period, given to selected Learners by the Admin by hand and never sold on its own page. It has no Storage allowance and no cap on Spreadsheets. When its last period ends, its Deployments sleep and stop Syncing, and are deleted 90 days later unless a new period has started. The Admin uses CaveHost without one.
+_Malay_: Pelan CaveHost
+_Avoid_: Plan (which means the Lab), premium plan, subscription
+
+**Spreadsheet**:
+A Learner's Google Sheets file, shared as "anyone with the link can view", linked to one CaveHost Deployment. The Learner ticks which of its sheets the page may read; only the sheet in the pasted link starts ticked, and a new sheet starts unticked. Each ticked sheet has its own columns, set when the Learner confirms its first Clean-up.
+_Malay_: Hamparan
+_Avoid_: Workbook (an Excel file in the Lab), Google Sheet, data source, tab
+
+**Sync**:
+Cave fetching a Spreadsheet again, every hour or when the Learner presses Sync now, and cleaning each ticked sheet with the recipe its first Clean-up set. Each Sync replaces the sheet's rows; Cave keeps only the last good one. A Sync that fails for a sheet (the Spreadsheet made private, a column renamed or gone, a column mostly emptied, too big) leaves its last good rows online and emails the Learner once until a Sync works again.
+_Malay_: Penyegerakan
+_Avoid_: Refresh, import, upload, Part
