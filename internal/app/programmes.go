@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"net/http"
@@ -195,7 +196,7 @@ func (a *App) saveProgramme(w http.ResponseWriter, r *http.Request, existing pro
 		return
 	}
 	if newKey != "" && existing.PictureKey != "" {
-		if err := a.store.Delete(r.Context(), existing.PictureKey); err != nil {
+		if err := a.store.Delete(context.WithoutCancel(r.Context()), existing.PictureKey); err != nil {
 			a.logError(r, err)
 		}
 	}
@@ -222,7 +223,7 @@ func (a *App) deleteProgramme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if p.PictureKey != "" {
-		if err := a.store.Delete(r.Context(), p.PictureKey); err != nil {
+		if err := a.store.Delete(context.WithoutCancel(r.Context()), p.PictureKey); err != nil {
 			a.logError(r, err)
 		}
 	}

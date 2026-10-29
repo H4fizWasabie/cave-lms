@@ -80,7 +80,7 @@ func (a *App) notFound(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "notfound.title"), Message: text.T(lang, "notfound")})
 }
 
-// walkedAway reports whether err is only r being cancelled because the visitor closed the connection.
+// walkedAway reports whether err is only r being cancelled because the browser closed the connection.
 func walkedAway(r *http.Request, err error) bool {
 	return r != nil && errors.Is(err, context.Canceled) && r.Context().Err() != nil
 }

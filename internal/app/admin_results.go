@@ -182,7 +182,7 @@ func (a *App) saveMarks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if d.released && passed && !d.passed {
-		if err := a.issueCertificateIfEarned(r.Context(), d.learnerID, d.exam.CourseID); err != nil {
+		if err := a.issueCertificateIfEarned(context.WithoutCancel(r.Context()), d.learnerID, d.exam.CourseID); err != nil {
 			a.logError(r, fmt.Errorf("issue Certificate on correcting attempt %d: %w", d.attemptID, err))
 		}
 	}

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -53,7 +54,7 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// A failed send is only logged: an error page would reveal that the account exists.
-		if err := a.mailer.Send(r.Context(), mailer.Message{
+		if err := a.mailer.Send(context.WithoutCancel(r.Context()), mailer.Message{
 			To:      to,
 			Subject: text.T(lang, "email.reset.subject"),
 			Body:    text.T(lang, "email.reset.body", a.publicBaseURL+"/reset-password?token="+token),

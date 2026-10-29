@@ -120,7 +120,7 @@ func (a *App) storeIC(r *http.Request, learnerID int64, typed string) (status in
 	if n == 0 {
 		return http.StatusConflict, "ic.set-once", nil
 	}
-	if err := a.issueEarnedCertificates(r.Context(), learnerID, 0); err != nil {
+	if err := a.issueEarnedCertificates(context.WithoutCancel(r.Context()), learnerID, 0); err != nil {
 		a.logError(r, fmt.Errorf("issue Certificates on setting learner %d's IC: %w", learnerID, err))
 	}
 	return 0, "", nil
@@ -246,7 +246,7 @@ func (a *App) correctIC(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if err := a.issueEarnedCertificates(r.Context(), learnerID, 0); err != nil {
+	if err := a.issueEarnedCertificates(context.WithoutCancel(r.Context()), learnerID, 0); err != nil {
 		a.logError(r, fmt.Errorf("issue Certificates on correcting learner %d's IC: %w", learnerID, err))
 	}
 	http.Redirect(w, r, "/admin/courses/"+r.PathValue("id"), http.StatusSeeOther)
