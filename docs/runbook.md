@@ -6,7 +6,7 @@ Done once, or only when something goes wrong. Routine deploys, Staging, Promos, 
 
 Once per VPS. Run as root on the VPS.
 
-1. Point A records for `cavelms.com`, `www.cavelms.com` and `pages.cavelms.com` (the Deployments host, ADR 0024) at `13.140.65.183` (DNS is at NetKL) and wait until `dig +short cavelms.com` and `dig +short pages.cavelms.com` return it. Caddy can't get a certificate before that.
+1. Point A records for `cavelms.com`, `www.cavelms.com` and `pages.cavelms.com` (the Deployments host, ADR 0024) at `13.140.65.183` (DNS is at Cloudflare; see DNS below) and wait until `dig +short cavelms.com` and `dig +short pages.cavelms.com` return it. Caddy can't get a certificate before that.
 2. Create the system user, database and settings:
 
    ```sh
@@ -54,7 +54,7 @@ Once per VPS. Run as root on the VPS.
 
 Run as root on the VPS unless a step says otherwise.
 
-1. At NetKL, add A records `staging.cavelms.com` and `pages.staging.cavelms.com` (staging's Deployments host) → `13.140.65.183`, then wait until `dig +short staging.cavelms.com` and `dig +short pages.staging.cavelms.com` return it. Staging's `PAGES_BASE_URL` is left unset: it defaults to `https://pages.staging.cavelms.com`.
+1. In Cloudflare DNS, add A records `staging.cavelms.com` and `pages.staging.cavelms.com` (staging's Deployments host) → `13.140.65.183`, then wait until `dig +short staging.cavelms.com` and `dig +short pages.staging.cavelms.com` return it. Staging's `PAGES_BASE_URL` is left unset: it defaults to `https://pages.staging.cavelms.com`.
 2. Create the system user, database and settings:
 
    ```sh
@@ -88,6 +88,14 @@ Run as root on the VPS unless a step says otherwise.
 4. From your machine, run `CAVE_ENV=staging deploy/deploy.sh`.
 5. Create the Admin as in First install, step 4, with `-p User=cave_staging -p EnvironmentFile=/etc/cave-lms/staging.env /usr/local/bin/cave-lms-staging`.
 6. In BCL, set each TEST form (19556, 19624, 19625) under Advanced > Webhook Settings to `https://staging.cavelms.com/cavetext/bcl/<staging key>` with the Payment Success event. In staging's Admin > Prices, set each payment link to the matching TEST form's address (`https://ideaniagaventures.bcl.my/form/cavetext-pro-test`, `lab-plan-test`, `pro-plan-test`) and each price to no more than that form charges, or a TEST payment is kept for an Admin instead of giving the product.
+
+## DNS
+
+`cavelms.com`'s DNS is hosted on Cloudflare (the account that has the R2 buckets), Free plan, nameservers `maleah.ns.cloudflare.com` and `venkat.ns.cloudflare.com`. It moved off NetKL's nameservers on 2026-10-29 because they failed up to 8 lookups in 10 (#527). The domain is still registered at NetKL: the nameservers are set there, under the domain's Nameservers tab, and nothing else at NetKL is used.
+
+Every record is **DNS only (grey cloud)**. Caddy on the VPS terminates TLS and gets its own certificates, so a proxied (orange) record breaks HTTPS for that host. Cloudflare's import and onboarding screens offer to proxy records and to allow only Cloudflare's addresses at the server: decline both. The records: A for `@`, `www`, `pages`, `staging` and `pages.staging` to `13.140.65.183`; Resend's `resend._domainkey` (TXT), `send` and `rsend` (CNAME) and `_dmarc` (TXT); Search Console's `google-site-verification` TXT on `@`; and an MX on `@`.
+
+To check: `dig +short NS cavelms.com` lists the two Cloudflare nameservers, and `dig +short A cavelms.com @1.1.1.1` returns `13.140.65.183`.
 
 ## Changing the domain
 
