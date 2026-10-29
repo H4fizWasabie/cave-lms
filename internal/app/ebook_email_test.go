@@ -1,12 +1,10 @@
 package app_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -43,7 +41,7 @@ func TestAComboPaymentEmailsTheEbookLinkInTheLearnersLanguage(t *testing.T) {
 	if len(emails) != 1 {
 		t.Fatalf("Bea got %d Ebook emails in Malay, want 1", len(emails))
 	}
-	expectAll(t, emails[0].Body, "Hai Bea Lim", "https://cave.example.invalid/gallery?format=ebook", "bea@example.com")
+	expectAll(t, emails[0].Body, "Hai Bea Lim", "https://cave.example.invalid/gallery?format=ebook", "bea@example.com", "Workbook: https://cave.example.invalid/ebook-downloads/", "selama 7 hari")
 }
 
 // A Learner who never chose a language gets the default one, as for the Certificate email.
@@ -138,9 +136,8 @@ func TestTheAdminResendsTheEbookLinkOnlyWhileTheAccessRuns(t *testing.T) {
 	expectNone(t, body, "Email ebook link")
 }
 
-// ebookEmailAfterPayment pays Ada's COMBO and returns her one Ebook email's attachment count and body, and its first
-// attachment's content and name.
-func ebookEmailAfterPayment(t *testing.T, s *site) (attachments int, body string, first []byte, name string) {
+// ebookEmailAfterPayment pays Ada's COMBO and returns her one Ebook email's body.
+func ebookEmailAfterPayment(t *testing.T, s *site) string {
 	t.Helper()
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	ada.switchLanguage("en", "/")
@@ -149,17 +146,17 @@ func ebookEmailAfterPayment(t *testing.T, s *site) (attachments int, body string
 	if len(emails) != 1 {
 		t.Fatalf("Ada got %d Ebook emails, want 1", len(emails))
 	}
-	email := emails[0]
-	if len(email.Attachments) > 0 {
-		first, name = email.Attachments[0].Content, email.Attachments[0].Filename
+	if len(emails[0].Attachments) > 0 {
+		t.Fatalf("the Ebook email carries %d attachments, want none", len(emails[0].Attachments))
 	}
-	return len(email.Attachments), email.Body, first, name
+	return emails[0].Body
 }
 
-const ebookAttachedLine = "A copy of each ebook is attached for you to keep."
+var ebookDownloadLink = regexp.MustCompile(`(?m)^(.+): (https://cave\.example\.invalid(/ebook-downloads/[A-Za-z0-9_-]{43,}))$`)
 
-// The Ebook email carries a copy of each ebook that is not Promotional material, and still links to the Gallery.
-func TestTheEbookEmailAttachesEachNonPromotionalEbookAndNothingElse(t *testing.T) {
+// The Ebook email gives a download link for each ebook that is not Promotional material, with its title, and it
+// downloads the file with no sign-in.
+func TestTheEbookEmailLinksEachNonPromotionalEbookAndNothingElse(t *testing.T) {
 	t.Parallel()
 	s, _ := ebookSite(t) // uploads "Workbook"
 	fields := titleFields("Free sampler", "everyone")
@@ -168,84 +165,168 @@ func TestTheEbookEmailAttachesEachNonPromotionalEbookAndNothingElse(t *testing.T
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.uploadAs("Poster", "everyone", pngFile)
 
-	n, body, content, name := ebookEmailAfterPayment(t, s)
-	if n != 1 || string(content) != string(pdfFile) || name != "Workbook.pdf" {
-		t.Fatalf("the Ebook email carries %d attachments, first %q = %q; want only Workbook.pdf with the uploaded bytes", n, name, content)
+	email := ebookEmailAfterPayment(t, s)
+	links := ebookDownloadLink.FindAllStringSubmatch(email, -1)
+	if len(links) != 1 || links[0][1] != "Workbook" {
+		t.Fatalf("the Ebook email links %v, want only Workbook: %s", links, email)
 	}
-	expectAll(t, body, ebookAttachedLine, "https://cave.example.invalid/gallery?format=ebook", "open until")
+	expectAll(t, email, "https://cave.example.invalid/gallery?format=ebook", "open until", "7 days")
+
+	res, body = s.second().get(links[0][3]) // signed out
+	expectStatus(t, res, body, http.StatusOK, "")
+	if body != string(pdfFile) {
+		t.Errorf("the link downloads %q, want the uploaded bytes", body)
+	}
+	if got := res.Header.Get("Content-Disposition"); got != `attachment; filename="Workbook.pdf"` {
+		t.Errorf("Content-Disposition = %q", got)
+	}
+	if got := res.Header.Get("Cache-Control"); got != "private, no-store" {
+		t.Errorf("Cache-Control = %q, want private, no-store", got)
+	}
 }
 
-// A send with the ebooks attached that fails (a large upload timing out) is logged and the email goes again with the
-// link alone, so the buyer is never left without it.
-func TestTheEbookEmailGoesWithTheLinkOnlyWhenSendingTheAttachmentsFails(t *testing.T) {
+// ebookLinkFor pays Ada's COMBO and returns the path of her Workbook download link.
+func ebookLinkFor(t *testing.T, s *site) string {
+	t.Helper()
+	links := ebookDownloadLink.FindAllStringSubmatch(ebookEmailAfterPayment(t, s), -1)
+	if len(links) != 1 {
+		t.Fatalf("the Ebook email has %d download links, want 1", len(links))
+	}
+	return links[0][3]
+}
+
+// expectLinkGone checks the link answers with the page that sends the Learner to the Gallery and the Admin.
+func expectLinkGone(t *testing.T, s *site, link string, status int) {
+	t.Helper()
+	res, body := s.second().get(link)
+	expectStatus(t, res, body, status, "This download link no longer works")
+	expectAll(t, body, `href="/gallery?format=ebook"`, "send you a fresh link")
+	if strings.Contains(body, string(pdfFile)) || res.Header.Get("Content-Disposition") != "" {
+		t.Errorf("the dead link still serves the file")
+	}
+}
+
+func TestADownloadLinkStopsWorkingAfter7Days(t *testing.T) {
 	t.Parallel()
 	s, _ := ebookSite(t)
-	s.mail.FailAttachmentsWith(errors.New("Client.Timeout exceeded while awaiting headers"))
-
-	n, body, _, _ := ebookEmailAfterPayment(t, s)
-	if n != 0 {
-		t.Fatalf("the Ebook email carries %d attachments, want the link alone", n)
+	link := ebookLinkFor(t, s)
+	if _, err := s.db.Exec(`UPDATE ebook_download_links SET expires_at = now() + interval '1 hour'`); err != nil {
+		t.Fatal(err)
 	}
-	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook", "open until")
-	if strings.Contains(body, ebookAttachedLine) {
-		t.Fatalf("the link-only Ebook email says the ebooks are attached: %s", body)
+	res, body := s.second().get(link)
+	expectStatus(t, res, body, http.StatusOK, "")
+	if _, err := s.db.Exec(`UPDATE ebook_download_links SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
 	}
-	_, body = s.get("/admin/log")
-	expectAll(t, body, "send Ebook email", "Client.Timeout exceeded")
+	expectLinkGone(t, s, link, http.StatusGone)
 }
 
-// With no ebook to attach, the email reads as it always did.
-func TestTheEbookEmailCarriesTheLinkOnlyWhenNoEbookIsUploaded(t *testing.T) {
+func TestADownloadLinkLastsSevenDays(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	ebookLinkFor(t, s)
+	var days float64
+	if err := s.db.QueryRow(`SELECT extract(epoch FROM expires_at - created_at) / 86400 FROM ebook_download_links`).Scan(&days); err != nil {
+		t.Fatal(err)
+	}
+	if days < 6.99 || days > 7.01 {
+		t.Fatalf("the link lasts %v days, want 7", days)
+	}
+}
+
+func TestADownloadLinkStopsWorkingWhenTheEbookAccessEnds(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	link := ebookLinkFor(t, s)
+	s.endPro("ada@example.com")
+	expectLinkGone(t, s, link, http.StatusGone)
+}
+
+func TestADownloadLinkStopsWorkingWhenTheEbookBecomesPromotional(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	link := ebookLinkFor(t, s)
+	if _, err := s.db.Exec(`UPDATE gallery_items SET promotional = true`); err != nil {
+		t.Fatal(err)
+	}
+	expectLinkGone(t, s, link, http.StatusGone)
+}
+
+func TestADownloadLinkOfADeletedEbookIsUnknown(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	link := ebookLinkFor(t, s)
+	if _, err := s.db.Exec(`DELETE FROM gallery_items`); err != nil {
+		t.Fatal(err)
+	}
+	expectLinkGone(t, s, link, http.StatusNotFound)
+}
+
+func TestAnUnknownDownloadLinkIsNotFound(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	expectLinkGone(t, s, "/ebook-downloads/"+strings.Repeat("a", 43), http.StatusNotFound)
+}
+
+func TestTheDownloadLinkPageIsInMalay(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	res, body := s.second().getAsking("/ebook-downloads/"+strings.Repeat("a", 43), "ms")
+	expectStatus(t, res, body, http.StatusNotFound, "Pautan muat turun ini tidak lagi berfungsi")
+}
+
+func TestTooManyDownloadLinkLookupsFromOneAddressAreRefused(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	visitor := s.second()
+	for range 60 {
+		res, body := visitor.get("/ebook-downloads/" + strings.Repeat("a", 43))
+		expectStatus(t, res, body, http.StatusNotFound, "")
+	}
+	res, body := visitor.get("/ebook-downloads/" + strings.Repeat("a", 43))
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+}
+
+// With no ebook to link, the email reads as it always did.
+func TestTheEbookEmailCarriesTheGalleryLinkOnlyWhenNoEbookIsUploaded(t *testing.T) {
 	t.Parallel()
 	s, _ := ebookSite(t)
 	if _, err := s.db.Exec(`DELETE FROM gallery_items`); err != nil {
 		t.Fatal(err)
 	}
-	n, body, _, _ := ebookEmailAfterPayment(t, s)
-	if n != 0 {
-		t.Fatalf("the Ebook email carries %d attachments, want none", n)
-	}
-	expectNone(t, body, ebookAttachedLine)
+	body := ebookEmailAfterPayment(t, s)
+	expectNone(t, body, "ebook-downloads", "7 days")
 	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook", "open until")
 }
 
-// Above 18 MB of ebooks together the email carries the link only, and the System log says why.
-func TestTheEbookEmailCarriesTheLinkOnlyWhenTheEbooksAreTooLarge(t *testing.T) {
-	t.Parallel()
-	s, ebook := ebookSite(t)
-	id := strings.TrimPrefix(ebook, "/gallery/")
-	if _, err := s.db.Exec(`UPDATE gallery_items SET size_bytes = $1 WHERE id = $2`, 18*1024*1024+1, id); err != nil {
-		t.Fatal(err)
-	}
-
-	n, body, _, _ := ebookEmailAfterPayment(t, s)
-	if n != 0 {
-		t.Fatalf("the Ebook email carries %d attachments, want none", n)
-	}
-	expectNone(t, body, ebookAttachedLine)
-	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook", "open until")
-	_, logBody := s.get("/admin/log")
-	expectAll(t, logBody, "Ebook email", strconv.Itoa(18*1024*1024+1)+" bytes", "link only")
-}
-
-// An ebook whose file cannot be read costs the email its attachments, not the email.
-func TestTheEbookEmailStillGoesWhenAnEbookFileCannotBeRead(t *testing.T) {
+// A link that cannot be made costs the email its download links, not the email.
+func TestTheEbookEmailStillGoesWhenADownloadLinkCannotBeMade(t *testing.T) {
 	t.Parallel()
 	s, _ := ebookSite(t)
-	var key string
-	if err := s.db.QueryRow(`SELECT storage_key FROM gallery_items WHERE format = 'ebook'`).Scan(&key); err != nil {
+	if _, err := s.db.Exec(`DROP TABLE ebook_download_links`); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(s.storageDir, key)); err != nil {
-		t.Fatal(err)
-	}
-
-	n, body, _, _ := ebookEmailAfterPayment(t, s)
-	if n != 0 {
-		t.Fatalf("the Ebook email carries %d attachments, want none", n)
-	}
-	expectNone(t, body, ebookAttachedLine)
+	body := ebookEmailAfterPayment(t, s)
+	expectNone(t, body, "ebook-downloads", "7 days")
 	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook")
 	_, logBody := s.get("/admin/log")
-	expectAll(t, logBody, "Ebook email")
+	expectAll(t, logBody, "Ebook email", "download link")
+}
+
+func TestTheDailyPruneDeletesExpiredDownloadLinks(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	ebookLinkFor(t, s)
+	if _, err := s.db.Exec(`INSERT INTO ebook_download_links (learner_id, gallery_item_id, token_hash, expires_at)
+		SELECT learner_id, gallery_item_id, '\x01', now() - interval '1 second' FROM ebook_download_links`); err != nil {
+		t.Fatal(err)
+	}
+	s.application.RunDailyPrune(context.Background())
+	var expired, live int
+	if err := s.db.QueryRow(`SELECT count(*) FILTER (WHERE expires_at <= now()), count(*) FILTER (WHERE expires_at > now()) FROM ebook_download_links`).Scan(&expired, &live); err != nil {
+		t.Fatal(err)
+	}
+	if expired != 0 || live != 1 {
+		t.Fatalf("after the prune %d expired and %d live links, want 0 and 1", expired, live)
+	}
 }

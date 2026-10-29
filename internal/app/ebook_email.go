@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -14,13 +15,13 @@ import (
 // ebookAccessSQL is the cavetext_pro_periods condition for Ebook access running now (ADR 0020).
 const ebookAccessSQL = `ebooks AND starts_at <= now() AND ends_at > now() AND ended_early_at IS NULL`
 
-// maxEbookAttachments is the most raw ebook bytes the Ebook email carries: Gmail refuses over 25 MB and base64 grows files by a third.
-const maxEbookAttachments = 18 * 1024 * 1024
+// ebookLinkDays is how long an Ebook download link works.
+const ebookLinkDays = 7
 
-// emailEbookLink sends the Learner the Ebook email: a link to the Gallery's ebooks and the day their Ebook access ends,
-// in their saved language, with a copy of each ebook that is not Promotional material (ebookAttachments). Callers send
-// it once their transaction has committed. A failed email is only logged: the access is given, and the Learner finds
-// the ebooks in the Gallery.
+// emailEbookLink sends the Learner the Ebook email: a link to the Gallery's ebooks, the day their Ebook access ends and
+// an Ebook download link for each ebook that is not Promotional material (ebookDownloadLinks), in their saved language.
+// Callers send it once their transaction has committed. A failed email is only logged: the access is given, and the
+// Learner finds the ebooks in the Gallery.
 func (a *App) emailEbookLink(ctx context.Context, learnerID int64) {
 	var name, email, lang string
 	var until sql.NullTime
@@ -37,65 +38,88 @@ func (a *App) emailEbookLink(ctx context.Context, learnerID int64) {
 	if !text.Supported(lang) {
 		lang = text.Languages[0]
 	}
-	msg := mailer.Message{
-		To:      email,
-		Subject: text.T(lang, "email.ebook.subject"),
-		Body:    text.T(lang, "email.ebook.body", name, text.Date(lang, until.Time.UTC()), a.publicBaseURL+"/gallery?format=ebook", email),
+	body := text.T(lang, "email.ebook.body", name, text.Date(lang, until.Time.UTC()), a.publicBaseURL+"/gallery?format=ebook", email)
+	if links := a.ebookDownloadLinks(ctx, learnerID); links != "" {
+		body += "\n" + text.T(lang, "email.ebook.links", ebookLinkDays, links)
 	}
-	if files := a.ebookAttachments(ctx, learnerID); len(files) > 0 {
-		withFiles := msg
-		withFiles.Body += "\n" + text.T(lang, "email.ebook.attached") + "\n"
-		withFiles.Attachments = files
-		err := a.mailer.Send(ctx, withFiles)
-		if err == nil {
-			return
-		}
-		// A large upload can fail where a small one would not, so the link alone is sent rather than nothing.
-		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d with the ebooks attached, sending the link only: %w", learnerID, err))
-	}
-	if err := a.mailer.Send(ctx, msg); err != nil {
+	if err := a.mailer.Send(ctx, mailer.Message{To: email, Subject: text.T(lang, "email.ebook.subject"), Body: body}); err != nil {
 		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: %w", learnerID, err))
 	}
 }
 
-// ebookAttachments reads every ebook in the Gallery that is not Promotional material, whatever its Visibility. It
-// returns none, after logging why, when they are over maxEbookAttachments together or a file cannot be read: the
-// email then goes with the link alone.
-func (a *App) ebookAttachments(ctx context.Context, learnerID int64) []mailer.Attachment {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, title, storage_key, size_bytes FROM gallery_items
-		WHERE format = 'ebook' AND NOT promotional ORDER BY id`)
+// ebookDownloadLinks makes a link for each ebook in the Gallery that is not Promotional material, whatever its
+// Visibility, and returns them one per line as "title: address". A failure is logged and the ebooks it hit are left
+// out, so the email still goes with the Gallery link.
+func (a *App) ebookDownloadLinks(ctx context.Context, learnerID int64) string {
+	rows, err := a.db.QueryContext(ctx, `SELECT id, title FROM gallery_items WHERE format = 'ebook' AND NOT promotional ORDER BY id`)
 	if err != nil {
-		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: list ebooks, link only: %w", learnerID, err))
-		return nil
+		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: list ebooks, no download links: %w", learnerID, err))
+		return ""
 	}
-	defer rows.Close()
-	var files []mailer.Attachment
-	var keys []string
-	var total int64
+	type ebook struct {
+		id    int64
+		title string
+	}
+	var ebooks []ebook
 	for rows.Next() {
-		var id, size int64
-		var title, key string
-		if err := rows.Scan(&id, &title, &key, &size); err != nil {
-			a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: list ebooks, link only: %w", learnerID, err))
-			return nil
+		var e ebook
+		if err := rows.Scan(&e.id, &e.title); err != nil {
+			rows.Close()
+			a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: list ebooks, no download links: %w", learnerID, err))
+			return ""
 		}
-		total += size
-		keys = append(keys, key)
-		files = append(files, mailer.Attachment{Filename: cleanFileName(strings.NewReplacer("/", "-", `\`, "-").Replace(title)) + ".pdf"})
+		ebooks = append(ebooks, e)
 	}
-	if err := rows.Err(); err != nil {
-		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: list ebooks, link only: %w", learnerID, err))
-		return nil
-	}
-	if total > maxEbookAttachments {
-		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: the ebooks total %d bytes, over the %d byte limit, so the link only was sent", learnerID, total, maxEbookAttachments))
-		return nil
-	}
-	for i, key := range keys {
-		if files[i].Content, err = a.store.Get(ctx, key); err != nil {
-			a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: read ebook file, link only: %w", learnerID, err))
-			return nil
+	rows.Close()
+	var lines strings.Builder
+	for _, e := range ebooks {
+		token, err := newToken()
+		if err == nil {
+			_, err = a.db.ExecContext(ctx, `INSERT INTO ebook_download_links (learner_id, gallery_item_id, token_hash, expires_at)
+				VALUES ($1, $2, $3, now() + make_interval(days => $4))`, learnerID, e.id, hashToken(token), ebookLinkDays)
 		}
+		if err != nil {
+			a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: make download link for ebook %d, left out: %w", learnerID, e.id, err))
+			continue
+		}
+		fmt.Fprintf(&lines, "%s: %s/ebook-downloads/%s\n", e.title, a.publicBaseURL, token)
 	}
-	return files
+	return lines.String()
+}
+
+// ebookDownload serves the ebook an Ebook download link names, with no sign-in (ADR 0020). A link that is unknown
+// answers 404; one that has expired, or whose ebook is now Promotional material or whose Learner's Ebook access has
+// ended, answers 410. Both send the Learner to the Gallery and the Admin.
+func (a *App) ebookDownload(w http.ResponseWriter, r *http.Request) {
+	if !a.limiter.allow("ebook download "+clientAddress(r), ebookDownloadLookups, rateLimitWindow, a.now()) {
+		a.tooManyAttempts(w, r)
+		return
+	}
+	var title, key, mimeType string
+	var works bool
+	err := a.db.QueryRowContext(r.Context(), `SELECT g.title, g.storage_key, g.mime_type,
+		l.expires_at > now() AND g.format = 'ebook' AND NOT g.promotional
+		AND EXISTS (SELECT 1 FROM cavetext_pro_periods WHERE learner_id = l.learner_id AND `+ebookAccessSQL+`)
+		FROM ebook_download_links l JOIN gallery_items g ON g.id = l.gallery_item_id WHERE l.token_hash = $1`,
+		hashToken(r.PathValue("token"))).Scan(&title, &key, &mimeType, &works)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		a.serverError(w, r, err)
+		return
+	}
+	if err != nil || !works {
+		status := http.StatusGone
+		if err != nil {
+			status = http.StatusNotFound
+		}
+		lang, err := a.language(r)
+		if err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		a.render(w, r, status, "message", page{Title: text.T(lang, "ebook.link.gone.title"), Message: text.T(lang, "ebook.link.gone"), OfferGallery: true})
+		return
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.pdf"`, cleanFileName(strings.NewReplacer("/", "-", `\`, "-", `"`, "'").Replace(title))))
+	w.Header().Set("Cache-Control", "private, no-store")
+	a.serveStored(w, r, key, mimeType)
 }
