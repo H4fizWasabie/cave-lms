@@ -76,6 +76,11 @@ const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at 
 // deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
 const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason`
 
+// deploymentLink is the full link to share for the Deployment called name of the Learner with this Username.
+func (a *App) deploymentLink(username, name string) string {
+	return a.pagesBaseURL + "/" + username + "/" + name + "/"
+}
+
 // scanDeployment scans a row, with its times in lang, whose columns are lead's targets followed by deploymentColumns.
 func (a *App) scanDeployment(lang string, row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
 	var dep deployment
@@ -84,7 +89,7 @@ func (a *App) scanDeployment(lang string, row interface{ Scan(...any) error }, l
 	if err := row.Scan(append(lead, &dep.Name, &dep.Username, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
 		return dep, err
 	}
-	dep.Link = a.pagesBaseURL + "/" + dep.Username + "/" + dep.Name + "/"
+	dep.Link = a.deploymentLink(dep.Username, dep.Name)
 	dep.Deployed = dateTimeIn(lang, deployed)
 	if takenDown.Valid {
 		dep.TakenDown = dateTimeIn(lang, takenDown.Time)

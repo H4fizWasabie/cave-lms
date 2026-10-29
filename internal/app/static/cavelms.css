@@ -1611,10 +1611,26 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
    sideways on a narrow screen (.lab-tabs has overflow-x) and never widen the page. Later Classroom tickets add below. */
 .classroom-tabs { max-width: 100%; margin-bottom: var(--space-5); }
 
+/* Stacked tables: at 999px and narrower a .table-stack table drops its heads and each row becomes a block, a cell's label
+   (its data-label) beside its value. A cell with no data-label (a name, the actions) spans the row; wrap a value that has
+   a <small> in a <span> so it stays one grid item. Shared by the Folder and My exams tables. */
+@media (max-width: 999px) {
+  .table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table-stack, .table-stack tbody, .table-stack tr { display: block; }
+  .table-stack tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+  .table-stack tbody tr:last-child { border-bottom: 0; }
+  .table-stack td { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) 0; border: 0; }
+  .table-stack td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
+  .table-stack td:not([data-label]) { display: block; }
+  .table-stack td:not([data-label])::before { content: none; }
+  .table-stack td.actions { text-align: left; padding-top: var(--space-2); }
+  .table-stack td.when { white-space: normal; }
+  .table-stack td[data-label] > span { overflow-wrap: anywhere; }
+}
+
 /* --- Folder (#514): a rail (Storage, section links, Upload) beside the sections; the Workbooks table. ---
    From 1280px the rail stands to the left and sticks. At 1279px and narrower it folds into a strip above the content,
-   so the table keeps the full width, and at 999px and narrower its rows stack as label / value. */
-.folder-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+   so the table keeps the full width, and at 999px and narrower its rows stack (.table-stack). */
 .folder-sec { margin-bottom: var(--space-6); }
 .folder-sec > h2 { margin-bottom: var(--space-4); }
 .folder-grid.has-rail { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--space-7); align-items: start; }
@@ -1647,7 +1663,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .folder-table .folder-name { overflow-wrap: anywhere; min-width: 12rem; }
 .folder-table .folder-name a { font-weight: 600; }
 .folder-table td.num { white-space: nowrap; }
-.folder-table td[data-label] > span { overflow-wrap: anywhere; }
 @media (max-width: 1279px) {
   .folder-grid.has-rail { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
   .folder-rail { position: static; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
@@ -1657,17 +1672,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .folder-index a { justify-content: flex-start; }
   .folder-upload { flex: 0 1 15rem; }
 }
-@media (max-width: 999px) {
-  .folder-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .folder-table, .folder-table tbody, .folder-table tr { display: block; }
-  .folder-table tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
-  .folder-table td { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) 0; border: 0; }
-  .folder-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
-  .folder-table td.actions { display: block; text-align: left; padding-top: var(--space-2); }
-  .folder-table td.actions::before { content: none; }
-  .folder-table td.when { white-space: normal; }
-  .folder-table .folder-name { min-width: 0; }
-}
+@media (max-width: 999px) { .folder-table .folder-name { min-width: 0; } }
 
 /* Dashboard cards (#515): one card per Dashboard, its name and Live link, a ruled list of pages, the Workbooks it used. */
 .folder-restored { margin-bottom: var(--space-3); font-size: var(--fs-ui); }
@@ -1685,21 +1690,11 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .folder-page-act { margin-left: auto; }
 .folder-uses { margin: var(--space-3) 0 0; font-size: var(--fs-ui); overflow-wrap: anywhere; }
 
-/* My exams (#516): a table; below 720px each row stacks into a card, a cell's label (data-label) above its value. */
+/* My exams (#516): a table that stacks as .table-stack does. */
 .exam-course { font-weight: 600; overflow-wrap: anywhere; }
 .exam-course a { text-decoration: none; }
 .exam-course a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); text-underline-offset: 0.2em; }
-@media (max-width: 720px) {
-  .exam-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } /* the heads are the data-labels now */
-  .exam-table, .exam-table tbody, .exam-table tr, .exam-table td { display: block; }
-  .exam-table tbody tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
-  .exam-table tbody tr:last-child { border-bottom: 0; }
-  .exam-table td { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-1) 0; border-bottom: 0; text-align: right; }
-  .exam-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; text-align: left; }
-  .exam-table td.exam-course { display: block; padding-bottom: var(--space-2); text-align: left; }
-  .exam-table td.actions { display: block; padding-top: var(--space-2); text-align: left; }
-  .exam-table td.actions .btn { width: 100%; }
-}
+@media (max-width: 999px) { .exam-table td.actions .btn { width: 100%; } }
 
 /* My profile (#517): one card, three ruled sections (Picture, Username, IC), each with its own form and ghost Save. */
 .profile-card { padding-block: 0; }

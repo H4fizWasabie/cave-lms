@@ -131,6 +131,9 @@ func (s *site) assignPlan(email, planID string) (*http.Response, string) {
 	return s.post("/admin/plans/periods", url.Values{"email": {email}, "plan_id": {planID}})
 }
 
+// malaysiaTime is where the Admin's Plan periods page shows its times: UTC+8, with no daylight saving.
+var malaysiaTime = time.FixedZone("MYT", 8*60*60)
+
 type shownPeriod struct {
 	plan, deployments, status string
 	starts, ends              time.Time
@@ -145,11 +148,11 @@ func (s *site) periodsOf(email string) []shownPeriod {
 	expectStatus(s.t, res, body, http.StatusOK, "Plan periods")
 	var list []shownPeriod
 	for _, m := range periodRow.FindAllStringSubmatch(body, -1) {
-		starts, err := time.Parse("2006-01-02 15:04 MST", m[2])
+		starts, err := time.ParseInLocation("2 January 2006, 15:04", m[2], malaysiaTime)
 		if err != nil {
 			s.t.Fatal(err)
 		}
-		ends, err := time.Parse("2006-01-02 15:04 MST", m[3])
+		ends, err := time.ParseInLocation("2 January 2006, 15:04", m[3], malaysiaTime)
 		if err != nil {
 			s.t.Fatal(err)
 		}

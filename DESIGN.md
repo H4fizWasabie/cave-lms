@@ -246,7 +246,7 @@ Squared, confident, one weight. `.btn` plus one variant:
 `.callout` (gold tint, icon + text) for a note the reader must not miss; `.result` with `.result-valid` / `.result-revoked` for a verdict; `.up-err` for an upload error.
 
 ### Tables
-`.table-wrap` (scrolls sideways inside itself, with a soft shadow at each edge that has more to scroll to) around `.table`: meta-size heads on paper, UI-size cells, row hover tint, `.actions` right-aligned. `td small` for a second line; `td.when` keeps a date on one line, its time in the `small` under it.
+`.table-wrap` (scrolls sideways inside itself, with a soft shadow at each edge that has more to scroll to) around `.table`: meta-size heads on paper, UI-size cells, row hover tint, `.actions` right-aligned. `td small` for a second line; `td.when` keeps a date on one line, its time in the `small` under it. `table-stack` on a table that should stack its rows at 999px and narrower (a cell's `data-label` beside its value; wrap a value that has a `small` in a `span`): the Folder and My exams tables.
 
 ### Tabs
 `.lab-tabs` / `.lab-tab` with `aria-current="page"`: a gold bar under the current tab. Shared by the Lab and the Course tabs (`course-tabs` template).

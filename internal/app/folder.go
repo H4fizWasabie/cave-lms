@@ -34,7 +34,8 @@ type folderCourse struct {
 type folderDashboard struct {
 	ID        int64
 	Name      string
-	Live      string // the link to its Deployment, as the Deploy tab shows it; empty unless the Deployment is awake
+	Link      string // the link to its Deployment, as the Deploy tab shows it; empty without a Deployment
+	State     string // the Deployment's: awake, asleep or taken-down; empty without one
 	Pages     []folderPageFile
 	Workbooks []workbook // the Workbooks it has a Part cleaned from, as far as the Folder lists them
 }
@@ -61,8 +62,8 @@ type folderPage struct {
 // Mine reports whether the Learner may upload and delete here: their own Folder, with the Lab open.
 func (p *folderPage) Mine() bool { return p.LabPart && p.Owner == nil }
 
-// Part reports whether the Workbooks part (and with it the rail) shows.
-func (p *folderPage) Part() bool { return p.LabPart || len(p.Workbooks) > 0 }
+// WorkbooksPart reports whether the Workbooks part (and with it the rail) shows.
+func (p *folderPage) WorkbooksPart() bool { return p.LabPart || len(p.Workbooks) > 0 }
 
 // myFolderRedirect sends the Learner to their Folder, which has their Username in its address (ADR 0023).
 func (a *App) myFolderRedirect(w http.ResponseWriter, r *http.Request) {
@@ -134,21 +135,13 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 	acc, err := a.labAccessOf(r.Context(), learner)
 	page.LabPart = acc.Open()
 	if err == nil && page.LabPart { // the Dashboards open only with the Lab
-		page.Dashboards, err = a.folderDashboards(r.Context(), lang, learner.ID)
-		for i := range page.Dashboards {
-			d := &page.Dashboards[i]
-			for _, w := range books {
-				if slices.ContainsFunc(w.UsedOn, func(u dataset.Use) bool { return u.ID == d.ID }) {
-					d.Workbooks = append(d.Workbooks, w)
-				}
-			}
-		}
+		page.Dashboards, err = a.folderDashboards(r.Context(), lang, learner, books)
 	}
-	if err == nil && page.Part() {
+	if err == nil && page.WorkbooksPart() {
 		if acc.Period != nil {
 			page.Used, page.Allowance = acc.Period.Used, acc.Period.Storage()
 		} else {
-			err = a.db.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("$1"), learner.ID).Scan(&page.Used)
+			page.Used, err = a.storageUsed(r.Context(), learner.ID)
 		}
 	}
 	if err != nil {
@@ -159,12 +152,14 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 }
 
 // folderDashboards lists the Learner's Dashboards that have pages, most recently changed first, each with its current
-// page, then its earlier ones newest first, and the link to its Deployment if that is awake. A built Dashboard has no
-// page and is left out.
-func (a *App) folderDashboards(ctx context.Context, lang string, learnerID int64) ([]folderDashboard, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT d.id, d.name, pg.id, pg.current, pg.size, pg.uploaded_at
-		FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id WHERE d.learner_id = $1
-		ORDER BY d.updated_at DESC, d.id DESC, pg.current DESC, pg.uploaded_at DESC, pg.id DESC`, learnerID)
+// page, then its earlier ones newest first, the state of its Deployment and the books (the Learner's Workbooks) it has
+// a Part cleaned from. A built Dashboard has no page and is left out.
+func (a *App) folderDashboards(ctx context.Context, lang string, owner *learner, books []workbook) ([]folderDashboard, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT d.id, d.name, pg.id, pg.current, pg.size, pg.uploaded_at,
+			dep.name, dep.taken_down_at IS NOT NULL, `+deploymentAwakeSQL+`
+		FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id
+		LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.learner_id = $1
+		ORDER BY d.updated_at DESC, d.id DESC, pg.current DESC, pg.uploaded_at DESC, pg.id DESC`, owner.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -174,39 +169,39 @@ func (a *App) folderDashboards(ctx context.Context, lang string, learnerID int64
 		var d folderDashboard
 		var f folderPageFile
 		var at time.Time
-		if err := rows.Scan(&d.ID, &d.Name, &f.ID, &f.Current, &f.Size, &at); err != nil {
+		var depName sql.NullString
+		var takenDown, awake bool
+		if err := rows.Scan(&d.ID, &d.Name, &f.ID, &f.Current, &f.Size, &at, &depName, &takenDown, &awake); err != nil {
 			return nil, err
 		}
 		f.Uploaded = dateTimeIn(lang, at)
 		if len(list) == 0 || list[len(list)-1].ID != d.ID {
+			if depName.Valid {
+				d.Link = a.deploymentLink(owner.Username, depName.String)
+				d.State = deploymentState(awake, takenDown)
+			}
+			for _, w := range books {
+				if slices.ContainsFunc(w.UsedOn, func(u dataset.Use) bool { return u.ID == d.ID }) {
+					d.Workbooks = append(d.Workbooks, w)
+				}
+			}
 			list = append(list, d)
 		}
 		last := &list[len(list)-1]
 		last.Pages = append(last.Pages, f)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	return list, rows.Err()
+}
+
+// deploymentState names a Deployment's state as the Deploy tab does: awake, taken down, else asleep.
+func deploymentState(awake, takenDown bool) string {
+	switch {
+	case awake:
+		return "awake"
+	case takenDown:
+		return "taken-down"
 	}
-	rows.Close()
-	deps, err := a.db.QueryContext(ctx, `SELECT dep.dashboard_id, `+deploymentColumns+` FROM deployments dep
-		WHERE dep.learner_id = $1 AND dep.dashboard_id IS NOT NULL`, learnerID)
-	if err != nil {
-		return nil, err
-	}
-	defer deps.Close()
-	for deps.Next() {
-		var id int64
-		dep, err := a.scanDeployment(lang, deps, &id)
-		if err != nil {
-			return nil, err
-		}
-		for i := range list {
-			if list[i].ID == id && dep.Awake {
-				list[i].Live = dep.Link
-			}
-		}
-	}
-	return list, deps.Err()
+	return "asleep"
 }
 
 // uploadWorkbook keeps an .xlsx the Learner uploaded in their Folder as their Workbook, with no Clean-up. It takes the

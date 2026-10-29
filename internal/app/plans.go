@@ -219,8 +219,6 @@ type planPeriodsPage struct {
 // learnerMatch is a Learner the Admin can pick from when a search fits several.
 type learnerMatch struct{ Name, Email string }
 
-const periodTime = "2006-01-02 15:04 UTC"
-
 func (a *App) adminPlanPeriods(w http.ResponseWriter, r *http.Request) {
 	p, err := a.planPeriodsPage(r, r.URL.Query().Get("email"))
 	if err == nil && p.Email != "" && p.HolderID == 0 {
@@ -403,10 +401,10 @@ func (a *App) planPeriodsPage(r *http.Request, email string) (*planPeriodsPage, 
 		if err := rows.Scan(&pp.ID, &pp.PlanName, &starts, &ends, &pp.Deployments, &endedEarly, &pp.Status); err != nil {
 			return nil, err
 		}
-		pp.Starts, pp.Ends = starts.UTC().Format(periodTime), ends.UTC().Format(periodTime)
+		pp.Starts, pp.Ends = dateTimeIn(lang, starts), dateTimeIn(lang, ends)
 		pp.Shown = text.T(lang, "plans.period."+pp.Status)
 		if endedEarly.Valid {
-			pp.Shown = text.T(lang, "plans.period.ended-early-on", endedEarly.Time.UTC().Format(periodTime))
+			pp.Shown = text.T(lang, "plans.period.ended-early-on", dateTimeIn(lang, endedEarly.Time))
 		}
 		p.Periods = append(p.Periods, pp)
 	}

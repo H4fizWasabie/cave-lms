@@ -6,13 +6,18 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 var partDeleteLink = regexp.MustCompile(`href="(/lab/dashboards/\d+/parts/\d+/delete)"`)
 
 // partList is the Parts section of a Data tab: from the list to the end of the page.
+// addedDate is today in Malaysia, as a Part's "added" time starts.
+func addedDate(lang string) string { return text.Date(lang, time.Now().In(malaysiaTime)) }
+
 func partList(t *testing.T, body string) string {
 	t.Helper()
 	i := strings.Index(body, `class="ds-parts`)
@@ -42,10 +47,10 @@ func TestTheDataTabListsEveryPartInOrderWithItsDateFileRowsSizeAndWhenAdded(t *t
 	if first < 0 || second < first {
 		t.Fatalf("the Parts are not listed in order, september.xlsx then oktober.xlsx: %s", list)
 	}
-	expectAll(t, list, "Part date "+partDate(), "2 rows", " KB", "added "+partDate())
+	expectAll(t, list, "Part date "+partDate(), "2 rows", " KB", "added "+addedDate("en"))
 
 	ada.switchLanguage("ms", path+"/data")
-	expectAll(t, partList(t, mustGet(t, ada, path+"/data")), "Tarikh Bahagian "+partDate(), "2 baris", "ditambah "+partDate())
+	expectAll(t, partList(t, mustGet(t, ada, path+"/data")), "Tarikh Bahagian "+partDate(), "2 baris", "ditambah "+addedDate("ms"))
 }
 
 func mustGet(t *testing.T, s *site, path string) string {

@@ -323,12 +323,18 @@ func stampIn(lang string, at sql.NullTime) *stamp {
 	if !at.Valid {
 		return nil
 	}
-	t := at.Time.In(malaysia)
-	return &stamp{text.Date(lang, t), t.Format("15:04")}
+	s := stampAt(lang, at.Time)
+	return &s
+}
+
+// stampAt is at in lang, split into its Malaysia date and time.
+func stampAt(lang string, at time.Time) stamp {
+	at = at.In(malaysia)
+	return stamp{text.Date(lang, at), at.Format("15:04")}
 }
 
 // dateTimeIn is at in lang, as "2 January 2099, 11:14" Malaysia time.
 func dateTimeIn(lang string, at time.Time) string {
-	at = at.In(malaysia)
-	return text.Date(lang, at) + ", " + at.Format("15:04")
+	s := stampAt(lang, at)
+	return s.Date + ", " + s.Time
 }

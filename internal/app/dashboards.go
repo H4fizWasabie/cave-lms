@@ -55,7 +55,7 @@ type dashboard struct {
 	Rows     int          // their rows in all
 	Key      string       // names the Parts the Dataset is made of, so it changes whenever they do; empty without Parts
 	File     string       // the last Part's file name
-	Updated  string       // formatted as periodTime
+	Updated  time.Time    // shown with dateTime
 	Page     *htmlPage    // its current page, the HTML its Learner made (ADR 0018); nil for a built Dashboard
 }
 
@@ -64,7 +64,7 @@ type dashboardRow struct {
 	ID         int64
 	Name       string
 	Theme      string // a built Dashboard's Theme, by name
-	Updated    string
+	Updated    time.Time
 	Page       bool        // it has a page: its Learner's own, not one Cave builds
 	Deployment *deployment // nil until deployed
 }
@@ -93,7 +93,7 @@ func (a *App) labDashboards(r *http.Request, learnerID int64) ([]dashboardRow, e
 		if dep {
 			deployed = append(deployed, len(list))
 		}
-		d.Theme, d.Updated = theme, updated.UTC().Format(periodTime)
+		d.Theme, d.Updated = theme, updated
 		if t, ok := lab.ThemeByKey(theme); ok {
 			d.Theme = t.Name
 		}
@@ -154,9 +154,9 @@ func (a *App) loadDashboard(ctx context.Context, where string, args ...any) (*da
 	if d.Settings, d.Columns, err = a.dataset.Settings(ctx, d.ID); err != nil {
 		return nil, err
 	}
-	d.Updated = updated.UTC().Format(periodTime)
+	d.Updated = updated
 	if pageKey.Valid {
-		d.Page = &htmlPage{Key: pageKey.String, Size: pageSize.Int64, Uploaded: pageUploaded.Time.UTC().Format(periodTime)}
+		d.Page = &htmlPage{Key: pageKey.String, Size: pageSize.Int64, Uploaded: pageUploaded.Time}
 	}
 	if config != nil {
 		if err := json.Unmarshal(config, &d.Config); err != nil {

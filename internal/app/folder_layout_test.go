@@ -64,7 +64,7 @@ func TestTheWorkbooksTableHasHeadersUsedOnLinksUnusedAndAQuietDeleteToTheConfirm
 	t.Parallel()
 	_, ada, dashboard := adaWithTwoWorkbooks(t)
 	_, body := ada.getFolder()
-	expectAll(t, body, `<th scope="col">Name</th>`, `<th scope="col">Size</th>`, `<th scope="col">Uploaded (MYT)</th>`,
+	expectAll(t, body, `<th scope="col">Name</th>`, `<th scope="col">Size</th>`, `<th scope="col">Uploaded</th>`,
 		`<th scope="col">Used on</th>`, `<a href="`+dashboard+`">Kewangan</a>`, `<span class="muted">Unused</span>`)
 	deletes := regexp.MustCompile(`<a class="btn btn-danger btn-sm" href="/workbooks/\d+/delete"`).FindAllString(body, -1)
 	if len(deletes) != 2 {
@@ -87,4 +87,72 @@ func TestTheAdminReadsStorageInALearnersFolderButCannotUploadOrDelete(t *testing
 			t.Errorf("the Admin's read-only Folder shows %q: %s", not, body)
 		}
 	}
+}
+
+func TestTheStorageMeterIsNamedByTheVisibleTextWhichScreenReadersSkipSoTheyHearItOnce(t *testing.T) {
+	t.Parallel()
+	_, ada, _ := adaWithTwoWorkbooks(t)
+	_, body := ada.getFolder()
+	expectAll(t, body, `<meter class="folder-meter" min="0" max="`, `aria-labelledby="folder-storage-k folder-storage-text"></meter>`,
+		`id="folder-storage-k" aria-hidden="true">Storage<`, `id="folder-storage-text" aria-hidden="true">`)
+	if strings.Contains(body, `<meter class="folder-meter" min="0" max="1073741824" value="`) && strings.Contains(body, `</strong></meter>`) {
+		t.Errorf("the meter repeats the storage text inside it: %s", body)
+	}
+}
+
+func TestTheFolderRailAndTableAreInMalay(t *testing.T) {
+	t.Parallel()
+	_, ada, _ := adaWithTwoWorkbooks(t)
+	ada.createPage("Jualan", myPage)
+	_, body := ada.getFolderAsking("ms")
+	expectAll(t, body, storageText(ada.usedBytes())+" daripada 1 GB", "Ringkasan Folder", "Bahagian Folder",
+		`<a href="#workbooks">Buku kerja <span`, `<a href="#dashboard-pages">Halaman Dashboard <span`,
+		`<th scope="col">Nama</th>`, `<th scope="col">Saiz</th>`, `<th scope="col">Dimuat naik</th>`, `<th scope="col">Digunakan pada</th>`,
+		`<span class="sr">Tindakan</span>`, "Muat naik Buku kerja", "Padam")
+
+	admin, ada, _ := adaWithTwoWorkbooks(t)
+	admin.ageAllPeriods(31)
+	_, body = ada.getFolderAsking("ms")
+	expectAll(t, body, storageText(ada.usedBytes())+" digunakan") // the amount used, with no Plan to measure it against
+	expectNone(t, body, "daripada")
+}
+
+func TestTheRailLinksToSubmissionsWithTheirHeadingInEnglishAndMalay(t *testing.T) {
+	t.Parallel()
+	admin, ada, planID, courseID := labSetup(t)
+	admin.assignPlan("ada@example.com", planID)
+	admin.addAssignment(courseID, "Write a prompt", "Write one prompt.")
+	admin.post("/admin/assignments/"+admin.assignmentIDByTitle("Write a prompt")+"/publish", nil)
+	ada.post("/courses/"+courseID+"/join", nil)
+	ada.postFiles("/courses/"+courseID+"/assignments/"+admin.assignmentIDByTitle("Write a prompt")+"/files", upload{"prompt.pdf", pdfHandIn})
+	ada.postFile("/workbooks", "rak.xlsx", shopReport(t, "Gula", 80))
+
+	_, body := ada.getFolder()
+	expectAll(t, body, `<a href="#submissions">Submissions <span class="folder-count num">1</span></a>`, `<h2 class="h-md">Submissions</h2>`)
+	_, body = ada.getFolderAsking("ms")
+	expectAll(t, body, `<a href="#submissions">Serahan <span class="folder-count num">1</span></a>`, `<h2 class="h-md">Serahan</h2>`)
+}
+
+func TestEveryFolderUploadFormHasARealSubmitButtonSoItWorksWithoutScript(t *testing.T) {
+	t.Parallel()
+	_, ada := labLearner(t)
+	form := regexp.MustCompile(`(?s)<form[^>]*action="/workbooks"[^>]*>.*?</form>`)
+	submit := regexp.MustCompile(`<button(?:\s[^>]*)?>`)
+	check := func(when, body string) {
+		t.Helper()
+		forms := form.FindAllString(body, -1)
+		if len(forms) != 1 {
+			t.Fatalf("%s: %d upload forms, want 1: %s", when, len(forms), body)
+		}
+		btn := submit.FindString(forms[0])
+		if btn == "" || strings.Contains(btn, `type="button"`) || !strings.Contains(forms[0], `type="file" name="file"`) {
+			t.Errorf("%s: the upload form has no real submit button: %s", when, forms[0])
+		}
+		expectAll(t, forms[0], "Upload Workbook</button>")
+	}
+	_, body := ada.getFolder()
+	check("empty Folder", body)
+	ada.postFile("/workbooks", "rak.xlsx", shopReport(t, "Gula", 80))
+	_, body = ada.getFolder()
+	check("Folder with a Workbook", body)
 }

@@ -9,7 +9,7 @@
       </ul>
       {{- with .Access.CountedPeriod}}
       <div class="lab-plan">
-        <div><span class="panel-k">{{t $.Lang "lab.plan"}}</span><strong>{{t $.Lang "plans.lab"}}</strong><span class="muted">{{t $.Lang "lab.ends" .Ends}}</span></div>
+        <div><span class="panel-k">{{t $.Lang "lab.plan"}}</span><strong>{{t $.Lang "plans.lab"}}</strong><span class="muted">{{t $.Lang "lab.ends" (dateTime $.Lang .Ends)}}</span></div>
         <div><span class="panel-k">{{t $.Lang "lab.awake"}}</span><strong>{{t $.Lang "lab.of" .Awake .Deployments}}</strong></div>
         <div><span class="panel-k">{{t $.Lang "lab.storage"}}</span><strong>{{t $.Lang "lab.storage-of" (size .Used) (size .Storage)}}</strong><span class="muted">{{t $.Lang "lab.storage-what"}}</span></div>
       </div>
@@ -25,7 +25,7 @@
               <li>{{if .Page}}{{t $.Lang "lab.kind.page"}}{{else}}{{t $.Lang "lab.kind.built" .Theme}}{{end}}</li>
               {{- with .Deployment}}<li><a href="{{.Link}}" target="_blank" rel="noopener">{{.Link}}</a></li><li>{{if .TakenDown}}<span class="badge badge-revoked">{{t $.Lang "lab.taken-down-on" .TakenDown}}</span>{{else if .Awake}}{{t $.Lang "lab.dep.online"}}{{else}}{{t $.Lang "lab.dep.asleep"}}{{end}}</li>
               {{- else}}<li>{{t $.Lang "lab.page.not-deployed"}}</li>{{end}}
-              <li>{{t $.Lang "lab.changed" .Updated}}</li>
+              <li>{{t $.Lang "lab.changed" (dateTime $.Lang .Updated)}}</li>
             </ul>
           </div>
           <div class="row-actions">

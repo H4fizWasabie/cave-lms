@@ -29,9 +29,9 @@ const (
 // htmlPage is a Dashboard's page: the HTML its Learner made, kept in the store (ADR 0018).
 type htmlPage struct {
 	ID       int64
-	Key      string // where the page is in the store
-	Size     int64  // bytes, against the Storage allowance
-	Uploaded string // formatted as periodTime
+	Key      string    // where the page is in the store
+	Size     int64     // bytes, against the Storage allowance
+	Uploaded time.Time // shown with dateTime
 }
 
 func (p *htmlPage) SizeText() string { return sizeText(p.Size) }
@@ -223,7 +223,7 @@ func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, 
 		if err := rows.Scan(&p.ID, &p.Key, &p.Size, &uploaded); err != nil {
 			return nil, err
 		}
-		p.Uploaded = uploaded.UTC().Format(periodTime)
+		p.Uploaded = uploaded
 		out = append(out, p)
 	}
 	return out, rows.Err()

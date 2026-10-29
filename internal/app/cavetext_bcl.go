@@ -560,7 +560,7 @@ type unmatchedPayment struct {
 }
 
 // When is when the payment arrived, as the page shows it.
-func (p unmatchedPayment) When() string { return p.Received.UTC().Format(periodTime) }
+func (p unmatchedPayment) When(lang string) string { return dateTimeIn(lang, p.Received) }
 
 // unmatchedPayments lists the Payments that gave nothing and no Admin has marked done, oldest first.
 func (a *App) unmatchedPayments(ctx context.Context) ([]unmatchedPayment, error) {

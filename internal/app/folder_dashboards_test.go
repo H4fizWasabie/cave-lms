@@ -33,19 +33,41 @@ func cardOf(t *testing.T, body, name string) string {
 	return m[1]
 }
 
-func TestADashboardCardLinksALiveDeploymentToTheSameAddressAsTheDeployTabAndSaysNotDeployedOtherwise(t *testing.T) {
+func TestADashboardCardOpensAnAwakeDeploymentLikeTheDeployTabAndSaysNotDeployedOtherwise(t *testing.T) {
 	t.Parallel()
 	_, ada, link := adaWithDeployedAndUndeployed(t)
 	_, body := ada.getFolder()
-	expectAll(t, cardOf(t, body, "Kewangan"), `<a class="folder-live" href="`+link+`"`, ">Live<")
+	expectAll(t, cardOf(t, body, "Kewangan"), `<a class="folder-live" href="`+link+`" target="_blank" rel="noopener"`, ">Open<")
 	draft := cardOf(t, body, "Draf")
 	expectAll(t, draft, "Not deployed")
 	if strings.Contains(draft, "folder-live") {
-		t.Errorf("an undeployed Dashboard has a Live link: %s", draft)
+		t.Errorf("an undeployed Dashboard has an Open link: %s", draft)
+	}
+	if strings.Contains(body, ">Live<") {
+		t.Errorf("the Folder uses Live, which the glossary keeps for a Live Course: %s", body)
 	}
 	_, body = ada.getFolderAsking("ms")
-	expectAll(t, cardOf(t, body, "Kewangan"), `href="`+link+`"`, "Langsung", "Halaman semasa", "Halaman terdahulu", "Pulihkan")
-	expectAll(t, cardOf(t, body, "Draf"), "Belum dideploy")
+	expectAll(t, cardOf(t, body, "Kewangan"), `href="`+link+`"`, ">Buka<", "Halaman semasa", "Halaman terdahulu", "Pulihkan")
+	expectAll(t, cardOf(t, body, "Draf"), "Belum di-deploy")
+}
+
+func TestADashboardCardSaysTakenDownNotNotDeployedWhenCaveTookItsDeploymentOffline(t *testing.T) {
+	t.Parallel()
+	admin, ada, link := adaWithDeployedAndUndeployed(t)
+	_, body := admin.get("/admin/deployments")
+	admin.post(takedownAction.FindStringSubmatch(body)[1], url.Values{"reason": {"Aduan"}})
+
+	_, body = ada.getFolder()
+	card := cardOf(t, body, "Kewangan")
+	expectAll(t, card, "Taken down")
+	for _, not := range []string{"folder-live", link, "Not deployed"} {
+		if strings.Contains(card, not) {
+			t.Errorf("a taken down Deployment's card shows %q: %s", not, card)
+		}
+	}
+	expectAll(t, cardOf(t, body, "Draf"), "Not deployed")
+	_, body = ada.getFolderAsking("ms")
+	expectAll(t, cardOf(t, body, "Kewangan"), "Diturunkan")
 }
 
 func TestTheCardShowsTheCurrentPageAndGivesEachEarlierPageARestoreButtonThatReturnsToTheFolderWithARestoredMessage(t *testing.T) {
@@ -132,5 +154,26 @@ func TestTheAdminReadsTheCardsOfALearnersFolderWithTheLiveLinkButNoRestore(t *te
 		if strings.Contains(body, not) {
 			t.Errorf("the Admin's read-only Folder shows %q: %s", not, body)
 		}
+	}
+}
+
+func TestTheAdminSeesTheWorkbooksUsedAsPlainNamesAndTheLearnerSeesLinks(t *testing.T) {
+	t.Parallel()
+	admin, ada := labLearner(t)
+	dashboard := ada.createPage("Kewangan", myPage)
+	ada.postFile("/workbooks", "rak.xlsx", shopReport(t, "Gula", 80))
+	if _, err := ada.db.Exec(`INSERT INTO dataset_parts (dashboard_id, storage_key, file_name, saved_size, row_count, state, position, part_date, workbook_id)
+		SELECT $1, 'k1', 'rak.xlsx', 1, 1, 'current', 1, '2026-10-01', id FROM workbooks WHERE name = 'rak.xlsx'`,
+		strings.TrimPrefix(dashboard, "/lab/dashboards/")); err != nil {
+		t.Fatal(err)
+	}
+	_, body := ada.getFolder()
+	expectAll(t, cardOf(t, body, "Kewangan"), `<a href="/workbooks/`, `>rak.xlsx</a>`)
+
+	_, body = admin.get(folderAddress)
+	card := cardOf(t, body, "Kewangan")
+	expectAll(t, card, "Workbooks used", "rak.xlsx")
+	if strings.Contains(card, `href="/workbooks/`) {
+		t.Errorf("the Admin's read-only card links a Workbook, as the table's Used on does not: %s", card)
 	}
 }

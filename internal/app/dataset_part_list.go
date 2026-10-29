@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/dataset"
 )
@@ -17,7 +18,7 @@ type partRow struct {
 	Date  string // the Part date
 	Rows  int
 	Size  int64
-	Added string // formatted as periodTime
+	Added time.Time // shown with dateTime
 }
 
 // SizeText is the Part's saved size as people read it, such as 12 KB.
@@ -42,7 +43,7 @@ func (a *App) partsOf(ctx context.Context, dashboardID int64) ([]partRow, error)
 	parts, err := a.dataset.Parts(ctx, dashboardID)
 	var list []partRow
 	for _, p := range parts {
-		list = append(list, partRow{ID: p.ID, File: p.File, Date: p.Date, Rows: p.Rows, Size: p.Size, Added: p.Confirmed.UTC().Format(periodTime)})
+		list = append(list, partRow{ID: p.ID, File: p.File, Date: p.Date, Rows: p.Rows, Size: p.Size, Added: p.Confirmed})
 	}
 	return list, err
 }

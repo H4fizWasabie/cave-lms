@@ -9,9 +9,9 @@
       {{- if .Exams}}
       <div class="card card-flush">
         <div class="table-wrap">
-          <table class="table exam-table">
+          <table class="table table-stack exam-table">
             <thead>
-              <tr><th>{{t .Lang "my-exams.course"}}</th><th>{{t .Lang "my-exams.format"}}</th><th>{{t .Lang "my-exams.status"}}</th><th>{{t .Lang "my-exams.score"}}</th><th class="actions"><span class="sr">{{t .Lang "my-courses.open"}}</span></th></tr>
+              <tr><th scope="col">{{t .Lang "my-exams.course"}}</th><th scope="col">{{t .Lang "my-exams.format"}}</th><th scope="col">{{t .Lang "my-exams.status"}}</th><th scope="col">{{t .Lang "my-exams.score"}}</th><th scope="col" class="actions"><span class="sr">{{t .Lang "my-courses.open"}}</span></th></tr>
             </thead>
             <tbody>
               {{range .Exams}}
@@ -19,7 +19,7 @@
                 <td class="exam-course"><a href="/courses/{{.CourseID}}">{{.CourseTitle}}</a></td>
                 <td data-label="{{t $.Lang "my-exams.format"}}">{{t $.Lang (print "bank.format." .Format)}}</td>
                 <td data-label="{{t $.Lang "my-exams.status"}}">{{if .Passed}}<span class="badge badge-open">{{t $.Lang "my-exams.passed"}}</span>{{else if .Awaiting}}<span class="badge badge-joined">{{t $.Lang "next.awaiting"}}</span>{{else if .Attempted}}<span class="badge badge-revoked">{{t $.Lang "my-exams.failed"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "my-exams.not-taken"}}</span>{{end}}</td>
-                <td data-label="{{t $.Lang "my-exams.score"}}">{{if .Attempted}}{{t $.Lang "exam.best" .Best}}<small>{{t $.Lang "exam.pass-mark" .PassMark}}</small>{{else}}{{t $.Lang "exam.pass-mark" .PassMark}}{{end}}</td>
+                <td data-label="{{t $.Lang "my-exams.score"}}"><span>{{if .Attempted}}{{t $.Lang "exam.best" .Best}}<small>{{t $.Lang "exam.pass-mark" .PassMark}}</small>{{else}}{{t $.Lang "exam.pass-mark" .PassMark}}{{end}}</span></td>
                 <td class="actions"><a class="btn btn-ghost btn-sm" href="{{.Path}}">{{t $.Lang "my-courses.open"}}</a></td>
               </tr>
               {{end}}

@@ -1,19 +1,20 @@
 {{define "title"}}{{if .Owner}}{{t .Lang "my-folder.of" .Owner.Name}}{{else}}{{t .Lang "my-folder.title"}}{{end}} · CAVELMS{{end}}
 {{define "content"}}
-    <div class="wrap{{if not .Part}} wrap-narrow{{end}} page-pad">
+    <div class="wrap{{if not .WorkbooksPart}} wrap-narrow{{end}} page-pad">
       {{if not .Owner}}{{template "classroom-tabs" (classroomTab "folder" .Lang)}}{{end}}
       <div class="page-head">
         <h1>{{if .Owner}}{{t .Lang "my-folder.of" .Owner.Name}}{{else}}{{t .Lang "my-folder.title"}}{{end}}</h1>
         <p>{{if .Owner}}{{t .Lang "my-folder.intro-admin"}}{{else if or .LabPart .Workbooks}}{{t .Lang "my-folder.intro-lab"}}{{else}}{{t .Lang "my-folder.intro"}}{{end}}</p>
       </div>
-      <div class="folder-grid{{if .Part}} has-rail{{end}}">
-      {{if .Part}}
+      <div class="folder-grid{{if .WorkbooksPart}} has-rail{{end}}">
+      {{if .WorkbooksPart}}
       <aside class="folder-rail" aria-label="{{t .Lang "my-folder.summary"}}">
         <div class="folder-storage">
-          <span class="folder-storage-k">{{t .Lang "lab.storage"}}</span>
+          {{- /* With a meter, the meter is named by this text and the text itself is hidden from screen readers, so it is heard once. */}}
+          <span class="folder-storage-k"{{if .Allowance}} id="folder-storage-k" aria-hidden="true"{{end}}>{{t .Lang "lab.storage"}}</span>
           {{if .Allowance}}
-          <p class="folder-storage-text num"><strong>{{t .Lang "lab.storage-of" (size .Used) (size .Allowance)}}</strong></p>
-          <meter class="folder-meter" min="0" max="{{.Allowance}}" value="{{.Used}}" aria-label="{{t .Lang "lab.storage"}}">{{t .Lang "lab.storage-of" (size .Used) (size .Allowance)}}</meter>
+          <p class="folder-storage-text num" id="folder-storage-text" aria-hidden="true"><strong>{{t .Lang "lab.storage-of" (size .Used) (size .Allowance)}}</strong></p>
+          <meter class="folder-meter" min="0" max="{{.Allowance}}" value="{{.Used}}" aria-labelledby="folder-storage-k folder-storage-text"></meter>
           {{else}}
           <p class="folder-storage-text num"><strong>{{t .Lang "my-folder.storage-used" (size .Used)}}</strong></p>
           {{end}}
@@ -37,23 +38,23 @@
       </aside>
       {{end}}
       <div class="folder-main">
-      {{if .Part}}
+      {{if .WorkbooksPart}}
       <section id="workbooks" class="folder-sec">
         <h2>{{t .Lang "my-folder.workbooks"}}</h2>
         {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
         {{if .Workbooks}}
         <div class="card card-flush">
           <div class="table-wrap">
-            <table class="table folder-table">
+            <table class="table table-stack folder-table">
               <thead><tr>
                 <th scope="col">{{t .Lang "my-folder.col-name"}}</th><th scope="col">{{t .Lang "my-folder.col-size"}}</th><th scope="col">{{t .Lang "my-folder.col-uploaded"}}</th><th scope="col">{{t .Lang "my-folder.col-used"}}</th>
-                {{if .Mine}}<th scope="col"><span class="folder-sr">{{t .Lang "my-folder.col-actions"}}</span></th>{{end}}
+                {{if .Mine}}<th scope="col"><span class="sr">{{t .Lang "my-folder.col-actions"}}</span></th>{{end}}
               </tr></thead>
               <tbody>
               {{range .Workbooks}}<tr>
                 <td class="folder-name" data-label="{{t $.Lang "my-folder.col-name"}}"><a href="/workbooks/{{.ID}}">{{.Name}}</a></td>
                 <td class="num" data-label="{{t $.Lang "my-folder.col-size"}}">{{size .Size}}</td>
-                <td class="when" data-label="{{t $.Lang "my-folder.col-uploaded"}}">{{.Uploaded}}</td>
+                <td class="when" data-label="{{t $.Lang "my-folder.col-uploaded"}}"><span>{{.When.Date}}<small>{{.When.Time}}</small></span></td>
                 <td data-label="{{t $.Lang "my-folder.col-used"}}"><span>{{range $i, $d := .UsedOn}}{{if $i}}, {{end}}{{if $.Mine}}<a href="/lab/dashboards/{{$d.ID}}">{{$d.Name}}</a>{{else}}{{$d.Name}}{{end}}{{else}}<span class="muted">{{t $.Lang "my-folder.unused"}}</span>{{end}}</span></td>
                 {{if $.Mine}}<td class="actions"><a class="btn btn-danger btn-sm" href="/workbooks/{{.ID}}/delete" aria-label="{{t $.Lang "my-folder.delete-named" .Name}}">{{t $.Lang "my-folder.delete"}}</a></td>{{end}}
               </tr>{{end}}
@@ -86,7 +87,7 @@
         <article class="card folder-dash">
           <header class="folder-dash-head">
             <h3 class="folder-dash-name">{{if $.Owner}}{{.Name}}{{else}}<a href="/lab/dashboards/{{.ID}}">{{.Name}}</a>{{end}}</h3>
-            {{if .Live}}<a class="folder-live" href="{{.Live}}" rel="noopener" aria-label="{{t $.Lang "my-folder.live-named" .Name}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>{{t $.Lang "my-folder.live"}}</a>{{else}}<span class="muted">{{t $.Lang "my-folder.not-deployed"}}</span>{{end}}
+            {{if eq .State "awake"}}<a class="folder-live" href="{{.Link}}" target="_blank" rel="noopener" aria-label="{{t $.Lang "my-folder.open-named" .Name}}"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t $.Lang "lab.open"}}</a>{{else if eq .State "taken-down"}}<span class="muted">{{t $.Lang "lab.dep.taken-down"}}</span>{{else if eq .State "asleep"}}<span class="muted">{{t $.Lang "lab.dep.asleep"}}</span>{{else}}<span class="muted">{{t $.Lang "lab.page.not-deployed"}}</span>{{end}}
           </header>
           <ul class="folder-pages">
             {{range .Pages}}<li>
@@ -98,13 +99,13 @@
               </form>{{end}}
             </li>{{end}}
           </ul>
-          <p class="folder-uses"><span class="muted">{{t $.Lang "my-folder.wb-used"}}:</span> {{range $i, $w := .Workbooks}}{{if $i}}, {{end}}<a href="/workbooks/{{$w.ID}}">{{$w.Name}}</a>{{else}}<span class="muted">{{t $.Lang "my-folder.wb-none"}}</span>{{end}}</p>
+          <p class="folder-uses"><span class="muted">{{t $.Lang "my-folder.wb-used"}}:</span> {{range $i, $w := .Workbooks}}{{if $i}}, {{end}}{{if $.Mine}}<a href="/workbooks/{{$w.ID}}">{{$w.Name}}</a>{{else}}{{$w.Name}}{{end}}{{else}}<span class="muted">{{t $.Lang "my-folder.wb-none"}}</span>{{end}}</p>
         </article>
         {{end}}
       </section>
       {{end}}
       <div id="submissions">
-      {{if and .Courses .Part}}<h2 class="h-md">{{t .Lang "my-folder.submissions"}}</h2>{{end}}
+      {{if and .Courses .WorkbooksPart}}<h2 class="h-md">{{t .Lang "my-folder.submissions"}}</h2>{{end}}
       {{range .Courses}}
       <section class="card folder-course">
         <h2><a href="/courses/{{.ID}}">{{.Title}}</a>{{if and (not .Enrolled) (not $.Owner)}} <span class="badge badge-closed">{{t $.Lang "my-folder.read-only"}}</span>{{end}}</h2>

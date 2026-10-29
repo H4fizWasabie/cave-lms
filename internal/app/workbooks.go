@@ -23,6 +23,7 @@ type workbook struct {
 	Name     string
 	Size     int64
 	Uploaded string        // Malaysia time, in the page's language
+	When     stamp         // Uploaded split into date and time, for a table cell
 	UsedOn   []dataset.Use // the Dashboards that have a Part cleaned from it
 }
 
@@ -45,7 +46,7 @@ func (a *App) workbooksOf(ctx context.Context, lang string, learnerID int64) ([]
 		if err := rows.Scan(&w.ID, &w.Name, &w.Size, &at); err != nil {
 			return nil, err
 		}
-		w.Uploaded = dateTimeIn(lang, at)
+		w.Uploaded, w.When = dateTimeIn(lang, at), stampAt(lang, at)
 		out = append(out, w)
 	}
 	if err := rows.Err(); err != nil {
