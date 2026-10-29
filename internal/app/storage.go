@@ -13,7 +13,8 @@ import (
 // Learner keeps counts: their Parts and Pending Parts, Workbooks and pages, the earlier pages kept to restore included.
 // Submissions do not. What an upload replaces counts as free as soon as it is uploaded, before the Learner confirms it.
 // ponytail: that is why the store can briefly hold up to about twice the allowance, bounded by one Pending Part per
-// Dashboard; refusing those uploads would refuse ones that fit once confirmed.
+// Dashboard; refusing those uploads would refuse ones that fit once confirmed. Only a Pending Part is held on that
+// credit: a Workbook that fits only on it goes again if the upload comes to nothing (keepWorkbook, dropBorrowed).
 //
 // A transaction that adds bytes calls reserve as its first statement, before any other row lock, so the Learner is
 // always locked first and two uploads cannot deadlock. Deletes only free bytes and do not call it.

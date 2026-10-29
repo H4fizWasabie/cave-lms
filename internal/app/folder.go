@@ -182,7 +182,7 @@ func (a *App) uploadWorkbook(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	id, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, name, data)
+	id, _, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, name, data)
 	switch msg := storageMessage(lang, err); {
 	case msg != "":
 		a.renderFolder(w, r, learner, http.StatusUnprocessableEntity, msg)
