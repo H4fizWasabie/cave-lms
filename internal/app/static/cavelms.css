@@ -1284,12 +1284,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 .about-hero h1 em { font-style: normal; color: var(--brand-gold); }
 .about-lede { font-size: var(--fs-lede); max-width: 36rem; }
 .about-hero ::selection { background: var(--brand-gold); color: var(--brand-ink); }
-.about-trust { background: var(--surface); border-bottom: 1px solid var(--line); }
-.about-trust-in { list-style: none; margin-block: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.about-trust li { display: grid; gap: var(--space-1); align-content: start; padding-block: var(--space-5); }
-.about-trust li + li { border-left: 1px solid var(--line); padding-left: var(--space-5); }
-.about-trust strong { font-family: var(--font-display); font-size: var(--fs-title); }
-.about-trust span { font-size: var(--fs-ui); color: var(--muted); }
 .about-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 42rem); gap: var(--space-7); padding-block: var(--space-8); align-items: start; }
 .about-body h2 { font-size: var(--fs-heading); font-weight: 400; max-width: 16ch; position: sticky; top: 6rem; }
 
@@ -1361,9 +1355,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
   .ct-gives { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  .about-trust-in { grid-template-columns: minmax(0, 1fr); }
-  .about-trust li { padding-block: var(--space-4); }
-  .about-trust li + li { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
   .prog.has-pic { grid-template-columns: minmax(0, 1fr); }
   .prog.has-pic .prog-pic { grid-column: auto; grid-row: auto; }
   .ct-status { grid-template-columns: minmax(0, 1fr); }
@@ -1601,7 +1592,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* About: the KPM crest under the heading; the heading and crest stick together. */
 .about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
 .about-side h2 { position: static; }
-.about-crest { width: min(100%, 16rem); height: auto; }
+.about-logo { width: min(100%, 16rem); height: auto; }
 @media (max-width: 999px) {
   .about-side { position: static; }
 }

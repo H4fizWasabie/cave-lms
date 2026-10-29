@@ -397,3 +397,11 @@ Visitors see the cards without buttons. */}}
               <div><p class="cave-loader-label" data-label="{{.Label}}"></p><p class="cave-loader-line" aria-hidden="true" data-lines="{{.Lines}}"></p></div>
             </div>
 {{end}}
+
+{{/* The accreditations strip, shared by the home and About pages. */}}
+{{define "trust-items"}}
+        <li><strong><img src="{{static "cave-consult-logo.webp"}}" alt="{{t .Lang "logo-alt" "The Cave Consult"}}" width="387" height="160">TCC</strong>{{t .Lang "home.trust.tcc"}}</li>
+        <li><strong><img src="{{static "hrd-corp-logo.webp"}}" alt="{{t .Lang "logo-alt" "HRD Corp"}}" width="334" height="96">HRD Corp</strong>{{t .Lang "about.hrd"}}</li>
+        <li><strong><img src="{{static "eperolehan-logo.webp"}}" alt="{{t .Lang "logo-alt" "ePerolehan"}}" width="235" height="160">MOF</strong>{{t .Lang "about.mof"}}</li>
+        <li><strong><img src="{{static "jpk-logo.webp"}}" alt="{{t .Lang "logo-alt" "JPK"}}" width="54" height="96">JPK</strong>{{t .Lang "home.trust.jpk"}}</li>
+{{- end}}

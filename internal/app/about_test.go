@@ -18,6 +18,10 @@ func TestTheAboutPageGivesTheClientsCompanyBackgroundInBothLanguages(t *testing.
 		"Coach Adam Daniel", "Strategic Intelligence Architect", `href="/#coach"`,
 		"including CAVELMS", `href="https://www.thecaveconsult.com/company-profile/"`)
 	expectNone(t, page, "Dinor", "ISDeT", "UTM CAIRO")
+	// The registrations strip is the home page's: the same logos, in the same order.
+	expectInOrder(t, page, `class="trust"`, "cave-consult-logo", "A platform by The Cave Consult",
+		"hrd-corp-logo", "eperolehan-logo", "jpk-logo", "JPK certified trainer", `about-body"`)
+	expectNone(t, mainOf(body), "Kuala Lumpur", "about-trust")
 
 	_, body = s.getAsking("/about", "ms")
 	expectLanguage(t, body, "ms", "Pembelajaran Sepanjang Hayat")
