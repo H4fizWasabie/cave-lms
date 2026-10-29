@@ -52,7 +52,6 @@ var catalog = map[string]entry{
 	"about.title":      {en: "Lifelong Learning for", ms: "Pembelajaran Sepanjang Hayat untuk"},
 	"about.title-mark": {en: "Efficiency & Career Development", ms: "Kecekapan & Pembangunan Kerjaya"},
 	"about.lede":       {en: "Practical, industry-focused training and consultancy for government agencies, GLCs, educational institutions and private organisations.", ms: "Latihan dan perundingan praktikal berfokuskan industri untuk agensi kerajaan, GLC, institusi pendidikan dan organisasi swasta."},
-	"about.creds":      {en: "Registrations", ms: "Pendaftaran"},
 	"about.hrd":        {en: "HRD Corp Registered Training Provider", ms: "Penyedia Latihan Berdaftar HRD Corp"},
 	"about.kpm-alt":    {en: "Crest of the Ministry of Education Malaysia (KPM)", ms: "Jata Kementerian Pendidikan Malaysia (KPM)"},
 	"about.mof":        {en: "Registered with the Ministry of Finance (MOF)", ms: "Berdaftar dengan Kementerian Kewangan (MOF)"},

@@ -7,11 +7,9 @@
       </div>
     </section>
 
-    <section class="about-trust" aria-label="{{t .Lang "about.creds"}}">
-      <ul class="wrap about-trust-in">
-        <li><strong>HRD Corp</strong><span>{{t .Lang "about.hrd"}}</span></li>
-        <li><strong>MOF</strong><span>{{t .Lang "about.mof"}}</span></li>
-        <li><strong>The Cave Consult (TCC)</strong><span>Kuala Lumpur</span></li>
+    <section class="trust" aria-label="{{t .Lang "home.trust"}}">
+      <ul class="wrap trust-in">
+        {{- template "trust-items" .}}
       </ul>
     </section>
 
