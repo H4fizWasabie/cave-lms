@@ -3,7 +3,11 @@ package app_test
 import (
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -132,4 +136,97 @@ func TestTheAdminResendsTheEbookLinkOnlyWhileTheAccessRuns(t *testing.T) {
 	s.endPro("ada@example.com")
 	_, body = s.get("/admin/cavetext")
 	expectNone(t, body, "Email ebook link")
+}
+
+// ebookEmailAfterPayment pays Ada's COMBO and returns her one Ebook email's attachment count and body, and its first
+// attachment's content and name.
+func ebookEmailAfterPayment(t *testing.T, s *site) (attachments int, body string, first []byte, name string) {
+	t.Helper()
+	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	ada.switchLanguage("en", "/")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	emails := withSubject(s.emailsTo("ada@example.com"), ebookEmailSubject)
+	if len(emails) != 1 {
+		t.Fatalf("Ada got %d Ebook emails, want 1", len(emails))
+	}
+	email := emails[0]
+	if len(email.Attachments) > 0 {
+		first, name = email.Attachments[0].Content, email.Attachments[0].Filename
+	}
+	return len(email.Attachments), email.Body, first, name
+}
+
+const ebookAttachedLine = "A copy of each ebook is attached for you to keep."
+
+// The Ebook email carries a copy of each ebook that is not Promotional material, and still links to the Gallery.
+func TestTheEbookEmailAttachesEachNonPromotionalEbookAndNothingElse(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t) // uploads "Workbook"
+	fields := titleFields("Free sampler", "everyone")
+	fields["promotional"] = "on"
+	res, body := s.upload(fields, pdfFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	s.uploadAs("Poster", "everyone", pngFile)
+
+	n, body, content, name := ebookEmailAfterPayment(t, s)
+	if n != 1 || string(content) != string(pdfFile) || name != "Workbook.pdf" {
+		t.Fatalf("the Ebook email carries %d attachments, first %q = %q; want only Workbook.pdf with the uploaded bytes", n, name, content)
+	}
+	expectAll(t, body, ebookAttachedLine, "https://cave.example.invalid/gallery?format=ebook", "open until")
+}
+
+// With no ebook to attach, the email reads as it always did.
+func TestTheEbookEmailCarriesTheLinkOnlyWhenNoEbookIsUploaded(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	if _, err := s.db.Exec(`DELETE FROM gallery_items`); err != nil {
+		t.Fatal(err)
+	}
+	n, body, _, _ := ebookEmailAfterPayment(t, s)
+	if n != 0 {
+		t.Fatalf("the Ebook email carries %d attachments, want none", n)
+	}
+	expectNone(t, body, ebookAttachedLine)
+	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook", "open until")
+}
+
+// Above 18 MB of ebooks together the email carries the link only, and the System log says why.
+func TestTheEbookEmailCarriesTheLinkOnlyWhenTheEbooksAreTooLarge(t *testing.T) {
+	t.Parallel()
+	s, ebook := ebookSite(t)
+	id := strings.TrimPrefix(ebook, "/gallery/")
+	if _, err := s.db.Exec(`UPDATE gallery_items SET size_bytes = $1 WHERE id = $2`, 18*1024*1024+1, id); err != nil {
+		t.Fatal(err)
+	}
+
+	n, body, _, _ := ebookEmailAfterPayment(t, s)
+	if n != 0 {
+		t.Fatalf("the Ebook email carries %d attachments, want none", n)
+	}
+	expectNone(t, body, ebookAttachedLine)
+	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook", "open until")
+	_, logBody := s.get("/admin/log")
+	expectAll(t, logBody, "Ebook email", strconv.Itoa(18*1024*1024+1)+" bytes", "link only")
+}
+
+// An ebook whose file cannot be read costs the email its attachments, not the email.
+func TestTheEbookEmailStillGoesWhenAnEbookFileCannotBeRead(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	var key string
+	if err := s.db.QueryRow(`SELECT storage_key FROM gallery_items WHERE format = 'ebook'`).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(s.storageDir, key)); err != nil {
+		t.Fatal(err)
+	}
+
+	n, body, _, _ := ebookEmailAfterPayment(t, s)
+	if n != 0 {
+		t.Fatalf("the Ebook email carries %d attachments, want none", n)
+	}
+	expectNone(t, body, ebookAttachedLine)
+	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook")
+	_, logBody := s.get("/admin/log")
+	expectAll(t, logBody, "Ebook email")
 }
