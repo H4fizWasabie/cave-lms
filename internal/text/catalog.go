@@ -53,7 +53,6 @@ var catalog = map[string]entry{
 	"about.title-mark": {en: "Efficiency & Career Development", ms: "Kecekapan & Pembangunan Kerjaya"},
 	"about.lede":       {en: "Practical, industry-focused training and consultancy for government agencies, GLCs, educational institutions and private organisations.", ms: "Latihan dan perundingan praktikal berfokuskan industri untuk agensi kerajaan, GLC, institusi pendidikan dan organisasi swasta."},
 	"about.hrd":        {en: "HRD Corp Registered Training Provider", ms: "Penyedia Latihan Berdaftar HRD Corp"},
-	"about.kpm-alt":    {en: "Crest of the Ministry of Education Malaysia (KPM)", ms: "Jata Kementerian Pendidikan Malaysia (KPM)"},
 	"about.mof":        {en: "Registered with the Ministry of Finance (MOF)", ms: "Berdaftar dengan Kementerian Kewangan (MOF)"},
 	"about.heading":    {en: "A Malaysian professional training and consultancy company", ms: "Syarikat latihan dan perundingan profesional Malaysia"},
 	"about.coach-link": {en: "Coach Adam's profile", ms: "Profil Coach Adam"},

@@ -95,11 +95,14 @@ func TestCoachAdamsCardShowsHisPhotoThenTheIssuerLogosWithTheHRDCorpBadgeInOneRo
 	}
 }
 
-func TestTheAboutPageShowsTheKPMCrestInBothLanguages(t *testing.T) {
+func TestTheAboutPageShowsTheCAVELMSLogoInBothLanguages(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
-	for lang, alt := range map[string]string{"en": "Crest of the Ministry of Education Malaysia (KPM)", "ms": "Jata Kementerian Pendidikan Malaysia (KPM)"} {
+	for lang, alt := range map[string]string{"en": "CAVELMS, your digital learning hub", "ms": "CAVELMS, hab pembelajaran digital anda"} {
 		_, body := s.getAsking("/about", lang)
-		s.expectImage(content(body), alt)
+		page := mainOf(body)
+		s.expectImage(page, alt)
+		expectAll(t, page, "cavelms-logo.webp")
+		expectNone(t, page, "kpm-crest", "KPM")
 	}
 }

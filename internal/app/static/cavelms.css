@@ -1592,7 +1592,7 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* About: the KPM crest under the heading; the heading and crest stick together. */
 .about-side { display: grid; gap: var(--space-5); justify-items: start; position: sticky; top: 6rem; }
 .about-side h2 { position: static; }
-.about-crest { width: min(100%, 16rem); height: auto; }
+.about-logo { width: min(100%, 16rem); height: auto; }
 @media (max-width: 999px) {
   .about-side { position: static; }
 }
