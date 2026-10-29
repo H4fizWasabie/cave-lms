@@ -25,7 +25,7 @@ const systemLogPage = 100
 // a Visitor, and a page that cannot be drawn falls back to plain text. A request the visitor walked away from
 // (their browser closed the connection) is no error of the site's, so it is neither logged nor answered.
 func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, context.Canceled) && r.Context().Err() != nil {
+	if walkedAway(r, err) {
 		return
 	}
 	a.logError(r, err)
@@ -80,9 +80,18 @@ func (a *App) notFound(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusNotFound, "message", page{Title: text.T(lang, "notfound.title"), Message: text.T(lang, "notfound")})
 }
 
+// walkedAway reports whether err is only r being cancelled because the visitor closed the connection.
+func walkedAway(r *http.Request, err error) bool {
+	return r != nil && errors.Is(err, context.Canceled) && r.Context().Err() != nil
+}
+
 // logError records an error in the System log. r gives the method and path, never the query string,
-// so tokens in links stay out of the log; it is nil for an error outside a request.
+// so tokens in links stay out of the log; it is nil for an error outside a request. A request the
+// visitor walked away from is not logged.
 func (a *App) logError(r *http.Request, err error) {
+	if walkedAway(r, err) {
+		return
+	}
 	method, path := "", ""
 	if r != nil {
 		method, path = r.Method, r.URL.Path

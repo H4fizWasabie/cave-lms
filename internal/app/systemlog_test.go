@@ -59,6 +59,9 @@ func TestAVisitorWhoLeavesMidRequestIsNotAServerError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // the browser closed the connection before the page was drawn
 	s.application.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx))
+	api := httptest.NewRequest(http.MethodGet, "/cavetext/api/me", nil).WithContext(ctx) // the CaveText popup closed
+	api.Header.Set("Authorization", "Bearer some-token")
+	s.application.ServeHTTP(httptest.NewRecorder(), api)
 
 	var n int
 	if err := s.db.QueryRow(`SELECT count(*) FROM system_log WHERE level = 'error'`).Scan(&n); err != nil {
