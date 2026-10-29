@@ -139,9 +139,14 @@ _Malay_: Akses Ebook
 _Avoid_: Ebook subscription, premium ebooks
 
 **Ebook email**:
-The email a Learner gets each time a year of Ebook access is given, by a COMBO Pro Plan payment or by the Admin, and again whenever the Admin resends it. It links to the Gallery's ebooks, says until when they stay open there, and carries a copy of each ebook that is not Promotional material for the Learner to keep, unless together they are too large to send.
+The email a Learner gets each time a year of Ebook access is given, by a COMBO Pro Plan payment or by the Admin, and again whenever the Admin resends it. It links to the Gallery's ebooks, says until when they stay open there, and gives an Ebook download link for each ebook that is not Promotional material.
 _Malay_: E-mel Ebook
 _Avoid_: Ebook delivery, download email
+
+**Ebook download link**:
+A link in the Ebook email that downloads one ebook for the Learner to keep, with no sign-in, for 7 days and only while their Ebook access runs.
+_Malay_: Pautan muat turun Ebook
+_Avoid_: Download token, attachment, share link
 
 **COMBO Pro Plan**:
 The Pro Plan bought with the code of a Promo that comes with Ebooks, or given so by the Admin: the Pro Plan with Ebook access for its year. It is the one place "combo" names something; the Pro Plan alone is never a combo.

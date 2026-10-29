@@ -98,6 +98,7 @@ type page struct {
 	Email            string
 	OfferResend      bool
 	OfferLogin       bool
+	OfferGallery     bool   // the message page: Read in the Gallery, for a dead Ebook download link
 	ConnectExtension string // the CaveText extension id the message page's Connect button signs in
 	OfferHome        bool   // the error page: Go to the home page, and Try again at Retry when it is set; render sets it on a 403 or 404
 	Retry            string
@@ -294,6 +295,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /gallery/{id}", a.galleryItemPage)
 	mux.HandleFunc("GET /gallery/{id}/file", a.galleryFile)
 	mux.HandleFunc("GET /gallery/{id}/thumb", a.galleryThumb)
+	mux.HandleFunc("GET /ebook-downloads/{token}", a.ebookDownload)
 	mux.HandleFunc("GET /programmes", a.programmes)
 	mux.HandleFunc("GET /programmes/pictures/{key}", a.programmePicture)
 	mux.HandleFunc("GET /course-pictures/{key}", a.coursePicture)

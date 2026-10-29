@@ -1823,10 +1823,17 @@ var catalog = map[string]entry{
 		en: "Hi %[1]s,\n\nYour COMBO Pro Plan comes with ebooks. They are open until %[2]s.\n\nRead them here:\n\n%[3]s\n\nLog in with this email (%[4]s) to open them.\n",
 		ms: "Hai %[1]s,\n\nPelan Pro COMBO anda disertakan dengan ebook. Ebook itu terbuka sehingga %[2]s.\n\nBaca di sini:\n\n%[3]s\n\nLog masuk dengan e-mel ini (%[4]s) untuk membukanya.\n",
 	},
-	"email.ebook.attached": {
-		en: "A copy of each ebook is attached for you to keep. Reading them in the Gallery ends on the date above.",
-		ms: "Satu salinan setiap ebook dilampirkan untuk anda simpan. Membacanya di Galeri tamat pada tarikh di atas.",
+	// The download links: how many days they work, then one "title: address" line for each ebook
+	"email.ebook.links": {
+		en: "To keep the ebooks, download them here. These links work for %[1]d days:\n\n%[2]s",
+		ms: "Untuk menyimpan ebook, muat turun di sini. Pautan ini sah selama %[1]d hari:\n\n%[2]s",
 	},
+	"ebook.link.gone.title": {en: "Download link no longer works", ms: "Pautan muat turun tidak lagi berfungsi"},
+	"ebook.link.gone": {
+		en: "This download link no longer works. It has expired, or your Ebook access has ended. While your Ebook access runs you can read the ebooks in the Gallery, and the Admin can send you a fresh link.",
+		ms: "Pautan muat turun ini tidak lagi berfungsi. Ia telah tamat tempoh, atau akses Ebook anda telah tamat. Selagi akses Ebook anda berjalan, anda boleh membaca ebook di Galeri, dan Pentadbir boleh menghantar pautan baharu kepada anda.",
+	},
+	"ebook.link.gallery":         {en: "Read in the Gallery", ms: "Baca di Galeri"},
 	"email.certificate.attached": {en: "Your Certificate PDF is attached.", ms: "PDF Sijil anda dilampirkan."},
 	// ---- end Accounts (#83) ----
 

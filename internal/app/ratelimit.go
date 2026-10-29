@@ -21,6 +21,9 @@ const (
 	// certificateSearches is each address's budget at the public Certificate search, enough for an employer checking a
 	// class but too few to guess ICs.
 	certificateSearches = 30
+	// ebookDownloadLookups is each address's budget at Ebook download links, many times what a Learner opening their
+	// links needs but too few to guess a token.
+	ebookDownloadLookups = 60
 	// Only failed logins count: per account from one address, and per address across all accounts.
 	loginFailuresPerAccount = 10
 	loginFailuresPerAddress = 100
