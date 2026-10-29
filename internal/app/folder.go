@@ -49,7 +49,15 @@ type folderPage struct {
 	Workbooks  []workbook        // a Learner with none sees no Workbooks part
 	Dashboards []folderDashboard // with pages, only while the Lab is open to the Learner
 	Courses    []folderCourse
+	Used       int64 // bytes kept against the Storage allowance, shown when the Workbooks part is
+	Allowance  int64 // the active Plan period's, 0 without one
 }
+
+// Mine reports whether the Learner may upload and delete here: their own Folder, with the Lab open.
+func (p *folderPage) Mine() bool { return p.LabPart && p.Owner == nil }
+
+// Part reports whether the Workbooks part (and with it the rail) shows.
+func (p *folderPage) Part() bool { return p.LabPart || len(p.Workbooks) > 0 }
 
 // myFolderRedirect sends the Learner to their Folder, which has their Username in its address (ADR 0023).
 func (a *App) myFolderRedirect(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +130,13 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 	page.LabPart = acc.Open()
 	if err == nil && page.LabPart { // the Dashboards open only with the Lab
 		page.Dashboards, err = a.folderDashboards(r.Context(), lang, learner.ID)
+	}
+	if err == nil && page.Part() {
+		if acc.Period != nil {
+			page.Used, page.Allowance = acc.Period.Used, acc.Period.Storage()
+		} else {
+			err = a.db.QueryRowContext(r.Context(), `SELECT `+storageUsedSQL("$1"), learner.ID).Scan(&page.Used)
+		}
 	}
 	if err != nil {
 		a.serverError(w, r, err)

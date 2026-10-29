@@ -1613,6 +1613,64 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
    sideways on a narrow screen (.lab-tabs has overflow-x) and never widen the page. Later Classroom tickets add below. */
 .classroom-tabs { max-width: 100%; margin-bottom: var(--space-5); }
 
+/* --- Folder (#514): a rail (Storage, section links, Upload) beside the sections; the Workbooks table. ---
+   From 1280px the rail stands to the left and sticks. At 1279px and narrower it folds into a strip above the content,
+   so the table keeps the full width, and at 999px and narrower its rows stack as label / value. */
+.folder-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.folder-sec { margin-bottom: var(--space-6); }
+.folder-sec > h2 { margin-bottom: var(--space-4); }
+.folder-grid.has-rail { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--space-7); align-items: start; }
+.folder-main { min-width: 0; }
+.folder-rail { position: sticky; top: var(--space-5); display: grid; gap: var(--space-5); }
+.folder-storage { display: grid; gap: var(--space-2); }
+.folder-storage-k { font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
+.folder-storage-text { margin: 0; font-size: var(--fs-ui); color: var(--ink-2); }
+.folder-meter { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: var(--space-2); border: 0; border-radius: var(--radius-pill); background: var(--line); overflow: hidden; }
+.folder-meter::-webkit-meter-bar { background: var(--line); border: 0; border-radius: var(--radius-pill); height: var(--space-2); }
+.folder-meter::-webkit-meter-optimum-value, .folder-meter::-webkit-meter-suboptimum-value, .folder-meter::-webkit-meter-even-less-good-value { background: var(--brand-gold-deep); border-radius: var(--radius-pill); }
+.folder-meter::-moz-meter-bar { background: var(--brand-gold-deep); border-radius: var(--radius-pill); }
+.folder-index { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.folder-index li { border-bottom: 1px solid var(--line); }
+.folder-index a { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; text-decoration: none; font-weight: 600; }
+.folder-index a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.folder-count { color: var(--muted); font-size: var(--fs-ui); }
+.folder-upload { display: grid; justify-items: start; gap: var(--space-2); }
+.folder-upload small { color: var(--muted); font-size: var(--fs-meta); }
+.folder-file { max-width: 100%; }
+/* Upload drop area: with script the file field covers the dashed box and choosing or dropping a file sends it. */
+.folder-drop { position: relative; display: grid; gap: var(--space-4); }
+.folder-drop-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.folder-drop-name { font-weight: 600; color: var(--ink-2); min-height: 1lh; }
+.folder-drop.is-live .folder-drop-foot { display: contents; }
+.folder-drop.is-live .folder-file { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.folder-drop.is-live:hover .empty-state, .folder-drop.is-over .empty-state { border-color: var(--brand-ink); }
+.folder-drop.is-live:has(:focus-visible) .empty-state { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+/* Workbooks table */
+.folder-table .folder-name { overflow-wrap: anywhere; min-width: 12rem; }
+.folder-table .folder-name a { font-weight: 600; }
+.folder-table td.num { white-space: nowrap; }
+.folder-table td[data-label] > span { overflow-wrap: anywhere; }
+@media (max-width: 1279px) {
+  .folder-grid.has-rail { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .folder-rail { position: static; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+  .folder-storage { flex: 0 1 15rem; }
+  .folder-index { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); flex: 1 1 auto; border-top: 0; }
+  .folder-index li { border-bottom: 0; }
+  .folder-index a { justify-content: flex-start; }
+  .folder-upload { flex: 0 1 15rem; }
+}
+@media (max-width: 999px) {
+  .folder-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .folder-table, .folder-table tbody, .folder-table tr { display: block; }
+  .folder-table tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+  .folder-table td { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) 0; border: 0; }
+  .folder-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
+  .folder-table td.actions { display: block; text-align: left; padding-top: var(--space-2); }
+  .folder-table td.actions::before { content: none; }
+  .folder-table td.when { white-space: normal; }
+  .folder-table .folder-name { min-width: 0; }
+}
+
 /* === Lab: as on main (QA, #307) ===
    The Lab is out of the refresh, so it keeps the look it had on main: these are main's rules for every class the Lab
    pages use, scoped to .lab-page (the Lab templates' wrapper) so the refreshed components elsewhere stay as they are.

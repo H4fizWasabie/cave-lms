@@ -144,14 +144,13 @@ func TestALearnerWithAPlanAndNoCourseSeesTheLabPartAndNoJoinACourseEmptyState(t 
 	res, body := ada.getFolder()
 	expectStatus(t, res, body, http.StatusOK, labIntro)
 	rest := pastIntro(t, body)
-	for _, gone := range []string{"You have not handed in anything yet", "empty-state"} {
+	for _, gone := range []string{"You have not handed in anything yet"} {
 		if strings.Contains(rest, gone) {
 			t.Errorf("a Learner with a Plan is told %q: %s", gone, rest)
 		}
 	}
-	if !strings.Contains(rest, "<h2>Workbooks</h2>") {
-		t.Errorf("the Folder has no Workbooks part: %s", rest)
-	}
+	// The empty Workbooks part is the drop area, not the Join a Course empty state.
+	expectAll(t, rest, "<h2>Workbooks</h2>", `class="folder-drop"`)
 }
 
 func TestALearnerWithAPlanAndSubmissionsSeesTheLabPartFirstAndSubmissionsBelow(t *testing.T) {
@@ -268,14 +267,14 @@ func TestTheFolderListsEveryDashboardAWorkbookWasUsedOnAndSaysWhenNone(t *testin
 
 	_, body := ada.getFolder()
 	rest := pastIntro(t, body)
-	expectAll(t, rest, `<a href="`+kewangan+`">Kewangan</a>`, `<a href="`+stok+`">Stok</a>`, "not used on a Dashboard yet")
-	if n := strings.Count(rest, "not used on a Dashboard yet"); n != 1 {
+	expectAll(t, rest, `<a href="`+kewangan+`">Kewangan</a>`, `<a href="`+stok+`">Stok</a>`, "Unused")
+	if n := strings.Count(rest, "Unused"); n != 1 {
 		t.Errorf("%d unused Workbooks, want only rak.xlsx: %s", n, rest)
 	}
 
 	ada.switchLanguage("ms", "/")
 	_, body = ada.getFolderAsking("ms")
-	expectAll(t, body, "belum digunakan pada Dashboard")
+	expectAll(t, body, "Tidak digunakan")
 }
 
 func TestTheAdminSeesWhichDashboardsAWorkbookWasUsedOnAsPlainText(t *testing.T) {

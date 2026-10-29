@@ -1,6 +1,7 @@
 // Asks before sending a form with data-confirm, or through a button with data-confirm; with data-confirm-if, only
 // when the form field it names is not empty. A form with data-busy is sent once: its buttons are disabled and
-// its cave-loader shows, rotating the lines in its data-lines. Without JavaScript both forms send as they are.
+// its cave-loader shows, rotating the lines in its data-lines. A form with data-upload sends as soon as a file is chosen;
+// the file field hides behind its button, or covers the drop area it holds. Without JavaScript all of these send as they are.
 (function () {
   document.addEventListener("submit", function (e) {
     var form = e.target, asker = e.submitter && e.submitter.dataset.confirm ? e.submitter : form;
@@ -32,6 +33,26 @@
         line.classList.remove("is-out");
       }, 250);
     }, 4000);
+  });
+  document.querySelectorAll("form[data-upload]").forEach(function (form) {
+    var input = form.querySelector("input[type=file]"), button = form.querySelector("button");
+    var name = form.querySelector("[data-name]");
+    if (name) {
+      form.classList.add("is-live");
+      button.hidden = true;
+      ["dragenter", "dragover"].forEach(function (t) { input.addEventListener(t, function () { form.classList.add("is-over"); }); });
+      ["dragleave", "drop"].forEach(function (t) { input.addEventListener(t, function () { form.classList.remove("is-over"); }); });
+    } else {
+      input.hidden = true;
+      button.addEventListener("click", function (e) {
+        if (!input.files.length) { e.preventDefault(); input.click(); }
+      });
+    }
+    input.addEventListener("change", function () {
+      if (!input.files.length) return;
+      if (name) name.textContent = input.files[0].name;
+      form.requestSubmit();
+    });
   });
   // A button with data-copy copies the text of the field with that id.
   document.addEventListener("click", function (e) {
