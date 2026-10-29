@@ -206,9 +206,10 @@ func TestTheAdminGivesTheComboProPlanByHand(t *testing.T) {
 	expectEbookOpens(t, ada, ebook, "inline")
 }
 
-// Live, BCL's order detail decides, its coupon too. While no live detail has shown whether BCL names the coupon there,
-// a detail without one takes the webhook's code; a detail naming another code wins over the webhook's.
-func TestALiveOrderTakesBCLsCouponCodeOrElseTheWebhooks(t *testing.T) {
+// Live, BCL's order detail decides, its coupon too. A detail naming another code wins over the webhook's. A detail
+// naming none never opens Ebooks on the webhook's code: when that is a running Ebooks Promo's, the order waits for an
+// Admin and gives nothing, Pro included; any other code is as no code, and the order is given without Ebooks.
+func TestALiveOrderTakesBCLsCouponCodeAndNeverTheWebhooks(t *testing.T) {
 	t.Parallel()
 	combo := func(email, coupon string) bclOrder {
 		o := confirmed(email)
@@ -218,19 +219,33 @@ func TestALiveOrderTakesBCLsCouponCodeOrElseTheWebhooks(t *testing.T) {
 	bcl := newFakeBCL(t, map[string]bclOrder{
 		"LINK-1": combo("ada@example.com", "cave99"), // BCL names CAVE99; the webhook names none
 		"LINK-2": combo("bea@example.com", ""),       // BCL names none; the webhook names CAVE99
-		"LINK-3": combo("cy@example.com", "CAVE89")}) // BCL names another code than the webhook's CAVE99
+		"LINK-3": combo("cy@example.com", "CAVE89"),  // BCL names another code than the webhook's CAVE99
+		"LINK-4": combo("di@example.com", "")})       // BCL names none; the webhook names CAVE89, without Ebooks
 	s := confirmingSite(t, bcl)
 	ebook := s.setUpEbooks()
 	s.addPromo("CAVE89", "pro-plan", "89", "2026-01-01", "2099-12-31")
 	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	bea, _ := s.newCaveTextLearner("Bea Lim", "bea@example.com")
+	bea, beaToken := s.newCaveTextLearner("Bea Lim", "bea@example.com")
 	cy, _ := s.newCaveTextLearner("Cy Tan", "cy@example.com")
+	di, diToken := s.newCaveTextLearner("Di Ong", "di@example.com")
 	s.bclPay(paidProPlan("LINK-1", "ada@example.com"))
 	s.bclPay(couponProPlan("LINK-2", "bea@example.com", "249.00", "150.00"))
 	s.bclPay(couponProPlan("LINK-3", "cy@example.com", "249.00", "150.00"))
+	other := couponProPlan("LINK-4", "di@example.com", "249.00", "150.00")
+	other.extra["coupon_code"] = "CAVE89"
+	s.bclPay(other)
 	expectEbookOpens(t, ada, ebook, "inline")
-	expectEbookOpens(t, bea, ebook, "inline")
+	expectEbookLocked(t, bea, ebook)
+	if bea.me(beaToken).Pro {
+		t.Fatalf("an order BCL names no coupon on, with the webhook naming an Ebooks code, gave Pro")
+	}
 	expectEbookLocked(t, cy, ebook)
+	if !di.me(diToken).Pro {
+		t.Fatalf("an order BCL names no coupon on, with the webhook naming a code without Ebooks, gave no Pro")
+	}
+	expectEbookLocked(t, di, ebook)
+	_, body := s.get("/admin/log")
+	expectAll(t, body, "order LINK-2 has the webhook naming an Ebooks Promo code that BCL", "order does not; kept for an Admin")
 }
 
 // The Admin marks a Pro Plan Promo as coming with Ebooks on the Promos page, which lists it so; no other product's.

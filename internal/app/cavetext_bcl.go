@@ -243,8 +243,10 @@ type bclTransaction struct {
 // form at a product's payment link; b's form address becomes that link, or "BCL form <id>" when the form is no
 // product's, so the order is kept for an Admin. differs names the webhook's values BCL's replaced, for the System log.
 // held says why a paid, live order is kept for an Admin and gives nothing: BCL charged less than it says was paid
-// before the fee. err is BCL out of reach or failing, or the order not yet known there, not paid and live, or naming
-// no form, so BCL retries rather than a real payment be lost.
+// before the fee, or its detail names no coupon while the webhook names a running Ebooks Promo's code (only BCL's
+// detail may name the coupon that opens Ebooks). err is BCL out of reach or failing, or the order not yet known there,
+// naming another order number than the webhook's, not paid and live, or naming no form, so BCL retries rather than a
+// real payment be lost.
 func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string) (held, differs string, err error) {
 	var d bclWebhookBody // the detail's data has the webhook's shape
 	// A 404 is a real order BCL has not written down yet, or a forged number: either way BCL retries.
@@ -252,6 +254,10 @@ func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string)
 		return "", "", err
 	}
 	m := d.Data.Main
+	// The order number is the payment's key, so BCL's detail must name the very order the webhook did, case and all.
+	if m.Order.String() != order {
+		return "", "", errors.New("BCL's order detail names another order number than the webhook's")
+	}
 	if m.Status != "3" || !d.paid() || !strings.EqualFold(m.Kind.String(), "live") { // any other may still settle, so BCL retries
 		return "", "", fmt.Errorf("it has status %s, is_paid %s, type %s at BCL, not 3, paid and live", m.Status, m.Paid, m.Kind)
 	}
@@ -286,9 +292,13 @@ func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string)
 		differs = "; the webhook said " + strings.Join(diffs, ", ") + ": BCL's are used"
 	}
 	if m.Coupon == "" {
-		// ponytail: no live order has shown whether BCL's detail names the coupon, so the webhook's code stands in;
-		// BCL's own discount is still what is checked against the price. Drop this once a live detail shows coupon_code.
-		m.Coupon = b.Data.Main.Coupon
+		// BCL's detail names no code, so the webhook's is unproven: it never opens Ebooks. One that names a running
+		// Ebooks Promo's code may be a payer's real code BCL left out, so the order waits for an Admin.
+		if ebooks, err := isEbooksPromoCode(ctx, a.db, b.Data.Main.Coupon.String()); err != nil {
+			return "", "", fmt.Errorf("read Promos: %w", err)
+		} else if ebooks {
+			held = "has the webhook naming an Ebooks Promo code that BCL's order does not"
+		}
 	}
 	b.Data.FormURL, b.Data.Main, b.Data.Custom = formURL, m, d.Data.Custom
 	if paid, readable := b.paidSen(); readable { // an unreadable one is kept for an Admin by recordPayment
@@ -296,7 +306,7 @@ func (a *App) takeBCLOrder(ctx context.Context, b *bclWebhookBody, order string)
 			return fmt.Sprintf("charged %s at BCL, under the %s it paid before the fee", m.Amount, rm(paid)), differs, nil
 		}
 	}
-	return "", differs, nil
+	return held, differs, nil
 }
 
 // sameRM says whether two amounts BCL sent are the same number of sen, however written; empty is 0.
