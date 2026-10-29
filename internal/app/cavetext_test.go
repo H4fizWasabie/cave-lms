@@ -178,6 +178,25 @@ func TestCaveTextConnectAsksBeforeCreatingAToken(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Sambungkan")
 }
 
+// Chrome checks where a form's POST redirects against the form page's form-action, so the Connect page must allow
+// the extension's redirect URL or the click goes nowhere. Go does not enforce CSP; this pins the header instead.
+func TestCaveTextConnectPageLetsItsFormRedirectToTheExtension(t *testing.T) {
+	t.Parallel()
+	s := newCaveTextSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+
+	res, body := s.get("/cavetext/connect?extension=" + extensionID)
+	expectStatus(t, res, body, http.StatusOK, `action="/cavetext/connect"`)
+	if got, want := res.Header.Get("Content-Security-Policy"), "form-action 'self' https://"+extensionID+".chromiumapp.org;"; !strings.Contains(got, want) {
+		t.Fatalf("connect page's policy is %q, want it to contain %q", got, want)
+	}
+
+	res, body = s.get("/")
+	if got := res.Header.Get("Content-Security-Policy"); !strings.Contains(got, "form-action 'self';") {
+		t.Fatalf("home page's policy is %q, want form-action 'self' alone", got)
+	}
+}
+
 func TestCaveTextConnectPostRefusesAnUnlistedExtensionAndOtherSites(t *testing.T) {
 	t.Parallel()
 	s := newCaveTextSite(t)
