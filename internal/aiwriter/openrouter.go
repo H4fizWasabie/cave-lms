@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -100,7 +101,23 @@ func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, 
 	if err := o.chat(ctx, req, &out); err != nil {
 		return nil, err
 	}
+	for i, q := range out.Questions {
+		out.Questions[i].Prompt = stripCitations(q.Prompt)
+		out.Questions[i].ModelAnswer = stripCitations(q.ModelAnswer)
+		for j, op := range q.Options {
+			out.Questions[i].Options[j].Text = stripCitations(op.Text)
+		}
+	}
 	return out.Questions, nil
+}
+
+// citation is a markdown link with an http(s) URL, as the web search plugin appends to what the model writes, with
+// the space before it and optionally wrapped in parentheses. Written questions never hold a link.
+var citation = regexp.MustCompile(`\s*\(\[[^\]]*\]\(https?://[^)\s]*\)\)|\s*\[[^\]]*\]\(https?://[^)\s]*\)`)
+
+// stripCitations removes every citation from s.
+func stripCitations(s string) string {
+	return strings.TrimSpace(citation.ReplaceAllString(s, ""))
 }
 
 // markSchema is a mark's JSON schema. The range is checked after, as strict schemas cannot hold it.
