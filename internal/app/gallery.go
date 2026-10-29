@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	"image/jpeg"
 	_ "image/png" // registers PNG for image.Decode
 	"io"
@@ -333,8 +334,10 @@ func (a *App) serveStored(w http.ResponseWriter, r *http.Request, key, contentTy
 }
 
 const (
-	thumbWidth     = 800
-	thumbMaxPixels = 50_000_000 // larger pictures are not decoded, so a huge upload cannot exhaust memory
+	thumbWidth = 800
+	// maxDecodedBytes is the most memory a picture may take once decoded; a larger one is not decoded, so a small
+	// upload of a huge picture cannot exhaust memory. 16-bit RGBA takes 8 bytes a pixel, so this is 13 million of those.
+	maxDecodedBytes = 100 << 20
 )
 
 // thumbKey names a picture's thumbnail in storage, next to the original.
@@ -387,14 +390,39 @@ func (a *App) makeThumb(item galleryItem) ([]byte, error) {
 	return encodeJPEG(scaleOnWhite(src, src.Bounds(), w, h))
 }
 
-// decodePicture decodes a JPEG, PNG or WebP picture of at most thumbMaxPixels.
-func decodePicture(f io.ReadSeeker) (image.Image, error) {
+// errTooLargeToDecode is the refusal of a picture that would take more than maxDecodedBytes to decode.
+var errTooLargeToDecode = errors.New("picture is too large to decode")
+
+// tooLargeToDecode reads the header of a picture and reports whether it would take more than maxDecodedBytes to
+// decode. A header that cannot be read is not too large; the decoder refuses it on its own.
+func tooLargeToDecode(f io.Reader) bool {
 	cfg, _, err := image.DecodeConfig(f)
-	if err != nil {
-		return nil, err
+	return err == nil && cfg.Width > 0 && cfg.Height > 0 && cfg.Width > maxDecodedBytes/bytesPerPixel(cfg.ColorModel)/cfg.Height
+}
+
+// bytesPerPixel is what a decoder takes for a pixel of colour model m. A JPEG's YCbCr takes 1.5 to 3, counted as 2 so a 48
+// megapixel phone photo still fits.
+func bytesPerPixel(m color.Model) int {
+	switch m {
+	case color.GrayModel:
+		return 1
+	case color.Gray16Model:
+		return 2
+	case color.YCbCrModel:
+		return 2
+	case color.RGBAModel, color.NRGBAModel, color.CMYKModel:
+		return 4
 	}
-	if cfg.Width*cfg.Height > thumbMaxPixels {
-		return nil, fmt.Errorf("%dx%d is too large to decode", cfg.Width, cfg.Height)
+	if _, ok := m.(color.Palette); ok {
+		return 1
+	}
+	return 8 // RGBA64, NRGBA64, and any model not listed
+}
+
+// decodePicture decodes a JPEG, PNG or WebP picture of at most maxDecodedBytes once decoded.
+func decodePicture(f io.ReadSeeker) (image.Image, error) {
+	if tooLargeToDecode(f) {
+		return nil, errTooLargeToDecode
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return nil, err

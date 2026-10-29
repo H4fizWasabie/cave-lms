@@ -144,6 +144,17 @@ func TestAnOrganisationLogoOver2MBIsRefusedAndNothingIsStored(t *testing.T) {
 	s.addOrganisation("PDRM", big[:2<<20]) // exactly 2 MB is allowed
 }
 
+func TestAnOrganisationLogoTooLargeToDecodeIsRefusedAndNothingIsStored(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	res, body := s.saveOrganisation("/admin/organisations", "PDRM", hugePNG(t, 7000, 7000))
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "Upload a PNG, JPG or SVG logo.")
+	if n := s.storedFiles(); n != 0 {
+		t.Fatalf("%d files stored, want 0", n)
+	}
+}
+
 func TestAnSVGLogoIsStoredAsAPNG(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
