@@ -86,9 +86,35 @@
 .pf-all summary { cursor: pointer; font-weight: 600; padding: var(--space-2) 0; }
 .pf-all .table-wrap { margin-top: var(--space-3); }
 
+/* D: B's side index with C's Dashboard cards. At 1279px and under the rail folds above the content
+   as one horizontal strip, so the Workbooks table keeps the full width (B squeezed it beside a 16rem rail). */
+@media (max-width: 1279px) {
+  .pf-d .pf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .pf-d .pf-rail { position: static; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+  .pf-d .pf-rail .pf-storage { flex: 0 1 15rem; }
+  .pf-d .pf-index { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); flex: 1 1 auto; border-top: 0; }
+  .pf-d .pf-index li { border-bottom: 0; }
+  .pf-d .pf-index a { justify-content: flex-start; }
+  .pf-d .pf-rail .pf-upload { margin-left: auto; }
+}
+
 @media (max-width: 999px) {
   .pf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
   .pf-rail { position: static; }
+}
+
+/* D only: from 999px down the Workbook rows stack as label / value too (the table would otherwise
+   cram five columns into ~700px), the same layout the 720px block gives every variant. */
+@media (max-width: 999px) {
+  .pf-d .pf-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .pf-d .pf-table, .pf-d .pf-table tbody, .pf-d .pf-table tr { display: block; }
+  .pf-d .pf-table tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+  .pf-d .pf-table td { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) 0; border: 0; }
+  .pf-d .pf-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
+  .pf-d .pf-table td.actions { display: block; text-align: left; padding-top: var(--space-2); }
+  .pf-d .pf-table td.actions::before { content: none; }
+  .pf-d .pf-table td.when { white-space: normal; }
+  .pf-d .pf-table .pf-name { min-width: 0; }
 }
 
 /* Under 720px the Workbook rows stack as label / value */

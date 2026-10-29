@@ -1,8 +1,8 @@
 package app
 
-// PROTOTYPE (#504, throwaway): three layouts of the redesigned Classroom Folder, on one dev-only route with stub data.
+// PROTOTYPE (#504, throwaway): four layouts of the redesigned Classroom Folder, on one dev-only route with stub data.
 //
-//	GET /prototype/my-folder?variant=A|B|C[&empty=1]
+//	GET /prototype/my-folder?variant=A|B|C|D[&empty=1]  (D, the default, is B's layout with C's Dashboard cards)
 //
 // Not registered when a.production is true. No auth, no database, no persistence: every form posts back to this page.
 // Delete this file, templates/proto_my_folder.html and static/proto-504.{css,js} with the prototype branch.
@@ -80,8 +80,8 @@ func (a *App) prototypeMyFolder(w http.ResponseWriter, r *http.Request) {
 		Empty:    r.URL.Query().Has("empty"),
 		CapMB:    1024,
 	}
-	if page.Variant != "B" && page.Variant != "C" {
-		page.Variant = "A"
+	if v := page.Variant; v != "A" && v != "B" && v != "C" {
+		page.Variant = "D"
 	}
 	keep := ""
 	if page.Empty {
@@ -90,13 +90,13 @@ func (a *App) prototypeMyFolder(w http.ResponseWriter, r *http.Request) {
 	} else {
 		page.EmptyURL = "?variant=" + page.Variant + "&empty=1"
 	}
-	names := map[string]string{"A": "Stacked", "B": "Side index", "C": "Dashboard-first"}
-	order := []string{"A", "B", "C"}
+	names := map[string]string{"A": "Stacked", "B": "Side index", "C": "Dashboard-first", "D": "Index + cards"}
+	order := []string{"A", "B", "C", "D"}
 	for i, k := range order {
 		page.Variants = append(page.Variants, protoVariant{k, names[k], k == page.Variant})
 		if k == page.Variant {
-			page.Prev = "?variant=" + order[(i+2)%3] + keep
-			page.Next = "?variant=" + order[(i+1)%3] + keep
+			page.Prev = "?variant=" + order[(i+len(order)-1)%len(order)] + keep
+			page.Next = "?variant=" + order[(i+1)%len(order)] + keep
 		}
 	}
 

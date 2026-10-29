@@ -1,9 +1,9 @@
-{{/* PROTOTYPE (#504, throwaway): three layouts of the redesigned Classroom Folder, stub data, dev only.
-   Variants: A Stacked, B Side index, C Dashboard-first. Delete with prototype_folder.go and static/proto-504.*. */}}
+{{/* PROTOTYPE (#504, throwaway): four layouts of the redesigned Classroom Folder, stub data, dev only.
+   Variants: A Stacked, B Side index, C Dashboard-first, D B's layout with C's Dashboard cards (default). Delete with prototype_folder.go and static/proto-504.*. */}}
 {{define "title"}}Prototype: My folder ({{.Variant}}) · CAVELMS{{end}}
 {{define "head"}}<link rel="stylesheet" href="{{static "proto-504.css"}}">{{end}}
 {{define "content"}}
-{{if eq .Variant "B"}}{{template "pf-b" .}}{{else if eq .Variant "C"}}{{template "pf-c" .}}{{else}}{{template "pf-a" .}}{{end}}
+{{if eq .Variant "A"}}{{template "pf-a" .}}{{else if eq .Variant "B"}}{{template "pf-b" .}}{{else if eq .Variant "C"}}{{template "pf-c" .}}{{else}}{{template "pf-d" .}}{{end}}
 {{template "pf-switcher" .}}
 <script src="{{static "proto-504.js"}}" defer></script>
 {{end}}
@@ -178,6 +178,55 @@
           </section>
           <section id="pf-b-sub" class="pf-sec" aria-labelledby="pf-b-sub-h">
             <h2 id="pf-b-sub-h">Submissions</h2>
+            {{range .Courses}}{{template "pf-course" .}}{{end}}
+          </section>
+          {{end}}
+        </div>
+      </div>
+    </div>
+{{end}}
+
+{{/* ---------- D: B's Side index with C's Dashboard cards (the pick) ---------- */}}
+
+{{define "pf-d"}}
+    <div class="wrap page-pad pf pf-d">
+      {{template "pf-tabs" .}}
+      <div class="page-head">
+        <h1>My folder</h1>
+        <p>Your Workbooks, your Dashboards' pages and your Submissions.</p>
+      </div>
+      <div class="pf-grid">
+        <aside class="pf-rail" aria-label="Folder summary">
+          {{template "pf-meter" .}}
+          {{if not .Empty}}
+          <nav aria-label="Folder sections">
+            <ul class="pf-index">
+              <li><a href="#pf-d-wb">Workbooks <span class="pf-count num">{{len .Workbooks}}</span></a></li>
+              <li><a href="#pf-d-pg">Dashboard pages <span class="pf-count num">{{len .Dashboards}}</span></a></li>
+              <li><a href="#pf-d-sub">Submissions <span class="pf-count num">{{len .Courses}}</span></a></li>
+            </ul>
+          </nav>
+          {{template "pf-upload" .}}
+          {{end}}
+        </aside>
+        <div class="pf-main">
+          {{if .Empty}}{{template "pf-empty" .}}{{else}}
+          <section id="pf-d-wb" class="pf-sec" aria-labelledby="pf-d-wb-h">
+            <h2 id="pf-d-wb-h">Workbooks</h2>
+            <div class="card card-flush">{{template "pf-wb-table" .Workbooks}}</div>
+          </section>
+          <section id="pf-d-pg" class="pf-sec" aria-labelledby="pf-d-pg-h">
+            <h2 id="pf-d-pg-h">Dashboard pages</h2>
+            {{range .Dashboards}}
+            <article class="card pf-dash-card">
+              <header class="pf-dash-head"><h3>{{.Name}}</h3>{{template "pf-live" .}}</header>
+              {{template "pf-pages" .}}
+              <p class="pf-uses"><span class="muted">Workbooks used:</span> {{range $i, $w := .Workbooks}}{{if $i}}, {{end}}<a href="/workbooks/{{$w.ID}}">{{$w.Name}}</a>{{else}}<span class="muted">none</span>{{end}}</p>
+            </article>
+            {{end}}
+          </section>
+          <section id="pf-d-sub" class="pf-sec" aria-labelledby="pf-d-sub-h">
+            <h2 id="pf-d-sub-h">Submissions</h2>
             {{range .Courses}}{{template "pf-course" .}}{{end}}
           </section>
           {{end}}
