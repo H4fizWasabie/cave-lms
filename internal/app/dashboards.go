@@ -290,7 +290,7 @@ func (a *App) buildDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The Workbook is kept before Clean-up reads it, so it stays whatever Clean-up finds (ADR 0021).
-	workbook, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, upload, data)
+	workbook, _, err := a.keepWorkbook(r, learner.ID, 0, acc, dataset.ReplaceData, 0, upload, data)
 	switch msg := storageMessage(lang, err); {
 	case msg != "":
 		refuse(msg)

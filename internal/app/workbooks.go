@@ -65,9 +65,12 @@ func (a *App) workbooksOf(ctx context.Context, learnerID int64) ([]workbook, err
 // Pending Part. If it does not fit, nothing is kept and the error is a *storageFull. A store that refuses the file gives
 // errDatasetStore. An empty file is not kept: id is 0. A file the Learner already keeps gives that Workbook's id, keeping
 // nothing new.
-func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, kind dataset.Kind, replaces int64, name string, data []byte) (id int64, err error) {
+//
+// borrowed is true when the Workbook was newly kept and fits only on that credit: the Parts it counts as free are still
+// there until a confirm deletes them, so if the upload comes to nothing the caller gives the Workbook back (dropBorrowed).
+func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc labAccess, kind dataset.Kind, replaces int64, name string, data []byte) (id int64, borrowed bool, err error) {
 	if len(data) == 0 {
-		return 0, nil
+		return 0, false, nil
 	}
 	// The preview's sheet, header row and month post the file again: the same bytes stay one Workbook.
 	// ponytail: two identical uploads racing each other may still keep two; a unique index if that ever matters.
@@ -75,29 +78,45 @@ func (a *App) keepWorkbook(r *http.Request, learnerID, dashboardID int64, acc la
 	err = a.db.QueryRowContext(r.Context(), `SELECT id FROM workbooks WHERE learner_id = $1 AND sha256 = $2 LIMIT 1`,
 		learnerID, sum[:]).Scan(&id)
 	if err == nil || !errors.Is(err, sql.ErrNoRows) {
-		return id, err
+		return id, false, err
 	}
 	token, err := newToken()
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	key := "workbook-" + token[:22]
 	if err := a.datasets.Put(r.Context(), key, data); err != nil {
 		a.logError(r, fmt.Errorf("put Workbook %s: %w", key, err))
-		return 0, errDatasetStore
+		return 0, false, errDatasetStore
 	}
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		if err := reserve(r.Context(), tx, acc, learnerID, int64(len(data)), replacedParts(dashboardID, kind, replaces)); err != nil {
 			return err
 		}
-		return tx.QueryRowContext(r.Context(), `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, $2, $3, $4, $5)
-			RETURNING id`, learnerID, key, name, len(data), sum[:]).Scan(&id)
+		if err := tx.QueryRowContext(r.Context(), `INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, $2, $3, $4, $5)
+			RETURNING id`, learnerID, key, name, len(data), sum[:]).Scan(&id); err != nil {
+			return err
+		}
+		// Over the allowance with the Workbook in, so it got in on the credit alone.
+		borrowed = checkStorage(r.Context(), tx, acc, learnerID, 0, nil) != nil
+		return nil
 	})
 	if err != nil {
 		a.dropDataset(r.Context(), r, key)
-		return 0, err
+		return 0, false, err
 	}
-	return id, nil
+	return id, borrowed, nil
+}
+
+// dropBorrowed deletes the Workbook keepWorkbook kept on credit, when the upload it was kept for comes to nothing, so
+// the Learner never holds more than their Storage allowance and the Parts counted as free. The credit is only good
+// for a Workbook that a confirm will follow (ADR 0021 keeps a Workbook whatever Clean-up finds, as long as it fits).
+func (a *App) dropBorrowed(ctx context.Context, r *http.Request, id int64) {
+	if _, err := a.db.ExecContext(context.WithoutCancel(ctx), `DELETE FROM workbooks WHERE id = $1`, id); err != nil {
+		a.logError(r, fmt.Errorf("delete borrowed Workbook %d: %w", id, err))
+		return
+	}
+	a.dropDeletedFiles(ctx, r)
 }
 
 // downloadWorkbook sends a Workbook exactly as uploaded to its Learner, whether or not their Plan has ended, or to the

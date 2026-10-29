@@ -331,12 +331,22 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 		}
 		return true
 	}
-	workbook, err := a.keepWorkbook(r, learner.ID, d.ID, acc, kind, replaces, name, data)
+	workbook, borrowed, err := a.keepWorkbook(r, learner.ID, d.ID, acc, kind, replaces, name, data)
 	if refused(err) {
 		return
 	}
+	// A Workbook that fit only on the credit of the Parts this upload would replace goes again when nothing is replaced.
+	giveBack := func() {
+		if borrowed {
+			a.dropBorrowed(r.Context(), r, workbook)
+			workbook, borrowed = 0, false
+		}
+	}
 	res, err := a.clean(r, bytes.NewReader(data), settings)
 	var problem lab.Problem
+	if err != nil {
+		giveBack()
+	}
 	if errors.As(err, &problem) {
 		a.renderDashboard(w, r, http.StatusUnprocessableEntity, &dashboardPage{Dashboard: d, Tab: dataTab(d), Access: acc, Problem: problem.In(lang), Upload: name})
 		return
@@ -348,6 +358,9 @@ func (a *App) uploadWork(w http.ResponseWriter, r *http.Request, d *dashboard, a
 	_, err = a.dataset.Upload(r.Context(), d.ID, dataset.Uploaded{Kind: kind, Replaces: replaces, File: name, Sum: sum, Workbook: workbook,
 		Read: res, Settings: settings, Picks: mapPicks(r.Form), FromWorkbook: pickedID(r) != ""}, partReserve(acc, learner.ID, d.ID, kind, replaces))
 	forgetLabAccess(r.Context())
+	if err != nil {
+		giveBack()
+	}
 	var missing *dataset.MissingColumnsError
 	switch {
 	case errors.As(err, &same): // another upload of it got in first

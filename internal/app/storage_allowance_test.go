@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"net/http"
 	"net/url"
 	"strings"
@@ -203,5 +204,35 @@ func TestAConfirmThatNoLongerFitsIsRefusedWithThePendingLine(t *testing.T) {
 	}
 	if after := ada.partBytes(); after != before {
 		t.Fatalf("Part bytes %d after a refused confirm, want %d", after, before)
+	}
+}
+
+// A Workbook kept on the credit of the Parts a Replace would delete does not stay when the Replace comes to nothing: the
+// Parts are still there, so with the allowance full, Replace uploads that Clean-up refuses never take the Learner over it.
+// A good Replace of a file whose Part is smaller still works, as the old Part counts as free.
+func TestReplaceUploadsThatCleanUpRefusesNeverTakeAFullAllowanceOver(t *testing.T) {
+	t.Parallel()
+	const allowance = 2 << 20
+	_, ada, _ := storageSite(t, "2")
+	path := ada.createWork("Kedai")
+	ada.confirmFile(path, "satu.xlsx", bigFinance(t, 1))
+	if _, err := ada.db.Exec(`INSERT INTO workbooks (learner_id, storage_key, name, size, sha256) VALUES ($1, 'workbook-filler', 'filler.xlsx', $2, '\x00')`,
+		ada.adaID(), allowance-ada.usedBytes()-1000); err != nil { // 1000 bytes of room: no upload fits without the old Part's credit
+		t.Fatal(err)
+	}
+
+	for i := range 3 {
+		res, body := ada.postFile(path+"/dataset", "rosak.xlsx", bytes.Repeat([]byte{byte('a' + i)}, 100<<10))
+		expectStatus(t, res, body, http.StatusUnprocessableEntity, "We could not read rosak.xlsx")
+		if used := ada.usedBytes(); used > allowance {
+			t.Fatalf("after refused Replace upload %d the Learner holds %d bytes, over the %d allowance", i+1, used, allowance)
+		}
+	}
+
+	res, body := ada.postFile(path+"/dataset", "baru.xlsx", shopReport(t, "Beras", 120))
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	ada.confirmWork(path, financeGuess)
+	if used := ada.usedBytes(); used > allowance {
+		t.Fatalf("after the Replace the Learner holds %d bytes, over the %d allowance", used, allowance)
 	}
 }
