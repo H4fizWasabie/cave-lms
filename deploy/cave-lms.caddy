@@ -12,8 +12,6 @@ cavelms.com {
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 	}
-	# Remove once real email delivery (#12) lands and the site is announced.
-	header X-Robots-Tag "noindex, nofollow"
 	# Users are in Malaysia, ~200 ms from the VPS: smaller responses mean fewer round trips. Caddy only compresses text types.
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8088
@@ -24,7 +22,7 @@ cavelms.com {
 # `pages` at the VPS before the deploy that adds this block, or Caddy cannot get its certificate.
 pages.cavelms.com {
 	bind 13.140.65.183
-	# The same headers as cavelms.com above. The host serves GETs only, so it has no request_body cap.
+	# The same headers as cavelms.com above, plus noindex: learners' Deployments stay out of search. GETs only, so no request_body cap.
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
