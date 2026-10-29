@@ -89,6 +89,16 @@ func newCertificateID() (string, error) {
 // (an Exam with no published questions can't be sat, so it doesn't count), Lessons or not, self-paced or Live. A
 // self-paced Course with no Exam needs every published Lesson completed instead; a Live one with no Exam issues none. It is called when a Result is released, never at submit, so a Certificate can't give a Result away.
 func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID int64) error {
+	id, err := a.issueCertificateIfEarnedUnsent(ctx, learnerID, courseID)
+	if id != "" {
+		a.emailCertificate(ctx, id)
+	}
+	return err
+}
+
+// issueCertificateIfEarnedUnsent is issueCertificateIfEarned without the email: it returns the ID of the Certificate
+// it issued, empty when it issued none, for the caller to email when it can wait.
+func (a *App) issueCertificateIfEarnedUnsent(ctx context.Context, learnerID, courseID int64) (string, error) {
 	var live bool
 	var exams, passed int
 	err := a.db.QueryRowContext(ctx, `
@@ -98,21 +108,21 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 			AND EXISTS (SELECT 1 FROM exam_questions q WHERE q.exam_id = e.id AND NOT q.is_draft)
 		WHERE c.id = $2 GROUP BY c.id`, learnerID, courseID).Scan(&live, &exams, &passed)
 	if errors.Is(err, sql.ErrNoRows) { // the Course is gone
-		return nil
+		return "", nil
 	}
 	if err != nil || passed < exams {
-		return err
+		return "", err
 	}
 	if exams == 0 {
 		if live {
-			return nil
+			return "", nil
 		}
 		done, total, err := a.courseProgress(ctx, learnerID, courseID)
 		if err != nil || total == 0 || done < total {
-			return err
+			return "", err
 		}
 	}
-	return a.issueCertificate(ctx, learnerID, courseID, false)
+	return a.issueCertificateUnsent(ctx, learnerID, courseID, false)
 }
 
 // issueCertificate issues the Learner a Certificate for the Course, copying their name and IC and the Course's title,
@@ -120,18 +130,28 @@ func (a *App) issueCertificateIfEarned(ctx context.Context, learnerID, courseID 
 // only by the Admin's reissue. Every Certificate is issued through here, once its rule is met, so calling it again
 // changes nothing. givenByAdmin records that the Admin gave it, skipping the Exam check.
 func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, givenByAdmin bool) error {
+	id, err := a.issueCertificateUnsent(ctx, learnerID, courseID, givenByAdmin)
+	if id != "" {
+		a.emailCertificate(ctx, id)
+	}
+	return err
+}
+
+// issueCertificateUnsent is issueCertificate without the email: it returns the ID of the Certificate it issued, empty
+// when it issued none.
+func (a *App) issueCertificateUnsent(ctx context.Context, learnerID, courseID int64, givenByAdmin bool) (string, error) {
 	id, err := newCertificateID()
 	if err != nil {
-		return err
+		return "", err
 	}
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
 	at, year, number, err := a.numberCertificate(ctx, tx)
 	if err != nil {
-		return err
+		return "", err
 	}
 	res, err := tx.ExecContext(ctx, `
 		INSERT INTO certificates (id, learner_id, course_id, learner_name, learner_ic, course_title, days, issued_at, year, number, given_by_admin, logo_key)
@@ -141,16 +161,15 @@ func (a *App) issueCertificate(ctx context.Context, learnerID, courseID int64, g
 		AND NOT EXISTS (SELECT 1 FROM certificates WHERE learner_id = $2 AND course_id = $3)
 		ON CONFLICT (learner_id, course_id) WHERE revoked_at IS NULL DO NOTHING`, id, learnerID, courseID, at, year, number, givenByAdmin)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		return err // nothing issued: the rollback gives the number back
+		return "", err // nothing issued: the rollback gives the number back
 	}
 	if err := tx.Commit(); err != nil {
-		return err
+		return "", err
 	}
-	a.emailCertificate(ctx, id)
-	return nil
+	return id, nil
 }
 
 // emailCertificate emails a just-issued Certificate to its Learner in their saved language, with its PDF and a link

@@ -70,6 +70,8 @@ type App struct {
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
+	// emailing counts the runs of emails a Result release has sent in the background, so Close waits for them.
+	emailing sync.WaitGroup
 	// uploading holds the IDs of Learners with a Submission upload in flight, so each sends one at a time and holds
 	// at most one request's files (5 x 20 MB) in memory.
 	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
@@ -507,6 +509,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) Close() error {
 	close(a.done)
+	a.emailing.Wait() // the emails of released Results read the database
 	return a.db.Close()
 }
 

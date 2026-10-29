@@ -4,9 +4,11 @@ import (
 	"context"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/aiwriter"
 	"github.com/H4fizWasabie/cave-lms/internal/mailer"
@@ -366,4 +368,63 @@ func TestAPassedResultShowsTheScoreOnceAndLeadsToTheIssuedCertificate(t *testing
 	main = content(body)
 	expectAll(t, main, "Congratulations, you passed")
 	expectNone(t, main, "cert-art", certID)
+}
+
+func TestASlowMailServiceDoesNotDelayReleasingResultsAndTheirCertificates(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	id, qids := s.examCourse("50", "", "", "Q1")
+	res, _ := s.startExam(id)
+	ada := res.Header.Get("Location")
+	s.submitExam(ada, map[string]string{qids[0]: "0"})
+	s.logOut()
+	s.loginAsNewLearner("Bea", "bea@example.com", examPassword)
+	s.setICFor("bea@example.com")
+	s.post("/courses/"+id+"/join", nil)
+	s.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	res, _ = s.startExam(id)
+	bea := res.Header.Get("Location")
+	s.submitExam(bea, map[string]string{qids[0]: "0"})
+	s.ageSubmit(ada, 600)
+	s.ageSubmit(bea, 600)
+
+	before := len(s.mail.Messages())
+	release := s.mail.HoldSends()
+	t.Cleanup(release)
+	released := make(chan struct{})
+	go func() {
+		s.application.ReleaseResultsWithoutWaiting(context.Background())
+		close(released)
+	}()
+	select {
+	case <-released:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the release job is still waiting on the mail service after 5 seconds")
+	}
+	for _, p := range []struct{ email, attempt string }{{"bea@example.com", bea}, {"ada@example.com", ada}} {
+		s.logOut()
+		s.login(p.email, examPassword)
+		res, body := s.get(p.attempt)
+		expectStatus(t, res, body, http.StatusOK, `class="x-score">100%<`)
+		_, body = s.get("/my-certificates")
+		expectAll(t, body, "Go Basics")
+	}
+	if n := len(s.mail.Messages()); n != before {
+		t.Fatalf("%d emails sent while the mail service was held, want %d", n, before)
+	}
+
+	release()
+	s.application.WaitForResultEmails()
+	// Neither has picked a language, so the emails are in Malay, and each Learner's Certificate comes before their Result.
+	var subjects []string
+	for _, m := range s.mail.Messages()[before:] {
+		subjects = append(subjects, m.To+": "+m.Subject)
+	}
+	want := []string{
+		"ada@example.com: Sijil anda untuk Go Basics", "ada@example.com: Keputusan Peperiksaan Objektif anda untuk Go Basics",
+		"bea@example.com: Sijil anda untuk Go Basics", "bea@example.com: Keputusan Peperiksaan Objektif anda untuk Go Basics",
+	}
+	if !slices.Equal(subjects, want) {
+		t.Fatalf("emails after the mail service came back = %q, want %q", subjects, want)
+	}
 }

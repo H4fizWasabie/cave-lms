@@ -184,7 +184,8 @@ func (a *App) saveAIMark(ctx context.Context, attemptID int64, i int, m aiwriter
 
 // releaseResults has the AI mark Written answers waiting for a mark, then releases every Result submitted longer ago than its
 // delay (resultDelaySQL) and fully marked, an attempt left open past its time limit included. It reads only the database, so
-// a restart loses nothing.
+// a restart loses nothing. The Certificates and Result emails of what it released go out in one background run, in
+// order, so a slow mail service never holds up a release or bursts sends at once; Close waits for the run.
 // ponytail: marking runs before releasing in one goroutine, so a slow AI service delays releases; mark in its own
 // goroutine if that bites.
 func (a *App) releaseResults(ctx context.Context) {
@@ -196,11 +197,27 @@ func (a *App) releaseResults(ctx context.Context) {
 		a.logError(nil, fmt.Errorf("find due Results: %w", err))
 		return
 	}
+	var emails []func(context.Context)
 	for _, d := range due {
-		if err := a.releaseResult(ctx, d); err != nil {
+		send, err := a.releaseResult(ctx, d)
+		if err != nil {
 			a.logError(nil, fmt.Errorf("release Result of attempt %d: %w", d.attemptID, err))
 		}
+		if send != nil {
+			emails = append(emails, send)
+		}
 	}
+	if len(emails) == 0 {
+		return
+	}
+	a.emailing.Add(1)
+	go func() {
+		defer a.emailing.Done()
+		ctx := context.WithoutCancel(ctx)
+		for _, send := range emails {
+			a.survive("Result emails", func() { send(ctx) })
+		}
+	}()
 }
 
 func (a *App) dueResults(ctx context.Context) ([]dueResult, error) {
@@ -238,27 +255,32 @@ func (a *App) queryDue(ctx context.Context, where string, args ...any) ([]dueRes
 }
 
 // releaseResult marks the attempt, closes it if it was left open, and saves its mark and pass or fail, unless it is
-// already released or a Written answer is still unmarked. Then it issues any Certificate it earns and emails the
-// Result.
-func (a *App) releaseResult(ctx context.Context, d dueResult) error {
+// already released or a Written answer is still unmarked. Then it issues any Certificate it earns. It returns what
+// emails the Certificate and the Result, for the caller to run when it likes, nil when nothing was released.
+func (a *App) releaseResult(ctx context.Context, d dueResult) (sendEmails func(context.Context), err error) {
 	score, marked := markAttempt(d.exam.Format, d.questions)
 	if !marked {
-		return nil
+		return nil, nil
 	}
 	passed := score >= d.passMark
 	res, err := a.db.ExecContext(ctx, `UPDATE exam_attempts SET finished_at = `+submittedAtSQL+`,
 		released_at = now(), score = $2, passed = $3 WHERE id = $1 AND released_at IS NULL`, d.attemptID, score, passed)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		return err
+		return nil, err
 	}
-	if err := a.issueCertificateIfEarned(ctx, d.learnerID, d.exam.CourseID); err != nil {
+	certificateID, err := a.issueCertificateIfEarnedUnsent(ctx, d.learnerID, d.exam.CourseID)
+	if err != nil {
 		a.logError(nil, fmt.Errorf("issue Certificate on releasing attempt %d: %w", d.attemptID, err))
 	}
-	a.emailResult(ctx, d, score, passed, "email.result.subject")
-	return nil
+	return func(ctx context.Context) {
+		if certificateID != "" {
+			a.emailCertificate(ctx, certificateID)
+		}
+		a.emailResult(ctx, d, score, passed, "email.result.subject")
+	}, nil
 }
 
 // emailResult emails the attempt's Result in the Learner's saved language, under the subject the key names, naming
