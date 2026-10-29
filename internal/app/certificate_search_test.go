@@ -40,6 +40,17 @@ func searchAsking(s *site, q, lang string) (*http.Response, string) {
 
 func search(s *site, q string) (*http.Response, string) { return searchAsking(s, q, "en") }
 
+// searchNamed posts q with the holder's name, as the check page's two search fields do.
+func searchNamed(s *site, q, name string) (*http.Response, string) {
+	s.t.Helper()
+	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/certificates", strings.NewReader(url.Values{"q": {q}, "name": {name}}.Encode()))
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return s.do(req)
+}
+
 func TestTheSearchFormPostsAndAnICInTheURLSearchesNothing(t *testing.T) {
 	t.Parallel()
 	_, ada, _, certID := passedLiveCourse(t)
@@ -61,8 +72,9 @@ func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
 	}
 }
 
-// A Certificate No. search shows no IC, since the numbers run in order.
-func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.T) {
+// A Certificate No. search shows no IC, since the numbers run in order, and lists nothing unless the holder's name
+// matches too, so the register can't be listed by stepping through the numbers.
+func TestACertificateNoFindsThatCertificateOnlyWithTheHoldersNameAndAPartialICFindsNothing(t *testing.T) {
 	t.Parallel()
 	_, ada, _, certID := passedLiveCourse(t)
 	_, body := ada.get("/certificates/" + certID)
@@ -70,14 +82,41 @@ func TestACertificateNoFindsThatCertificateAndAPartialICFindsNothing(t *testing.
 
 	for _, q := range []string{number, strings.ToLower(number)} {
 		res, body := search(ada, q)
-		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
-		expectNone(t, body, "951206", "IC or passport No.")
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+		expectNone(t, body, certID, "Status: ")
+		for _, name := range []string{"Bob", "Ad", "Ada Lovelace"} {
+			res, body = searchNamed(ada, q, name)
+			expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+			expectNone(t, body, certID, "Status: ")
+		}
+		for _, name := range []string{"Ada", "ada", "  ADA ", "\tAda\n"} {
+			res, body = searchNamed(ada, q, name)
+			expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+			expectNone(t, body, "951206", "IC or passport No.")
+		}
 	}
 	for _, q := range []string{"5555", "08-5555", "95120608555", "9512060855555", number[:len(number)-1]} {
-		res, body := search(ada, q)
+		res, body := searchNamed(ada, q, "Ada")
 		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 		expectNone(t, body, certID)
 	}
+}
+
+// A name with inner spaces matches however the spaces and case were typed.
+func TestTheHoldersNameIsComparedIgnoringCaseAndCollapsingWhitespace(t *testing.T) {
+	t.Parallel()
+	_, ada, _, certID := passedLiveCourse(t)
+	if _, err := ada.db.Exec(`UPDATE certificates SET learner_name = 'Ada  Binti   Lovelace'`); err != nil {
+		t.Fatal(err)
+	}
+	_, body := ada.get("/certificates/" + certID)
+	number := regexp.MustCompile(`PCC-LMS-\d{6}`).FindString(body)
+	for _, name := range []string{"ada binti lovelace", " ADA   BINTI LOVELACE ", "Ada Binti\tLovelace"} {
+		_, body = searchNamed(ada, number, name)
+		expectAll(t, body, `href="/certificates/`+certID+`"`)
+	}
+	_, body = searchNamed(ada, number, "Ada Lovelace")
+	expectAll(t, body, "No Certificate matches.")
 }
 
 // A printed Certificate from before PCC-LMS carries its number in the old form, which still finds it.
@@ -87,10 +126,10 @@ func TestACertificateIsStillFoundByItsNumberAsCertificatesShowedItBeforePCCLMS(t
 	_, body := ada.get("/certificates/" + certID)
 	expectAll(t, body, "PCC-LMS-260001") // Ada's is the first of 2026
 	for _, q := range []string{"PCC-2026-00001", "pcc 2026 00001"} {
-		res, body := search(ada, q)
+		res, body := searchNamed(ada, q, "Ada")
 		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
 	}
-	res, body := search(ada, "PCC-LMS-2600001") // the shown number with a zero too many
+	res, body := searchNamed(ada, "PCC-LMS-2600001", "Ada") // the shown number with a zero too many
 	expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 }
 

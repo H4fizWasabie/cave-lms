@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +24,9 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // searchCertificates is the check page's search, by a full IC or passport number, matched against the Certificate's
-// copy, or a Certificate No. It is posted, so the IC is in no URL, and the results render from the post.
+// copy, or by a Certificate No. together with the holder's name. A Certificate No. alone lists nothing, since the
+// numbers run in order and would otherwise list every Certificate; the name must equal the Certificate's, ignoring case
+// and collapsing whitespace. It is posted, so the IC is in no URL, and the results render from the post.
 func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 	q := normaliseIC(r.PostFormValue("q"))
 	if q == "" {
@@ -49,7 +52,16 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	name := nameKey(r.PostFormValue("name"))
+	list = slices.DeleteFunc(list, func(c certificate) bool {
+		return c.LearnerIC != q && (name == "" || nameKey(c.LearnerName) != name)
+	})
 	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list, Query: q})
+}
+
+// nameKey is a name as the check page's search compares it: lower case, each run of whitespace one space.
+func nameKey(s string) string {
+	return strings.ToLower(strings.Join(strings.Fields(s), " "))
 }
 
 // certificateNumber is a Certificate No. after normaliseIC: PCC-LMS-260001 becomes PCCLMS260001. oldCertificateNumber
