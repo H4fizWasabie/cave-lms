@@ -75,6 +75,7 @@ type App struct {
 	// reading each whole in checkSubmissionFile would remove the ceiling.
 	uploading sync.Map
 	// cleaning holds a turn for each Clean-up running, so at most maxCleanUps uploads are read at once; others wait.
+	// A profile picture being decoded takes a turn too.
 	// ponytail: per process, right while the app runs as one; reading in the Learner's browser lifts the ceiling.
 	cleaning       chan struct{}
 	cleanUpWaitLog time.Duration    // a wait for a turn longer than this is written to the System log

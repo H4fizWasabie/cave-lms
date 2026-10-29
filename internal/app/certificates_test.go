@@ -300,6 +300,17 @@ func TestCertificateSettingsRefuseLearnersAndBadImages(t *testing.T) {
 	}
 }
 
+func TestACertificateBackgroundTooLargeToDecodeIsRefusedAndNothingIsStored(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewAdmin("Abah", "admin@example.com", certPassword)
+	res, body := s.postCertificateSettings(nil, map[string][]byte{"background": hugePNG(t, 7000, 7000)})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "The background image must be a JPEG or PNG image.")
+	if n := s.storedFiles(); n != 0 {
+		t.Fatalf("%d files stored, want 0", n)
+	}
+}
+
 func TestCertificateSettingsRefuseATooLargeImageOrANonMultipartForm(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
