@@ -64,7 +64,7 @@ func TestOtherPaymentsAndGivesSendNoEbookEmail(t *testing.T) {
 	full.subtotal = "249.00" // the Pro Plan at full price: no code
 	s.bclPay(full)
 	s.givePro("bea@example.com")
-	res, body := s.post(s.proAction("bea@example.com", "pro-plan"), nil)
+	res, body := s.post(s.proAction("bea@example.com", "pro-plan"), confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	for _, email := range []string{"ada@example.com", "bea@example.com"} {
 		if n := s.ebookEmails(email); n != 0 {
@@ -79,7 +79,7 @@ func TestTheAdminsComboSendsAnEbookEmailEachTime(t *testing.T) {
 	s, _ := ebookSite(t)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	for want := 1; want <= 2; want++ {
-		res, body := s.post(s.proAction("ada@example.com", "combo"), nil)
+		res, body := s.post(s.proAction("ada@example.com", "combo"), confirming)
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 		if n := s.ebookEmails("ada@example.com"); n != want {
 			t.Fatalf("after %d COMBOs Ada got %d Ebook emails, want %d", want, n, want)
@@ -96,7 +96,7 @@ func TestAFailedEbookEmailIsLoggedAndKeepsTheCombo(t *testing.T) {
 	s.mail.FailWith(errors.New("mail server down"))
 	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
 	expectEbookOpens(t, ada, ebook, "inline")
-	res, body := s.post(s.proAction("bea@example.com", "combo"), nil)
+	res, body := s.post(s.proAction("bea@example.com", "combo"), confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	s.mail.FailWith(nil)
 	bea := s.second()
@@ -107,22 +107,24 @@ func TestAFailedEbookEmailIsLoggedAndKeepsTheCombo(t *testing.T) {
 	expectAll(t, body, "send Ebook email", "mail server down")
 }
 
-// The Admin resends the link from the CaveText Learners page, for a Learner whose Ebook access is running.
+// The Admin resends the link from the Learner's Manage page, for a Learner whose Ebook access is running.
 func TestTheAdminResendsTheEbookLinkOnlyWhileTheAccessRuns(t *testing.T) {
 	t.Parallel()
 	s, _ := ebookSite(t)
 	s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
 	s.newCaveTextLearner("Bea Lim", "bea@example.com")
 	button := regexp.MustCompile(`action="/admin/cavetext/learners/\d+/ebook-email"`)
-	_, body := s.get("/admin/cavetext")
+	_, body := s.get(s.managePage("ada@example.com"))
 	expectNone(t, body, "Email ebook link")
 	s.givePro("bea@example.com") // Pro without Ebooks
+	_, body = s.get(s.managePage("bea@example.com"))
+	expectNone(t, body, "Email ebook link")
 
-	res, body := s.post(s.proAction("ada@example.com", "combo"), nil)
+	res, body := s.post(s.proAction("ada@example.com", "combo"), confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
-	_, body = s.get("/admin/cavetext")
+	_, body = s.get(s.managePage("ada@example.com"))
 	if n := len(button.FindAllString(body, -1)); n != 1 {
-		t.Fatalf("%d Email ebook link buttons, want 1 for Ada only: %s", n, body)
+		t.Fatalf("%d Email ebook link buttons, want 1 for Ada: %s", n, body)
 	}
 	expectAll(t, body, "Email ebook link")
 	res, body = s.post(s.proAction("ada@example.com", "ebook-email"), nil)
@@ -132,7 +134,7 @@ func TestTheAdminResendsTheEbookLinkOnlyWhileTheAccessRuns(t *testing.T) {
 	}
 
 	s.endPro("ada@example.com")
-	_, body = s.get("/admin/cavetext")
+	_, body = s.get(s.managePage("ada@example.com"))
 	expectNone(t, body, "Email ebook link")
 }
 

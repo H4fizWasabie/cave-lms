@@ -90,14 +90,18 @@ func TestTheCaveTextLearnersPageIsInMalayAndEnglish(t *testing.T) {
 
 	_, body := s.get("/admin/cavetext")
 	expectLanguage(t, body, "ms", "Pentadbir: Pelajar CaveText")
-	expectAll(t, body, "<strong>43 daripada 1,000</strong> tempat awal telah diambil", "42 (awal)", "Percuma", "Berikan Pro", "Perbaharui Pro", "Tamatkan Pro sekarang")
+	expectAll(t, body, "<strong>43 daripada 1,000</strong> tempat awal telah diambil", "Tempat 42", "Percuma", "Snippet disimpan", ">Urus<")
 	res, body := s.post("/admin/cavetext/learners/999999/pro", nil)
 	expectStatus(t, res, body, http.StatusNotFound, "Pelajar tidak dijumpai")
+	_, body = s.get(s.managePage("bea@example.com"))
+	expectAll(t, body, "Apa yang mereka miliki", "Berikan CaveText Pro", "Tamatkan Pro sekarang", "setahun CaveText Pro, hingga")
+	_, body = s.get(s.proAction("bea@example.com", "combo"))
+	expectAll(t, body, "Berikan Pelan Pro COMBO kepada Bea Lim?", "setahun CaveText Pro dan akses Ebook, hingga")
 
 	s.switchLanguage("en", "/")
 	_, body = s.get("/admin/cavetext")
 	expectLanguage(t, body, "en", "Admin: CaveText Learners")
-	expectAll(t, body, "<strong>43 of 1,000</strong> early places taken", "42 (early)", "Give Pro")
+	expectAll(t, body, "<strong>43 of 1,000</strong> early places taken", "Place 42", "Snippets saved", ">Manage<")
 }
 
 func TestTheCaveTextSettingsPageAndItsErrorsAreInMalayAndEnglish(t *testing.T) {

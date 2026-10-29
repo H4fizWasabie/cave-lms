@@ -451,6 +451,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/cavetext/caps", a.requireOwner(a.caveTextCapsForm))
 	mux.HandleFunc("POST /admin/cavetext/caps", a.requireOwner(a.saveCaveTextCaps))
 	mux.HandleFunc("GET /admin/cavetext", a.admin(a.adminCaveTextLearners))
+	mux.HandleFunc("GET /admin/cavetext/learners/{id}", a.admin(a.manageCaveTextLearner))
+	for _, k := range giveKinds {
+		mux.HandleFunc("GET /admin/cavetext/learners/{id}/"+k.Action, a.admin(a.confirmGive(k)))
+	}
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/pro", a.admin(a.giveCaveTextPro))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/pro-plan", a.admin(a.giveCaveTextProPlan))
 	mux.HandleFunc("POST /admin/cavetext/learners/{id}/combo", a.admin(a.giveCaveTextCombo))

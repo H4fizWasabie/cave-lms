@@ -36,6 +36,12 @@ func TestDatesUseTheLanguagesMonthNames(t *testing.T) {
 	if got := text.Date("en", day); got != "22 October 2026" {
 		t.Errorf("English date = %q", got)
 	}
+	if got := text.ShortDate("ms", day); got != "22 Okt 2026" {
+		t.Errorf("Malay short date = %q", got)
+	}
+	if got := text.ShortDate("en", day); got != "22 Oct 2026" {
+		t.Errorf("English short date = %q", got)
+	}
 }
 
 func TestTheBrowsersFirstMalayOrEnglishIsChosenElseMalay(t *testing.T) {

@@ -4,7 +4,7 @@
           {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{else}}<p>{{.Question}}</p>{{end}}
           <div class="form-foot">
             <a class="btn btn-quiet" href="{{.Cancel}}">{{t .Lang (or .CancelLabel "adm.cancel")}}</a>
-            {{if not .Error}}<form method="post" action="{{.Action}}"><input type="hidden" name="confirm" value="yes"><button class="btn btn-danger-solid">{{t .Lang .Heading}}</button></form>{{end}}
+            {{if not .Error}}<form method="post" action="{{.Action}}"><input type="hidden" name="confirm" value="yes"><button class="btn {{if .Solid}}btn-solid{{else}}btn-danger-solid{{end}}">{{t .Lang .Heading}}</button></form>{{end}}
           </div>
         </div>
 {{end}}

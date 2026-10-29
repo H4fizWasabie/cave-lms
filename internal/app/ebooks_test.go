@@ -200,7 +200,7 @@ func TestTheAdminGivesTheComboProPlanByHand(t *testing.T) {
 	t.Parallel()
 	s, ebook := ebookSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	res, body := s.post(s.proAction("ada@example.com", "combo"), nil)
+	res, body := s.post(s.proAction("ada@example.com", "combo"), confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	expectProPlan(t, s, ada, token, "ada@example.com", time.Time{}, nil)
 	expectEbookOpens(t, ada, ebook, "inline")
