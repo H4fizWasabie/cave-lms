@@ -49,6 +49,9 @@ func TestEveryClassroomPageOpensWithTheFourTabsAndMarksItsOwnAsTheCurrentPage(t 
 					label = tab.ms
 				}
 				href := tab.path
+				if href == "/my-folder" { // the tab links straight to the Learner's own Folder, no redirect on the way
+					href += "/" + usernameFor("ada@example.com")
+				}
 				current := ""
 				if j == i {
 					current = ` aria-current="page"`

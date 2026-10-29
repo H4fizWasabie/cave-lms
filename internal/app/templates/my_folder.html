@@ -1,7 +1,7 @@
 {{define "title"}}{{if .Owner}}{{t .Lang "my-folder.of" .Owner.Name}}{{else}}{{t .Lang "my-folder.title"}}{{end}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap{{if not .WorkbooksPart}} wrap-narrow{{end}} page-pad">
-      {{if not .Owner}}{{template "classroom-tabs" (classroomTab "folder" .Lang)}}{{end}}
+      {{if not .Owner}}{{template "classroom-tabs" (classroomTab "folder" .Lang .Learner.Username)}}{{end}}
       <div class="page-head">
         <h1>{{if .Owner}}{{t .Lang "my-folder.of" .Owner.Name}}{{else}}{{t .Lang "my-folder.title"}}{{end}}</h1>
         <p>{{if .Owner}}{{t .Lang "my-folder.intro-admin"}}{{else if or .LabPart .Workbooks}}{{t .Lang "my-folder.intro-lab"}}{{else}}{{t .Lang "my-folder.intro"}}{{end}}</p>

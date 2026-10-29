@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -206,6 +207,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /{$}", a.home)
 	mux.HandleFunc("/", a.notFound) // any other address
 	mux.Handle("GET /static/", staticHandler())
+	mux.HandleFunc("GET /speculation-rules.json", serveSpeculationRules)
 	mux.HandleFunc("GET /privacy", a.privacy)
 	mux.HandleFunc("GET /about", a.about)
 	mux.HandleFunc("GET /register", a.registerForm)
@@ -622,11 +624,13 @@ type courseTabs struct {
 func courseTab(id int64, tab, lang string) courseTabs { return courseTabs{id, tab, lang} }
 
 // classroomTabs is what the classroom-tabs template reads: the current tab ("courses", "exams", "folder" or "profile")
-// and the page's language.
-type classroomTabs struct{ Tab, Lang string }
+// the page's language and the Learner's Username, which their Folder tab links to directly (ADR 0023).
+type classroomTabs struct{ Tab, Lang, Username string }
 
-// classroomTab is the template function behind {{template "classroom-tabs" (classroomTab "folder" .Lang)}}.
-func classroomTab(tab, lang string) classroomTabs { return classroomTabs{tab, lang} }
+// classroomTab is the template function behind {{template "classroom-tabs" (classroomTab "folder" .Lang .Learner.Username)}}.
+func classroomTab(tab, lang, username string) classroomTabs {
+	return classroomTabs{tab, lang, username}
+}
 
 // galleryTile is what the gallery-tile template reads: an item and the page's language.
 type galleryTile struct {
@@ -737,8 +741,20 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Speculation-Rules", `"/speculation-rules.json"`) // a header, not a <script>, so the CSP stays free of inline script
 	w.WriteHeader(status)
 	_, _ = buf.WriteTo(w)
+}
+
+// speculationRules is what the Speculation-Rules header points at: hovering a Classroom tab prerenders its page. Only
+// those links, on purpose: other pages (a Lesson, the Lab) record progress or do work when opened, which a prerender
+// the Learner may never visit must not do. The four Classroom pages only read.
+const speculationRules = `{"prerender":[{"source":"document","where":{"selector_matches":".classroom-tabs a"},"eagerness":"moderate"}]}`
+
+func serveSpeculationRules(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/speculationrules+json")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	_, _ = io.WriteString(w, speculationRules)
 }
 
 // rejectCrossOrigin is the CSRF protection for every form: browsers mark
