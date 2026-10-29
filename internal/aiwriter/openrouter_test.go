@@ -281,3 +281,37 @@ func TestLessonAsksOnceMoreWhenTheTextIsEmptyOrBadlySized(t *testing.T) {
 		t.Fatalf("unconfigured Lesson() error = %v", err)
 	}
 }
+
+// The web search plugin makes the model append source links to what it writes; a Learner should never see them.
+func TestOpenRouterQuestionsComeBackWithoutMarkdownLinkCitations(t *testing.T) {
+	reply := func(questions string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			content, _ := json.Marshal(map[string]string{"content": questions})
+			_, _ = w.Write([]byte(`{"choices":[{"message":` + string(content) + `}]}`))
+		}))
+	}
+	cite := " ([learn.microsoft.com](https://learn.microsoft.com/a/b%3A_c%2C_d?trk=x&utm_source=openai))"
+	bare := " [conker.ai](https://www.conker.ai/quiz?utm_source=openai)"
+
+	mc := reply(`{"questions":[{"prompt":"Apakah jadual pangsi?` + cite + `","options":[{"text":"Ringkasan data` + bare + `","correct":true},{"text":"Carta","correct":false}]}]}`)
+	defer mc.Close()
+	qs, err := OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: mc.URL}.WriteQuestions(context.Background(), excel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qs) != 1 || qs[0].Prompt != "Apakah jadual pangsi?" || len(qs[0].Options) != 2 ||
+		qs[0].Options[0].Text != "Ringkasan data" || qs[0].Options[1].Text != "Carta" {
+		t.Fatalf("multiple-choice questions = %#v", qs)
+	}
+
+	written := reply(`{"questions":[{"prompt":"Terangkan jadual pangsi.` + cite + `","model_answer":"Ia meringkaskan data (lihat [panduan](https://x.example/p)).` + bare + `"}]}`)
+	defer written.Close()
+	qs, err = OpenRouter{APIKey: "sk-or-test", Model: "m", Endpoint: written.URL}.WriteQuestions(context.Background(),
+		Request{Topic: "Excel", Format: "written", Language: "ms", Count: 1, Difficulty: "hard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qs) != 1 || qs[0].Prompt != "Terangkan jadual pangsi." || qs[0].ModelAnswer != "Ia meringkaskan data (lihat)." {
+		t.Fatalf("written questions = %#v", qs)
+	}
+}
