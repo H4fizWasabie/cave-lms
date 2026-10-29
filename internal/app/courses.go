@@ -410,7 +410,7 @@ func (a *App) dropPicture(r *http.Request, key string) {
 	if key == "" {
 		return
 	}
-	if err := a.store.Delete(r.Context(), key); err != nil {
+	if err := a.store.Delete(context.WithoutCancel(r.Context()), key); err != nil {
 		a.logError(r, err)
 	}
 }

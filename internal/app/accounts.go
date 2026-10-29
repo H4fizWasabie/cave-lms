@@ -316,7 +316,7 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// A failed send is only logged: an error page would reveal that the account exists.
-		if err := a.mailVerification(r.Context(), lang, to, token); err != nil {
+		if err := a.mailVerification(context.WithoutCancel(r.Context()), lang, to, token); err != nil {
 			a.logError(r, fmt.Errorf("send verification email: %w", err))
 		}
 	}
