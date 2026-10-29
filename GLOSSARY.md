@@ -280,6 +280,11 @@ One stretch of a Learner's Plan, from its start to its end. A Plan assigned whil
 _Malay_: Tempoh Pelan
 _Avoid_: Subscription, term, cycle
 
+**Renewal reminder**:
+An email to a Learner before their Lab Plan or CaveText Pro year ends (Ebook access is named with the year it comes with): 30 days before, 7 days before and once it has ended, one email per stage listing everything that reaches it. It follows the end of the last Plan period or Pro year, so a Learner who has renewed gets none until that year nears its end. A last email warns 7 days before the 90 days after the last Plan period run out, when Workbooks and Datasets would be deleted. It links to Pricing and My membership, is in the Learner's language and has no opt-out.
+_Malay_: Peringatan pembaharuan
+_Avoid_: Expiry notice
+
 **Storage allowance**:
 How much Workbook, Dataset and Deployment page data a Learner may keep while they have an active Plan period, such as 1 GB. Pending Parts and the earlier pages kept to restore count too. What an upload replaces counts as free as soon as it is uploaded, before the Learner confirms it.
 _Malay_: Had storan

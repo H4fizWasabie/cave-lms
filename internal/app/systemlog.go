@@ -126,7 +126,7 @@ func (a *App) pruneSystemLog(ctx context.Context) error {
 	return err
 }
 
-// dailyPrune prunes the System log, expired sessions, expired Ebook download links and lapsed Learners' Datasets, logging any failure.
+// dailyPrune prunes the System log, expired sessions, expired Ebook download links and lapsed Learners' Datasets, and sends the renewal reminders now due, logging any failure.
 func (a *App) dailyPrune(ctx context.Context) {
 	if err := a.pruneSystemLog(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("prune System log: %w", err))
@@ -139,6 +139,9 @@ func (a *App) dailyPrune(ctx context.Context) {
 	}
 	if n := a.dropDeletedFiles(ctx, nil); n > 0 {
 		a.logInfo("Daily prune deleted %d stored files", n)
+	}
+	if err := a.sendRenewalReminders(ctx); err != nil {
+		a.logError(nil, fmt.Errorf("send renewal reminders: %w", err))
 	}
 	n, err := a.pruneDatasets(ctx)
 	if err != nil {

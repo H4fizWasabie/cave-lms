@@ -1826,6 +1826,35 @@ var catalog = map[string]entry{
 		en: "To keep the ebooks, download them here. These links work for %[1]d days:\n\n%[2]s",
 		ms: "Untuk menyimpan ebook, muat turun di sini. Pautan ini sah selama %[1]d hari:\n\n%[2]s",
 	},
+	// Renewal reminders (ADR 0026). The item names, then a line for each item ending (its name, then its date). Each
+	// body takes the Learner's name, those lines, the Pricing link and the My membership link.
+	"email.renewal.item.lab-plan":     {en: "Lab Plan", ms: "Pelan Lab"},
+	"email.renewal.item.cavetext-pro": {en: "CaveText Pro", ms: "CaveText Pro"},
+	"email.renewal.item.pro-ebooks":   {en: "CaveText Pro and Ebook access", ms: "CaveText Pro dan akses Ebook"},
+	"email.renewal.line":              {en: "- %[1]s: ends on %[2]s", ms: "- %[1]s: tamat pada %[2]s"},
+	"email.renewal.line-ended":        {en: "- %[1]s: ended on %[2]s", ms: "- %[1]s: tamat pada %[2]s"},
+	"email.renewal.30-days.subject":   {en: "Your CAVELMS access ends in 30 days", ms: "Akses CAVELMS anda tamat dalam 30 hari"},
+	"email.renewal.30-days.body": {
+		en: "Hi %[1]s,\n\nYour access ends in about 30 days:\n\n%[2]s\n\nRenew early and you lose no days: your new year starts when the current one ends.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda tamat dalam kira-kira 30 hari:\n\n%[2]s\n\nPerbaharui lebih awal dan anda tidak kehilangan sebarang hari: tahun baharu anda bermula apabila tahun semasa tamat.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.7-days.subject": {en: "Your CAVELMS access ends in 7 days", ms: "Akses CAVELMS anda tamat dalam 7 hari"},
+	"email.renewal.7-days.body": {
+		en: "Hi %[1]s,\n\nYour access ends in 7 days or less:\n\n%[2]s\n\nRenew now and you lose no days: your new year starts when the current one ends.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda tamat dalam 7 hari atau kurang:\n\n%[2]s\n\nPerbaharui sekarang dan anda tidak kehilangan sebarang hari: tahun baharu anda bermula apabila tahun semasa tamat.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.ended.subject": {en: "Your CAVELMS access has ended", ms: "Akses CAVELMS anda telah tamat"},
+	"email.renewal.ended.body": {
+		en: "Hi %[1]s,\n\nYour access has ended:\n\n%[2]s\n\nRenew to carry on.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda telah tamat:\n\n%[2]s\n\nPerbaharui untuk terus menggunakannya.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	// The warning before the Lab data is deleted; the body takes the Learner's name, the day their Lab Plan ended and
+	// the day the data is deleted, then the two links.
+	"email.renewal.deletion.subject": {en: "Your Lab data will be deleted in 7 days", ms: "Data Lab anda akan dipadam dalam 7 hari"},
+	"email.renewal.deletion.body": {
+		en: "Hi %[1]s,\n\nYour Lab Plan ended on %[2]s. Your Workbooks and Datasets will be deleted on %[3]s unless you renew before then.\n\nRenew here:\n\n%[4]s\n\nSee your dates here:\n\n%[5]s\n",
+		ms: "Hai %[1]s,\n\nPelan Lab anda tamat pada %[2]s. Buku kerja dan Set data anda akan dipadam pada %[3]s melainkan anda memperbaharui sebelum itu.\n\nPerbaharui di sini:\n\n%[4]s\n\nLihat tarikh anda di sini:\n\n%[5]s\n",
+	},
 	"ebook.link.gone.title": {en: "Download link no longer works", ms: "Pautan muat turun tidak lagi berfungsi"},
 	"ebook.link.gone": {
 		en: "This download link no longer works. It has expired, or your Ebook access has ended. While your Ebook access runs you can read the ebooks in the Gallery, and the Admin can send you a fresh link.",
