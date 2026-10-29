@@ -34,11 +34,11 @@ const activePeriodSQL = `pp.starts_at <= now() AND pp.ends_at > now() AND pp.end
 // activePeriod is the Plan period a Learner is in now.
 type activePeriod struct {
 	ID               int64
-	Ends             string // formatted as periodTime
-	Deployments      int    // the period's allowance: how many Deployments may be awake at once
-	Awake            int    // the Learner's awake Deployments
-	storageAllowance        // the period's, copied from its Plan when it was given
-	Used             int64  // bytes the Learner keeps against the allowance: see storageUsedSQL
+	Ends             time.Time // shown with dateTime
+	Deployments      int       // the period's allowance: how many Deployments may be awake at once
+	Awake            int       // the Learner's awake Deployments
+	storageAllowance           // the period's, copied from its Plan when it was given
+	Used             int64     // bytes the Learner keeps against the allowance: see storageUsedSQL
 }
 
 // DeploymentsLeft is how many more Deployments may be awake: never below zero, even after renewing onto a smaller
@@ -106,7 +106,7 @@ func (a *App) readLabAccess(ctx context.Context, l *learner) (labAccess, error) 
 	case err != nil:
 		return acc, err
 	default:
-		p.Ends = ends.UTC().Format(periodTime)
+		p.Ends = ends
 		acc.Period = &p
 	}
 	return acc, nil

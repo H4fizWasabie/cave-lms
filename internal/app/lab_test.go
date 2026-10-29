@@ -85,7 +85,7 @@ func TestLearnerWithAPlanAndNoCourseGetsTheLab(t *testing.T) {
 	t.Parallel()
 	admin, ada, planID, _ := labSetup(t)
 	admin.assignPlan("ada@example.com", planID)
-	ends := admin.periodsOf("ada@example.com")[0].ends.Format("2006-01-02 15:04 UTC")
+	ends := admin.periodsOf("ada@example.com")[0].ends.Format("2 January 2006, 15:04")
 
 	res, body := ada.get("/lab")
 	for _, want := range []string{"Lab Plan", "Ends " + ends, "Deployments awake", "0 of 3", "My Dashboards"} {

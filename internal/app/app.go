@@ -621,6 +621,13 @@ type courseTabs struct {
 // courseTab is the template function behind {{template "course-tabs" (courseTab .Course.ID "chat" .Lang)}}.
 func courseTab(id int64, tab, lang string) courseTabs { return courseTabs{id, tab, lang} }
 
+// classroomTabs is what the classroom-tabs template reads: the current tab ("courses", "exams", "folder" or "profile")
+// and the page's language.
+type classroomTabs struct{ Tab, Lang string }
+
+// classroomTab is the template function behind {{template "classroom-tabs" (classroomTab "folder" .Lang)}}.
+func classroomTab(tab, lang string) classroomTabs { return classroomTabs{tab, lang} }
+
 // galleryTile is what the gallery-tile template reads: an item and the page's language.
 type galleryTile struct {
 	galleryItem
@@ -646,7 +653,7 @@ var sitePages = sync.OnceValues(parsePages)
 // parsePages pairs each page template with layout.html and the partials in _*.html, keyed by file name without
 // extension.
 func parsePages() (map[string]*template.Template, error) {
-	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "inc": func(i int) int { return i + 1 }, "args": func(v ...any) []any { return v },
+	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "classroomTab": classroomTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "dateTime": dateTimeIn, "inc": func(i int) int { return i + 1 }, "args": func(v ...any) []any { return v },
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
 		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }, "resultDelayMinutes": func() int { return resultDelayMinutes }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {

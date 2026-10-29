@@ -1,12 +1,10 @@
 {{define "title"}}{{t .Lang "my-courses.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
-      <div class="page-head page-head-row">
-        <div>
-          <h1>{{t .Lang "my-courses.title"}}</h1>
-          <p>{{t .Lang "my-courses.intro"}}</p>
-        </div>
-        <a class="btn btn-ghost" href="/my-certificates"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-certificate"/></svg>{{t .Lang "my-certificates.title"}}</a>
+      {{template "classroom-tabs" (classroomTab "courses" .Lang)}}
+      <div class="page-head">
+        <h1>{{t .Lang "my-courses.title"}}</h1>
+        <p>{{t .Lang "my-courses.intro"}}</p>
       </div>
       {{- if .Courses}}
       <ul class="mc-courses">
@@ -55,7 +53,7 @@
       {{- end}}
       {{- with .Certificates}}
       <section class="mc-certs">
-        <h2>{{t $.Lang "my-courses.certificates"}}</h2>
+        <h2><a href="/my-certificates">{{t $.Lang "my-courses.certificates"}}</a></h2>
         <ul class="cert-list">
           {{- range .}}
           <li class="cert-chip">

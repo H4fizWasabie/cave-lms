@@ -61,9 +61,9 @@ type deployment struct {
 	Name      string
 	Username  string // the Username of the Learner it belongs to, in its link
 	Link      string // the full link to share, on the Deployments host
-	Deployed  string // formatted as periodTime
+	Deployed  string // Malaysia time, in the page's language
 	Awake     bool
-	TakenDown string // when Cave took it down, formatted as periodTime; empty if it was not
+	TakenDown string // when Cave took it down, Malaysia time, in the page's language; empty if it was not
 	Reason    string // why Cave took it down
 }
 
@@ -76,25 +76,34 @@ const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at 
 // deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
 const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason`
 
-// scanDeployment scans a row whose columns are lead's targets followed by deploymentColumns.
-func (a *App) scanDeployment(row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
+// deploymentLink is the full link to share for the Deployment called name of the Learner with this Username.
+func (a *App) deploymentLink(username, name string) string {
+	return a.pagesBaseURL + "/" + username + "/" + name + "/"
+}
+
+// scanDeployment scans a row, with its times in lang, whose columns are lead's targets followed by deploymentColumns.
+func (a *App) scanDeployment(lang string, row interface{ Scan(...any) error }, lead ...any) (deployment, error) {
 	var dep deployment
 	var deployed time.Time
 	var takenDown sql.NullTime
 	if err := row.Scan(append(lead, &dep.Name, &dep.Username, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
 		return dep, err
 	}
-	dep.Link = a.pagesBaseURL + "/" + dep.Username + "/" + dep.Name + "/"
-	dep.Deployed = deployed.UTC().Format(periodTime)
+	dep.Link = a.deploymentLink(dep.Username, dep.Name)
+	dep.Deployed = dateTimeIn(lang, deployed)
 	if takenDown.Valid {
-		dep.TakenDown = takenDown.Time.UTC().Format(periodTime)
+		dep.TakenDown = dateTimeIn(lang, takenDown.Time)
 	}
 	return dep, nil
 }
 
 // deploymentOf loads a Dashboard's Deployment; nil if it was never deployed.
 func (a *App) deploymentOf(r *http.Request, dashboardID int64) (*deployment, error) {
-	dep, err := a.scanDeployment(a.db.QueryRowContext(r.Context(), `SELECT `+deploymentColumns+`
+	lang, err := a.language(r)
+	if err != nil {
+		return nil, err
+	}
+	dep, err := a.scanDeployment(lang, a.db.QueryRowContext(r.Context(), `SELECT `+deploymentColumns+`
 		FROM deployments dep WHERE dep.dashboard_id = $1`, dashboardID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -429,7 +438,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	for rows.Next() {
 		var dep adminDeployment
 		var err error
-		if dep.deployment, err = a.scanDeployment(rows, &dep.ID, &dep.Dashboard, &dep.Learner, &dep.Email); err != nil {
+		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.Learner, &dep.Email); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

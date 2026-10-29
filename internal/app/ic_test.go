@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -155,4 +156,69 @@ func TestLearnersAreRefusedTheAdminsICCorrection(t *testing.T) {
 	expectStatus(t, res, body, http.StatusForbidden, "")
 	_, body = ada.get("/my-profile")
 	expectInOrder(t, content(body), "951206-08-5555")
+}
+
+func TestMyProfileIsOneCardWithPictureUsernameAndICSectionsEachSavingWithAGhostButton(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+
+	for _, lang := range []string{"en", "ms"} {
+		_, body := s.getAsking("/my-profile", lang)
+		m := mainOf(body)
+		if n := strings.Count(m, `class="card`); n != 1 {
+			t.Fatalf("%s: My profile has %d cards, want 1; body:\n%s", lang, n, m)
+		}
+		if n := strings.Count(m, `class="profile-section"`); n != 3 {
+			t.Fatalf("%s: My profile has %d sections, want 3; body:\n%s", lang, n, m)
+		}
+		if strings.Contains(m, "btn-solid") {
+			t.Fatalf("%s: My profile has a primary button, want none", lang)
+		}
+		expectInOrder(t, m, `action="/my-profile/picture"`, `action="/my-profile/username"`, `action="/my-profile/ic"`)
+		for _, id := range []string{"picture", "username", "ic"} {
+			expectAll(t, m, `<label class="sr" for="`+id+`">`)
+		}
+	}
+}
+
+// profileSection is the My profile section whose heading has this id (picture-h, username-h or ic-h), up to its end.
+func profileSection(t *testing.T, body, heading string) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(mainOf(body), `aria-labelledby="`+heading+`"`)
+	if !ok {
+		t.Fatalf("no section %s: %s", heading, body)
+	}
+	section, _, _ := strings.Cut(rest, "</section>")
+	return section
+}
+
+func TestMyProfileShowsTheSavedMessageAndEachErrorInTheSectionItBelongsTo(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+
+	_, body := s.get("/my-profile?saved")
+	expectAll(t, profileSection(t, body, "username-h"), `<p class="field-ok" role="status">Saved.</p>`)
+	for _, other := range []string{"picture-h", "ic-h"} {
+		expectNone(t, profileSection(t, body, other), "Saved.")
+	}
+
+	_, body = s.setIC("-")
+	expectAll(t, profileSection(t, body, "ic-h"), "letters and digits", `id="ic-err"`)
+	for _, other := range []string{"picture-h", "username-h"} {
+		expectNone(t, profileSection(t, body, other), "letters and digits")
+	}
+
+	res, body := s.post("/my-profile/username", url.Values{"username": {"x"}})
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	expectAll(t, profileSection(t, body, "username-h"), "must be 3 to 40 characters", `id="username-err"`)
+	for _, other := range []string{"picture-h", "ic-h"} {
+		expectNone(t, profileSection(t, body, other), "must be 3 to 40 characters")
+	}
+
+	s.setIC("951206085555")
+	_, body = s.setIC("951206085555") // already set: refused, and the refusal sits beside the locked IC
+	expectAll(t, profileSection(t, body, "ic-h"), `<p class="field-err" role="alert">`, "951206-08-5555")
+	expectNone(t, profileSection(t, body, "username-h"), `role="alert"`)
 }

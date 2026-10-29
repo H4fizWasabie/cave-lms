@@ -1107,7 +1107,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 /* A Learner's picture beside their name, or their initials in a circle; bigger on their profile page. */
 .avatar { width: 1.75rem; height: 1.75rem; flex: none; border-radius: 50%; display: inline-grid; place-items: center; vertical-align: middle; font-size: var(--fs-meta); font-weight: 700; background: var(--line); color: var(--ink-2); }
 .hdr-link .avatar { margin-inline-end: var(--space-2); }
-.profile-picture { margin-bottom: var(--space-5); }
 .profile-picture-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); }
 .profile-picture-row > .avatar { width: 6rem; height: 6rem; font-size: var(--fs-heading); }
 .profile-picture-row > .form { min-width: 0; }
@@ -1125,7 +1124,6 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 
 @media (max-width: 720px) {
   .acct-list > div { grid-template-columns: minmax(0, 1fr); }
-  .exam-list .mc-row-plain { grid-template-columns: minmax(0, 1fr); } /* no picture column: the text takes the row */
 }
 
 /* === Page: Course cards (#309) === */
@@ -1607,6 +1605,109 @@ a.msg-quote:hover { background: color-mix(in srgb, var(--brand-gold) 20%, transp
 @media (max-width: 999px) {
   .about-side { position: static; }
 }
+
+/* === Page: Classroom (#511) === */
+/* The four Classroom pages (My courses, My exams, My folder, My profile) open with the same .lab-tabs links. They scroll
+   sideways on a narrow screen (.lab-tabs has overflow-x) and never widen the page. Later Classroom tickets add below. */
+.classroom-tabs { max-width: 100%; margin-bottom: var(--space-5); }
+
+/* Stacked tables: at 999px and narrower a .table-stack table drops its heads and each row becomes a block, a cell's label
+   (its data-label) beside its value. A cell with no data-label (a name, the actions) spans the row; wrap a value that has
+   a <small> in a <span> so it stays one grid item. Shared by the Folder and My exams tables. */
+@media (max-width: 999px) {
+  .table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table-stack, .table-stack tbody, .table-stack tr { display: block; }
+  .table-stack tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
+  .table-stack tbody tr:last-child { border-bottom: 0; }
+  .table-stack td { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) 0; border: 0; }
+  .table-stack td::before { content: attr(data-label); color: var(--muted); font-size: var(--fs-meta); font-weight: 600; }
+  .table-stack td:not([data-label]) { display: block; }
+  .table-stack td:not([data-label])::before { content: none; }
+  .table-stack td.actions { text-align: left; padding-top: var(--space-2); }
+  .table-stack td.when { white-space: normal; }
+  .table-stack td[data-label] > span { overflow-wrap: anywhere; }
+}
+
+/* --- Folder (#514): a rail (Storage, section links, Upload) beside the sections; the Workbooks table. ---
+   From 1280px the rail stands to the left and sticks. At 1279px and narrower it folds into a strip above the content,
+   so the table keeps the full width, and at 999px and narrower its rows stack (.table-stack). */
+.folder-sec { margin-bottom: var(--space-6); }
+.folder-sec > h2 { margin-bottom: var(--space-4); }
+.folder-grid.has-rail { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: var(--space-7); align-items: start; }
+.folder-main { min-width: 0; }
+.folder-rail { position: sticky; top: var(--space-5); display: grid; gap: var(--space-5); }
+.folder-storage { display: grid; gap: var(--space-2); }
+.folder-storage-k { font-size: var(--fs-meta); font-weight: 600; color: var(--muted); }
+.folder-storage-text { margin: 0; font-size: var(--fs-ui); color: var(--ink-2); }
+.folder-meter { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: var(--space-2); border: 0; border-radius: var(--radius-pill); background: var(--line); overflow: hidden; }
+.folder-meter::-webkit-meter-bar { background: var(--line); border: 0; border-radius: var(--radius-pill); height: var(--space-2); }
+.folder-meter::-webkit-meter-optimum-value, .folder-meter::-webkit-meter-suboptimum-value, .folder-meter::-webkit-meter-even-less-good-value { background: var(--brand-gold-deep); border-radius: var(--radius-pill); }
+.folder-meter::-moz-meter-bar { background: var(--brand-gold-deep); border-radius: var(--radius-pill); }
+.folder-index { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.folder-index li { border-bottom: 1px solid var(--line); }
+.folder-index a { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; text-decoration: none; font-weight: 600; }
+.folder-index a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
+.folder-count { color: var(--muted); font-size: var(--fs-ui); }
+.folder-upload { display: grid; justify-items: start; gap: var(--space-2); }
+.folder-upload small { color: var(--muted); font-size: var(--fs-meta); }
+.folder-file { max-width: 100%; }
+/* Upload drop area: with script the file field covers the dashed box and choosing or dropping a file sends it. */
+.folder-drop { position: relative; display: grid; gap: var(--space-4); }
+.folder-drop-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.folder-drop-name { font-weight: 600; color: var(--ink-2); min-height: 1lh; }
+.folder-drop.is-live .folder-drop-foot { display: contents; }
+.folder-drop.is-live .folder-file { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.folder-drop.is-live:hover .empty-state, .folder-drop.is-over .empty-state { border-color: var(--brand-ink); }
+.folder-drop.is-live:has(:focus-visible) .empty-state { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+/* Workbooks table */
+.folder-table .folder-name { overflow-wrap: anywhere; min-width: 12rem; }
+.folder-table .folder-name a { font-weight: 600; }
+.folder-table td.num { white-space: nowrap; }
+@media (max-width: 1279px) {
+  .folder-grid.has-rail { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .folder-rail { position: static; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+  .folder-storage { flex: 0 1 15rem; }
+  .folder-index { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); flex: 1 1 auto; border-top: 0; }
+  .folder-index li { border-bottom: 0; }
+  .folder-index a { justify-content: flex-start; }
+  .folder-upload { flex: 0 1 15rem; }
+}
+@media (max-width: 999px) { .folder-table .folder-name { min-width: 0; } }
+
+/* Dashboard cards (#515): one card per Dashboard, its name and Live link, a ruled list of pages, the Workbooks it used. */
+.folder-restored { margin-bottom: var(--space-3); font-size: var(--fs-ui); }
+.folder-dash { margin-bottom: var(--space-4); }
+.folder-dash-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
+.folder-dash-name { font-size: var(--fs-lede); overflow-wrap: anywhere; }
+.folder-dash-name a { text-decoration: none; }
+.folder-dash-name a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); text-underline-offset: 0.2em; }
+.folder-live { display: inline-flex; align-items: center; gap: var(--space-1); font-weight: 600; font-size: var(--fs-ui); }
+.folder-dash-head .muted { font-size: var(--fs-meta); }
+.folder-pages { list-style: none; margin: 0; padding: 0; }
+.folder-pages li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.folder-page-what { font-weight: 600; min-width: 8rem; }
+.folder-page-meta { color: var(--muted); font-size: var(--fs-ui); }
+.folder-page-act { margin-left: auto; }
+.folder-uses { margin: var(--space-3) 0 0; font-size: var(--fs-ui); overflow-wrap: anywhere; }
+
+/* My exams (#516): a table that stacks as .table-stack does. */
+.exam-course { font-weight: 600; overflow-wrap: anywhere; }
+.exam-course a { text-decoration: none; }
+.exam-course a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); text-underline-offset: 0.2em; }
+@media (max-width: 999px) { .exam-table td.actions .btn { width: 100%; } }
+
+/* My profile (#517): one card, three ruled sections (Picture, Username, IC), each with its own form and ghost Save. */
+.profile-card { padding-block: 0; }
+.profile-section { display: grid; gap: var(--space-4); padding: var(--space-5) 0; }
+.profile-section + .profile-section { border-top: 1px solid var(--line); }
+.profile-section h2 { font-size: var(--fs-title); }
+.profile-ic { display: grid; gap: var(--space-1); justify-items: start; margin: 0; }
+.profile-ic strong { font-family: var(--font-display); font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; }
+.profile-ic span { color: var(--muted); font-size: var(--fs-ui); }
+
+/* My courses (#518): the certificates section heading is the link to My certificates, underlined in gold like the course titles. */
+.mc-certs h2 a { text-decoration: none; text-underline-offset: 0.2em; }
+.mc-certs h2 a:hover { text-decoration: underline; text-decoration-color: var(--brand-gold); }
 
 /* === Lab: as on main (QA, #307) ===
    The Lab is out of the refresh, so it keeps the look it had on main: these are main's rules for every class the Lab

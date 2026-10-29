@@ -1,27 +1,32 @@
 {{define "title"}}{{t .Lang "my-exams.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
+      {{template "classroom-tabs" (classroomTab "exams" .Lang)}}
       <div class="page-head">
         <h1>{{t .Lang "my-exams.title"}}</h1>
         <p>{{t .Lang "my-exams.intro"}}</p>
       </div>
       {{- if .Exams}}
-      <ul class="mc-list exam-list">
-        {{range .Exams}}
-        <li class="mc-row mc-row-plain">
-          <div class="mc-main">
-            <h2><a href="/courses/{{.CourseID}}">{{.CourseTitle}}</a></h2>
-            <ul class="meta">
-              <li>{{t $.Lang (print "bank.format." .Format)}}</li>
-              <li>{{if .Passed}}<span class="badge badge-open">{{t $.Lang "my-exams.passed"}}</span>{{else if .Awaiting}}<span class="badge badge-joined">{{t $.Lang "next.awaiting"}}</span>{{else if .Attempted}}<span class="badge badge-revoked">{{t $.Lang "my-exams.failed"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "my-exams.not-taken"}}</span>{{end}}</li>
-              {{if .Attempted}}<li>{{t $.Lang "exam.best" .Best}}</li>{{end}}
-              <li>{{t $.Lang "exam.pass-mark" .PassMark}}</li>
-            </ul>
-          </div>
-          <a class="btn btn-ghost btn-sm" href="{{.Path}}">{{t $.Lang "my-courses.open"}}</a>
-        </li>
-        {{end}}
-      </ul>
+      <div class="card card-flush">
+        <div class="table-wrap">
+          <table class="table table-stack exam-table">
+            <thead>
+              <tr><th scope="col">{{t .Lang "my-exams.course"}}</th><th scope="col">{{t .Lang "my-exams.format"}}</th><th scope="col">{{t .Lang "my-exams.status"}}</th><th scope="col">{{t .Lang "my-exams.score"}}</th><th scope="col" class="actions"><span class="sr">{{t .Lang "my-courses.open"}}</span></th></tr>
+            </thead>
+            <tbody>
+              {{range .Exams}}
+              <tr>
+                <td class="exam-course"><a href="/courses/{{.CourseID}}">{{.CourseTitle}}</a></td>
+                <td data-label="{{t $.Lang "my-exams.format"}}">{{t $.Lang (print "bank.format." .Format)}}</td>
+                <td data-label="{{t $.Lang "my-exams.status"}}">{{if .Passed}}<span class="badge badge-open">{{t $.Lang "my-exams.passed"}}</span>{{else if .Awaiting}}<span class="badge badge-joined">{{t $.Lang "next.awaiting"}}</span>{{else if .Attempted}}<span class="badge badge-revoked">{{t $.Lang "my-exams.failed"}}</span>{{else}}<span class="badge badge-closed">{{t $.Lang "my-exams.not-taken"}}</span>{{end}}</td>
+                <td data-label="{{t $.Lang "my-exams.score"}}"><span>{{if .Attempted}}{{t $.Lang "exam.best" .Best}}<small>{{t $.Lang "exam.pass-mark" .PassMark}}</small>{{else}}{{t $.Lang "exam.pass-mark" .PassMark}}{{end}}</span></td>
+                <td class="actions"><a class="btn btn-ghost btn-sm" href="{{.Path}}">{{t $.Lang "my-courses.open"}}</a></td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {{- else}}
       <div class="empty-state">
         <svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-exam"/></svg>

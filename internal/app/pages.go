@@ -29,9 +29,9 @@ const (
 // htmlPage is a Dashboard's page: the HTML its Learner made, kept in the store (ADR 0018).
 type htmlPage struct {
 	ID       int64
-	Key      string // where the page is in the store
-	Size     int64  // bytes, against the Storage allowance
-	Uploaded string // formatted as periodTime
+	Key      string    // where the page is in the store
+	Size     int64     // bytes, against the Storage allowance
+	Uploaded time.Time // shown with dateTime
 }
 
 func (p *htmlPage) SizeText() string { return sizeText(p.Size) }
@@ -223,7 +223,7 @@ func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, 
 		if err := rows.Scan(&p.ID, &p.Key, &p.Size, &uploaded); err != nil {
 			return nil, err
 		}
-		p.Uploaded = uploaded.UTC().Format(periodTime)
+		p.Uploaded = uploaded
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -297,7 +297,8 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 }
 
 // restorePage makes an earlier page current at once, POST /lab/dashboards/{id}/pages/{pg}/restore; the current one
-// turns earlier.
+// turns earlier. It sends the Learner back to the form's local next if it has one (the Folder), else to the Dashboard.
+// It asks nothing first: the page it replaces is kept.
 func (a *App) restorePage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 	if _, ok := a.labOpen(w, r); !ok {
 		return
@@ -330,5 +331,5 @@ func (a *App) restorePage(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.serverError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, dashboardURL(d), http.StatusSeeOther)
+	http.Redirect(w, r, cmp.Or(localPath(r.PostFormValue("next")), dashboardURL(d)), http.StatusSeeOther)
 }

@@ -29,11 +29,11 @@ type caveTextLearnerRow struct {
 }
 
 // Until is when the Learner's Pro ends, or empty without Pro.
-func (r caveTextLearnerRow) Until() string {
+func (r caveTextLearnerRow) Until(lang string) string {
 	if !r.Pro {
 		return ""
 	}
-	return r.ProUntil.Format(periodTime)
+	return dateTimeIn(lang, r.ProUntil)
 }
 
 type caveTextLearnersPage struct {

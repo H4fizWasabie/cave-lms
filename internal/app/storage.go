@@ -61,6 +61,12 @@ func storageUsedSQL(learner string) string {
 		(SELECT COALESCE(sum(wb.size), 0) FROM workbooks wb WHERE wb.learner_id = ` + learner + `))`
 }
 
+// storageUsed is the bytes the Learner keeps against the Storage allowance, by storageUsedSQL.
+func (a *App) storageUsed(ctx context.Context, learnerID int64) (used int64, err error) {
+	err = a.db.QueryRowContext(ctx, `SELECT `+storageUsedSQL("$1"), learnerID).Scan(&used)
+	return used, err
+}
+
 // storagePendingSQL is an SQL expression for the part of storageUsedSQL that is the Learner's Pending Parts.
 func storagePendingSQL(learner string) string {
 	return `(SELECT COALESCE(sum(p.saved_size), 0) FROM dataset_parts p JOIN dashboards owner ON owner.id = p.dashboard_id

@@ -67,6 +67,13 @@ func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "My exams")
 	main := content(body)
 	expectNone(t, main, "Examless", "Unjoined")
+	expectInOrder(t, main, "<th", ">Course</th>", ">Format</th>", ">Status</th>", ">Best / Pass mark</th>", `<span class="sr">Open</span></th>`, ">Failer<")
+	if n := strings.Count(main, `<th scope="col"`); n != 5 {
+		t.Errorf("%d column heads have scope=col, want 5: %s", n, main)
+	}
+	if !strings.Contains(main, `class="table table-stack exam-table"`) {
+		t.Errorf("the exams table does not use the shared stacking class: %s", main)
+	}
 	expectInOrder(t, main, ">Failer<", "Failed", "Best score: 0%", "Pass mark: 70%", `href="/courses/`+failed+`/exam"`)
 	expectInOrder(t, main, ">Fresh<", "Not taken", "Pass mark: 60%", `href="/courses/`+fresh+`/exam"`)
 	expectInOrder(t, main, ">Passer<", "Passed", "Best score: 100%", "Pass mark: 60%", `href="/courses/`+passed+`/exam"`)
@@ -76,6 +83,7 @@ func TestMyExamsShowsEachEnrolledCoursesExamWithItsStatus(t *testing.T) {
 
 	_, body = s.getAsking("/my-exams", "ms")
 	main = content(body)
+	expectInOrder(t, main, "<th", ">Kursus</th>", ">Format</th>", ">Status</th>", ">Terbaik / Markah lulus</th>")
 	expectAll(t, main, "Peperiksaan saya", "Belum diambil", "Lulus", "Gagal", "Markah terbaik: 100%", "Markah lulus: 60%")
 }
 

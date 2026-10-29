@@ -1,53 +1,60 @@
 {{define "title"}}{{t .Lang "my-profile.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap wrap-narrow page-pad">
+      {{template "classroom-tabs" (classroomTab "profile" .Lang)}}
       <div class="page-head">
         <h1>{{t .Lang "my-profile.title"}}</h1>
         <p>{{t .Lang "my-profile.intro"}}</p>
       </div>
-      <section class="card form acct-form profile-picture" aria-labelledby="picture-h">
-        <h2 id="picture-h">{{t .Lang "my-profile.picture"}}</h2>
-        <div class="profile-picture-row">
-          {{template "avatar" .Learner}}
-          <form class="form" method="post" action="/my-profile/picture" enctype="multipart/form-data">
+      <div class="card profile-card">
+        <section class="profile-section" aria-labelledby="picture-h">
+          <h2 id="picture-h">{{t .Lang "my-profile.picture"}}</h2>
+          <div class="profile-picture-row">
+            {{template "avatar" .Learner}}
+            <form class="form" method="post" action="/my-profile/picture" enctype="multipart/form-data">
+              <div class="field">
+                <label class="sr" for="picture">{{t .Lang "my-profile.picture"}}</label>
+                <input id="picture" name="picture" type="file" accept="image/jpeg,image/png,image/webp" required{{if .PictureError}} aria-invalid="true" aria-describedby="picture-err"{{end}}>
+                {{with .PictureError}}<p class="field-err" id="picture-err" role="alert">{{.}}</p>{{end}}
+                <small>{{t .Lang "my-profile.picture-hint"}}</small>
+              </div>
+              <div><button class="btn btn-ghost">{{t .Lang "my-profile.picture-upload"}}</button></div>
+            </form>
+            {{- if .Learner.PictureKey}}
+            <form method="post" action="/my-profile/picture/remove"><button class="btn btn-quiet">{{t .Lang "my-profile.picture-remove"}}</button></form>
+            {{- end}}
+          </div>
+        </section>
+        <section class="profile-section" aria-labelledby="username-h">
+          <h2 id="username-h">{{t .Lang "account.username"}}</h2>
+          {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
+          <form class="form acct-form" method="post" action="/my-profile/username">
             <div class="field">
-              <label class="sr" for="picture">{{t .Lang "my-profile.picture"}}</label>
-              <input id="picture" name="picture" type="file" accept="image/jpeg,image/png,image/webp" required{{if .PictureError}} aria-invalid="true" aria-describedby="picture-err"{{end}}>
-              {{with .PictureError}}<p class="field-err" id="picture-err" role="alert">{{.}}</p>{{end}}
-              <small>{{t .Lang "my-profile.picture-hint"}}</small>
+              <label class="sr" for="username">{{t .Lang "account.username"}}</label>
+              <input id="username" name="username" value="{{if .TypedUsername}}{{.TypedUsername}}{{else}}{{.Learner.Username}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" required{{if .UsernameError}} aria-invalid="true" aria-describedby="username-err"{{end}}>
+              {{with .UsernameError}}<p class="field-err" id="username-err" role="alert">{{.}}</p>{{end}}
+              <small>{{t .Lang "my-profile.username-hint"}}</small>
             </div>
-            <div><button class="btn btn-solid">{{t .Lang "my-profile.picture-upload"}}</button></div>
+            <div><button class="btn btn-ghost">{{t .Lang "my-profile.save"}}</button></div>
           </form>
-          {{- if .Learner.PictureKey}}
-          <form method="post" action="/my-profile/picture/remove"><button class="btn btn-quiet">{{t .Lang "my-profile.picture-remove"}}</button></form>
+        </section>
+        <section class="profile-section" aria-labelledby="ic-h">
+          <h2 id="ic-h">{{t .Lang "my-profile.ic"}}</h2>
+          {{- if .IC}}
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <p class="profile-ic"><strong class="num">{{.IC}}</strong><span>{{t .Lang "my-profile.ic-locked"}}</span></p>
+          {{- else}}
+          <form class="form acct-form" method="post" action="/my-profile/ic">
+            <div class="field">
+              <label class="sr" for="ic">{{t .Lang "my-profile.ic"}}</label>
+              <input id="ic" name="ic" value="{{.Typed}}" maxlength="40" autocomplete="off" required{{if .Error}} aria-invalid="true" aria-describedby="ic-err"{{end}}>
+              {{with .Error}}<p class="field-err" id="ic-err" role="alert">{{.}}</p>{{end}}
+              <small>{{t .Lang "my-profile.ic-once"}}</small>
+            </div>
+            <div><button class="btn btn-ghost">{{t .Lang "my-profile.save"}}</button></div>
+          </form>
           {{- end}}
-        </div>
-      </section>
-      <form class="card form acct-form" method="post" action="/my-profile/username">
-        {{with .Message}}<p class="field-ok" role="status">{{.}}</p>{{end}}
-        <div class="field">
-          <label for="username">{{t .Lang "account.username"}}</label>
-          <input id="username" name="username" value="{{if .TypedUsername}}{{.TypedUsername}}{{else}}{{.Learner.Username}}{{end}}" autocomplete="off" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" required{{if .UsernameError}} aria-invalid="true" aria-describedby="username-err"{{end}}>
-          {{with .UsernameError}}<p class="field-err" id="username-err" role="alert">{{.}}</p>{{end}}
-          <small>{{t .Lang "my-profile.username-hint"}}</small>
-        </div>
-        <div><button class="btn btn-solid">{{t .Lang "my-profile.save"}}</button></div>
-      </form>
-      {{- if .IC}}
-      {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
-      <dl class="acct-list">
-        <div><dt>{{t .Lang "my-profile.ic"}}</dt><dd><strong class="num">{{.IC}}</strong><span>{{t .Lang "my-profile.ic-locked"}}</span></dd></div>
-      </dl>
-      {{- else}}
-      <form class="card form acct-form" method="post" action="/my-profile/ic">
-        <div class="field">
-          <label for="ic">{{t .Lang "my-profile.ic"}}</label>
-          <input id="ic" name="ic" value="{{.Typed}}" maxlength="40" autocomplete="off" required{{if .Error}} aria-invalid="true" aria-describedby="ic-err"{{end}}>
-          {{with .Error}}<p class="field-err" id="ic-err" role="alert">{{.}}</p>{{end}}
-          <small>{{t .Lang "my-profile.ic-once"}}</small>
-        </div>
-        <div><button class="btn btn-solid">{{t .Lang "my-profile.save"}}</button></div>
-      </form>
-      {{- end}}
+        </section>
+      </div>
     </div>
 {{end}}

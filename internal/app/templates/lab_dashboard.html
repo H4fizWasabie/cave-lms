@@ -26,7 +26,7 @@
       {{- if and .Dashboard.Page (eq .Tab "page")}}{{with .Dashboard.Page}}
       <div class="lab-split">
         <div class="lab-stack">
-          <div class="ds-now lab-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" .Uploaded}}</span></div>
+          <div class="ds-now lab-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{t $.Lang "lab.page.current"}}</strong><span class="muted">{{.SizeText}} · {{t $.Lang "lab.page.uploaded" (dateTime $.Lang .Uploaded)}}</span></div>
             <a class="btn btn-solid" href="{{$url}}/deploy">{{t $.Lang "lab.d.tab.deploy"}}</a></div>
           <section class="card lab-card">
             <h2 class="h-md">{{t $.Lang "lab.page.new"}}</h2>
@@ -44,7 +44,7 @@
             <p class="muted">{{t $.Lang "lab.page.earlier-body"}}</p>
             <ul class="ds-earlier">
               {{- range .}}
-              <li><div><strong>{{t $.Lang "lab.page.uploaded" .Uploaded}}</strong><span class="muted">{{.SizeText}}</span></div>
+              <li><div><strong>{{t $.Lang "lab.page.uploaded" (dateTime $.Lang .Uploaded)}}</strong><span class="muted">{{.SizeText}}</span></div>
                 <form method="post" action="{{$url}}/pages/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form></li>
               {{- end}}
             </ul>
@@ -59,12 +59,12 @@
       <div class="lab-split">
         <section>
           {{- if .Dashboard.Parts}}
-          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.parts" .Dashboard.Parts}} · {{tn $.Lang "lab.d.rows" .Dashboard.Rows}} · {{tn $.Lang "lab.d.columns" (len .Dashboard.Columns)}} · {{t $.Lang "lab.d.changed" $.Dashboard.Updated}}</span></div></div>
+          <div class="ds-now"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check-circle"/></svg><div><strong>{{.Dashboard.File}}</strong><span class="muted">{{tn $.Lang "lab.d.parts" .Dashboard.Parts}} · {{tn $.Lang "lab.d.rows" .Dashboard.Rows}} · {{tn $.Lang "lab.d.columns" (len .Dashboard.Columns)}} · {{t $.Lang "lab.d.changed" (dateTime $.Lang $.Dashboard.Updated)}}</span></div></div>
           {{- with .PartList}}
           <h2 class="h-md">{{t $.Lang "lab.d.parts-list"}}</h2>
           <ul class="ds-parts ds-earlier">
             {{- range .}}
-            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.d.part-date" .Date}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}} · {{t $.Lang "lab.d.part-added" .Added}}</span></div>
+            <li><div><strong>{{.File}}</strong><span class="muted">{{t $.Lang "lab.d.part-date" .Date}} · {{tn $.Lang "lab.d.rows" .Rows}} · {{.SizeText}} · {{t $.Lang "lab.d.part-added" (dateTime $.Lang .Added)}}</span></div>
               <span class="ds-part-actions"><a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/replace">{{t $.Lang "lab.d.part-replace-btn"}}</a> <a class="btn btn-quiet" href="{{$url}}/parts/{{.ID}}/delete">{{t $.Lang "lab.delete"}}</a></span></li>
             {{- end}}
           </ul>

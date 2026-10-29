@@ -115,7 +115,7 @@ func TestRenewingProEarlyStartsTheNewYearWhenTheRunningOneEnds(t *testing.T) {
 		t.Fatalf("after renewing, me = %+v, want Pro until %v", me, first.AddDate(1, 0, 0))
 	}
 	_, body := s.get("/admin/cavetext")
-	if !strings.Contains(body, first.AddDate(1, 0, 0).Format("2006-01-02 15:04 UTC")) {
+	if !strings.Contains(body, first.AddDate(1, 0, 0).In(malaysiaTime).Format("2 January 2006, 15:04")) {
 		t.Fatalf("the Learners page doesn't show the renewed expiry: %s", body)
 	}
 
@@ -240,9 +240,9 @@ func TestTheCaveTextLearnersPageShowsPlacesProAndTheEarlyPlacesTaken(t *testing.
 	row := regexp.MustCompile(`<tr>\s*<td>(\d+)[^<]*</td>\s*<td>([^<]+)<br><span class="muted">([^<]+)</span></td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>(\d+)</td>`)
 	var got []string
 	for _, m := range row.FindAllStringSubmatch(body, -1) {
-		got = append(got, fmt.Sprintf("%s %s %s %s %s", m[1], m[3], m[4], m[6], strings.Fields(m[5])[0]))
+		got = append(got, fmt.Sprintf("%s %s %s %s %s", m[1], m[3], m[4], m[6], strings.SplitN(m[5], ",", 2)[0])) // the date, not the time
 	}
-	year := time.Now().UTC().AddDate(1, 0, 0).Format("2006-01-02")
+	year := time.Now().In(malaysiaTime).AddDate(1, 0, 0).Format("2 January 2006")
 	if want := []string{"42 ada@example.com Free 3 -", "43 bea@example.com Pro 0 " + year}; fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("rows = %q, want %q", got, want)
 	}
