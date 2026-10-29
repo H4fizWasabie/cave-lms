@@ -175,6 +175,25 @@ func TestTheEbookEmailAttachesEachNonPromotionalEbookAndNothingElse(t *testing.T
 	expectAll(t, body, ebookAttachedLine, "https://cave.example.invalid/gallery?format=ebook", "open until")
 }
 
+// A send with the ebooks attached that fails (a large upload timing out) is logged and the email goes again with the
+// link alone, so the buyer is never left without it.
+func TestTheEbookEmailGoesWithTheLinkOnlyWhenSendingTheAttachmentsFails(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	s.mail.FailAttachmentsWith(errors.New("Client.Timeout exceeded while awaiting headers"))
+
+	n, body, _, _ := ebookEmailAfterPayment(t, s)
+	if n != 0 {
+		t.Fatalf("the Ebook email carries %d attachments, want the link alone", n)
+	}
+	expectAll(t, body, "https://cave.example.invalid/gallery?format=ebook", "open until")
+	if strings.Contains(body, ebookAttachedLine) {
+		t.Fatalf("the link-only Ebook email says the ebooks are attached: %s", body)
+	}
+	_, body = s.get("/admin/log")
+	expectAll(t, body, "send Ebook email", "Client.Timeout exceeded")
+}
+
 // With no ebook to attach, the email reads as it always did.
 func TestTheEbookEmailCarriesTheLinkOnlyWhenNoEbookIsUploaded(t *testing.T) {
 	t.Parallel()

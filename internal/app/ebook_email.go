@@ -43,8 +43,15 @@ func (a *App) emailEbookLink(ctx context.Context, learnerID int64) {
 		Body:    text.T(lang, "email.ebook.body", name, text.Date(lang, until.Time.UTC()), a.publicBaseURL+"/gallery?format=ebook", email),
 	}
 	if files := a.ebookAttachments(ctx, learnerID); len(files) > 0 {
-		msg.Body += "\n" + text.T(lang, "email.ebook.attached") + "\n"
-		msg.Attachments = files
+		withFiles := msg
+		withFiles.Body += "\n" + text.T(lang, "email.ebook.attached") + "\n"
+		withFiles.Attachments = files
+		err := a.mailer.Send(ctx, withFiles)
+		if err == nil {
+			return
+		}
+		// A large upload can fail where a small one would not, so the link alone is sent rather than nothing.
+		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d with the ebooks attached, sending the link only: %w", learnerID, err))
 	}
 	if err := a.mailer.Send(ctx, msg); err != nil {
 		a.logError(nil, fmt.Errorf("send Ebook email to Learner %d: %w", learnerID, err))

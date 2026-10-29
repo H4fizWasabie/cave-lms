@@ -20,7 +20,14 @@ type Resend struct {
 	Endpoint string
 }
 
-var resendClient = &http.Client{Timeout: 15 * time.Second}
+// sendTimeout is how long one email may take; one with attachments gets attachmentSendTimeout, since uploading a
+// 19 MB Ebook email from the VPS took over 15 seconds.
+const (
+	sendTimeout           = 15 * time.Second
+	attachmentSendTimeout = 3 * time.Minute
+)
+
+var resendClient = &http.Client{}
 
 func (m Resend) Send(ctx context.Context, message Message) error {
 	email := map[string]any{
@@ -40,6 +47,12 @@ func (m Resend) Send(ctx context.Context, message Message) error {
 	if endpoint == "" {
 		endpoint = resendEndpoint
 	}
+	timeout := sendTimeout
+	if len(message.Attachments) > 0 {
+		timeout = attachmentSendTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return err
