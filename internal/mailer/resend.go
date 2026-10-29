@@ -21,8 +21,8 @@ type Resend struct {
 }
 
 // sendTimeout is how long one email may take; one with attachments gets attachmentSendTimeout, since uploading a
-// 19 MB Ebook email from the VPS took over 15 seconds.
-const (
+// 19 MB Ebook email from the VPS took over 15 seconds. Variables only so a test can shorten them.
+var (
 	sendTimeout           = 15 * time.Second
 	attachmentSendTimeout = 3 * time.Minute
 )

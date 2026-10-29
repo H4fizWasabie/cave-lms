@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestResendSendsTheMessageThroughResendsAPI(t *testing.T) {
@@ -80,5 +81,26 @@ func TestResendSendsAttachmentsBase64Encoded(t *testing.T) {
 	if len(body.Attachments) != 1 || body.Attachments[0]["filename"] != "answer-sheet.pdf" ||
 		body.Attachments[0]["content"] != "JVBERi0xLjM=" {
 		t.Fatalf("attachments = %v, want answer-sheet.pdf with its content in base64", body.Attachments)
+	}
+}
+
+// A message with attachments may take longer to send than a plain one: Resend takes over 15 seconds to accept a 19 MB
+// Ebook email.
+func TestResendGivesAMessageWithAttachmentsLongerToSend(t *testing.T) {
+	sendTimeout, attachmentSendTimeout = 50*time.Millisecond, 5*time.Second
+	t.Cleanup(func() { sendTimeout, attachmentSendTimeout = 15*time.Second, 3*time.Minute })
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		_, _ = w.Write([]byte(`{"id":"x"}`))
+	}))
+	defer server.Close()
+	m := Resend{APIKey: "re_test_key", From: "Cave LMS <noreply@courses.example.test>", Endpoint: server.URL + "/emails"}
+
+	if err := m.Send(context.Background(), Message{To: "learner@example.test", Subject: "s", Body: "b"}); err == nil {
+		t.Error("a plain message slower than sendTimeout was sent, want it to time out")
+	}
+	withFile := Message{To: "learner@example.test", Subject: "s", Body: "b", Attachments: []Attachment{{Filename: "a.pdf", Content: []byte("%PDF")}}}
+	if err := m.Send(context.Background(), withFile); err != nil {
+		t.Errorf("a message with attachments slower than sendTimeout: %v, want it sent", err)
 	}
 }
