@@ -21,7 +21,7 @@ func newCaveTextSite(t *testing.T) *site {
 // connect signs CaveText in through the connect page, as the logged-in Learner, and returns the token.
 func (s *site) connect() string {
 	s.t.Helper()
-	res, body := s.get("/cavetext/connect?extension=" + extensionID)
+	res, body := s.post("/cavetext/connect", url.Values{"extension": {extensionID}})
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 	prefix := "https://" + extensionID + ".chromiumapp.org/#token="
 	location := res.Header.Get("Location")
@@ -139,6 +139,58 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 		if got := res.Header.Get("Location"); got != "/" {
 			t.Fatalf("next=%q redirected to %q, want /", next, got)
 		}
+	}
+}
+
+func (s *site) caveTextTokenCount() (n int) {
+	s.t.Helper()
+	if err := s.db.QueryRow(`SELECT count(*) FROM cavetext_tokens`).Scan(&n); err != nil {
+		s.t.Fatal(err)
+	}
+	return n
+}
+
+func TestCaveTextConnectAsksBeforeCreatingAToken(t *testing.T) {
+	t.Parallel()
+	s := newCaveTextSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+
+	res, body := s.get("/cavetext/connect?extension=" + extensionID)
+	expectStatus(t, res, body, http.StatusOK, `action="/cavetext/connect"`)
+	if !strings.Contains(body, `name="extension" value="`+extensionID+`"`) {
+		t.Fatalf("connect page does not carry the extension id in its form: %s", body)
+	}
+	if n := s.caveTextTokenCount(); n != 0 {
+		t.Fatalf("GET created %d tokens, want 0", n)
+	}
+
+	res, body = s.post("/cavetext/connect", url.Values{"extension": {extensionID}})
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	if got := res.Header.Get("Location"); !strings.HasPrefix(got, "https://"+extensionID+".chromiumapp.org/#token=") {
+		t.Fatalf("POST redirected to %q, want the extension's URL with a token", got)
+	}
+	if n := s.caveTextTokenCount(); n != 1 {
+		t.Fatalf("POST created %d tokens, want 1", n)
+	}
+
+	s.switchLanguage("ms", "/")
+	res, body = s.get("/cavetext/connect?extension=" + extensionID)
+	expectStatus(t, res, body, http.StatusOK, "Sambungkan")
+}
+
+func TestCaveTextConnectPostRefusesAnUnlistedExtensionAndOtherSites(t *testing.T) {
+	t.Parallel()
+	s := newCaveTextSite(t)
+	s.loginAsNewLearner("Ada Lovelace", "ada@example.com", "correct horse battery")
+	res, body := s.post("/cavetext/connect", url.Values{"extension": {"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}})
+	expectStatus(t, res, body, http.StatusBadRequest, "")
+	req := s.newRequest(http.MethodPost, "/cavetext/connect", strings.NewReader(url.Values{"extension": {extensionID}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	res, body = s.do(req)
+	expectStatus(t, res, body, http.StatusForbidden, "cross-origin request refused")
+	if n := s.caveTextTokenCount(); n != 0 {
+		t.Fatalf("refused POSTs created %d tokens, want 0", n)
 	}
 }
 

@@ -18,16 +18,20 @@ import (
 const caveTextTokenLifetime = "1 year"
 
 // caveTextConnect is where the extension's sign-in window opens. A Visitor logs in first and comes back here;
-// a Learner gets a CaveText account on their first visit, then a new token, sent to the extension's own
-// redirect URL. Only extensions listed in CAVETEXT_EXTENSION_IDS get one, so a token can't be sent elsewhere.
+// a Learner is asked to connect, and only that click (a POST, which a page on another site cannot send) gets a
+// CaveText account on their first visit, then a new token, sent to the extension's own redirect URL. Only
+// extensions listed in CAVETEXT_EXTENSION_IDS get one, so a token can't be sent elsewhere.
 func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("extension")
+	id := r.PostFormValue("extension")
+	if r.Method == http.MethodGet {
+		id = r.URL.Query().Get("extension")
+	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	if id == "" || !slices.Contains(a.caveTextExtensionIDs, id) {
-		lang, err := a.language(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
 		a.render(w, r, http.StatusBadRequest, "message", page{Title: text.T(lang, "cavetext.unknown-extension.title"), Message: text.T(lang, "cavetext.unknown-extension")})
 		return
 	}
@@ -37,7 +41,11 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if learner == nil {
-		http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
+		http.Redirect(w, r, "/login?next="+url.QueryEscape("/cavetext/connect?extension="+url.QueryEscape(id)), http.StatusSeeOther)
+		return
+	}
+	if r.Method == http.MethodGet {
+		a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "cavetext.connect.title"), Message: text.T(lang, "cavetext.connect", learner.Name), ConnectExtension: id})
 		return
 	}
 	if err := ensureCaveTextAccount(r.Context(), a.db, learner.ID); err != nil {

@@ -2,6 +2,9 @@ package app_test
 
 import (
 	"bytes"
+	"compress/zlib"
+	"encoding/binary"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -157,6 +160,55 @@ func TestAProfilePictureOfTheWrongTypeTooLargeOrUnreadableIsRefusedInMalayAndEng
 	}
 	_, body := s.get("/my-profile")
 	expectNone(t, content(body), "/learner-pictures/")
+}
+
+// hugePNG is a solid w x h 16-bit RGBA PNG, built row by row so the test never holds the decoded picture. It is a few
+// hundred KB however many pixels it has, and decodes to w*h*8 bytes.
+func hugePNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	out.WriteString("\x89PNG\r\n\x1a\n")
+	chunk := func(kind string, data []byte) {
+		var n [4]byte
+		binary.BigEndian.PutUint32(n[:], uint32(len(data)))
+		out.Write(n[:])
+		out.WriteString(kind)
+		out.Write(data)
+		binary.BigEndian.PutUint32(n[:], crc32.ChecksumIEEE(append([]byte(kind), data...)))
+		out.Write(n[:])
+	}
+	ihdr := binary.BigEndian.AppendUint32(binary.BigEndian.AppendUint32(nil, uint32(w)), uint32(h))
+	chunk("IHDR", append(ihdr, 16, 6, 0, 0, 0)) // 16 bits per channel, RGBA
+	var idat bytes.Buffer
+	zw := zlib.NewWriter(&idat)
+	row := make([]byte, 1+w*8)
+	for range h {
+		if _, err := zw.Write(row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	chunk("IDAT", idat.Bytes())
+	chunk("IEND", nil)
+	return out.Bytes()
+}
+
+func TestAPictureTooLargeToDecodeIsRefusedAndNothingIsStored(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	s.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	before := s.storedFiles()
+	huge := hugePNG(t, 7000, 7000) // under 50 million pixels, yet 392 MB decoded
+	if len(huge) > 2<<20 {
+		t.Fatalf("the picture is %d bytes, want it under the 2 MB upload limit", len(huge))
+	}
+	res, body := s.uploadPicture(huge, "en")
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "This picture could not be read")
+	if got := s.storedFiles(); got != before {
+		t.Fatalf("refused upload left %d files, want %d", got, before)
+	}
 }
 
 // The picture route serves only to logged-in users, and only profile pictures: a Gallery file or a Course picture

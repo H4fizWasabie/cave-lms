@@ -75,6 +75,7 @@ type App struct {
 	// reading each whole in checkSubmissionFile would remove the ceiling.
 	uploading sync.Map
 	// cleaning holds a turn for each Clean-up running, so at most maxCleanUps uploads are read at once; others wait.
+	// A profile picture being decoded takes a turn too.
 	// ponytail: per process, right while the app runs as one; reading in the Learner's browser lifts the ceiling.
 	cleaning       chan struct{}
 	cleanUpWaitLog time.Duration    // a wait for a turn longer than this is written to the System log
@@ -85,55 +86,56 @@ type App struct {
 // page is the data the pre-Lab templates receive. Newer pages get their own struct embedding pageBase.
 type page struct {
 	chrome
-	PublicBaseURL string
-	Learner       *learner
-	Title         string
-	Message       string
-	Error         string
-	ErrorField    string // the id of the form field Error is about, shown next to it; "" puts it above the form
-	Name          string
-	Username      string
-	Email         string
-	OfferResend   bool
-	OfferLogin    bool
-	OfferHome     bool // the error page: Go to the home page, and Try again at Retry when it is set; render sets it on a 403 or 404
-	Retry         string
-	BackToCourse  string // a 403 or 404 inside a Course: its page, offered before Go to the home page
-	Items         []galleryItem
-	Item          *galleryItem
-	Format        string // Gallery filters
-	Category      string
-	Categories    []string
-	OfferReset    bool
-	Token         string
-	Courses       []course
-	Course        *course
-	Exam          *exam
-	Exams         []exam      // the Course's usable Exams, Multiple-choice first, on its page
-	Step          *nextStep   // the enrolled Learner's next step, on the Course page and a done Lesson's page
-	Status        *examStatus // the Learner's Exam
-	Attempt       *examAttempt
-	Question      *examQuestion
-	Enrolled      bool
-	Done          int // Lessons the Learner has completed
-	Total         int // published Lessons in the Course
-	Lessons       []lesson
-	Lesson        *lesson
-	Place         *lessonPlace // where the Lesson stands in its Course, on its page
-	Assignments   []assignment // the Course's, on its page for an enrolled Learner or the Admin
-	Enrollees     []enrollee
-	Certificates  []certificate
-	Certificate   *certificate // the one a verification page shows, or a passed Result leads to
-	NeedsIC       bool         // the Learner has no IC yet, so no Certificate can be issued to them
-	PassedNoIC    bool         // NeedsIC, and the Learner already passed the Course's Exam: only the Certificate waits
-	Query         string       // what the Admin's Certificate search or the Course list's search was asked for
-	Settings      *certificateSettings
-	Next          string         // where the login page goes after logging in
-	DuplicateOf   int64          // the Course the Course form duplicates into a Live Course, 0 when none
-	NewLive       bool           // the New Course form has Live Course chosen, not Self-paced
-	AILanguage    string         // the language the Lesson form's Generate writes in
-	Organisations []organisation // the Live Course form's choices
-	CertLogo      string         // the Course's Organisation's logo address, for the Course page's sample Certificate; "" for none
+	PublicBaseURL    string
+	Learner          *learner
+	Title            string
+	Message          string
+	Error            string
+	ErrorField       string // the id of the form field Error is about, shown next to it; "" puts it above the form
+	Name             string
+	Username         string
+	Email            string
+	OfferResend      bool
+	OfferLogin       bool
+	ConnectExtension string // the CaveText extension id the message page's Connect button signs in
+	OfferHome        bool   // the error page: Go to the home page, and Try again at Retry when it is set; render sets it on a 403 or 404
+	Retry            string
+	BackToCourse     string // a 403 or 404 inside a Course: its page, offered before Go to the home page
+	Items            []galleryItem
+	Item             *galleryItem
+	Format           string // Gallery filters
+	Category         string
+	Categories       []string
+	OfferReset       bool
+	Token            string
+	Courses          []course
+	Course           *course
+	Exam             *exam
+	Exams            []exam      // the Course's usable Exams, Multiple-choice first, on its page
+	Step             *nextStep   // the enrolled Learner's next step, on the Course page and a done Lesson's page
+	Status           *examStatus // the Learner's Exam
+	Attempt          *examAttempt
+	Question         *examQuestion
+	Enrolled         bool
+	Done             int // Lessons the Learner has completed
+	Total            int // published Lessons in the Course
+	Lessons          []lesson
+	Lesson           *lesson
+	Place            *lessonPlace // where the Lesson stands in its Course, on its page
+	Assignments      []assignment // the Course's, on its page for an enrolled Learner or the Admin
+	Enrollees        []enrollee
+	Certificates     []certificate
+	Certificate      *certificate // the one a verification page shows, or a passed Result leads to
+	NeedsIC          bool         // the Learner has no IC yet, so no Certificate can be issued to them
+	PassedNoIC       bool         // NeedsIC, and the Learner already passed the Course's Exam: only the Certificate waits
+	Query            string       // what the Admin's Certificate search or the Course list's search was asked for
+	Settings         *certificateSettings
+	Next             string         // where the login page goes after logging in
+	DuplicateOf      int64          // the Course the Course form duplicates into a Live Course, 0 when none
+	NewLive          bool           // the New Course form has Live Course chosen, not Self-paced
+	AILanguage       string         // the language the Lesson form's Generate writes in
+	Organisations    []organisation // the Live Course form's choices
+	CertLogo         string         // the Course's Organisation's logo address, for the Course page's sample Certificate; "" for none
 }
 
 func (p *page) learnerField() **learner { return &p.Learner }
@@ -463,6 +465,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		http.Redirect(w, r, to, http.StatusMovedPermanently)
 	})
 	mux.HandleFunc("GET /cavetext/connect", a.caveTextConnect)
+	mux.HandleFunc("POST /cavetext/connect", a.caveTextConnect)
 	mux.HandleFunc("GET /cavetext/api/me", a.caveTextAPI(a.caveTextMe))
 	mux.HandleFunc("POST /cavetext/bcl/{key}", a.bclWebhook)
 	mux.HandleFunc("POST /cavetext/api/sign-out", a.caveTextAPI(a.caveTextSignOut))

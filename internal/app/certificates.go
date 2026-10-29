@@ -627,7 +627,7 @@ func (a *App) saveCertificateSettings(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/certificate-settings", http.StatusSeeOther)
 }
 
-// saveCertificateImage stores the uploaded image in field, if any. msg is set, in lang, when the file is not a JPEG or PNG.
+// saveCertificateImage stores the uploaded image in field, if any. msg is set, in lang, when the file is not a JPEG or PNG, or is too large to decode.
 func (a *App) saveCertificateImage(r *http.Request, lang, field string) (key, msg string, err error) {
 	f, _, err := r.FormFile(field)
 	if errors.Is(err, http.ErrMissingFile) {
@@ -643,6 +643,12 @@ func (a *App) saveCertificateImage(r *http.Request, lang, field string) (key, ms
 		return "", "", err
 	}
 	if ct := http.DetectContentType(head[:n]); ct != "image/png" && ct != "image/jpeg" {
+		return "", text.T(lang, "adm.certs.err.image-"+field), nil
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return "", "", err
+	}
+	if tooLargeToDecode(f) { // every Certificate PDF decodes it
 		return "", text.T(lang, "adm.certs.err.image-"+field), nil
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {

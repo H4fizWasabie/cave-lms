@@ -10,6 +10,12 @@
           <button class="btn btn-solid btn-block">{{t .Lang "message.send-new"}}</button>
         </form>
         {{end}}
+        {{if .ConnectExtension}}
+        <form class="form" method="post" action="/cavetext/connect">
+          <input type="hidden" name="extension" value="{{.ConnectExtension}}">
+          <button class="btn btn-solid btn-block">{{t .Lang "cavetext.connect.button"}}</button>
+        </form>
+        {{end}}
         {{if .OfferLogin}}<p><a class="btn btn-solid" href="/login">{{t .Lang "header.log-in"}}</a></p>{{end}}
         {{if .OfferHome}}<p class="cta-row">{{with .Retry}}<a class="btn btn-solid" href="{{.}}">{{t $.Lang "error.retry"}}</a>{{end}}{{with .BackToCourse}}<a class="btn btn-solid" href="{{.}}">{{t $.Lang "lesson.back"}}</a>{{end}}<a class="btn {{if or .Retry .BackToCourse}}btn-ghost{{else}}btn-solid{{end}}" href="/">{{t .Lang "error.home"}}</a></p>{{end}}
         {{if .OfferReset}}<p><a class="btn btn-ghost" href="/forgot-password">{{t .Lang "message.new-reset"}}</a></p>{{end}}

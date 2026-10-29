@@ -1286,6 +1286,9 @@ var catalog = map[string]entry{
 
 	// CaveText API messages, shown by the extension as they come
 	"cavetext.api.sign-in-again":       {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
+	"cavetext.connect.title":           {en: "Connect CaveText", ms: "Sambungkan CaveText"},
+	"cavetext.connect":                 {en: "CaveText wants to connect to your CAVELMS account, %s.", ms: "CaveText mahu disambungkan ke akaun CAVELMS anda, %s."},
+	"cavetext.connect.button":          {en: "Connect", ms: "Sambungkan"},
 	"cavetext.unknown-extension.title": {en: "Unknown extension", ms: "Sambungan tidak dikenali"},
 	"cavetext.unknown-extension": {
 		en: "This extension can't sign in to CAVELMS. Install CaveText from the Chrome Web Store.",
@@ -1677,6 +1680,7 @@ var catalog = map[string]entry{
 	"check.status":        {en: "Status: %s", ms: "Status: %s"},
 	"check.valid":         {en: "Valid", ms: "Sah"},
 	"check.search":        {en: "Or search by full IC or passport number, or Certificate No.", ms: "Atau cari dengan No. KP atau pasport penuh, atau No. Sijil"},
+	"check.name":          {en: "Holder's name, needed with a Certificate No.", ms: "Nama pemegang, diperlukan bersama No. Sijil"},
 	"check.search-button": {en: "Search", ms: "Cari"},
 	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-LMS-260001.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-LMS-260001."},
 	"check.ic":            {en: "IC or passport No. %s", ms: "No. KP atau pasport %s"},

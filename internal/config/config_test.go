@@ -119,6 +119,7 @@ func TestLoadReadsALongEnoughBCLWebhookKey(t *testing.T) {
 	setValidEnvironment(t)
 	key := strings.Repeat("k", 32)
 	t.Setenv("BCL_WEBHOOK_KEY", " "+key+" ")
+	t.Setenv("BCL_API_TOKEN", "tok")
 	cfg, err := Load()
 	if err != nil || cfg.BCLWebhookKey != key {
 		t.Fatalf("BCLWebhookKey = %q, err = %v; want %q, nil", cfg.BCLWebhookKey, err, key)
@@ -200,6 +201,29 @@ func TestLoadReadsWhichBCLPaymentsCountAndRefusesAnythingElse(t *testing.T) {
 	t.Setenv("BCL_PAYMENTS", "tset")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BCL_PAYMENTS") {
 		t.Fatalf("Load() error = %v, want a BCL_PAYMENTS error", err)
+	}
+}
+
+func TestLoadRefusesALiveBCLWebhookWithoutAnAPITokenButLetsTestModeRun(t *testing.T) {
+	key := strings.Repeat("k", 32)
+	for _, payments := range []string{"", "live"} {
+		setValidEnvironment(t)
+		t.Setenv("BCL_WEBHOOK_KEY", key)
+		t.Setenv("BCL_PAYMENTS", payments)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BCL_API_TOKEN") {
+			t.Errorf("BCL_PAYMENTS=%q, no token: Load() error = %v, want a BCL_API_TOKEN error", payments, err)
+		}
+		t.Setenv("BCL_API_TOKEN", "tok")
+		if _, err := Load(); err != nil {
+			t.Errorf("BCL_PAYMENTS=%q, with token: Load() error = %v, want nil", payments, err)
+		}
+	}
+
+	setValidEnvironment(t)
+	t.Setenv("BCL_WEBHOOK_KEY", key)
+	t.Setenv("BCL_PAYMENTS", "test")
+	if cfg, err := Load(); err != nil || cfg.BCLAPIToken != "" {
+		t.Errorf("test mode, no token: BCLAPIToken = %q, err = %v; want empty, nil", cfg.BCLAPIToken, err)
 	}
 }
 

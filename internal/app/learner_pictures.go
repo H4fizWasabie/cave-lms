@@ -118,7 +118,13 @@ func (a *App) storeLearnerPicture(w http.ResponseWriter, r *http.Request) (statu
 	if mimeType == "" {
 		return http.StatusUnprocessableEntity, "picture.err.type", "", nil
 	}
+	select { // decoding takes up to maxDecodedBytes, so it takes a turn from Clean-up's: pictures cannot stack up
+	case a.cleaning <- struct{}{}:
+	case <-r.Context().Done():
+		return 0, "", "", r.Context().Err()
+	}
 	picture, err := squareJPEG(whole)
+	<-a.cleaning
 	if err != nil {
 		return http.StatusUnprocessableEntity, "learner-picture.err.unreadable", "", nil
 	}

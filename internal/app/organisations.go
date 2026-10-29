@@ -176,9 +176,12 @@ func (a *App) saveOrganisation(w http.ResponseWriter, r *http.Request, existing 
 }
 
 // logoImage returns the logo to store: a PNG or JPEG as uploaded, or an SVG drawn as a PNG, so no SVG is ever
-// stored or served. It fails on anything else, and on an SVG that could run a script.
+// stored or served. It fails on anything else, on a picture too large to decode, and on an SVG that could run a script.
 func logoImage(data []byte) ([]byte, error) {
 	if ct := http.DetectContentType(data); ct == "image/png" || ct == "image/jpeg" {
+		if tooLargeToDecode(bytes.NewReader(data)) {
+			return nil, errTooLargeToDecode
+		}
 		return data, nil
 	}
 	if !isSVG(data) || svgScript.Match(data) {
