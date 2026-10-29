@@ -1,6 +1,7 @@
 {{define "title"}}{{t .Lang "my-courses.title"}} · CAVELMS{{end}}
 {{define "content"}}
     <div class="wrap page-pad">
+      {{template "classroom-tabs" (classroomTab "courses" .Lang)}}
       <div class="page-head page-head-row">
         <div>
           <h1>{{t .Lang "my-courses.title"}}</h1>

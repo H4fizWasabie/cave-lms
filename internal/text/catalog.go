@@ -30,6 +30,7 @@ var catalog = map[string]entry{
 	"nav.welcome":         {en: "Welcome", ms: "Selamat datang"},
 	"nav.about":           {en: "About CAVELMS", ms: "Tentang CAVELMS"},
 	"nav.classroom":       {en: "Classroom", ms: "Kelas"},
+	"classroom.tabs":      {en: "Classroom pages", ms: "Halaman Kelas"},
 	"nav.pricing":         {en: "Pricing", ms: "Harga"},
 	"nav.program":         {en: "Program", ms: "Program"},
 	"nav.certification":   {en: "Certification", ms: "Pensijilan"},
