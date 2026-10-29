@@ -152,7 +152,7 @@ There is no built-in model: with the key or model unset the app starts, the Exam
 
 ## Email
 
-Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records at NetKL (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
+Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records on Cloudflare (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
 
 A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
 
