@@ -45,6 +45,8 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
+		// Chrome checks the Connect button's redirect to the extension against this page's form-action; id is listed.
+		w.Header().Set("Content-Security-Policy", strings.Replace(sitePolicy, "form-action 'self'", "form-action 'self' https://"+id+".chromiumapp.org", 1))
 		a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "cavetext.connect.title"), Message: text.T(lang, "cavetext.connect", learner.Name), ConnectExtension: id})
 		return
 	}
