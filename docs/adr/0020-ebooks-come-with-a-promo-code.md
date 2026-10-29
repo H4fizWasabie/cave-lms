@@ -6,4 +6,6 @@ This rests on BCL's payment webhook naming the coupon code a payer typed (`coupo
 
 Learners read an ebook in the browser, in a reader on its page, and cannot download it from the site; only Admins can. Promotional material stays downloadable. This is deterrence, not DRM: a browser that shows a PDF can still save it. Watermarking each Learner's copy, or a server-rendered viewer, would be the upgrade if leaks matter.
 
+Changed 2026-10-29: the Ebook email now carries a copy of every ebook that is not Promotional material, as the Gallery holds them when it is sent, so a buyer gets the ebooks straight in their inbox. We accept that those copies can be shared and outlive the year; the site stays read-only and its access still ends with the year. Gmail refuses an email over 25 MB, and attachments grow by about a third when encoded, so above 18 MB of ebooks together the email carries the link only and the System log says why. An ebook uploaded later is not sent to earlier buyers; the Admin resends the Ebook email when they want them to have it.
+
 Rejected: (1) ebooks for every paid Learner, or every Pro Plan holder, which gives away what the COMBO card sells; (2) deciding by the price paid, which cannot tell one Promo from another; (3) a `paid` Visibility set on each item, a second setting the Admin would have to remember on every upload.

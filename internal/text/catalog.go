@@ -1823,6 +1823,10 @@ var catalog = map[string]entry{
 		en: "Hi %[1]s,\n\nYour COMBO Pro Plan comes with ebooks. They are open until %[2]s.\n\nRead them here:\n\n%[3]s\n\nLog in with this email (%[4]s) to open them.\n",
 		ms: "Hai %[1]s,\n\nPelan Pro COMBO anda disertakan dengan ebook. Ebook itu terbuka sehingga %[2]s.\n\nBaca di sini:\n\n%[3]s\n\nLog masuk dengan e-mel ini (%[4]s) untuk membukanya.\n",
 	},
+	"email.ebook.attached": {
+		en: "A copy of each ebook is attached for you to keep. Reading them in the Gallery ends on the date above.",
+		ms: "Satu salinan setiap ebook dilampirkan untuk anda simpan. Membacanya di Galeri tamat pada tarikh di atas.",
+	},
 	"email.certificate.attached": {en: "Your Certificate PDF is attached.", ms: "PDF Sijil anda dilampirkan."},
 	// ---- end Accounts (#83) ----
 
