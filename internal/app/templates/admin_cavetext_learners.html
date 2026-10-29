@@ -14,24 +14,16 @@
         <div class="card card-flush">
           <div class="table-wrap">
             <table class="table">
-              <tr><th>{{t .Lang "ctadmin.learners.place"}}</th><th>{{t .Lang "deployments.learner"}}</th><th>CaveText</th><th>{{t .Lang "ctadmin.learners.pro-until"}}</th><th>{{t .Lang "cavetext.snippets"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              <tr><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "ctadmin.learners.has"}}</th><th>{{t .Lang "ctadmin.learners.snippets-saved"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Learners}}
               <tr>
-                <td>{{.Place}}{{if .Early}} {{t $.Lang "ctadmin.learners.early"}}{{end}}</td>
-                <td>{{.Name}}<br><span class="muted">{{.Email}}</span></td>
-                <td>{{if .Pro}}Pro{{else}}{{t $.Lang "cavetext.free"}}{{end}}</td>
-                <td>{{with .Until $.Lang}}{{.}}{{else}}-{{end}}</td>
+                <td>{{.Name}}<small>{{.Email}}</small><small>{{t $.Lang "ctadmin.learners.place-line" .Place}}{{if .Early}} · {{t $.Lang "ctadmin.learners.early"}}{{end}}</small></td>
+                <td>{{with .Has}}<ul class="ctl-has">{{range .}}<li class="badge badge-joined">{{t $.Lang .Label}} {{t $.Lang "ctadmin.learners.until" (.Short $.Lang)}}</li>{{end}}</ul>{{else}}<span class="muted">{{t $.Lang "cavetext.free"}}</span>{{end}}</td>
                 <td>{{.Snippets}}</td>
-                <td class="actions">
-                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro"><button class="btn btn-solid btn-sm">{{if .Pro}}{{t $.Lang "ctadmin.learners.renew"}}{{else}}{{t $.Lang "ctadmin.learners.give"}}{{end}}</button></form>
-                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/pro-plan"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.learners.give-pro-plan"}}</button></form>
-                  <form method="post" action="/admin/cavetext/learners/{{.ID}}/combo"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.learners.give-combo"}}</button></form>
-                  {{if .Ebooks}}<form method="post" action="/admin/cavetext/learners/{{.ID}}/ebook-email"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.learners.email-ebook"}}</button></form>{{end}}
-                  {{if .Pro}}<a class="btn btn-danger btn-sm" href="/admin/cavetext/learners/{{.ID}}/end-pro">{{t $.Lang "ctadmin.learners.end"}}</a>{{end}}
-                </td>
+                <td class="actions"><a class="btn btn-ghost btn-sm" href="/admin/cavetext/learners/{{.ID}}">{{t $.Lang "ctadmin.learners.manage"}}<span class="sr"> {{.Name}}</span></a></td>
               </tr>
               {{else}}
-              <tr><td colspan="6">{{t .Lang "ctadmin.learners.none"}}</td></tr>
+              <tr><td colspan="4">{{t .Lang "ctadmin.learners.none"}}</td></tr>
               {{end}}
             </table>
           </div>

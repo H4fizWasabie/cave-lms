@@ -58,6 +58,20 @@ var months = map[string][12]string{
 	"ms": {"Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"},
 }
 
+var shortMonths = map[string][12]string{
+	"en": {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"},
+	"ms": {"Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogo", "Sep", "Okt", "Nov", "Dis"},
+}
+
+// ShortDate writes day as "22 Okt 2026" or "22 Oct 2026".
+func ShortDate(lang string, day time.Time) string {
+	names, ok := shortMonths[lang]
+	if !ok {
+		names = shortMonths[Languages[0]]
+	}
+	return fmt.Sprintf("%d %s %d", day.Day(), names[day.Month()-1], day.Year())
+}
+
 // Date writes day as "22 Oktober 2026" or "22 October 2026".
 func Date(lang string, day time.Time) string {
 	names, ok := months[lang]

@@ -24,21 +24,34 @@ func caveTextAdminSite(t *testing.T) *site {
 	return s
 }
 
-// proAction finds the give or end Pro button for the Learner with this email on the Admin CaveText Learners page.
-func (s *site) proAction(email, action string) string {
+// managePage finds the Manage link for the Learner with this email on the Admin CaveText Learners page.
+func (s *site) managePage(email string) string {
 	s.t.Helper()
 	res, body := s.get("/admin/cavetext")
-	expectStatus(s.t, res, body, http.StatusOK, "CaveText Learners")
-	m := regexp.MustCompile(regexp.QuoteMeta(email) + `[\s\S]*?(?:action|href)="(/admin/cavetext/learners/\d+/` + action + `)"`).FindStringSubmatch(body)
+	expectStatus(s.t, res, body, http.StatusOK, "")
+	m := regexp.MustCompile(regexp.QuoteMeta(email) + `[\s\S]*?href="(/admin/cavetext/learners/\d+)"`).FindStringSubmatch(body)
 	if m == nil {
-		s.t.Fatalf("no %s button for %s: %s", action, email, body)
+		s.t.Fatalf("no Manage link for %s: %s", email, body)
+	}
+	return m[1]
+}
+
+// proAction finds the give, Email ebook link or End Pro control for the Learner with this email on their Manage page:
+// the address of its confirmation page, or of the post for the Ebook email.
+func (s *site) proAction(email, action string) string {
+	s.t.Helper()
+	res, body := s.get(s.managePage(email))
+	expectStatus(s.t, res, body, http.StatusOK, email)
+	m := regexp.MustCompile(`(?:action|href)="(/admin/cavetext/learners/\d+/` + action + `)"`).FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("no %s control for %s: %s", action, email, body)
 	}
 	return m[1]
 }
 
 func (s *site) givePro(email string) {
 	s.t.Helper()
-	res, body := s.post(s.proAction(email, "pro"), nil)
+	res, body := s.post(s.proAction(email, "pro"), confirming)
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
 }
 
@@ -115,7 +128,7 @@ func TestRenewingProEarlyStartsTheNewYearWhenTheRunningOneEnds(t *testing.T) {
 		t.Fatalf("after renewing, me = %+v, want Pro until %v", me, first.AddDate(1, 0, 0))
 	}
 	_, body := s.get("/admin/cavetext")
-	if !strings.Contains(body, first.AddDate(1, 0, 0).In(malaysiaTime).Format("2 January 2006, 15:04")) {
+	if !strings.Contains(body, first.AddDate(1, 0, 0).In(malaysiaTime).Format("2 Jan 2006")) {
 		t.Fatalf("the Learners page doesn't show the renewed expiry: %s", body)
 	}
 
@@ -164,7 +177,7 @@ func TestEndingProEarlyTakesEffectAtOnce(t *testing.T) {
 	}
 	res, body := ada.caveTextSend(http.MethodPost, "snippets", token, snippet{Folder: "Work", Name: "More", Shortcut: "/more", Body: "x"})
 	expectStatus(t, res, body, http.StatusForbidden, "You have 6 of your 5 free Snippets.")
-	_, body = s.get("/admin/cavetext")
+	_, body = s.get(s.managePage("ada@example.com"))
 	if strings.Contains(body, "/end-pro") {
 		t.Fatalf("a Learner without Pro still has an End Pro button: %s", body)
 	}
@@ -237,13 +250,14 @@ func TestTheCaveTextLearnersPageShowsPlacesProAndTheEarlyPlacesTaken(t *testing.
 	}
 	res, body := s.get("/admin/cavetext")
 	expectStatus(t, res, body, http.StatusOK, "<strong>43 of 1,000</strong> early places taken")
-	row := regexp.MustCompile(`<tr>\s*<td>(\d+)[^<]*</td>\s*<td>([^<]+)<br><span class="muted">([^<]+)</span></td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>(\d+)</td>`)
+	row := regexp.MustCompile(`<tr>\s*<td>([^<]+)<small>([^<]+)</small><small>([^<]+)</small></td>\s*<td>(.*?)</td>\s*<td>(\d+)</td>`)
+	tags := regexp.MustCompile(`<[^>]+>`)
 	var got []string
 	for _, m := range row.FindAllStringSubmatch(body, -1) {
-		got = append(got, fmt.Sprintf("%s %s %s %s %s", m[1], m[3], m[4], m[6], strings.SplitN(m[5], ",", 2)[0])) // the date, not the time
+		got = append(got, fmt.Sprintf("%s | %s | %s | %s", m[2], m[3], strings.Join(strings.Fields(tags.ReplaceAllString(m[4], " ")), " "), m[5]))
 	}
-	year := time.Now().In(malaysiaTime).AddDate(1, 0, 0).Format("2 January 2006")
-	if want := []string{"42 ada@example.com Free 3 -", "43 bea@example.com Pro 0 " + year}; fmt.Sprint(got) != fmt.Sprint(want) {
+	year := time.Now().In(malaysiaTime).AddDate(1, 0, 0).Format("2 Jan 2006")
+	if want := []string{"ada@example.com | Place 42 · early | Free | 3", "bea@example.com | Place 43 · early | Pro until " + year + " | 0"}; fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("rows = %q, want %q", got, want)
 	}
 	if strings.Contains(body, "cy@example.com") {

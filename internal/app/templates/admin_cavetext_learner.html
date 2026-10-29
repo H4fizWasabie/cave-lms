@@ -1,0 +1,52 @@
+{{define "title"}}{{.Row.Name}} · {{t .Lang "admin.side.cavetext"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "cavetext" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{.Row.Name}}</h1>
+            <p>{{.Row.Email}}<br>{{t .Lang "ctadmin.learners.place-line" .Row.Place}}{{if .Row.Early}} · {{t .Lang "ctadmin.learners.early"}}{{end}}</p>
+          </div>
+          <div class="adm-head-actions"><a class="btn btn-ghost" href="/admin/cavetext">{{t .Lang "ctadmin.learners.back"}}</a></div>
+        </div>
+        <section class="card ctl-section" aria-labelledby="ctl-has">
+          <h2 id="ctl-has">{{t .Lang "ctadmin.learners.has-heading"}}</h2>
+          {{with .Row.Has}}
+          <dl class="ctl-held">
+            {{range .}}<div><dt>{{t $.Lang .Label}}</dt><dd>{{t $.Lang "ctadmin.learners.until" (.Full $.Lang)}}</dd></div>{{end}}
+          </dl>
+          {{else}}<p>{{t .Lang "ctadmin.learners.has-none"}}</p>{{end}}
+        </section>
+        <section class="card ctl-section" aria-labelledby="ct-give">
+          <h2 id="ct-give">{{t .Lang "ctadmin.learners.give-heading"}}</h2>
+          <p class="note">{{t .Lang "ctadmin.learners.give-note"}}</p>
+          <ul class="ctl-gives">
+            {{range .Gives}}
+            <li>
+              <div>
+                <h3>{{t $.Lang .Heading}}</h3>
+                <p>{{t $.Lang "ctadmin.learners.gives" .Says}}</p>
+              </div>
+              <a class="btn btn-ghost" href="/admin/cavetext/learners/{{$.Row.ID}}/{{.Action}}">{{t $.Lang .Heading}}</a>
+            </li>
+            {{end}}
+          </ul>
+        </section>
+        {{- if .Row.Ebooks}}
+        <section class="card ctl-section" aria-labelledby="ct-ebook">
+          <h2 id="ct-ebook">{{t .Lang "ctadmin.learners.email-ebook"}}</h2>
+          <p>{{t .Lang "ctadmin.learners.email-ebook-what"}}</p>
+          <form method="post" action="/admin/cavetext/learners/{{.Row.ID}}/ebook-email"><button class="btn btn-ghost">{{t .Lang "ctadmin.learners.email-ebook"}}</button></form>
+        </section>
+        {{- end}}
+        {{- if .Row.Pro}}
+        <section class="card ctl-section ctl-danger" aria-labelledby="ct-end">
+          <h2 id="ct-end">{{t .Lang "ctadmin.learners.end"}}</h2>
+          <p>{{t .Lang "ctadmin.learners.end-what"}}</p>
+          <div><a class="btn btn-danger" href="/admin/cavetext/learners/{{.Row.ID}}/end-pro">{{t .Lang "ctadmin.learners.end"}}</a></div>
+        </section>
+        {{- end}}
+      </div>
+    </div>
+{{end}}

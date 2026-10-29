@@ -261,11 +261,11 @@ func TestTheAdminsGiveProPlanGivesCaveTextProAndALabPlanPeriod(t *testing.T) {
 	t.Parallel()
 	s := labPlanSite(t)
 	ada, token := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
-	res, body := s.post(s.proAction("ada@example.com", "pro-plan"), nil)
+	res, body := s.post(s.proAction("ada@example.com", "pro-plan"), confirming)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	expectProPlan(t, s, ada, token, "ada@example.com", time.Time{}, nil)
 	s.switchLanguage("ms", "/")
-	_, body = s.get("/admin/cavetext")
+	_, body = s.get(s.managePage("ada@example.com"))
 	expectAll(t, body, "Berikan Pelan Pro")
 }
 

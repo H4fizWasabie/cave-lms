@@ -9,10 +9,12 @@ import (
 // confirmation is a confirmation page (confirm.html). Heading is the catalog key naming the action, on the page head
 // and the button; Question is the key of the question naming the thing and what is lost. Cancel is where Cancel goes,
 // labelled CancelLabel (Cancel when empty), and the button posts confirm=yes to Action. Side is the admin sidebar
-// section; a Learner page has none. Error is the key of why the action was refused, which hides the button.
+// section; a Learner page has none. Error is the key of why the action was refused, which hides the button. Solid
+// sets the button in charcoal in place of danger red, for a confirmation that gives and destroys nothing.
 type confirmation struct {
 	pageBase
 	Side, Heading, Question, Cancel, CancelLabel, Action string
+	Solid                                                bool
 }
 
 // confirm renders c with its question (filled with args) and error in the request's language.
