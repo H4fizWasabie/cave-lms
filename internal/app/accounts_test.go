@@ -54,6 +54,8 @@ func (s *site) do(req *http.Request) (*http.Response, string) {
 	if err != nil {
 		s.t.Fatal(err)
 	}
+	// Emails sent after a request answers (a reset link, a resent verification) are in the mailer before a test reads it.
+	s.application.WaitForMail()
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -53,14 +52,13 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		// A failed send is only logged: an error page would reveal that the account exists.
-		if err := a.mailer.Send(context.WithoutCancel(r.Context()), mailer.Message{
-			To:      to,
-			Subject: text.T(lang, "email.reset.subject"),
-			Body:    text.T(lang, "email.reset.body", a.publicBaseURL+"/reset-password?token="+token),
-		}); err != nil {
-			a.logError(r, fmt.Errorf("send password reset email: %w", err))
-		}
+		a.mailLater(r, "send password reset email", func(ctx context.Context) error {
+			return a.mailer.Send(ctx, mailer.Message{
+				To:      to,
+				Subject: text.T(lang, "email.reset.subject"),
+				Body:    text.T(lang, "email.reset.body", a.publicBaseURL+"/reset-password?token="+token),
+			})
+		})
 	}
 	lang, err := a.language(r)
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func (s *site) forgotPassword(email string) (*http.Response, string) {
@@ -156,6 +157,51 @@ func TestAFailedEmailSendStillGivesTheNormalAnswer(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
 	res, body = s.post("/verify/resend", url.Values{"email": {"grace@example.com"}})
 	expectStatus(t, res, body, http.StatusOK, "we sent it a new link")
+}
+
+// The email goes out after the answer, so a mail service that is slow, or down until released, makes an account that
+// exists answer no slower than one that does not.
+func TestAMailServiceThatStallsDoesNotHoldBackTheAnswerForAnExistingAccount(t *testing.T) {
+	t.Parallel()
+	const password = "correct horse battery"
+	for _, path := range []string{"/forgot-password", "/verify/resend"} {
+		s := newSite(t)
+		s.register("Ada", "ada@example.com", password) // left unverified, so both forms send
+		before := len(s.mail.Messages())
+		release := s.mail.HoldSends()
+		defer release() // so a failure below never leaves the request waiting
+
+		req := s.newRequest(http.MethodPost, path, strings.NewReader(url.Values{"email": {"ada@example.com"}}.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		answered := make(chan *http.Response, 1)
+		go func() {
+			res, err := s.client.Do(req)
+			if err != nil {
+				s.t.Error(err)
+				close(answered)
+				return
+			}
+			res.Body.Close()
+			answered <- res
+		}()
+		select {
+		case res := <-answered:
+			if res == nil || res.StatusCode != http.StatusOK {
+				t.Fatalf("POST %s = %v, want 200", path, res)
+			}
+		case <-time.After(10 * time.Second): // only the bound on a failure: a pass does not wait on it
+			t.Fatalf("POST %s did not answer while the mail service held the email", path)
+		}
+		if n := len(s.mail.Messages()); n != before {
+			t.Fatalf("POST %s: %d emails were sent while the mail service held them, want none", path, n-before)
+		}
+
+		release()
+		s.application.WaitForMail()
+		if n := len(s.mail.Messages()); n != before+1 {
+			t.Fatalf("POST %s: %d emails sent once the mail service released them, want 1", path, n-before)
+		}
+	}
 }
 
 // A reset link proves the Learner reads that email, so an unverified account is verified by the reset.

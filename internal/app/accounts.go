@@ -223,6 +223,22 @@ func (a *App) mailVerification(ctx context.Context, lang, email, token string) e
 	})
 }
 
+// mailLater runs send, which sends one email, after the request has answered, so a slow mail service never makes an
+// account that exists answer later than one that does not. A failed send is only logged (job says what it was): an
+// error page would reveal that the account exists. Close waits for it, and its context does not end with the request.
+func (a *App) mailLater(r *http.Request, job string, send func(ctx context.Context) error) {
+	method, path := r.Method, r.URL.Path
+	a.mailing.Add(1)
+	go func() {
+		defer a.mailing.Done()
+		a.survive(job, func() {
+			if err := send(context.Background()); err != nil {
+				a.writeLog("error", fmt.Errorf("%s: %w", job, err).Error(), method, path)
+			}
+		})
+	}()
+}
+
 // recipientLanguage is the language to email a Learner in: their saved one, else the request's.
 func (a *App) recipientLanguage(r *http.Request, saved string) (string, error) {
 	if text.Supported(saved) {
@@ -327,10 +343,9 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		// A failed send is only logged: an error page would reveal that the account exists.
-		if err := a.mailVerification(context.WithoutCancel(r.Context()), lang, to, token); err != nil {
-			a.logError(r, fmt.Errorf("send verification email: %w", err))
-		}
+		a.mailLater(r, "send verification email", func(ctx context.Context) error {
+			return a.mailVerification(ctx, lang, to, token)
+		})
 	}
 	lang, err := a.language(r)
 	if err != nil {
