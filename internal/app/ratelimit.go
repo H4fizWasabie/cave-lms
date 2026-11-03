@@ -27,6 +27,11 @@ const (
 	// Certificate ID box is not affected.
 	certificateSearchesPerName  = 10
 	certificateSearchNameWindow = 24 * time.Hour
+	// icTakenRefusals caps, per Learner and across My profile and the Exam IC step, the ICs refused as already taken. Each
+	// such answer says someone has that number, so past it the answer is a refusal to count more. A Learner who mistypes
+	// has to be wrong five times to reach it.
+	icTakenRefusals = 5
+	icTakenWindow   = 24 * time.Hour
 	// ebookDownloadLookups is each address's budget at Ebook download links, many times what a Learner opening their
 	// links needs but too few to guess a token.
 	ebookDownloadLookups = 60

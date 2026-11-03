@@ -74,7 +74,7 @@ _Malay_: No. Sijil
 _Avoid_: Certificate ID (that is the unguessable ID in its link), serial
 
 **IC**:
-A Learner's MyKad number or, without a MyKad, passport number, printed on their Certificates. A 12-digit MyKad is shown as `YYMMDD-PB-####`. The Learner sets it once, and must before their first Exam attempt; only the Admin can change it.
+A Learner's MyKad number or, without a MyKad, passport number, printed on their Certificates. A 12-digit MyKad is shown as `YYMMDD-PB-####`. The Learner sets it once, and must before their first Exam attempt; only the Admin can change it. A number another Learner already has is refused without saying whose, pointing the Learner to the Admin; each Learner gets five such refusals a day, then none.
 _Malay_: No. KP
 _Avoid_: NRIC, ID number
 

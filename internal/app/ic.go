@@ -100,7 +100,7 @@ func (a *App) setMyIC(w http.ResponseWriter, r *http.Request) {
 
 // storeIC sets the Learner's IC or passport number, once, to what they typed, normalised, and issues any Certificate
 // that was waiting for it. When it is refused it returns the response status and the catalog key of the reason:
-// ic.invalid, ic.taken, or ic.set-once when the IC is already set.
+// ic.invalid, ic.taken (ic.limited past icTakenRefusals of those in a day), or ic.set-once when the IC is already set.
 func (a *App) storeIC(r *http.Request, learnerID int64, typed string) (status int, refusal string, err error) {
 	ic := normaliseIC(typed)
 	if !validIC.MatchString(ic) {
@@ -108,6 +108,9 @@ func (a *App) storeIC(r *http.Request, learnerID int64, typed string) (status in
 	}
 	res, err := a.db.ExecContext(r.Context(), `UPDATE learners SET ic = $1 WHERE id = $2 AND ic IS NULL`, ic, learnerID)
 	if isUniqueViolation(err) {
+		if !a.limiter.allow("ic taken "+strconv.FormatInt(learnerID, 10), icTakenRefusals, icTakenWindow, a.now()) {
+			return http.StatusTooManyRequests, "ic.limited", nil
+		}
 		return http.StatusConflict, "ic.taken", nil
 	}
 	if err != nil {

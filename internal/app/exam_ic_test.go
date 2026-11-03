@@ -71,10 +71,44 @@ func TestTheExamICStepRefusesMismatchedInvalidOrTakenEntriesAndKeepsTheForm(t *t
 	cat.setIC("951206085555")
 	res, body = s.setExamIC(step, "951206085555", "951206 08 5555")
 	expectStatus(t, res, body, http.StatusConflict, "")
-	expectFieldError(t, body, "ic", "already used by another Learner", `id="ic-confirm"`)
+	expectFieldError(t, body, "ic", "contact the Admin", `id="ic-confirm"`)
 
 	_, body = s.get("/my-profile")
 	expectInOrder(t, content(body), `action="/my-profile/ic"`) // still unset
+}
+
+// An IC refused as taken tells whoever typed it that someone has the number, so each Learner gets five such answers a
+// day, from My profile and the IC step together; after that the answer is a refusal to count more.
+func TestAnICRefusedAsTakenFiveTimesADayAcrossMyProfileAndTheExamStepLimitsTheSixth(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	id := s.examCourseForBea()
+	step := "/courses/" + id + "/exam/ic"
+	cat := s.second()
+	cat.loginAsNewLearner("Cat", "cat@example.com", examPassword)
+	cat.setIC("951206085555")
+
+	for range 3 {
+		res, body := s.setIC("951206085555")
+		expectStatus(t, res, body, http.StatusConflict, "save that IC or passport number. If it is yours, contact the Admin.")
+	}
+	res, body := s.postAsking("/my-profile/ic", "ms", url.Values{"ic": {"951206085555"}})
+	expectStatus(t, res, body, http.StatusConflict, "Kami tidak dapat menyimpan No. KP atau pasport itu. Jika ia milik anda, hubungi Admin.")
+	res, body = s.setExamIC(step, "951206085555", "951206085555")
+	expectStatus(t, res, body, http.StatusConflict, "If it is yours, contact the Admin.")
+
+	res, body = s.setIC("951206085555")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many IC or passport numbers were refused as already used today. Try again tomorrow, or contact the Admin.")
+	res, body = s.postAsking("/my-profile/ic", "ms", url.Values{"ic": {"951206085555"}})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak No. KP atau pasport ditolak kerana sudah digunakan hari ini. Cuba lagi esok, atau hubungi Admin.")
+	res, body = s.setExamIC(step, "951206085555", "951206085555")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Try again tomorrow, or contact the Admin.")
+
+	// The count is the Learner's own: another Learner meeting the same taken IC still gets the ordinary answer.
+	dan := s.second()
+	dan.loginAsNewLearner("Dan", "dan@example.com", examPassword)
+	res, body = dan.setIC("951206085555")
+	expectStatus(t, res, body, http.StatusConflict, "If it is yours, contact the Admin.")
 }
 
 func TestTheCoursePageRemindsOnlyAnEnrolledLearnerWithoutAnICOnACourseWithAnExam(t *testing.T) {
