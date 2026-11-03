@@ -48,7 +48,7 @@ func TestTheCaveTextPageIsInMalayAndEnglish(t *testing.T) {
 
 	s.savePrices(map[string]string{"cavetext-pro_link": "https://bcl.my/pay/cavetext"})
 	s.givePro("ada@example.com")
-	until := ada.me(token).ProUntil.UTC()
+	until := ada.me(token).ProUntil.In(malaysiaTime)
 	_, body = ada.getAsking("/cavetext", "ms")
 	expectLanguage(t, body, "ms", "CaveText Pro hingga "+text.Date("ms", until))
 	expectAll(t, body, "3 Snippet, sehingga 2,000", "Perbaharui CaveText Pro</a>")

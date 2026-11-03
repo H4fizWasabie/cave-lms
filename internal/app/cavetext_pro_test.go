@@ -406,7 +406,7 @@ func TestTheCaveTextPageShowsALearnersCapAndProAndBuysWithThePaymentLink(t *test
 
 	// Pro: up to 2,000, with the expiry.
 	s.givePro("ada@example.com")
-	until := text.Date("en", ada.me(token).ProUntil.UTC())
+	until := text.Date("en", ada.me(token).ProUntil.In(malaysiaTime))
 	_, body = ada.get("/cavetext")
 	for _, want := range []string{"CaveText Pro until " + until, "3 Snippets, up to 2,000"} {
 		if !strings.Contains(body, want) {

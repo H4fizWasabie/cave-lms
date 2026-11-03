@@ -115,7 +115,7 @@ func (a *App) sendRenewalReminder(ctx context.Context, d *renewalReminder) {
 	pricing, membership := a.publicBaseURL+"/pricing", a.publicBaseURL+"/my-membership"
 	var subject, body string
 	if d.stage == "deletion" {
-		ended := fresh[0].endsAt.UTC()
+		ended := fresh[0].endsAt.In(malaysia)
 		subject = text.T(lang, "email.renewal.deletion.subject")
 		body = text.T(lang, "email.renewal.deletion.body", d.name, text.Date(lang, ended),
 			text.Date(lang, ended.AddDate(0, 0, datasetKeepDays)), pricing, membership)
@@ -130,7 +130,7 @@ func (a *App) sendRenewalReminder(ctx context.Context, d *renewalReminder) {
 			if it.item == "cavetext-pro" && it.ebooks {
 				name = "email.renewal.item.pro-ebooks"
 			}
-			lines.WriteString(text.T(lang, line, text.T(lang, name), text.Date(lang, it.endsAt.UTC())) + "\n")
+			lines.WriteString(text.T(lang, line, text.T(lang, name), text.Date(lang, it.endsAt.In(malaysia))) + "\n")
 		}
 		subject = text.T(lang, "email.renewal."+d.stage+".subject")
 		body = text.T(lang, "email.renewal."+d.stage+".body", d.name, strings.TrimRight(lines.String(), "\n"), pricing, membership)

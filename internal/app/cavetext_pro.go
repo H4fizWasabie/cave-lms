@@ -453,7 +453,7 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 				a.serverError(w, r, err)
 				return
 			}
-			p.ProUntil = text.Date(lang, p.Cap.ProUntil)
+			p.ProUntil = text.Date(lang, p.Cap.ProUntil.In(malaysia))
 			for i := range p.Offers {
 				p.Offers[i].Renew = p.Offers[i].Product == caveTextProProduct
 			}

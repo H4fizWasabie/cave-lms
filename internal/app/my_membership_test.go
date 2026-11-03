@@ -41,11 +41,28 @@ func TestMyMembershipShowsThePlansEndInMalaysiaTime(t *testing.T) {
 	ada := s.second()
 	ada.login("ada@example.com", "correct horse battery")
 	s.assignPlan("ada@example.com", id)
-	if _, err := s.db.Exec(`UPDATE plan_periods SET ends_at = '2030-01-15 20:00:00+00'`); err != nil {
+	ends := lateInTheUTCDay(10)
+	if _, err := s.db.Exec(`UPDATE plan_periods SET ends_at = $1`, ends); err != nil {
 		t.Fatal(err)
 	}
 	_, body := ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "Lab Plan", "Until 16 January 2030")
+	expectInOrder(t, content(body), "Lab Plan", "Until "+ends.In(malaysiaTime).Format("2 January 2006"))
+}
+
+func TestCaveTextProEndsInMalaysiaTimeOnMyMembershipAndTheCaveTextPage(t *testing.T) {
+	t.Parallel()
+	s := caveTextAdminSite(t)
+	ada, _ := s.newCaveTextLearner("Ada", "ada@example.com")
+	s.givePro("ada@example.com")
+	ends := lateInTheUTCDay(100)
+	if _, err := s.db.Exec(`UPDATE cavetext_pro_periods SET ends_at = $1`, ends); err != nil {
+		t.Fatal(err)
+	}
+	day := ends.In(malaysiaTime).Format("2 January 2006")
+	_, body := ada.getAsking("/my-membership", "en")
+	expectInOrder(t, content(body), "CaveText Pro", "Until "+day)
+	_, body = ada.getAsking("/cavetext", "en")
+	expectAll(t, body, "CaveText Pro until "+day)
 }
 
 func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T) {
@@ -79,7 +96,7 @@ func TestMyMembershipShowsCaveTextProAndTheSnippetCapButNoPlanFromCaveTextProAlo
 	s.givePro("ada@example.com")
 	until := expectProForAYear(t, ada, token)
 	_, body = ada.getAsking("/my-membership", "en")
-	expectInOrder(t, content(body), "No Plan", `href="/pricing"`, "CaveText Pro", "Until "+text.Date("en", until.UTC()), "Snippet cap", "2,000 Snippets")
+	expectInOrder(t, content(body), "No Plan", `href="/pricing"`, "CaveText Pro", "Until "+text.Date("en", until.In(malaysiaTime)), "Snippet cap", "2,000 Snippets")
 	_, body = ada.getAsking("/my-membership", "ms")
-	expectInOrder(t, content(body), "CaveText Pro", "Hingga "+text.Date("ms", until.UTC()), "Had Snippet", "2,000 Snippet")
+	expectInOrder(t, content(body), "CaveText Pro", "Hingga "+text.Date("ms", until.In(malaysiaTime)), "Had Snippet", "2,000 Snippet")
 }
