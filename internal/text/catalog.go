@@ -1699,9 +1699,9 @@ var catalog = map[string]entry{
 	"check.status":        {en: "Status: %s", ms: "Status: %s"},
 	"check.valid":         {en: "Valid", ms: "Sah"},
 	"check.search":        {en: "Or search by full IC or passport number, or Certificate No.", ms: "Atau cari dengan No. KP atau pasport penuh, atau No. Sijil"},
-	"check.name":          {en: "Holder's name, needed with a Certificate No.", ms: "Nama pemegang, diperlukan bersama No. Sijil"},
+	"check.name":          {en: "Holder's name, as on the Certificate", ms: "Nama pemegang, seperti pada Sijil"},
 	"check.search-button": {en: "Search", ms: "Cari"},
-	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-LMS-260001.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-LMS-260001."},
+	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-LMS-260001, with the holder's name as on the Certificate.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-LMS-260001, bersama nama pemegang seperti pada Sijil."},
 	"check.ic":            {en: "IC or passport No. %s", ms: "No. KP atau pasport %s"},
 	// ---- end Courses (#89) ----
 

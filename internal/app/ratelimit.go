@@ -19,8 +19,14 @@ const (
 	// reset-password: enough for every Learner on one network (a classroom, carrier NAT) to use each once.
 	sharedAddressAttempts = 100
 	// certificateSearches is each address's budget at the public Certificate search, enough for an employer checking a
-	// class but too few to guess ICs.
+	// class. It alone leaves guessing one holder's IC open to many addresses, which certificateSearchesPerName closes.
 	certificateSearches = 30
+	// certificateSearchesPerName caps the searches for one holder's name from all addresses together, hit or miss. With a
+	// known birth date and state an IC has 10,000 candidates, so 10 a day leaves a guesser with a thousandth of them
+	// however many addresses they use. The cost: anyone who knows a name can hold back searches for it for a day; the
+	// Certificate ID box is not affected.
+	certificateSearchesPerName  = 10
+	certificateSearchNameWindow = verificationWindow
 	// ebookDownloadLookups is each address's budget at Ebook download links, many times what a Learner opening their
 	// links needs but too few to guess a token.
 	ebookDownloadLookups = 60
