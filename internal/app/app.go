@@ -220,6 +220,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.Handle("GET /static/", staticHandler())
 	mux.HandleFunc("GET /speculation-rules.json", serveSpeculationRules)
 	mux.HandleFunc("GET /privacy", a.privacy)
+	mux.HandleFunc("GET /refunds", a.refunds)
 	mux.HandleFunc("GET /about", a.about)
 	mux.HandleFunc("GET /register", a.registerForm)
 	mux.HandleFunc("POST /register", a.limited(sharedAddressAttempts, a.register))
@@ -557,6 +558,11 @@ func (a *App) about(w http.ResponseWriter, r *http.Request) {
 // privacy is the PDPA notice; its facts are in docs/adr/0006.
 func (a *App) privacy(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "privacy", page{})
+}
+
+// refunds is the Refund Policy, linked from the footer and the notice under a Learner's Buy buttons.
+func (a *App) refunds(w http.ResponseWriter, r *http.Request) {
+	a.render(w, r, http.StatusOK, "refunds", page{})
 }
 
 // staticVersions maps each file under static/ to a short hash of its content, so a changed file gets a new URL.
