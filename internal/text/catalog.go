@@ -1702,6 +1702,7 @@ var catalog = map[string]entry{
 	"check.name":          {en: "Holder's name, as on the Certificate", ms: "Nama pemegang, seperti pada Sijil"},
 	"check.search-button": {en: "Search", ms: "Cari"},
 	"check.no-match":      {en: "No Certificate matches. Enter a full IC or passport number, or a Certificate No. such as PCC-LMS-260001, with the holder's name as on the Certificate.", ms: "Tiada Sijil yang sepadan. Masukkan No. KP atau pasport penuh, atau No. Sijil seperti PCC-LMS-260001, bersama nama pemegang seperti pada Sijil."},
+	"check.limited-name":  {en: "Too many searches for this name today. Try again tomorrow, or enter the Certificate ID from the Certificate.", ms: "Terlalu banyak carian untuk nama ini hari ini. Cuba lagi esok, atau masukkan ID Sijil daripada Sijil."},
 	"check.ic":            {en: "IC or passport No. %s", ms: "No. KP atau pasport %s"},
 	// ---- end Courses (#89) ----
 

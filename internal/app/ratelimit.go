@@ -26,7 +26,7 @@ const (
 	// however many addresses they use. The cost: anyone who knows a name can hold back searches for it for a day; the
 	// Certificate ID box is not affected.
 	certificateSearchesPerName  = 10
-	certificateSearchNameWindow = verificationWindow
+	certificateSearchNameWindow = 24 * time.Hour
 	// ebookDownloadLookups is each address's budget at Ebook download links, many times what a Learner opening their
 	// links needs but too few to guess a token.
 	ebookDownloadLookups = 60
@@ -72,6 +72,11 @@ func (a *App) limited(limit int, next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (a *App) tooManyAttempts(w http.ResponseWriter, r *http.Request) {
+	a.refuseAttempts(w, r, "limited")
+}
+
+// refuseAttempts answers 429 with the catalog message that says what ran out and for how long.
+func (a *App) refuseAttempts(w http.ResponseWriter, r *http.Request, messageKey string) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -79,7 +84,7 @@ func (a *App) tooManyAttempts(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, http.StatusTooManyRequests, "message", page{
 		Title:   text.T(lang, "limited.title"),
-		Message: text.T(lang, "limited"),
+		Message: text.T(lang, messageKey),
 	})
 }
 

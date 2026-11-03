@@ -41,9 +41,12 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, http.StatusOK, "certificate_verify", page{Query: q})
 		return
 	}
-	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, rateLimitWindow, a.now()) ||
-		!a.limiter.allow("certificate search name "+name, certificateSearchesPerName, certificateSearchNameWindow, a.now()) {
+	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, rateLimitWindow, a.now()) {
 		a.tooManyAttempts(w, r)
+		return
+	}
+	if !a.limiter.allow("certificate search name "+name, certificateSearchesPerName, certificateSearchNameWindow, a.now()) {
+		a.refuseAttempts(w, r, "check.limited-name")
 		return
 	}
 	var year, number int

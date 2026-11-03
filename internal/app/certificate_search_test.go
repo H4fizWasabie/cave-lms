@@ -40,6 +40,7 @@ func searchAsking(s *site, q, lang string) (*http.Response, string) {
 	return s.do(req)
 }
 
+// search is searchAsking in English, so it too posts the name Ada.
 func search(s *site, q string) (*http.Response, string) { return searchAsking(s, q, "en") }
 
 // searchNamed posts q with the holder's name, as the check page's two search fields do.
@@ -222,9 +223,41 @@ func TestTooManySearchesForOneNameFromManyAddressesAreRefused(t *testing.T) {
 		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 	}
 	res, body := s.postVia("198.51.100.11", "/certificates", url.Values{"q": {"951206085556"}, "name": {" ADA "}})
-	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many searches for this name today.")
+	expectNone(t, body, "from your address", "15 minutes")
 	res, body = s.postVia("198.51.100.11", "/certificates", url.Values{"q": {"951206085556"}, "name": {"Bob"}})
 	expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+}
+
+// A search that finds the Certificate spends the name's budget like one that does not.
+func TestASearchThatFindsACertificateCountsTowardTheName(t *testing.T) {
+	t.Parallel()
+	_, ada, _, certID := passedLiveCourse(t)
+	for i := 1; i <= 10; i++ {
+		res, body := ada.postVia(fmt.Sprintf("198.51.100.%d", i), "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+	}
+	res, body := ada.postVia("198.51.100.11", "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many searches for this name today.")
+	expectNone(t, body, certID)
+}
+
+// An address past its budget spends none of a name's, so it cannot hold a holder's searches back for nothing.
+func TestAnAddressPastItsBudgetDoesNotSpendTheName(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	for i := range 30 {
+		res, body := s.postVia("198.51.100.1", "/certificates", url.Values{"q": {"951206085555"}, "name": {fmt.Sprintf("Holder %d", i)}})
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+	}
+	for range 10 {
+		res, body := s.postVia("198.51.100.1", "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts from your address")
+	}
+	for i := 2; i <= 11; i++ {
+		res, body := s.postVia(fmt.Sprintf("198.51.100.%d", i), "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+	}
 }
 
 func TestTheSearchIsInMalay(t *testing.T) {
