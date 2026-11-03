@@ -75,8 +75,8 @@ type App struct {
 	emailKick chan struct{}
 	sending   sync.Mutex
 	emailing  sync.WaitGroup
-	// mailing holds the emails sent after their request answered (mailLater); Close waits for them.
-	mailing sync.WaitGroup
+	// mailingLater holds the emails sent after their request answered (mailLater); Close waits for them.
+	mailingLater sync.WaitGroup
 	// uploading holds the IDs of Learners with a Submission upload in flight, so each sends one at a time and holds
 	// at most one request's files (5 x 20 MB) in memory.
 	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
@@ -522,8 +522,8 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) Close() error {
 	close(a.done)
-	a.emailing.Wait() // the sender of owed emails reads the database
-	a.mailing.Wait()  // the emails sent after their request answered
+	a.emailing.Wait()     // the sender of owed emails reads the database
+	a.mailingLater.Wait() // the emails sent after their request answered
 	return a.db.Close()
 }
 

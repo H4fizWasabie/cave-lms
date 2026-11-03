@@ -488,6 +488,10 @@ func TestALearnerOutsideTheCourseCannotReadAnOpenAttemptsQuestionsButSeesASubmit
 	res, body = s.get(open)
 	expectRedirect(t, res, body, exam)
 	expectNone(t, body, "What is a slice?")
+	// The Exam page does not offer the attempt back: Continue would only land here again.
+	res, body = s.get(exam)
+	expectStatus(t, res, body, http.StatusOK, "Join this Course to sit its Exam.")
+	expectNone(t, body, "Continue your attempt")
 
 	// Back in the Course, the same attempt is open again; submitted from there, it stays on view after leaving.
 	s.post("/courses/"+id+"/join", nil)

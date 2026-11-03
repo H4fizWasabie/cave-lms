@@ -240,11 +240,13 @@ func (a *App) mailVerification(ctx context.Context, lang, email, token string) e
 // mailLater runs send, which sends one email, after the request has answered, so a slow mail service never makes an
 // account that exists answer later than one that does not. A failed send is only logged (job says what it was): an
 // error page would reveal that the account exists. Close waits for it, and its context does not end with the request.
+// ponytail: the server does not call Close on SIGTERM, so a send in flight during a restart is lost, as it was in the
+// request, though the page has said it went; the Learner asks again. Stop gracefully in main if that ever matters.
 func (a *App) mailLater(r *http.Request, job string, send func(ctx context.Context) error) {
 	method, path := r.Method, r.URL.Path
-	a.mailing.Add(1)
+	a.mailingLater.Add(1)
 	go func() {
-		defer a.mailing.Done()
+		defer a.mailingLater.Done()
 		a.survive(job, func() {
 			if err := send(context.Background()); err != nil {
 				a.writeLog("error", fmt.Errorf("%s: %w", job, err).Error(), method, path)

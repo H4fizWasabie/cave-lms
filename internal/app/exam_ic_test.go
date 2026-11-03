@@ -93,16 +93,21 @@ func TestAnICRefusedAsTakenFiveTimesADayAcrossMyProfileAndTheExamStepLimitsTheSi
 		expectStatus(t, res, body, http.StatusConflict, "save that IC or passport number. If it is yours, contact the Admin.")
 	}
 	res, body := s.postAsking("/my-profile/ic", "ms", url.Values{"ic": {"951206085555"}})
-	expectStatus(t, res, body, http.StatusConflict, "Kami tidak dapat menyimpan No. KP atau pasport itu. Jika ia milik anda, hubungi Admin.")
+	expectStatus(t, res, body, http.StatusConflict, "Kami tidak dapat menyimpan No. KP atau pasport itu. Jika ia milik anda, hubungi Pentadbir.")
 	res, body = s.setExamIC(step, "951206085555", "951206085555")
 	expectStatus(t, res, body, http.StatusConflict, "If it is yours, contact the Admin.")
 
 	res, body = s.setIC("951206085555")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many IC or passport numbers were refused as already used today. Try again tomorrow, or contact the Admin.")
 	res, body = s.postAsking("/my-profile/ic", "ms", url.Values{"ic": {"951206085555"}})
-	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak No. KP atau pasport ditolak kerana sudah digunakan hari ini. Cuba lagi esok, atau hubungi Admin.")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak No. KP atau pasport ditolak kerana sudah digunakan hari ini. Cuba lagi esok, atau hubungi Pentadbir.")
 	res, body = s.setExamIC(step, "951206085555", "951206085555")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Try again tomorrow, or contact the Admin.")
+	// Past the cap a free number gets the same answer and is not saved, so the answer no longer tells taken from free.
+	res, body = s.setIC("A1234567")
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Try again tomorrow, or contact the Admin.")
+	_, body = s.get("/my-profile")
+	expectNone(t, body, "A123")
 
 	// The count is the Learner's own: another Learner meeting the same taken IC still gets the ordinary answer.
 	dan := s.second()

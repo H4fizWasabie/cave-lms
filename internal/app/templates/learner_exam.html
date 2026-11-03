@@ -15,7 +15,7 @@
           <li><strong class="num" aria-hidden="true">{{.AttemptsLeft $.Lang}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.attempts-left"}}</span><span class="sr">{{t $.Lang "exam.attempts-left" (.AttemptsLeft $.Lang)}}</span></li>
           <li><strong class="num" aria-hidden="true">{{if .HasBest}}{{.Best}}%{{else}}-{{end}}</strong><span aria-hidden="true">{{t $.Lang "exam.fact.best"}}</span><span class="sr">{{if .HasBest}}{{t $.Lang "exam.best" .Best}}{{else}}{{t $.Lang "exam.no-score"}}{{end}}</span></li>
         </ul>
-        {{if .Open}}
+        {{if and .Open .Enrolled}}
         <a class="btn btn-solid btn-lg" href="{{.Exam.Path (printf "/attempts/%d" .Open.ID)}}">{{t $.Lang "exam.continue"}}</a>
         {{else}}
         {{with .Blocker $.Lang}}<p class="x-help">{{.}}</p>{{else}}
