@@ -110,13 +110,25 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	// The Username is checked first, as the insert below skips it when the email has an account: a taken Username is
+	// refused the same whether or not the email has one.
+	var usernameTaken bool
+	if err := tx.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM learners WHERE username = $1)`, username).Scan(&usernameTaken); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if usernameTaken {
+		form.ErrorField, form.Error = "username", text.T(lang, "account.err.username-taken")
+		a.render(w, r, http.StatusConflict, "register", form)
+		return
+	}
 	var id int64
 	err = tx.QueryRowContext(r.Context(),
 		`INSERT INTO learners (name, username, email, password_hash) VALUES ($1, $2, $3, $4) ON CONFLICT ((lower(email))) DO NOTHING RETURNING id`,
 		name, username, email, string(hash)).Scan(&id)
 	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
 	switch {
-	case isUniqueViolation(err): // the email's conflict is skipped above, so this is the Username
+	case isUniqueViolation(err): // the email's conflict is skipped above, so this is the Username, taken since the check
 		form.ErrorField, form.Error = "username", text.T(lang, "account.err.username-taken")
 		a.render(w, r, http.StatusConflict, "register", form)
 		return

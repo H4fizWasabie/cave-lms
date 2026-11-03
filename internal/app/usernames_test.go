@@ -46,6 +46,43 @@ func TestRegisteringNeedsAValidUsernameNobodyHasTaken(t *testing.T) {
 	}
 }
 
+// A taken Username is refused before the email is looked at, so the answer does not tell whether the email has an account.
+func TestATakenUsernameIsRefusedTheSameWhetherOrNotTheEmailHasAnAccount(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	register := func(username, email string) (*http.Response, string) {
+		return s.post("/register", url.Values{"name": {"Mallory"}, "username": {username}, "email": {email}, "password": {"correct horse battery"}})
+	}
+	res, body := register("ada-l", "ada@example.com")
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	res, body = register("bea-b", "bea@example.com")
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	before := len(s.mail.Messages())
+
+	res, body = register("ada-l", "bea@example.com") // an email with an account
+	expectStatus(t, res, body, http.StatusConflict, "That Username is already taken")
+	used := strings.ReplaceAll(body, "bea@example.com", "EMAIL")
+	res, body = register("ada-l", "new@example.com") // an email without
+	expectStatus(t, res, body, http.StatusConflict, "That Username is already taken")
+	if fresh := strings.ReplaceAll(body, "new@example.com", "EMAIL"); fresh != used {
+		t.Fatalf("a taken Username answered differently for a used email:\n%s\nvs\n%s", used, fresh)
+	}
+	if n := len(s.mail.Messages()); n != before {
+		t.Fatalf("sent %d emails for refused Usernames, want none", n-before)
+	}
+
+	// With a free Username, an email with an account still answers as a new one and emails its owner.
+	res, body = register("mallory-m", "bea@example.com")
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	if n := len(s.mail.Messages()); n != before+1 {
+		t.Fatalf("sent %d emails, want one to the owner of the used email", n-before)
+	}
+	var n int
+	if err := s.db.QueryRow(`SELECT count(*) FROM learners`).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("%d accounts after refused and used-email registrations, want 2 (%v)", n, err)
+	}
+}
+
 func TestTheRegisterFormExplainsTheUsernameInMalayToo(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)

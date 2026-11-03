@@ -102,6 +102,12 @@ func (s *site) register(name, email, password string) (*http.Response, string) {
 	return s.post("/register", url.Values{"name": {name}, "username": {usernameFor(email)}, "email": {email}, "password": {password}})
 }
 
+// registerAgain is register for an email that already has an account, under a Username of its own: register's would be
+// the one the account has, which is refused as taken before the email is looked at.
+func (s *site) registerAgain(name, email, password string) (*http.Response, string) {
+	return s.post("/register", url.Values{"name": {name}, "username": {"again-" + usernameFor(email)}, "email": {email}, "password": {password}})
+}
+
 func (s *site) login(email, password string) (*http.Response, string) {
 	return s.post("/login", url.Values{"email": {email}, "password": {password}})
 }
@@ -223,7 +229,7 @@ func TestRegisteringAUsedEmailAnswersAsANewOneAndTellsItsOwner(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
 	_, fresh := s.register("Bob", "bob@example.com", "password three")
 
-	res, body = s.register("Someone Else", "Ada@Example.com", "password two")
+	res, body = s.registerAgain("Someone Else", "Ada@Example.com", "password two")
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
 	if want := strings.ReplaceAll(fresh, "bob@example.com", "Ada@Example.com"); body != want {
 		t.Fatalf("a used email answered differently from a new one:\n%s\nvs\n%s", body, want)
@@ -249,7 +255,7 @@ func TestRegisteringAnUnverifiedEmailAgainMailsALinkToSetItsPassword(t *testing.
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
 
-	res, body := s.register("Someone Else", "ada@example.com", "password two")
+	res, body := s.registerAgain("Someone Else", "ada@example.com", "password two")
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
 	if n := len(s.mail.Messages()); n != 2 {
 		t.Fatalf("sent %d emails, want a verification and a set-password link", n)
@@ -266,7 +272,7 @@ func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *t
 	s := newSite(t)
 	s.register("Mallory", "ada@example.com", "mallory's password")
 	mallorysLink := s.lastVerifyPath("ada@example.com")
-	s.register("Ada", "ada@example.com", "ada's password")
+	s.registerAgain("Ada", "ada@example.com", "ada's password")
 	// The verify link Mallory caused would confirm her password if Ada clicked it, so it stops working.
 	res, body := s.get(mallorysLink)
 	expectStatus(t, res, body, http.StatusBadRequest, "")
@@ -285,7 +291,7 @@ func TestEmailsFromRegisteringAUsedAddressStopAfterThreeADay(t *testing.T) {
 	s.register("Ada", "ada@example.com", "password one")
 	s.get(s.lastVerifyPath("ada@example.com"))
 	for range 3 {
-		res, body := s.register("Someone Else", "ada@example.com", "password two")
+		res, body := s.registerAgain("Someone Else", "ada@example.com", "password two")
 		expectStatus(t, res, body, http.StatusOK, "Check your email")
 	}
 	if n := len(s.mail.Messages()); n != 3 {

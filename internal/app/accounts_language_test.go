@@ -57,7 +57,7 @@ func TestAccountFormErrorsAndAnswersAreInMalay(t *testing.T) {
 	res, body := register("Ada", email, password)
 	expectStatus(t, res, body, http.StatusOK, "Semak e-mel anda")
 	verify := s.lastVerifyPath(email)
-	res, body = register("Ada", email, password)
+	res, body = s.postAsking("/register", "ms", url.Values{"name": {"Ada"}, "username": {"ada-again"}, "email": {email}, "password": {password}})
 	expectStatus(t, res, body, http.StatusOK, "Semak e-mel anda")
 	if got := s.lastEmailTo(email).Subject; got != "Tetapkan kata laluan CAVELMS anda" {
 		t.Fatalf("registering again mailed %q, want the Malay set-password email", got)
