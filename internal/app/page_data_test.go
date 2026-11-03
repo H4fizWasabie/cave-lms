@@ -52,7 +52,7 @@ func pageWithData(t *testing.T, ada *site) (path, link string) {
 }
 
 // partDate is the day a Part uploaded now is dated.
-func partDate() string { return time.Now().UTC().Format(time.DateOnly) }
+func partDate() string { return time.Now().In(malaysiaTime).Format(time.DateOnly) }
 
 func TestConfirmingAnAddCreatesASecondPartAndDataJSONReturnsBothPartsInOrderEachRowWithItsPartDate(t *testing.T) {
 	t.Parallel()
