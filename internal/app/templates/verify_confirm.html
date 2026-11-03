@@ -1,0 +1,13 @@
+{{define "title"}}{{t .Lang "verify.confirm.title"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap auth-page">
+      <div class="auth-box">
+        <h1>{{t .Lang "verify.confirm.title"}}</h1>
+        <p class="auth-sub">{{t .Lang "verify.confirm.body"}}</p>
+        <form class="form" method="post" action="/verify">
+          <input type="hidden" name="token" value="{{.Token}}">
+          <button class="btn btn-solid btn-block">{{t .Lang "verify.confirm.button"}}</button>
+        </form>
+      </div>
+    </div>
+{{end}}

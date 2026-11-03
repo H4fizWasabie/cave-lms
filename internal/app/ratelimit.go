@@ -27,6 +27,11 @@ const (
 	// Certificate ID box is not affected.
 	certificateSearchesPerName  = 10
 	certificateSearchNameWindow = 24 * time.Hour
+	// icTakenRefusals caps, per Learner and across My profile and the Exam IC step, the ICs refused as already taken. Each
+	// such answer says someone has that number, so past it every number is refused unread, taken or free. A Learner who
+	// mistypes has to hit a taken number five times to reach it, and then sets theirs a day later or through the Admin.
+	icTakenRefusals = 5
+	icTakenWindow   = 24 * time.Hour
 	// ebookDownloadLookups is each address's budget at Ebook download links, many times what a Learner opening their
 	// links needs but too few to guess a token.
 	ebookDownloadLookups = 60
@@ -139,6 +144,13 @@ func (l *rateLimiter) allow(key string, limit int, window time.Duration, now tim
 	}
 	l.attempts[key] = append(l.attempts[key], now)
 	return true
+}
+
+// spent reports whether key has used up its limit, without counting an attempt.
+func (l *rateLimiter) spent(key string, limit int, window time.Duration, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.recent(key, window, now) >= limit
 }
 
 // allowLogin records a login attempt from address to account, and to emailKey (that email from any address), and

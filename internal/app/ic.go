@@ -100,14 +100,20 @@ func (a *App) setMyIC(w http.ResponseWriter, r *http.Request) {
 
 // storeIC sets the Learner's IC or passport number, once, to what they typed, normalised, and issues any Certificate
 // that was waiting for it. When it is refused it returns the response status and the catalog key of the reason:
-// ic.invalid, ic.taken, or ic.set-once when the IC is already set.
+// ic.invalid, ic.taken (ic.limited for every number past icTakenRefusals of those in a day), or ic.set-once when the IC is already set.
 func (a *App) storeIC(r *http.Request, learnerID int64, typed string) (status int, refusal string, err error) {
 	ic := normaliseIC(typed)
 	if !validIC.MatchString(ic) {
 		return http.StatusUnprocessableEntity, "ic.invalid", nil
 	}
+	// Read before the number is tried, so past the cap a free number is answered as a taken one is.
+	refusals := "ic taken " + strconv.FormatInt(learnerID, 10)
+	if a.limiter.spent(refusals, icTakenRefusals, icTakenWindow, a.now()) {
+		return http.StatusTooManyRequests, "ic.limited", nil
+	}
 	res, err := a.db.ExecContext(r.Context(), `UPDATE learners SET ic = $1 WHERE id = $2 AND ic IS NULL`, ic, learnerID)
 	if isUniqueViolation(err) {
+		a.limiter.allow(refusals, icTakenRefusals, icTakenWindow, a.now())
 		return http.StatusConflict, "ic.taken", nil
 	}
 	if err != nil {
@@ -239,7 +245,7 @@ func (a *App) correctIC(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = a.db.ExecContext(r.Context(), `UPDATE learners SET ic = NULLIF($1, '') WHERE id = $2`, ic, learnerID)
 	if isUniqueViolation(err) {
-		a.render(w, r, http.StatusConflict, "message", page{Title: text.T(lang, "ic.taken.title"), Message: text.T(lang, "ic.taken")})
+		a.render(w, r, http.StatusConflict, "message", page{Title: text.T(lang, "ic.taken.title"), Message: text.T(lang, "ic.taken.admin")})
 		return
 	}
 	if err != nil {

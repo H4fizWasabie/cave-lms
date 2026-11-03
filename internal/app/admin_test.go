@@ -55,7 +55,7 @@ func TestRegistrationCannotMakeAnAdmin(t *testing.T) {
 	const email, password = "mallory@example.com", "correct horse battery"
 	res, body := s.post("/register", url.Values{"name": {"Mallory"}, "username": {usernameFor(email)}, "email": {email}, "password": {password}, "is_admin": {"true"}})
 	expectStatus(t, res, body, http.StatusOK, "Check your email")
-	res, body = s.get(s.lastVerifyPath(email))
+	res, body = s.verifyEmail(s.lastVerifyPath(email))
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
 	res, body = s.login(email, password)
 	expectStatus(t, res, body, http.StatusSeeOther, "")

@@ -104,6 +104,9 @@ func (a *App) ReleaseResultsWithoutWaiting(ctx context.Context) { a.releaseResul
 // WaitForResultEmails waits for the background sender to finish, then sends whatever is still owed, for tests.
 func (a *App) WaitForResultEmails() { a.sendOwedEmails(context.Background()) }
 
+// WaitForMail waits for the emails sent after their request answered, such as a password reset link, for tests.
+func (a *App) WaitForMail() { a.mailingLater.Wait() }
+
 // SetClock makes the app read the time from now, for tests.
 func (a *App) SetClock(now func() time.Time) { a.now = now }
 

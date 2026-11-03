@@ -472,6 +472,54 @@ func TestStartingAnExamNeedsOnlyOneDatabaseConnection(t *testing.T) {
 	}
 }
 
+// The questions of an open attempt are for a Learner in the Course: once they leave, or the Admin removes them, the attempt
+// page sends them back to the Exam. What they already submitted, or had released, stays on view.
+func TestALearnerOutsideTheCourseCannotReadAnOpenAttemptsQuestionsButSeesASubmittedOrReleasedOne(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	id, qids := s.examCourse("50", "30", "", "What is a slice?")
+	exam := "/courses/" + id + "/exam"
+
+	res, _ := s.startExam(id)
+	open := res.Header.Get("Location")
+	res, body := s.get(open)
+	expectStatus(t, res, body, http.StatusOK, "What is a slice?")
+	s.leaveCourse(id)
+	res, body = s.get(open)
+	expectRedirect(t, res, body, exam)
+	expectNone(t, body, "What is a slice?")
+	// The Exam page does not offer the attempt back: Continue would only land here again.
+	res, body = s.get(exam)
+	expectStatus(t, res, body, http.StatusOK, "Join this Course to sit its Exam.")
+	expectNone(t, body, "Continue your attempt")
+
+	// Back in the Course, the same attempt is open again; submitted from there, it stays on view after leaving.
+	s.post("/courses/"+id+"/join", nil)
+	res, body = s.get(open)
+	expectStatus(t, res, body, http.StatusOK, "What is a slice?")
+	s.submitExam(open, map[string]string{qids[0]: "0"})
+	s.leaveCourse(id)
+	res, body = s.get(open)
+	expectStatus(t, res, body, http.StatusOK, "Your answers are in")
+
+	s.releaseResults()
+	res, body = s.get(open)
+	expectStatus(t, res, body, http.StatusOK, "Congratulations, you passed (pass mark 50%)")
+
+	// An attempt left open past its time limit counts as submitted, so it stays on view too.
+	bea := s.second()
+	bea.loginAsNewLearner("Bea", "bea@example.com", examPassword)
+	bea.setICFor("bea@example.com")
+	bea.post("/courses/"+id+"/join", nil)
+	bea.markLesson(id, s.lessonIDByTitle("Variables"), true)
+	res, _ = bea.startExam(id)
+	timedOut := res.Header.Get("Location")
+	s.ageAttempt(timedOut, 3*60*60)
+	bea.leaveCourse(id)
+	res, body = bea.get(timedOut)
+	expectStatus(t, res, body, http.StatusOK, "Time ran out before your answers were sent")
+}
+
 func TestCourseWithExamAttemptsCannotBeDeleted(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)

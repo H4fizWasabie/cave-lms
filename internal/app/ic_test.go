@@ -76,9 +76,9 @@ func TestAnICAlreadyUsedByAnotherLearnerIsRefused(t *testing.T) {
 	bea.loginAsNewLearner("Bea", "bea@example.com", "correct horse battery")
 
 	res, body := bea.setIC("9512060 85555")
-	expectStatus(t, res, body, http.StatusConflict, "already used by another Learner")
+	expectStatus(t, res, body, http.StatusConflict, "If it is yours, contact the Admin.")
 	res, body = bea.postAsking("/my-profile/ic", "ms", url.Values{"ic": {"951206085555"}})
-	expectStatus(t, res, body, http.StatusConflict, "sudah digunakan oleh Pelajar lain")
+	expectStatus(t, res, body, http.StatusConflict, "Jika ia milik anda, hubungi Pentadbir.")
 	_, body = bea.get("/my-profile")
 	expectInOrder(t, content(body), `action="/my-profile/ic"`)
 }
@@ -144,7 +144,8 @@ func TestTheAdminCannotGiveALearnerAnICAnotherLearnerUses(t *testing.T) {
 	bea.setIC("A1234567")
 
 	res, body := admin.post(correct, url.Values{"ic": {"a123 4567"}})
-	expectStatus(t, res, body, http.StatusConflict, "already used by another Learner")
+	expectStatus(t, res, body, http.StatusConflict, "That IC or passport number is already used by another Learner.")
+	expectNone(t, body, "contact the Admin")
 	_, body = ada.get("/my-profile")
 	expectInOrder(t, content(body), "951206-08-5555")
 }
