@@ -24,17 +24,29 @@ func (a *App) verifyCertificateForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // searchCertificates is the check page's search, by a full IC or passport number, matched against the Certificate's
-// copy, or by a Certificate No. together with the holder's name. A Certificate No. alone lists nothing, since the
-// numbers run in order and would otherwise list every Certificate; the name must equal the Certificate's, ignoring case
-// and collapsing whitespace. It is posted, so the IC is in no URL, and the results render from the post.
+// copy, or by a Certificate No., together with the holder's name. The name is always needed and must equal the
+// Certificate's, ignoring case and collapsing whitespace: a Certificate No. alone would list every Certificate, since
+// the numbers run in order, and an IC alone would let a known birth date and state be stepped through the 10,000 ICs
+// they leave. With no name, or one past 200 bytes, nothing is queried or counted. Each name is also searched at most
+// certificateSearchesPerName times a day from all addresses together. It is posted, so the IC is in no URL, and the
+// results render from the post.
 func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 	q := normaliseIC(r.PostFormValue("q"))
 	if q == "" {
 		a.render(w, r, http.StatusOK, "certificate_verify", page{})
 		return
 	}
+	name := nameKey(r.PostFormValue("name"))
+	if name == "" || len(name) > 200 {
+		a.render(w, r, http.StatusOK, "certificate_verify", page{Query: q})
+		return
+	}
 	if !a.limiter.allow("certificate search "+clientAddress(r), certificateSearches, rateLimitWindow, a.now()) {
 		a.tooManyAttempts(w, r)
+		return
+	}
+	if !a.limiter.allow("certificate search name "+name, certificateSearchesPerName, certificateSearchNameWindow, a.now()) {
+		a.refuseAttempts(w, r, "check.limited-name")
 		return
 	}
 	var year, number int
@@ -52,10 +64,7 @@ func (a *App) searchCertificates(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	name := nameKey(r.PostFormValue("name"))
-	list = slices.DeleteFunc(list, func(c certificate) bool {
-		return c.LearnerIC != q && (name == "" || nameKey(c.LearnerName) != name)
-	})
+	list = slices.DeleteFunc(list, func(c certificate) bool { return nameKey(c.LearnerName) != name })
 	a.render(w, r, http.StatusOK, "certificate_verify", page{Certificates: list, Query: q})
 }
 

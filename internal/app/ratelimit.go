@@ -19,8 +19,14 @@ const (
 	// reset-password: enough for every Learner on one network (a classroom, carrier NAT) to use each once.
 	sharedAddressAttempts = 100
 	// certificateSearches is each address's budget at the public Certificate search, enough for an employer checking a
-	// class but too few to guess ICs.
+	// class. It alone leaves guessing one holder's IC open to many addresses, which certificateSearchesPerName closes.
 	certificateSearches = 30
+	// certificateSearchesPerName caps the searches for one holder's name from all addresses together, hit or miss. With a
+	// known birth date and state an IC has 10,000 candidates, so 10 a day leaves a guesser with a thousandth of them
+	// however many addresses they use. The cost: anyone who knows a name can hold back searches for it for a day; the
+	// Certificate ID box is not affected.
+	certificateSearchesPerName  = 10
+	certificateSearchNameWindow = 24 * time.Hour
 	// ebookDownloadLookups is each address's budget at Ebook download links, many times what a Learner opening their
 	// links needs but too few to guess a token.
 	ebookDownloadLookups = 60
@@ -66,6 +72,11 @@ func (a *App) limited(limit int, next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (a *App) tooManyAttempts(w http.ResponseWriter, r *http.Request) {
+	a.refuseAttempts(w, r, "limited")
+}
+
+// refuseAttempts answers 429 with the catalog message that says what ran out and for how long.
+func (a *App) refuseAttempts(w http.ResponseWriter, r *http.Request, messageKey string) {
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -73,7 +84,7 @@ func (a *App) tooManyAttempts(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, http.StatusTooManyRequests, "message", page{
 		Title:   text.T(lang, "limited.title"),
-		Message: text.T(lang, "limited"),
+		Message: text.T(lang, messageKey),
 	})
 }
 

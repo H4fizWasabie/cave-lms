@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -26,10 +27,11 @@ func passedLiveCourse(t *testing.T) (admin, ada *site, id, certID string) {
 	return admin, ada, id, ids[0]
 }
 
-// search posts q to the check page's search form, as a browser asking for lang does, so the IC is never in a URL.
+// searchAsking posts q and the holder's name, Ada, to the check page's search form, as a browser asking for lang does,
+// so the IC is never in a URL.
 func searchAsking(s *site, q, lang string) (*http.Response, string) {
 	s.t.Helper()
-	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/certificates", strings.NewReader(url.Values{"q": {q}}.Encode()))
+	req, err := http.NewRequest(http.MethodPost, s.server.URL+"/certificates", strings.NewReader(url.Values{"q": {q}, "name": {"Ada"}}.Encode()))
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -38,6 +40,7 @@ func searchAsking(s *site, q, lang string) (*http.Response, string) {
 	return s.do(req)
 }
 
+// search is searchAsking in English, so it too posts the name Ada.
 func search(s *site, q string) (*http.Response, string) { return searchAsking(s, q, "en") }
 
 // searchNamed posts q with the holder's name, as the check page's two search fields do.
@@ -72,6 +75,45 @@ func TestAFullICFindsTheCertificateWithTheICMasked(t *testing.T) {
 	}
 }
 
+// An IC alone lists nothing, so knowing a birth date and state is not enough to recover the rest of an IC, and a search
+// without a name is not counted against the address's budget.
+func TestAnICWithoutTheHoldersNameFindsNothingAndIsNotCounted(t *testing.T) {
+	t.Parallel()
+	_, ada, _, certID := passedLiveCourse(t)
+	for range 31 {
+		res, body := searchNamed(ada, "951206085555", "  ")
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+		expectNone(t, body, certID, "951206-08-****")
+	}
+	res, body := search(ada, "951206085555")
+	expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+}
+
+// A name past the 200 bytes a Learner's can be lists nothing and is not counted, which also keeps long keys out of the
+// limiter.
+func TestANameOver200BytesFindsNothingAndIsNotCounted(t *testing.T) {
+	t.Parallel()
+	_, ada, _, certID := passedLiveCourse(t)
+	long := strings.Repeat("a", 201)
+	for range 31 {
+		res, body := searchNamed(ada, "951206085555", long)
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+		expectNone(t, body, certID, "951206-08-****")
+	}
+	res, body := search(ada, "951206085555")
+	expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+}
+
+func TestAnICWithAWrongNameFindsNothingAndShowsNoIC(t *testing.T) {
+	t.Parallel()
+	_, ada, _, certID := passedLiveCourse(t)
+	for _, name := range []string{"Bob", "Ad", "Ada Lovelace"} {
+		res, body := searchNamed(ada, "951206085555", name)
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+		expectNone(t, body, certID, "951206")
+	}
+}
+
 // A Certificate No. search shows no IC, since the numbers run in order, and lists nothing unless the holder's name
 // matches too, so the register can't be listed by stepping through the numbers.
 func TestACertificateNoFindsThatCertificateOnlyWithTheHoldersNameAndAPartialICFindsNothing(t *testing.T) {
@@ -81,7 +123,7 @@ func TestACertificateNoFindsThatCertificateOnlyWithTheHoldersNameAndAPartialICFi
 	number := regexp.MustCompile(`PCC-LMS-\d{6}`).FindString(body)
 
 	for _, q := range []string{number, strings.ToLower(number)} {
-		res, body := search(ada, q)
+		res, body := searchNamed(ada, q, "")
 		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 		expectNone(t, body, certID, "Status: ")
 		for _, name := range []string{"Bob", "Ad", "Ada Lovelace"} {
@@ -89,7 +131,7 @@ func TestACertificateNoFindsThatCertificateOnlyWithTheHoldersNameAndAPartialICFi
 			expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 			expectNone(t, body, certID, "Status: ")
 		}
-		for _, name := range []string{"Ada", "ada", "  ADA ", "\tAda\n"} {
+		for _, name := range []string{"ada", "  ADA "} { // few, as one name may be searched 10 times a day
 			res, body = searchNamed(ada, q, name)
 			expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
 			expectNone(t, body, "951206", "IC or passport No.")
@@ -158,17 +200,64 @@ func TestARevokedCertificateShowsAsRevokedInTheResults(t *testing.T) {
 func TestTooManySearchesFromOneAddressAreRefused(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
-	for range 30 {
-		res, body := search(s, "951206085555")
+	for i := range 30 { // a new name each time, so only the address's budget is spent
+		res, body := searchNamed(s, "951206085555", fmt.Sprintf("Holder %d", i))
 		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
 	}
-	res, body := search(s, "951206085555")
+	res, body := searchNamed(s, "951206085555", "Holder 30")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts")
 	res, body = searchAsking(s, "PCC-LMS-260001", "ms")
 	expectStatus(t, res, body, http.StatusTooManyRequests, "Terlalu banyak cubaan")
 
 	res, body = s.get("/certificates") // the plain check page and ID box are not searches
 	expectStatus(t, res, body, http.StatusOK, "Check a Certificate")
+}
+
+// Guessing ICs under one name from many addresses stops at the per-name limit, hit or miss, without refusing another
+// name.
+func TestTooManySearchesForOneNameFromManyAddressesAreRefused(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	for i := 1; i <= 10; i++ {
+		res, body := s.postVia(fmt.Sprintf("198.51.100.%d", i), "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+	}
+	res, body := s.postVia("198.51.100.11", "/certificates", url.Values{"q": {"951206085556"}, "name": {" ADA "}})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many searches for this name today.")
+	expectNone(t, body, "from your address", "15 minutes")
+	res, body = s.postVia("198.51.100.11", "/certificates", url.Values{"q": {"951206085556"}, "name": {"Bob"}})
+	expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+}
+
+// A search that finds the Certificate spends the name's budget like one that does not.
+func TestASearchThatFindsACertificateCountsTowardTheName(t *testing.T) {
+	t.Parallel()
+	_, ada, _, certID := passedLiveCourse(t)
+	for i := 1; i <= 10; i++ {
+		res, body := ada.postVia(fmt.Sprintf("198.51.100.%d", i), "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusOK, `href="/certificates/`+certID+`"`)
+	}
+	res, body := ada.postVia("198.51.100.11", "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+	expectStatus(t, res, body, http.StatusTooManyRequests, "Too many searches for this name today.")
+	expectNone(t, body, certID)
+}
+
+// An address past its budget spends none of a name's, so it cannot hold a holder's searches back for nothing.
+func TestAnAddressPastItsBudgetDoesNotSpendTheName(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	for i := range 30 {
+		res, body := s.postVia("198.51.100.1", "/certificates", url.Values{"q": {"951206085555"}, "name": {fmt.Sprintf("Holder %d", i)}})
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+	}
+	for range 10 {
+		res, body := s.postVia("198.51.100.1", "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusTooManyRequests, "Too many attempts from your address")
+	}
+	for i := 2; i <= 11; i++ {
+		res, body := s.postVia(fmt.Sprintf("198.51.100.%d", i), "/certificates", url.Values{"q": {"951206085555"}, "name": {"Ada"}})
+		expectStatus(t, res, body, http.StatusOK, "No Certificate matches.")
+	}
 }
 
 func TestTheSearchIsInMalay(t *testing.T) {
