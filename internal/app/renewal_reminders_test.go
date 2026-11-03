@@ -34,7 +34,51 @@ func (s *site) renewalEmails(to string) []mailer.Message {
 }
 
 func reminderDate(days float64) string {
-	return time.Now().UTC().Add(time.Duration(days * 24 * float64(time.Hour))).Format("2 January 2006")
+	return time.Now().In(malaysiaTime).Add(time.Duration(days * 24 * float64(time.Hour))).Format("2 January 2006")
+}
+
+// lateInTheUTCDay is days from today in UTC at 20:00 UTC, already the next day in Malaysia.
+func lateInTheUTCDay(days int) time.Time {
+	return time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, days).Add(20 * time.Hour)
+}
+
+func TestARenewalReminderSaysTheEndInMalaysiaTime(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	ada.switchLanguage("en", "/")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	ends := lateInTheUTCDay(20)
+	for _, periods := range []string{"plan_periods", "cavetext_pro_periods"} {
+		if _, err := s.db.Exec(`UPDATE `+periods+` SET ends_at = $1`, ends); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.prune()
+	got := s.renewalEmails("ada@example.com")
+	if len(got) != 1 {
+		t.Fatalf("%d reminders, want 1", len(got))
+	}
+	day := ends.In(malaysiaTime).Format("2 January 2006")
+	expectAll(t, got[0].Body, "Lab Plan: ends on "+day, "CaveText Pro and Ebook access: ends on "+day)
+}
+
+func TestTheDeletionWarningSaysItsDatesInMalaysiaTime(t *testing.T) {
+	t.Parallel()
+	admin, ada := labLearner(t)
+	ada.readyDashboard("Kewangan")
+	ada.switchLanguage("en", "/")
+	ended := lateInTheUTCDay(-85)
+	if _, err := admin.db.Exec(`UPDATE plan_periods SET starts_at = $1::timestamptz - interval '30 days', ends_at = $1`, ended); err != nil {
+		t.Fatal(err)
+	}
+	admin.prune()
+	got := admin.renewalEmails("ada@example.com")
+	if len(got) != 1 {
+		t.Fatalf("%d warnings, want 1", len(got))
+	}
+	myt := ended.In(malaysiaTime)
+	expectAll(t, got[0].Body, myt.Format("2 January 2006"), myt.AddDate(0, 0, 90).Format("2 January 2006"))
 }
 
 // A COMBO buyer gets one email per stage that lists the Lab Plan and CaveText Pro with Ebook access, each at most once.

@@ -38,7 +38,7 @@ func (a *App) emailEbookLink(ctx context.Context, learnerID int64) {
 	if !text.Supported(lang) {
 		lang = text.Languages[0]
 	}
-	body := text.T(lang, "email.ebook.body", name, text.Date(lang, until.Time.UTC()), a.publicBaseURL+"/gallery?format=ebook", email)
+	body := text.T(lang, "email.ebook.body", name, text.Date(lang, until.Time.In(malaysia)), a.publicBaseURL+"/gallery?format=ebook", email)
 	if links := a.ebookDownloadLinks(ctx, learnerID); links != "" {
 		body += "\n" + text.T(lang, "email.ebook.links", ebookLinkDays, links)
 	}

@@ -54,7 +54,7 @@ func (a *App) myMembership(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		p.ProUntil = text.Date(lang, p.Cap.ProUntil)
+		p.ProUntil = text.Date(lang, p.Cap.ProUntil.In(malaysia))
 	}
 	a.render(w, r, http.StatusOK, "my_membership", p)
 }

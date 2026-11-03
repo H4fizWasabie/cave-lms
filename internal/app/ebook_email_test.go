@@ -34,7 +34,11 @@ func TestAComboPaymentEmailsTheEbookLinkInTheLearnersLanguage(t *testing.T) {
 	if len(emails) != 1 {
 		t.Fatalf("Ada got %d Ebook emails, want 1", len(emails))
 	}
-	until := time.Now().UTC().AddDate(1, 0, 0).Format("2 January 2006")
+	var ends time.Time
+	if err := s.db.QueryRow(`SELECT max(ends_at) FROM cavetext_pro_periods`).Scan(&ends); err != nil {
+		t.Fatal(err)
+	}
+	until := ends.In(malaysiaTime).Format("2 January 2006")
 	expectAll(t, emails[0].Body, "Hi Ada Lovelace", "open until "+until, "https://cave.example.invalid/gallery?format=ebook", "Log in with this email (ada@example.com)")
 
 	emails = withSubject(s.emailsTo("bea@example.com"), ebookEmailSubjectMS)
@@ -42,6 +46,25 @@ func TestAComboPaymentEmailsTheEbookLinkInTheLearnersLanguage(t *testing.T) {
 		t.Fatalf("Bea got %d Ebook emails in Malay, want 1", len(emails))
 	}
 	expectAll(t, emails[0].Body, "Hai Bea Lim", "https://cave.example.invalid/gallery?format=ebook", "bea@example.com", "Workbook: https://cave.example.invalid/ebook-downloads/", "selama 7 hari")
+}
+
+func TestTheEbookEmailSaysTheEndInMalaysiaTime(t *testing.T) {
+	t.Parallel()
+	s, _ := ebookSite(t)
+	ada, _ := s.newCaveTextLearner("Ada Lovelace", "ada@example.com")
+	ada.switchLanguage("en", "/")
+	s.bclPay(couponProPlan("LINK-1", "ada@example.com", "249.00", "150.00"))
+	ends := lateInTheUTCDay(100)
+	if _, err := s.db.Exec(`UPDATE cavetext_pro_periods SET ends_at = $1`, ends); err != nil {
+		t.Fatal(err)
+	}
+	res, body := s.post(s.proAction("ada@example.com", "ebook-email"), nil)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	emails := withSubject(s.emailsTo("ada@example.com"), ebookEmailSubject)
+	if len(emails) != 2 {
+		t.Fatalf("Ada got %d Ebook emails after the resend, want 2", len(emails))
+	}
+	expectAll(t, emails[1].Body, "open until "+ends.In(malaysiaTime).Format("2 January 2006"))
 }
 
 // A Learner who never chose a language gets the default one, as for the Certificate email.
