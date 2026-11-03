@@ -25,7 +25,7 @@ func TestTheMainHostNeverServesADeploymentAndTheDeploymentsHostServesNothingElse
 
 	// Even Ada, with her session, finds none of the LMS on the Deployments host.
 	for _, who := range []*site{visitor, ada} {
-		for _, p := range []string{"/", "/login", "/register", "/lab", "/courses", "/admin", "/gallery", "/privacy", "/static/cavelms.css", "/ada-example-com", "/ada-example-com/"} {
+		for _, p := range []string{"/", "/login", "/register", "/lab", "/courses", "/admin", "/gallery", "/privacy", "/refunds", "/static/cavelms.css", "/ada-example-com", "/ada-example-com/"} {
 			res, body := who.get(pagesOrigin + p)
 			expectStatus(t, res, body, http.StatusNotFound, "")
 			if c := res.Header.Get("Set-Cookie"); c != "" {

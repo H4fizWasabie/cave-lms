@@ -30,7 +30,7 @@ func init() {
 	for _, n := range strings.Fields(`about account accounts admin administrator api app billing cave cave-consult
 		cavelms cave-lms cavetext certificate certificates contact course courses dashboard dashboards deploy
 		deployment deployments forgot-password gallery help home index lab language learner learners login logout
-		my-certificates my-courses official pay payment payments plan plans privacy pro register reset-password
+		my-certificates my-courses official pay payment payments plan plans privacy pro refunds register reset-password
 		security settings signin sign-in signup sign-up static support terms the-cave-consult thecaveconsult verify
 		wasabie wasabietech www`) {
 		reservedNames[n] = true

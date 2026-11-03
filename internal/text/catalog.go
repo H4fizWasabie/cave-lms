@@ -209,6 +209,24 @@ var catalog = map[string]entry{
 	},
 	// ---- Privacy notice and the Register consent line: end ----
 
+	// ---- Refund Policy (/refunds) and the notice beside every Buy button ----
+	"refunds.link":    {en: "Refund Policy", ms: "Polisi Bayaran Balik"},
+	"refunds.updated": {en: "Last updated 3 November 2026", ms: "Kemas kini terakhir 3 November 2026"},
+	"refunds.final": {
+		en: "All purchases on CAVELMS are final and non-refundable, including for a change of mind or unused access.",
+		ms: "Semua pembelian di CAVELMS adalah muktamad dan tidak boleh dibayar balik, termasuk kerana perubahan fikiran atau akses yang tidak digunakan.",
+	},
+	"refunds.exception": {
+		en: "We will fix the problem or refund you if you were charged in error, charged twice, or did not receive what you paid for and we can't resolve it.",
+		ms: "Kami akan membetulkan masalah itu atau membayar balik wang anda jika anda dicaj secara silap, dicaj dua kali, atau tidak menerima apa yang anda bayar dan kami tidak dapat menyelesaikannya.",
+	},
+	"refunds.contact": {en: "Email us within 14 days of purchase:", ms: "E-mel kami dalam tempoh 14 hari dari tarikh pembelian:"},
+	"refunds.rights": {
+		en: "Nothing here limits any rights you have under Malaysian consumer law.",
+		ms: "Tiada apa-apa di sini mengehadkan hak anda di bawah undang-undang pengguna Malaysia.",
+	},
+	"refunds.notice": {en: "All purchases are non-refundable. See the", ms: "Semua pembelian tidak boleh dibayar balik. Lihat"},
+
 	// ---- Premium refresh: admin tidy-up (#313) ----
 	"adm.lessons.remove-q":   {en: "Remove “%s” from “%s”? This cannot be undone.", ms: "Buang “%s” daripada “%s”? Tindakan ini tidak boleh dibuat asal."},
 	"adm.lessons.remove":     {en: "Remove Lesson", ms: "Buang Pelajaran"},
