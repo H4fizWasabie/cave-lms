@@ -64,7 +64,7 @@ func TestAddingToABuiltDashboardAddsAPartAndTheDashboardDrawsFromAllTheRows(t *t
 	first := ada.dataOf(path + "/view/")
 
 	ada.addFile(path, "oktober.xlsx", shopReport(t, "Gula", 80))
-	today := time.Now().UTC().Format(time.DateOnly)
+	today := partDate()
 	want := []string{"Beras " + today, "Jualan " + today, "Gula " + today, "Jualan " + today}
 	for _, page := range []string{path + "/view/", link} {
 		if got := ada.perkara(page); strings.Join(got, ",") != strings.Join(want, ",") {

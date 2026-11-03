@@ -22,6 +22,9 @@ type Dataset struct {
 	now   func() time.Time // the clock, which dates a Part that names no date
 }
 
+// malaysia is the zone of the day that dates a Part naming no date.
+var malaysia = time.FixedZone("MYT", 8*60*60)
+
 // New is the Dataset module over db and store, dating Parts by the clock now.
 func New(db *sql.DB, store storage.Store, now func() time.Time) *Dataset {
 	return &Dataset{db: db, store: store, now: now}

@@ -19,11 +19,11 @@ import (
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
 
-// uploadAt is the clock of every test: 2 in the morning of 21 October in Malaysia, still the 20th in UTC, which dates a
-// Part that names no date.
+// uploadAt is the clock of every test: 2 in the morning of 21 October in Malaysia, still the 20th in UTC. Malaysia's day
+// dates a Part that names no date.
 var uploadAt = time.Date(2026, 10, 21, 2, 0, 0, 0, time.FixedZone("MYT", 8*3600))
 
-const uploadDay = "2026-10-20"
+const uploadDay = "2026-10-21"
 
 var noReserve dataset.Reserve = func(context.Context, *sql.Tx, int64) error { return nil }
 
@@ -684,13 +684,13 @@ func TestAPartIsDatedFromTheTitleRowsElseTheSheetNameElseTheFileNameElseTheUploa
 	}
 }
 
-func TestThePartDatesUploadDayFallbackFollowsTheClockInUTC(t *testing.T) {
+func TestThePartDatesUploadDayFallbackIsMalaysiasDay(t *testing.T) {
 	t.Parallel()
 	w := newWorld(t)
 	file := testutil.XLSX(t, []string{"Perkara", "Baki"}, []any{"Gula", 3})
-	w.now = time.Date(2027, 1, 1, 0, 30, 0, 0, time.FixedZone("MYT", 8*3600)) // 31 December in UTC
-	if p := w.put(upload{kind: dataset.ReplaceData, name: "stok.xlsx", file: file}); p.PartDate != "2026-12-31" || p.DateFrom != lab.DateFromUpload {
-		t.Fatalf("dated %s from %s, want 2026-12-31 from the upload day", p.PartDate, p.DateFrom)
+	w.now = time.Date(2026, 12, 31, 16, 30, 0, 0, time.UTC) // 00:30 on 1 January in Malaysia
+	if p := w.put(upload{kind: dataset.ReplaceData, name: "stok.xlsx", file: file}); p.PartDate != "2027-01-01" || p.DateFrom != lab.DateFromUpload {
+		t.Fatalf("dated %s from %s, want 2027-01-01 from the upload day", p.PartDate, p.DateFrom)
 	}
 }
 

@@ -257,7 +257,7 @@ func (d *Dataset) Upload(ctx context.Context, dashboardID int64, u Uploaded, res
 
 	pv.Columns = pv.Dataset.Columns
 	if pv.PartDate == "" { // the Excel names no date: the upload day
-		pv.PartDate, pv.DateFrom, pv.DateCell = d.now().UTC().Format(time.DateOnly), lab.DateFromUpload, ""
+		pv.PartDate, pv.DateFrom, pv.DateCell = d.now().In(malaysia).Format(time.DateOnly), lab.DateFromUpload, ""
 	}
 	rows, err := lab.PartRows(pv.Dataset, pv.PartDate)
 	if err != nil {
