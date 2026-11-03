@@ -447,14 +447,19 @@ func (a *App) showAttempt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	// The questions of an open attempt are for a Learner in the Course, as submitting one is.
+	if !enrolled && !att.Released && !att.Finished && !att.TimedOut {
+		http.Redirect(w, r, e.Path(""), http.StatusSeeOther)
+		return
+	}
 	p := page{Course: &c, Exam: &e, Learner: learner, Attempt: &att}
 	if att.Released {
 		// A released Result leads on: a pass to the Learner's next step on the Course, a fail to its retake.
-		enrolled, err := a.enrolled(r.Context(), learner.ID, c.ID)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
 		if enrolled {
 			step, err := a.nextStep(r.Context(), learner, c, nil)
 			if err != nil {
