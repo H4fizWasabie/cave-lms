@@ -34,6 +34,20 @@ func TestMyMembershipWithNoPlanSaysSoAndLinksToThePlans(t *testing.T) {
 	expectInOrder(t, content(body), "Keahlian saya", "Pelan", "Tiada Pelan", `href="/pricing"`, "CaveText Pro", "Percuma", "Had Snippet")
 }
 
+// 20:00 UTC is already the next day in Malaysia, so the test fails whatever the time of day if the date is read in UTC.
+func TestMyMembershipShowsThePlansEndInMalaysiaTime(t *testing.T) {
+	t.Parallel()
+	s, id := adminWithPlanAndLearner(t)
+	ada := s.second()
+	ada.login("ada@example.com", "correct horse battery")
+	s.assignPlan("ada@example.com", id)
+	if _, err := s.db.Exec(`UPDATE plan_periods SET ends_at = '2030-01-15 20:00:00+00'`); err != nil {
+		t.Fatal(err)
+	}
+	_, body := ada.getAsking("/my-membership", "en")
+	expectInOrder(t, content(body), "Lab Plan", "Until 16 January 2030")
+}
+
 func TestMyMembershipShowsTheActivePlanUntilTheLastQueuedPeriodEnds(t *testing.T) {
 	t.Parallel()
 	s, id := adminWithPlanAndLearner(t)

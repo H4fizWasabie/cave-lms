@@ -43,7 +43,7 @@ func (a *App) myMembership(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		p.PlanUntil = text.Date(lang, until.UTC())
+		p.PlanUntil = text.Date(lang, until.In(malaysia))
 	}
 	if err := a.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM cavetext_accounts WHERE learner_id = $1)`, learner.ID).Scan(&p.CaveText); err != nil {
 		a.serverError(w, r, err)
