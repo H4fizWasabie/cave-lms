@@ -556,7 +556,7 @@ func (a *App) privacy(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "privacy", page{})
 }
 
-// refunds is the Refund Policy, linked from every Buy button and the footer.
+// refunds is the Refund Policy, linked from the footer and the notice under a Learner's Buy buttons.
 func (a *App) refunds(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "refunds", page{})
 }

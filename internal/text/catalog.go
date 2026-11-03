@@ -209,7 +209,8 @@ var catalog = map[string]entry{
 	},
 	// ---- Privacy notice and the Register consent line: end ----
 
-	// ---- Refund Policy (/refunds) and the notice beside every Buy button ----
+	// ---- Refund Policy (/refunds) and the notice under a Learner's Buy buttons ----
+	// Change the date in refunds.updated whenever the policy changes.
 	"refunds.link":    {en: "Refund Policy", ms: "Polisi Bayaran Balik"},
 	"refunds.updated": {en: "Last updated 3 November 2026", ms: "Kemas kini terakhir 3 November 2026"},
 	"refunds.final": {
@@ -226,6 +227,7 @@ var catalog = map[string]entry{
 		ms: "Tiada apa-apa di sini mengehadkan hak anda di bawah undang-undang pengguna Malaysia.",
 	},
 	"refunds.notice": {en: "All purchases are non-refundable. See the", ms: "Semua pembelian tidak boleh dibayar balik. Lihat"},
+	// ---- Refund Policy: end ----
 
 	// ---- Premium refresh: admin tidy-up (#313) ----
 	"adm.lessons.remove-q":   {en: "Remove “%s” from “%s”? This cannot be undone.", ms: "Buang “%s” daripada “%s”? Tindakan ini tidak boleh dibuat asal."},
