@@ -84,6 +84,7 @@
         <a href="mailto:adam.caveconsult@gmail.com">adam.caveconsult@gmail.com</a>
         <a href="/about">{{t .Lang "about.link"}}</a>
         <a href="/privacy">{{t .Lang "privacy.link"}}</a>
+        <a href="/refunds">{{t .Lang "refunds.link"}}</a>
         <address>11B Bazar Enggang Keramat, Lorong Enggang 4, Taman Keramat, 54200 Kuala Lumpur</address>
       </div>
     </div>
@@ -357,6 +358,9 @@ Visitors see the cards without buttons. */}}
       </ul>
       {{- range .Offers}}{{if .PaymentLink}}
       <p class="note">{{t $.Lang "offers.fee"}}</p>
+      {{- if $.Learner}}
+      <p class="muted">{{t $.Lang "refunds.notice"}} <a href="/refunds">{{t $.Lang "refunds.link"}}</a>.</p>
+      {{- end}}
       {{- break}}{{end}}{{end}}
 {{- end}}
 

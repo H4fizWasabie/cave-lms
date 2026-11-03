@@ -35,7 +35,7 @@ func TestThePublicPagesKeepTheirHeadingsInOrderInBothLanguages(t *testing.T) {
 	visitor := s.second()
 	for _, lang := range []string{"en", "ms"} {
 		for _, path := range []string{"/about", "/pricing", "/programmes", "/gallery", picture, "/cavetext",
-			"/certificates", "/privacy", "/no-such-page"} {
+			"/certificates", "/privacy", "/refunds", "/no-such-page"} {
 			res, body := visitor.getAsking(path, lang)
 			if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
 				t.Fatalf("%s: status %d", path, res.StatusCode)
