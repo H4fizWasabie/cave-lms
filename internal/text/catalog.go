@@ -1751,9 +1751,15 @@ var catalog = map[string]entry{
 		en: "This verification link is not valid or has already been used. Enter your email to get a new one.",
 		ms: "Pautan pengesahan ini tidak sah atau telah digunakan. Masukkan e-mel anda untuk mendapatkan pautan baharu.",
 	},
-	"verify.expired":    {en: "This verification link has expired. Send yourself a new one.", ms: "Pautan pengesahan ini telah tamat tempoh. Minta pautan baharu."},
-	"verify.done.title": {en: "Email verified", ms: "E-mel disahkan"},
-	"verify.done":       {en: "Your account is confirmed.", ms: "Akaun anda telah disahkan."},
+	"verify.expired":       {en: "This verification link has expired. Send yourself a new one.", ms: "Pautan pengesahan ini telah tamat tempoh. Minta pautan baharu."},
+	"verify.done.title":    {en: "Email verified", ms: "E-mel disahkan"},
+	"verify.done":          {en: "Your account is confirmed.", ms: "Akaun anda telah disahkan."},
+	"verify.confirm.title": {en: "Confirm your email", ms: "Sahkan e-mel anda"},
+	"verify.confirm.body": {
+		en: "Press the button to confirm this email for your CAVELMS account. If you did not register, close this page and do nothing.",
+		ms: "Tekan butang untuk mengesahkan e-mel ini bagi akaun CAVELMS anda. Jika anda tidak mendaftar, tutup halaman ini dan jangan buat apa-apa.",
+	},
+	"verify.confirm.button": {en: "Confirm email", ms: "Sahkan e-mel"},
 	"verify.resent": {
 		en: "If %s belongs to an account waiting for verification, we sent it a new link.",
 		ms: "Jika %s didaftarkan pada akaun yang menunggu pengesahan, kami telah menghantar pautan baharu kepadanya.",

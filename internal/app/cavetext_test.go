@@ -104,7 +104,7 @@ func TestCaveTextConnectSendsAVisitorToLogInAndBack(t *testing.T) {
 
 	const email, password = "ada@example.com", "correct horse battery"
 	s.register("Ada Lovelace", email, password)
-	s.get(s.lastVerifyPath(email))
+	s.verifyEmail(s.lastVerifyPath(email))
 	res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {connectPath}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if got := res.Header.Get("Location"); got != connectPath {
@@ -121,7 +121,7 @@ func TestLoginRefusesToRedirectOffSite(t *testing.T) {
 	s := newSite(t)
 	const email, password = "ada@example.com", "correct horse battery"
 	s.register("Ada Lovelace", email, password)
-	s.get(s.lastVerifyPath(email))
+	s.verifyEmail(s.lastVerifyPath(email))
 	// Browsers drop tabs and newlines from URLs, so "/\t/evil.example" would land on //evil.example.
 	// Form values arrive decoded, so these also cover next=/%09/evil.example.
 	for _, next := range []string{"https://evil.example/", "//evil.example/", `/\evil.example/`,

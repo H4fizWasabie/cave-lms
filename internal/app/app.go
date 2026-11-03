@@ -223,7 +223,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /about", a.about)
 	mux.HandleFunc("GET /register", a.registerForm)
 	mux.HandleFunc("POST /register", a.limited(sharedAddressAttempts, a.register))
-	mux.HandleFunc("GET /verify", a.verify)
+	mux.HandleFunc("GET /verify", a.verifyForm)
+	mux.HandleFunc("POST /verify", a.limited(sharedAddressAttempts, a.verify))
 	mux.HandleFunc("POST /verify/resend", a.limited(sharedAddressAttempts, a.resendVerification))
 	mux.HandleFunc("GET /login", a.loginForm)
 	mux.HandleFunc("POST /login", a.login) // limits its own failures, see login

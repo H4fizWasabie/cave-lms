@@ -215,7 +215,7 @@ func TestVisitorIsSentToLogInFromMyCourses(t *testing.T) {
 
 	const email, password = "ada@example.com", "correct horse battery"
 	s.register("Ada Lovelace", email, password)
-	s.get(s.lastVerifyPath(email))
+	s.verifyEmail(s.lastVerifyPath(email))
 	res, body = s.post("/login", url.Values{"email": {email}, "password": {password}, "next": {"/my-courses?tab=all"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	if got := res.Header.Get("Location"); got != "/my-courses?tab=all" {

@@ -131,12 +131,30 @@ func (s *site) lastVerifyPath(to string) string {
 	return s.lastEmailLinkPath(to, "/verify")
 }
 
+var verifyToken = regexp.MustCompile(`name="token" value="([^"]*)"`)
+
+// verifyEmail opens a verification link, which only asks to confirm, and presses the button; it returns the answer to that.
+func (s *site) verifyEmail(link string) (*http.Response, string) {
+	return s.verifyEmailAsking(link, "en")
+}
+
+func (s *site) verifyEmailAsking(link, acceptLanguage string) (*http.Response, string) {
+	s.t.Helper()
+	res, body := s.getAsking(link, acceptLanguage)
+	expectStatus(s.t, res, body, http.StatusOK, `action="/verify"`)
+	m := verifyToken.FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("confirm page of %s has no token: %s", link, body)
+	}
+	return s.postAsking("/verify", acceptLanguage, url.Values{"token": {m[1]}})
+}
+
 // loginAsNewLearner registers, verifies and logs in a new Learner.
 func (s *site) loginAsNewLearner(name, email, password string) {
 	s.t.Helper()
 	res, body := s.register(name, email, password)
 	expectStatus(s.t, res, body, http.StatusOK, "Check your email")
-	res, body = s.get(s.lastVerifyPath(email))
+	res, body = s.verifyEmail(s.lastVerifyPath(email))
 	expectStatus(s.t, res, body, http.StatusOK, "Email verified")
 	res, body = s.login(email, password)
 	expectStatus(s.t, res, body, http.StatusSeeOther, "")
@@ -182,9 +200,9 @@ func TestRegisterVerifyLogInAndOut(t *testing.T) {
 	}
 
 	link := s.lastVerifyPath(email)
-	res, body = s.get(link)
+	res, body = s.verifyEmail(link)
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
-	res, body = s.get(link)
+	res, body = s.verifyEmail(link)
 	expectStatus(t, res, body, http.StatusBadRequest, "already been used")
 
 	res, body = s.login(email, "wrong password")
@@ -227,7 +245,7 @@ func TestRegisteringAUsedEmailAnswersAsANewOneAndTellsItsOwner(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
-	res, body := s.get(s.lastVerifyPath("ada@example.com"))
+	res, body := s.verifyEmail(s.lastVerifyPath("ada@example.com"))
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
 	_, fresh := s.register("Bob", "bob@example.com", "password three")
 
@@ -276,7 +294,7 @@ func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *t
 	mallorysLink := s.lastVerifyPath("ada@example.com")
 	s.registerAgain("Ada", "ada@example.com", "ada's password")
 	// The verify link Mallory caused would confirm her password if Ada clicked it, so it stops working.
-	res, body := s.get(mallorysLink)
+	res, body := s.verifyEmail(mallorysLink)
 	expectStatus(t, res, body, http.StatusBadRequest, "")
 	res, body = s.resetPassword(resetToken(t, s.lastEmailLinkPath("ada@example.com", "/reset-password")), "ada's password")
 	expectStatus(t, res, body, http.StatusOK, "")
@@ -287,11 +305,55 @@ func TestTheFirstRegistrantsPasswordStopsWorkingOnceTheInboxOwnerSetsTheirs(t *t
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 }
 
+// Registering someone else's email first must not leave that registrant's password on the account either: they can ask
+// for a fresh verification link, and whoever opens it confirms the account with the password it has.
+func TestTheFirstRegistrantsPasswordIsGoneOnceTheInboxOwnerRegistersWhateverTheyDoNext(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	const email, mallorys, adas = "ada@example.com", "mallory's password", "ada's password"
+	s.register("Mallory", email, mallorys)
+	s.registerAgain("Ada", email, adas)
+	setPasswordLink := s.lastEmailLinkPath(email, "/reset-password")
+
+	// Mallory asks for a new verification link and the account is confirmed with it.
+	res, body := s.post("/verify/resend", url.Values{"email": {email}})
+	expectStatus(t, res, body, http.StatusOK, "we sent it a new link")
+	res, body = s.verifyEmail(s.lastVerifyPath(email))
+	expectStatus(t, res, body, http.StatusOK, "Email verified")
+
+	res, body = s.login(email, mallorys)
+	expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect")
+	res, body = s.resetPassword(resetToken(t, setPasswordLink), adas)
+	expectStatus(t, res, body, http.StatusOK, "")
+	res, body = s.login(email, adas)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
+
+// The cap on emails to one address stops the set-password link, but not the loss of the first registrant's password.
+func TestTheFirstRegistrantsPasswordIsGoneEvenWhenTheEmailCapMeansNoLinkIsSent(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	const email, mallorys = "ada@example.com", "mallory's password"
+	s.register("Mallory", email, mallorys)
+	for range 2 {
+		s.post("/verify/resend", url.Values{"email": {email}})
+	}
+	before := len(s.mail.Messages())
+
+	res, body := s.registerAgain("Ada", email, "ada's password")
+	expectStatus(t, res, body, http.StatusOK, "Check your email")
+	if n := len(s.mail.Messages()); n != before {
+		t.Fatalf("sent %d emails past the cap, want none", n-before)
+	}
+	res, body = s.login(email, mallorys)
+	expectStatus(t, res, body, http.StatusUnauthorized, "Email or password is incorrect")
+}
+
 func TestEmailsFromRegisteringAUsedAddressStopAfterThreeADay(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	s.register("Ada", "ada@example.com", "password one")
-	s.get(s.lastVerifyPath("ada@example.com"))
+	s.verifyEmail(s.lastVerifyPath("ada@example.com"))
 	for range 3 {
 		res, body := s.registerAgain("Someone Else", "ada@example.com", "password two")
 		expectStatus(t, res, body, http.StatusOK, "Check your email")
@@ -351,7 +413,7 @@ func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, body := s.get(expiredLink)
+	res, body := s.verifyEmail(expiredLink)
 	expectStatus(t, res, body, http.StatusGone, "This verification link has expired")
 	if !strings.Contains(body, `action="/verify/resend"`) || !strings.Contains(body, `value="ada@example.com"`) {
 		t.Fatalf("expired page does not offer a new link: %s", body)
@@ -363,10 +425,39 @@ func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
 	if newLink == expiredLink {
 		t.Fatal("resend reused the expired link")
 	}
-	res, body = s.get(newLink)
+	res, body = s.verifyEmail(newLink)
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
 	res, body = s.login(email, password)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+}
+
+// Mail scanners and link previews open every link in an email, so opening a verification link changes nothing; the
+// button on the page it shows does.
+func TestOpeningAVerificationLinkConfirmsNothingUntilItsButtonIsPressed(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	const email, password = "ada@example.com", "correct horse battery"
+	s.register("Ada", email, password)
+	link := s.lastVerifyPath(email)
+	token := strings.TrimPrefix(link, "/verify?token=")
+
+	for range 2 { // as often as it is opened
+		res, body := s.getAsking(link, "en")
+		expectStatus(t, res, body, http.StatusOK, "Confirm your email")
+		expectInOrder(t, mainOf(body), "Press the button to confirm this email for your CAVELMS account. If you did not register, close this page and do nothing.",
+			`action="/verify"`, `name="token" value="`+token+`"`, "Confirm email</button>")
+	}
+	_, body := s.getAsking(link, "ms")
+	expectInOrder(t, mainOf(body), "Sahkan e-mel anda", "Tekan butang untuk mengesahkan e-mel ini bagi akaun CAVELMS anda.", "Sahkan e-mel</button>")
+	res, body := s.login(email, password)
+	expectStatus(t, res, body, http.StatusForbidden, "Verify your email first")
+
+	res, body = s.post("/verify", url.Values{"token": {token}})
+	expectStatus(t, res, body, http.StatusOK, "Email verified")
+	res, body = s.login(email, password)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	res, body = s.post("/verify", url.Values{"token": {token}})
+	expectStatus(t, res, body, http.StatusBadRequest, "already been used")
 }
 
 func TestAccountEmailsLeaveOutTheRegisteredName(t *testing.T) {
@@ -402,7 +493,7 @@ func TestVerificationEmailsToOneAddressStopAfterThreeADay(t *testing.T) {
 	if bodies[2] != bodies[0] {
 		t.Fatalf("a capped resend answered differently:\n%s\nvs\n%s", bodies[2], bodies[0])
 	}
-	res, body := s.get(s.lastVerifyPath("ada@example.com"))
+	res, body := s.verifyEmail(s.lastVerifyPath("ada@example.com"))
 	expectStatus(t, res, body, http.StatusOK, "Email verified")
 }
 
@@ -410,7 +501,7 @@ func TestFormsRefuseCrossOriginPosts(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	form := url.Values{"name": {"Mallory"}, "username": {"mallory"}, "email": {"m@example.com"}, "password": {"password123"}}
-	for _, path := range []string{"/register", "/login", "/logout", "/verify/resend"} {
+	for _, path := range []string{"/register", "/login", "/logout", "/verify", "/verify/resend"} {
 		for header, value := range map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.example"} {
 			req, _ := http.NewRequest(http.MethodPost, s.server.URL+path, strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

@@ -44,7 +44,7 @@ _Malay_: Log sistem
 _Avoid_: Audit log, activity log, history
 
 **Registration**:
-Creating a Learner account. Open to anyone, with email verification. A taken Username is refused first, whether or not the email has an account. Registering with an email that already has an account, under a free Username, answers the same as a new one, makes nothing, and emails that account instead: a link to set its password if it is unverified, else a note that someone tried to register with it.
+Creating a Learner account. Open to anyone, with email verification. A taken Username is refused first, whether or not the email has an account. Registering with an email that already has an account, under a free Username, answers the same as a new one, makes nothing, and emails that account instead: a link to set its password if it is unverified, which also replaces the password it had with one nobody knows, else a note that someone tried to register with it. The link in a verification email opens a page whose button confirms the email, so a mail scanner opening the link confirms nothing.
 _Malay_: Pendaftaran
 _Avoid_: Sign-up, enrollment
 

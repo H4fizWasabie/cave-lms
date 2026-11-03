@@ -104,6 +104,12 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	// Hashed on every path, though only an unverified used email needs it, so the time does not tell which path ran.
+	unknownHash, err := unknownPasswordHash()
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -134,7 +140,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, sql.ErrNoRows):
 		// The email already has an account: answer as for a new one and email its owner, so the page tells nobody.
-		err = a.mailOwnerOfUsedEmail(r, tx, email)
+		err = a.mailOwnerOfUsedEmail(r, tx, email, unknownHash)
 	case err == nil:
 		err = a.sendVerification(r.Context(), tx, lang, id, email)
 	}
@@ -165,8 +171,9 @@ func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, lea
 }
 
 // mailOwnerOfUsedEmail answers a registration with email, which already has an account: an unverified account gets a link
-// to set its password, a verified one a notice that someone tried to register with its address.
-func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) error {
+// to set its password, a verified one a notice that someone tried to register with its address. unknownHash is the
+// password the unverified account is given.
+func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email, unknownHash string) error {
 	var (
 		id        int64
 		to, saved string
@@ -180,16 +187,23 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email string) er
 	if err != nil {
 		return err
 	}
+	if !verified {
+		// An unverified account's password proves nothing about who chose it, so whoever holds the inbox sets it with a
+		// reset link, which also confirms the email. A verification link would confirm the first registrant's password,
+		// so the ones already sent stop working and the password goes: replaced by a random one nobody knows, a real
+		// bcrypt hash so a login to it takes as long as to any account. This comes before the cap on emails below, so the
+		// first registrant cannot keep the password by using the cap up.
+		if _, err := tx.ExecContext(r.Context(), `DELETE FROM one_time_tokens WHERE learner_id = $1 AND purpose = $2`, id, purposeVerifyEmail); err != nil {
+			return fmt.Errorf("delete verification links: %w", err)
+		}
+		if _, err := tx.ExecContext(r.Context(), `UPDATE learners SET password_hash = $1 WHERE id = $2`, unknownHash, id); err != nil {
+			return fmt.Errorf("replace unverified password: %w", err)
+		}
+	}
 	if !a.verificationAllowed(to) {
 		return nil
 	}
 	if !verified {
-		// An unverified account's password proves nothing about who chose it, so whoever holds the inbox sets it with a
-		// reset link, which also confirms the email. A verification link would confirm the first registrant's password,
-		// so the ones already sent stop working.
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM one_time_tokens WHERE learner_id = $1 AND purpose = $2`, id, purposeVerifyEmail); err != nil {
-			return fmt.Errorf("delete verification links: %w", err)
-		}
 		token, err := issueOneTimeToken(r.Context(), tx, id, purposeResetPassword, resetLinkLifetime)
 		if err != nil {
 			return err
@@ -265,6 +279,12 @@ func issueOneTimeToken(ctx context.Context, tx *sql.Tx, learnerID int64, purpose
 	return token, nil
 }
 
+// verifyForm is the page a verification link opens. It changes nothing and keeps the link, as mail scanners and link
+// previews open every link in an email: the button posts the token to verify.
+func (a *App) verifyForm(w http.ResponseWriter, r *http.Request) {
+	a.render(w, r, http.StatusOK, "verify_confirm", page{Token: r.URL.Query().Get("token")})
+}
+
 func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 	var (
 		learnerID int64
@@ -276,7 +296,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		DELETE FROM one_time_tokens t USING learners l
 		WHERE t.learner_id = l.id AND t.token_hash = $1 AND t.purpose = $2
 		RETURNING l.id, l.email, t.expires_at <= now()`,
-		hashToken(r.URL.Query().Get("token")), purposeVerifyEmail).Scan(&learnerID, &email, &expired)
+		hashToken(r.PostFormValue("token")), purposeVerifyEmail).Scan(&learnerID, &email, &expired)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, err)
 		return
@@ -517,6 +537,16 @@ func passwordProblem(lang, password string) string {
 func validEmail(email string) bool {
 	addr, err := mail.ParseAddress(email)
 	return err == nil && addr.Address == email && len(email) <= 254
+}
+
+// unknownPasswordHash is a bcrypt hash of a fresh random token: a password nobody knows.
+func unknownPasswordHash() (string, error) {
+	token, err := newToken()
+	if err != nil {
+		return "", err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(token), bcrypt.DefaultCost)
+	return string(hash), err
 }
 
 func newToken() (string, error) {
