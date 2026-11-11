@@ -371,6 +371,23 @@
         <p class="muted">{{t $.Lang "lab.page.share"}}</p>
         {{- else if .Awake}}
         <p class="muted">{{t $.Lang "lab.dep.share"}} <a href="{{$url}}">{{t $.Lang "lab.dep.share-upload"}}</a>.</p>
+        {{- end}}
+        {{- if $.Confirm}}
+        <div class="card">
+          <h3 class="h-md">{{t $.Lang "lab.dep.newkey-confirm"}}</h3>
+          <p>{{t $.Lang "lab.dep.newkey-body"}}</p>
+          <form method="post" action="{{$url}}/deploy/key">
+            <div class="form-foot">
+              <a class="btn btn-quiet" href="{{$url}}/deploy">{{t $.Lang "lab.dep.not-yet"}}</a>
+              <button class="btn btn-solid">{{t $.Lang "lab.dep.newkey"}}</button>
+            </div>
+          </form>
+        </div>
+        {{- else}}
+        {{- if not .Keyed}}
+        <p class="muted">{{t $.Lang "lab.dep.newkey-hint"}}</p>
+        {{- end}}
+        <p><a class="btn btn-ghost btn-sm" href="{{$url}}/deploy?confirm">{{t $.Lang "lab.dep.newkey"}}</a></p>
         {{- end}}{{end}}
         {{- else if and .Access.CountedPeriod .Access.CountedPeriod.Full}}{{with .Access.CountedPeriod}}
         <div class="ds-err" role="alert">

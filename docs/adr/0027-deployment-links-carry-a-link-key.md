@@ -1,0 +1,11 @@
+---
+status: accepted, amends ADR 0023 and ADR 0024
+---
+
+# Deployment links carry a Link key
+
+A Deployment's link was `pages.cavelms.com/<username>/<name>/`, both parts easy to guess, and `<link>/data.json` hands out the Dashboard's whole Dataset, which may hold staff or student records. A new Deployment's link is now `pages.cavelms.com/<username>/<name>-<key>/`, where the Link key is 10 random lowercase letters and digits that Cave adds (about 50 bits). The Learner still picks the name, so the link stays readable, and names stay unique and are never reused. The key belongs to the Deployment, not to a page: a new upload or a restored earlier page keeps it. The Deploy tab's "New secret link" button gives the Deployment a fresh key after a confirmation, and the old link is not found at once; it is how a Learner makes an old link secret and how they end a leaked one. The page's `./data.json`, `charts.js` and `data/<key>` resolve under the keyed link, so pages built from the deploy prompt need no change.
+
+A keyed Deployment answers only at its exact keyed link. Its bare name, a wrong Username, the earlier `/<name>/` form, an old `cavelms.com/d/...` link and a wrong or missing key are all plain not found, with no redirect: any redirect from a guessable address would hand out the key. With the right key, a sleeping or taken-down Deployment shows the inactive message as before; without it, not found, so the message never confirms a name exists. The Username redirect of ADR 0023 still works when the key is right.
+
+Deployments made before this keep their keyless link and its redirects until their Learner presses the button; their Deploy tab says the link can be guessed. Rejected: (1) moving every Deployment to a keyed link at once, which breaks every link Learners have shared, while no leak has been confirmed; an Admin button to do this is a short job on top of the Learner's one, if the client asks; (2) a passcode on the page, heavier, and a cookie would not cover `data.json`, since the sandboxed page sends none; kept for later, as a ticket in the link after the passcode; (3) a fully random link with no name, which Learners cannot read or recognise; (4) a choice to deploy without a key, which only brings the guessable link back.

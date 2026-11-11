@@ -156,7 +156,7 @@ func (a *App) renderFolder(w http.ResponseWriter, r *http.Request, learner *lear
 // a Part cleaned from. A built Dashboard has no page and is left out.
 func (a *App) folderDashboards(ctx context.Context, lang string, owner *learner, books []workbook) ([]folderDashboard, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT d.id, d.name, pg.id, pg.current, pg.size, pg.uploaded_at,
-			dep.name, dep.taken_down_at IS NOT NULL, `+deploymentAwakeSQL+`
+			dep.name, dep.link_key, dep.taken_down_at IS NOT NULL, `+deploymentAwakeSQL+`
 		FROM dashboards d JOIN dashboard_pages pg ON pg.dashboard_id = d.id
 		LEFT JOIN deployments dep ON dep.dashboard_id = d.id WHERE d.learner_id = $1
 		ORDER BY d.updated_at DESC, d.id DESC, pg.current DESC, pg.uploaded_at DESC, pg.id DESC`, owner.ID)
@@ -169,15 +169,15 @@ func (a *App) folderDashboards(ctx context.Context, lang string, owner *learner,
 		var d folderDashboard
 		var f folderPageFile
 		var at time.Time
-		var depName sql.NullString
+		var depName, linkKey sql.NullString
 		var takenDown, awake bool
-		if err := rows.Scan(&d.ID, &d.Name, &f.ID, &f.Current, &f.Size, &at, &depName, &takenDown, &awake); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &f.ID, &f.Current, &f.Size, &at, &depName, &linkKey, &takenDown, &awake); err != nil {
 			return nil, err
 		}
 		f.Uploaded = dateTimeIn(lang, at)
 		if len(list) == 0 || list[len(list)-1].ID != d.ID {
 			if depName.Valid {
-				d.Link = a.deploymentLink(owner.Username, depName.String)
+				d.Link = a.deploymentLink(owner.Username, depName.String, linkKey.String)
 				d.State = deploymentState(awake, takenDown)
 			}
 			for _, w := range books {

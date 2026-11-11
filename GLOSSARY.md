@@ -331,9 +331,14 @@ _Malay_: Tema
 _Avoid_: Template, skin, style, look
 
 **Deployment**:
-A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link is on its own host, `pages.cavelms.com`, and carries the Learner's Username and a name the Learner picks when deploying; that name never changes and is never given to another Deployment. Old links at `cavelms.com/d/...` redirect to it.
+A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link is on its own host, `pages.cavelms.com`, and carries the Learner's Username and a name the Learner picks when deploying; that name never changes and is never given to another Deployment. The link also carries a Link key, so it cannot be guessed. Old links at `cavelms.com/d/...` redirect to it.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site, web app
+
+**Link key**:
+The random part Cave adds after a Deployment's name in its link, so only someone given the link can open it. A link with a wrong key, or none, is not found. The Learner can replace the key at any time, which ends the old link at once. Deployments made before Link keys keep their keyless link until their Learner replaces it.
+_Malay_: Kunci pautan
+_Avoid_: Token, password, passcode, secret
 
 **Takedown**:
 The Admin putting a Deployment to sleep early, with a recorded reason. The Dashboard itself stays.
