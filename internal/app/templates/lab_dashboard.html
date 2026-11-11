@@ -419,6 +419,7 @@
           {{- if not .Dashboard.Page}}
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg><span><strong>{{t .Lang "lab.dep.fact-current"}}</strong> {{t .Lang "lab.dep.fact-current-body"}}</span></li>
           {{- end}}
+          <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-columns"}}</strong> {{t .Lang "lab.dep.fact-columns-body"}}</span></li>
           <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg><span><strong>{{t .Lang "lab.dep.fact-once"}}</strong> {{t .Lang "lab.dep.fact-once-body"}}{{with .Access.CountedPeriod}} {{t $.Lang "lab.dep.fact-uses" .DeploymentsLeft}}{{end}}</span></li>
         </ul>
         <p><a class="btn btn-solid btn-lg" href="{{$url}}/deploy?confirm">{{t .Lang "lab.d.tab.deploy"}}</a></p>
