@@ -83,7 +83,8 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	path := ada.readyDashboard("Kewangan")
 
 	res, body := ada.get(path + "/deploy")
-	for _, want := range []string{"Anyone with the link can see it", "Online while your Plan is active", "Once only", `href="` + path + `/deploy?confirm"`} {
+	for _, want := range []string{"Anyone with the link can see it", "Online while your Plan is active", "Once only", `href="` + path + `/deploy?confirm"`,
+		"Every column is readable."} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 	res, body = ada.get(path + "/deploy?confirm")

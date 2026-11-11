@@ -1249,6 +1249,11 @@ var catalog = map[string]entry{
 		en: "Upload a new Dataset while it is online and visitors see the new numbers.",
 		ms: "Muat naik Set data baharu semasa ia dalam talian dan pelawat melihat nombor baharu.",
 	},
+	"lab.dep.fact-columns": {en: "Every column is readable.", ms: "Setiap lajur boleh dibaca."},
+	"lab.dep.fact-columns-body": {
+		en: "Anyone with the link can read every column of your Dataset, not just what your Dashboard shows. Remove private columns, such as IC or phone numbers, before you deploy.",
+		ms: "Sesiapa yang mempunyai pautan boleh membaca setiap lajur Dataset anda, bukan sahaja apa yang ditunjukkan oleh Dashboard anda. Buang lajur peribadi, seperti No. KP atau nombor telefon, sebelum anda deploy.",
+	},
 	"lab.dep.fact-once":      {en: "Once only.", ms: "Sekali sahaja."},
 	"lab.dep.fact-once-body": {en: "A Dashboard can be deployed one time.", ms: "Dashboard boleh di-deploy sekali sahaja."},
 	"lab.dep.fact-uses":      {en: "It uses 1 of your %d free Deployments.", ms: "Ia menggunakan 1 daripada %d Deployment anda yang masih kosong."},
