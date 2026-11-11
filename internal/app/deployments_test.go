@@ -64,8 +64,12 @@ func TestADeploymentsCSPNamesOnlyTheDeploymentsOrigin(t *testing.T) {
 	path := ada.readyDashboard("Kewangan")
 	res, body := ada.post(path+"/deploy", url.Values{"confirm": {"yes"}, "name": {"kedai-ada"}, "right": {"yes"}})
 	expectStatus(t, res, body, http.StatusSeeOther, "")
+	var linkKey string
+	if err := ada.db.QueryRow(`SELECT link_key FROM deployments`).Scan(&linkKey); err != nil {
+		t.Fatal(err)
+	}
 
-	res, _ = ada.second().get("https://pages.cave.example.invalid:8443/ada-example-com/kedai-ada/")
+	res, _ = ada.second().get("https://pages.cave.example.invalid:8443/ada-example-com/kedai-ada-" + linkKey + "/")
 	const wantCSP = "sandbox allow-scripts; default-src 'none'; script-src 'self' https://pages.cave.example.invalid:8443 'unsafe-inline'; " +
 		"style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'self' https://pages.cave.example.invalid:8443; frame-ancestors 'none'"
 	if csp := res.Header.Get("Content-Security-Policy"); csp != wantCSP {
@@ -100,8 +104,8 @@ func TestLearnerDeploysAfterTheWarningAndAVisitorSeesTheDashboard(t *testing.T) 
 	}
 
 	link := ada.deployAs(path, "kedai-ada-2026")
-	if link != pagesOrigin+"/ada-example-com/kedai-ada-2026/" {
-		t.Fatalf("the link is %s, want the name Ada picked", link)
+	if !keyedLink.MatchString(link) {
+		t.Fatalf("the link is %s, want the name Ada picked and a Link key", link)
 	}
 	res, body = ada.get(path + "/deploy")
 	for _, want := range []string{"Online", "when your Plan ends, it sleeps", "readonly", `href="` + link + `"`} {
@@ -382,7 +386,7 @@ func TestADeploymentNameIsRefusedWithTheReason(t *testing.T) {
 	if _, body = ada.get(path + "/deploy"); deploymentLink.MatchString(body) {
 		t.Fatalf("deployed after a refusal: %s", body)
 	}
-	if link := ada.deployAs(path, "kedai-baru"); link != pagesOrigin+"/ada-example-com/kedai-baru/" {
+	if link := ada.deployAs(path, "kedai-baru"); !strings.HasPrefix(link, pagesOrigin+"/ada-example-com/kedai-baru-") {
 		t.Fatalf("link %s", link)
 	}
 }
@@ -392,7 +396,7 @@ func TestADeploymentMadeBeforeNamesKeepsItsOldLink(t *testing.T) {
 	_, ada := labLearner(t)
 	ada.deploy(ada.readyDashboard("Kewangan"))
 	old := "AbC_xyz-0123456789abcd" // a random slug from before names, kept as the name
-	if _, err := ada.db.ExecContext(context.Background(), `UPDATE deployments SET name = $1`, old); err != nil {
+	if _, err := ada.db.ExecContext(context.Background(), `UPDATE deployments SET name = $1, link_key = NULL`, old); err != nil {
 		t.Fatal(err)
 	}
 	visitor := ada.second()
@@ -440,7 +444,7 @@ func pagesPath(link string) string { return strings.TrimPrefix(link, pagesOrigin
 func TestADeploymentOpensAtItsLearnersUsernameAndEveryOtherLinkRedirectsToIt(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
-	link := ada.deployAs(ada.readyDashboard("Kewangan"), "kedai-ada")
+	link := ada.keyless(ada.deployAs(ada.readyDashboard("Kewangan"), "kedai-ada")) // as made before Link keys (ADR 0027)
 	if link != pagesOrigin+"/ada-example-com/kedai-ada/" {
 		t.Fatalf("the link is %s, want the Username and the name", link)
 	}

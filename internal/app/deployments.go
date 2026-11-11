@@ -1,6 +1,7 @@
 package app
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -61,6 +62,7 @@ type deployment struct {
 	Name      string
 	Username  string // the Username of the Learner it belongs to, in its link
 	Link      string // the full link to share, on the Deployments host
+	Keyed     bool   // whether the link carries a Link key (ADR 0027); not for a Deployment made before them
 	Deployed  string // Malaysia time, in the page's language
 	Awake     bool
 	TakenDown string // when Cave took it down, Malaysia time, in the page's language; empty if it was not
@@ -74,11 +76,20 @@ const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at 
 		AND ` + activePeriodSQL + `))))`
 
 // deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
-const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason`
+const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason, dep.link_key`
 
-// deploymentLink is the full link to share for the Deployment called name of the Learner with this Username.
-func (a *App) deploymentLink(username, name string) string {
+// deploymentLink is the full link to share for the Deployment called name of the Learner with this Username, with its
+// Link key; linkKey is "" for a Deployment made before Link keys, whose link has none (ADR 0027).
+func (a *App) deploymentLink(username, name, linkKey string) string {
+	if linkKey != "" {
+		name += "-" + linkKey
+	}
 	return a.pagesBaseURL + "/" + username + "/" + name + "/"
+}
+
+// newLinkKey is a fresh Link key: 10 random lowercase letters and digits (about 50 bits), from the system's random source.
+func newLinkKey() string {
+	return strings.ToLower(rand.Text())[:10]
 }
 
 // scanDeployment scans a row, with its times in lang, whose columns are lead's targets followed by deploymentColumns.
@@ -86,10 +97,12 @@ func (a *App) scanDeployment(lang string, row interface{ Scan(...any) error }, l
 	var dep deployment
 	var deployed time.Time
 	var takenDown sql.NullTime
-	if err := row.Scan(append(lead, &dep.Name, &dep.Username, &deployed, &dep.Awake, &takenDown, &dep.Reason)...); err != nil {
+	var linkKey sql.NullString
+	if err := row.Scan(append(lead, &dep.Name, &dep.Username, &deployed, &dep.Awake, &takenDown, &dep.Reason, &linkKey)...); err != nil {
 		return dep, err
 	}
-	dep.Link = a.deploymentLink(dep.Username, dep.Name)
+	dep.Keyed = linkKey.Valid
+	dep.Link = a.deploymentLink(dep.Username, dep.Name, linkKey.String)
 	dep.Deployed = dateTimeIn(lang, deployed)
 	if takenDown.Valid {
 		dep.TakenDown = dateTimeIn(lang, takenDown.Time)
@@ -213,8 +226,8 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		}
 	}
 	// The row outlives its Dashboard, so the unique name is never given to another Deployment.
-	_, err = tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, name)
-		SELECT $1, learner_id, $2 FROM dashboards WHERE id = $1`, d.ID, name)
+	_, err = tx.ExecContext(r.Context(), `INSERT INTO deployments (dashboard_id, learner_id, name, link_key)
+		SELECT $1, learner_id, $2, $3 FROM dashboards WHERE id = $1`, d.ID, name, newLinkKey())
 	if isUniqueViolation(err) {
 		refuse("lab.dep.err.name-taken")
 		return
@@ -224,6 +237,19 @@ func (a *App) deployDashboard(w http.ResponseWriter, r *http.Request, d *dashboa
 		return
 	}
 	if err := tx.Commit(); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, dashboardURL(d)+"/deploy", http.StatusSeeOther)
+}
+
+// newSecretLink gives the Dashboard's Deployment a fresh Link key, which ends its old link at once, as many times as its
+// Learner asks. Only its owner gets here (withDashboard). The Deploy tab asks first (?confirm).
+func (a *App) newSecretLink(w http.ResponseWriter, r *http.Request, d *dashboard) {
+	if _, ok := a.labOpen(w, r); !ok {
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE deployments SET link_key = $2 WHERE dashboard_id = $1`, d.ID, newLinkKey()); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -280,18 +306,20 @@ func (a *App) oldDeploymentRoute(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, to, http.StatusMovedPermanently)
 }
 
-// deploymentRoute serves everything on the Deployments host. A Deployment's address is /<username>/<name>/ (ADR 0023,
-// ADR 0024), but Cave finds it by its name alone, so the Username is for show: any other Username, and the earlier
-// /<name>/ address, redirect for good to the owner's current one, keeping the file asked for. Whatever is not a
-// Deployment's address is not found, so the host is never a second copy of the LMS.
+// deploymentRoute serves everything on the Deployments host. A Deployment's address is /<username>/<name>-<key>/ (ADR 0023,
+// ADR 0024, ADR 0027), and Cave finds it by its name and Link key, so the Username is for show: any other Username with
+// the right key redirects for good to the owner's current one, keeping the file asked for. A Deployment made before Link
+// keys has no key in its address, is found by its name alone and keeps the redirects it had, from the earlier /<name>/
+// address too. For a keyed Deployment, a bare name or a wrong or missing key is not found, with no redirect, which would
+// hand out the key. Whatever is not a Deployment's address is not found, so the host is never a second copy of the LMS.
 func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.PathValue("rest"), "/")
 	// Names hold no dots, so /<name>/data.json is never a Username and a name. A path that fits as both, such as
 	// /<name>/data/charts.js, is read with the Username, as no Dashboard's data key is "charts.js".
-	username, name, tail := "", parts[0], parts[1:]
+	username, segment, tail := "", parts[0], parts[1:]
 	if len(parts) >= 2 && parts[1] != "" && !strings.Contains(parts[1], ".") {
 		if _, _, ok := deploymentFileOf(parts[2:]); ok {
-			username, name, tail = parts[0], parts[1], parts[2:]
+			username, segment, tail = parts[0], parts[1], parts[2:]
 		}
 	}
 	file, key, ok := deploymentFileOf(tail)
@@ -299,15 +327,25 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 		a.notFound(w, r)
 		return
 	}
+	// The segment is a keyed Deployment's name, a dash and its key, or a keyless one's name. Names hold dashes, and keys
+	// do not, so the key is what follows the last one.
+	name, linkKey := segment, ""
+	if i := strings.LastIndex(segment, "-"); i >= 0 {
+		name, linkKey = segment[:i], segment[i+1:]
+	}
 	var owner string
-	err := a.db.QueryRowContext(r.Context(), `SELECT l.username FROM deployments dep JOIN learners l ON l.id = dep.learner_id
-		WHERE dep.name = $1`, name).Scan(&owner)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	err := a.db.QueryRowContext(r.Context(), `SELECT l.username, dep.name, COALESCE(dep.link_key, '') FROM deployments dep
+		JOIN learners l ON l.id = dep.learner_id
+		WHERE (dep.name = $1 AND dep.link_key = $2) OR (dep.name = $3 AND dep.link_key IS NULL)`, name, linkKey, segment).
+		Scan(&owner, &name, &linkKey)
+	if errors.Is(err, sql.ErrNoRows) {
+		name, linkKey = segment, "" // matches nothing, so the file answers that there is no such Deployment
+	} else if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	if err == nil && (username != owner || file == "") {
-		to := "/" + owner + "/" + name + "/"
+		to := "/" + owner + "/" + segment + "/"
 		switch file {
 		case "data":
 			to += "data/" + key
@@ -327,6 +365,7 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 		file = "index.html"
 	}
 	r.SetPathValue("name", name)
+	r.SetPathValue("linkkey", linkKey)
 	r.SetPathValue("key", key)
 	a.deploymentFile(file)(w, r)
 }
@@ -342,15 +381,15 @@ func (a *App) pagesMessage(w http.ResponseWriter, r *http.Request, status int, t
 		lang, template.HTMLEscapeString(text.T(lang, titleKey)), template.HTMLEscapeString(text.T(lang, bodyKey)))
 }
 
-// deploymentFile serves a Deployment's files at /<username>/<name>/ on the Deployments host to anyone while it is awake. The page is
+// deploymentFile serves a Deployment's files at /<username>/<name>-<key>/ on the Deployments host to anyone while it is awake. The page is
 // sandboxed (ADR 0007), so its null origin needs CORS to load its data. Asleep or taken down: an
-// inactive page; deleted Dashboard or unknown name: not found.
+// inactive page; deleted Dashboard or unknown name or Link key: not found.
 func (a *App) deploymentFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		depName := r.PathValue("name")
+		depName, linkKey := r.PathValue("name"), r.PathValue("linkkey")
 		w.Header().Set("Cache-Control", "no-store")
 		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments dep
-			WHERE dep.name = $1 AND `+deploymentAwakeSQL+`)`, depName)
+			WHERE dep.name = $1 AND COALESCE(dep.link_key, '') = $2 AND `+deploymentAwakeSQL+`)`, depName, linkKey)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
@@ -377,7 +416,7 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 		}
 		var takenDown bool
 		err = a.db.QueryRowContext(r.Context(), `SELECT taken_down_at IS NOT NULL FROM deployments
-			WHERE name = $1 AND dashboard_id IS NOT NULL`, depName).Scan(&takenDown)
+			WHERE name = $1 AND COALESCE(link_key, '') = $2 AND dashboard_id IS NOT NULL`, depName, linkKey).Scan(&takenDown)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, err)
 			return

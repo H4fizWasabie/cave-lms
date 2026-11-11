@@ -289,6 +289,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /lab/dashboards/{id}/view/charts.js", a.labScreen(a.dashboardFile("charts.js")))
 	mux.HandleFunc("GET /lab/dashboards/{id}/deploy", a.labScreen(a.withDashboard(a.deployTab)))
 	mux.HandleFunc("POST /lab/dashboards/{id}/deploy", a.withDashboard(a.deployDashboard))
+	mux.HandleFunc("POST /lab/dashboards/{id}/deploy/key", a.withDashboard(a.newSecretLink))
 	mux.HandleFunc("GET /lab/dashboards/{id}/rename", a.labScreen(a.dashboardTab("rename")))
 	mux.HandleFunc("POST /lab/dashboards/{id}/rename", a.withDashboard(a.renameDashboard))
 	mux.HandleFunc("GET /lab/dashboards/{id}/delete", a.labScreen(a.withDashboard(a.confirmDeleteDashboard)))

@@ -53,7 +53,7 @@ func TestTheMainHostNeverServesADeploymentAndTheDeploymentsHostServesNothingElse
 func TestAnOldDeploymentLinkRedirectsForGoodToTheDeploymentsHost(t *testing.T) {
 	t.Parallel()
 	_, ada := labLearner(t)
-	link := ada.deployAs(ada.readyDashboard("Kewangan"), "kedai-ada")
+	link := ada.keyless(ada.deployAs(ada.readyDashboard("Kewangan"), "kedai-ada")) // as made before Link keys (ADR 0027)
 	visitor := ada.second()
 	data := visitor.dataOf(link)
 
@@ -92,7 +92,7 @@ func TestAnOldDeploymentLinkRedirectsForGoodToTheDeploymentsHost(t *testing.T) {
 
 	// The old link to a page Deployment's page and data.json redirect the same way.
 	pageLink := ada.deployAs(ada.createPage("Jualan", myPage), "jualan-ada")
-	res, _ = visitor.get("/d/ada-example-com/jualan-ada/")
+	res, _ = visitor.get(strings.Replace(pagesPath(pageLink), "/ada-example-com/", "/d/ada-example-com/", 1))
 	if res.Header.Get("Location") != pageLink {
 		t.Fatalf("the old page link went to %q, want %q", res.Header.Get("Location"), pageLink)
 	}
