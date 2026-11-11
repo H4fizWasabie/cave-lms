@@ -294,7 +294,8 @@ func (a *App) onPagesHost(r *http.Request) bool {
 // oldDeploymentRoute answers every old /d/... link, on the main host, with a permanent redirect to the same path on the
 // Deployments host, keeping the file and the query. It stays for good, as ADR 0002 does for old domains: Cave never
 // serves a Deployment from the main host, so a flagged Deployment cannot flag the login page (ADR 0024). The Deployments
-// host then redirects a wrong Username or the earlier /d/<name>/ form to the right address, as before.
+// host then redirects a wrong Username or the earlier /d/<name>/ form to the right address, as before, but only for a
+// Deployment made before Link keys or a path that carries the right key; a keyed Deployment's keyless path is not found (ADR 0027).
 func (a *App) oldDeploymentRoute(w http.ResponseWriter, r *http.Request) {
 	to := a.pagesBaseURL + strings.TrimPrefix(r.URL.EscapedPath(), "/"+oldDeploymentPrefix)
 	if r.URL.RawQuery != "" {
