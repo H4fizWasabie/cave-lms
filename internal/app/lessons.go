@@ -399,10 +399,11 @@ func nullID(id int64) sql.NullInt64 {
 // destructive action posted without it does nothing.
 func confirmed(r *http.Request) bool { return r.PostFormValue("confirm") == "yes" }
 
-// isForeignKeyError reports whether err is a violated foreign key (23503).
+// isForeignKeyError reports whether err is a violated foreign key: 23503, or 23001, which Postgres 18 raises for a
+// RESTRICT one.
 func isForeignKeyError(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+	return errors.As(err, &pgErr) && (pgErr.Code == "23503" || pgErr.Code == "23001")
 }
 
 // lessonMarkdown is CommonMark plus GitHub-style tables, aligned with the align attribute (the CSP keeps inline styles
