@@ -52,6 +52,7 @@ type App struct {
 	publicBaseURL        string
 	pagesBaseURL         string // where Deployments live (ADR 0024): scheme and host alone, no trailing slash
 	pagesHost            string // pagesBaseURL's host, to tell its requests from the main host's
+	caveTextHost         string // the CaveText website's host (ADR 0028), to tell its requests from the main host's
 	store                *storage.Disk
 	dataset              *dataset.Dataset
 	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
@@ -107,6 +108,7 @@ type page struct {
 	OfferLogin       bool
 	OfferGallery     bool   // the message page: Read in the Gallery, for a dead Ebook download link
 	ConnectExtension string // the CaveText extension id the message page's Connect button signs in
+	UseAnother       string // beside the Connect button on the CaveText website, the link to log in as another Learner
 	OfferHome        bool   // the error page: Go to the home page, and Try again at Retry when it is set; render sets it on a 403 or 404
 	Retry            string
 	BackToCourse     string // a 403 or 404 inside a Course: its page, offered before Go to the home page
@@ -203,6 +205,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("PagesBaseURL must be an absolute URL, got %q", cfg.PagesBaseURL)
 	}
 	a.pagesHost = strings.ToLower(pagesURL.Host)
+	caveTextURL, err := url.Parse(cfg.CaveTextBaseURL)
+	if err != nil || caveTextURL.Host == "" {
+		return nil, fmt.Errorf("CaveTextBaseURL must be an absolute URL, got %q", cfg.CaveTextBaseURL)
+	}
+	a.caveTextHost = strings.ToLower(caveTextURL.Host)
 	a.dataset = dataset.New(db, datasets, func() time.Time { return a.now() })
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
@@ -500,9 +507,23 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	// The Deployments host serves Deployments and nothing else, and the main host none (ADR 0024).
 	onPages := http.NewServeMux()
 	onPages.HandleFunc("GET /{rest...}", a.deploymentRoute)
+	// The CaveText website's host serves its login and connect pages and nothing else (ADR 0028), each also under /ms/.
+	onCaveText := http.NewServeMux()
+	onCaveText.HandleFunc("/", a.notFound)
+	for _, prefix := range []string{"", "/ms"} {
+		onCaveText.HandleFunc("GET "+prefix+"/login", a.loginForm)
+		onCaveText.HandleFunc("POST "+prefix+"/login", a.login)
+		onCaveText.HandleFunc("POST "+prefix+"/logout", a.logout)
+		onCaveText.HandleFunc("GET "+prefix+"/cavetext/connect", a.caveTextConnect)
+		onCaveText.HandleFunc("POST "+prefix+"/cavetext/connect", a.caveTextConnect)
+	}
 	a.handler = rejectCrossOrigin(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a.onPagesHost(r) {
 			onPages.ServeHTTP(w, r)
+			return
+		}
+		if a.onCaveTextHost(r) {
+			onCaveText.ServeHTTP(w, r)
 			return
 		}
 		mux.ServeHTTP(w, r)

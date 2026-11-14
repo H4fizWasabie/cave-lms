@@ -283,12 +283,18 @@ func deploymentFileOf(tail []string) (file, key string, ok bool) {
 
 // onPagesHost is whether r asks for the Deployments host (ADR 0024) rather than the main one.
 // A trailing dot and the scheme's default port do not make it another host.
-func (a *App) onPagesHost(r *http.Request) bool {
+func (a *App) onPagesHost(r *http.Request) bool { return requestHost(r) == a.pagesHost }
+
+// onCaveTextHost is whether r asks for the CaveText website's host (ADR 0028) rather than the main one.
+func (a *App) onCaveTextHost(r *http.Request) bool { return requestHost(r) == a.caveTextHost }
+
+// requestHost is r's host in lowercase, without a trailing dot or the scheme's default port.
+func requestHost(r *http.Request) string {
 	host := strings.TrimSuffix(strings.ToLower(r.Host), ".")
 	if h, port, err := net.SplitHostPort(host); err == nil && (port == "443" || port == "80") {
 		host = strings.TrimSuffix(h, ".")
 	}
-	return host == a.pagesHost
+	return host
 }
 
 // oldDeploymentRoute answers every old /d/... link, on the main host, with a permanent redirect to the same path on the

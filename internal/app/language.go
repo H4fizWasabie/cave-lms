@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
@@ -18,6 +19,9 @@ const (
 type chrome struct {
 	Lang           string
 	Here           string   // path and query of this page for the language switch to come back to, or "" for home
+	CaveText       bool     // the page is on the CaveText website's host: its own header and footer, in place of CAVELMS's
+	Prefix         string   // on the CaveText website, "/ms" for a Malay page, in front of the page's links
+	Twin           string   // on the CaveText website, this page's address in the other language
 	Shell          bool     // the page is in the admin shell: an Admin's admin page, with the sidebar in place of the header and footer
 	Latest         []course // the 3 newest open Courses
 	Lab            bool     // the Lab is open to the logged-in Learner, so the header and footer link to it (ADR 0018)
@@ -30,6 +34,18 @@ func (c *chrome) chromeField() *chrome { return c }
 // empty and the error returned, so the error page can still show the rest of the header.
 func (a *App) newChrome(r *http.Request, lang string) (chrome, error) {
 	c := chrome{Lang: lang, Here: here(r)}
+	if a.onCaveTextHost(r) { // no Courses menu or Certificate background there
+		c.CaveText, c.Prefix = true, a.sitePrefix(r)
+		uri := r.URL.Path
+		if r.Method == http.MethodGet {
+			uri = r.URL.RequestURI()
+		}
+		c.Twin = "/ms" + uri
+		if lang == "ms" {
+			c.Twin = "/" + strings.TrimPrefix(strings.TrimPrefix(uri, "/ms"), "/")
+		}
+		return c, nil
+	}
 	latest, err := a.queryCourses(r, `SELECT `+courseColumns+` FROM courses WHERE is_open AND published ORDER BY created_at DESC, id DESC LIMIT 3`)
 	if err != nil {
 		return c, err
@@ -52,6 +68,9 @@ func here(r *http.Request) string {
 // language is the request's one language: the logged-in Learner's saved one, else the language cookie,
 // else the first of Malay or English the browser asks for, else Malay.
 func (a *App) language(r *http.Request) (string, error) {
+	if a.onCaveTextHost(r) {
+		return caveTextLanguage(r), nil
+	}
 	l, err := a.currentLearner(r)
 	if err != nil {
 		return "", err
@@ -61,6 +80,23 @@ func (a *App) language(r *http.Request) (string, error) {
 		saved = l.Lang
 	}
 	return requestLanguage(saved, r), nil
+}
+
+// caveTextLanguage is Malay under /ms/ on the CaveText website, as on its static pages, and else English: the host
+// ignores the saved language and the language cookie (ADR 0028).
+func caveTextLanguage(r *http.Request) string {
+	if r.URL.Path == "/ms" || strings.HasPrefix(r.URL.Path, "/ms/") {
+		return "ms"
+	}
+	return "en"
+}
+
+// sitePrefix is "/ms" on the CaveText website's Malay pages, which keep their links under it, else "".
+func (a *App) sitePrefix(r *http.Request) string {
+	if a.onCaveTextHost(r) && caveTextLanguage(r) == "ms" {
+		return "/ms"
+	}
+	return ""
 }
 
 // requestLanguage is saved when it is a language Cave speaks, else the language cookie, else the browser's.

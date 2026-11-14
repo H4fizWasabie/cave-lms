@@ -41,6 +41,9 @@ func (a *App) serverError(w http.ResponseWriter, r *http.Request, err error) {
 		saved = l.Lang
 	}
 	lang := requestLanguage(saved, r)
+	if a.onCaveTextHost(r) {
+		lang = caveTextLanguage(r)
+	}
 	c, _ := a.newChrome(r, lang) // no Courses menu if they fail too
 	p := &page{chrome: c, Learner: l, Title: text.T(lang, "error.title"), Message: text.T(lang, "error"), Retry: retryPath(r), OfferHome: true}
 	var buf bytes.Buffer

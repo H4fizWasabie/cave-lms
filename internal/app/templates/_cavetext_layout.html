@@ -1,0 +1,54 @@
+{{/* The layout of the CaveText website's pages that CAVELMS serves (ADR 0028): the static site's own stylesheet, header and footer,
+   with the little extra CSS the login and message pages need. The stylesheet and logo are the static site's files on this host. */}}
+{{define "cavetext-layout"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .bar nav { align-items: center; }
+    .bar form { margin: 0; }
+    .auth-page, .notice-page { min-height: 60vh; padding: clamp(40px, 8vw, 96px) clamp(16px, 4vw, 40px); background: var(--wall-tint); }
+    .auth-box, .notice { max-width: 420px; margin: 0 auto; padding: 28px; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    .auth-box h1, .notice h1 { margin: 0 0 8px; font-size: clamp(30px, 4vw, 40px); line-height: 1.05; letter-spacing: -0.025em; font-weight: 800; }
+    .auth-sub, .notice-msg { margin: 0 0 20px; color: var(--ink-soft); }
+    .notice p { margin: 0 0 16px; }
+    .auth-box a:not(.btn), .notice a:not(.btn) { color: var(--wall); }
+    .form { display: grid; gap: 16px; }
+    .field input { width: 100%; padding: 10px 12px; border: 1px solid #c9c6e0; border-radius: 8px; font: 16px var(--body); }
+    .field input:focus { outline: none; border-color: var(--wall); box-shadow: 0 0 0 4px rgb(63 60 217 / .15); }
+    .field-err { margin: 0; color: #b3261e; font-size: 15px; font-weight: 700; }
+    .btn { display: inline-flex; justify-content: center; padding: 10px 18px; border: 1px solid transparent; border-radius: 10px; font: 700 16px var(--body); text-decoration: none; cursor: pointer; }
+    .btn-solid { background: var(--ink); color: #fff; }
+    .btn-solid:hover { background: #33304d; }
+    .btn-ghost { border-color: var(--line); color: var(--ink); }
+    .btn-block { display: flex; width: 100%; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  </style>
+  <title>{{template "title" .}}</title>
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="{{.Prefix}}/"><img src="/logo-horizontal.svg" alt="{{t .Lang "cavetext.site.brand-alt"}}" height="52"></a>
+    <nav aria-label="{{t .Lang "header.main-nav"}}">
+      <a href="{{.Prefix}}/guide.html">{{t .Lang "cavetext.site.guide"}}</a>
+      <a href="{{.Prefix}}/privacy.html">{{t .Lang "cavetext.site.privacy"}}</a>
+      {{- if .Learner}}
+      <form method="post" action="{{.Prefix}}/logout"><button class="btn-quiet">{{t .Lang "header.log-out"}}</button></form>
+      {{- end}}
+      <span class="lang">{{if eq .Lang "ms"}}<span aria-current="true">BM</span><span aria-hidden="true">|</span><a href="{{.Twin}}" hreflang="en" lang="en" title="English">EN</a>{{else}}<a href="{{.Twin}}" hreflang="ms" lang="ms" title="Bahasa Melayu">BM</a><span aria-hidden="true">|</span><span aria-current="true">EN</span>{{end}}</span>
+    </nav>
+  </header>
+  <main id="main">
+    {{template "content" .}}
+  </main>
+  <footer class="foot">
+    <span>{{t .Lang "cavetext.site.footer"}}</span>
+    <a href="{{.Prefix}}/guide.html">{{t .Lang "cavetext.site.guide"}}</a>
+    <a href="{{.Prefix}}/privacy.html">{{t .Lang "cavetext.site.privacy-policy"}}</a>
+  </footer>
+</body>
+</html>
+{{end}}
