@@ -366,8 +366,8 @@ func TestTheCaveTextPricingPageGivesAFreeLearnerBuyToThePaymentLinkOrContactUsWi
 	res, body = ada.get(caveTextOrigin + "/pricing")
 	expectStatus(t, res, body, http.StatusOK, "")
 	expectAll(t, body, `href="https://bcl.my/pay/cavetext">Buy CaveText Pro</a>`, `href="https://bcl.my/pay/pro-plan">Buy Pro Plan</a>`,
-		"The Lab is used on CAVELMS, with the same account.")
-	for _, not := range []string{"Renew", "Pro until", `href="/login`, "mailto:", "/static/", "/refunds"} {
+		"The Lab is used on CAVELMS, with the same account.", `href="https://cave.example.invalid/refunds"`)
+	for _, not := range []string{"Renew", "Pro until", `href="/login`, "mailto:", "/static/", `href="/refunds"`} {
 		if strings.Contains(body, not) {
 			t.Errorf("free Learner's pricing page shows %q:\n%s", not, body)
 		}

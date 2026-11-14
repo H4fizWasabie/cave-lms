@@ -361,8 +361,8 @@ Visitors see the cards without buttons. */}}
       </ul>
       {{- range .Offers}}{{if .PaymentLink}}
       <p class="note">{{t $.Lang "offers.fee"}}</p>
-      {{- if and $.Learner (not $.CaveText)}}{{/* /refunds is CAVELMS's page */}}
-      <p class="muted">{{t $.Lang "refunds.notice"}} <a href="/refunds">{{t $.Lang "refunds.link"}}</a>.</p>
+      {{- if $.Learner}}
+      <p class="muted">{{t $.Lang "refunds.notice"}} <a href="{{$.CAVELMS}}/refunds">{{t $.Lang "refunds.link"}}</a>.</p>
       {{- end}}
       {{- break}}{{end}}{{end}}
 {{- end}}
