@@ -1313,10 +1313,18 @@ var catalog = map[string]entry{
 	"cavetext.sign-in-first":      {en: "Sign in to CaveText first, so we can find you.", ms: "Log masuk ke CaveText dahulu, supaya kami dapat mencari anda."},
 
 	// CaveText API messages, shown by the extension as they come
-	"cavetext.api.sign-in-again":       {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
-	"cavetext.connect.title":           {en: "Connect CaveText", ms: "Sambungkan CaveText"},
-	"cavetext.connect":                 {en: "CaveText wants to connect to your CAVELMS account, %s.", ms: "CaveText mahu disambungkan ke akaun CAVELMS anda, %s."},
-	"cavetext.connect.button":          {en: "Connect", ms: "Sambungkan"},
+	"cavetext.api.sign-in-again": {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
+	"cavetext.connect.title":     {en: "Connect CaveText", ms: "Sambungkan CaveText"},
+	"cavetext.connect":           {en: "CaveText wants to connect to your CAVELMS account, %s.", ms: "CaveText mahu disambungkan ke akaun CAVELMS anda, %s."},
+	"cavetext.connect.button":    {en: "Connect", ms: "Sambungkan"},
+	"cavetext.connect.another":   {en: "Use another account", ms: "Guna akaun lain"},
+	"cavetext.login.sub":         {en: "Log in with your CAVELMS email and password.", ms: "Log masuk dengan e-mel dan kata laluan CAVELMS anda."},
+	// The CaveText website's header and footer, as on its static pages
+	"cavetext.site.brand-alt":          {en: "CaveText, your smart prompt library, by The Cave Consult", ms: "CaveText, pustaka prompt pintar anda, oleh The Cave Consult"},
+	"cavetext.site.guide":              {en: "Guide", ms: "Panduan"},
+	"cavetext.site.privacy":            {en: "Privacy", ms: "Privasi"},
+	"cavetext.site.privacy-policy":     {en: "Privacy policy", ms: "Dasar privasi"},
+	"cavetext.site.footer":             {en: "© 2026 CaveText by The Cave Consult", ms: "© 2026 CaveText oleh The Cave Consult"},
 	"cavetext.unknown-extension.title": {en: "Unknown extension", ms: "Sambungan tidak dikenali"},
 	"cavetext.unknown-extension": {
 		en: "This extension can't sign in to CAVELMS. Install CaveText from the Chrome Web Store.",

@@ -20,12 +20,13 @@ import (
 )
 
 const (
-	sessionCookie        = "__Host-session"
-	sessionLifetime      = 30 * 24 * time.Hour
-	verifyLinkLifetime   = 24 * time.Hour
-	purposeVerifyEmail   = "verify_email"
-	purposeResetPassword = "reset_password"
-	resetLinkLifetime    = time.Hour
+	sessionCookie         = "__Host-session"
+	caveTextSessionCookie = "__Host-cavetext-session" // the CaveText host's own, so a login there is not a login on CAVELMS (ADR 0028)
+	sessionLifetime       = 30 * 24 * time.Hour
+	verifyLinkLifetime    = 24 * time.Hour
+	purposeVerifyEmail    = "verify_email"
+	purposeResetPassword  = "reset_password"
+	resetLinkLifetime     = time.Hour
 )
 
 type learner struct {
@@ -55,8 +56,17 @@ func (a *App) currentLearner(r *http.Request) (*learner, error) {
 // learnerColumns selects a Learner as the session lookups read them; $2 is the owner's email.
 const learnerColumns = `l.id, l.name, l.is_admin, l.is_admin AND $2 <> '' AND lower(l.email) = lower($2), coalesce(l.language, ''), l.picture_key, l.username`
 
+// sessionCookieName is the session cookie of the host r asks for. Both are host-only, and each host reads only its own,
+// so a session made on one never counts on the other even where a client sends both.
+func (a *App) sessionCookieName(r *http.Request) string {
+	if a.onCaveTextHost(r) {
+		return caveTextSessionCookie
+	}
+	return sessionCookie
+}
+
 func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
-	cookie, err := r.Cookie(sessionCookie)
+	cookie, err := r.Cookie(a.sessionCookieName(r))
 	if err != nil {
 		return nil, nil
 	}
@@ -381,7 +391,9 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) loginForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "login", page{Next: localPath(r.URL.Query().Get("next"))})
+	next := localPath(r.URL.Query().Get("next"))
+	a.allowConnectRedirect(w, r, next)
+	a.render(w, r, http.StatusOK, "login", page{Next: next})
 }
 
 // localPath returns next if it is a path on this site, else "", so a login link can't send anyone off-site.
@@ -411,6 +423,7 @@ var dummyHash = func() []byte {
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
 	next := localPath(r.PostFormValue("next"))
+	a.allowConnectRedirect(w, r, next)
 	// Every attempt is counted first; a right password takes its count back, so only failures stay and a class sharing
 	// one address all gets in while guessing is still stopped.
 	account, address, emailKey := loginKeys(r, email)
@@ -476,9 +489,15 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	setSessionCookie(w, token, int(sessionLifetime.Seconds()))
-	if saved != "" {
+	setSessionCookie(w, a.sessionCookieName(r), token, int(sessionLifetime.Seconds()))
+	if saved != "" && !a.onCaveTextHost(r) {
 		setLanguageCookie(w, saved) // so the site stays in it after logging out
+	}
+	// On the CaveText host, a login that came from the extension's connect page is the Learner's consent: the token goes
+	// to the extension at once, with no Connect button in between.
+	if ext := a.connectTarget(r, next); ext != "" {
+		a.connectExtension(w, r, ext, id)
+		return
 	}
 	// Without a next, everyone lands on the home page, Learner and Admin alike.
 	if next == "" {
@@ -488,19 +507,20 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie(sessionCookie); err == nil {
+	name := a.sessionCookieName(r)
+	if cookie, err := r.Cookie(name); err == nil {
 		if _, err := a.db.ExecContext(r.Context(), `DELETE FROM sessions WHERE token_hash = $1`, hashToken(cookie.Value)); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 	}
-	setSessionCookie(w, "", -1)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	setSessionCookie(w, name, "", -1)
+	http.Redirect(w, r, a.sitePrefix(r)+"/", http.StatusSeeOther) // the CaveText website's home is its static page
 }
 
-func setSessionCookie(w http.ResponseWriter, token string, maxAge int) {
+func setSessionCookie(w http.ResponseWriter, name, token string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookie,
+		Name:     name,
 		Value:    token,
 		Path:     "/",
 		MaxAge:   maxAge,

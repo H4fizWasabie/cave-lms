@@ -10,6 +10,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost/cave_lms")
 	t.Setenv("PUBLIC_BASE_URL", "https://courses.example.test")
 	t.Setenv("PAGES_BASE_URL", "")
+	t.Setenv("CAVETEXT_BASE_URL", "")
 	t.Setenv("EMAIL_FROM", "Cave LMS <courses@example.test>")
 	t.Setenv("LISTEN_ADDR", "")
 	t.Setenv("STORAGE_DIR", "/var/lib/cave-lms/uploads")
@@ -281,6 +282,32 @@ func TestLoadRefusesAPagesBaseURLThatIsNotAHostOfItsOwn(t *testing.T) {
 		t.Setenv("PAGES_BASE_URL", bad)
 		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "PAGES_BASE_URL") {
 			t.Errorf("Load() with PAGES_BASE_URL %q: error = %v, want a PAGES_BASE_URL error", bad, err)
+		}
+	}
+}
+
+func TestLoadPutsTheCaveTextWebsiteOnAHostOfThePublicOneUnlessTold(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("PUBLIC_BASE_URL", "https://staging.example.test:8443/lms/")
+	cfg, err := Load()
+	if err != nil || cfg.CaveTextBaseURL != "https://cavetext.staging.example.test:8443" {
+		t.Fatalf("default CaveTextBaseURL = %q, %v", cfg.CaveTextBaseURL, err)
+	}
+
+	t.Setenv("CAVETEXT_BASE_URL", "https://text.other.test/")
+	cfg, err = Load()
+	if err != nil || cfg.CaveTextBaseURL != "https://text.other.test" {
+		t.Fatalf("CaveTextBaseURL = %q, %v", cfg.CaveTextBaseURL, err)
+	}
+}
+
+func TestLoadRefusesACaveTextBaseURLThatIsNotAHostOfItsOwn(t *testing.T) {
+	for _, bad := range []string{"/cavetext", "cavetext.example.test", "ftp://cavetext.example.test", "https://cavetext.example.test/x", "https://u@cavetext.example.test",
+		"https://cavetext.example.test?x=1", "https://COURSES.example.test", "https://pages.courses.example.test"} {
+		setValidEnvironment(t)
+		t.Setenv("CAVETEXT_BASE_URL", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CAVETEXT_BASE_URL") {
+			t.Errorf("Load() with CAVETEXT_BASE_URL %q: error = %v, want a CAVETEXT_BASE_URL error", bad, err)
 		}
 	}
 }

@@ -346,9 +346,14 @@ _Malay_: Penurunan
 _Avoid_: Ban, removal, unpublish
 
 **CaveText**:
-The browser extension that turns a typed shortcut in an AI chat box into a saved prompt. A Learner signs in to it with their CAVELMS account.
+The browser extension that turns a typed shortcut in an AI chat box into a saved prompt. A Learner signs in to it with their CAVELMS account, on the CaveText website.
 _Malay_: CaveText (kept in English)
 _Avoid_: Snippet app, plugin
+
+**CaveText website**:
+CaveText's own website, in CaveText's look. A person registers, logs in, resets their password and buys CaveText Pro or the Pro Plan there without being sent to CAVELMS; the account is their CAVELMS account all the same. Being logged in there is not being logged in to CAVELMS, so a Learner who bought the Pro Plan there logs in to CAVELMS to use the Lab.
+_Malay_: Laman web CaveText
+_Avoid_: CaveText site, landing page
 
 **Snippet**:
 A saved prompt in CaveText: a name, a shortcut and a body, sitting in a Folder. Each Learner keeps their own, up to their Snippet cap.

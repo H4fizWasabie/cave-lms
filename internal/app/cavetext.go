@@ -40,17 +40,54 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	prefix := a.sitePrefix(r) // "/ms" on the CaveText website's Malay pages
 	if learner == nil {
-		http.Redirect(w, r, "/login?next="+url.QueryEscape("/cavetext/connect?extension="+url.QueryEscape(id)), http.StatusSeeOther)
+		http.Redirect(w, r, prefix+"/login?next="+url.QueryEscape(prefix+"/cavetext/connect?extension="+url.QueryEscape(id)), http.StatusSeeOther)
 		return
 	}
 	if r.Method == http.MethodGet {
 		// Chrome checks the Connect button's redirect to the extension against this page's form-action; id is listed.
-		w.Header().Set("Content-Security-Policy", strings.Replace(sitePolicy, "form-action 'self'", "form-action 'self' https://"+id+".chromiumapp.org", 1))
-		a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "cavetext.connect.title"), Message: text.T(lang, "cavetext.connect", learner.Name), ConnectExtension: id})
+		w.Header().Set("Content-Security-Policy", connectPolicy(id))
+		p := page{Title: text.T(lang, "cavetext.connect.title"), Message: text.T(lang, "cavetext.connect", learner.Name), ConnectExtension: id}
+		if a.onCaveTextHost(r) { // a shared computer's Learner can connect as someone else
+			p.UseAnother = prefix + "/login?next=" + url.QueryEscape(prefix+"/cavetext/connect?extension="+url.QueryEscape(id))
+		}
+		a.render(w, r, http.StatusOK, "message", p)
 		return
 	}
-	if err := ensureCaveTextAccount(r.Context(), a.db, learner.ID); err != nil {
+	a.connectExtension(w, r, id, learner.ID)
+}
+
+// connectPolicy is the site's Content-Security-Policy with the extension's redirect URL allowed in form-action, which
+// Chrome checks a form's redirect against.
+func connectPolicy(id string) string {
+	return strings.Replace(sitePolicy, "form-action 'self'", "form-action 'self' https://"+id+".chromiumapp.org", 1)
+}
+
+// connectTarget is the listed extension that next, a path on the CaveText website's host, asks to connect: a login
+// that came from the connect page is the consent to connect. It is "" for any other next, other host or unlisted extension.
+func (a *App) connectTarget(r *http.Request, next string) string {
+	u, err := url.Parse(next)
+	if err != nil || !a.onCaveTextHost(r) || strings.TrimPrefix(u.Path, "/ms") != "/cavetext/connect" {
+		return ""
+	}
+	if id := u.Query().Get("extension"); slices.Contains(a.caveTextExtensionIDs, id) {
+		return id
+	}
+	return ""
+}
+
+// allowConnectRedirect lets a login form whose next is the connect page for a listed extension redirect to the extension.
+func (a *App) allowConnectRedirect(w http.ResponseWriter, r *http.Request, next string) {
+	if id := a.connectTarget(r, next); id != "" {
+		w.Header().Set("Content-Security-Policy", connectPolicy(id))
+	}
+}
+
+// connectExtension gives the Learner a CaveText account on their first visit and a new token, and sends it to the
+// extension's own redirect URL.
+func (a *App) connectExtension(w http.ResponseWriter, r *http.Request, id string, learnerID int64) {
+	if err := ensureCaveTextAccount(r.Context(), a.db, learnerID); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -62,7 +99,7 @@ func (a *App) caveTextConnect(w http.ResponseWriter, r *http.Request) {
 	// ponytail: expired token rows are never deleted; add a prune if the table grows.
 	if _, err := a.db.ExecContext(r.Context(), `
 		INSERT INTO cavetext_tokens (token_hash, learner_id, expires_at) VALUES ($1, $2, now() + $3::interval)`,
-		hashToken(token), learner.ID, caveTextTokenLifetime); err != nil {
+		hashToken(token), learnerID, caveTextTokenLifetime); err != nil {
 		a.serverError(w, r, fmt.Errorf("store CaveText token: %w", err))
 		return
 	}

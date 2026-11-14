@@ -27,13 +27,14 @@ func newTestApplicationWith(t *testing.T, writer aiwriter.Writer, opts ...func(*
 	recorder := &testutil.RecordingMailer{}
 	storageDir := t.TempDir()
 	cfg := config.Config{
-		DatabaseURL:    scopedURL,
-		PublicBaseURL:  "https://cave.example.invalid",
-		PagesBaseURL:   "https://pages.cave.example.invalid",
-		EmailFrom:      "Cave LMS <courses@example.invalid>",
-		ListenAddr:     ":8080",
-		StorageDir:     storageDir,
-		MaxUploadBytes: 2 << 30,
+		DatabaseURL:     scopedURL,
+		PublicBaseURL:   "https://cave.example.invalid",
+		PagesBaseURL:    "https://pages.cave.example.invalid",
+		CaveTextBaseURL: "https://cavetext.cave.example.invalid",
+		EmailFrom:       "Cave LMS <courses@example.invalid>",
+		ListenAddr:      ":8080",
+		StorageDir:      storageDir,
+		MaxUploadBytes:  2 << 30,
 	}
 	for _, opt := range opts {
 		opt(&cfg)

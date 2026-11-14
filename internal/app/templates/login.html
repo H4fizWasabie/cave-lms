@@ -1,10 +1,10 @@
-{{define "title"}}{{t .Lang "header.log-in"}} · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "header.log-in"}} · {{if .CaveText}}CaveText{{else}}CAVELMS{{end}}{{end}}
 {{define "content"}}
     <div class="wrap auth-page">
       <div class="auth-box">
         <h1>{{t .Lang "header.log-in"}}</h1>
-        <p class="auth-sub">{{t .Lang "login.sub"}}</p>
-        <form class="form" method="post" action="/login">
+        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.login.sub"}}{{else}}{{t .Lang "login.sub"}}{{end}}</p>
+        <form class="form" method="post" action="{{.Prefix}}/login">
           {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
           <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
           <div class="field">
@@ -13,9 +13,13 @@
             {{with .Error}}<p class="field-err" id="password-err" role="alert">{{.}}</p>{{end}}
           </div>
           <button class="btn btn-solid btn-block">{{t .Lang "header.log-in"}}</button>
+          {{- if not .CaveText}}{{/* registering and resetting on the CaveText website come later (ADR 0028) */}}
           <a class="auth-forgot" href="/forgot-password">{{t .Lang "account.forgot"}}</a>
+          {{- end}}
         </form>
+        {{- if not .CaveText}}
         <p class="auth-alt">{{t .Lang "login.new"}} <a href="/register">{{t .Lang "header.register"}}</a>.</p>
+        {{- end}}
       </div>
     </div>
 {{end}}

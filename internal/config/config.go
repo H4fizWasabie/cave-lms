@@ -16,7 +16,10 @@ type Config struct {
 	// PagesBaseURL, from PAGES_BASE_URL, is where Deployments live, on a host of their own so a flagged Deployment
 	// cannot lock Learners out of the LMS (ADR 0024). Optional: unset, it is "pages." in front of PublicBaseURL's host.
 	PagesBaseURL string
-	EmailFrom    string
+	// CaveTextBaseURL, from CAVETEXT_BASE_URL, is the CaveText website's host, where its login and connect pages are served
+	// (ADR 0028). Optional: unset, it is "cavetext." in front of PublicBaseURL's host.
+	CaveTextBaseURL string
+	EmailFrom       string
 	// ResendAPIKey is optional; when set, email is sent through Resend.
 	ResendAPIKey string
 	ListenAddr   string
@@ -64,18 +67,19 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		DatabaseURL:    strings.TrimSpace(os.Getenv("DATABASE_URL")),
-		PublicBaseURL:  strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")),
-		PagesBaseURL:   strings.TrimRight(strings.TrimSpace(os.Getenv("PAGES_BASE_URL")), "/"),
-		EmailFrom:      strings.TrimSpace(os.Getenv("EMAIL_FROM")),
-		ResendAPIKey:   strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
-		ListenAddr:     strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
-		StorageDir:     strings.TrimSpace(os.Getenv("STORAGE_DIR")),
-		OwnerEmail:     strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
-		BCLWebhookKey:  strings.TrimSpace(os.Getenv("BCL_WEBHOOK_KEY")),
-		BCLAPIToken:    strings.TrimSpace(os.Getenv("BCL_API_TOKEN")),
-		BCLAPIURL:      strings.TrimRight(strings.TrimSpace(os.Getenv("BCL_API_URL")), "/"),
-		MaxUploadBytes: 2 << 30,
+		DatabaseURL:     strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		PublicBaseURL:   strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")),
+		PagesBaseURL:    strings.TrimRight(strings.TrimSpace(os.Getenv("PAGES_BASE_URL")), "/"),
+		CaveTextBaseURL: strings.TrimRight(strings.TrimSpace(os.Getenv("CAVETEXT_BASE_URL")), "/"),
+		EmailFrom:       strings.TrimSpace(os.Getenv("EMAIL_FROM")),
+		ResendAPIKey:    strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
+		ListenAddr:      strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
+		StorageDir:      strings.TrimSpace(os.Getenv("STORAGE_DIR")),
+		OwnerEmail:      strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
+		BCLWebhookKey:   strings.TrimSpace(os.Getenv("BCL_WEBHOOK_KEY")),
+		BCLAPIToken:     strings.TrimSpace(os.Getenv("BCL_API_TOKEN")),
+		BCLAPIURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("BCL_API_URL")), "/"),
+		MaxUploadBytes:  2 << 30,
 
 		OpenRouterAPIKey:    strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
 		OpenRouterModel:     strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")),
@@ -117,6 +121,16 @@ func Load() (Config, error) {
 	// Cave tells the two hosts apart by name, so they cannot be the same.
 	if strings.EqualFold(pagesURL.Host, publicURL.Host) {
 		return Config{}, fmt.Errorf("PAGES_BASE_URL must be on a different host from PUBLIC_BASE_URL")
+	}
+	if cfg.CaveTextBaseURL == "" {
+		cfg.CaveTextBaseURL = publicURL.Scheme + "://cavetext." + publicURL.Host
+	}
+	caveTextURL, err := url.Parse(cfg.CaveTextBaseURL)
+	if err != nil || caveTextURL.Host == "" || (caveTextURL.Scheme != "http" && caveTextURL.Scheme != "https") || caveTextURL.User != nil || caveTextURL.Path != "" || caveTextURL.RawQuery != "" || caveTextURL.Fragment != "" {
+		return Config{}, fmt.Errorf("CAVETEXT_BASE_URL must be an absolute http or https URL without a path")
+	}
+	if strings.EqualFold(caveTextURL.Host, publicURL.Host) || strings.EqualFold(caveTextURL.Host, pagesURL.Host) {
+		return Config{}, fmt.Errorf("CAVETEXT_BASE_URL must be on a different host from PUBLIC_BASE_URL and PAGES_BASE_URL")
 	}
 	if cfg.EmailFrom == "" {
 		return Config{}, fmt.Errorf("EMAIL_FROM is required")

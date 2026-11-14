@@ -1,4 +1,4 @@
-{{define "layout"}}<!doctype html>
+{{define "layout"}}{{if .CaveText}}{{template "cavetext-layout" .}}{{else}}<!doctype html>
 <html lang="{{.Lang}}">
 <head>
   <meta charset="utf-8">
@@ -94,7 +94,7 @@
   <script src="{{static "header.js"}}"></script>
 </body>
 </html>
-{{end}}
+{{end}}{{end}}
 {{/* nav-links are the main site menus, shown in the header on wide screens and in its Menu on narrow ones.
    They share the account menu's name, so the browser closes the others when one opens: no script needed. */}}
 {{define "nav-links"}}
