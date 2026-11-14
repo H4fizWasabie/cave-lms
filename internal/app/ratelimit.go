@@ -68,7 +68,7 @@ type rateLimiter struct {
 // Each form has its own budget, so failed logins never block a password reset.
 func (a *App) limited(limit int, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), limit, rateLimitWindow, time.Now()) {
+		if !a.limiter.allow(strings.TrimPrefix(r.URL.Path, a.sitePrefix(r))+" "+clientAddress(r), limit, rateLimitWindow, time.Now()) {
 			a.tooManyAttempts(w, r)
 			return
 		}

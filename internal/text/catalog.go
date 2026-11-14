@@ -1318,7 +1318,32 @@ var catalog = map[string]entry{
 	"cavetext.connect":           {en: "CaveText wants to connect to your CAVELMS account, %s.", ms: "CaveText mahu disambungkan ke akaun CAVELMS anda, %s."},
 	"cavetext.connect.button":    {en: "Connect", ms: "Sambungkan"},
 	"cavetext.connect.another":   {en: "Use another account", ms: "Guna akaun lain"},
-	"cavetext.login.sub":         {en: "Log in with your CAVELMS email and password.", ms: "Log masuk dengan e-mel dan kata laluan CAVELMS anda."},
+	"cavetext.register.sub":      {en: "Create a free account to use CaveText.", ms: "Cipta akaun percuma untuk menggunakan CaveText."},
+	"cavetext.verify.confirm.body": {
+		en: "Press the button to confirm this email for your CaveText account. If you did not register, close this page and do nothing.",
+		ms: "Tekan butang untuk mengesahkan e-mel ini bagi akaun CaveText anda. Jika anda tidak mendaftar, tutup halaman ini dan jangan buat apa-apa.",
+	},
+	"cavetext.email.verify.subject": {en: "Confirm your CaveText account", ms: "Sahkan akaun CaveText anda"},
+	"cavetext.email.verify.body": {
+		en: "Hi,\n\nOpen this link within 24 hours to confirm your CaveText account:\n\n%[1]s\n\nIf you didn't register, you can ignore this email.\n",
+		ms: "Hai,\n\nBuka pautan ini dalam masa 24 jam untuk mengesahkan akaun CaveText anda:\n\n%[1]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
+	},
+	"cavetext.email.reset.subject": {en: "Reset your CaveText password", ms: "Set semula kata laluan CaveText anda"},
+	"cavetext.email.reset.body": {
+		en: "Hi,\n\nOpen this link within an hour to choose a new password:\n\n%[1]s\n\nIf you didn't ask for this, you can ignore this email.\n",
+		ms: "Hai,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[1]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
+	},
+	"cavetext.email.unverified-again.subject": {en: "Set your CaveText password", ms: "Tetapkan kata laluan CaveText anda"},
+	"cavetext.email.unverified-again.body": {
+		en: "Hi,\n\nThis email was registered on CaveText but not yet confirmed. Open this link within an hour to choose your password and confirm your account:\n\n%[1]s\n\nIf you didn't register, you can ignore this email.\n",
+		ms: "Hai,\n\nE-mel ini telah didaftarkan di CaveText tetapi belum disahkan. Buka pautan ini dalam masa sejam untuk memilih kata laluan anda dan mengesahkan akaun anda:\n\n%[1]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
+	},
+	"cavetext.email.used.subject": {en: "Someone tried to register with your CaveText email", ms: "Seseorang cuba mendaftar dengan e-mel CaveText anda"},
+	"cavetext.email.used.body": {
+		en: "Hi,\n\nSomeone tried to register a new CaveText account with this email, which already has one. No new account was made.\n\nIf it was you, log in here:\n\n%[1]s\n\nForgot your password? Reset it here:\n\n%[2]s\n\nIf it wasn't you, you can ignore this email.\n",
+		ms: "Hai,\n\nSeseorang cuba mendaftar akaun CaveText baharu dengan e-mel ini, yang sudah mempunyai akaun. Tiada akaun baharu dibuat.\n\nJika itu anda, log masuk di sini:\n\n%[1]s\n\nLupa kata laluan? Set semula di sini:\n\n%[2]s\n\nJika itu bukan anda, abaikan sahaja e-mel ini.\n",
+	},
+	"cavetext.login.sub": {en: "Log in with your CAVELMS email and password.", ms: "Log masuk dengan e-mel dan kata laluan CAVELMS anda."},
 
 	// The CaveText website's pricing page
 	"cavetext.pricing.visitor":       {en: "Log in or register to buy, so your payment is matched to your account.", ms: "Log masuk atau daftar untuk membeli, supaya bayaran anda dipadankan dengan akaun anda."},

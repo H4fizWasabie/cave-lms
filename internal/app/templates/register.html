@@ -1,11 +1,12 @@
-{{define "title"}}{{t .Lang "header.register"}} · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "header.register"}} · {{if .CaveText}}CaveText{{else}}CAVELMS{{end}}{{end}}
 {{define "content"}}
     <div class="wrap auth-page">
       <div class="auth-box">
         <h1>{{t .Lang "header.register"}}</h1>
-        <p class="auth-sub">{{t .Lang "register.sub"}}</p>
+        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.register.sub"}}{{else}}{{t .Lang "register.sub"}}{{end}}</p>
         {{- $f := .ErrorField}}
-        <form class="form" method="post" action="/register">
+        <form class="form" method="post" action="{{.Prefix}}/register">
+          {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
           <div class="field">
             <label for="name">{{t .Lang "account.name"}}</label>
             <input id="name" type="text" name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required{{if eq $f "name"}} aria-invalid="true" aria-describedby="name-err"{{end}}>
@@ -30,9 +31,9 @@
             <small>{{t .Lang "account.password-hint"}}</small>
           </div>
           <button class="btn btn-solid btn-block">{{t .Lang "header.register"}}</button>
-          <p class="auth-consent">{{t .Lang "register.consent"}} <a href="/privacy">{{t .Lang "privacy.link"}}</a>.</p>
+          <p class="auth-consent">{{t .Lang "register.consent"}} <a href="{{if .CaveText}}{{.Prefix}}/privacy.html{{else}}/privacy{{end}}">{{t .Lang "privacy.link"}}</a>.</p>
         </form>
-        <p class="auth-alt">{{t .Lang "register.already"}} <a href="/login">{{t .Lang "header.log-in"}}</a>.</p>
+        <p class="auth-alt">{{t .Lang "register.already"}} <a href="{{.Prefix}}/login{{with .Next}}?next={{.}}{{end}}">{{t .Lang "header.log-in"}}</a>.</p>
       </div>
     </div>
 {{end}}

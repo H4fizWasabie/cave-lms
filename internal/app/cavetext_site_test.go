@@ -55,7 +55,7 @@ func TestTheCaveTextHostShowsLoginInCaveTextsLookInEnglishAndMalay(t *testing.T)
 			t.Errorf("English login page lacks %q:\n%s", want, body)
 		}
 	}
-	for _, not := range []string{"/courses", "cavelms.css", "/register", "/forgot-password"} {
+	for _, not := range []string{"/courses", "cavelms.css"} {
 		if strings.Contains(body, not) {
 			t.Errorf("CaveText login page shows %q, which is CAVELMS's or not built here yet:\n%s", not, body)
 		}
@@ -300,21 +300,21 @@ func TestEveryOtherCAVELMSPathIsNotFoundOnTheCaveTextHost(t *testing.T) {
 	s.loginOnCaveText("/login", "")
 	s.login(adaEmail, adaPassword)
 
-	for _, p := range []string{"/", "/register", "/forgot-password", "/reset-password", "/verify", "/courses", "/admin", "/lab", "/gallery", "/privacy",
-		"/cavetext", "/cavetext/api/me", "/my-profile", "/static/cavelms.css", "/language", "/d/x/y/", "/ms/", "/ms/register"} {
+	for _, p := range []string{"/", "/courses", "/admin", "/lab", "/gallery", "/privacy",
+		"/cavetext", "/cavetext/api/me", "/my-profile", "/static/cavelms.css", "/language", "/d/x/y/", "/ms/"} {
 		res, body := s.get(caveTextOrigin + p)
 		expectStatus(t, res, body, http.StatusNotFound, `href="/style.css"`)
 		if strings.Contains(body, "site-header") {
 			t.Errorf("GET %s on the CaveText host shows CAVELMS's look: %s", p, body)
 		}
 	}
-	for _, p := range []string{"/register", "/language", "/cavetext/api/sign-out", "/cavetext/bcl/x"} {
+	for _, p := range []string{"/language", "/cavetext/api/sign-out", "/cavetext/bcl/x"} {
 		res, body := s.post(caveTextOrigin+p, url.Values{"lang": {"ms"}})
 		expectStatus(t, res, body, http.StatusNotFound, "")
 	}
 	// A trailing dot, the default port or capitals are still the CaveText host.
 	for _, host := range []string{"https://cavetext.cave.example.invalid.", "https://cavetext.cave.example.invalid:443", "https://CAVETEXT.cave.example.invalid"} {
-		res, body := s.get(host + "/register")
+		res, body := s.get(host + "/courses")
 		expectStatus(t, res, body, http.StatusNotFound, `href="/style.css"`)
 	}
 	// And the main host does not serve the CaveText look.

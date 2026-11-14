@@ -13,13 +13,9 @@
             {{with .Error}}<p class="field-err" id="password-err" role="alert">{{.}}</p>{{end}}
           </div>
           <button class="btn btn-solid btn-block">{{t .Lang "header.log-in"}}</button>
-          {{- if not .CaveText}}{{/* registering and resetting on the CaveText website come later (ADR 0028) */}}
-          <a class="auth-forgot" href="/forgot-password">{{t .Lang "account.forgot"}}</a>
-          {{- end}}
+          <a class="auth-forgot" href="{{.Prefix}}/forgot-password{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{end}}">{{t .Lang "account.forgot"}}</a>
         </form>
-        {{- if not .CaveText}}
-        <p class="auth-alt">{{t .Lang "login.new"}} <a href="/register">{{t .Lang "header.register"}}</a>.</p>
-        {{- end}}
+        <p class="auth-alt">{{t .Lang "login.new"}} <a href="{{.Prefix}}/register{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{end}}">{{t .Lang "header.register"}}</a>.</p>
       </div>
     </div>
 {{end}}
