@@ -35,3 +35,25 @@ pages.staging.cavelms.com {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8089
 }
+
+# Staging's CaveText website (docs/adr/0028-the-cavetext-website-signs-in-with-cavelms-accounts.md): production's static
+# pages, with the app's account, connect and pricing pages over them, as cavetext.cavelms.com does. Behind the staging
+# login like staging.cavelms.com. DNS: an A record for `cavetext.staging`.
+cavetext.staging.cavelms.com {
+	bind 13.140.65.183
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	encode zstd gzip
+	basic_auth {
+		import /etc/caddy/cave-lms-staging-login
+	}
+	# The app's pages, kept in step with the CaveText host's routes in internal/app/app.go; everything else is static.
+	@app path /login /logout /register /verify /verify/* /forgot-password /reset-password /pricing /cavetext/connect /ms/login /ms/logout /ms/register /ms/verify /ms/verify/* /ms/forgot-password /ms/reset-password /ms/pricing /ms/cavetext/connect
+	reverse_proxy @app 127.0.0.1:8089
+	root * /var/www/cavetext
+	file_server
+}

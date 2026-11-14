@@ -30,7 +30,7 @@ Once per VPS. Run as root on the VPS.
 
    `PAGES_BASE_URL` (the Deployments host, ADR 0024) is optional: unset, it is `https://pages.` in front of `PUBLIC_BASE_URL`'s host, `https://pages.cavelms.com` here. Set it only to put Deployments on another host, which needs its own Caddy block and A record. It must be a host of its own, with no path.
 
-   `CAVETEXT_BASE_URL` (the CaveText website's host, ADR 0028) is optional in the same way: unset, it is `https://cavetext.` in front of `PUBLIC_BASE_URL`'s host, `https://cavetext.cavelms.com` here. The app answers only the login, logout and connect pages there (and under `/ms/`); Caddy sends just those paths to it.
+   `CAVETEXT_BASE_URL` (the CaveText website's host, ADR 0028) is optional in the same way: unset, it is `https://cavetext.` in front of `PUBLIC_BASE_URL`'s host, `https://cavetext.cavelms.com` here. The app answers only its account, connect and pricing pages there (and under `/ms/`); Caddy sends just those paths to it, from the CaveText repo's `deploy/cavetext.caddy` (staging: `deploy/cave-lms-staging.caddy`).
 
    For CaveText Pro payments, add `BCL_WEBHOOK_KEY` the same way, set to a random key of at least 32 characters (`openssl rand -hex 24`). BCL's webhook address is then `https://cavelms.com/cavetext/bcl/<key>`; set it on the payment form under Advanced > Webhook Settings, with the Payment Success event. Only live orders on the form that Admin > CaveText settings > Payment link points to give Pro; Test Mode orders are only logged. The Test Mode copies of the forms send to staging instead (see `docs/deploy.md`, Staging). Without the key every webhook gets 404.
 
