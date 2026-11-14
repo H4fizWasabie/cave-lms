@@ -509,7 +509,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	// The Deployments host serves Deployments and nothing else, and the main host none (ADR 0024).
 	onPages := http.NewServeMux()
 	onPages.HandleFunc("GET /{rest...}", a.deploymentRoute)
-	// The CaveText website's host serves its login and connect pages and nothing else (ADR 0028), each also under /ms/.
+	// The CaveText website's host serves its account and connect pages and nothing else (ADR 0028), each also under /ms/.
 	onCaveText := http.NewServeMux()
 	onCaveText.HandleFunc("/", a.notFound)
 	for _, prefix := range []string{"", "/ms"} {
@@ -518,6 +518,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		onCaveText.HandleFunc("GET "+prefix+"/verify", a.verifyForm)
 		onCaveText.HandleFunc("POST "+prefix+"/verify", a.limited(sharedAddressAttempts, a.verify))
 		onCaveText.HandleFunc("POST "+prefix+"/verify/resend", a.limited(sharedAddressAttempts, a.resendVerification))
+		onCaveText.HandleFunc("GET "+prefix+"/forgot-password", a.forgotPasswordForm)
+		onCaveText.HandleFunc("POST "+prefix+"/forgot-password", a.limited(sharedAddressAttempts, a.forgotPassword))
+		onCaveText.HandleFunc("GET "+prefix+"/reset-password", a.resetPasswordForm)
+		onCaveText.HandleFunc("POST "+prefix+"/reset-password", a.resetPassword) // limits its own bad links, see resetPassword
 		onCaveText.HandleFunc("GET "+prefix+"/login", a.loginForm)
 		onCaveText.HandleFunc("POST "+prefix+"/login", a.login)
 		onCaveText.HandleFunc("POST "+prefix+"/logout", a.logout)

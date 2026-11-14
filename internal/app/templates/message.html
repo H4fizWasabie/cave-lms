@@ -21,7 +21,7 @@
         {{if .OfferLogin}}<p><a class="btn btn-solid" href="{{.Prefix}}/login{{with .Next}}?next={{.}}{{end}}">{{t .Lang "header.log-in"}}</a></p>{{end}}
         {{if .OfferGallery}}<p><a class="btn btn-solid" href="/gallery?format=ebook">{{t .Lang "ebook.link.gallery"}}</a></p>{{end}}
         {{if .OfferHome}}<p class="cta-row">{{with .Retry}}<a class="btn btn-solid" href="{{.}}">{{t $.Lang "error.retry"}}</a>{{end}}{{with .BackToCourse}}<a class="btn btn-solid" href="{{.}}">{{t $.Lang "lesson.back"}}</a>{{end}}<a class="btn {{if or .Retry .BackToCourse}}btn-ghost{{else}}btn-solid{{end}}" href="{{.Prefix}}/">{{t .Lang "error.home"}}</a></p>{{end}}
-        {{if .OfferReset}}<p><a class="btn btn-ghost" href="/forgot-password">{{t .Lang "message.new-reset"}}</a></p>{{end}}
+        {{if .OfferReset}}<p><a class="btn btn-ghost" href="{{.Prefix}}/forgot-password{{with .Next}}?next={{.}}{{end}}">{{t .Lang "message.new-reset"}}</a></p>{{end}}
       </div>
     </div>
 {{end}}

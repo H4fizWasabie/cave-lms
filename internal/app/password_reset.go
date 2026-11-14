@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,13 +15,15 @@ import (
 )
 
 func (a *App) forgotPasswordForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "forgot_password", page{})
+	a.render(w, r, http.StatusOK, "forgot_password", page{Next: a.verifyNext(r, r.URL.Query().Get("next"))})
 }
 
 // forgotPassword answers the same way whether or not the email belongs to a Learner, and whether or not it sent: past
 // resetEmailsPerAddress it neither sends nor replaces the link, so the link already sent keeps working.
 func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
+	next := a.verifyNext(r, r.PostFormValue("next"))
+	site := a.mailSite(r)
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -52,11 +55,15 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
+		link := site.base + "/reset-password?token=" + token
+		if next != "" {
+			link += "&next=" + url.QueryEscape(next)
+		}
 		a.mailLater(r, "send password reset email", func(ctx context.Context) error {
 			return a.mailer.Send(ctx, mailer.Message{
 				To:      to,
-				Subject: text.T(lang, "email.reset.subject"),
-				Body:    text.T(lang, "email.reset.body", a.publicBaseURL+"/reset-password?token="+token),
+				Subject: site.text(lang, "email.reset.subject"),
+				Body:    site.text(lang, "email.reset.body", link),
 			})
 		})
 	}
@@ -72,19 +79,20 @@ func (a *App) forgotPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) resetPasswordForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "reset_password", page{Token: r.URL.Query().Get("token")})
+	a.render(w, r, http.StatusOK, "reset_password", page{Token: r.URL.Query().Get("token"), Next: a.verifyNext(r, r.URL.Query().Get("next"))})
 }
 
 func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 	token := r.PostFormValue("token")
 	password := r.PostFormValue("password")
+	next := a.verifyNext(r, r.PostFormValue("next")) // on to the login that follows, or a new reset
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	if problem := passwordProblem(lang, password); problem != "" {
-		a.render(w, r, http.StatusUnprocessableEntity, "reset_password", page{Token: token, Error: problem})
+		a.render(w, r, http.StatusUnprocessableEntity, "reset_password", page{Token: token, Error: problem, Next: next})
 		return
 	}
 	tx, err := a.db.BeginTx(r.Context(), nil)
@@ -105,7 +113,7 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		// Only bad links count, so Learners on one network each using their own link never run out.
-		if !a.limiter.allow(r.URL.Path+" "+clientAddress(r), sharedAddressAttempts, rateLimitWindow, time.Now()) {
+		if !a.limiter.allow(strings.TrimPrefix(r.URL.Path, a.sitePrefix(r))+" "+clientAddress(r), sharedAddressAttempts, rateLimitWindow, time.Now()) {
 			a.tooManyAttempts(w, r)
 			return
 		}
@@ -113,6 +121,7 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 			Title:      text.T(lang, "message.link-invalid"),
 			Message:    text.T(lang, "reset.invalid"),
 			OfferReset: true,
+			Next:       next,
 		})
 		return
 	case err != nil:
@@ -127,6 +136,7 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 			Title:      text.T(lang, "message.link-expired"),
 			Message:    text.T(lang, "reset.expired"),
 			OfferReset: true,
+			Next:       next,
 		})
 		return
 	}
@@ -158,5 +168,6 @@ func (a *App) resetPassword(w http.ResponseWriter, r *http.Request) {
 		Title:      text.T(lang, "reset.done.title"),
 		Message:    text.T(lang, "reset.done"),
 		OfferLogin: true,
+		Next:       next,
 	})
 }

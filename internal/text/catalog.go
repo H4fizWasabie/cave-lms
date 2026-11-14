@@ -1328,6 +1328,11 @@ var catalog = map[string]entry{
 		en: "Hi,\n\nOpen this link within 24 hours to confirm your CaveText account:\n\n%[1]s\n\nIf you didn't register, you can ignore this email.\n",
 		ms: "Hai,\n\nBuka pautan ini dalam masa 24 jam untuk mengesahkan akaun CaveText anda:\n\n%[1]s\n\nJika anda tidak mendaftar, abaikan sahaja e-mel ini.\n",
 	},
+	"cavetext.email.reset.subject": {en: "Reset your CaveText password", ms: "Set semula kata laluan CaveText anda"},
+	"cavetext.email.reset.body": {
+		en: "Hi,\n\nOpen this link within an hour to choose a new password:\n\n%[1]s\n\nIf you didn't ask for this, you can ignore this email.\n",
+		ms: "Hai,\n\nBuka pautan ini dalam masa sejam untuk memilih kata laluan baharu:\n\n%[1]s\n\nJika anda tidak memintanya, abaikan sahaja e-mel ini.\n",
+	},
 	"cavetext.email.unverified-again.subject": {en: "Set your CaveText password", ms: "Tetapkan kata laluan CaveText anda"},
 	"cavetext.email.unverified-again.body": {
 		en: "Hi,\n\nThis email was registered on CaveText but not yet confirmed. Open this link within an hour to choose your password and confirm your account:\n\n%[1]s\n\nIf you didn't register, you can ignore this email.\n",
