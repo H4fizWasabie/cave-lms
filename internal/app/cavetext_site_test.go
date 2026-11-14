@@ -5,8 +5,10 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/app"
+	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
 // The CaveText website's host (ADR 0028): its login and connect pages are served by the app, in CaveText's look.
@@ -299,7 +301,7 @@ func TestEveryOtherCAVELMSPathIsNotFoundOnTheCaveTextHost(t *testing.T) {
 	s.login(adaEmail, adaPassword)
 
 	for _, p := range []string{"/", "/register", "/forgot-password", "/reset-password", "/verify", "/courses", "/admin", "/lab", "/gallery", "/privacy",
-		"/pricing", "/cavetext", "/cavetext/api/me", "/my-profile", "/static/cavelms.css", "/language", "/d/x/y/", "/ms/", "/ms/register", "/ms/pricing"} {
+		"/cavetext", "/cavetext/api/me", "/my-profile", "/static/cavelms.css", "/language", "/d/x/y/", "/ms/", "/ms/register"} {
 		res, body := s.get(caveTextOrigin + p)
 		expectStatus(t, res, body, http.StatusNotFound, `href="/style.css"`)
 		if strings.Contains(body, "site-header") {
@@ -318,4 +320,78 @@ func TestEveryOtherCAVELMSPathIsNotFoundOnTheCaveTextHost(t *testing.T) {
 	// And the main host does not serve the CaveText look.
 	res, body := s.get("/login")
 	expectStatus(t, res, body, http.StatusOK, "cavelms.css")
+}
+
+// caveTextPricingLearner is an Ada logged in on the CaveText host who has connected the extension, so she is a CaveText Learner.
+func caveTextPricingLearner(admin *site) *site {
+	ada := admin.second()
+	ada.registerAda()
+	ada.loginOnCaveText("/login", "/cavetext/connect?extension="+extensionID)
+	return ada
+}
+
+func TestTheCaveTextPricingPageShowsAVisitorThePricesAndLogInOrRegisterWithNoBuy(t *testing.T) {
+	t.Parallel()
+	s := caveTextAdminSite(t)
+	s.savePrices(map[string]string{"cavetext-pro_link": "https://bcl.my/pay/cavetext", "pro-plan_link": "https://bcl.my/pay/pro-plan"})
+
+	res, body := s.get(caveTextOrigin + "/pricing")
+	expectStatus(t, res, body, http.StatusOK, `href="/style.css"`)
+	expectAll(t, body, "RM25 a year", "RM99 a year", "CaveText Pro", "Pro Plan", `href="/login?next=%2Fpricing"`, `href="/register"`, `href="/ms/pricing"`)
+	for _, not := range []string{"Buy ", "Renew", "bcl.my", "cavelms.css", "/static/", "/refunds"} {
+		if strings.Contains(body, not) {
+			t.Errorf("Visitor's pricing page shows %q:\n%s", not, body)
+		}
+	}
+
+	res, body = s.get(caveTextOrigin + "/ms/pricing")
+	expectStatus(t, res, body, http.StatusOK, `lang="ms"`)
+	expectAll(t, body, "RM25 setahun", `href="/ms/login?next=%2Fms%2Fpricing"`, `href="/ms/register"`, `href="/pricing"`)
+	if strings.Contains(body, "Beli ") {
+		t.Errorf("Visitor's Malay pricing page offers to buy:\n%s", body)
+	}
+}
+
+func TestTheCaveTextPricingPageGivesAFreeLearnerBuyToThePaymentLinkOrContactUsWithout(t *testing.T) {
+	t.Parallel()
+	s := caveTextAdminSite(t)
+	ada := caveTextPricingLearner(s)
+
+	// No payment link yet: the contact-us fallback of CAVELMS's CaveText page.
+	res, body := ada.get(caveTextOrigin + "/pricing")
+	expectStatus(t, res, body, http.StatusOK, "")
+	expectAll(t, body, "Contact us to buy CaveText Pro", "Contact us to buy Pro Plan", "mailto:adam.caveconsult@gmail.com", `action="/logout"`)
+
+	s.savePrices(map[string]string{"cavetext-pro_link": "https://bcl.my/pay/cavetext", "pro-plan_link": "https://bcl.my/pay/pro-plan"})
+	res, body = ada.get(caveTextOrigin + "/pricing")
+	expectStatus(t, res, body, http.StatusOK, "")
+	expectAll(t, body, `href="https://bcl.my/pay/cavetext">Buy CaveText Pro</a>`, `href="https://bcl.my/pay/pro-plan">Buy Pro Plan</a>`,
+		"The Lab is used on CAVELMS, with the same account.")
+	for _, not := range []string{"Renew", "Pro until", `href="/login`, "mailto:", "/static/", "/refunds"} {
+		if strings.Contains(body, not) {
+			t.Errorf("free Learner's pricing page shows %q:\n%s", not, body)
+		}
+	}
+
+	res, body = ada.get(caveTextOrigin + "/ms/pricing")
+	expectStatus(t, res, body, http.StatusOK, "")
+	expectAll(t, body, `href="https://bcl.my/pay/cavetext">Beli CaveText Pro</a>`, "Lab digunakan di CAVELMS dengan akaun yang sama.")
+}
+
+func TestTheCaveTextPricingPageGivesAProLearnerRenewAndWhenProRuns(t *testing.T) {
+	t.Parallel()
+	s := caveTextAdminSite(t)
+	ada := caveTextPricingLearner(s)
+	s.savePrices(map[string]string{"cavetext-pro_link": "https://bcl.my/pay/cavetext", "pro-plan_link": "https://bcl.my/pay/pro-plan"})
+	s.givePro(adaEmail)
+	until := time.Now().In(malaysiaTime).AddDate(1, 0, 0)
+
+	res, body := ada.get(caveTextOrigin + "/pricing")
+	expectStatus(t, res, body, http.StatusOK, "")
+	expectAll(t, body, `href="https://bcl.my/pay/cavetext">Renew CaveText Pro</a>`, `href="https://bcl.my/pay/pro-plan">Buy Pro Plan</a>`,
+		"CaveText Pro until "+text.Date("en", until))
+
+	res, body = ada.get(caveTextOrigin + "/ms/pricing")
+	expectStatus(t, res, body, http.StatusOK, "")
+	expectAll(t, body, `href="https://bcl.my/pay/cavetext">Perbaharui CaveText Pro</a>`, "CaveText Pro hingga "+text.Date("ms", until))
 }

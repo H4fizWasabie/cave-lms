@@ -1,0 +1,18 @@
+{{define "title"}}{{t .Lang "nav.pricing"}} · CaveText{{end}}
+{{define "content"}}
+    <div class="wrap page-pad">
+      <h1>{{t .Lang "nav.pricing"}}</h1>
+      <p>{{t .Lang "offers.intro"}}</p>
+      {{- if not .Learner}}
+      <p>{{t .Lang "cavetext.pricing.visitor"}}</p>
+      <div class="cta-row">
+        <a class="btn btn-solid" href="{{.Prefix}}/login?next={{print .Prefix "/pricing" | urlquery}}">{{t .Lang "header.log-in"}}</a>
+        <a class="btn btn-ghost" href="{{.Prefix}}/register">{{t .Lang "header.register"}}</a>
+      </div>
+      {{- else if .ProUntil}}
+      <p><strong>{{t .Lang "cavetext.pro-until" .ProUntil}}</strong> {{t .Lang "cavetext.renew-note"}}</p>
+      {{- end}}
+      <h2>{{t .Lang "offers.heading"}}</h2>
+      {{- template "offers" .}}
+    </div>
+{{end}}

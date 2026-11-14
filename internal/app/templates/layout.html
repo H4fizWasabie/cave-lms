@@ -317,7 +317,7 @@ Visitors see the cards without buttons. */}}
       <ul class="offers">
         {{- range .Offers}}
         <li class="offer">
-          <img class="offer-logo" src="{{static (print "logo-" .Product ".svg")}}" width="48" height="48" alt="">
+          {{- if not $.CaveText}}<img class="offer-logo" src="{{static (print "logo-" .Product ".svg")}}" width="48" height="48" alt="">{{end}}
           <h3>{{t $.Lang (print "prices." .Product)}}</h3>
           <p class="offer-tagline">{{t $.Lang (print "offers." .Product)}}</p>
           <p class="offer-price"><strong>{{t $.Lang "offers.price" .Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
@@ -326,9 +326,12 @@ Visitors see the cards without buttons. */}}
           {{- end}}
           <ul class="offer-benefits">
             {{- range .Benefits}}
-            <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{t $.Lang .}}</li>
+            <li>{{if not $.CaveText}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{else}}&check; {{end}}{{t $.Lang .}}</li>
             {{- end}}
           </ul>
+          {{- if and $.CaveText (eq .Product "pro-plan")}}
+          <p class="muted">{{t $.Lang "offers.pro-plan.lab-on-cavelms"}}</p>
+          {{- end}}
           {{- if $.Learner}}
           {{- if .PaymentLink}}
           <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang (print "offers." (or (and .Renew "renew") "buy")) (t $.Lang (print "prices." .Product))}}</a>
@@ -341,13 +344,13 @@ Visitors see the cards without buttons. */}}
         {{- range .Offers}}{{if and (eq .Product "pro-plan") .Promo}}
         <li class="offer offer-combo">
           <span class="offer-tag">{{t $.Lang "offers.combo.tag"}}</span>
-          <img class="offer-logo" src="{{static "logo-pro-plan.svg"}}" width="48" height="48" alt="">
+          {{- if not $.CaveText}}<img class="offer-logo" src="{{static "logo-pro-plan.svg"}}" width="48" height="48" alt="">{{end}}
           <h3 class="offer-combo-name">{{t $.Lang "offers.combo"}}</h3>
           <p class="offer-tagline">{{t $.Lang "offers.combo.tagline"}}</p>
           <p class="offer-price"><strong>{{t $.Lang "offers.price" .Promo}}</strong></p>
           <ul class="offer-benefits">
             {{- range .PromoBenefits}}
-            <li><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{t $.Lang .}}</li>
+            <li>{{if not $.CaveText}}<svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>{{else}}&check; {{end}}{{t $.Lang .}}</li>
             {{- end}}
           </ul>
           {{- if and $.Learner .PaymentLink}}
@@ -358,7 +361,7 @@ Visitors see the cards without buttons. */}}
       </ul>
       {{- range .Offers}}{{if .PaymentLink}}
       <p class="note">{{t $.Lang "offers.fee"}}</p>
-      {{- if $.Learner}}
+      {{- if and $.Learner (not $.CaveText)}}{{/* /refunds is CAVELMS's page */}}
       <p class="muted">{{t $.Lang "refunds.notice"}} <a href="/refunds">{{t $.Lang "refunds.link"}}</a>.</p>
       {{- end}}
       {{- break}}{{end}}{{end}}

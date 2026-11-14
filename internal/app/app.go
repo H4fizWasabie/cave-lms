@@ -507,13 +507,14 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	// The Deployments host serves Deployments and nothing else, and the main host none (ADR 0024).
 	onPages := http.NewServeMux()
 	onPages.HandleFunc("GET /{rest...}", a.deploymentRoute)
-	// The CaveText website's host serves its login and connect pages and nothing else (ADR 0028), each also under /ms/.
+	// The CaveText website's host serves its login, connect and pricing pages and nothing else (ADR 0028), each also under /ms/.
 	onCaveText := http.NewServeMux()
 	onCaveText.HandleFunc("/", a.notFound)
 	for _, prefix := range []string{"", "/ms"} {
 		onCaveText.HandleFunc("GET "+prefix+"/login", a.loginForm)
 		onCaveText.HandleFunc("POST "+prefix+"/login", a.login)
 		onCaveText.HandleFunc("POST "+prefix+"/logout", a.logout)
+		onCaveText.HandleFunc("GET "+prefix+"/pricing", a.caveTextPricing)
 		onCaveText.HandleFunc("GET "+prefix+"/cavetext/connect", a.caveTextConnect)
 		onCaveText.HandleFunc("POST "+prefix+"/cavetext/connect", a.caveTextConnect)
 	}
