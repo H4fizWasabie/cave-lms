@@ -61,7 +61,7 @@ It ships only the staging binary, unit and Caddy site, and leaves production and
 - **Deployments** are on `pages.staging.cavelms.com`, a second Caddy block in the staging site file. It has no login, unlike `staging.cavelms.com`: a sandboxed page cannot send one with its data requests. Staging holds test data only.
 - **Placeholders**: the staging unit sets `CAVE_ENV=staging`, so the home page shows its marked placeholders for numbers the client has not supplied yet. Production leaves `CAVE_ENV` unset (production) and never shows them. Run locally with `CAVE_ENV=development` to see them.
 - **Data** starts empty. Set up Courses, Exams and prices by hand in staging's Admin.
-- **CaveText** can't sign in to staging: `CAVETEXT_EXTENSION_IDS` is unset and the extension would trip over the login. A Test Mode payment still gives Pro, and the System log says so.
+- **CaveText website** is on `cavetext.staging.cavelms.com`, a third Caddy block in the staging site file, behind the staging login: production's static pages (`/var/www/cavetext`) with staging's login, register, reset, connect and pricing pages over them. `CAVETEXT_BASE_URL` is unset, so the app takes that host from `PUBLIC_BASE_URL`. Staging's `CAVETEXT_EXTENSION_IDS` lists only the unpacked development build, `omcdclpagggfcjlhpkohpcgdmfbelohd`; point its `cavelms` setting at `https://staging.cavelms.com` to sign in to staging. A Test Mode payment still gives Pro, and the System log says so.
 
 ## Upload limit
 
@@ -144,7 +144,7 @@ There is no built-in model: with the key or model unset the app starts, the Exam
 
 ## CaveText
 
-`CAVETEXT_EXTENSION_IDS` is the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`; unset, sign-in is refused (staging leaves it unset). Production lists three:
+`CAVETEXT_EXTENSION_IDS` is the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`, on the CaveText website (ADR 0028) or, for extensions not yet updated, on CAVELMS; unset, sign-in is refused. Staging lists only the unpacked build (see Staging). Production lists three:
 
 - `omcdclpagggfcjlhpkohpcgdmfbelohd`: the unpacked development build.
 - `akkjngndkjadciijkjblnojfgbbhhmnl`: the zip shared before store approval, built by CaveText's `package.sh` with a fixed key.
