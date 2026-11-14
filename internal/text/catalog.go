@@ -1319,6 +1319,11 @@ var catalog = map[string]entry{
 	"cavetext.connect.button":    {en: "Connect", ms: "Sambungkan"},
 	"cavetext.connect.another":   {en: "Use another account", ms: "Guna akaun lain"},
 	"cavetext.login.sub":         {en: "Log in with your CAVELMS email and password.", ms: "Log masuk dengan e-mel dan kata laluan CAVELMS anda."},
+
+	// The CaveText website's pricing page
+	"cavetext.pricing.visitor":       {en: "Log in or register to buy, so your payment is matched to your account.", ms: "Log masuk atau daftar untuk membeli, supaya bayaran anda dipadankan dengan akaun anda."},
+	"offers.pro-plan.lab-on-cavelms": {en: "The Lab is used on CAVELMS, with the same account.", ms: "Lab digunakan di CAVELMS dengan akaun yang sama."},
+
 	// The CaveText website's header and footer, as on its static pages
 	"cavetext.site.brand-alt":          {en: "CaveText, your smart prompt library, by The Cave Consult", ms: "CaveText, pustaka prompt pintar anda, oleh The Cave Consult"},
 	"cavetext.site.guide":              {en: "Guide", ms: "Panduan"},

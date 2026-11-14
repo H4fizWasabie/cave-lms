@@ -461,3 +461,38 @@ func (a *App) caveTextHome(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, http.StatusOK, "cavetext", p)
 }
+
+// caveTextPricingPage is the CaveText website's /pricing: the same offers as /cavetext, with Buy straight to the payment link.
+type caveTextPricingPage struct {
+	pageBase
+	ProUntil string // the day Pro ends, in the page's language, when the Learner's Pro is running
+	Offers   []offer
+}
+
+func (a *App) caveTextPricing(w http.ResponseWriter, r *http.Request) {
+	learner, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p := &caveTextPricingPage{pageBase: pageBase{Learner: learner}}
+	if p.Offers, err = a.offersOf(r.Context(), caveTextProProduct, proPlanProduct); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if learner != nil { // Pro runs without a CaveText account too: a Payment can come before the first sign-in
+		var until sql.NullTime
+		if err := a.db.QueryRowContext(r.Context(), `SELECT CASE WHEN EXISTS (SELECT 1 FROM cavetext_pro_periods pp WHERE pp.learner_id = $1 AND `+activePeriodSQL+`)
+			THEN (SELECT max(ends_at) FROM cavetext_pro_periods WHERE learner_id = $1 AND ends_at > now() AND ended_early_at IS NULL) END`, learner.ID).Scan(&until); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		if until.Valid {
+			p.ProUntil = text.Date(caveTextLanguage(r), until.Time.In(malaysia))
+			for i := range p.Offers {
+				p.Offers[i].Renew = p.Offers[i].Product == caveTextProProduct
+			}
+		}
+	}
+	a.render(w, r, http.StatusOK, "cavetext_pricing", p)
+}
