@@ -85,7 +85,32 @@ func (a *App) lookUpLearner(r *http.Request) (*learner, error) {
 }
 
 func (a *App) registerForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "register", page{})
+	a.render(w, r, http.StatusOK, "register", page{Next: a.verifyNext(r, r.URL.Query().Get("next"))})
+}
+
+// verifyNext is next if it is the connect page of a listed extension on the CaveText host, else "": the only next a
+// registration carries through its emails, so a newcomer from the extension ends signed in to it.
+func (a *App) verifyNext(r *http.Request, next string) string {
+	if localPath(next) == "" || a.connectTarget(r, next) == "" {
+		return ""
+	}
+	return next
+}
+
+// mailSite is whose name an email goes out in and where its links point: CAVELMS's, or the CaveText website's for a
+// request on its host (ADR 0028). Its catalog keys are CAVELMS's with "cavetext." in front, and its base carries the
+// Malay pages' /ms.
+type mailSite struct{ keys, base string }
+
+func (a *App) mailSite(r *http.Request) mailSite {
+	if a.onCaveTextHost(r) {
+		return mailSite{"cavetext.", a.caveTextBaseURL + a.sitePrefix(r)}
+	}
+	return mailSite{"", a.publicBaseURL}
+}
+
+func (m mailSite) text(lang, key string, args ...any) string {
+	return text.T(lang, m.keys+key, args...)
 }
 
 func (a *App) register(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +123,8 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	form := page{Name: name, Username: username, Email: email}
+	next := a.verifyNext(r, r.PostFormValue("next"))
+	form := page{Name: name, Username: username, Email: email, Next: next}
 	if form.ErrorField, form.Error = accountFieldError(lang, name, email, password); form.Error == "" {
 		if key := usernameError(username); key != "" {
 			form.ErrorField, form.Error = "username", text.T(lang, key)
@@ -152,7 +178,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 		// The email already has an account: answer as for a new one and email its owner, so the page tells nobody.
 		err = a.mailOwnerOfUsedEmail(r, tx, email, unknownHash)
 	case err == nil:
-		err = a.sendVerification(r.Context(), tx, lang, id, email)
+		err = a.sendVerification(r.Context(), tx, a.mailSite(r), lang, id, email, next)
 	}
 	if err != nil {
 		a.serverError(w, r, err)
@@ -169,7 +195,7 @@ func (a *App) register(w http.ResponseWriter, r *http.Request) {
 }
 
 // sendVerification replaces the Learner's verification link with a new one and emails it in lang, if email may have one.
-func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, learnerID int64, email string) error {
+func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, site mailSite, lang string, learnerID int64, email, next string) error {
 	if !a.verificationAllowed(email) {
 		return nil
 	}
@@ -177,7 +203,7 @@ func (a *App) sendVerification(ctx context.Context, tx *sql.Tx, lang string, lea
 	if err != nil {
 		return err
 	}
-	return a.mailVerification(ctx, lang, email, token)
+	return a.mailVerification(ctx, site, lang, email, token, next)
 }
 
 // mailOwnerOfUsedEmail answers a registration with email, which already has an account: an unverified account gets a link
@@ -197,6 +223,7 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email, unknownHa
 	if err != nil {
 		return err
 	}
+	site := a.mailSite(r)
 	if !verified {
 		// An unverified account's password proves nothing about who chose it, so whoever holds the inbox sets it with a
 		// reset link, which also confirms the email. A verification link would confirm the first registrant's password,
@@ -220,14 +247,14 @@ func (a *App) mailOwnerOfUsedEmail(r *http.Request, tx *sql.Tx, email, unknownHa
 		}
 		return a.mailer.Send(r.Context(), mailer.Message{
 			To:      to,
-			Subject: text.T(lang, "email.unverified-again.subject"),
-			Body:    text.T(lang, "email.unverified-again.body", a.publicBaseURL+"/reset-password?token="+token),
+			Subject: site.text(lang, "email.unverified-again.subject"),
+			Body:    site.text(lang, "email.unverified-again.body", site.base+"/reset-password?token="+token),
 		})
 	}
 	return a.mailer.Send(r.Context(), mailer.Message{
 		To:      to,
-		Subject: text.T(lang, "email.used.subject"),
-		Body:    text.T(lang, "email.used.body", a.publicBaseURL+"/login", a.publicBaseURL+"/forgot-password"),
+		Subject: site.text(lang, "email.used.subject"),
+		Body:    site.text(lang, "email.used.body", site.base+"/login", site.base+"/forgot-password"),
 	})
 }
 
@@ -238,12 +265,16 @@ func (a *App) verificationAllowed(email string) bool {
 	return a.limiter.allow("verification email "+strings.ToLower(email), verificationsPerAddress, verificationWindow, a.now())
 }
 
-// mailVerification emails the verification link for token in lang.
-func (a *App) mailVerification(ctx context.Context, lang, email, token string) error {
+// mailVerification emails the verification link for token in lang, which carries next on to the verified page.
+func (a *App) mailVerification(ctx context.Context, site mailSite, lang, email, token, next string) error {
+	link := site.base + "/verify?token=" + token
+	if next != "" {
+		link += "&next=" + url.QueryEscape(next)
+	}
 	return a.mailer.Send(ctx, mailer.Message{
 		To:      email,
-		Subject: text.T(lang, "email.verify.subject"),
-		Body:    text.T(lang, "email.verify.body", a.publicBaseURL+"/verify?token="+token),
+		Subject: site.text(lang, "email.verify.subject"),
+		Body:    site.text(lang, "email.verify.body", link),
 	})
 }
 
@@ -265,9 +296,10 @@ func (a *App) mailLater(r *http.Request, job string, send func(ctx context.Conte
 	}()
 }
 
-// recipientLanguage is the language to email a Learner in: their saved one, else the request's.
+// recipientLanguage is the language to email a Learner in: their saved one, else the request's. On the CaveText
+// website it is always the page's, which ignores the saved one.
 func (a *App) recipientLanguage(r *http.Request, saved string) (string, error) {
-	if text.Supported(saved) {
+	if text.Supported(saved) && !a.onCaveTextHost(r) {
 		return saved, nil
 	}
 	return a.language(r)
@@ -294,7 +326,7 @@ func issueOneTimeToken(ctx context.Context, tx *sql.Tx, learnerID int64, purpose
 // verifyForm is the page a verification link opens. It changes nothing and keeps the link, as mail scanners and link
 // previews open every link in an email: the button posts the token to verify.
 func (a *App) verifyForm(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "verify_confirm", page{Token: r.URL.Query().Get("token")})
+	a.render(w, r, http.StatusOK, "verify_confirm", page{Token: r.URL.Query().Get("token"), Next: a.verifyNext(r, r.URL.Query().Get("next"))})
 }
 
 func (a *App) verify(w http.ResponseWriter, r *http.Request) {
@@ -318,6 +350,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, langErr)
 		return
 	}
+	next := a.verifyNext(r, r.PostFormValue("next")) // on to the login that follows, or the resend form
 	// Commit only once the email is sent, so a failed send leaves no half-made account or dead link.
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -325,6 +358,7 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 			Title:       text.T(lang, "message.link-invalid"),
 			Message:     text.T(lang, "verify.invalid"),
 			OfferResend: true,
+			Next:        next,
 		})
 	case expired:
 		a.render(w, r, http.StatusGone, "message", page{
@@ -332,18 +366,21 @@ func (a *App) verify(w http.ResponseWriter, r *http.Request) {
 			Message:     text.T(lang, "verify.expired"),
 			OfferResend: true,
 			Email:       email,
+			Next:        next,
 		})
 	default:
 		if _, err := a.db.ExecContext(r.Context(), `UPDATE learners SET verified_at = now() WHERE id = $1 AND verified_at IS NULL`, learnerID); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "verify.done.title"), Message: text.T(lang, "verify.done"), OfferLogin: true})
+		a.render(w, r, http.StatusOK, "message", page{Title: text.T(lang, "verify.done.title"), Message: text.T(lang, "verify.done"), OfferLogin: true, Next: next})
 	}
 }
 
 func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.PostFormValue("email"))
+	next := a.verifyNext(r, r.PostFormValue("next"))
+	site := a.mailSite(r)
 	tx, err := a.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -376,7 +413,7 @@ func (a *App) resendVerification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.mailLater(r, "send verification email", func(ctx context.Context) error {
-			return a.mailVerification(ctx, lang, to, token)
+			return a.mailVerification(ctx, site, lang, to, token, next)
 		})
 	}
 	lang, err := a.language(r)
@@ -474,6 +511,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 			Message:     text.T(lang, "login.unverified"),
 			OfferResend: true,
 			Email:       email,
+			Next:        a.verifyNext(r, next),
 		})
 		return
 	}

@@ -53,6 +53,7 @@ type App struct {
 	pagesBaseURL         string // where Deployments live (ADR 0024): scheme and host alone, no trailing slash
 	pagesHost            string // pagesBaseURL's host, to tell its requests from the main host's
 	caveTextHost         string // the CaveText website's host (ADR 0028), to tell its requests from the main host's
+	caveTextBaseURL      string // its address, which its emails link to
 	store                *storage.Disk
 	dataset              *dataset.Dataset
 	datasets             storage.Store // where Dataset data and Submission files live (ADR 0008)
@@ -210,6 +211,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("CaveTextBaseURL must be an absolute URL, got %q", cfg.CaveTextBaseURL)
 	}
 	a.caveTextHost = strings.ToLower(caveTextURL.Host)
+	a.caveTextBaseURL = strings.TrimRight(cfg.CaveTextBaseURL, "/")
 	a.dataset = dataset.New(db, datasets, func() time.Time { return a.now() })
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
@@ -511,6 +513,11 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	onCaveText := http.NewServeMux()
 	onCaveText.HandleFunc("/", a.notFound)
 	for _, prefix := range []string{"", "/ms"} {
+		onCaveText.HandleFunc("GET "+prefix+"/register", a.registerForm)
+		onCaveText.HandleFunc("POST "+prefix+"/register", a.limited(sharedAddressAttempts, a.register))
+		onCaveText.HandleFunc("GET "+prefix+"/verify", a.verifyForm)
+		onCaveText.HandleFunc("POST "+prefix+"/verify", a.limited(sharedAddressAttempts, a.verify))
+		onCaveText.HandleFunc("POST "+prefix+"/verify/resend", a.limited(sharedAddressAttempts, a.resendVerification))
 		onCaveText.HandleFunc("GET "+prefix+"/login", a.loginForm)
 		onCaveText.HandleFunc("POST "+prefix+"/login", a.login)
 		onCaveText.HandleFunc("POST "+prefix+"/logout", a.logout)

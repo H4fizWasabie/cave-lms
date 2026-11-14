@@ -1,10 +1,11 @@
-{{define "title"}}{{t .Lang "verify.confirm.title"}} · CAVELMS{{end}}
+{{define "title"}}{{t .Lang "verify.confirm.title"}} · {{if .CaveText}}CaveText{{else}}CAVELMS{{end}}{{end}}
 {{define "content"}}
     <div class="wrap auth-page">
       <div class="auth-box">
         <h1>{{t .Lang "verify.confirm.title"}}</h1>
-        <p class="auth-sub">{{t .Lang "verify.confirm.body"}}</p>
-        <form class="form" method="post" action="/verify">
+        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.verify.confirm.body"}}{{else}}{{t .Lang "verify.confirm.body"}}{{end}}</p>
+        <form class="form" method="post" action="{{.Prefix}}/verify">
+          {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
           <input type="hidden" name="token" value="{{.Token}}">
           <button class="btn btn-solid btn-block">{{t .Lang "verify.confirm.button"}}</button>
         </form>
