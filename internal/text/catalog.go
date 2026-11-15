@@ -1315,7 +1315,7 @@ var catalog = map[string]entry{
 	// CaveText API messages, shown by the extension as they come
 	"cavetext.api.sign-in-again": {en: "Sign in to CaveText again.", ms: "Log masuk ke CaveText sekali lagi."},
 	"cavetext.connect.title":     {en: "Connect CaveText", ms: "Sambungkan CaveText"},
-	"cavetext.connect":           {en: "CaveText wants to connect to your CAVELMS account, %s.", ms: "CaveText mahu disambungkan ke akaun CAVELMS anda, %s."},
+	"cavetext.connect":           {en: "The CaveText extension wants to connect to your CaveText account, %s.", ms: "Sambungan CaveText mahu disambungkan ke akaun CaveText anda, %s."},
 	"cavetext.connect.button":    {en: "Connect", ms: "Sambungkan"},
 	"cavetext.connect.another":   {en: "Use another account", ms: "Guna akaun lain"},
 	"cavetext.register.sub":      {en: "Create a free account to use CaveText.", ms: "Cipta akaun percuma untuk menggunakan CaveText."},
@@ -1343,7 +1343,9 @@ var catalog = map[string]entry{
 		en: "Hi,\n\nSomeone tried to register a new CaveText account with this email, which already has one. No new account was made.\n\nIf it was you, log in here:\n\n%[1]s\n\nForgot your password? Reset it here:\n\n%[2]s\n\nIf it wasn't you, you can ignore this email.\n",
 		ms: "Hai,\n\nSeseorang cuba mendaftar akaun CaveText baharu dengan e-mel ini, yang sudah mempunyai akaun. Tiada akaun baharu dibuat.\n\nJika itu anda, log masuk di sini:\n\n%[1]s\n\nLupa kata laluan? Set semula di sini:\n\n%[2]s\n\nJika itu bukan anda, abaikan sahaja e-mel ini.\n",
 	},
-	"cavetext.login.sub": {en: "Log in with your CAVELMS email and password.", ms: "Log masuk dengan e-mel dan kata laluan CAVELMS anda."},
+	"cavetext.login.sub": {en: "Log in with your CaveText account.", ms: "Log masuk dengan akaun CaveText anda."},
+	// For people who got CaveText through CAVELMS: the one place besides privacy that the CaveText website names CAVELMS
+	"cavetext.have-cavelms": {en: "Have a CAVELMS account? Log in with it.", ms: "Ada akaun CAVELMS? Log masuk dengannya."},
 
 	// The CaveText website's pricing page
 	"cavetext.account.name-hint":     {en: "CaveText shows it when you are signed in.", ms: "CaveText memaparkannya semasa anda log masuk."},
@@ -1360,10 +1362,10 @@ var catalog = map[string]entry{
 	"cavetext.site.footer":             {en: "© 2026 CaveText by The Cave Consult", ms: "© 2026 CaveText oleh The Cave Consult"},
 	"cavetext.unknown-extension.title": {en: "Unknown extension", ms: "Sambungan tidak dikenali"},
 	"cavetext.unknown-extension": {
-		en: "This extension can't sign in to CAVELMS. Install CaveText from the Chrome Web Store.",
-		ms: "Sambungan ini tidak boleh log masuk ke CAVELMS. Pasang CaveText dari Chrome Web Store.",
+		en: "This extension can't sign in to CaveText. Install CaveText from the Chrome Web Store.",
+		ms: "Sambungan ini tidak boleh log masuk ke CaveText. Pasang CaveText dari Chrome Web Store.",
 	},
-	"cavetext.api.problem":          {en: "CAVELMS had a problem. Try again later.", ms: "CAVELMS menghadapi masalah. Cuba lagi nanti."},
+	"cavetext.api.problem":          {en: "CaveText had a problem. Try again later.", ms: "CaveText menghadapi masalah. Cuba lagi nanti."},
 	"cavetext.api.snippet-gone":     {en: "That Snippet is gone; it may have been deleted in another browser.", ms: "Snippet itu sudah tiada; mungkin ia telah dipadam dalam pelayar lain."},
 	"cavetext.api.name-needed":      {en: "A name is needed.", ms: "Nama diperlukan."},
 	"cavetext.api.shortcut-needed":  {en: "A shortcut is needed.", ms: "Pintasan diperlukan."},

@@ -15,6 +15,7 @@
           <button class="btn btn-solid btn-block">{{t .Lang "header.log-in"}}</button>
           <a class="auth-forgot" href="{{.Prefix}}/forgot-password{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{end}}">{{t .Lang "account.forgot"}}</a>
         </form>
+        {{if .CaveText}}<p class="auth-alt">{{t .Lang "cavetext.have-cavelms"}}</p>{{end}}
         <p class="auth-alt">{{t .Lang "login.new"}} <a href="{{.Prefix}}/register{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{end}}">{{t .Lang "header.register"}}</a>.</p>
       </div>
     </div>
