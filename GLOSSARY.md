@@ -355,6 +355,11 @@ CaveText's own website, in CaveText's look. A person registers, logs in, resets 
 _Malay_: Laman web CaveText
 _Avoid_: CaveText site, landing page
 
+**CaveText account**:
+What CaveText and the CaveText website call a person's CAVELMS account: the same account under CaveText's name. CaveText names CAVELMS only where the person needs to know it: that a CAVELMS account logs in to CaveText too, and, on CaveText's privacy page, that CAVELMS holds the account.
+_Malay_: Akaun CaveText
+_Avoid_: separate CaveText account
+
 **Snippet**:
 A saved prompt in CaveText: a name, a shortcut and a body, sitting in a Folder. Each Learner keeps their own, up to their Snippet cap.
 _Malay_: Snippet (kept in English)

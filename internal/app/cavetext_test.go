@@ -226,7 +226,7 @@ func TestCaveTextConnectRefusesAnUnlistedExtension(t *testing.T) {
 	}
 	s.switchLanguage("ms", "/")
 	res, body := s.get("/cavetext/connect?extension=nope")
-	expectStatus(t, res, body, http.StatusBadRequest, "Sambungan ini tidak boleh log masuk ke CAVELMS.")
+	expectStatus(t, res, body, http.StatusBadRequest, "Sambungan ini tidak boleh log masuk ke CaveText.")
 }
 
 func TestCaveTextPlacesAreAssignedOnceAndNeverReused(t *testing.T) {
