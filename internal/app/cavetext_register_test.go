@@ -53,6 +53,11 @@ func TestTheCaveTextHostRegistersALearnerWithCaveTextEmailsInThePagesLanguage(t 
 	if strings.Contains(body, "cavelms.css") || strings.Contains(body, `href="/privacy"`) {
 		t.Errorf("CaveText register page is CAVELMS's:\n%s", body)
 	}
+	for _, gone := range []string{"certificates", "Deployments"} {
+		if strings.Contains(body, gone) {
+			t.Errorf("CaveText register page speaks of CAVELMS's %s:\n%s", gone, body)
+		}
+	}
 
 	// English: a CaveText email linking to the CaveText host.
 	res, body = s.registerOnCaveText("", "Ada Lovelace", adaEmail, "")

@@ -338,7 +338,7 @@ func TestTheCaveTextPricingPageShowsAVisitorThePricesAndLogInOrRegisterWithNoBuy
 	res, body := s.get(caveTextOrigin + "/pricing")
 	expectStatus(t, res, body, http.StatusOK, `href="/style.css"`)
 	expectAll(t, body, "RM25 a year", "RM99 a year", "CaveText Pro", "Pro Plan", `href="/login?next=%2Fpricing"`, `href="/register"`, `href="/ms/pricing"`)
-	for _, not := range []string{"Buy ", "Renew", "bcl.my", "cavelms.css", "/static/", "/refunds"} {
+	for _, not := range []string{"Buy ", "Renew", "bcl.my", "cavelms.css", "/static/", "/refunds", "the Lab Plan, or both"} {
 		if strings.Contains(body, not) {
 			t.Errorf("Visitor's pricing page shows %q:\n%s", not, body)
 		}
