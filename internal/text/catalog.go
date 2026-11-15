@@ -1346,6 +1346,9 @@ var catalog = map[string]entry{
 	"cavetext.login.sub": {en: "Log in with your CAVELMS email and password.", ms: "Log masuk dengan e-mel dan kata laluan CAVELMS anda."},
 
 	// The CaveText website's pricing page
+	"cavetext.account.name-hint":     {en: "CaveText shows it when you are signed in.", ms: "CaveText memaparkannya semasa anda log masuk."},
+	"cavetext.account.username-hint": {en: "Do not use your real name. 3 to 40 lowercase letters, numbers and dashes.", ms: "Jangan gunakan nama sebenar anda. 3 hingga 40 huruf kecil, nombor dan sempang."},
+	"cavetext.offers.intro":          {en: "CaveText Pro, or CaveText Pro with the Lab in the Pro Plan.", ms: "CaveText Pro, atau CaveText Pro bersama Lab dalam Pelan Pro."},
 	"cavetext.pricing.visitor":       {en: "Log in or register to buy, so your payment is matched to your account.", ms: "Log masuk atau daftar untuk membeli, supaya bayaran anda dipadankan dengan akaun anda."},
 	"offers.pro-plan.lab-on-cavelms": {en: "The Lab is used on CAVELMS, with the same account.", ms: "Lab digunakan di CAVELMS dengan akaun yang sama."},
 

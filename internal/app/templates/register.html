@@ -11,13 +11,13 @@
             <label for="name">{{t .Lang "account.name"}}</label>
             <input id="name" type="text" name="name" value="{{.Name}}" autocomplete="name" maxlength="200" required{{if eq $f "name"}} aria-invalid="true" aria-describedby="name-err"{{end}}>
             {{if eq $f "name"}}<p class="field-err" id="name-err" role="alert">{{.Error}}</p>{{end}}
-            <small>{{t .Lang "account.name-hint"}}</small>
+            <small>{{if .CaveText}}{{t .Lang "cavetext.account.name-hint"}}{{else}}{{t .Lang "account.name-hint"}}{{end}}</small>
           </div>
           <div class="field">
             <label for="username">{{t .Lang "account.username"}}</label>
             <input id="username" type="text" name="username" value="{{.Username}}" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" required{{if eq $f "username"}} aria-invalid="true" aria-describedby="username-err"{{end}}>
             {{if eq $f "username"}}<p class="field-err" id="username-err" role="alert">{{.Error}}</p>{{end}}
-            <small>{{t .Lang "account.username-hint"}}</small>
+            <small>{{if .CaveText}}{{t .Lang "cavetext.account.username-hint"}}{{else}}{{t .Lang "account.username-hint"}}{{end}}</small>
           </div>
           <div class="field">
             <label for="email">{{t .Lang "account.email"}}</label>
