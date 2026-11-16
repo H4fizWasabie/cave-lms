@@ -1,0 +1,17 @@
+{{define "title"}}{{t .Lang "teachers.opr.prompt.title"}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "teachers.opr.prompt.title"}}</h1>
+        <p role="status">{{tn .Lang "teachers.opr.left" .Left}}</p>
+      </div>
+      <p>{{t .Lang "teachers.opr.prompt.lede"}}</p>
+      <p role="note"><strong>{{t .Lang "teachers.opr.attach" .Reference}}</strong></p>
+      <textarea id="opr-prompt" readonly rows="20">{{.Prompt}}</textarea>
+      <p><button class="btn btn-solid" type="button" data-copy="opr-prompt">{{t .Lang "teachers.opr.copy"}}</button></p>
+      {{- /* The Save as a Snippet form goes here (#582), below the copy button as the RPH prompt page has it. */}}
+      <p><small>{{t .Lang "teachers.opr.count-note"}} {{t .Lang "teachers.opr.no-history"}}</small></p>
+      <p><a class="btn btn-ghost" href="/teachers/opr">{{t .Lang "teachers.opr.another"}}</a></p>
+      <script src="{{static "forms.js"}}" defer></script>
+    </div>
+{{end}}

@@ -40,6 +40,7 @@ price crossed out, its Promo price, and for a logged-in account Buy to the payme
       <nav class="site-nav" aria-label="{{t .Lang "teachers.nav"}}">
         {{- if and .Learner (not .Access.Lapsed)}}
         <a class="hdr-link" href="/teachers"{{if eq .Section "rph"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.rph"}}</a>
+        <a class="hdr-link" href="/teachers/opr"{{if eq .Section "opr"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.opr"}}</a>
         <a class="hdr-link" href="/teachers/dskps"{{if eq .Section "dskps"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.dskps"}}</a>
         <a class="hdr-link" href="/teachers/profile"{{if eq .Section "profile"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.profile"}}</a>
         <a class="hdr-link" href="/my-membership"{{if eq .Section "membership"}} aria-current="page"{{end}}>{{t .Lang "nav.my-membership"}}</a>

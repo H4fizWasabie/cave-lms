@@ -533,6 +533,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET "+portalPath+"/dskps/{id}/rph", a.teacherPage(a.rphForm))
 	mux.HandleFunc("POST "+portalPath+"/dskps/{id}/rph", a.teacherPage(a.makeRPHPrompt))
 	mux.HandleFunc("POST "+portalPath+"/rph/snippet", a.teacherPage(a.saveRPHSnippet))
+	mux.HandleFunc("GET "+portalPath+"/opr", a.teacherPage(a.oprForm))
+	mux.HandleFunc("POST "+portalPath+"/opr", a.teacherPage(a.makeOPRPrompt))
 	mux.HandleFunc("GET "+portalPath, a.teachersHome)
 	mux.HandleFunc("GET "+portalPath+"/profile", a.requireLearner(a.teacherProfileForm))
 	mux.HandleFunc("POST "+portalPath+"/profile", a.requireLearner(a.saveTeacherProfile))
