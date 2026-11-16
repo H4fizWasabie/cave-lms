@@ -51,7 +51,7 @@ func TestTheOPRPromptPageRemindsTheTeacherToAttachTheSchoolLogoOnlyWhenTicked(t 
 
 	teacher.switchLanguage("ms", "/teachers/opr")
 	_, body = teacher.post("/teachers/opr", v)
-	expectAll(t, body, "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak menyimpannya.")
+	expectAll(t, body, "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak menyimpannya.", "Lampirkan rujukan anda (laporan-hari-sukan.pdf) dalam chatbot anda bersama prompt ini: PDF, teks atau gambar. CAVELMS tidak menyimpannya.")
 }
 
 func TestTickingTheSchoolLogoOnAnRPHPromptTellsTheChatbotToPutTheAttachedLogoAtTheTopAndReturnADownloadableDocumentInBothLanguages(t *testing.T) {

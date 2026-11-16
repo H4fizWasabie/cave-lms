@@ -124,7 +124,7 @@ func TestTheOPRPromptPageShowsItReadOnlyWithACopyButtonAndAReminderToAttachTheRe
 	_, teacher := oprTeacher(t)
 	res, body := teacher.post("/teachers/opr", oprForm("1"))
 	expectStatus(t, res, body, http.StatusOK, "Your OPR prompt")
-	expectAll(t, body, `<textarea id="opr-prompt" readonly`, `data-copy="opr-prompt"`, "Attach your reference (laporan-hari-sukan.pdf) in your chatbot", "a PDF, text or picture",
+	expectAll(t, body, `<textarea id="opr-prompt" readonly`, `data-copy="opr-prompt"`, "Attach your reference (laporan-hari-sukan.pdf) in your chatbot", "a PDF, text or picture. CAVELMS does not keep it.",
 		`href="/teachers/opr"`, "CAVELMS does not keep your prompts")
 	expectNone(t, body, `type="file"`)
 }

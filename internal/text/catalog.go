@@ -245,7 +245,7 @@ var catalog = map[string]entry{
 	"teachers.opr.err.limit":       {en: "You have made %d OPR prompts today, the most a day. You can make more from midnight, Malaysia time: %s.", ms: "Anda telah membuat %d prompt OPR hari ini, jumlah paling banyak sehari. Anda boleh membuat lagi mulai tengah malam, waktu Malaysia: %s."},
 	"teachers.opr.prompt.title":    {en: "Your OPR prompt", ms: "Prompt OPR anda"},
 	"teachers.opr.prompt.lede":     {en: "Copy this into your AI chatbot to draw the OPR.", ms: "Salin ini ke chatbot AI anda untuk melukis OPR."},
-	"teachers.opr.attach":          {en: "Attach your reference (%s) in your chatbot together with this prompt: a PDF, text or picture. CAVELMS does not have it.", ms: "Lampirkan rujukan anda (%s) dalam chatbot anda bersama prompt ini: PDF, teks atau gambar. CAVELMS tidak memilikinya."},
+	"teachers.opr.attach":          {en: "Attach your reference (%s) in your chatbot together with this prompt: a PDF, text or picture. CAVELMS does not keep it.", ms: "Lampirkan rujukan anda (%s) dalam chatbot anda bersama prompt ini: PDF, teks atau gambar. CAVELMS tidak menyimpannya."},
 	"teachers.opr.copy":            {en: "Copy", ms: "Salin"},
 	"teachers.opr.no-history":      {en: "CAVELMS does not keep your prompts: copy it before you leave this page.", ms: "CAVELMS tidak menyimpan prompt anda: salin sebelum anda meninggalkan halaman ini."},
 	"teachers.opr.another":         {en: "Make another OPR prompt", ms: "Buat prompt OPR lain"},
