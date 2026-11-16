@@ -13,18 +13,23 @@ A person who has not logged in.
 _Malay_: Pelawat
 _Avoid_: Guest, anonymous user
 
+**Account holder**:
+A person with an account on the site. Anyone can become one. Their name is their real name, printed on their Certificates; their Username stands for them in links. The one account serves CAVELMS, CaveText and the Teachers Portal; what it is called and what it shows depends on whether its holder is a Learner, a Teacher or both.
+_Malay_: Pemegang akaun
+_Avoid_: User, member
+
 **Learner**:
-A person with an account on the site. Anyone can become one. Their name is their real name, printed on their Certificates; their Username stands for them in links.
+An Account holder using the learning side of CAVELMS: Courses, the Gallery, the Lab and CaveText. Every Account holder is one unless they only ever use the Teachers Portal.
 _Malay_: Pelajar
 _Avoid_: User, member, student
 
 **Username**:
-The name a Learner picks to stand for them in links, such as their folder and their Deployments, so their real name stays private. Unique; picked when registering, and can be changed later, when their old links lead to the new one.
+The name an Account holder picks to stand for them in links, such as their folder and their Deployments, so their real name stays private. Unique; picked when registering, and can be changed later, when their old links lead to the new one.
 _Malay_: Nama pengguna
 _Avoid_: Handle, slug, display name
 
 **Profile picture**:
-A Learner's own picture, shown beside their name in the header and in Chats; without one, a circle with their initials shows. Stored as a 256px square JPEG; it does not count against the Storage allowance.
+An Account holder's own picture, shown beside their name in the header and in Chats; without one, a circle with their initials shows. Stored as a 256px square JPEG; it does not count against the Storage allowance.
 _Malay_: Gambar profil
 _Avoid_: Avatar, photo, display picture
 
@@ -44,7 +49,7 @@ _Malay_: Log sistem
 _Avoid_: Audit log, activity log, history
 
 **Registration**:
-Creating a Learner account. Open to anyone, with email verification. A taken Username is refused first, whether or not the email has an account. Registering with an email that already has an account, under a free Username, answers the same as a new one, makes nothing, and emails that account instead: a link to set its password if it is unverified, which also replaces the password it had with one nobody knows, else a note that someone tried to register with it. The link in a verification email opens a page whose button confirms the email, so a mail scanner opening the link confirms nothing.
+Creating an account. Open to anyone, with email verification. A taken Username is refused first, whether or not the email has an account. Registering with an email that already has an account, under a free Username, answers the same as a new one, makes nothing, and emails that account instead: a link to set its password if it is unverified, which also replaces the password it had with one nobody knows, else a note that someone tried to register with it. The link in a verification email opens a page whose button confirms the email, so a mail scanner opening the link confirms nothing.
 _Malay_: Pendaftaran
 _Avoid_: Sign-up, enrollment
 
@@ -281,7 +286,7 @@ _Malay_: Tempoh Pelan
 _Avoid_: Subscription, term, cycle
 
 **Renewal reminder**:
-An email to a Learner before their Lab Plan or CaveText Pro year ends (Ebook access is named with the year it comes with): 30 days before, 7 days before and once it has ended, one email per stage listing everything that reaches it. It follows the end of the last Plan period or Pro year, so a Learner who has renewed gets none until that year nears its end. A last email warns 7 days before the 90 days after the last Plan period run out, when Workbooks and Datasets would be deleted. It links to Pricing and My membership, is in the Learner's language and has no opt-out.
+An email to an Account holder before their Lab Plan, CaveText Pro or Teachers Portal Pro year ends (Ebook access is named with the year it comes with): 30 days before, 7 days before and once it has ended; a Teachers Portal Pro month gets only the last two, and a Teacher trial gets one 3 days before and once it has ended; one email per stage listing everything that reaches it. It follows the end of the last Plan period or Pro year, so a Learner who has renewed gets none until that year nears its end. A last email warns 7 days before the 90 days after the last Plan period run out, when Workbooks and Datasets would be deleted. It links to Pricing and My membership, is in the Learner's language and has no opt-out.
 _Malay_: Peringatan pembaharuan
 _Avoid_: Expiry notice
 
@@ -384,7 +389,7 @@ _Malay_: CaveText Pro (kept in English)
 _Avoid_: Subscription, storage service
 
 **Payment**:
-One paid order on the payment form of CaveText Pro, the Lab Plan or the Pro Plan. The form decides what it gives: a year of CaveText Pro, a period of the Lab Plan, or both, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each comes after any of the same kind still running, with no credit for time already paid. Each order counts once. One that names no Learner, pays, after any coupon's discount, less than that product's current price (or its lowest running Promo's price) or was paid on a form that is no current payment link is unmatched: it waits for an Admin to give it by hand and mark it done. Test Mode payments never count.
+One paid order on the payment form of CaveText Pro, the Lab Plan, the Pro Plan or Teachers Portal Pro (one form for a month, one for a year). The form decides what it gives: a year of CaveText Pro, a period of the Lab Plan, both, or a month or year of Teachers Portal Pro, at once to the Learner whose CAVELMS email the order names, or failing that the payer's email. Each comes after any of the same kind still running, with no credit for time already paid. Each order counts once. One that names no Learner, pays, after any coupon's discount, less than that product's current price (or its lowest running Promo's price) or was paid on a form that is no current payment link is unmatched: it waits for an Admin to give it by hand and mark it done. Test Mode payments never count.
 _Malay_: Bayaran
 _Avoid_: Subscription, purchase, transaction, Pro payment
 
@@ -414,3 +419,50 @@ _Avoid_: Workbook (an Excel file in the Lab), Google Sheet, data source, tab
 Cave fetching a Spreadsheet again, every hour or when the Learner presses Sync now, and cleaning each ticked sheet with the recipe its first Clean-up set. Each Sync replaces the sheet's rows; Cave keeps only the last good one. A Sync that fails for a sheet (the Spreadsheet made private, a column renamed or gone, a column mostly emptied, too big) leaves its last good rows online and emails the Learner once until a Sync works again.
 _Malay_: Penyegerakan
 _Avoid_: Refresh, import, upload, Part
+
+### Teachers Portal
+
+**Teachers Portal**:
+The area of CAVELMS for Teachers, at its own path with its own navigation, where a Teacher picks a DSKP and gets an RPH prompt to paste into their own AI chatbot. A Teacher who is not a Learner logs in to it and sees only it, with one link to the rest of CAVELMS; a Learner sees one link to it in the header; a Visitor sees its public page and prices. It calls the account a Teachers Portal account and never calls anyone Pelajar.
+_Malay_: Teachers Portal (kept in English)
+_Avoid_: Teacher dashboard, guru app, RPH generator
+
+**Teacher**:
+An Account holder who has filled in a Teacher profile on their first visit to the Teachers Portal. Nobody checks that they teach; Teachers Portal Pro is what is paid for. A Teacher may also be a Learner. Not the Admin, who builds Courses.
+_Malay_: Guru
+_Avoid_: Instructor, educator, cikgu (in the site's words)
+
+**Teacher profile**:
+The subjects and years a Teacher teaches, which the Teachers Portal uses to put their DSKPs first.
+_Malay_: Profil guru
+_Avoid_: Teacher account, school profile
+
+**Teachers Portal Pro**:
+A paid month or year of the Teachers Portal, sold on its own with a price for each that the Admin sets. Each Payment starts when the current month or year ends. Without it or a running Teacher trial, a Teacher can only pay. It does not include CaveText Pro or the Lab.
+_Malay_: Teachers Portal Pro (kept in English)
+_Avoid_: Subscription, Teacher plan, Plan (which means the Lab)
+
+**Teacher trial**:
+The 14 days of the Teachers Portal a Teacher gets free from filling in their Teacher profile, once per account: everything Teachers Portal Pro gives except uploading a DSKP.
+_Malay_: Percubaan percuma
+_Avoid_: Free plan, free tier, demo
+
+**Daily prompt limit**:
+At most 3 RPH prompts a Teacher can make in one day, Malaysia time (each one made counts, the same lesson again included; copying or saving one does not), during the Teacher trial and with Teachers Portal Pro alike, so that one account is not shared by a staffroom.
+_Malay_: Had prompt harian
+_Avoid_: Quota, credits, rate limit
+
+**DSKP**:
+A Dokumen Standard Kurikulum dan Pentaksiran: KPM's public curriculum document for one subject and year, listing its Standard Kandungan and Standard Pembelajaran. The Admin uploads each one once, checks the standards the AI read from it and publishes it; Teachers see only published ones. A Teacher with Teachers Portal Pro may upload a missing one, up to 5 a month, which only they see, unchecked, and which the Admin is shown as missing. Never during the Teacher trial. The file itself is never kept, only the standards read from it.
+_Malay_: DSKP
+_Avoid_: Syllabus, curriculum file, sukatan
+
+**RPH**:
+A Rancangan Pelajaran Harian: a teacher's plan for one lesson on one day, which schools require. CAVELMS does not write it; the teacher's AI chatbot does, from the RPH prompt.
+_Malay_: RPH
+_Avoid_: Lesson plan (alone), lesson (which means a Course's Lesson)
+
+**RPH prompt**:
+The prompt CAVELMS builds from the standards a teacher picks in a DSKP, which the teacher pastes into their AI chatbot or saves as a Snippet to write an RPH.
+_Malay_: Prompt RPH
+_Avoid_: Template, generated RPH
