@@ -1,0 +1,31 @@
+{{define "title"}}{{t .Lang "dskps.teachers.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "dskps" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/dskps">{{t .Lang "dskps.back"}}</a></p>
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "dskps.teachers.title"}}</h1>
+            <p>{{t .Lang "dskps.teachers.lede"}}</p>
+          </div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "dskps.subject"}}</th><th>{{t .Lang "dskps.year"}}</th><th>{{t .Lang "dskps.teachers.count"}}</th></tr>
+              {{range .Rows}}
+              <tr>
+                <td>{{.Subject}}</td>
+                <td>{{t $.Lang (print "teachers.year." .Year)}}</td>
+                <td>{{.Teachers}}</td>
+              </tr>
+              {{else}}
+              <tr><td colspan="3">{{t .Lang "dskps.teachers.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

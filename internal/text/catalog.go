@@ -147,6 +147,11 @@ var catalog = map[string]entry{
 	"dskps.err.pdf":                  {en: "Upload the DSKP as a PDF file.", ms: "Muat naik DSKP sebagai fail PDF."},
 	"dskps.err.too-large":            {en: "This file is too large. A DSKP may be up to about 30 MB, and nothing was stored.", ms: "Fail ini terlalu besar. DSKP boleh sehingga kira-kira 30 MB, dan tiada apa-apa disimpan."},
 	"dskps.err.unread":               {en: "The upload could not be read. Try again.", ms: "Muat naik tidak dapat dibaca. Cuba lagi."},
+	"dskps.teachers.link":            {en: "DSKPs uploaded by Teachers", ms: "DSKP dimuat naik oleh Guru"},
+	"dskps.teachers.title":           {en: "DSKPs uploaded by Teachers", ms: "DSKP dimuat naik oleh Guru"},
+	"dskps.teachers.lede":            {en: "DSKPs Teachers uploaded for themselves, which only they can see. The more Teachers upload one, the more it is worth adding to the library: upload it above.", ms: "DSKP yang dimuat naik oleh Guru untuk diri mereka sendiri, yang hanya mereka boleh lihat. Semakin ramai Guru memuat naik satu DSKP, semakin wajar ia ditambah ke perpustakaan: muat naiknya di atas."},
+	"dskps.teachers.count":           {en: "Teachers", ms: "Guru"},
+	"dskps.teachers.none":            {en: "No Teacher has uploaded a DSKP for themselves.", ms: "Tiada Guru memuat naik DSKP untuk diri sendiri."},
 	"admin.side.dskps":               {en: "DSKPs", ms: "DSKP"},
 	"teachers.nav.dskps":             {en: "DSKPs", ms: "DSKP"},
 	"teachers.dskps.lede":            {en: "Open a DSKP to see its standards, grouped as the DSKP groups them.", ms: "Buka DSKP untuk melihat standardnya, dikumpulkan seperti dalam DSKP."},
@@ -155,6 +160,15 @@ var catalog = map[string]entry{
 	"teachers.dskps.none":            {en: "No DSKP is published yet.", ms: "Belum ada DSKP yang diterbitkan."},
 	"teachers.dskps.none-mine":       {en: "None of the published DSKPs is for your subjects and years yet.", ms: "Belum ada DSKP diterbitkan untuk mata pelajaran dan tahun anda."},
 	"teachers.dskps.off":             {en: "DSKP reading is off, so no new DSKP can be added for now.", ms: "Bacaan DSKP ditutup, jadi tiada DSKP baharu boleh ditambah buat masa ini."},
+	"teachers.dskps.needs-pro":       {en: "Uploading a DSKP needs Teachers Portal Pro.", ms: "Muat naik DSKP memerlukan Teachers Portal Pro."},
+	"teachers.dskps.upload-lede":     {en: "Is your DSKP missing? Upload its PDF and the AI reads its standards. Only you can see it. The PDF is not kept.", ms: "DSKP anda tiada? Muat naik PDFnya dan AI membaca standardnya. Hanya anda yang boleh melihatnya. PDF tidak disimpan."},
+	"teachers.dskps.left":            {en: "%d of %d uploads left this month.", ms: "%d daripada %d muat naik tinggal bulan ini."},
+	"teachers.dskps.resets":          {en: "You can upload again from %s.", ms: "Anda boleh memuat naik semula mulai %s."},
+	"teachers.dskps.limit":           {en: "You have used your %d DSKP uploads for this month. You can upload again from %s.", ms: "Anda telah menggunakan %d muat naik DSKP bulan ini. Anda boleh memuat naik semula mulai %s."},
+	"teachers.dskps.delete":          {en: "Delete this DSKP", ms: "Padam DSKP ini"},
+	"teachers.dskps.own":             {en: "Your uploads", ms: "Muat naik anda"},
+	"teachers.dskps.unchecked":       {en: "Unchecked", ms: "Belum disemak"},
+	"teachers.dskps.unchecked-note":  {en: "The AI read these standards from your PDF and nobody has checked them. Only you can see this DSKP.", ms: "AI membaca standard ini daripada PDF anda dan belum ada yang menyemaknya. Hanya anda yang boleh melihat DSKP ini."},
 	"teachers.dskps.back":            {en: "All DSKPs", ms: "Semua DSKP"},
 
 	// Layout: footer
@@ -291,8 +305,8 @@ var catalog = map[string]entry{
 	},
 	// DRAFT for the client's approval (ADR 0006): the line on DSKPs going to an AI service.
 	"privacy.where.dskp": {
-		en: "DSKP PDFs the Admin uploads go to an AI service through OpenRouter, to read their standards, and are not kept; no Teacher's name, email or other details are sent with them.",
-		ms: "PDF DSKP yang dimuat naik oleh Pentadbir dihantar kepada perkhidmatan AI melalui OpenRouter untuk dibaca standardnya, dan tidak disimpan; tiada nama, e-mel atau butiran lain Guru dihantar bersamanya.",
+		en: "DSKP PDFs the Admin or a Teacher uploads go to an AI service through OpenRouter, to read their standards, and are not kept; no Teacher's name, email or other details are sent with them.",
+		ms: "PDF DSKP yang dimuat naik oleh Pentadbir atau Guru dihantar kepada perkhidmatan AI melalui OpenRouter untuk dibaca standardnya, dan tidak disimpan; tiada nama, e-mel atau butiran lain Guru dihantar bersamanya.",
 	},
 	"privacy.keep.title": {en: "How long we keep it", ms: "Berapa lama kami menyimpannya"},
 	"privacy.keep.p": {
@@ -2064,6 +2078,39 @@ var catalog = map[string]entry{
 	"email.renewal.deletion.body": {
 		en: "Hi %[1]s,\n\nYour Lab Plan ended on %[2]s. Your Workbooks and Datasets will be deleted on %[3]s unless you renew before then.\n\nRenew here:\n\n%[4]s\n\nSee your dates here:\n\n%[5]s\n",
 		ms: "Hai %[1]s,\n\nPelan Lab anda tamat pada %[2]s. Buku kerja dan Set data anda akan dipadam pada %[3]s melainkan anda memperbaharui sebelum itu.\n\nPerbaharui di sini:\n\n%[4]s\n\nLihat tarikh anda di sini:\n\n%[5]s\n",
+	},
+	// The Teachers Portal's own reminders: the Teacher trial and Teachers Portal Pro, one email for each stage. The body
+	// takes the account's name, the lines, the Teachers Portal link (where the pay page is) and the My membership link.
+	"email.renewal.item.teachers-trial": {en: "Teacher trial", ms: "Percubaan percuma"},
+	"email.renewal.teachers.3-days.subject": {
+		en: "Your Teachers Portal access ends in 3 days",
+		ms: "Akses Teachers Portal anda tamat dalam 3 hari",
+	},
+	"email.renewal.teachers.3-days.body": {
+		en: "Hi %[1]s,\n\nYour free trial ends in 3 days:\n\n%[2]s\n\nPay for Teachers Portal Pro to carry on. It starts when your trial ends, so you lose no days.\n\nPay here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nPercubaan percuma anda tamat dalam 3 hari:\n\n%[2]s\n\nBayar untuk Teachers Portal Pro untuk terus menggunakannya. Ia bermula apabila percubaan anda tamat, jadi anda tidak kehilangan sebarang hari.\n\nBayar di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.item.teachers-pro": {en: "Teachers Portal Pro", ms: "Teachers Portal Pro"},
+	"email.renewal.teachers.30-days.subject": {
+		en: "Your Teachers Portal access ends in 30 days",
+		ms: "Akses Teachers Portal anda tamat dalam 30 hari",
+	},
+	"email.renewal.teachers.30-days.body": {
+		en: "Hi %[1]s,\n\nYour access ends in about 30 days:\n\n%[2]s\n\nRenew early and you lose no days: your new period starts when the current one ends.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda tamat dalam kira-kira 30 hari:\n\n%[2]s\n\nPerbaharui lebih awal dan anda tidak kehilangan sebarang hari: tempoh baharu anda bermula apabila tempoh semasa tamat.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.teachers.7-days.subject": {
+		en: "Your Teachers Portal access ends in 7 days",
+		ms: "Akses Teachers Portal anda tamat dalam 7 hari",
+	},
+	"email.renewal.teachers.7-days.body": {
+		en: "Hi %[1]s,\n\nYour access ends in 7 days or less:\n\n%[2]s\n\nRenew now and you lose no days: your new period starts when the current one ends.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda tamat dalam 7 hari atau kurang:\n\n%[2]s\n\nPerbaharui sekarang dan anda tidak kehilangan sebarang hari: tempoh baharu anda bermula apabila tempoh semasa tamat.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.teachers.ended.subject": {en: "Your Teachers Portal access has ended", ms: "Akses Teachers Portal anda telah tamat"},
+	"email.renewal.teachers.ended.body": {
+		en: "Hi %[1]s,\n\nYour access has ended:\n\n%[2]s\n\nPay for Teachers Portal Pro to carry on.\n\nPay here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda telah tamat:\n\n%[2]s\n\nBayar untuk Teachers Portal Pro untuk terus menggunakannya.\n\nBayar di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
 	},
 	"ebook.link.gone.title": {en: "Download link no longer works", ms: "Pautan muat turun tidak lagi berfungsi"},
 	"ebook.link.gone": {

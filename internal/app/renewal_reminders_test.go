@@ -248,3 +248,182 @@ func TestNoDeletionWarningWithoutDataToLoseOrAfterRenewing(t *testing.T) {
 		t.Fatalf("a renewed Learner got %d warnings, want none", n)
 	}
 }
+
+// teacherEmails lists the emails sent to the address that are Teachers Portal reminders, in order.
+func (s *site) teacherEmails(to string) []mailer.Message {
+	var got []mailer.Message
+	for _, m := range s.emailsTo(to) {
+		if strings.Contains(m.Subject, "Teachers Portal access") || strings.Contains(m.Subject, "Akses Teachers Portal") {
+			got = append(got, m)
+		}
+	}
+	return got
+}
+
+// A Teacher on the trial gets one email 3 days before it ends and one once it has ended, each linking to the pay page and
+// My membership.
+func TestATeacherTrialGetsOneReminderThreeDaysBeforeItEndsAndOneOnceItHasEnded(t *testing.T) {
+	t.Parallel()
+	s := newTeacher(t)
+	s.switchLanguage("en", "/")
+
+	s.ageTrial(10) // 4 days left
+	s.prune()
+	if n := len(s.teacherEmails("ada@example.com")); n != 0 {
+		t.Fatalf("4 days out: %d reminders, want none", n)
+	}
+
+	s.ageTrial(11) // 3 days left
+	s.prune()
+	s.prune() // a second run the same day sends nothing more
+	got := s.teacherEmails("ada@example.com")
+	if len(got) != 1 {
+		t.Fatalf("3 days out: %d reminders, want 1", len(got))
+	}
+	expectAll(t, got[0].Subject+got[0].Body, "Hi Ada", "3 days", "Teacher trial: ends on "+reminderDate(3),
+		"https://cave.example.invalid/teachers", "https://cave.example.invalid/my-membership")
+
+	s.ageTrial(14)
+	s.prune()
+	s.prune()
+	if got = s.teacherEmails("ada@example.com"); len(got) != 2 || !strings.Contains(got[1].Subject, "has ended") {
+		t.Fatalf("after it ended: reminders = %+v, want a second, the ended one", got)
+	}
+	expectAll(t, got[1].Body, "Teacher trial: ended on", "https://cave.example.invalid/teachers")
+	if n := len(s.renewalEmails("ada@example.com")); n != 0 {
+		t.Fatalf("a Teacher got %d Lab reminders, want none", n)
+	}
+}
+
+func TestATeacherTrialReminderFollowsTheSavedLanguage(t *testing.T) {
+	t.Parallel()
+	s := newTeacher(t)
+	s.switchLanguage("ms", "/")
+	s.ageTrial(11)
+	s.prune()
+	got := s.teacherEmails("ada@example.com")
+	if len(got) != 1 {
+		t.Fatalf("%d reminders, want 1", len(got))
+	}
+	expectAll(t, got[0].Subject+got[0].Body, "Hai Ada", "3 hari", "Percubaan percuma", "/teachers", "/my-membership")
+}
+
+// endTeacherProIn makes every Teachers Portal Pro period of the site end days from now (negative: ago).
+func (s *site) endTeacherProIn(days float64) {
+	s.t.Helper()
+	if _, err := s.db.Exec(`UPDATE teacher_pro_periods SET ends_at = now() + make_interval(secs => $1), starts_at = now() + make_interval(secs => $1) - interval '1 day'`, days*86400); err != nil {
+		s.t.Fatal(err)
+	}
+}
+
+// proTeacher makes an Admin site with Ada, a Teacher whose trial has ended and who holds a month or a year of Teachers
+// Portal Pro, given by hand.
+func proTeacher(t *testing.T, length string) *site {
+	t.Helper()
+	s := caveTextAdminSite(t)
+	ada := s.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", teachersPassword)
+	ada.saveTeacherProfile("Sains", "Y4")
+	ada.switchLanguage("en", "/")
+	s.ageTrial(30)
+	s.giveTeacherPro("ada@example.com", length)
+	return s
+}
+
+// A yearly Teachers Portal Pro is reminded 30 days, 7 days before it ends and once it has ended.
+func TestAYearOfTeachersPortalProIsRemindedAt30And7DaysAndOnceEnded(t *testing.T) {
+	t.Parallel()
+	s := proTeacher(t, "year")
+
+	s.endTeacherProIn(100)
+	s.prune()
+	if n := len(s.teacherEmails("ada@example.com")); n != 0 {
+		t.Fatalf("100 days out: %d reminders, want none", n)
+	}
+
+	s.endTeacherProIn(29.5)
+	s.prune()
+	s.prune()
+	got := s.teacherEmails("ada@example.com")
+	if len(got) != 1 {
+		t.Fatalf("30 days out: %d reminders, want 1", len(got))
+	}
+	expectAll(t, got[0].Subject+got[0].Body, "Hi Ada", "30 days", "Teachers Portal Pro: ends on "+reminderDate(29.5),
+		"https://cave.example.invalid/teachers", "https://cave.example.invalid/my-membership")
+
+	s.endTeacherProIn(6.5)
+	s.prune()
+	if got = s.teacherEmails("ada@example.com"); len(got) != 2 || !strings.Contains(got[1].Subject, "7 days") {
+		t.Fatalf("7 days out: reminders = %+v, want the 30-day one then the 7-day one", got)
+	}
+
+	s.endTeacherProIn(-0.5)
+	s.prune()
+	if got = s.teacherEmails("ada@example.com"); len(got) != 3 || !strings.Contains(got[2].Subject, "has ended") {
+		t.Fatalf("after it ended: reminders = %+v, want a third, the ended one", got)
+	}
+	expectAll(t, got[2].Body, "Teachers Portal Pro: ended on "+reminderDate(-0.5), "https://cave.example.invalid/teachers")
+}
+
+// A Teacher who has paid for Teachers Portal Pro during the trial loses nothing when it ends, so gets no trial reminder.
+func TestATeacherWhoHasPaidDuringTheTrialGetsNoTrialReminder(t *testing.T) {
+	t.Parallel()
+	s := caveTextAdminSite(t)
+	ada := s.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", teachersPassword)
+	ada.saveTeacherProfile("Sains", "Y4")
+	ada.switchLanguage("en", "/")
+	s.giveTeacherPro("ada@example.com", "month") // starts when the trial ends
+	s.ageTrial(11)
+	s.prune()
+	s.ageTrial(15)
+	s.prune()
+	if n := len(s.teacherEmails("ada@example.com")); n != 0 {
+		t.Fatalf("a Teacher with Pro waiting got %d trial reminders, want none", n)
+	}
+}
+
+// Renewing moves the end, so a renewed Teacher gets no reminder until the last period nears its end, and then its own.
+func TestARenewedTeacherNeedsNoReminderAndTheNextPeriodGetsItsOwn(t *testing.T) {
+	t.Parallel()
+	s := proTeacher(t, "month")
+	s.endTeacherProIn(6)
+	s.giveTeacherPro("ada@example.com", "month") // renewed: a second month waits after the first
+	s.prune()
+	if n := len(s.teacherEmails("ada@example.com")); n != 0 {
+		t.Fatalf("a renewed Teacher got %d reminders, want none", n)
+	}
+	if _, err := s.db.Exec(`UPDATE teacher_pro_periods SET starts_at = starts_at - interval '1 month', ends_at = ends_at - interval '1 month'`); err != nil {
+		t.Fatal(err)
+	}
+	s.prune() // the second month now has 6 days left
+	if n := len(s.teacherEmails("ada@example.com")); n != 1 {
+		t.Fatalf("the next period got %d reminders, want its own 1", n)
+	}
+}
+
+// A monthly Teachers Portal Pro is reminded 7 days before it ends and once it has ended, and not 30 days before.
+func TestAMonthOfTeachersPortalProIsRemindedAt7DaysAndOnceEndedOnly(t *testing.T) {
+	t.Parallel()
+	s := proTeacher(t, "month")
+
+	s.endTeacherProIn(20)
+	s.prune()
+	if n := len(s.teacherEmails("ada@example.com")); n != 0 {
+		t.Fatalf("20 days out: %d reminders, want none", n)
+	}
+
+	s.endTeacherProIn(6.5)
+	s.prune()
+	s.prune()
+	got := s.teacherEmails("ada@example.com")
+	if len(got) != 1 || !strings.Contains(got[0].Subject, "7 days") {
+		t.Fatalf("7 days out: reminders = %+v, want the 7-day one", got)
+	}
+
+	s.endTeacherProIn(-0.5)
+	s.prune()
+	if got = s.teacherEmails("ada@example.com"); len(got) != 2 || !strings.Contains(got[1].Subject, "has ended") {
+		t.Fatalf("after it ended: reminders = %+v, want a second, the ended one", got)
+	}
+}
