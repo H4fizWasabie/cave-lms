@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -76,12 +77,12 @@ func readSnippet(w http.ResponseWriter, r *http.Request) (caveTextSnippet, bool)
 
 // lockSnippets begins a transaction holding the Learner's account row, so two browsers saving at once can't both
 // slip a clash past the checks.
-func (a *App) lockSnippets(r *http.Request, l *caveTextLearner) (*sql.Tx, error) {
-	tx, err := a.db.BeginTx(r.Context(), nil)
+func (a *App) lockSnippets(ctx context.Context, l *caveTextLearner) (*sql.Tx, error) {
+	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(r.Context(), `SELECT 1 FROM cavetext_accounts WHERE learner_id = $1 FOR UPDATE`, l.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `SELECT 1 FROM cavetext_accounts WHERE learner_id = $1 FOR UPDATE`, l.ID); err != nil {
 		tx.Rollback()
 		return nil, err
 	}
@@ -89,8 +90,8 @@ func (a *App) lockSnippets(r *http.Request, l *caveTextLearner) (*sql.Tx, error)
 }
 
 // otherSnippets lists the Learner's Snippets but the one with id except, for the clash check.
-func otherSnippets(r *http.Request, tx *sql.Tx, l *caveTextLearner, except int64) ([]caveTextSnippet, error) {
-	rows, err := tx.QueryContext(r.Context(), `SELECT name, shortcut FROM cavetext_snippets WHERE learner_id = $1 AND id <> $2`, l.ID, except)
+func otherSnippets(ctx context.Context, tx *sql.Tx, l *caveTextLearner, except int64) ([]caveTextSnippet, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT name, shortcut FROM cavetext_snippets WHERE learner_id = $1 AND id <> $2`, l.ID, except)
 	if err != nil {
 		return nil, err
 	}
@@ -127,56 +128,56 @@ func (a *App) createCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 	if !ok {
 		return
 	}
-	fail := func(err error) {
+	s, status, problem, err := a.createSnippet(r.Context(), l, s)
+	switch {
+	case err != nil:
 		a.logError(r, fmt.Errorf("create Snippet: %w", err))
 		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
+	case problem != "":
+		writeJSONError(w, status, problem)
+	default:
+		writeJSON(w, http.StatusCreated, s)
 	}
-	tx, err := a.lockSnippets(r, l)
+}
+
+// createSnippet is the one way a Snippet is made: the shortcut rules, the Snippet cap and the body limit are checked
+// under the account's row lock, and the Snippet is inserted only if they all pass. A refusal comes back as the HTTP
+// status and the message, in l.Lang, to show, with a nil err; the extension and the Teachers Portal both route through it.
+func (a *App) createSnippet(ctx context.Context, l *caveTextLearner, s caveTextSnippet) (made caveTextSnippet, status int, problem string, err error) {
+	tx, err := a.lockSnippets(ctx, l)
 	if err != nil {
-		fail(err)
-		return
+		return s, 0, "", err
 	}
 	defer tx.Rollback()
-	others, err := otherSnippets(r, tx, l, 0)
+	others, err := otherSnippets(ctx, tx, l, 0)
 	if err != nil {
-		fail(err)
-		return
+		return s, 0, "", err
 	}
-	reserved, err := reservedShortcuts(r.Context(), tx)
+	reserved, err := reservedShortcuts(ctx, tx)
 	if err != nil {
-		fail(err)
-		return
+		return s, 0, "", err
 	}
 	if problem := snippetProblem(l.Lang, s, clashList(reserved, others)); problem != "" {
-		writeJSONError(w, http.StatusUnprocessableEntity, problem)
-		return
+		return s, http.StatusUnprocessableEntity, problem, nil
 	}
-	c, err := learnerSnippetCap(r.Context(), tx, l.ID)
+	c, err := learnerSnippetCap(ctx, tx, l.ID)
 	if err != nil {
-		fail(err)
-		return
+		return s, 0, "", err
 	}
 	if c.Full(len(others)) {
-		writeJSONError(w, http.StatusForbidden, overCapMessage(l.Lang, len(others), c))
-		return
+		return s, http.StatusForbidden, overCapMessage(l.Lang, len(others), c), nil
 	}
 	// 422, not 403: CaveText reads a 403 as the Snippet cap and stops uploading a Learner's old snippets there.
 	if problem := c.bodyProblem(l.Lang, s.Body, -1); problem != "" {
-		writeJSONError(w, http.StatusUnprocessableEntity, problem)
-		return
+		return s, http.StatusUnprocessableEntity, problem, nil
 	}
-	if err := tx.QueryRowContext(r.Context(), `
+	if err := tx.QueryRowContext(ctx, `
 		INSERT INTO cavetext_snippets (learner_id, folder, name, shortcut, body, with_master_prompt)
 		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
 		l.ID, s.Folder, s.Name, s.Shortcut, s.Body, s.WithMasterPrompt).Scan(&s.ID); err != nil {
-		fail(err)
-		return
+		return s, 0, "", err
 	}
-	if err := tx.Commit(); err != nil {
-		fail(err)
-		return
-	}
-	writeJSON(w, http.StatusCreated, s)
+	return s, 0, "", tx.Commit()
 }
 
 // Last write wins: an update replaces the Snippet whatever another browser wrote in between.
@@ -194,13 +195,13 @@ func (a *App) updateCaveTextSnippet(w http.ResponseWriter, r *http.Request, l *c
 		a.logError(r, fmt.Errorf("update Snippet: %w", err))
 		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
-	tx, err := a.lockSnippets(r, l)
+	tx, err := a.lockSnippets(r.Context(), l)
 	if err != nil {
 		fail(err)
 		return
 	}
 	defer tx.Rollback()
-	others, err := otherSnippets(r, tx, l, id)
+	others, err := otherSnippets(r.Context(), tx, l, id)
 	if err != nil {
 		fail(err)
 		return
@@ -264,7 +265,7 @@ func (a *App) replaceCaveTextSnippets(w http.ResponseWriter, r *http.Request, l 
 		a.logError(r, fmt.Errorf("replace Snippets: %w", err))
 		writeJSONError(w, http.StatusInternalServerError, text.T(l.Lang, "cavetext.api.problem"))
 	}
-	tx, err := a.lockSnippets(r, l)
+	tx, err := a.lockSnippets(r.Context(), l)
 	if err != nil {
 		fail(err)
 		return

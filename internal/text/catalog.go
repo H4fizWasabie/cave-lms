@@ -176,6 +176,15 @@ var catalog = map[string]entry{
 	"teachers.rph.err.notes":         {en: "Notes can be up to 1000 characters.", ms: "Catatan boleh sehingga 1000 aksara."},
 	"teachers.rph.err.limit":         {en: "You have made %d RPH prompts today, the most a day. You can make more from midnight, Malaysia time: %s.", ms: "Anda telah membuat %d prompt RPH hari ini, jumlah paling banyak sehari. Anda boleh membuat lagi mulai tengah malam, waktu Malaysia: %s."},
 
+	// Teachers Portal: saving an RPH prompt as a Snippet
+	"teachers.rph.save.title":         {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
+	"teachers.rph.save.lede":          {en: "Keep this prompt in CaveText to insert it later. Saving does not use one of your 3 prompts a day.", ms: "Simpan prompt ini dalam CaveText untuk dimasukkan kemudian. Menyimpan tidak menggunakan satu daripada 3 prompt anda sehari."},
+	"teachers.rph.save.name":          {en: "Snippet name", ms: "Nama Snippet"},
+	"teachers.rph.save.shortcut":      {en: "Shortcut", ms: "Pintasan"},
+	"teachers.rph.save.shortcut-hint": {en: "What you type in CaveText to insert it, with no spaces, for example ;rph.", ms: "Apa yang anda taip dalam CaveText untuk memasukkannya, tanpa ruang, contohnya ;rph."},
+	"teachers.rph.save":               {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
+	"teachers.rph.save.done":          {en: "Your RPH prompt is saved as a Snippet in CaveText. Type %s to insert it.", ms: "Prompt RPH anda disimpan sebagai Snippet dalam CaveText. Taip %s untuk memasukkannya."},
+
 	// Layout: footer
 	"footer.powered-by":      {en: "Powered by The Cave Consult (TCC)", ms: "Dikuasakan oleh The Cave Consult (TCC)"},
 	"footer.learn":           {en: "Learn", ms: "Belajar"},

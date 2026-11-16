@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -47,6 +48,7 @@ type rphPage struct {
 	Date, Time, Class, Students, Notes, Language string // the form as typed
 	Prompt, Other                                string // the prompt made, and the same in the other language
 	PromptLanguage, OtherLanguage                string
+	SnippetName                                  string // what the prompt is called as a Snippet, to save it
 }
 
 // openableDSKP is the DSKP a Teacher may make an RPH prompt from, with its SKs and SPs and their ids; ok is false when
@@ -122,7 +124,18 @@ func (a *App) rphForm(w http.ResponseWriter, r *http.Request, acc teacherAccess)
 	case !ok:
 		a.notFound(w, r)
 	default:
-		a.renderRPH(w, r, http.StatusOK, &rphPage{Access: acc, DSKP: d, SKs: sks, Date: a.now().In(malaysia).Format(time.DateOnly), Language: d.Language})
+		p := &rphPage{Access: acc, DSKP: d, SKs: sks, Date: a.now().In(malaysia).Format(time.DateOnly), Language: d.Language}
+		// The time, class and number of murid last typed, kept on the Teacher profile; the Admin may have no profile.
+		var students int
+		err := a.db.QueryRowContext(r.Context(), `SELECT last_time, last_class, last_students FROM teacher_profiles WHERE learner_id = $1`, l.ID).Scan(&p.Time, &p.Class, &students)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			a.serverError(w, r, fmt.Errorf("read last lesson details: %w", err))
+			return
+		}
+		if students > 0 {
+			p.Students = strconv.Itoa(students)
+		}
+		a.renderRPH(w, r, http.StatusOK, p)
 	}
 }
 
@@ -250,6 +263,11 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		a.renderRPH(w, r, http.StatusTooManyRequests, p)
 		return
 	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE teacher_profiles SET last_time = $2, last_class = $3, last_students = $4 WHERE learner_id = $1`,
+		l.ID, p.Time, p.Class, students); err != nil {
+		a.serverError(w, r, fmt.Errorf("keep last lesson details: %w", err))
+		return
+	}
 	sk := sks[picked]
 	lesson.Subject, lesson.Year, lesson.Date, lesson.Time, lesson.Class, lesson.Students, lesson.Notes = d.Subject, d.Year, date, p.Time, p.Class, students, p.Notes
 	lesson.Group, lesson.Topic, lesson.SKCode, lesson.SKText = sk.Group, sk.Topic, sk.Code, sk.Text
@@ -258,6 +276,7 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		p.OtherLanguage = "ms"
 	}
 	p.Prompt, p.Other = rphPromptText(p.PromptLanguage, lesson), rphPromptText(p.OtherLanguage, lesson)
+	p.SnippetName = "RPH " + d.Subject + " SK " + sk.Code
 	a.renderRPH(w, r, http.StatusOK, p)
 }
 
