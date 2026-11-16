@@ -8,6 +8,48 @@
         <p role="status">{{t .Lang "teachers.dskps.off"}}</p>
         {{- end}}
       </div>
+      {{- with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+      {{- if and (not .CanUpload) (not .Error)}}
+      <p role="status">{{t .Lang "teachers.dskps.needs-pro"}}</p>
+      {{- end}}
+      {{- if .LimitHit}}
+      <p class="up-err" role="alert">{{t .Lang "teachers.dskps.limit" .Max (.ResetsOn .Lang)}}</p>
+      {{- end}}
+      {{- if and .CanUpload (not .Off)}}
+      <h2>{{t .Lang "dskps.upload"}}</h2>
+      <p>{{t .Lang "teachers.dskps.upload-lede"}}</p>
+      <p role="status">{{t .Lang "teachers.dskps.left" .Left .Max}}{{if not .Left}} {{t .Lang "teachers.dskps.resets" (.ResetsOn .Lang)}}{{end}}</p>
+      {{- if .Left}}
+      <form class="form" method="post" action="/teachers/dskps" enctype="multipart/form-data">
+        <div class="field-grid field-grid-2">
+          <div class="field"><label for="subject">{{t .Lang "dskps.subject"}}</label><input id="subject" type="text" name="subject" value="{{.Subject}}" maxlength="100" required></div>
+          <div class="field"><label for="year">{{t .Lang "dskps.year"}}</label>
+            <select id="year" name="year" required>
+              {{- range .Years}}
+              <option value="{{.}}"{{if eq . $.Year}} selected{{end}}>{{t $.Lang (print "teachers.year." .)}}</option>
+              {{- end}}
+            </select>
+          </div>
+          <div class="field"><label for="language">{{t .Lang "dskps.language"}}</label>
+            <select id="language" name="language" required>
+              <option value="ms"{{if eq .Language "ms"}} selected{{end}}>{{t .Lang "dskps.language.ms"}}</option>
+              <option value="en"{{if eq .Language "en"}} selected{{end}}>{{t .Lang "dskps.language.en"}}</option>
+            </select>
+          </div>
+          <div class="field"><label for="file">{{t .Lang "dskps.file"}}</label><input id="file" type="file" name="file" accept="application/pdf" required></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-solid">{{t .Lang "dskps.read"}}</button></div>
+      </form>
+      {{- end}}
+      {{- end}}
+      {{- if .Own}}
+      <h2>{{t .Lang "teachers.dskps.own"}}</h2>
+      <ul class="dskp-list">
+        {{- range .Own}}
+        <li><a href="/teachers/dskps/{{.ID}}">{{.Subject}}</a> · {{t $.Lang (print "teachers.year." .Year)}} · {{t $.Lang (print "dskps.language." .Language)}} · {{if .Draft}}{{t $.Lang "teachers.dskps.unchecked"}}{{else}}{{t $.Lang (print "dskps.state." .State)}}{{end}}</li>
+        {{- end}}
+      </ul>
+      {{- end}}
       {{- if or .Mine .Others}}
       <h2>{{t .Lang "teachers.dskps.mine"}}</h2>
       {{- if .Mine}}

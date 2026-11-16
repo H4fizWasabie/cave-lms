@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"slices"
@@ -49,10 +50,13 @@ type rphPage struct {
 }
 
 // openableDSKP is the DSKP a Teacher may make an RPH prompt from, with its SKs and SPs and their ids; ok is false when
-// there is none they can open. It is the one lookup of which DSKPs those are: Teachers open the published ones of the
-// library.
-func (a *App) openableDSKP(ctx context.Context, id int64) (d dskp, sks []rphSK, ok bool, err error) {
+// there is none they can open. It is the one lookup of which DSKPs those are: the published ones of the library, and the
+// Teacher's own uploads once read (a draft, however unchecked); one still being read or failed has no standards.
+func (a *App) openableDSKP(ctx context.Context, learnerID, id int64) (d dskp, sks []rphSK, ok bool, err error) {
 	d, _, ok, err = a.libraryDSKP(ctx, id, dskpPublished)
+	if err == nil && !ok {
+		d, _, ok, err = a.dskpOf(ctx, sql.NullInt64{Int64: learnerID, Valid: true}, id, dskpDraft)
+	}
 	if err != nil || !ok {
 		return d, nil, false, err
 	}
@@ -106,7 +110,12 @@ func (a *App) rphForm(w http.ResponseWriter, r *http.Request, acc teacherAccess)
 		a.notFound(w, r)
 		return
 	}
-	d, sks, ok, err := a.openableDSKP(r.Context(), id)
+	l, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	d, sks, ok, err := a.openableDSKP(r.Context(), l.ID, id)
 	switch {
 	case err != nil:
 		a.serverError(w, r, err)
@@ -169,18 +178,18 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		a.notFound(w, r)
 		return
 	}
-	d, sks, ok, err := a.openableDSKP(r.Context(), id)
+	l, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	d, sks, ok, err := a.openableDSKP(r.Context(), l.ID, id)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
 	if !ok {
 		a.notFound(w, r)
-		return
-	}
-	l, err := a.currentLearner(r)
-	if err != nil {
-		a.serverError(w, r, err)
 		return
 	}
 	p := &rphPage{Access: acc, DSKP: d, SKs: sks, Date: r.PostFormValue("date"), Time: clean(r.PostFormValue("time")), Class: clean(r.PostFormValue("class")),

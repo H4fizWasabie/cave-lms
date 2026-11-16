@@ -6,4 +6,6 @@ Each reminder follows the end of the item's last stacked period, honouring an Ad
 
 A reminder is recorded in `renewal_reminders` (Learner, item, end, stage) before it is sent. A restart between the two loses that one email and never sends it twice; a failed send is logged and not retried, as for the other service emails. Service emails have no opt-out, and there is no on-site banner or Admin view.
 
+The Teachers Portal joins the same job (ADR 0029): the Teacher trial 3 days before it ends and once ended, and Teachers Portal Pro from its last period (a year 30 and 7 days before and once ended, a month 7 days before and once ended). They go in an email of their own that links to the pay page and My membership, in the Account holder's language. A trial with Teachers Portal Pro already paid for after it is not reminded, since nothing lapses.
+
 Rejected: (1) sending first and recording after, which doubles an email whenever the server restarts in between; (2) reminding per Plan period, which would email a Learner who already renewed; (3) one email per item, which sends a COMBO buyer two near-identical emails; (4) catching up every missed stage, which sends a Learner three emails in one day after the server was down.

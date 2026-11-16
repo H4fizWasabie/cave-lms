@@ -72,6 +72,43 @@ func TestThePortalsHomeLeadsToTheDSKPsToMakeAnRPHPromptFrom(t *testing.T) {
 	expectAll(t, body, `href="/teachers/dskps"`, "Pick a DSKP and tick the standards for your lesson to make an RPH prompt.")
 }
 
+// A Teacher's own upload, read and unchecked, makes RPH prompts like a published DSKP; nobody else's does, and neither does
+// one still being read or failed.
+func TestATeacherMakesRPHPromptsFromTheirOwnUploadedDSKPAndNoOnesElse(t *testing.T) {
+	t.Parallel()
+	admin := newDSKPAdmin(t)
+	ada := newProDSKPTeacher(admin)
+	bob := admin.second()
+	bob.loginAsNewLearner("Bob", "bob@example.com", teachersPassword)
+	bob.saveTeacherProfile("Sejarah", "Y4")
+
+	release := admin.ai.HoldDSKPs()
+	res, body := ada.uploadOwnDSKP("Sejarah", "Y4", "ms", pdfFile)
+	expectStatus(t, res, body, http.StatusSeeOther, "")
+	own := path.Base(res.Header.Get("Location"))
+	res, body = ada.get("/teachers/dskps/" + own + "/rph") // still being read: no standards to tick
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	_, body = ada.get("/teachers/dskps/" + own)
+	expectNone(t, body, "/rph")
+	release()
+	admin.application.WaitForDSKPReads()
+
+	_, body = ada.get("/teachers/dskps/" + own)
+	expectAll(t, body, `href="/teachers/dskps/`+own+`/rph"`)
+	res, form := ada.get("/teachers/dskps/" + own + "/rph")
+	expectStatus(t, res, form, http.StatusOK, "Sejarah")
+	res, body = ada.post("/teachers/dskps/"+own+"/rph", rphForm(t, form, "1.1.1"))
+	expectStatus(t, res, body, http.StatusOK, "Your RPH prompt")
+	expectAll(t, promptOf(t, body), "Mata pelajaran: Sejarah", "Standard Pembelajaran (SP) 1.1.1")
+
+	res, body = bob.get("/teachers/dskps/" + own + "/rph")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	res, body = bob.post("/teachers/dskps/"+own+"/rph", rphForm(t, form, "1.1.1"))
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	res, body = admin.get("/teachers/dskps/" + own + "/rph")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+}
+
 func TestAnRPHPromptIsBuiltFromTheTickedStandardsAndTheLessonDetailsWithNoAICall(t *testing.T) {
 	t.Parallel()
 	admin, teacher, id := rphTeacher(t)

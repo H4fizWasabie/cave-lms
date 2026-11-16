@@ -303,9 +303,9 @@ func TestThePrivacyNoticeSaysDSKPsGoToAnAIServiceAndAreNotKept(t *testing.T) {
 	t.Parallel()
 	s := newSite(t)
 	_, body := s.getAsking("/privacy", "en")
-	expectAll(t, body, "DSKP PDFs the Admin uploads go to an AI service through OpenRouter", "are not kept", "no Teacher&#39;s name, email or other details are sent")
+	expectAll(t, body, "DSKP PDFs the Admin or a Teacher uploads go to an AI service through OpenRouter", "are not kept", "no Teacher&#39;s name, email or other details are sent")
 	_, body = s.getAsking("/privacy", "ms")
-	expectAll(t, body, "PDF DSKP yang dimuat naik oleh Pentadbir dihantar kepada perkhidmatan AI melalui OpenRouter", "tidak disimpan")
+	expectAll(t, body, "PDF DSKP yang dimuat naik oleh Pentadbir atau Guru dihantar kepada perkhidmatan AI melalui OpenRouter", "tidak disimpan")
 }
 
 func TestTheDSKPLibraryIsInBothLanguages(t *testing.T) {
