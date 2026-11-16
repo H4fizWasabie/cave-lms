@@ -1,0 +1,87 @@
+{{/* dskp-controls is a block's or an SP's move up, move down and delete: the page's Controls builds what it needs. */}}
+{{define "dskp-controls"}}
+          <div class="row-actions">
+            <form method="post" action="{{.Base}}/move">{{if .Level}}<input type="hidden" name="level" value="{{.Level}}">{{end}}<button class="btn btn-quiet btn-sm" name="dir" value="up">{{t .Lang "dskps.up"}}</button><button class="btn btn-quiet btn-sm" name="dir" value="down">{{t .Lang "dskps.down"}}</button></form>
+            <form method="post" action="{{.Base}}/delete">{{if .Level}}<input type="hidden" name="level" value="{{.Level}}">{{end}}<button class="btn btn-danger btn-sm">{{t .Lang "dskps.delete"}}</button></form>
+          </div>
+{{end}}
+{{define "title"}}{{t .Lang "dskps.edit"}} · {{.DSKP.Subject}} · {{t .Lang "dskps.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "dskps" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/dskps/{{.DSKP.ID}}">{{.DSKP.Subject}}</a></p>
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "dskps.edit"}}: {{.DSKP.Subject}}</h1>
+            <p>{{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}} · {{t .Lang (print "dskps.state." .DSKP.State)}}</p>
+          </div>
+        </div>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        {{- range .SKs}}
+        {{- if .NewGroup}}
+        <div class="card">
+          <h2>{{.Grouping}}</h2>
+          <form class="inline-form" method="post" action="/admin/dskps/{{$.DSKP.ID}}/sks/{{.ID}}/rename">
+            <input type="hidden" name="level" value="group">
+            <div class="field"><label for="group-{{.ID}}">{{t $.Lang "dskps.grouping"}}</label><input id="group-{{.ID}}" type="text" name="name" value="{{.Grouping}}" maxlength="200"></div>
+            <button class="btn btn-ghost btn-sm">{{t $.Lang "dskps.rename"}}</button>
+          </form>
+          {{template "dskp-controls" ($.Controls . "group")}}
+        </div>
+        {{- end}}
+        {{- if .NewTopic}}
+        <div class="card">
+          <h3>{{.Topic}}</h3>
+          <form class="inline-form" method="post" action="/admin/dskps/{{$.DSKP.ID}}/sks/{{.ID}}/rename">
+            <input type="hidden" name="level" value="topic">
+            <div class="field"><label for="topic-{{.ID}}">{{t $.Lang "dskps.topic"}}</label><input id="topic-{{.ID}}" type="text" name="name" value="{{.Topic}}" maxlength="200"></div>
+            <button class="btn btn-ghost btn-sm">{{t $.Lang "dskps.rename"}}</button>
+          </form>
+          {{template "dskp-controls" ($.Controls . "topic")}}
+        </div>
+        {{- end}}
+        <div class="card">
+          <form class="form" method="post" action="/admin/dskps/{{$.DSKP.ID}}/sks/{{.ID}}">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="sk-code-{{.ID}}">{{t $.Lang "dskps.sk"}}</label><input id="sk-code-{{.ID}}" type="text" name="code" value="{{.Code}}" maxlength="40" required></div>
+              <div class="field"><label for="sk-text-{{.ID}}">{{t $.Lang "dskps.text"}}</label><textarea id="sk-text-{{.ID}}" name="text" maxlength="2000" required>{{.Text}}</textarea></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid btn-sm">{{t $.Lang "dskps.save"}}</button></div>
+          </form>
+          {{template "dskp-controls" ($.Controls . "sk")}}
+          {{- range .SPs}}
+          <form class="form" method="post" action="/admin/dskps/{{$.DSKP.ID}}/sps/{{.ID}}">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="sp-code-{{.ID}}">{{t $.Lang "dskps.sp"}}</label><input id="sp-code-{{.ID}}" type="text" name="code" value="{{.Code}}" maxlength="40" required></div>
+              <div class="field"><label for="sp-text-{{.ID}}">{{t $.Lang "dskps.text"}}</label><textarea id="sp-text-{{.ID}}" name="text" maxlength="2000" required>{{.Text}}</textarea></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid btn-sm">{{t $.Lang "dskps.save"}}</button></div>
+          </form>
+          {{template "dskp-controls" ($.SPControls .)}}
+          {{- end}}
+          <form class="form" method="post" action="/admin/dskps/{{$.DSKP.ID}}/sks/{{.ID}}/sps">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="new-sp-code-{{.ID}}">{{t $.Lang "dskps.sp"}}</label><input id="new-sp-code-{{.ID}}" type="text" name="code" maxlength="40" required></div>
+              <div class="field"><label for="new-sp-text-{{.ID}}">{{t $.Lang "dskps.text"}}</label><textarea id="new-sp-text-{{.ID}}" name="text" maxlength="2000" required></textarea></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-ghost btn-sm">{{t $.Lang "dskps.add-sp"}}</button></div>
+          </form>
+        </div>
+        {{- end}}
+        <div class="card">
+          <h2>{{t .Lang "dskps.add-sk"}}</h2>
+          <form class="form" method="post" action="/admin/dskps/{{.DSKP.ID}}/sks">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="new-grouping">{{t .Lang "dskps.grouping"}}</label><input id="new-grouping" type="text" name="grouping" maxlength="200"></div>
+              <div class="field"><label for="new-topic">{{t .Lang "dskps.topic"}}</label><input id="new-topic" type="text" name="topic" maxlength="200"></div>
+              <div class="field"><label for="new-sk-code">{{t .Lang "dskps.sk"}}</label><input id="new-sk-code" type="text" name="code" maxlength="40" required></div>
+              <div class="field"><label for="new-sk-text">{{t .Lang "dskps.text"}}</label><textarea id="new-sk-text" name="text" maxlength="2000" required></textarea></div>
+            </div>
+            <p class="muted">{{t .Lang "dskps.add-sk.hint"}}</p>
+            <div class="form-actions"><button class="btn btn-solid btn-sm">{{t .Lang "dskps.add-sk"}}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+{{end}}

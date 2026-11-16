@@ -453,7 +453,7 @@ _Malay_: Had prompt harian
 _Avoid_: Quota, credits, rate limit
 
 **DSKP**:
-A Dokumen Standard Kurikulum dan Pentaksiran: KPM's public curriculum document for one subject and year, listing its Standard Kandungan and Standard Pembelajaran. The Admin uploads each one once, checks the standards the AI read from it and publishes it; Teachers see only published ones. A Teacher with Teachers Portal Pro may upload a missing one, up to 5 a month, which only they see, unchecked, and which the Admin is shown as missing. Never during the Teacher trial. The file itself is never kept, only the standards read from it.
+A Dokumen Standard Kurikulum dan Pentaksiran: KPM's public curriculum document for one subject and year, listing its Standard Kandungan and Standard Pembelajaran. The Admin uploads each one once, checks and edits the standards the AI read from it and publishes it; Teachers see only published ones. The Admin may unpublish it, or upload a new edition, which stays a draft while Teachers keep the old one and takes its place when published. A Teacher with Teachers Portal Pro may upload a missing one, up to 5 a month, which only they see, unchecked, and which the Admin is shown as missing. Never during the Teacher trial. The file itself is never kept, only the standards read from it.
 _Malay_: DSKP
 _Avoid_: Syllabus, curriculum file, sukatan
 
