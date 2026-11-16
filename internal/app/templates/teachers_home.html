@@ -11,6 +11,7 @@
         <p role="status">{{t .Lang "teachers.admin"}}</p>
         {{- end}}
       </div>
+      <p>{{t .Lang "teachers.rph.start"}} <a href="/teachers/dskps">{{t .Lang "teachers.nav.dskps"}}</a></p>
       {{- with .Access.Profile}}
       <dl class="acct-list">
         <div><dt>{{t $.Lang "teachers.profile.subjects"}}</dt><dd>{{.Subjects}}</dd></div>

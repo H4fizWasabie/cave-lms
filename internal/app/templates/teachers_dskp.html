@@ -17,6 +17,7 @@
       {{- if .Own}}
       <p role="status"><strong>{{t .Lang "teachers.dskps.unchecked"}}</strong> {{t .Lang "teachers.dskps.unchecked-note"}}</p>
       {{- end}}
+      <p><a class="btn btn-solid" href="/teachers/dskps/{{.DSKP.ID}}/rph">{{t .Lang "teachers.rph.make-from"}}</a></p>
       {{template "dskp-standards" .}}
       {{- end}}
     </div>
