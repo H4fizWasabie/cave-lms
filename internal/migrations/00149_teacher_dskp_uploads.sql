@@ -1,5 +1,5 @@
 -- +goose Up
--- The DSKP uploads a Teacher has started (ADR 0029), one row each, kept when the Teacher deletes the DSKP they uploaded, so
+-- The DSKP uploads a Teacher has started (see the glossary: DSKP), one row each, kept when the Teacher deletes the DSKP they uploaded, so
 -- the limit of 5 a calendar month, Malaysia time, counts uploads started and deleting one gives no upload back.
 CREATE TABLE teacher_dskp_uploads (
 	id bigserial PRIMARY KEY,

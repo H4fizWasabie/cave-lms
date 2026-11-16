@@ -50,7 +50,13 @@ func (d dskp) Published() bool { return d.State == dskpPublished }
 // bidang) and tajuk the DSKP puts it under, in the DSKP's order.
 type dskpSK struct {
 	Code, Text string
-	SPs        []aiwriter.SP
+	SPs        []dskpSP
+}
+
+// dskpSP is a Standard Pembelajaran with its id, which the RPH prompt form posts for each one ticked.
+type dskpSP struct {
+	ID         int64
+	Code, Text string
 }
 
 type dskpTopic struct {
@@ -110,7 +116,7 @@ func (a *App) dskpOf(ctx context.Context, owner sql.NullInt64, id int64, states 
 		return d, nil, false, fmt.Errorf("read DSKP: %w", err)
 	}
 	rows, err := a.db.QueryContext(ctx, `
-		SELECT k.id, k.grouping, k.topic, k.code, k.text, COALESCE(p.code, ''), COALESCE(p.text, '')
+		SELECT k.id, k.grouping, k.topic, k.code, k.text, COALESCE(p.id, 0), COALESCE(p.code, ''), COALESCE(p.text, '')
 		FROM dskp_sks k LEFT JOIN dskp_sps p ON p.sk_id = k.id
 		WHERE k.dskp_id = $1 ORDER BY k.position, p.position`, id)
 	if err != nil {
@@ -122,8 +128,8 @@ func (a *App) dskpOf(ctx context.Context, owner sql.NullInt64, id int64, states 
 		var skID int64
 		var grouping, topic string
 		var sk dskpSK
-		var sp aiwriter.SP
-		if err := rows.Scan(&skID, &grouping, &topic, &sk.Code, &sk.Text, &sp.Code, &sp.Text); err != nil {
+		var sp dskpSP
+		if err := rows.Scan(&skID, &grouping, &topic, &sk.Code, &sk.Text, &sp.ID, &sp.Code, &sp.Text); err != nil {
 			return d, nil, false, fmt.Errorf("read DSKP standards: %w", err)
 		}
 		if skID != lastSK { // the next SK: under the same grouping and tajuk as the last, or a new one
@@ -138,7 +144,7 @@ func (a *App) dskpOf(ctx context.Context, owner sql.NullInt64, id int64, states 
 			t := &g.Topics[len(g.Topics)-1]
 			t.SKs = append(t.SKs, sk)
 		}
-		if sp.Code != "" {
+		if sp.ID != 0 {
 			g := &groups[len(groups)-1]
 			t := &g.Topics[len(g.Topics)-1]
 			sk := &t.SKs[len(t.SKs)-1]
@@ -401,43 +407,4 @@ func (a *App) publishDSKP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, "/admin/dskps/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
-}
-
-// teacherPage runs h for an Account holder the portal lets in: the Admin or a Teacher on the trial. Without a Teacher
-// profile it asks for one; once the trial has ended it leads to the portal's home.
-func (a *App) teacherPage(h func(http.ResponseWriter, *http.Request, teacherAccess)) http.HandlerFunc {
-	return a.requireLearner(func(w http.ResponseWriter, r *http.Request) {
-		l, err := a.currentLearner(r)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		acc, err := a.teacherAccessOf(r.Context(), l)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		switch acc.State {
-		case teacherNone:
-			http.Redirect(w, r, portalPath+"/profile", http.StatusSeeOther)
-		case teacherLapsed:
-			http.Redirect(w, r, portalPath, http.StatusSeeOther)
-		default:
-			h(w, r, acc)
-		}
-	})
-}
-
-// teaches reports whether the DSKP is one of the Teacher's: its subject is one of the profile's, ignoring case, and its
-// year one of the profile's years. The Admin has no profile, so no DSKP is theirs.
-func (p *teacherProfile) teaches(d dskp) bool {
-	if p == nil || !slices.Contains(p.Years, d.Year) {
-		return false
-	}
-	for _, s := range strings.Split(p.Subjects, ", ") {
-		if strings.EqualFold(s, d.Subject) {
-			return true
-		}
-	}
-	return false
 }

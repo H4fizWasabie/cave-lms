@@ -10,7 +10,7 @@
       </div>
       {{- with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
       {{- if and (not .CanUpload) (not .Error)}}
-      <p role="status">{{t .Lang "teachers.dskps.needs-pro"}}</p>
+      <p role="status">{{.NeedsPro}}</p>
       {{- end}}
       {{- if .LimitHit}}
       <p class="up-err" role="alert">{{t .Lang "teachers.dskps.limit" .Max (.ResetsOn .Lang)}}</p>

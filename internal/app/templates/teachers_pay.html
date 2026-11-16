@@ -3,7 +3,7 @@
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "teachers.pay.title"}}</h1>
-        <p role="status">{{t .Lang "teachers.trial.ended"}}</p>
+        <p role="status">{{if .Access.HadPro}}{{t .Lang "teachers.pro.ended"}}{{else}}{{t .Lang "teachers.trial.ended"}}{{end}}</p>
         <p>{{t .Lang "teachers.pay.lede"}}</p>
       </div>
       {{- template "teachers-prices" .}}

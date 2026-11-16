@@ -69,7 +69,7 @@ func TestThePortalsHomeLeadsToTheDSKPsToMakeAnRPHPromptFrom(t *testing.T) {
 	t.Parallel()
 	_, teacher, _ := rphTeacher(t)
 	_, body := teacher.get("/teachers")
-	expectAll(t, body, `href="/teachers/dskps"`, "Pick a DSKP and tick the standards for your lesson to make an RPH prompt.")
+	expectAll(t, body, `href="/teachers/dskps"`, "Pick a DSKP and tick the standards for your class to make an RPH prompt.")
 }
 
 // A Teacher's own upload, read and unchecked, makes RPH prompts like a published DSKP; nobody else's does, and neither does
@@ -187,8 +187,8 @@ func TestAFormWithAMistakeMakesNoPromptCountsNoneAndComesBackAsTyped(t *testing.
 		{"SPs under two SKs", "Tick SPs under one SK only.", rphForm(t, form, "1.1.1", "1.2.1")},
 		{"an SP of another DSKP", "Tick at least one SP.", rphForm(t, otherForm, "1.1.1")},
 		{"an SP that is not there", "Tick at least one SP.", with(rphForm(t, form), "sp", "999999")},
-		{"a date that is not one", "Enter the date of the lesson.", with(rphForm(t, form, "1.1.1"), "date", "3/2/2027")},
-		{"no date", "Enter the date of the lesson.", with(rphForm(t, form, "1.1.1"), "date", "")},
+		{"a date that is not one", "Enter the date of the class.", with(rphForm(t, form, "1.1.1"), "date", "3/2/2027")},
+		{"no date", "Enter the date of the class.", with(rphForm(t, form, "1.1.1"), "date", "")},
 		{"no time", "Enter the time or duration", with(rphForm(t, form, "1.1.1"), "time", "  ")},
 		{"a long time", "Enter the time or duration", with(rphForm(t, form, "1.1.1"), "time", strings.Repeat("x", 61))},
 		{"no class", "Enter the class", with(rphForm(t, form, "1.1.1"), "class", "")},

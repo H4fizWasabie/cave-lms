@@ -150,7 +150,7 @@ func TestTeachersPortalProPaymentsUnderThePriceNamingNoAccountOrOnAnOldFormWaitA
 
 func TestTeachersPortalProGivesNeitherCaveTextProNorTheLabAndTheyDoNotGiveIt(t *testing.T) {
 	t.Parallel()
-	s, ada := teachersSite(t)
+	s, _ := teachersSite(t)
 	s.createPlan("Lab Month", "30", "5")
 	s.markLabPlan("Lab Month")
 	res, body := s.savePrices(map[string]string{"cavetext-pro_link": proFormURL, "lab-plan_link": labFormURL, "pro-plan_link": proPlanFormURL,
@@ -162,8 +162,6 @@ func TestTeachersPortalProGivesNeitherCaveTextProNorTheLabAndTheyDoNotGiveIt(t *
 	if got := len(s.periodsOf("ada@example.com")); got != 0 {
 		t.Fatalf("Teachers Portal Pro gave %d Plan periods", got)
 	}
-	_, body = ada.get("/my-membership")
-	expectAll(t, content(body), "No Plan", "Free")
 	var accounts int
 	if err := s.db.QueryRow(`SELECT count(*) FROM cavetext_accounts`).Scan(&accounts); err != nil || accounts != 0 {
 		t.Fatalf("Teachers Portal Pro made %d CaveText accounts (%v), want 0", accounts, err)
@@ -205,7 +203,7 @@ func TestMyMembershipShowsTheTeacherTrialAndTeachersPortalProAndWhenTheyEnd(t *t
 	_, body = ada.getAsking("/my-membership", "en")
 	expectInOrder(t, content(body), "Teacher trial", "Until "+trialEnds, "Teachers Portal Pro", "Until "+lateInTheUTCDay(100).In(malaysiaTime).Format("2 January 2006"))
 	_, body = ada.getAsking("/my-membership", "ms")
-	expectInOrder(t, content(body), "Percubaan guru", "Hingga", "Teachers Portal Pro", "Hingga")
+	expectInOrder(t, content(body), "Percubaan percuma", "Hingga", "Teachers Portal Pro", "Hingga")
 
 	// Once the trial is over and Pro is running, only Pro is shown.
 	ada.ageTrial(20)
@@ -219,7 +217,7 @@ func TestMyMembershipShowsTheTeacherTrialAndTeachersPortalProAndWhenTheyEnd(t *t
 	// When both have ended, it says so and leads to the pay page.
 	s.agePeriods(200)
 	_, body = ada.get("/my-membership")
-	expectAll(t, content(body), "Your free trial has ended.", `href="/teachers"`)
+	expectAll(t, content(body), "Your Teachers Portal Pro has ended.", `href="/teachers"`)
 	expectNone(t, content(body), "Teacher trial", "Until")
 }
 
@@ -242,7 +240,7 @@ func TestALapsedTeacherSeesOnlyThePayPageWithBothPricesAndPayingBringsThePortalB
 	ada.ageTrial(60)
 	s.agePeriods(60)
 	res, body = ada.get("/teachers")
-	expectStatus(t, res, body, http.StatusOK, "Your free trial has ended.")
+	expectStatus(t, res, body, http.StatusOK, "Your Teachers Portal Pro has ended.")
 	expectAll(t, body, "Teachers Portal Pro, a month", "RM15", "RM19", "Teachers Portal Pro, a year", "RM150",
 		`href="`+teachersMonthFormURL+`"`, `href="`+teachersYearFormURL+`"`, "Buy Teachers Portal Pro, a month")
 	expectNone(t, body, "Sains", `href="/teachers/profile"`)
@@ -250,7 +248,7 @@ func TestALapsedTeacherSeesOnlyThePayPageWithBothPricesAndPayingBringsThePortalB
 		t.Errorf("the pay page has %d links to CAVELMS, want 1", n)
 	}
 	_, body = ada.getAsking("/teachers", "ms")
-	expectAll(t, body, "Percubaan percuma anda telah tamat.", "RM150")
+	expectAll(t, body, "Teachers Portal Pro anda telah tamat.", "RM150")
 
 	// A running Promo shows on the pay page.
 	res, body = s.post("/admin/promos", url.Values{"code": {"GURU9"}, "product": {"teachers-month"}, "price": {"9"},
@@ -393,4 +391,76 @@ func TestTheAdminGivesAMonthOrAYearOfTeachersPortalProByHandAndTheyStackAfterThe
 	// Only an Admin.
 	res, body = ada.get("/admin/teachers-pro")
 	expectStatus(t, res, body, http.StatusForbidden, "")
+}
+
+func TestThePortalNavLinksToMyMembershipWhichATeacherWithoutLearnerThingsOpensInThePortal(t *testing.T) {
+	t.Parallel()
+	s, ada := teachersSite(t)
+	for lang, want := range map[string]string{"en": "My membership", "ms": "Keahlian saya"} {
+		_, body := ada.getAsking("/teachers", lang)
+		expectAll(t, header(t, body), `href="/my-membership"`, want)
+	}
+	// A Teacher with nothing else sees My membership in the portal, about the portal only.
+	res, body := ada.getAsking("/my-membership", "en")
+	expectStatus(t, res, body, http.StatusOK, "Teacher trial")
+	expectAll(t, header(t, body), `aria-label="Teachers Portal sections"`, `href="/teachers/profile"`)
+	expectNone(t, content(body), "No Plan", "See the Plans", "CaveText Pro", "Snippet cap")
+	_, body = ada.getAsking("/my-membership", "ms")
+	expectAll(t, header(t, body), `aria-label="Bahagian Teachers Portal"`)
+	expectAll(t, content(body), "Percubaan percuma")
+	expectNone(t, content(body), "Tiada Pelan", "Had Snippet")
+
+	// A Teacher who is also a Learner (here with CaveText Pro running) keeps CAVELMS's page, with its Plan rows.
+	if _, err := s.db.Exec(`INSERT INTO cavetext_accounts (learner_id) SELECT id FROM learners WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO cavetext_pro_periods (learner_id, starts_at, ends_at) SELECT id, now() - interval '1 day', now() + interval '30 days' FROM learners WHERE email = 'ada@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	_, body = ada.getAsking("/my-membership", "en")
+	expectAll(t, content(body), "No Plan", "CaveText Pro", "Teacher trial")
+	expectNone(t, header(t, body), `aria-label="Teachers Portal sections"`)
+}
+
+func TestThePayPageSaysTheFreeTrialEndedOnlyWhenNoTeachersPortalProEverRan(t *testing.T) {
+	t.Parallel()
+	s, ada := teachersSite(t)
+	ada.ageTrial(20)
+	_, body := ada.getAsking("/teachers", "en")
+	expectAll(t, content(body), "Your free trial has ended.")
+	_, body = ada.getAsking("/teachers", "ms")
+	expectAll(t, content(body), "Percubaan percuma anda telah tamat.")
+
+	// A month of Teachers Portal Pro that has run out is not a free trial.
+	s.giveTeacherPro("ada@example.com", "month")
+	s.agePeriods(60)
+	_, body = ada.getAsking("/teachers", "en")
+	expectAll(t, content(body), "Your Teachers Portal Pro has ended.")
+	expectNone(t, content(body), "free trial")
+	_, body = ada.getAsking("/teachers", "ms")
+	expectAll(t, content(body), "Teachers Portal Pro anda telah tamat.")
+	expectNone(t, content(body), "Percubaan percuma")
+	_, body = ada.getAsking("/my-membership", "en")
+	expectAll(t, content(body), "Your Teachers Portal Pro has ended.")
+	expectNone(t, content(body), "free trial")
+}
+
+func TestATeacherWhoPaidDuringTheTrialIsToldWhenProStartsWhenUploadingBeforeThen(t *testing.T) {
+	t.Parallel()
+	s := newDSKPAdmin(t)
+	teacher := newDSKPTeacher(s)
+	trialEnds := time.Now().AddDate(0, 0, 14).In(malaysiaTime).Format("2 January 2006")
+	s.giveTeacherPro("ada@example.com", "month")
+
+	_, body := teacher.getAsking("/teachers/dskps", "en")
+	expectAll(t, body, "Uploading a DSKP needs Teachers Portal Pro, which starts on "+trialEnds)
+	expectNone(t, body, `name="file"`)
+	res, body := teacher.uploadOwnDSKP("Sains", "Y4", "ms", pdfFile)
+	expectStatus(t, res, body, http.StatusForbidden, "Uploading a DSKP needs Teachers Portal Pro, which starts on "+trialEnds)
+	s.application.WaitForDSKPReads()
+	if got := s.ai.DSKPRequests(); len(got) != 0 {
+		t.Fatalf("an upload before Pro started was read: %d requests", len(got))
+	}
+	_, body = teacher.getAsking("/teachers/dskps", "ms")
+	expectAll(t, body, "memerlukan Teachers Portal Pro, yang bermula pada")
 }

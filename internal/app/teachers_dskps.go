@@ -26,15 +26,22 @@ var errUploadLimit = errors.New("DSKP upload limit reached")
 
 // teacherDSKPUploadsLeft is how many uploads the account has left this calendar month, Malaysia time, and when the month
 // ends and the count starts again.
-func teacherDSKPUploadsLeft(ctx context.Context, q interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}, learnerID int64) (left int, resets time.Time, err error) {
+func teacherDSKPUploadsLeft(ctx context.Context, q queryer, learnerID int64) (left int, resets time.Time, err error) {
 	const monthKL = `date_trunc('month', now() AT TIME ZONE 'Asia/Kuala_Lumpur')`
 	var used int
 	err = q.QueryRowContext(ctx, `SELECT
 		(SELECT count(*) FROM teacher_dskp_uploads WHERE learner_id = $1 AND started_at >= `+monthKL+` AT TIME ZONE 'Asia/Kuala_Lumpur'),
 		(`+monthKL+` + interval '1 month') AT TIME ZONE 'Asia/Kuala_Lumpur'`, learnerID).Scan(&used, &resets)
 	return max(maxTeacherDSKPUploads-used, 0), resets.In(malaysia), err
+}
+
+// needsPro is what a Teacher who has no running Teachers Portal Pro is told uploading needs: when their Pro starts, if a
+// period is queued after the trial, Malaysia time.
+func needsPro(lang string, acc teacherAccess) string {
+	if acc.ProStarts.IsZero() {
+		return text.T(lang, "teachers.dskps.needs-pro")
+	}
+	return text.T(lang, "teachers.dskps.pro-starts", text.Date(lang, acc.ProStarts.In(malaysia)))
 }
 
 // teacherDSKPsPage is the Teachers Portal's list of DSKPs: the published ones that match the Teacher profile's subjects and
@@ -45,6 +52,7 @@ type teacherDSKPsPage struct {
 	Access                  teacherAccess
 	Off                     bool
 	CanUpload               bool
+	NeedsPro                string // what a Teacher who cannot upload is told, in the page's language
 	Years                   []string
 	Subject, Year, Language string // the upload form as posted
 	Mine, Others, Own       []dskp
@@ -66,6 +74,12 @@ func (a *App) renderTeacherDSKPs(w http.ResponseWriter, r *http.Request, status 
 		a.serverError(w, r, err)
 		return
 	}
+	lang, err := a.language(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	p.NeedsPro = needsPro(lang, acc)
 	list, err := a.libraryDSKPs(r.Context(), dskpPublished)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -133,7 +147,8 @@ func (a *App) teacherUploadDSKP(w http.ResponseWriter, r *http.Request, acc teac
 	}
 	switch {
 	case !acc.Pro() && !acc.Admin():
-		fail(http.StatusForbidden, "teachers.dskps.needs-pro")
+		p.Error = needsPro(lang, acc)
+		a.renderTeacherDSKPs(w, r, http.StatusForbidden, acc, p)
 		return
 	case !a.writer.ReadsDSKP():
 		fail(http.StatusServiceUnavailable, "teachers.dskps.off")

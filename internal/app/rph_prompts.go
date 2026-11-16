@@ -55,38 +55,25 @@ type rphPage struct {
 // there is none they can open. It is the one lookup of which DSKPs those are: the published ones of the library, and the
 // Teacher's own uploads once read (a draft, however unchecked); one still being read or failed has no standards.
 func (a *App) openableDSKP(ctx context.Context, learnerID, id int64) (d dskp, sks []rphSK, ok bool, err error) {
-	d, _, ok, err = a.libraryDSKP(ctx, id, dskpPublished)
+	d, groups, ok, err := a.libraryDSKP(ctx, id, dskpPublished)
 	if err == nil && !ok {
-		d, _, ok, err = a.dskpOf(ctx, sql.NullInt64{Int64: learnerID, Valid: true}, id, dskpDraft)
+		d, groups, ok, err = a.dskpOf(ctx, sql.NullInt64{Int64: learnerID, Valid: true}, id, dskpDraft)
 	}
 	if err != nil || !ok {
 		return d, nil, false, err
 	}
-	rows, err := a.db.QueryContext(ctx, `
-		SELECT k.id, k.grouping, k.topic, k.code, k.text, COALESCE(p.id, 0), COALESCE(p.code, ''), COALESCE(p.text, '')
-		FROM dskp_sks k LEFT JOIN dskp_sps p ON p.sk_id = k.id
-		WHERE k.dskp_id = $1 ORDER BY k.position, p.position`, id)
-	if err != nil {
-		return d, nil, false, fmt.Errorf("read DSKP standards: %w", err)
-	}
-	defer rows.Close()
-	var last int64
-	for rows.Next() {
-		var skID int64
-		var sk rphSK
-		var sp rphSP
-		if err := rows.Scan(&skID, &sk.Group, &sk.Topic, &sk.Code, &sk.Text, &sp.ID, &sp.Code, &sp.Text); err != nil {
-			return d, nil, false, fmt.Errorf("read DSKP standards: %w", err)
-		}
-		if skID != last {
-			last = skID
-			sks = append(sks, sk)
-		}
-		if sp.ID != 0 {
-			sks[len(sks)-1].SPs = append(sks[len(sks)-1].SPs, sp)
+	for _, g := range groups {
+		for _, t := range g.Topics {
+			for _, sk := range t.SKs {
+				r := rphSK{Group: g.Name, Topic: t.Title, Code: sk.Code, Text: sk.Text, SPs: make([]rphSP, len(sk.SPs))}
+				for i, sp := range sk.SPs {
+					r.SPs[i] = rphSP{ID: sp.ID, Code: sp.Code, Text: sp.Text}
+				}
+				sks = append(sks, r)
+			}
 		}
 	}
-	return d, sks, true, rows.Err()
+	return d, sks, true, nil
 }
 
 // malaysiaDayStart is the start of the day, Malaysia time, that now falls in.
@@ -95,14 +82,19 @@ func malaysiaDayStart(now time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, malaysia)
 }
 
-// promptsLeft is how many RPH prompts the Teacher may still make today, Malaysia time.
-func (a *App) promptsLeft(ctx context.Context, learnerID int64) (int, error) {
-	var made int
-	if err := a.db.QueryRowContext(ctx, `SELECT count(*) FROM rph_prompts WHERE learner_id = $1 AND made_at >= $2`,
-		learnerID, malaysiaDayStart(a.now())).Scan(&made); err != nil {
+// promptsToday is how many RPH prompts the Teacher has made since the day began, Malaysia time, in now's day.
+func promptsToday(ctx context.Context, q rowQueryer, learnerID int64, now time.Time) (made int, err error) {
+	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM rph_prompts WHERE learner_id = $1 AND made_at >= $2`,
+		learnerID, malaysiaDayStart(now)).Scan(&made); err != nil {
 		return 0, fmt.Errorf("count RPH prompts: %w", err)
 	}
-	return max(0, dailyPromptLimit-made), nil
+	return made, nil
+}
+
+// promptsLeft is how many RPH prompts the Teacher may still make today, Malaysia time.
+func (a *App) promptsLeft(ctx context.Context, learnerID int64) (int, error) {
+	made, err := promptsToday(ctx, a.db, learnerID, a.now())
+	return max(0, dailyPromptLimit-made), err
 }
 
 // rphForm is the RPH prompt form of a DSKP.
@@ -167,13 +159,13 @@ func (a *App) recordPrompt(ctx context.Context, learnerID int64) (ok bool, err e
 	}
 	defer tx.Rollback()
 	now := a.now()
-	var made int
-	if err := tx.QueryRowContext(ctx, `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learnerID).Scan(&made); err != nil {
+	var locked int
+	if err := tx.QueryRowContext(ctx, `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learnerID).Scan(&locked); err != nil {
 		return false, fmt.Errorf("record RPH prompt: %w", err)
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM rph_prompts WHERE learner_id = $1 AND made_at >= $2`,
-		learnerID, malaysiaDayStart(now)).Scan(&made); err != nil {
-		return false, fmt.Errorf("record RPH prompt: %w", err)
+	made, err := promptsToday(ctx, tx, learnerID, now)
+	if err != nil {
+		return false, err
 	}
 	if made >= dailyPromptLimit {
 		return false, nil

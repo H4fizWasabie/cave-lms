@@ -833,7 +833,11 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 		// A message page (not found, refused, an error) has no sidebar, so it keeps the site's header to lead somewhere.
 		l := *withLearner.learnerField()
 		c.chromeField().Shell = l != nil && l.IsAdmin && strings.HasPrefix(r.URL.Path, "/admin") && name != "message"
-		c.chromeField().Portal = !c.chromeField().CaveText && strings.HasPrefix(name, "teachers_")
+		portal := strings.HasPrefix(name, "teachers_")
+		if p, ok := data.(interface{ inPortal() bool }); ok {
+			portal = p.inPortal()
+		}
+		c.chromeField().Portal = !c.chromeField().CaveText && portal
 		if l != nil {
 			acc, err := a.labAccessOf(r.Context(), l)
 			if err != nil {
