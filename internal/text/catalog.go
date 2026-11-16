@@ -42,6 +42,7 @@ var catalog = map[string]entry{
 	"teachers.brand-alt":             {en: "CAVELMS Teachers Portal", ms: "Teachers Portal CAVELMS"},
 	"teachers.nav":                   {en: "Teachers Portal sections", ms: "Bahagian Teachers Portal"},
 	"teachers.nav.rph":               {en: "RPH prompt", ms: "Prompt RPH"},
+	"teachers.nav.opr":               {en: "OPR prompt", ms: "Prompt OPR"},
 	"teachers.nav.profile":           {en: "Teacher profile", ms: "Profil guru"},
 	"teachers.to-cavelms":            {en: "CAVELMS", ms: "CAVELMS"},
 	"teachers.account":               {en: "Teachers Portal account: %s", ms: "Akaun Teachers Portal: %s"},
@@ -202,6 +203,50 @@ var catalog = map[string]entry{
 	"teachers.rph.err.notes":         {en: "Notes can be up to 1000 characters.", ms: "Catatan boleh sehingga 1000 aksara."},
 	"teachers.rph.err.limit":         {en: "You have made %d RPH prompts today, the most a day. You can make more from midnight, Malaysia time: %s.", ms: "Anda telah membuat %d prompt RPH hari ini, jumlah paling banyak sehari. Anda boleh membuat lagi mulai tengah malam, waktu Malaysia: %s."},
 
+	// Teachers Portal: the OPR prompt
+	"teachers.opr.left.one":        {en: "%d of %d OPR prompts left today", ms: "%d daripada %d prompt OPR lagi hari ini"},
+	"teachers.opr.left.other":      {en: "%d of %d OPR prompts left today", ms: "%d daripada %d prompt OPR lagi hari ini"},
+	"teachers.opr.lede":            {en: "Type the OPR's details to make a prompt for your AI chatbot. You attach your reference there: CAVELMS takes no file.", ms: "Taip butiran OPR untuk membuat prompt bagi chatbot AI anda. Anda melampirkan rujukan anda di sana: CAVELMS tidak menerima fail."},
+	"teachers.opr.title":           {en: "Title of the programme or activity (tajuk)", ms: "Tajuk program atau aktiviti"},
+	"teachers.opr.institution":     {en: "Institution (institusi)", ms: "Institusi"},
+	"teachers.opr.date":            {en: "Date (tarikh)", ms: "Tarikh"},
+	"teachers.opr.date-hint":       {en: "Typed as you want it to appear, for example 12 to 14 March 2027.", ms: "Taip seperti yang anda mahu ia dipaparkan, contohnya 12 hingga 14 Mac 2027."},
+	"teachers.opr.time":            {en: "Time (masa, optional)", ms: "Masa (pilihan)"},
+	"teachers.opr.place":           {en: "Venue (tempat)", ms: "Tempat"},
+	"teachers.opr.target":          {en: "Target group (kumpulan sasaran, optional)", ms: "Kumpulan sasaran (pilihan)"},
+	"teachers.opr.reporter":        {en: "Reporting teacher (guru pelapor)", ms: "Guru pelapor"},
+	"teachers.opr.reference":       {en: "Reference (rujukan)", ms: "Rujukan"},
+	"teachers.opr.reference-hint":  {en: "The name of the PDF, text or picture you attach in your chatbot.", ms: "Nama PDF, teks atau gambar yang anda lampirkan dalam chatbot anda."},
+	"teachers.opr.extract":         {en: "What to take from the reference", ms: "Apa yang diambil daripada rujukan"},
+	"teachers.opr.extract-hint":    {en: "For example the objectives, the activities, the number of participants and the impact.", ms: "Contohnya objektif, aktiviti, bilangan peserta dan impak."},
+	"teachers.opr.extra":           {en: "Additional instruction (optional)", ms: "Arahan tambahan (pilihan)"},
+	"teachers.opr.colour":          {en: "Main colour (warna utama, optional)", ms: "Warna utama (pilihan)"},
+	"teachers.opr.colour-hint":     {en: "For example navy blue, or #1F3A68.", ms: "Contohnya biru tua, atau #1F3A68."},
+	"teachers.opr.style":           {en: "OPR style", ms: "Gaya OPR"},
+	"teachers.opr.language":        {en: "Language of the OPR", ms: "Bahasa OPR"},
+	"teachers.opr.make":            {en: "Make the OPR prompt", ms: "Buat prompt OPR"},
+	"teachers.opr.count-note":      {en: "Making a prompt uses one of your %d OPR prompts a day, apart from your RPH prompts; copying it does not.", ms: "Membuat prompt menggunakan satu daripada %d prompt OPR anda sehari, berasingan daripada prompt RPH anda; menyalinnya tidak."},
+	"teachers.opr.not-ready":       {en: "OPR prompts are not ready yet. Please come back later.", ms: "Prompt OPR belum sedia. Sila datang semula nanti."},
+	"teachers.opr.err.title":       {en: "Enter the title, up to %d characters.", ms: "Masukkan tajuk, paling panjang %d aksara."},
+	"teachers.opr.err.institution": {en: "Enter the institution, up to %d characters.", ms: "Masukkan institusi, paling panjang %d aksara."},
+	"teachers.opr.err.date":        {en: "Enter the date, up to %d characters.", ms: "Masukkan tarikh, paling panjang %d aksara."},
+	"teachers.opr.err.time":        {en: "The time can be up to %d characters.", ms: "Masa boleh sehingga %d aksara."},
+	"teachers.opr.err.place":       {en: "Enter the venue, up to %d characters.", ms: "Masukkan tempat, paling panjang %d aksara."},
+	"teachers.opr.err.target":      {en: "The target group can be up to %d characters.", ms: "Kumpulan sasaran boleh sehingga %d aksara."},
+	"teachers.opr.err.reporter":    {en: "Enter the reporting teacher, up to %d characters.", ms: "Masukkan guru pelapor, paling panjang %d aksara."},
+	"teachers.opr.err.reference":   {en: "Enter the name of the reference, up to %d characters.", ms: "Masukkan nama rujukan, paling panjang %d aksara."},
+	"teachers.opr.err.extract":     {en: "Enter what to take from the reference, up to %d characters.", ms: "Masukkan apa yang diambil daripada rujukan, paling panjang %d aksara."},
+	"teachers.opr.err.extra":       {en: "The additional instruction can be up to %d characters.", ms: "Arahan tambahan boleh sehingga %d aksara."},
+	"teachers.opr.err.colour":      {en: "The main colour can be up to %d characters.", ms: "Warna utama boleh sehingga %d aksara."},
+	"teachers.opr.err.style":       {en: "Pick one of the OPR styles offered.", ms: "Pilih salah satu gaya OPR yang ditawarkan."},
+	"teachers.opr.err.limit":       {en: "You have made %d OPR prompts today, the most a day. You can make more from midnight, Malaysia time: %s.", ms: "Anda telah membuat %d prompt OPR hari ini, jumlah paling banyak sehari. Anda boleh membuat lagi mulai tengah malam, waktu Malaysia: %s."},
+	"teachers.opr.prompt.title":    {en: "Your OPR prompt", ms: "Prompt OPR anda"},
+	"teachers.opr.prompt.lede":     {en: "Copy this into your AI chatbot to draw the OPR.", ms: "Salin ini ke chatbot AI anda untuk melukis OPR."},
+	"teachers.opr.attach":          {en: "Attach your reference (%s) in your chatbot together with this prompt: a PDF, text or picture. CAVELMS does not have it.", ms: "Lampirkan rujukan anda (%s) dalam chatbot anda bersama prompt ini: PDF, teks atau gambar. CAVELMS tidak memilikinya."},
+	"teachers.opr.copy":            {en: "Copy", ms: "Salin"},
+	"teachers.opr.no-history":      {en: "CAVELMS does not keep your prompts: copy it before you leave this page.", ms: "CAVELMS tidak menyimpan prompt anda: salin sebelum anda meninggalkan halaman ini."},
+	"teachers.opr.another":         {en: "Make another OPR prompt", ms: "Buat prompt OPR lain"},
+
 	// Teachers Portal: saving an RPH prompt as a Snippet
 	"teachers.rph.save.title":         {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
 	"teachers.rph.save.lede":          {en: "Keep this prompt in CaveText to insert it later. Saving does not use one of your 3 prompts a day.", ms: "Simpan prompt ini dalam CaveText untuk dimasukkan kemudian. Menyimpan tidak menggunakan satu daripada 3 prompt anda sehari."},
@@ -210,6 +255,15 @@ var catalog = map[string]entry{
 	"teachers.rph.save.shortcut-hint": {en: "What you type in CaveText to insert it, with no spaces, for example ;rph.", ms: "Apa yang anda taip dalam CaveText untuk memasukkannya, tanpa ruang, contohnya ;rph."},
 	"teachers.rph.save":               {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
 	"teachers.rph.save.done":          {en: "Your RPH prompt is saved as a Snippet in CaveText. Type %s to insert it.", ms: "Prompt RPH anda disimpan sebagai Snippet dalam CaveText. Taip %s untuk memasukkannya."},
+
+	// Teachers Portal: saving an OPR prompt as a Snippet
+	"teachers.opr.save.title":         {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
+	"teachers.opr.save.lede":          {en: "Keep this prompt in CaveText to insert it later. Saving does not use one of your %d OPR prompts a day.", ms: "Simpan prompt ini dalam CaveText untuk dimasukkan kemudian. Menyimpan tidak menggunakan satu daripada %d prompt OPR anda sehari."},
+	"teachers.opr.save.name":          {en: "Snippet name", ms: "Nama Snippet"},
+	"teachers.opr.save.shortcut":      {en: "Shortcut", ms: "Pintasan"},
+	"teachers.opr.save.shortcut-hint": {en: "What you type in CaveText to insert it, with no spaces, for example ;opr.", ms: "Apa yang anda taip dalam CaveText untuk memasukkannya, tanpa ruang, contohnya ;opr."},
+	"teachers.opr.save":               {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
+	"teachers.opr.save.done":          {en: "Your OPR prompt is saved as a Snippet in CaveText. Type %s to insert it.", ms: "Prompt OPR anda disimpan sebagai Snippet dalam CaveText. Taip %s untuk memasukkannya."},
 
 	// Layout: footer
 	"footer.powered-by":      {en: "Powered by The Cave Consult (TCC)", ms: "Dikuasakan oleh The Cave Consult (TCC)"},
@@ -304,6 +358,11 @@ var catalog = map[string]entry{
 	"privacy.collect.cavetext": {
 		en: "Your CaveText account: its place (where you came in the order of first CaveText sign-ins), your Snippets, your User master prompt, your CaveText Pro periods, and the sign-in tokens that keep the CaveText extension signed in, so that CaveText works the same in every browser you sign in to.",
 		ms: "Akaun CaveText anda: tempatnya (kedudukan anda dalam urutan log masuk pertama CaveText), Snippet anda, User master prompt anda, tempoh CaveText Pro anda, dan token log masuk yang mengekalkan sambungan CaveText dalam keadaan log masuk, supaya CaveText berfungsi sama dalam setiap pelayar yang anda gunakan untuk log masuk.",
+	},
+	// DRAFT for the client's approval (ADR 0006): the line on what the Teacher profile keeps for an OPR.
+	"privacy.collect.opr": {
+		en: "Your Teacher profile keeps the institution and reporting teacher you last typed for an OPR, to fill them in next time.",
+		ms: "Profil guru anda menyimpan institusi dan guru pelapor yang terakhir anda taip untuk OPR, untuk diisi pada kali berikutnya.",
 	},
 	"privacy.collect.chat": {
 		en: "Your Chat Messages: what you post in a Course's Chat, your Reactions and any Reports you make. Chat Messages are seen by the Learners on that Course and the Admin, with your name but never your email address or IC, and are kept while the Course exists. A Message you delete is emptied; a Report and its reason are seen only by the Admin.",
@@ -2171,6 +2230,28 @@ var catalog = map[string]entry{
 	"admin.common.optional": {en: "(optional)", ms: "(pilihan)"},
 	"admin.common.status":   {en: "Status", ms: "Status"},
 	"admin.common.saved":    {en: "Saved.", ms: "Disimpan."},
+
+	// OPR styles
+	"admin.side.opr-styles": {en: "OPR styles", ms: "Gaya OPR"},
+	"opr.styles.title":      {en: "OPR styles", ms: "Gaya OPR"},
+	"opr.styles.intro":      {en: "The five OPR styles Teachers pick from when they make an OPR prompt. Each starts as a placeholder: write its name and prompt text, and hide one that is not ready.", ms: "Lima gaya OPR yang dipilih Guru apabila membuat prompt OPR. Setiap satu bermula sebagai ruang letak: tulis nama dan teks promptnya, dan sembunyikan yang belum siap."},
+	"opr.styles.status":     {en: "Status", ms: "Status"},
+	"opr.styles.shown":      {en: "Shown", ms: "Dipaparkan"},
+	"opr.styles.hidden":     {en: "Hidden", ms: "Disembunyikan"},
+	"opr.styles.hide":       {en: "Hide", ms: "Sembunyikan"},
+	"opr.styles.show":       {en: "Show", ms: "Paparkan"},
+	"opr.styles.edit":       {en: "Edit OPR style %d", ms: "Sunting gaya OPR %d"},
+	"opr.styles.back":       {en: "Back to OPR styles", ms: "Kembali ke gaya OPR"},
+	"opr.styles.text":       {en: "Prompt text", ms: "Teks prompt"},
+	"opr.styles.text-hint":  {en: "Added to the OPR prompt when a Teacher picks this style. The prompt's own rules stay the same for every style.", ms: "Ditambah pada prompt OPR apabila Guru memilih gaya ini. Peraturan prompt itu sendiri sama bagi setiap gaya."},
+
+	"opr.styles.err.name":      {en: "Enter a name.", ms: "Masukkan nama."},
+	"opr.styles.err.name-long": {en: "The name can be at most %d characters.", ms: "Nama boleh sehingga %d aksara."},
+	"opr.styles.err.text":      {en: "Enter the prompt text.", ms: "Masukkan teks prompt."},
+	"opr.styles.err.text-long": {en: "The prompt text can be at most %s characters.", ms: "Teks prompt boleh sehingga %s aksara."},
+
+	"opr.styles.not-found.title": {en: "OPR style not found", ms: "Gaya OPR tidak dijumpai"},
+	"opr.styles.not-found":       {en: "There is no OPR style there. The five are on the OPR styles page.", ms: "Tiada gaya OPR di situ. Kelima-limanya ada di halaman gaya OPR."},
 
 	// Plans and Plan periods
 	"plans.title":             {en: "Plans", ms: "Pelan"},

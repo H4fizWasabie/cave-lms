@@ -1,0 +1,32 @@
+{{define "title"}}{{t .Lang "opr.styles.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "opr-styles" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "opr.styles.title"}}</h1>
+            <p>{{t .Lang "opr.styles.intro"}}</p>
+          </div>
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>#</th><th>{{t .Lang "account.name"}}</th><th>{{t .Lang "opr.styles.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .Styles}}
+              <tr>
+                <td>{{.Position}}</td>
+                <td>{{.Name}}</td>
+                <td>{{if .Hidden}}{{t $.Lang "opr.styles.hidden"}}{{else}}{{t $.Lang "opr.styles.shown"}}{{end}}</td>
+                <td class="actions">
+                  <a class="btn btn-quiet btn-sm" href="/admin/opr-styles/{{.Position}}/edit">{{t $.Lang "admin.common.edit"}}</a>
+                  <form method="post" action="/admin/opr-styles/{{.Position}}/{{if .Hidden}}show{{else}}hide{{end}}"><button class="btn btn-quiet btn-sm">{{if .Hidden}}{{t $.Lang "opr.styles.show"}}{{else}}{{t $.Lang "opr.styles.hide"}}{{end}}</button></form>
+                </td>
+              </tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

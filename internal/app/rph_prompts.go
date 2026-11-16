@@ -19,7 +19,7 @@ import (
 // a prompt built from a fixed template (rph_template.go) to copy into their own AI chatbot. No AI call is made. Each
 // prompt made is recorded as who and when, never what, for the Daily prompt limit: no history of prompts exists.
 const (
-	dailyPromptLimit = 3
+	dailyPromptLimit = 3    // of each kind: RPH prompts and OPR prompts have a limit of their own
 	maxRPHField      = 60   // time and class, in characters
 	maxRPHStudents   = 200  // the number of murid
 	maxRPHNotes      = 1000 // the optional notes, in characters
@@ -82,18 +82,26 @@ func malaysiaDayStart(now time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, malaysia)
 }
 
-// promptsToday is how many RPH prompts the Teacher has made since the day began, Malaysia time, in now's day.
-func promptsToday(ctx context.Context, q rowQueryer, learnerID int64, now time.Time) (made int, err error) {
-	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM rph_prompts WHERE learner_id = $1 AND made_at >= $2`,
-		learnerID, malaysiaDayStart(now)).Scan(&made); err != nil {
-		return 0, fmt.Errorf("count RPH prompts: %w", err)
+// promptKind is which prompt was made: an RPH prompt or an OPR prompt, each with its own Daily prompt limit.
+type promptKind string
+
+const (
+	promptRPH promptKind = "rph"
+	promptOPR promptKind = "opr"
+)
+
+// promptsToday is how many prompts of a kind the Teacher has made since the day began, Malaysia time, in now's day.
+func promptsToday(ctx context.Context, q rowQueryer, learnerID int64, kind promptKind, now time.Time) (made int, err error) {
+	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM prompts_made WHERE learner_id = $1 AND kind = $2 AND made_at >= $3`,
+		learnerID, kind, malaysiaDayStart(now)).Scan(&made); err != nil {
+		return 0, fmt.Errorf("count %s prompts: %w", kind, err)
 	}
 	return made, nil
 }
 
-// promptsLeft is how many RPH prompts the Teacher may still make today, Malaysia time.
-func (a *App) promptsLeft(ctx context.Context, learnerID int64) (int, error) {
-	made, err := promptsToday(ctx, a.db, learnerID, a.now())
+// promptsLeft is how many prompts of a kind the Teacher may still make today, Malaysia time.
+func (a *App) promptsLeft(ctx context.Context, learnerID int64, kind promptKind) (int, error) {
+	made, err := promptsToday(ctx, a.db, learnerID, kind, a.now())
 	return max(0, dailyPromptLimit-made), err
 }
 
@@ -139,7 +147,7 @@ func (a *App) renderRPH(w http.ResponseWriter, r *http.Request, status int, p *r
 		return
 	}
 	p.Section = "rph"
-	if p.Left, err = a.promptsLeft(r.Context(), l.ID); err != nil {
+	if p.Left, err = a.promptsLeft(r.Context(), l.ID, promptRPH); err != nil {
 		a.serverError(w, r, err)
 		return
 	}
@@ -150,28 +158,34 @@ func (a *App) renderRPH(w http.ResponseWriter, r *http.Request, status int, p *r
 	a.render(w, r, status, name, p)
 }
 
-// recordPrompt records one more RPH prompt made by the Teacher, now, unless they have made the day's limit already; ok is
+// recordPrompt records one more prompt of a kind made by the Teacher, now, unless they have made the day's limit already; ok is
 // false then. The count and the record are one step under the account's row, so two at once cannot both take the last place.
-func (a *App) recordPrompt(ctx context.Context, learnerID int64) (ok bool, err error) {
+// keep, if given, runs in the same step once the prompt is recorded, so a prompt is never counted without it.
+func (a *App) recordPrompt(ctx context.Context, learnerID int64, kind promptKind, keep func(*sql.Tx) error) (ok bool, err error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
-		return false, fmt.Errorf("record RPH prompt: %w", err)
+		return false, fmt.Errorf("record %s prompt: %w", kind, err)
 	}
 	defer tx.Rollback()
 	now := a.now()
 	var locked int
 	if err := tx.QueryRowContext(ctx, `SELECT 1 FROM learners WHERE id = $1 FOR UPDATE`, learnerID).Scan(&locked); err != nil {
-		return false, fmt.Errorf("record RPH prompt: %w", err)
+		return false, fmt.Errorf("record %s prompt: %w", kind, err)
 	}
-	made, err := promptsToday(ctx, tx, learnerID, now)
+	made, err := promptsToday(ctx, tx, learnerID, kind, now)
 	if err != nil {
 		return false, err
 	}
 	if made >= dailyPromptLimit {
 		return false, nil
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO rph_prompts (learner_id, made_at) VALUES ($1, $2)`, learnerID, now); err != nil {
-		return false, fmt.Errorf("record RPH prompt: %w", err)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO prompts_made (learner_id, kind, made_at) VALUES ($1, $2, $3)`, learnerID, kind, now); err != nil {
+		return false, fmt.Errorf("record %s prompt: %w", kind, err)
+	}
+	if keep != nil {
+		if err := keep(tx); err != nil {
+			return false, err
+		}
 	}
 	return true, tx.Commit()
 }
@@ -245,7 +259,7 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		a.renderRPH(w, r, http.StatusUnprocessableEntity, p)
 		return
 	}
-	made, err := a.recordPrompt(r.Context(), l.ID)
+	made, err := a.recordPrompt(r.Context(), l.ID, promptRPH, nil)
 	if err != nil {
 		a.serverError(w, r, err)
 		return

@@ -1,0 +1,18 @@
+{{define "title"}}{{t .Lang "opr.styles.edit" .Style.Position}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "opr-styles" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/opr-styles">{{t .Lang "opr.styles.back"}}</a></p>
+        <div class="adm-head"><h1>{{t .Lang "opr.styles.edit" .Style.Position}}</h1></div>
+        <div class="card">
+          {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+          <form class="form" method="post" action="/admin/opr-styles/{{.Style.Position}}">
+            <div class="field"><label for="name">{{t .Lang "account.name"}}</label><input id="name" type="text" name="name" value="{{.Style.Name}}" maxlength="{{.MaxName}}" required></div>
+            <div class="field"><label for="text">{{t .Lang "opr.styles.text"}}</label><textarea id="text" name="text" rows="12" maxlength="{{.MaxText}}" required spellcheck="false">{{.Style.Text}}</textarea><small>{{t .Lang "opr.styles.text-hint"}}</small></div>
+            <div class="form-foot"><a class="btn btn-quiet" href="/admin/opr-styles">{{t .Lang "admin.common.cancel"}}</a><button class="btn btn-solid">{{t .Lang "admin.common.save"}}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+{{end}}

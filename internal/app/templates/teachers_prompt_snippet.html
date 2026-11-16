@@ -1,0 +1,27 @@
+{{define "title"}}{{t .Lang (print .Prefix ".save.title")}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang (print .Prefix ".save.title")}}</h1>
+      </div>
+      {{- if .Saved}}
+      <p role="status">{{t .Lang (print .Prefix ".save.done") .Shortcut}}</p>
+      <p><a class="btn btn-ghost" href="{{.Back}}">{{t .Lang .BackText}}</a></p>
+      {{- else}}
+      {{- with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+      <form class="form" method="post" action="{{.Action}}">
+        <div class="field">
+          <label for="snippet-name">{{t .Lang (print .Prefix ".save.name")}}</label>
+          <input id="snippet-name" type="text" name="name" value="{{.Name}}" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="snippet-shortcut">{{t .Lang (print .Prefix ".save.shortcut")}}</label>
+          <input id="snippet-shortcut" type="text" name="shortcut" value="{{.Shortcut}}" maxlength="100" autocomplete="off" required>
+          <small>{{t .Lang (print .Prefix ".save.shortcut-hint")}}</small>
+        </div>
+        <input type="hidden" name="body" value="{{.Body}}">
+        <button class="btn btn-solid">{{t .Lang (print .Prefix ".save")}}</button>
+      </form>
+      {{- end}}
+    </div>
+{{end}}

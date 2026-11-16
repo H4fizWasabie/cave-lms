@@ -276,6 +276,24 @@ func TestATeacherMakesAtMostThreeRPHPromptsADayAndTheFourthIsToldWhenMoreCome(t 
 	expectStatus(t, res, body, http.StatusOK, "2 of 3 RPH prompts left today")
 }
 
+func TestOPRPromptsMadeTodayDoNotUseUpTheDaysRPHPrompts(t *testing.T) {
+	t.Parallel()
+	admin, teacher, id := rphTeacher(t)
+	admin.atMYT("2026-11-16 23:30")
+	for range 3 {
+		res, body := teacher.post("/teachers/opr", oprForm("1"))
+		expectStatus(t, res, body, http.StatusOK, "Your OPR prompt")
+	}
+	_, form := teacher.get("/teachers/dskps/" + id + "/rph")
+	expectAll(t, form, "3 of 3 RPH prompts left today")
+	for _, left := range []string{"2 of 3", "1 of 3", "0 of 3"} {
+		res, body := teacher.post("/teachers/dskps/"+id+"/rph", rphForm(t, form, "1.1.1"))
+		expectStatus(t, res, body, http.StatusOK, left+" RPH prompts left today")
+	}
+	res, body := teacher.post("/teachers/dskps/"+id+"/rph", rphForm(t, form, "1.1.1"))
+	expectStatus(t, res, body, http.StatusTooManyRequests, "You have made 3 RPH prompts today")
+}
+
 func TestTheDailyPromptLimitResetsAtMalaysiaMidnightNotUTCMidnight(t *testing.T) {
 	t.Parallel()
 	admin, teacher, id := rphTeacher(t)
@@ -410,7 +428,7 @@ func TestThePromptAsksTheChatbotForEverySectionOfAnRPHInBothLanguagesAndCopyingI
 // countRPHPrompts is how many RPH prompts every account has made, from the database.
 func (s *site) countRPHPrompts() (n int) {
 	s.t.Helper()
-	if err := s.db.QueryRow(`SELECT count(*) FROM rph_prompts`).Scan(&n); err != nil {
+	if err := s.db.QueryRow(`SELECT count(*) FROM prompts_made WHERE kind = 'rph'`).Scan(&n); err != nil {
 		s.t.Fatal(err)
 	}
 	return n
