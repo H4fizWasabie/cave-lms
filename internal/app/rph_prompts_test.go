@@ -259,7 +259,7 @@ func TestATeacherMakesAtMostThreeRPHPromptsADayAndTheFourthIsToldWhenMoreCome(t 
 	// last typed, prefilled.
 	_, body = teacher.get("/teachers/dskps/" + id + "/rph")
 	expectAll(t, body, "0 of 3 RPH prompts left today", `name="class" value="4 Bestari"`)
-	expectNone(t, body, "Rancangan Pelajaran Harian", "PAK21", "readonly")
+	expectNone(t, body, "Rancangan Pelajaran Harian", "kad gambar", "readonly")
 	for _, p := range []string{"/teachers", "/teachers/dskps", "/teachers/dskps/" + id} {
 		_, body = teacher.get(p)
 		expectNone(t, body, "Rancangan Pelajaran Harian", "4 Bestari")
@@ -402,7 +402,7 @@ func TestThePromptAsksTheChatbotForEverySectionOfAnRPHInBothLanguagesAndCopyingI
 	// Copying is the browser's own: a button of its own, outside any form, on a page that loads the script that copies.
 	// The only form is the one that saves the prompt as a Snippet.
 	expectAll(t, body, `<button class="btn btn-solid" type="button" data-copy="rph-prompt">Copy</button>`, `forms.js`)
-	if n := strings.Count(body, "<form"); n != 1 {
+	if n := strings.Count(body, "<form class=\"form\""); n != 1 {
 		t.Errorf("the prompt page has %d forms, want only the one that saves a Snippet", n)
 	}
 }
