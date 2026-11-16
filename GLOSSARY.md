@@ -423,7 +423,7 @@ _Avoid_: Refresh, import, upload, Part
 ### Teachers Portal
 
 **Teachers Portal**:
-The area of CAVELMS for Teachers, at its own path with its own navigation, where a Teacher picks a DSKP and gets an RPH prompt to paste into their own AI chatbot. A Teacher who is not a Learner logs in to it and sees only it, with one link to the rest of CAVELMS; a Learner sees one link to it in the header; a Visitor sees its public page and prices. It calls the account a Teachers Portal account and never calls anyone Pelajar.
+The area of CAVELMS for Teachers, at its own path with its own navigation, where a Teacher picks a DSKP and gets an RPH prompt, or fills in an OPR's details and gets an OPR prompt, to paste into their own AI chatbot. A Teacher who is not a Learner logs in to it and sees only it, with one link to the rest of CAVELMS; a Learner sees one link to it in the header; a Visitor sees its public page and prices. It calls the account a Teachers Portal account and never calls anyone Pelajar.
 _Malay_: Teachers Portal (kept in English)
 _Avoid_: Teacher dashboard, guru app, RPH generator
 
@@ -433,12 +433,12 @@ _Malay_: Guru
 _Avoid_: Instructor, educator, cikgu (in the site's words)
 
 **Teacher profile**:
-The subjects and years a Teacher teaches, which the Teachers Portal uses to put their DSKPs first.
+The subjects and years a Teacher teaches, which the Teachers Portal uses to put their DSKPs first, and the details they last typed (kelas, masa and number of murid for an RPH prompt; institution and reporting teacher for an OPR prompt) to fill in the next one.
 _Malay_: Profil guru
 _Avoid_: Teacher account, school profile
 
 **Teachers Portal Pro**:
-A paid month or year of the Teachers Portal, sold on its own with a price for each that the Admin sets. Each Payment starts when the current month or year ends. Without it or a running Teacher trial, a Teacher can only pay. It does not include CaveText Pro or the Lab.
+A paid month or year of the Teachers Portal, RPH prompts and OPR prompts alike, sold on its own with a price for each that the Admin sets. Each Payment starts when the current month or year ends. Without it or a running Teacher trial, a Teacher can only pay. It does not include CaveText Pro or the Lab.
 _Malay_: Teachers Portal Pro (kept in English)
 _Avoid_: Subscription, Teacher plan, Plan (which means the Lab)
 
@@ -447,8 +447,23 @@ The 14 days of the Teachers Portal a Teacher gets free from filling in their Tea
 _Malay_: Percubaan percuma
 _Avoid_: Free plan, free tier, demo
 
+**OPR**:
+A One-Page Report: a single A4 page a Teacher hands in about a programme or activity, with its details, what happened and its impact, drawn as an infographic. CAVELMS does not draw it; the Teacher's AI chatbot does, from the OPR prompt and the reference the Teacher attaches there.
+_Malay_: OPR
+_Avoid_: Report (alone), Reports (the Admin's Reports page), poster
+
+**OPR style**:
+One of the five ways an OPR can be laid out and look, such as an activity report or a KPI dashboard, each a name and a prompt text the Admin writes; there are always five, and the Admin hides one that is not ready. The OPR prompt's own rules (use only the reference and the details typed, never invent facts) stay the same whichever style is picked.
+_Malay_: Gaya OPR
+_Avoid_: Theme (which means a Dashboard's look), template, format
+
+**OPR prompt**:
+The prompt CAVELMS builds from the details a Teacher types and the OPR style they pick, which the Teacher pastes into their AI chatbot, with their reference attached, or saves as a Snippet.
+_Malay_: Prompt OPR
+_Avoid_: Image prompt, generated OPR
+
 **Daily prompt limit**:
-At most 3 RPH prompts a Teacher can make in one day, Malaysia time (each one made counts, the same lesson again included; copying or saving one does not), during the Teacher trial and with Teachers Portal Pro alike, so that one account is not shared by a staffroom.
+At most 3 RPH prompts, and apart from them at most 3 OPR prompts, a Teacher can make in one day, Malaysia time (each one made counts, the same lesson again included; copying or saving one does not), during the Teacher trial and with Teachers Portal Pro alike, so that one account is not shared by a staffroom.
 _Malay_: Had prompt harian
 _Avoid_: Quota, credits, rate limit
 
