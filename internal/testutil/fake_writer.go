@@ -23,6 +23,7 @@ type FakeWriter struct {
 	markErr       error
 	lessons       []aiwriter.LessonRequest
 	lessonReplies []FakeLesson
+	dskp          fakeDSKP
 }
 
 // FakeLessonText is the fake writer's Lesson text when none is queued: 400 words, starting "AI lesson text".

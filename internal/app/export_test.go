@@ -201,3 +201,11 @@ func (a *App) UsedAcrossSave(ctx context.Context, learnerID, size int64) (before
 	}
 	return acc.Period.Used, again.Period.Used, nil
 }
+
+// WaitForDSKPReads waits for the DSKP reads running in the background, for tests.
+func (a *App) WaitForDSKPReads() { a.reading.Wait() }
+
+// FailInterruptedDSKPReads is what a restart does to DSKPs that were being read, for tests.
+func (a *App) FailInterruptedDSKPReads(ctx context.Context) error {
+	return a.failInterruptedDSKPReads(ctx)
+}

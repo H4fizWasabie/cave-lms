@@ -1,0 +1,11 @@
+{{define "title"}}{{.DSKP.Subject}} · {{t .Lang "teachers.nav.dskps"}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/teachers/dskps">{{t .Lang "teachers.dskps.back"}}</a></p>
+      <div class="page-head">
+        <h1>{{.DSKP.Subject}}</h1>
+        <p>{{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}}</p>
+      </div>
+      {{template "dskp-standards" .}}
+    </div>
+{{end}}

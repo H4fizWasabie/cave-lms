@@ -1,0 +1,26 @@
+{{define "title"}}{{.DSKP.Subject}} · {{t .Lang "dskps.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "dskps" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/dskps">{{t .Lang "dskps.back"}}</a></p>
+        <div class="adm-head">
+          <div>
+            <h1>{{.DSKP.Subject}}</h1>
+            <p>{{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}} · {{t .Lang (print "dskps.state." .DSKP.State)}}</p>
+          </div>
+          {{- if .DSKP.Draft}}
+          <div class="adm-head-actions"><form method="post" action="/admin/dskps/{{.DSKP.ID}}/publish"><button class="btn btn-solid">{{t .Lang "dskps.publish"}}</button></form></div>
+          {{- end}}
+        </div>
+        {{- if .DSKP.Reading}}
+        <div class="card"><p role="status">{{t .Lang "dskps.reading"}}</p></div>
+        {{- else if .DSKP.Failed}}
+        <div class="card"><p class="up-err" role="alert">{{t .Lang "dskps.failed" (t .Lang (print "dskps.failure." .DSKP.Failure))}}</p></div>
+        {{- else}}
+        <p role="status">{{if .DSKP.Draft}}{{t .Lang "dskps.draft"}}{{else}}{{t .Lang "dskps.published"}}{{end}}</p>
+        <div class="card">{{template "dskp-standards" .}}</div>
+        {{- end}}
+      </div>
+    </div>
+{{end}}
