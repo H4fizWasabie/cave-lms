@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -96,8 +95,14 @@ func (a *App) libraryDSKPs(ctx context.Context, states ...string) ([]dskp, error
 // libraryDSKP reads one DSKP of the library with its standards grouped as the DSKP groups them; ok is false when there
 // is none, or when it is not in one of states.
 func (a *App) libraryDSKP(ctx context.Context, id int64, states ...string) (d dskp, groups []dskpGroup, ok bool, err error) {
+	return a.dskpOf(ctx, sql.NullInt64{}, id, states...)
+}
+
+// dskpOf is libraryDSKP for the DSKP of the owner, who uploaded it for themselves; an owner that is not valid asks for the
+// library's.
+func (a *App) dskpOf(ctx context.Context, owner sql.NullInt64, id int64, states ...string) (d dskp, groups []dskpGroup, ok bool, err error) {
 	d, err = scanDSKP(a.db.QueryRowContext(ctx, `SELECT `+dskpColumns+` FROM dskps d
-		WHERE d.id = $1 AND d.owner_id IS NULL AND d.state = ANY($2)`, id, states))
+		WHERE d.id = $1 AND d.owner_id IS NOT DISTINCT FROM $3 AND d.state = ANY($2)`, id, states, owner))
 	if errors.Is(err, sql.ErrNoRows) {
 		return d, nil, false, nil
 	}
@@ -166,6 +171,52 @@ func (a *App) renderDSKPs(w http.ResponseWriter, r *http.Request, status int, p 
 	a.render(w, r, status, "admin_dskps", p)
 }
 
+// dskpUpload is a DSKP upload form once checked: the fields as posted, and the PDF held in memory.
+type dskpUpload struct {
+	Subject, Year, Language string
+	PDF                     []byte
+}
+
+// readDSKPUpload reads and checks a posted DSKP upload form, the Admin's and a Teacher's alike. When it is refused, key
+// names the error text and status the answer; the fields read so far come back to fill the form again.
+func readDSKPUpload(w http.ResponseWriter, r *http.Request) (u dskpUpload, status int, key string, err error) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxDSKPBytes+64<<10)
+	if err := r.ParseMultipartForm(maxDSKPBytes + 1<<20); err != nil && !errors.Is(err, http.ErrNotMultipart) { // held in memory
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return u, http.StatusRequestEntityTooLarge, "dskps.err.too-large", nil
+		}
+		return u, http.StatusBadRequest, "dskps.err.unread", nil
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+	u.Subject, u.Year, u.Language = strings.Join(strings.Fields(r.FormValue("subject")), " "), r.FormValue("year"), r.FormValue("language")
+	switch {
+	case u.Subject == "" || utf8.RuneCountInString(u.Subject) > maxDSKPSubject:
+		return u, http.StatusUnprocessableEntity, "dskps.err.subject", nil
+	case !slices.Contains(teacherYears, u.Year):
+		return u, http.StatusUnprocessableEntity, "dskps.err.year", nil
+	case u.Language != "ms" && u.Language != "en":
+		return u, http.StatusUnprocessableEntity, "dskps.err.language", nil
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		return u, http.StatusUnprocessableEntity, "dskps.err.pdf", nil
+	}
+	defer file.Close()
+	if header.Size > maxDSKPBytes {
+		return u, http.StatusRequestEntityTooLarge, "dskps.err.too-large", nil
+	}
+	if u.PDF, err = io.ReadAll(file); err != nil {
+		return u, 0, "", err
+	}
+	if !bytes.HasPrefix(u.PDF, []byte("%PDF-")) {
+		return u, http.StatusUnprocessableEntity, "dskps.err.pdf", nil
+	}
+	return u, 0, "", nil
+}
+
 // uploadDSKP takes a DSKP's PDF, subject, year and language, and starts the read in the background. The PDF is held in
 // memory only: nothing of it reaches the disk or the database.
 func (a *App) uploadDSKP(w http.ResponseWriter, r *http.Request) {
@@ -175,67 +226,36 @@ func (a *App) uploadDSKP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := &dskpsPage{}
-	fail := func(status int, key string) {
-		p.Error = text.T(lang, key)
-		a.renderDSKPs(w, r, status, p)
-	}
 	if !a.writer.ReadsDSKP() {
-		fail(http.StatusServiceUnavailable, "dskps.off")
+		p.Error = text.T(lang, "dskps.off")
+		a.renderDSKPs(w, r, http.StatusServiceUnavailable, p)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxDSKPBytes+64<<10)
-	if err := r.ParseMultipartForm(maxDSKPBytes + 1<<20); err != nil && !errors.Is(err, http.ErrNotMultipart) { // held in memory
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			fail(http.StatusRequestEntityTooLarge, "dskps.err.too-large")
-			return
-		}
-		fail(http.StatusBadRequest, "dskps.err.unread")
-		return
-	}
-	if r.MultipartForm != nil {
-		defer r.MultipartForm.RemoveAll()
-	}
-	p.Subject, p.Year, p.Language = strings.Join(strings.Fields(r.FormValue("subject")), " "), r.FormValue("year"), r.FormValue("language")
-	switch {
-	case p.Subject == "" || utf8.RuneCountInString(p.Subject) > maxDSKPSubject:
-		fail(http.StatusUnprocessableEntity, "dskps.err.subject")
-		return
-	case !slices.Contains(teacherYears, p.Year):
-		fail(http.StatusUnprocessableEntity, "dskps.err.year")
-		return
-	case p.Language != "ms" && p.Language != "en":
-		fail(http.StatusUnprocessableEntity, "dskps.err.language")
-		return
-	}
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		fail(http.StatusUnprocessableEntity, "dskps.err.pdf")
-		return
-	}
-	defer file.Close()
-	if header.Size > maxDSKPBytes {
-		fail(http.StatusRequestEntityTooLarge, "dskps.err.too-large")
-		return
-	}
-	pdf, err := io.ReadAll(file)
+	u, status, key, err := readDSKPUpload(w, r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if !bytes.HasPrefix(pdf, []byte("%PDF-")) {
-		fail(http.StatusUnprocessableEntity, "dskps.err.pdf")
+	p.Subject, p.Year, p.Language = u.Subject, u.Year, u.Language
+	if key != "" {
+		p.Error = text.T(lang, key)
+		a.renderDSKPs(w, r, status, p)
 		return
 	}
 	var id int64
 	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dskps (subject, year, language) VALUES ($1, $2, $3) RETURNING id`,
-		p.Subject, p.Year, p.Language).Scan(&id); err != nil {
+		u.Subject, u.Year, u.Language).Scan(&id); err != nil {
 		a.serverError(w, r, fmt.Errorf("save DSKP: %w", err))
 		return
 	}
-	a.reading.Add(1)
-	go a.readDSKP(id, aiwriter.DSKPRequest{PDF: pdf, Language: p.Language})
+	a.startReadingDSKP(id, u)
 	http.Redirect(w, r, "/admin/dskps/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+}
+
+// startReadingDSKP reads the standards of the saved DSKP id from the upload's PDF in the background.
+func (a *App) startReadingDSKP(id int64, u dskpUpload) {
+	a.reading.Add(1)
+	go a.readDSKP(id, aiwriter.DSKPRequest{PDF: u.PDF, Language: u.Language})
 }
 
 // readDSKP reads the standards from the PDF and saves them, which makes the DSKP a draft, or records why it failed. It
@@ -321,6 +341,7 @@ type dskpPage struct {
 	pageBase
 	Section string
 	Access  teacherAccess
+	Own     bool // the Teacher's own upload, not the library's
 	DSKP    dskp
 	Groups  []dskpGroup
 }
@@ -398,36 +419,6 @@ func (a *App) teacherPage(h func(http.ResponseWriter, *http.Request, teacherAcce
 	})
 }
 
-// teacherDSKPsPage is the Teachers Portal's list of published DSKPs: the ones that match the Teacher profile's subjects and
-// years first, then the rest.
-type teacherDSKPsPage struct {
-	pageBase
-	Section      string
-	Access       teacherAccess
-	Off          bool
-	Mine, Others []dskp
-}
-
-func (a *App) teacherDSKPs(w http.ResponseWriter, r *http.Request, acc teacherAccess) {
-	list, err := a.libraryDSKPs(r.Context(), dskpPublished)
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-	slices.SortFunc(list, func(x, y dskp) int {
-		return cmp.Or(strings.Compare(strings.ToLower(x.Subject), strings.ToLower(y.Subject)), cmp.Compare(slices.Index(teacherYears, x.Year), slices.Index(teacherYears, y.Year)))
-	})
-	p := &teacherDSKPsPage{Section: "dskps", Access: acc, Off: !a.writer.ReadsDSKP()}
-	for _, d := range list {
-		if acc.Profile.teaches(d) {
-			p.Mine = append(p.Mine, d)
-		} else {
-			p.Others = append(p.Others, d)
-		}
-	}
-	a.render(w, r, http.StatusOK, "teachers_dskps", p)
-}
-
 // teaches reports whether the DSKP is one of the Teacher's: its subject is one of the profile's, ignoring case, and its
 // year one of the profile's years. The Admin has no profile, so no DSKP is theirs.
 func (p *teacherProfile) teaches(d dskp) bool {
@@ -440,21 +431,4 @@ func (p *teacherProfile) teaches(d dskp) bool {
 		}
 	}
 	return false
-}
-
-func (a *App) teacherDSKP(w http.ResponseWriter, r *http.Request, acc teacherAccess) {
-	id, ok := dskpID(r)
-	if !ok {
-		a.notFound(w, r)
-		return
-	}
-	d, groups, ok, err := a.libraryDSKP(r.Context(), id, dskpPublished)
-	switch {
-	case err != nil:
-		a.serverError(w, r, err)
-	case !ok:
-		a.notFound(w, r)
-	default:
-		a.render(w, r, http.StatusOK, "teachers_dskp", &dskpPage{Section: "dskps", Access: acc, DSKP: d, Groups: groups})
-	}
 }

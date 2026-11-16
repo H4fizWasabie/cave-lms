@@ -123,6 +123,11 @@ var catalog = map[string]entry{
 	"dskps.err.pdf":                  {en: "Upload the DSKP as a PDF file.", ms: "Muat naik DSKP sebagai fail PDF."},
 	"dskps.err.too-large":            {en: "This file is too large. A DSKP may be up to about 30 MB, and nothing was stored.", ms: "Fail ini terlalu besar. DSKP boleh sehingga kira-kira 30 MB, dan tiada apa-apa disimpan."},
 	"dskps.err.unread":               {en: "The upload could not be read. Try again.", ms: "Muat naik tidak dapat dibaca. Cuba lagi."},
+	"dskps.teachers.link":            {en: "DSKPs uploaded by Teachers", ms: "DSKP dimuat naik oleh Guru"},
+	"dskps.teachers.title":           {en: "DSKPs uploaded by Teachers", ms: "DSKP dimuat naik oleh Guru"},
+	"dskps.teachers.lede":            {en: "DSKPs Teachers uploaded for themselves, which only they can see. The more Teachers upload one, the more it is worth adding to the library: upload it above.", ms: "DSKP yang dimuat naik oleh Guru untuk diri mereka sendiri, yang hanya mereka boleh lihat. Semakin ramai Guru memuat naik satu DSKP, semakin wajar ia ditambah ke perpustakaan: muat naiknya di atas."},
+	"dskps.teachers.count":           {en: "Teachers", ms: "Guru"},
+	"dskps.teachers.none":            {en: "No Teacher has uploaded a DSKP for themselves.", ms: "Tiada Guru memuat naik DSKP untuk diri sendiri."},
 	"admin.side.dskps":               {en: "DSKPs", ms: "DSKP"},
 	"teachers.nav.dskps":             {en: "DSKPs", ms: "DSKP"},
 	"teachers.dskps.lede":            {en: "Open a DSKP to see its standards, grouped as the DSKP groups them.", ms: "Buka DSKP untuk melihat standardnya, dikumpulkan seperti dalam DSKP."},
@@ -131,6 +136,15 @@ var catalog = map[string]entry{
 	"teachers.dskps.none":            {en: "No DSKP is published yet.", ms: "Belum ada DSKP yang diterbitkan."},
 	"teachers.dskps.none-mine":       {en: "None of the published DSKPs is for your subjects and years yet.", ms: "Belum ada DSKP diterbitkan untuk mata pelajaran dan tahun anda."},
 	"teachers.dskps.off":             {en: "DSKP reading is off, so no new DSKP can be added for now.", ms: "Bacaan DSKP ditutup, jadi tiada DSKP baharu boleh ditambah buat masa ini."},
+	"teachers.dskps.needs-pro":       {en: "Uploading a DSKP needs Teachers Portal Pro.", ms: "Muat naik DSKP memerlukan Teachers Portal Pro."},
+	"teachers.dskps.upload-lede":     {en: "Is your DSKP missing? Upload its PDF and the AI reads its standards. Only you can see it. The PDF is not kept.", ms: "DSKP anda tiada? Muat naik PDFnya dan AI membaca standardnya. Hanya anda yang boleh melihatnya. PDF tidak disimpan."},
+	"teachers.dskps.left":            {en: "%d of %d uploads left this month.", ms: "%d daripada %d muat naik tinggal bulan ini."},
+	"teachers.dskps.resets":          {en: "You can upload again from %s.", ms: "Anda boleh memuat naik semula mulai %s."},
+	"teachers.dskps.limit":           {en: "You have used your %d DSKP uploads for this month. You can upload again from %s.", ms: "Anda telah menggunakan %d muat naik DSKP bulan ini. Anda boleh memuat naik semula mulai %s."},
+	"teachers.dskps.delete":          {en: "Delete this DSKP", ms: "Padam DSKP ini"},
+	"teachers.dskps.own":             {en: "Your uploads", ms: "Muat naik anda"},
+	"teachers.dskps.unchecked":       {en: "Unchecked", ms: "Belum disemak"},
+	"teachers.dskps.unchecked-note":  {en: "The AI read these standards from your PDF and nobody has checked them. Only you can see this DSKP.", ms: "AI membaca standard ini daripada PDF anda dan belum ada yang menyemaknya. Hanya anda yang boleh melihat DSKP ini."},
 	"teachers.dskps.back":            {en: "All DSKPs", ms: "Semua DSKP"},
 
 	// Layout: footer
@@ -267,8 +281,8 @@ var catalog = map[string]entry{
 	},
 	// DRAFT for the client's approval (ADR 0006): the line on DSKPs going to an AI service.
 	"privacy.where.dskp": {
-		en: "DSKP PDFs the Admin uploads go to an AI service through OpenRouter, to read their standards, and are not kept; no Teacher's name, email or other details are sent with them.",
-		ms: "PDF DSKP yang dimuat naik oleh Pentadbir dihantar kepada perkhidmatan AI melalui OpenRouter untuk dibaca standardnya, dan tidak disimpan; tiada nama, e-mel atau butiran lain Guru dihantar bersamanya.",
+		en: "DSKP PDFs the Admin or a Teacher uploads go to an AI service through OpenRouter, to read their standards, and are not kept; no Teacher's name, email or other details are sent with them.",
+		ms: "PDF DSKP yang dimuat naik oleh Pentadbir atau Guru dihantar kepada perkhidmatan AI melalui OpenRouter untuk dibaca standardnya, dan tidak disimpan; tiada nama, e-mel atau butiran lain Guru dihantar bersamanya.",
 	},
 	"privacy.keep.title": {en: "How long we keep it", ms: "Berapa lama kami menyimpannya"},
 	"privacy.keep.p": {
