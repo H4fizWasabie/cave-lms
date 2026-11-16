@@ -21,6 +21,7 @@ var rphWords = map[string]struct {
 	SectionsIntro                                      string
 	Sections                                           []string // what the RPH has, in order
 	Rules                                              string
+	Logo                                               string // asked for only when the Teacher ticks their School logo
 }{
 	"ms": {
 		Intro:         "Anda ialah seorang guru berpengalaman dan pakar kurikulum Malaysia. Tolong tulis Rancangan Pelajaran Harian (RPH) yang lengkap untuk satu pengajaran dan pembelajaran, berdasarkan standard daripada Dokumen Standard Kurikulum dan Pentaksiran (DSKP) di bawah.",
@@ -47,6 +48,7 @@ var rphWords = map[string]struct {
 			"Refleksi: soalan panduan untuk guru menulis refleksi selepas pelajaran.",
 		},
 		Rules: "Ikut hanya standard di atas dan jangan menambah standard lain. Sesuaikan aktiviti dengan masa dan bilangan murid, dan ambil kira catatan guru. Tulis RPH dalam Bahasa Melayu.",
+		Logo:  "Letakkan logo sekolah yang dilampirkan di bahagian atas RPH. Pulangkan RPH sebagai dokumen yang boleh dimuat turun (Word atau PDF) supaya logo itu dapat dipaparkan.",
 	},
 	"en": {
 		Intro:         "You are an experienced teacher and an expert in the Malaysian curriculum. Please write a complete Rancangan Pelajaran Harian (RPH, a daily lesson plan) for one lesson, based on the standards from the Dokumen Standard Kurikulum dan Pentaksiran (DSKP) below.",
@@ -73,6 +75,7 @@ var rphWords = map[string]struct {
 			"Reflection (refleksi): guiding questions for the teacher to write a reflection after the lesson.",
 		},
 		Rules: "Follow only the standards above and do not add other standards. Fit the activities to the time and the number of pupils, and take the teacher's notes into account. Write the RPH in English.",
+		Logo:  "Place the attached school logo at the top of the RPH. Return the RPH as a downloadable document (Word or PDF) so that the logo can appear.",
 	},
 }
 
@@ -86,6 +89,7 @@ type rphLesson struct {
 	Group, Topic, SKCode string // the SK's tema or bidang, tajuk and code
 	SKText               string
 	SPs                  []rphSP // the ticked SPs, in the DSKP's order
+	Logo                 bool    // the Teacher attaches their School logo in their chatbot
 }
 
 // rphPromptText is the RPH prompt for the lesson in lang, "ms" or "en". The standards are quoted as the DSKP has them,
@@ -120,5 +124,8 @@ func rphPromptText(lang string, l rphLesson) string {
 		fmt.Fprintf(&b, "%d. %s\n", i+1, s)
 	}
 	b.WriteString("\n" + w.Rules + "\n")
+	if l.Logo {
+		b.WriteString("\n" + w.Logo + "\n")
+	}
 	return b.String()
 }
