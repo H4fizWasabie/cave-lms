@@ -1,0 +1,61 @@
+{{define "title"}}{{t .Lang "dskps.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "dskps" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{t .Lang "dskps.title"}}</h1>
+            <p>{{t .Lang "dskps.lede"}}</p>
+          </div>
+        </div>
+        <div class="card">
+          {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+          {{- if .Off}}
+          <p role="status">{{t .Lang "dskps.off"}}</p>
+          {{- else}}
+          <h2>{{t .Lang "dskps.upload"}}</h2>
+          <form class="form" method="post" action="/admin/dskps" enctype="multipart/form-data">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="subject">{{t .Lang "dskps.subject"}}</label><input id="subject" type="text" name="subject" value="{{.Subject}}" maxlength="100" required></div>
+              <div class="field"><label for="year">{{t .Lang "dskps.year"}}</label>
+                <select id="year" name="year" required>
+                  {{- range .Years}}
+                  <option value="{{.}}"{{if eq . $.Year}} selected{{end}}>{{t $.Lang (print "teachers.year." .)}}</option>
+                  {{- end}}
+                </select>
+              </div>
+              <div class="field"><label for="language">{{t .Lang "dskps.language"}}</label>
+                <select id="language" name="language" required>
+                  <option value="ms"{{if eq .Language "ms"}} selected{{end}}>{{t .Lang "dskps.language.ms"}}</option>
+                  <option value="en"{{if eq .Language "en"}} selected{{end}}>{{t .Lang "dskps.language.en"}}</option>
+                </select>
+              </div>
+              <div class="field"><label for="file">{{t .Lang "dskps.file"}}</label><input id="file" type="file" name="file" accept="application/pdf" required></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "dskps.read"}}</button></div>
+          </form>
+          {{- end}}
+        </div>
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "dskps.subject"}}</th><th>{{t .Lang "dskps.year"}}</th><th>{{t .Lang "dskps.language"}}</th><th>{{t .Lang "dskps.state"}}</th><th>{{t .Lang "dskps.standards"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .DSKPs}}
+              <tr>
+                <td><a class="cell-course" href="/admin/dskps/{{.ID}}">{{.Subject}}</a></td>
+                <td>{{t $.Lang (print "teachers.year." .Year)}}</td>
+                <td>{{t $.Lang (print "dskps.language." .Language)}}</td>
+                <td>{{t $.Lang (print "dskps.state." .State)}}</td>
+                <td>{{if or .Draft .Published}}{{t $.Lang "dskps.counts" .SKs .SPs}}{{end}}</td>
+                <td class="actions"><a class="btn btn-quiet btn-sm" href="/admin/dskps/{{.ID}}">{{t $.Lang "dskps.open"}}</a></td>
+              </tr>
+              {{else}}
+              <tr><td colspan="6">{{t .Lang "dskps.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+{{end}}

@@ -1,0 +1,26 @@
+{{/* dskp-standards lists a DSKP's standards grouped as the DSKP groups them: tema or bidang, tajuk, then each SK with its SP. The
+   page passes itself: it has .Groups and .Lang. */}}
+{{define "dskp-standards"}}
+{{- range .Groups}}
+        <section class="dskp-group">
+          <h2>{{.Name}}</h2>
+          {{- range .Topics}}
+          {{- if .Title}}<h3>{{.Title}}</h3>{{end}}
+          {{- range .SKs}}
+          <div class="dskp-sk">
+            <p><strong>{{t $.Lang "dskps.sk"}} {{.Code}}</strong> {{.Text}}</p>
+            {{- if .SPs}}
+            <ul>
+              {{- range .SPs}}
+              <li><strong>{{t $.Lang "dskps.sp"}} {{.Code}}</strong> {{.Text}}</li>
+              {{- end}}
+            </ul>
+            {{- else}}
+            <p class="muted">{{t $.Lang "dskps.no-sp"}}</p>
+            {{- end}}
+          </div>
+          {{- end}}
+          {{- end}}
+        </section>
+{{- end}}
+{{end}}

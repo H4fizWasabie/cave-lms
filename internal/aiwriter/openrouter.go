@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,10 +38,13 @@ const maxLessonTokens = 6000
 // structured JSON output and no tools.
 type OpenRouter struct {
 	APIKey    string
-	Model     string
-	WebSearch bool // OpenRouter's web search plugin
+	Model     string // writes and marks Exam questions and writes Lessons; empty turns those off
+	DSKPModel string // reads DSKPs; empty turns that off
+	WebSearch bool   // OpenRouter's web search plugin
 	// Endpoint defaults to OpenRouter's chat completions URL.
 	Endpoint string
+	// HTTP defaults to a client that gives up after a minute.
+	HTTP *http.Client
 }
 
 var openRouterClient = &http.Client{Timeout: 60 * time.Second}
@@ -72,6 +76,9 @@ var writtenSchema = json.RawMessage(`{
 	"required": ["questions"], "additionalProperties": false}`)
 
 func (o OpenRouter) WriteQuestions(ctx context.Context, r Request) ([]Question, error) {
+	if o.Model == "" {
+		return nil, ErrNotConfigured
+	}
 	schema := questionsSchema
 	if r.Format == "written" {
 		schema = writtenSchema
@@ -128,6 +135,9 @@ var markSchema = json.RawMessage(`{
 
 // MarkAnswer marks without web search: the model answer is what the answer is marked against.
 func (o OpenRouter) MarkAnswer(ctx context.Context, r MarkRequest) (Marking, error) {
+	if o.Model == "" {
+		return Marking{}, ErrNotConfigured
+	}
 	req := map[string]any{
 		"model":      o.Model,
 		"max_tokens": maxMarkTokens,
@@ -150,6 +160,9 @@ var lessonSchema = json.RawMessage(`{
 
 // WriteLesson writes with web search when it is on, for current material, as WriteQuestions does.
 func (o OpenRouter) WriteLesson(ctx context.Context, r LessonRequest) (string, error) {
+	if o.Model == "" {
+		return "", ErrNotConfigured
+	}
 	user := fmt.Sprintf("Course: %s\nLesson: %s\nLanguage: %s\nObjectives:\n- %s", r.CourseTitle, r.Title, languageNames[r.Language], strings.Join(r.Objectives, "\n- "))
 	if len(r.OtherTitles) > 0 {
 		user += "\nOther Lessons in the Course:\n- " + strings.Join(r.OtherTitles, "\n- ")
@@ -171,6 +184,63 @@ func (o OpenRouter) WriteLesson(ctx context.Context, r LessonRequest) (string, e
 	}
 	err := o.chat(ctx, req, &out)
 	return out.Markdown, err
+}
+
+//go:embed read_dskp.txt
+var readDSKPInstructions string
+
+// maxDSKPTokens caps one DSKP's reply: a DSKP holds hundreds of standards, with room for a model that reasons first.
+const maxDSKPTokens = 60000
+
+// dskpClient waits for a DSKP's reply as long as a model needs to read a long PDF.
+var dskpClient = &http.Client{Timeout: 10 * time.Minute}
+
+// dskpSchema is the JSON schema of a DSKP's standards. That an SK has an SP is checked after.
+var dskpSchema = json.RawMessage(`{
+	"type": "object",
+	"properties": {"standards": {"type": "array", "items": {
+		"type": "object",
+		"properties": {
+			"grouping": {"type": "string"},
+			"topic": {"type": "string"},
+			"code": {"type": "string"},
+			"text": {"type": "string"},
+			"sps": {"type": "array", "items": {
+				"type": "object",
+				"properties": {"code": {"type": "string"}, "text": {"type": "string"}},
+				"required": ["code", "text"], "additionalProperties": false}}},
+		"required": ["grouping", "topic", "code", "text", "sps"], "additionalProperties": false}}},
+	"required": ["standards"], "additionalProperties": false}`)
+
+func (o OpenRouter) ReadsDSKP() bool { return o.DSKPModel != "" }
+
+// ReadDSKP sends the PDF as a file content part (https://openrouter.ai/docs/guides/overview/multimodal/pdfs); with no
+// file-parser engine named, OpenRouter reads it natively when the model can and otherwise with OCR. Web search is off:
+// the standards are only what the PDF says.
+func (o OpenRouter) ReadDSKP(ctx context.Context, r DSKPRequest) ([]SK, error) {
+	if o.DSKPModel == "" {
+		return nil, ErrNotConfigured
+	}
+	o.HTTP = dskpClient
+	req := map[string]any{
+		"model":      o.DSKPModel,
+		"max_tokens": maxDSKPTokens,
+		"messages": []map[string]any{
+			{"role": "system", "content": readDSKPInstructions},
+			{"role": "user", "content": []map[string]any{
+				{"type": "text", "text": "Language: " + languageNames[r.Language]},
+				{"type": "file", "file": map[string]string{"filename": "dskp.pdf", "file_data": "data:application/pdf;base64," + base64.StdEncoding.EncodeToString(r.PDF)}},
+			}},
+		},
+		"response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "dskp", "strict": true, "schema": dskpSchema}},
+	}
+	var out struct {
+		Standards []SK `json:"standards"`
+	}
+	if err := o.chat(ctx, req, &out); err != nil {
+		return nil, err
+	}
+	return out.Standards, nil
 }
 
 // chat sends req and decodes the first reply's JSON content into v. Content that is not v's JSON is ErrBadShape.
@@ -208,12 +278,16 @@ func (o OpenRouter) post(ctx context.Context, body, v any) error {
 	}
 	req.Header.Set("Authorization", "Bearer "+o.APIKey)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := openRouterClient.Do(req)
+	client := o.HTTP
+	if client == nil {
+		client = openRouterClient
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	defer resp.Body.Close()
-	reply, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	reply, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}

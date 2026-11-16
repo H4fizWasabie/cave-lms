@@ -18,7 +18,7 @@ To run it on the VPS, see `docs/deploy.md` for deploys and `docs/runbook.md` for
 
 `CAVETEXT_EXTENSION_IDS` is optional: the comma-separated Chrome extension IDs that may sign in to CaveText through `/cavetext/connect`. Unset, CaveText sign-in is refused. The IDs are in `docs/deploy.md` (CaveText).
 
-`OPENROUTER_API_KEY` and `OPENROUTER_MODEL` are optional. With both, the AI writes Exam questions and Lesson text and marks Written answers through OpenRouter; without them, Written attempts with non-blank answers wait for the Admin to mark them. `OPENROUTER_WEB_SEARCH` (`true` by default) turns its web search on or off. There is no built-in model. **Set a monthly credit limit on the OpenRouter key**: the app has no spending cap of its own. See `docs/deploy.md` (AI writer).
+`OPENROUTER_API_KEY` and `OPENROUTER_MODEL` are optional. With both, the AI writes Exam questions and Lesson text and marks Written answers through OpenRouter; without them, Written attempts with non-blank answers wait for the Admin to mark them. `OPENROUTER_WEB_SEARCH` (`true` by default) turns its web search on or off. There is no built-in model. `OPENROUTER_DSKP_MODEL` is optional and apart from `OPENROUTER_MODEL`: the model that reads DSKP PDFs for the Teachers Portal, which must take PDFs; unset, DSKP reading is off and the Admin and Teachers are told so. **Set a monthly credit limit on the OpenRouter key**: the app has no spending cap of its own. See `docs/deploy.md` (AI writer).
 
 `RESEND_API_KEY` is optional. With it, verification and reset emails are sent through Resend from `EMAIL_FROM`; without it, sending fails with an explicit error.
 
