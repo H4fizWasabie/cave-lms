@@ -2055,6 +2055,39 @@ var catalog = map[string]entry{
 		en: "Hi %[1]s,\n\nYour Lab Plan ended on %[2]s. Your Workbooks and Datasets will be deleted on %[3]s unless you renew before then.\n\nRenew here:\n\n%[4]s\n\nSee your dates here:\n\n%[5]s\n",
 		ms: "Hai %[1]s,\n\nPelan Lab anda tamat pada %[2]s. Buku kerja dan Set data anda akan dipadam pada %[3]s melainkan anda memperbaharui sebelum itu.\n\nPerbaharui di sini:\n\n%[4]s\n\nLihat tarikh anda di sini:\n\n%[5]s\n",
 	},
+	// The Teachers Portal's own reminders: the Teacher trial and Teachers Portal Pro, one email for each stage. The body
+	// takes the account's name, the lines, the Teachers Portal link (where the pay page is) and the My membership link.
+	"email.renewal.item.teachers-trial": {en: "Teacher trial", ms: "Percubaan percuma"},
+	"email.renewal.teachers.3-days.subject": {
+		en: "Your Teachers Portal access ends in 3 days",
+		ms: "Akses Teachers Portal anda tamat dalam 3 hari",
+	},
+	"email.renewal.teachers.3-days.body": {
+		en: "Hi %[1]s,\n\nYour free trial ends in 3 days:\n\n%[2]s\n\nPay for Teachers Portal Pro to carry on. It starts when your trial ends, so you lose no days.\n\nPay here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nPercubaan percuma anda tamat dalam 3 hari:\n\n%[2]s\n\nBayar untuk Teachers Portal Pro untuk terus menggunakannya. Ia bermula apabila percubaan anda tamat, jadi anda tidak kehilangan sebarang hari.\n\nBayar di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.item.teachers-pro": {en: "Teachers Portal Pro", ms: "Teachers Portal Pro"},
+	"email.renewal.teachers.30-days.subject": {
+		en: "Your Teachers Portal access ends in 30 days",
+		ms: "Akses Teachers Portal anda tamat dalam 30 hari",
+	},
+	"email.renewal.teachers.30-days.body": {
+		en: "Hi %[1]s,\n\nYour access ends in about 30 days:\n\n%[2]s\n\nRenew early and you lose no days: your new period starts when the current one ends.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda tamat dalam kira-kira 30 hari:\n\n%[2]s\n\nPerbaharui lebih awal dan anda tidak kehilangan sebarang hari: tempoh baharu anda bermula apabila tempoh semasa tamat.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.teachers.7-days.subject": {
+		en: "Your Teachers Portal access ends in 7 days",
+		ms: "Akses Teachers Portal anda tamat dalam 7 hari",
+	},
+	"email.renewal.teachers.7-days.body": {
+		en: "Hi %[1]s,\n\nYour access ends in 7 days or less:\n\n%[2]s\n\nRenew now and you lose no days: your new period starts when the current one ends.\n\nRenew here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda tamat dalam 7 hari atau kurang:\n\n%[2]s\n\nPerbaharui sekarang dan anda tidak kehilangan sebarang hari: tempoh baharu anda bermula apabila tempoh semasa tamat.\n\nPerbaharui di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
+	"email.renewal.teachers.ended.subject": {en: "Your Teachers Portal access has ended", ms: "Akses Teachers Portal anda telah tamat"},
+	"email.renewal.teachers.ended.body": {
+		en: "Hi %[1]s,\n\nYour access has ended:\n\n%[2]s\n\nPay for Teachers Portal Pro to carry on.\n\nPay here:\n\n%[3]s\n\nSee your dates here:\n\n%[4]s\n",
+		ms: "Hai %[1]s,\n\nAkses anda telah tamat:\n\n%[2]s\n\nBayar untuk Teachers Portal Pro untuk terus menggunakannya.\n\nBayar di sini:\n\n%[3]s\n\nLihat tarikh anda di sini:\n\n%[4]s\n",
+	},
 	"ebook.link.gone.title": {en: "Download link no longer works", ms: "Pautan muat turun tidak lagi berfungsi"},
 	"ebook.link.gone": {
 		en: "This download link no longer works. It has expired, or your Ebook access has ended. While your Ebook access runs you can read the ebooks in the Gallery, and the Admin can send you a fresh link.",
