@@ -316,6 +316,56 @@ func oprForm(style string) url.Values {
 	}
 }
 
+func TestTheLastInstitusiAndGuruPelaporTypedAreStoredOnlyWhenAnOPRPromptIsMadeAndPrefilledNextTime(t *testing.T) {
+	t.Parallel()
+	admin, teacher := oprTeacher(t)
+	_, form := teacher.get("/teachers/opr")
+	expectNone(t, form, `value="SK Taman Maju"`, `value="Cikgu Ada binti Ali"`)
+
+	// A form with a mistake makes no prompt and is not remembered.
+	bad := oprForm("1")
+	bad.Set("institution", "SK Bukit Indah")
+	bad.Set("title", "")
+	res, body := teacher.post("/teachers/opr", bad)
+	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
+	_, form = teacher.get("/teachers/opr")
+	expectNone(t, form, "SK Bukit Indah")
+
+	res, body = teacher.post("/teachers/opr", oprForm("1"))
+	expectStatus(t, res, body, http.StatusOK, "Your OPR prompt")
+	_, form = teacher.get("/teachers/opr")
+	expectAll(t, form, `name="institution" value="SK Taman Maju"`, `name="reporter" value="Cikgu Ada binti Ali"`)
+	expectNone(t, form, "Hari Sukan Tahunan 2027") // the rest is for one OPR, not kept
+
+	// The latest made wins, and it is the Teacher's own: another's form is still empty.
+	later := oprForm("1")
+	later.Set("institution", "SK Bukit Indah")
+	later.Set("reporter", "Cikgu Bob")
+	teacher.post("/teachers/opr", later)
+	_, form = teacher.get("/teachers/opr")
+	expectAll(t, form, `name="institution" value="SK Bukit Indah"`, `name="reporter" value="Cikgu Bob"`)
+	bob := admin.second()
+	bob.loginAsNewLearner("Bob", "bob@example.com", teachersPassword)
+	bob.saveTeacherProfile("Sains", "Y4")
+	_, form = bob.get("/teachers/opr")
+	expectNone(t, form, "SK Bukit Indah", "Cikgu Bob")
+
+	// The Admin has no Teacher profile: making a prompt works and nothing is kept.
+	res, body = admin.post("/teachers/opr", oprForm("1"))
+	expectStatus(t, res, body, http.StatusOK, "Your OPR prompt")
+	_, form = admin.get("/teachers/opr")
+	expectNone(t, form, `value="SK Taman Maju"`)
+}
+
+func TestThePrivacyNoticeSaysTheTeacherProfileKeepsTheInstitutionAndReportingTeacherLastTypedForAnOPR(t *testing.T) {
+	t.Parallel()
+	s := newSite(t)
+	_, body := s.getAsking("/privacy", "en")
+	expectAll(t, body, "Your Teacher profile keeps the institution and reporting teacher you last typed for an OPR, to fill them in next time.")
+	_, body = s.getAsking("/privacy", "ms")
+	expectAll(t, body, "Profil guru anda menyimpan institusi dan guru pelapor yang terakhir anda taip untuk OPR, untuk diisi pada kali berikutnya.")
+}
+
 // countOPRPrompts is how many OPR prompts the site has recorded as made.
 func (s *site) countOPRPrompts() (n int) {
 	s.t.Helper()

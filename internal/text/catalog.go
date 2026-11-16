@@ -256,6 +256,15 @@ var catalog = map[string]entry{
 	"teachers.rph.save":               {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
 	"teachers.rph.save.done":          {en: "Your RPH prompt is saved as a Snippet in CaveText. Type %s to insert it.", ms: "Prompt RPH anda disimpan sebagai Snippet dalam CaveText. Taip %s untuk memasukkannya."},
 
+	// Teachers Portal: saving an OPR prompt as a Snippet
+	"teachers.opr.save.title":         {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
+	"teachers.opr.save.lede":          {en: "Keep this prompt in CaveText to insert it later. Saving does not use one of your 3 OPR prompts a day.", ms: "Simpan prompt ini dalam CaveText untuk dimasukkan kemudian. Menyimpan tidak menggunakan satu daripada 3 prompt OPR anda sehari."},
+	"teachers.opr.save.name":          {en: "Snippet name", ms: "Nama Snippet"},
+	"teachers.opr.save.shortcut":      {en: "Shortcut", ms: "Pintasan"},
+	"teachers.opr.save.shortcut-hint": {en: "What you type in CaveText to insert it, with no spaces, for example ;opr.", ms: "Apa yang anda taip dalam CaveText untuk memasukkannya, tanpa ruang, contohnya ;opr."},
+	"teachers.opr.save":               {en: "Save as a Snippet", ms: "Simpan sebagai Snippet"},
+	"teachers.opr.save.done":          {en: "Your OPR prompt is saved as a Snippet in CaveText. Type %s to insert it.", ms: "Prompt OPR anda disimpan sebagai Snippet dalam CaveText. Taip %s untuk memasukkannya."},
+
 	// Layout: footer
 	"footer.powered-by":      {en: "Powered by The Cave Consult (TCC)", ms: "Dikuasakan oleh The Cave Consult (TCC)"},
 	"footer.learn":           {en: "Learn", ms: "Belajar"},
@@ -349,6 +358,11 @@ var catalog = map[string]entry{
 	"privacy.collect.cavetext": {
 		en: "Your CaveText account: its place (where you came in the order of first CaveText sign-ins), your Snippets, your User master prompt, your CaveText Pro periods, and the sign-in tokens that keep the CaveText extension signed in, so that CaveText works the same in every browser you sign in to.",
 		ms: "Akaun CaveText anda: tempatnya (kedudukan anda dalam urutan log masuk pertama CaveText), Snippet anda, User master prompt anda, tempoh CaveText Pro anda, dan token log masuk yang mengekalkan sambungan CaveText dalam keadaan log masuk, supaya CaveText berfungsi sama dalam setiap pelayar yang anda gunakan untuk log masuk.",
+	},
+	// DRAFT for the client's approval (ADR 0006): the line on what the Teacher profile keeps for an OPR.
+	"privacy.collect.opr": {
+		en: "Your Teacher profile keeps the institution and reporting teacher you last typed for an OPR, to fill them in next time.",
+		ms: "Profil guru anda menyimpan institusi dan guru pelapor yang terakhir anda taip untuk OPR, untuk diisi pada kali berikutnya.",
 	},
 	"privacy.collect.chat": {
 		en: "Your Chat Messages: what you post in a Course's Chat, your Reactions and any Reports you make. Chat Messages are seen by the Learners on that Course and the Admin, with your name but never your email address or IC, and are kept while the Course exists. A Message you delete is emptied; a Report and its reason are seen only by the Admin.",

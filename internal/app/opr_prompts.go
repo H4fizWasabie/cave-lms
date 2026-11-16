@@ -1,6 +1,9 @@
 package app
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -34,6 +37,7 @@ type oprPage struct {
 	Title, Institution, Date, Time, Place, Target, Reporter, Reference, Extract, Extra, Colour, Language string
 	Style                                                                                                int
 	Prompt                                                                                               string // the prompt made
+	SnippetName                                                                                          string // what the prompt is called when saved as a Snippet
 }
 
 // renderOPR fills in what every OPR page shows: the portal's section, the Teacher's access, the OPR styles offered and the
@@ -64,12 +68,24 @@ func (a *App) renderOPR(w http.ResponseWriter, r *http.Request, status int, p *o
 
 // oprForm is the OPR prompt form, in the page's language.
 func (a *App) oprForm(w http.ResponseWriter, r *http.Request, acc teacherAccess) {
+	l, err := a.currentLearner(r)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	a.renderOPR(w, r, http.StatusOK, &oprPage{Access: acc, Language: lang})
+	p := &oprPage{Access: acc, Language: lang}
+	// The institution and reporting teacher last typed, kept on the Teacher profile; the Admin may have no profile.
+	err = a.db.QueryRowContext(r.Context(), `SELECT last_institution, last_reporter FROM teacher_profiles WHERE learner_id = $1`, l.ID).Scan(&p.Institution, &p.Reporter)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		a.serverError(w, r, fmt.Errorf("read last OPR details: %w", err))
+		return
+	}
+	a.renderOPR(w, r, http.StatusOK, p)
 }
 
 // makeOPRPrompt builds the OPR prompt from what the Teacher typed and counts it as one of the day's.
@@ -133,7 +149,13 @@ func (a *App) makeOPRPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		a.renderOPR(w, r, http.StatusTooManyRequests, p)
 		return
 	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE teacher_profiles SET last_institution = $2, last_reporter = $3 WHERE learner_id = $1`,
+		l.ID, p.Institution, p.Reporter); err != nil {
+		a.serverError(w, r, fmt.Errorf("keep last OPR details: %w", err))
+		return
+	}
 	p.Prompt = oprPromptText(p.Language, oprDetails{Title: p.Title, Institution: p.Institution, Date: p.Date, Time: p.Time, Place: p.Place, Target: p.Target,
 		Reporter: p.Reporter, Reference: p.Reference, Extract: p.Extract, Extra: p.Extra, Colour: p.Colour}, style)
+	p.SnippetName = string([]rune(p.Title)[:min(utf8.RuneCountInString(p.Title), maxSnippetField)]) // the tajuk, cut to a Snippet name's length
 	a.renderOPR(w, r, http.StatusOK, p)
 }
