@@ -79,6 +79,10 @@ type App struct {
 	emailing  sync.WaitGroup
 	// mailingLater holds the emails sent after their request answered (mailLater); Close waits for them.
 	mailingLater sync.WaitGroup
+	// reading holds the DSKP reads running in the background (readDSKP); Close ends them through readCtx and waits for them.
+	reading     sync.WaitGroup
+	readCtx     context.Context
+	stopReading context.CancelFunc
 	// uploading holds the IDs of Learners with a Submission upload in flight, so each sends one at a time and holds
 	// at most one request's files (5 x 20 MB) in memory.
 	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
@@ -223,6 +227,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.dataset = dataset.New(db, datasets, func() time.Time { return a.now() })
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
+	}
+	a.readCtx, a.stopReading = context.WithCancel(context.Background())
+	if err = a.failInterruptedDSKPReads(ctx); err != nil {
+		return nil, err
 	}
 	a.dailyPrune(ctx)
 	a.checkBCLToken(ctx)
@@ -493,6 +501,12 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/cavetext/settings", a.admin(a.caveTextSettingsForm))
 	mux.HandleFunc("POST /admin/cavetext/settings", a.admin(a.saveCaveTextSettings))
 	mux.HandleFunc("POST /admin/cavetext/master-prompts", a.admin(a.saveCaveTextMasterPrompts))
+	mux.HandleFunc("GET /admin/dskps", a.admin(a.adminDSKPs))
+	mux.HandleFunc("POST /admin/dskps", a.admin(a.uploadDSKP))
+	mux.HandleFunc("GET /admin/dskps/{id}", a.admin(a.adminDSKP))
+	mux.HandleFunc("POST /admin/dskps/{id}/publish", a.admin(a.publishDSKP))
+	mux.HandleFunc("GET "+portalPath+"/dskps", a.teacherPage(a.teacherDSKPs))
+	mux.HandleFunc("GET "+portalPath+"/dskps/{id}", a.teacherPage(a.teacherDSKP))
 	mux.HandleFunc("GET "+portalPath, a.teachersHome)
 	mux.HandleFunc("GET "+portalPath+"/profile", a.requireLearner(a.teacherProfileForm))
 	mux.HandleFunc("POST "+portalPath+"/profile", a.requireLearner(a.saveTeacherProfile))
@@ -568,6 +582,8 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) Close() error {
 	close(a.done)
+	a.stopReading()
+	a.reading.Wait()      // the reads record their end in the database
 	a.emailing.Wait()     // the sender of owed emails reads the database
 	a.mailingLater.Wait() // the emails sent after their request answered
 	return a.db.Close()

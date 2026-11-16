@@ -17,6 +17,7 @@
       <nav class="site-nav" aria-label="{{t .Lang "teachers.nav"}}">
         {{- if .Learner}}
         <a class="hdr-link" href="/teachers"{{if eq .Section "rph"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.rph"}}</a>
+        <a class="hdr-link" href="/teachers/dskps"{{if eq .Section "dskps"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.dskps"}}</a>
         <a class="hdr-link" href="/teachers/profile"{{if eq .Section "profile"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.profile"}}</a>
         {{- end}}
         <a class="hdr-link" href="/">{{t .Lang "teachers.to-cavelms"}}</a>

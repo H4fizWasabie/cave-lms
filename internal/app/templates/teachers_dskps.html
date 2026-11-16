@@ -1,0 +1,34 @@
+{{define "title"}}{{t .Lang "teachers.nav.dskps"}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "teachers.nav.dskps"}}</h1>
+        <p>{{t .Lang "teachers.dskps.lede"}}</p>
+        {{- if .Off}}
+        <p role="status">{{t .Lang "teachers.dskps.off"}}</p>
+        {{- end}}
+      </div>
+      {{- if or .Mine .Others}}
+      <h2>{{t .Lang "teachers.dskps.mine"}}</h2>
+      {{- if .Mine}}
+      <ul class="dskp-list">
+        {{- range .Mine}}
+        <li><a href="/teachers/dskps/{{.ID}}">{{.Subject}}</a> · {{t $.Lang (print "teachers.year." .Year)}} · {{t $.Lang (print "dskps.language." .Language)}}</li>
+        {{- end}}
+      </ul>
+      {{- else}}
+      <p>{{t .Lang "teachers.dskps.none-mine"}}</p>
+      {{- end}}
+      {{- if .Others}}
+      <h2>{{t .Lang "teachers.dskps.others"}}</h2>
+      <ul class="dskp-list">
+        {{- range .Others}}
+        <li><a href="/teachers/dskps/{{.ID}}">{{.Subject}}</a> · {{t $.Lang (print "teachers.year." .Year)}} · {{t $.Lang (print "dskps.language." .Language)}}</li>
+        {{- end}}
+      </ul>
+      {{- end}}
+      {{- else}}
+      <p>{{t .Lang "teachers.dskps.none"}}</p>
+      {{- end}}
+    </div>
+{{end}}

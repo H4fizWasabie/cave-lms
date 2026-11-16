@@ -19,6 +19,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("BCL_WEBHOOK_KEY", "")
 	t.Setenv("OPENROUTER_API_KEY", "")
 	t.Setenv("OPENROUTER_MODEL", "")
+	t.Setenv("OPENROUTER_DSKP_MODEL", "")
 	t.Setenv("OPENROUTER_WEB_SEARCH", "")
 	t.Setenv("BCL_PAYMENTS", "")
 	t.Setenv("BCL_API_TOKEN", "")
@@ -171,15 +172,16 @@ func TestLoadReadsR2ConfigOnlyWhenAllOfItIsSet(t *testing.T) {
 func TestLoadReadsOpenRouterConfigWithWebSearchOnByDefaultAndNoModel(t *testing.T) {
 	setValidEnvironment(t)
 	cfg, err := Load()
-	if err != nil || cfg.OpenRouterAPIKey != "" || cfg.OpenRouterModel != "" || !cfg.OpenRouterWebSearch {
+	if err != nil || cfg.OpenRouterAPIKey != "" || cfg.OpenRouterModel != "" || cfg.OpenRouterDSKPModel != "" || !cfg.OpenRouterWebSearch {
 		t.Fatalf("without OpenRouter config: cfg = %#v, err = %v; want no key, no model, web search on", cfg, err)
 	}
 
 	t.Setenv("OPENROUTER_API_KEY", " sk-or-test ")
 	t.Setenv("OPENROUTER_MODEL", " openai/gpt-4o-mini ")
+	t.Setenv("OPENROUTER_DSKP_MODEL", " google/gemini-2.5-flash ")
 	t.Setenv("OPENROUTER_WEB_SEARCH", "false")
 	cfg, err = Load()
-	if err != nil || cfg.OpenRouterAPIKey != "sk-or-test" || cfg.OpenRouterModel != "openai/gpt-4o-mini" || cfg.OpenRouterWebSearch {
+	if err != nil || cfg.OpenRouterAPIKey != "sk-or-test" || cfg.OpenRouterModel != "openai/gpt-4o-mini" || cfg.OpenRouterDSKPModel != "google/gemini-2.5-flash" || cfg.OpenRouterWebSearch {
 		t.Fatalf("with OpenRouter config: cfg = %#v, err = %v", cfg, err)
 	}
 

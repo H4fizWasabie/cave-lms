@@ -138,9 +138,12 @@ On the Lesson form, Generate text has the AI write the Lesson's text, about 500 
    OPENROUTER_API_KEY=sk-or-...
    OPENROUTER_MODEL=...          # an OpenRouter model slug with structured outputs, e.g. openai/gpt-4o-mini
    OPENROUTER_WEB_SEARCH=true    # optional: true (the default) or false
+   OPENROUTER_DSKP_MODEL=...     # optional: the model that reads DSKP PDFs (Teachers Portal); it must take PDFs
    ```
 
 There is no built-in model: with the key or model unset the app starts, the Exam page and the Lesson form say the AI writer is not configured, and Written attempts with non-blank answers wait for the Admin to mark them on Admin > Results; the start-up log says which. `OPENROUTER_WEB_SEARCH` turns OpenRouter's web search on each request, which costs extra; anything but `true` or `false` stops the app at start. Failed AI calls go to the System log with OpenRouter's reason. The instructions sent with each request are `internal/aiwriter/write_questions.txt` for questions, `internal/aiwriter/mark_answer.txt` for marks and `internal/aiwriter/write_lesson.txt` for Lesson text, built into the binary: edit them and deploy to change the wording.
+
+`OPENROUTER_DSKP_MODEL` turns on DSKP reading (ADR 0029): on Admin > DSKPs the Admin uploads a DSKP's PDF (up to about 30 MB) with its subject, year and language, and the AI reads its standards (grouping, SK, SP) in the background, with a 10-minute limit. The PDF goes to OpenRouter as a file content part, with no `plugins` entry, so OpenRouter reads it natively when the model can and otherwise with its OCR parser, which OpenRouter charges per page; nothing of the file is stored, and nothing about the Admin or a Teacher is sent. A reading with no SK that has an SP is asked for once more, then the DSKP is marked failed. A restart mid-read marks it failed too. Unset, the Admin and Teachers are told DSKP reading is off; it needs the key but not `OPENROUTER_MODEL`, and the start-up log says which are off. The instructions are `internal/aiwriter/read_dskp.txt`.
 
 ## CaveText
 
