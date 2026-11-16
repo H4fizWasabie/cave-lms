@@ -225,7 +225,7 @@ var catalog = map[string]entry{
 	"teachers.opr.style":           {en: "OPR style", ms: "Gaya OPR"},
 	"teachers.opr.language":        {en: "Language of the OPR", ms: "Bahasa OPR"},
 	"teachers.logo.use":            {en: "Use my school logo", ms: "Guna logo sekolah saya"},
-	"teachers.logo.attach":         {en: "Attach your school logo in your chatbot together with this prompt. CAVELMS does not have it.", ms: "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak memilikinya."},
+	"teachers.logo.attach":         {en: "Attach your school logo in your chatbot together with this prompt. CAVELMS does not keep it.", ms: "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak menyimpannya."},
 	"teachers.logo.hint":           {en: "You attach the logo in your chatbot yourself: CAVELMS does not take or keep the picture.", ms: "Anda melampirkan logo dalam chatbot anda sendiri: CAVELMS tidak mengambil atau menyimpan gambar itu."},
 	"teachers.opr.make":            {en: "Make the OPR prompt", ms: "Buat prompt OPR"},
 	"teachers.opr.count-note":      {en: "Making a prompt uses one of your %d OPR prompts a day, apart from your RPH prompts; copying it does not.", ms: "Membuat prompt menggunakan satu daripada %d prompt OPR anda sehari, berasingan daripada prompt RPH anda; menyalinnya tidak."},

@@ -7,7 +7,7 @@
       </div>
       <p>{{t .Lang "teachers.opr.prompt.lede"}}</p>
       <p role="note"><strong>{{t .Lang "teachers.opr.attach" .Reference}}</strong></p>
-      {{- if .Logo}}
+      {{- if .UseLogo}}
       <p role="note"><strong>{{t .Lang "teachers.logo.attach"}}</strong></p>
       {{- end}}
       <textarea id="opr-prompt" readonly rows="20">{{.Prompt}}</textarea>

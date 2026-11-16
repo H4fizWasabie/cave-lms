@@ -46,7 +46,7 @@ type rphPage struct {
 	SKs                                          []rphSK
 	Left                                         int    // RPH prompts still to make today
 	Date, Time, Class, Students, Notes, Language string // the form as typed
-	Logo                                         bool   // the Teacher uses their School logo
+	UseLogo                                      bool   // the Teacher uses their School logo
 	Prompt, Other                                string // the prompt made, and the same in the other language
 	PromptLanguage, OtherLanguage                string
 	SnippetName                                  string // what the prompt is called as a Snippet, to save it
@@ -128,7 +128,7 @@ func (a *App) rphForm(w http.ResponseWriter, r *http.Request, acc teacherAccess)
 		p := &rphPage{Access: acc, DSKP: d, SKs: sks, Date: a.now().In(malaysia).Format(time.DateOnly), Language: d.Language}
 		// The time, class, number of murid and School logo choice last made, kept on the Teacher profile; the Admin may have no profile.
 		var students int
-		err := a.db.QueryRowContext(r.Context(), `SELECT last_time, last_class, last_students, last_logo FROM teacher_profiles WHERE learner_id = $1`, l.ID).Scan(&p.Time, &p.Class, &students, &p.Logo)
+		err := a.db.QueryRowContext(r.Context(), `SELECT last_time, last_class, last_students, last_use_logo FROM teacher_profiles WHERE learner_id = $1`, l.ID).Scan(&p.Time, &p.Class, &students, &p.UseLogo)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			a.serverError(w, r, fmt.Errorf("read last lesson details: %w", err))
 			return
@@ -213,7 +213,7 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		return
 	}
 	p := &rphPage{Access: acc, DSKP: d, SKs: sks, Date: r.PostFormValue("date"), Time: clean(r.PostFormValue("time")), Class: clean(r.PostFormValue("class")),
-		Students: strings.TrimSpace(r.PostFormValue("students")), Notes: strings.TrimSpace(r.PostFormValue("notes")), Language: r.PostFormValue("language"), Logo: r.PostFormValue("logo") != ""}
+		Students: strings.TrimSpace(r.PostFormValue("students")), Notes: strings.TrimSpace(r.PostFormValue("notes")), Language: r.PostFormValue("language"), UseLogo: usesLogo(r)}
 	if p.Language != "ms" && p.Language != "en" {
 		p.Language = d.Language
 	}
@@ -262,8 +262,8 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 	}
 	made, err := a.recordPrompt(r.Context(), l.ID, promptRPH, func(tx *sql.Tx) error {
 		// The lesson details and School logo choice, kept with the prompt so one is never counted without the other.
-		if _, err := tx.ExecContext(r.Context(), `UPDATE teacher_profiles SET last_time = $2, last_class = $3, last_students = $4, last_logo = $5 WHERE learner_id = $1`,
-			l.ID, p.Time, p.Class, students, p.Logo); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `UPDATE teacher_profiles SET last_time = $2, last_class = $3, last_students = $4, last_use_logo = $5 WHERE learner_id = $1`,
+			l.ID, p.Time, p.Class, students, p.UseLogo); err != nil {
 			return fmt.Errorf("keep last lesson details: %w", err)
 		}
 		return nil
@@ -279,7 +279,7 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 	}
 	sk := sks[picked]
 	lesson.Subject, lesson.Year, lesson.Date, lesson.Time, lesson.Class, lesson.Students, lesson.Notes = d.Subject, d.Year, date, p.Time, p.Class, students, p.Notes
-	lesson.Logo = p.Logo
+	lesson.UseLogo = p.UseLogo
 	lesson.Group, lesson.Topic, lesson.SKCode, lesson.SKText = sk.Group, sk.Topic, sk.Code, sk.Text
 	p.PromptLanguage, p.OtherLanguage = p.Language, "en"
 	if p.Language == "en" {
@@ -292,3 +292,6 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 
 // clean is typed text with its spaces and line breaks collapsed to single spaces.
 func clean(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// usesLogo is whether the form ticked "Use my school logo", on an RPH prompt or an OPR prompt.
+func usesLogo(r *http.Request) bool { return r.PostFormValue("logo") != "" }

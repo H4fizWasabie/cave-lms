@@ -28,7 +28,7 @@ var oprWords = map[string]struct {
 // oprDetails is what the Teacher typed for the OPR (Tajuk is the title; the page has a Title of its own); Time, Target, Extra and Colour are optional.
 type oprDetails struct {
 	Tajuk, Institution, Date, Time, Place, Target, Reporter, Reference, Extract, Extra, Colour string
-	Logo                                                                                       bool // the Teacher attaches their School logo in their chatbot
+	UseLogo                                                                                    bool // the Teacher attaches their School logo in their chatbot
 }
 
 // oprPromptText is the OPR prompt for the details in the OPR style, with the OPR's own text in lang, "ms" or "en".
@@ -62,7 +62,7 @@ func oprPromptText(lang string, d oprDetails, style oprStyle) string {
 		"3. Extract and organise only content supported by the attached reference, according to the selected OPR style.\n" +
 		"4. Use short headings and concise explanations. Do not present national statistics or general policy claims as the achievement of this programme.\n" +
 		"5. Footer: \"" + w.PreparedBy + ": " + d.Reporter + "\" and \"" + w.Source + ": " + d.Reference + "\".\n\n")
-	if d.Logo {
+	if d.UseLogo {
 		b.WriteString("SCHOOL LOGO:\nPlace the attached school logo in the header, beside the institution name. Do not redraw or alter it.\n\n")
 	}
 	b.WriteString("VISUAL DIRECTION:\n")

@@ -87,7 +87,7 @@ func (a *App) oprForm(w http.ResponseWriter, r *http.Request, acc teacherAccess)
 	}
 	p := &oprPage{Access: acc, Language: lang}
 	// The institution, reporting teacher and School logo choice last made, kept on the Teacher profile; the Admin may have no profile.
-	err = a.db.QueryRowContext(r.Context(), `SELECT last_institution, last_reporter, last_logo FROM teacher_profiles WHERE learner_id = $1`, l.ID).Scan(&p.Institution, &p.Reporter, &p.Logo)
+	err = a.db.QueryRowContext(r.Context(), `SELECT last_institution, last_reporter, last_use_logo FROM teacher_profiles WHERE learner_id = $1`, l.ID).Scan(&p.Institution, &p.Reporter, &p.UseLogo)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.serverError(w, r, fmt.Errorf("read last OPR details: %w", err))
 		return
@@ -106,7 +106,7 @@ func (a *App) makeOPRPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		Tajuk: clean(r.PostFormValue("title")), Institution: clean(r.PostFormValue("institution")), Date: clean(r.PostFormValue("date")),
 		Time: clean(r.PostFormValue("time")), Place: clean(r.PostFormValue("place")), Target: clean(r.PostFormValue("target")),
 		Reporter: clean(r.PostFormValue("reporter")), Reference: clean(r.PostFormValue("reference")), Extract: strings.TrimSpace(r.PostFormValue("extract")),
-		Extra: strings.TrimSpace(r.PostFormValue("extra")), Colour: clean(r.PostFormValue("colour")), Logo: r.PostFormValue("logo") != ""}}
+		Extra: strings.TrimSpace(r.PostFormValue("extra")), Colour: clean(r.PostFormValue("colour")), UseLogo: usesLogo(r)}}
 	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -149,8 +149,8 @@ func (a *App) makeOPRPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 	style := p.Styles[i]
 	made, err := a.recordPrompt(r.Context(), l.ID, promptOPR, func(tx *sql.Tx) error {
 		// The institution, reporting teacher and School logo choice, kept with the prompt so one is never counted without the other.
-		if _, err := tx.ExecContext(r.Context(), `UPDATE teacher_profiles SET last_institution = $2, last_reporter = $3, last_logo = $4 WHERE learner_id = $1`,
-			l.ID, p.Institution, p.Reporter, p.Logo); err != nil {
+		if _, err := tx.ExecContext(r.Context(), `UPDATE teacher_profiles SET last_institution = $2, last_reporter = $3, last_use_logo = $4 WHERE learner_id = $1`,
+			l.ID, p.Institution, p.Reporter, p.UseLogo); err != nil {
 			return fmt.Errorf("keep last OPR details: %w", err)
 		}
 		return nil

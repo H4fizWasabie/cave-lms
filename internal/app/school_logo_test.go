@@ -43,7 +43,7 @@ func TestTheOPRPromptPageRemindsTheTeacherToAttachTheSchoolLogoOnlyWhenTicked(t 
 	v := oprForm("1")
 	v.Set("logo", "1")
 	_, body := teacher.post("/teachers/opr", v)
-	expectAll(t, body, "Attach your school logo in your chatbot together with this prompt. CAVELMS does not have it.", "Attach your reference (laporan-hari-sukan.pdf)")
+	expectAll(t, body, "Attach your school logo in your chatbot together with this prompt. CAVELMS does not keep it.", "Attach your reference (laporan-hari-sukan.pdf)")
 	expectNone(t, body, `type="file"`)
 
 	_, body = teacher.post("/teachers/opr", oprForm("1"))
@@ -51,7 +51,7 @@ func TestTheOPRPromptPageRemindsTheTeacherToAttachTheSchoolLogoOnlyWhenTicked(t 
 
 	teacher.switchLanguage("ms", "/teachers/opr")
 	_, body = teacher.post("/teachers/opr", v)
-	expectAll(t, body, "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak memilikinya.")
+	expectAll(t, body, "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak menyimpannya.")
 }
 
 func TestTickingTheSchoolLogoOnAnRPHPromptTellsTheChatbotToPutTheAttachedLogoAtTheTopAndReturnADownloadableDocumentInBothLanguages(t *testing.T) {
@@ -91,7 +91,7 @@ func TestTheRPHPromptPageRemindsTheTeacherToAttachTheSchoolLogoOnlyWhenTicked(t 
 	v := rphForm(t, form, "1.1.1")
 	v.Set("logo", "1")
 	_, body := teacher.post("/teachers/dskps/"+id+"/rph", v)
-	expectAll(t, body, "Attach your school logo in your chatbot together with this prompt. CAVELMS does not have it.")
+	expectAll(t, body, "Attach your school logo in your chatbot together with this prompt. CAVELMS does not keep it.")
 	expectNone(t, body, `type="file"`)
 
 	_, body = teacher.post("/teachers/dskps/"+id+"/rph", rphForm(t, form, "1.1.1"))
@@ -99,7 +99,7 @@ func TestTheRPHPromptPageRemindsTheTeacherToAttachTheSchoolLogoOnlyWhenTicked(t 
 
 	teacher.switchLanguage("ms", "/")
 	_, body = teacher.post("/teachers/dskps/"+id+"/rph", v)
-	expectAll(t, body, "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak memilikinya.")
+	expectAll(t, body, "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak menyimpannya.")
 }
 
 func TestTheSchoolLogoChoiceIsKeptOnlyWhenAPromptIsMadeAndPrefillsBothFormsUntilTheNextPromptChangesIt(t *testing.T) {

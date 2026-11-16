@@ -448,7 +448,7 @@ _Malay_: Percubaan percuma
 _Avoid_: Free plan, free tier, demo
 
 **School logo**:
-The Teacher's school logo, which the Teacher attaches in their AI chatbot when they tick it on an RPH prompt or an OPR prompt; the prompt then says where to place it (beside the institution in an OPR's header, at the top of an RPH, which it then asks for as a downloadable document). CAVELMS never holds the picture.
+The Teacher's school logo, which the Teacher attaches in their AI chatbot when they tick it on an RPH prompt or an OPR prompt; the prompt then says where to place it (beside the institution in an OPR's header, or at the top of an RPH, which the RPH prompt then asks for as a downloadable document). CAVELMS never holds the picture.
 _Malay_: Logo sekolah
 _Avoid_: Profile picture (which is the Account holder's own), badge, crest
 

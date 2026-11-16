@@ -8,7 +8,7 @@
         <p role="status">{{tn .Lang "teachers.rph.left" .Left}}</p>
       </div>
       <p>{{t .Lang "teachers.rph.prompt.lede"}}</p>
-      {{- if .Logo}}
+      {{- if .UseLogo}}
       <p role="note"><strong>{{t .Lang "teachers.logo.attach"}}</strong></p>
       {{- end}}
       <h2 class="h-sm">{{t .Lang (print "dskps.language." .PromptLanguage)}}</h2>
