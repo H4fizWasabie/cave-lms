@@ -23,22 +23,6 @@ func (a *App) PruneSystemLog(ctx context.Context) error { return a.pruneSystemLo
 // RunDailyPrune runs the whole daily prune now, for tests.
 func (a *App) RunDailyPrune(ctx context.Context) { a.dailyPrune(ctx) }
 
-// ShownOPRStyleNames is the names of the shown OPR styles in position order, as the OPR page reads them, for tests.
-func (a *App) ShownOPRStyleNames(ctx context.Context) ([]string, error) {
-	styles, err := a.shownOPRStyles(ctx)
-	var names []string
-	for _, s := range styles {
-		names = append(names, s.Name)
-	}
-	return names, err
-}
-
-// OPRStyleAt is the name, text and hidden flag of the OPR style in slot position, for tests; ok is false for no such slot.
-func (a *App) OPRStyleAt(ctx context.Context, position int) (name, text string, hidden, ok bool, err error) {
-	s, ok, err := a.oprStyleAt(ctx, position)
-	return s.Name, s.Text, s.Hidden, ok, err
-}
-
 // CheckBCLToken runs the daily BCL API token check now, for tests.
 func (a *App) CheckBCLToken(ctx context.Context) { a.checkBCLToken(ctx) }
 

@@ -3,7 +3,7 @@
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "teachers.nav.opr"}}</h1>
-        <p role="status">{{tn .Lang "teachers.opr.left" .Left}}</p>
+        <p role="status">{{tn .Lang "teachers.opr.left" .Left .Max}}</p>
       </div>
       {{- with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
       {{- if not .Styles}}
@@ -13,50 +13,50 @@
         <p>{{t .Lang "teachers.opr.lede"}}</p>
         <div class="field">
           <label for="opr-title">{{t .Lang "teachers.opr.title"}}</label>
-          <input id="opr-title" type="text" name="title" value="{{.Title}}" maxlength="200" autocomplete="off" required>
+          <input id="opr-title" type="text" name="title" value="{{.Tajuk}}" maxlength="{{.MaxShort}}" autocomplete="off" required>
         </div>
         <div class="field">
           <label for="opr-institution">{{t .Lang "teachers.opr.institution"}}</label>
-          <input id="opr-institution" type="text" name="institution" value="{{.Institution}}" maxlength="200" autocomplete="off" required>
+          <input id="opr-institution" type="text" name="institution" value="{{.Institution}}" maxlength="{{.MaxShort}}" autocomplete="off" required>
         </div>
         <div class="field">
           <label for="opr-date">{{t .Lang "teachers.opr.date"}}</label>
-          <input id="opr-date" type="text" name="date" value="{{.Date}}" maxlength="100" autocomplete="off" required>
+          <input id="opr-date" type="text" name="date" value="{{.Date}}" maxlength="{{.MaxField}}" autocomplete="off" required>
           <small>{{t .Lang "teachers.opr.date-hint"}}</small>
         </div>
         <div class="field">
           <label for="opr-time">{{t .Lang "teachers.opr.time"}}</label>
-          <input id="opr-time" type="text" name="time" value="{{.Time}}" maxlength="100" autocomplete="off">
+          <input id="opr-time" type="text" name="time" value="{{.Time}}" maxlength="{{.MaxField}}" autocomplete="off">
         </div>
         <div class="field">
           <label for="opr-place">{{t .Lang "teachers.opr.place"}}</label>
-          <input id="opr-place" type="text" name="place" value="{{.Place}}" maxlength="200" autocomplete="off" required>
+          <input id="opr-place" type="text" name="place" value="{{.Place}}" maxlength="{{.MaxShort}}" autocomplete="off" required>
         </div>
         <div class="field">
           <label for="opr-target">{{t .Lang "teachers.opr.target"}}</label>
-          <input id="opr-target" type="text" name="target" value="{{.Target}}" maxlength="200" autocomplete="off">
+          <input id="opr-target" type="text" name="target" value="{{.Target}}" maxlength="{{.MaxShort}}" autocomplete="off">
         </div>
         <div class="field">
           <label for="opr-reporter">{{t .Lang "teachers.opr.reporter"}}</label>
-          <input id="opr-reporter" type="text" name="reporter" value="{{.Reporter}}" maxlength="200" autocomplete="off" required>
+          <input id="opr-reporter" type="text" name="reporter" value="{{.Reporter}}" maxlength="{{.MaxShort}}" autocomplete="off" required>
         </div>
         <div class="field">
           <label for="opr-reference">{{t .Lang "teachers.opr.reference"}}</label>
-          <input id="opr-reference" type="text" name="reference" value="{{.Reference}}" maxlength="200" autocomplete="off" required>
+          <input id="opr-reference" type="text" name="reference" value="{{.Reference}}" maxlength="{{.MaxShort}}" autocomplete="off" required>
           <small>{{t .Lang "teachers.opr.reference-hint"}}</small>
         </div>
         <div class="field">
           <label for="opr-extract">{{t .Lang "teachers.opr.extract"}}</label>
-          <textarea id="opr-extract" name="extract" rows="4" maxlength="2000" required>{{.Extract}}</textarea>
+          <textarea id="opr-extract" name="extract" rows="4" maxlength="{{.MaxExtract}}" required>{{.Extract}}</textarea>
           <small>{{t .Lang "teachers.opr.extract-hint"}}</small>
         </div>
         <div class="field">
           <label for="opr-extra">{{t .Lang "teachers.opr.extra"}}</label>
-          <textarea id="opr-extra" name="extra" rows="3" maxlength="1000">{{.Extra}}</textarea>
+          <textarea id="opr-extra" name="extra" rows="3" maxlength="{{.MaxExtra}}">{{.Extra}}</textarea>
         </div>
         <div class="field">
           <label for="opr-colour">{{t .Lang "teachers.opr.colour"}}</label>
-          <input id="opr-colour" type="text" name="colour" value="{{.Colour}}" maxlength="100" autocomplete="off">
+          <input id="opr-colour" type="text" name="colour" value="{{.Colour}}" maxlength="{{.MaxField}}" autocomplete="off">
           <small>{{t .Lang "teachers.opr.colour-hint"}}</small>
         </div>
         <div class="field">
@@ -75,7 +75,7 @@
           </select>
         </div>
         <button class="btn btn-solid">{{t .Lang "teachers.opr.make"}}</button>
-        <p><small>{{t .Lang "teachers.opr.count-note"}}</small></p>
+        <p><small>{{t .Lang "teachers.opr.count-note" .Max}}</small></p>
       </form>
       {{- end}}
     </div>

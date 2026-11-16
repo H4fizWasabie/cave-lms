@@ -158,9 +158,10 @@ func (a *App) renderRPH(w http.ResponseWriter, r *http.Request, status int, p *r
 	a.render(w, r, status, name, p)
 }
 
-// recordPrompt records one more RPH prompt made by the Teacher, now, unless they have made the day's limit already; ok is
+// recordPrompt records one more prompt of a kind made by the Teacher, now, unless they have made the day's limit already; ok is
 // false then. The count and the record are one step under the account's row, so two at once cannot both take the last place.
-func (a *App) recordPrompt(ctx context.Context, learnerID int64, kind promptKind) (ok bool, err error) {
+// keep, if given, runs in the same step once the prompt is recorded, so a prompt is never counted without it.
+func (a *App) recordPrompt(ctx context.Context, learnerID int64, kind promptKind, keep func(*sql.Tx) error) (ok bool, err error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("record %s prompt: %w", kind, err)
@@ -180,6 +181,11 @@ func (a *App) recordPrompt(ctx context.Context, learnerID int64, kind promptKind
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO prompts_made (learner_id, kind, made_at) VALUES ($1, $2, $3)`, learnerID, kind, now); err != nil {
 		return false, fmt.Errorf("record %s prompt: %w", kind, err)
+	}
+	if keep != nil {
+		if err := keep(tx); err != nil {
+			return false, err
+		}
 	}
 	return true, tx.Commit()
 }
@@ -253,7 +259,7 @@ func (a *App) makeRPHPrompt(w http.ResponseWriter, r *http.Request, acc teacherA
 		a.renderRPH(w, r, http.StatusUnprocessableEntity, p)
 		return
 	}
-	made, err := a.recordPrompt(r.Context(), l.ID, promptRPH)
+	made, err := a.recordPrompt(r.Context(), l.ID, promptRPH, nil)
 	if err != nil {
 		a.serverError(w, r, err)
 		return

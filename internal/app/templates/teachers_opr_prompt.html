@@ -3,7 +3,7 @@
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "teachers.opr.prompt.title"}}</h1>
-        <p role="status">{{tn .Lang "teachers.opr.left" .Left}}</p>
+        <p role="status">{{tn .Lang "teachers.opr.left" .Left .Max}}</p>
       </div>
       <p>{{t .Lang "teachers.opr.prompt.lede"}}</p>
       <p role="note"><strong>{{t .Lang "teachers.opr.attach" .Reference}}</strong></p>
@@ -11,7 +11,7 @@
       <p><button class="btn btn-solid" type="button" data-copy="opr-prompt">{{t .Lang "teachers.opr.copy"}}</button></p>
       <h2 class="h-sm">{{t .Lang "teachers.opr.save.title"}}</h2>
       <form class="form" method="post" action="/teachers/opr/snippet">
-        <p><small>{{t .Lang "teachers.opr.save.lede"}}</small></p>
+        <p><small>{{t .Lang "teachers.opr.save.lede" .Max}}</small></p>
         <div class="field">
           <label for="snippet-name">{{t .Lang "teachers.opr.save.name"}}</label>
           <input id="snippet-name" type="text" name="name" value="{{.SnippetName}}" maxlength="100" required>
@@ -24,7 +24,7 @@
         <input type="hidden" name="body" value="{{.Prompt}}">
         <button class="btn btn-ghost">{{t .Lang "teachers.opr.save"}}</button>
       </form>
-      <p><small>{{t .Lang "teachers.opr.count-note"}} {{t .Lang "teachers.opr.no-history"}}</small></p>
+      <p><small>{{t .Lang "teachers.opr.count-note" .Max}} {{t .Lang "teachers.opr.no-history"}}</small></p>
       <p><a class="btn btn-ghost" href="/teachers/opr">{{t .Lang "teachers.opr.another"}}</a></p>
       <script src="{{static "forms.js"}}" defer></script>
     </div>

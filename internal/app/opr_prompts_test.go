@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -50,6 +51,7 @@ func TestTheOPRFormAsksForTheDetailsAndOffersOnlyShownStylesAndTheNavHasAnOPRIte
 	t.Parallel()
 	admin, teacher := oprTeacher(t)
 	admin.post("/admin/opr-styles/3/hide", nil)
+	admin.saveOPRStyle("4", "Dashboard", "Make KPI cards.")
 
 	_, body := teacher.get("/teachers")
 	expectAll(t, body, `href="/teachers/opr"`)
@@ -57,9 +59,10 @@ func TestTheOPRFormAsksForTheDetailsAndOffersOnlyShownStylesAndTheNavHasAnOPRIte
 	expectStatus(t, res, body, http.StatusOK, "3 of 3 OPR prompts left today")
 	expectAll(t, body, `action="/teachers/opr"`, `aria-current="page"`,
 		`name="title"`, `name="institution"`, `name="date"`, `name="place"`, `name="reporter"`, `name="reference"`, `name="extract"`,
-		`name="time"`, `name="target"`, `name="extra"`, `name="colour"`, `name="style"`, `name="language"`)
-	expectInOrder(t, body, "Activity (placeholder)", "Achievement (placeholder)", "KPI dashboard (placeholder)", "Inspection (placeholder)")
-	expectNone(t, body, "Co-curricular (placeholder)", `type="file"`)
+		`name="time"`, `name="target"`, `name="extra"`, `name="colour"`, `name="style"`, `name="language"`,
+		`maxlength="200"`, `maxlength="100"`, `maxlength="2000"`, `maxlength="1000"`)
+	expectInOrder(t, body, "Activity (placeholder)", "Achievement (placeholder)", "Dashboard", "Inspection (placeholder)")
+	expectNone(t, body, "Co-curricular (placeholder)", "KPI dashboard (placeholder)", `type="file"`)
 	expectAll(t, body, `<option value="en" selected>`)
 	teacher.switchLanguage("ms", "/teachers/opr")
 	_, body = teacher.get("/teachers/opr")
@@ -366,11 +369,17 @@ func TestThePrivacyNoticeSaysTheTeacherProfileKeepsTheInstitutionAndReportingTea
 	expectAll(t, body, "Profil guru anda menyimpan institusi dan guru pelapor yang terakhir anda taip untuk OPR, untuk diisi pada kali berikutnya.")
 }
 
-// countOPRPrompts is how many OPR prompts the site has recorded as made.
-func (s *site) countOPRPrompts() (n int) {
+// oprLeft reads "N of 3 OPR prompts left today" from the Teacher's OPR page, in English.
+var oprLeft = regexp.MustCompile(`(\d+) of 3 OPR prompts left today`)
+
+// countOPRPrompts is how many OPR prompts the Teacher has made today, as the OPR page counts them: the limit less the prompts left.
+func (s *site) countOPRPrompts() int {
 	s.t.Helper()
-	if err := s.db.QueryRow(`SELECT count(*) FROM prompts_made WHERE kind = 'opr'`).Scan(&n); err != nil {
-		s.t.Fatal(err)
+	_, body := s.get("/teachers/opr")
+	m := oprLeft.FindStringSubmatch(body)
+	if m == nil {
+		s.t.Fatalf("the OPR page does not say how many OPR prompts are left today: %s", body)
 	}
-	return n
+	left, _ := strconv.Atoi(m[1])
+	return 3 - left
 }

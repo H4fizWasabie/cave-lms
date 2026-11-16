@@ -276,16 +276,13 @@ func TestATeacherMakesAtMostThreeRPHPromptsADayAndTheFourthIsToldWhenMoreCome(t 
 	expectStatus(t, res, body, http.StatusOK, "2 of 3 RPH prompts left today")
 }
 
-// No OPR prompt can be made yet, so the OPR prompts a Teacher has made today are recorded straight into the record of prompts
-// made, as the page that makes them will: an OPR prompt does not use up an RPH prompt.
 func TestOPRPromptsMadeTodayDoNotUseUpTheDaysRPHPrompts(t *testing.T) {
 	t.Parallel()
 	admin, teacher, id := rphTeacher(t)
 	admin.atMYT("2026-11-16 23:30")
 	for range 3 {
-		if _, err := admin.db.Exec(`INSERT INTO prompts_made (learner_id, kind, made_at) SELECT id, 'opr', $1 FROM learners WHERE email = 'ada@example.com'`, myt(t, "2026-11-16 09:00")); err != nil {
-			t.Fatal(err)
-		}
+		res, body := teacher.post("/teachers/opr", oprForm("1"))
+		expectStatus(t, res, body, http.StatusOK, "Your OPR prompt")
 	}
 	_, form := teacher.get("/teachers/dskps/" + id + "/rph")
 	expectAll(t, form, "3 of 3 RPH prompts left today")

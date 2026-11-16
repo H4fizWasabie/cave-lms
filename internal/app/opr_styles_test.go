@@ -1,10 +1,8 @@
 package app_test
 
 import (
-	"context"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -94,34 +92,6 @@ func TestTheAdminHidesAndShowsEachOPRStyle(t *testing.T) {
 	for _, path := range []string{"/admin/opr-styles/6/hide", "/admin/opr-styles/6/show"} {
 		res, body = s.post(path, nil)
 		expectStatus(t, res, body, http.StatusNotFound, "")
-	}
-}
-
-// The OPR page reads the styles through these two reads: the shown ones in position order, and one by position.
-func TestTheOPRPageReadsTheShownStylesInOrderAndOneByPosition(t *testing.T) {
-	t.Parallel()
-	s := oprAdmin(t)
-	ctx := context.Background()
-	s.saveOPRStyle("4", "Dashboard", "Make KPI cards.")
-	s.post("/admin/opr-styles/2/hide", nil)
-
-	names, err := s.application.ShownOPRStyleNames(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{"Activity (placeholder)", "Co-curricular (placeholder)", "Dashboard", "Inspection (placeholder)"}; !slices.Equal(names, want) {
-		t.Fatalf("shown OPR styles = %q, want %q", names, want)
-	}
-
-	name, text, hidden, ok, err := s.application.OPRStyleAt(ctx, 4)
-	if err != nil || !ok || name != "Dashboard" || text != "Make KPI cards." || hidden {
-		t.Fatalf("OPR style 4 = %q, %q, hidden %v, ok %v, err %v", name, text, hidden, ok, err)
-	}
-	if _, _, hidden, ok, err = s.application.OPRStyleAt(ctx, 2); err != nil || !ok || !hidden {
-		t.Fatalf("OPR style 2: hidden %v, ok %v, err %v, want hidden", hidden, ok, err)
-	}
-	if _, _, _, ok, err = s.application.OPRStyleAt(ctx, 6); err != nil || ok {
-		t.Fatalf("OPR style 6: ok %v, err %v, want no such slot", ok, err)
 	}
 }
 

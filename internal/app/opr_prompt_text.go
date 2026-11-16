@@ -25,9 +25,9 @@ var oprWords = map[string]struct {
 	"en": {Language: "English", DetailsTitle: "PROGRAMME / ACTIVITY INFORMATION", PreparedBy: "Prepared by", Source: "Source"},
 }
 
-// oprDetails is what the Teacher typed for the OPR; Time, Target, Extra and Colour are optional.
+// oprDetails is what the Teacher typed for the OPR (Tajuk is the title; the page has a Title of its own); Time, Target, Extra and Colour are optional.
 type oprDetails struct {
-	Title, Institution, Date, Time, Place, Target, Reporter, Reference, Extract, Extra, Colour string
+	Tajuk, Institution, Date, Time, Place, Target, Reporter, Reference, Extract, Extra, Colour string
 }
 
 // oprPromptText is the OPR prompt for the details in the OPR style, with the OPR's own text in lang, "ms" or "en".
@@ -45,7 +45,7 @@ func oprPromptText(lang string, d oprDetails, style oprStyle) string {
 		"Do not invent, infer, embellish or insert placeholders. If a requested fact is absent from the reference, omit that point or use a neutral heading without a claim.\n\n")
 	b.WriteString("LOCKED DETAILS (use exactly as written):\n")
 	line("Main title", "ONE-PAGE REPORT (OPR)")
-	line("Programme or report title", d.Title)
+	line("Programme or report title", d.Tajuk)
 	line("Institution", d.Institution)
 	line("Date", d.Date)
 	line("Time", d.Time)
