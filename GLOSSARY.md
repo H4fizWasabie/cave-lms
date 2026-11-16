@@ -433,7 +433,7 @@ _Malay_: Guru
 _Avoid_: Instructor, educator, cikgu (in the site's words)
 
 **Teacher profile**:
-The subjects and years a Teacher teaches, which the Teachers Portal uses to put their DSKPs first, and the details they last typed (kelas, masa and number of murid for an RPH prompt; institution and reporting teacher for an OPR prompt) to fill in the next one.
+The subjects and years a Teacher teaches, which the Teachers Portal uses to put their DSKPs first, and the details they last typed (kelas, masa and number of murid for an RPH prompt; institution and reporting teacher for an OPR prompt; whether they use their School logo) to fill in the next one.
 _Malay_: Profil guru
 _Avoid_: Teacher account, school profile
 
@@ -446,6 +446,11 @@ _Avoid_: Subscription, Teacher plan, Plan (which means the Lab)
 The 14 days of the Teachers Portal a Teacher gets free from filling in their Teacher profile, once per account: everything Teachers Portal Pro gives except uploading a DSKP.
 _Malay_: Percubaan percuma
 _Avoid_: Free plan, free tier, demo
+
+**School logo**:
+The Teacher's school logo, which the Teacher attaches in their AI chatbot when they tick it on an RPH prompt or an OPR prompt; the prompt then says where to place it (beside the institution in an OPR's header, at the top of an RPH, which it then asks for as a downloadable document). CAVELMS never holds the picture.
+_Malay_: Logo sekolah
+_Avoid_: Profile picture (which is the Account holder's own), badge, crest
 
 **OPR**:
 A One-Page Report: a single A4 page a Teacher hands in about a programme or activity, with its details, what happened and its impact, drawn as an infographic. CAVELMS does not draw it; the Teacher's AI chatbot does, from the OPR prompt and the reference the Teacher attaches there.
