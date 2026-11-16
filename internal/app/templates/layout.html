@@ -1,4 +1,4 @@
-{{define "layout"}}{{if .CaveText}}{{template "cavetext-layout" .}}{{else}}<!doctype html>
+{{define "layout"}}{{if .CaveText}}{{template "cavetext-layout" .}}{{else if .Portal}}{{template "portal-layout" .}}{{else}}<!doctype html>
 <html lang="{{.Lang}}">
 <head>
   <meta charset="utf-8">
@@ -143,6 +143,7 @@
           {{- with .Learner}}
           <span class="hdr-who">{{t $.Lang "header.logged-in-as" .Name}}</span>
           <a class="hdr-link" href="/my-courses">{{t $.Lang "nav.my-courses"}}</a>
+          <a class="hdr-link" href="/teachers">{{t $.Lang "nav.teachers"}}</a>
           {{if .IsAdmin}}<a class="btn btn-solid btn-sm" href="/admin">{{t $.Lang "header.admin-area"}}</a>{{end}}
           <form method="post" action="/logout"><button class="btn btn-quiet btn-sm">{{t $.Lang "header.log-out"}}</button></form>
           {{- else}}

@@ -152,6 +152,14 @@ type page struct {
 
 func (p *page) learnerField() **learner { return &p.Learner }
 
+// PortalNext is Next when it leads into the Teachers Portal, which the login page's Register link carries on, else "".
+func (p *page) PortalNext() string {
+	if p.CaveText || !inPortal(p.Next) {
+		return ""
+	}
+	return p.Next
+}
+
 // pageBase holds what layout.html reads. A page struct embeds it
 // and is passed to render as a pointer, so render can fill in the Learner.
 type pageBase struct {
@@ -485,6 +493,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/cavetext/settings", a.admin(a.caveTextSettingsForm))
 	mux.HandleFunc("POST /admin/cavetext/settings", a.admin(a.saveCaveTextSettings))
 	mux.HandleFunc("POST /admin/cavetext/master-prompts", a.admin(a.saveCaveTextMasterPrompts))
+	mux.HandleFunc("GET "+portalPath, a.teachersHome)
+	mux.HandleFunc("GET "+portalPath+"/profile", a.requireLearner(a.teacherProfileForm))
+	mux.HandleFunc("POST "+portalPath+"/profile", a.requireLearner(a.saveTeacherProfile))
 	mux.HandleFunc("GET /cavetext", a.caveTextHome)
 	mux.HandleFunc("GET /pricing", a.pricing)
 	mux.HandleFunc("GET /plans", func(w http.ResponseWriter, r *http.Request) { // the Pricing page's old address
@@ -785,6 +796,7 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 		// A message page (not found, refused, an error) has no sidebar, so it keeps the site's header to lead somewhere.
 		l := *withLearner.learnerField()
 		c.chromeField().Shell = l != nil && l.IsAdmin && strings.HasPrefix(r.URL.Path, "/admin") && name != "message"
+		c.chromeField().Portal = !c.chromeField().CaveText && strings.HasPrefix(name, "teachers_")
 		if l != nil {
 			acc, err := a.labAccessOf(r.Context(), l)
 			if err != nil {

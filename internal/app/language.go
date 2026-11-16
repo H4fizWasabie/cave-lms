@@ -23,6 +23,7 @@ type chrome struct {
 	Prefix         string   // on the CaveText website, "/ms" for a Malay page, in front of the page's links
 	Twin           string   // on the CaveText website, this page's address in the other language
 	CAVELMS        string   // on the CaveText website, CAVELMS's address, for links to its pages; "" elsewhere
+	Portal         bool     // the page is in the Teachers Portal: its own header and footer, in place of CAVELMS's
 	Shell          bool     // the page is in the admin shell: an Admin's admin page, with the sidebar in place of the header and footer
 	Latest         []course // the 3 newest open Courses
 	Lab            bool     // the Lab is open to the logged-in Learner, so the header and footer link to it (ADR 0018)

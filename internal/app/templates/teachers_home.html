@@ -1,0 +1,22 @@
+{{define "title"}}{{t .Lang "teachers.nav.rph"}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "teachers.nav.rph"}}</h1>
+        {{- if .Access.Trial}}
+        <p role="status">{{tn .Lang "teachers.trial.days" .Access.DaysLeft}}</p>
+        {{- else if .Access.Lapsed}}
+        <p role="status">{{t .Lang "teachers.trial.ended"}}</p>
+        {{- else if .Access.Admin}}
+        <p role="status">{{t .Lang "teachers.admin"}}</p>
+        {{- end}}
+      </div>
+      {{- with .Access.Profile}}
+      <dl class="acct-list">
+        <div><dt>{{t $.Lang "teachers.profile.subjects"}}</dt><dd>{{.Subjects}}</dd></div>
+        <div><dt>{{t $.Lang "teachers.profile.years"}}</dt><dd>{{range $i, $code := .Years}}{{if $i}}, {{end}}{{t $.Lang (print "teachers.year." $code)}}{{end}}</dd></div>
+      </dl>
+      {{- end}}
+      <p><a class="btn btn-ghost" href="/teachers/profile">{{t .Lang "teachers.profile.change"}}</a></p>
+    </div>
+{{end}}

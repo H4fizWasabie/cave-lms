@@ -3,7 +3,7 @@
     <div class="wrap auth-page">
       <div class="auth-box">
         <h1>{{t .Lang "header.register"}}</h1>
-        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.register.sub"}}{{else}}{{t .Lang "register.sub"}}{{end}}</p>
+        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.register.sub"}}{{else if .Next}}{{t .Lang "teachers.register.sub"}}{{else}}{{t .Lang "register.sub"}}{{end}}</p>
         {{- $f := .ErrorField}}
         <form class="form" method="post" action="{{.Prefix}}/register">
           {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
