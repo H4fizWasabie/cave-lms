@@ -6,6 +6,7 @@
         <h1>{{.DSKP.Subject}}</h1>
         <p>{{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}}</p>
       </div>
+      <p><a class="btn btn-solid" href="/teachers/dskps/{{.DSKP.ID}}/rph">{{t .Lang "teachers.rph.make-from"}}</a></p>
       {{template "dskp-standards" .}}
     </div>
 {{end}}
