@@ -74,6 +74,10 @@
             <option value="en"{{if eq .Language "en"}} selected{{end}}>{{t .Lang "dskps.language.en"}}</option>
           </select>
         </div>
+        <div class="field">
+          <label><input type="checkbox" name="logo" value="1"{{if .UseLogo}} checked{{end}}> {{t .Lang "teachers.logo.use"}}</label>
+          <small>{{t .Lang "teachers.logo.hint"}}</small>
+        </div>
         <button class="btn btn-solid">{{t .Lang "teachers.opr.make"}}</button>
         <p><small>{{t .Lang "teachers.opr.count-note" .Max}}</small></p>
       </form>

@@ -224,6 +224,9 @@ var catalog = map[string]entry{
 	"teachers.opr.colour-hint":     {en: "For example navy blue, or #1F3A68.", ms: "Contohnya biru tua, atau #1F3A68."},
 	"teachers.opr.style":           {en: "OPR style", ms: "Gaya OPR"},
 	"teachers.opr.language":        {en: "Language of the OPR", ms: "Bahasa OPR"},
+	"teachers.logo.use":            {en: "Use my school logo", ms: "Guna logo sekolah saya"},
+	"teachers.logo.attach":         {en: "Attach your school logo in your chatbot together with this prompt. CAVELMS does not keep it.", ms: "Lampirkan logo sekolah anda dalam chatbot anda bersama prompt ini. CAVELMS tidak menyimpannya."},
+	"teachers.logo.hint":           {en: "You attach the logo in your chatbot yourself: CAVELMS does not take or keep the picture.", ms: "Anda melampirkan logo dalam chatbot anda sendiri: CAVELMS tidak mengambil atau menyimpan gambar itu."},
 	"teachers.opr.make":            {en: "Make the OPR prompt", ms: "Buat prompt OPR"},
 	"teachers.opr.count-note":      {en: "Making a prompt uses one of your %d OPR prompts a day, apart from your RPH prompts; copying it does not.", ms: "Membuat prompt menggunakan satu daripada %d prompt OPR anda sehari, berasingan daripada prompt RPH anda; menyalinnya tidak."},
 	"teachers.opr.not-ready":       {en: "OPR prompts are not ready yet. Please come back later.", ms: "Prompt OPR belum sedia. Sila datang semula nanti."},
@@ -363,6 +366,11 @@ var catalog = map[string]entry{
 	"privacy.collect.opr": {
 		en: "Your Teacher profile keeps the institution and reporting teacher you last typed for an OPR, to fill them in next time.",
 		ms: "Profil guru anda menyimpan institusi dan guru pelapor yang terakhir anda taip untuk OPR, untuk diisi pada kali berikutnya.",
+	},
+	// DRAFT for the client's approval (ADR 0006): the line on what the Teacher profile keeps for the School logo.
+	"privacy.collect.logo": {
+		en: "Your Teacher profile keeps whether you last ticked Use my school logo on a prompt, to tick it for you next time. CAVELMS never takes or keeps the logo itself.",
+		ms: "Profil guru anda menyimpan sama ada anda terakhir menandakan Guna logo sekolah saya pada prompt, untuk ditandakan bagi anda pada kali berikutnya. CAVELMS tidak sekali-kali mengambil atau menyimpan logo itu sendiri.",
 	},
 	"privacy.collect.chat": {
 		en: "Your Chat Messages: what you post in a Course's Chat, your Reactions and any Reports you make. Chat Messages are seen by the Learners on that Course and the Admin, with your name but never your email address or IC, and are kept while the Course exists. A Message you delete is emptied; a Report and its reason are seen only by the Admin.",
