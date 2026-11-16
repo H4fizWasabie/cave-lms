@@ -225,10 +225,22 @@ func (a *App) uploadDSKP(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
+	replaces, ok := replacedDSKP(r) // the DSKP this upload is a new edition of, if any
+	if !ok {
+		a.notFound(w, r)
+		return
+	}
 	p := &dskpsPage{}
+	fail := func(status int, key string) {
+		p.Error = text.T(lang, key)
+		if replaces != 0 {
+			a.renderAdminDSKP(w, r, status, replaces, p.Error) // the Admin stays on the DSKP's page
+			return
+		}
+		a.renderDSKPs(w, r, status, p)
+	}
 	if !a.writer.ReadsDSKP() {
-		p.Error = text.T(lang, "dskps.off")
-		a.renderDSKPs(w, r, http.StatusServiceUnavailable, p)
+		fail(http.StatusServiceUnavailable, "dskps.off")
 		return
 	}
 	u, status, key, err := readDSKPUpload(w, r)
@@ -238,13 +250,18 @@ func (a *App) uploadDSKP(w http.ResponseWriter, r *http.Request) {
 	}
 	p.Subject, p.Year, p.Language = u.Subject, u.Year, u.Language
 	if key != "" {
-		p.Error = text.T(lang, key)
-		a.renderDSKPs(w, r, status, p)
+		fail(status, key)
 		return
 	}
-	var id int64
-	if err := a.db.QueryRowContext(r.Context(), `INSERT INTO dskps (subject, year, language) VALUES ($1, $2, $3) RETURNING id`,
-		u.Subject, u.Year, u.Language).Scan(&id); err != nil {
+	id, err := a.insertDSKP(r.Context(), u.Subject, u.Year, u.Language, replaces)
+	switch {
+	case errors.Is(err, errNoStandard):
+		a.notFound(w, r)
+		return
+	case errors.Is(err, errEditionPending):
+		fail(http.StatusConflict, "dskps.err.edition")
+		return
+	case err != nil:
 		a.serverError(w, r, fmt.Errorf("save DSKP: %w", err))
 		return
 	}
@@ -357,15 +374,7 @@ func (a *App) adminDSKP(w http.ResponseWriter, r *http.Request) {
 		a.notFound(w, r)
 		return
 	}
-	d, groups, ok, err := a.libraryDSKP(r.Context(), id, dskpReading, dskpFailed, dskpDraft, dskpPublished)
-	switch {
-	case err != nil:
-		a.serverError(w, r, err)
-	case !ok:
-		a.notFound(w, r)
-	default:
-		a.render(w, r, http.StatusOK, "admin_dskp", &dskpPage{DSKP: d, Groups: groups})
-	}
+	a.renderAdminDSKP(w, r, http.StatusOK, id, "")
 }
 
 // publishDSKP makes a draft visible to Teachers. Publishing a published DSKP changes nothing; a DSKP still being read or
@@ -376,12 +385,12 @@ func (a *App) publishDSKP(w http.ResponseWriter, r *http.Request) {
 		a.notFound(w, r)
 		return
 	}
-	res, err := a.db.ExecContext(r.Context(), `UPDATE dskps SET state = 'published' WHERE id = $1 AND owner_id IS NULL AND state = 'draft'`, id)
+	published, err := a.publishDraft(r.Context(), id)
 	if err != nil {
 		a.serverError(w, r, fmt.Errorf("publish DSKP: %w", err))
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	if !published {
 		if _, _, found, err := a.libraryDSKP(r.Context(), id, dskpPublished); err != nil || !found {
 			if err != nil {
 				a.serverError(w, r, err)

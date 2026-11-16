@@ -93,6 +93,9 @@ func TestEachOperationNeedsItsOwnModel(t *testing.T) {
 	if _, err := onlyDSKP.MarkAnswer(context.Background(), MarkRequest{}); !errors.Is(err, ErrNotConfigured) {
 		t.Errorf("MarkAnswer() with no Exam model = %v, want ErrNotConfigured", err)
 	}
+	if _, ok := onlyExams.(OpenRouter); !ok {
+		t.Errorf("New with only the Exam model = %T, want OpenRouter", onlyExams)
+	}
 	if New("", "m", "d", true).ReadsDSKP() || (Unconfigured{}).ReadsDSKP() {
 		t.Error("with no key, DSKP reading is on")
 	}
