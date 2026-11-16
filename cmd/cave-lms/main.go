@@ -51,11 +51,16 @@ func serve() error {
 	} else {
 		log.Print("RESEND_API_KEY is not set: emails will not be sent")
 	}
-	w := aiwriter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
-	if _, off := w.(aiwriter.Unconfigured); off {
+	w := aiwriter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, cfg.OpenRouterDSKPModel, cfg.OpenRouterWebSearch)
+	if cfg.OpenRouterAPIKey == "" || cfg.OpenRouterModel == "" {
 		log.Print("OPENROUTER_API_KEY or OPENROUTER_MODEL is not set: the AI will not write Exam questions or Lesson text or mark Written answers")
 	} else {
 		log.Printf("Writing Exam questions and Lesson text and marking Written answers with %s through OpenRouter (web search %t)", cfg.OpenRouterModel, cfg.OpenRouterWebSearch)
+	}
+	if !w.ReadsDSKP() {
+		log.Print("OPENROUTER_API_KEY or OPENROUTER_DSKP_MODEL is not set: the AI will not read DSKPs")
+	} else {
+		log.Printf("Reading DSKPs with %s through OpenRouter", cfg.OpenRouterDSKPModel)
 	}
 	application, err := app.New(context.Background(), cfg, m, w)
 	if err != nil {

@@ -512,7 +512,8 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 		}
 		return fmt.Sprintf("paid %s, under the %s price; kept for an Admin", rm(paid), rm(enough)), tx.Commit()
 	}
-	if form.Product != labPlanProduct {
+	_, teachers := teachersLengths[form.Product] // Teachers Portal Pro needs no CaveText account, as the Lab Plan needs none
+	if form.Product != labPlanProduct && !teachers {
 		if err := ensureCaveTextAccount(ctx, tx, learnerID); err != nil {
 			return "", err
 		}
@@ -529,6 +530,8 @@ func (a *App) recordPayment(ctx context.Context, b *bclWebhookBody, order string
 			return "", fmt.Errorf("read Promos: %w", err)
 		}
 		planned, err = giveProPlan(ctx, tx, learnerID, ebooks)
+	case teachersMonthProduct, teachersYearProduct:
+		err = giveTeacherPro(ctx, tx, learnerID, form.Product, "payment")
 	}
 	if err != nil {
 		return "", err

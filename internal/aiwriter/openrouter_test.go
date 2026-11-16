@@ -13,7 +13,7 @@ import (
 var excel = Request{Topic: "Excel pivot tables", Format: "multiple-choice", Language: "ms", Count: 1, Difficulty: "hard"}
 
 func TestAnUnsetOpenRouterKeyOrModelLeavesTheWriterNotConfigured(t *testing.T) {
-	for _, w := range []Writer{New("", "openai/gpt-4o-mini", true), New("sk-or-test", "", true)} {
+	for _, w := range []Writer{New("", "openai/gpt-4o-mini", "", true), New("sk-or-test", "", "", true)} {
 		if _, err := w.WriteQuestions(context.Background(), excel); !errors.Is(err, ErrNotConfigured) {
 			t.Fatalf("WriteQuestions() error = %v, want ErrNotConfigured", err)
 		}
@@ -164,7 +164,7 @@ func TestMarkAsksOnceMoreWhenTheMarkIsTheWrongShape(t *testing.T) {
 			t.Errorf("%v: Mark() = %#v, %v after %d calls, want %#v, %v after 2", c.replies, got, err, calls, c.want, c.err)
 		}
 	}
-	if _, err := New("", "", false).MarkAnswer(context.Background(), markExplain); !errors.Is(err, ErrNotConfigured) {
+	if _, err := New("", "", "", false).MarkAnswer(context.Background(), markExplain); !errors.Is(err, ErrNotConfigured) {
 		t.Fatalf("unconfigured MarkAnswer() error = %v", err)
 	}
 }
@@ -277,7 +277,7 @@ func TestLessonAsksOnceMoreWhenTheTextIsEmptyOrBadlySized(t *testing.T) {
 			t.Errorf("Lesson() = %d words, %v after %d calls, want %d words, %v after 2", len(strings.Fields(got)), err, calls, len(strings.Fields(c.want)), c.err)
 		}
 	}
-	if _, err := Lesson(context.Background(), New("", "", false), pivotLesson); !errors.Is(err, ErrNotConfigured) {
+	if _, err := Lesson(context.Background(), New("", "", "", false), pivotLesson); !errors.Is(err, ErrNotConfigured) {
 		t.Fatalf("unconfigured Lesson() error = %v", err)
 	}
 }

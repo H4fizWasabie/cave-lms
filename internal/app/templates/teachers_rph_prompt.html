@@ -1,0 +1,38 @@
+{{define "title"}}{{t .Lang "teachers.rph.prompt.title"}} · {{.DSKP.Subject}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/teachers/dskps/{{.DSKP.ID}}">{{.DSKP.Subject}}</a></p>
+      <div class="page-head">
+        <h1>{{t .Lang "teachers.rph.prompt.title"}}</h1>
+        <p>{{.DSKP.Subject}} · {{t .Lang (print "teachers.year." .DSKP.Year)}}</p>
+        <p role="status">{{tn .Lang "teachers.rph.left" .Left}}</p>
+      </div>
+      <p>{{t .Lang "teachers.rph.prompt.lede"}}</p>
+      <h2 class="h-sm">{{t .Lang (print "dskps.language." .PromptLanguage)}}</h2>
+      <textarea id="rph-prompt" readonly rows="18">{{.Prompt}}</textarea>
+      <p><button class="btn btn-solid" type="button" data-copy="rph-prompt">{{t .Lang "teachers.rph.copy"}}</button></p>
+      <details>
+        <summary>{{t .Lang "teachers.rph.twin" (t .Lang (print "dskps.language." .OtherLanguage))}}</summary>
+        <textarea id="rph-prompt-other" readonly rows="18">{{.Other}}</textarea>
+        <p><button class="btn btn-ghost" type="button" data-copy="rph-prompt-other">{{t .Lang "teachers.rph.copy"}}</button></p>
+      </details>
+      <h2 class="h-sm">{{t .Lang "teachers.rph.save.title"}}</h2>
+      <form class="form" method="post" action="/teachers/rph/snippet">
+        <p><small>{{t .Lang "teachers.rph.save.lede"}}</small></p>
+        <div class="field">
+          <label for="snippet-name">{{t .Lang "teachers.rph.save.name"}}</label>
+          <input id="snippet-name" type="text" name="name" value="{{.SnippetName}}" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="snippet-shortcut">{{t .Lang "teachers.rph.save.shortcut"}}</label>
+          <input id="snippet-shortcut" type="text" name="shortcut" maxlength="100" autocomplete="off" required>
+          <small>{{t .Lang "teachers.rph.save.shortcut-hint"}}</small>
+        </div>
+        <input type="hidden" name="body" value="{{.Prompt}}">
+        <button class="btn btn-ghost">{{t .Lang "teachers.rph.save"}}</button>
+      </form>
+      <p><small>{{t .Lang "teachers.rph.count-note"}} {{t .Lang "teachers.rph.no-history"}}</small></p>
+      <p><a class="btn btn-ghost" href="/teachers/dskps/{{.DSKP.ID}}/rph">{{t .Lang "teachers.rph.another"}}</a></p>
+      <script src="{{static "forms.js"}}" defer></script>
+    </div>
+{{end}}

@@ -1,0 +1,43 @@
+{{define "title"}}{{t .Lang "tpro.heading"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "teachers-pro" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <div class="adm-head">
+          <div>
+            <h1>{{if .HolderID}}{{t .Lang "tpro.of" .HolderName}}{{else}}{{t .Lang "tpro.heading"}}{{end}}</h1>
+            <p>{{t .Lang "tpro.intro"}}</p>
+          </div>
+        </div>
+        <form class="toolbar" method="get" action="/admin/teachers-pro">
+          <label class="search"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-magnifying-glass"/></svg><span class="sr">{{t .Lang "tpro.email"}}</span><input type="search" name="email" value="{{.Email}}" placeholder="{{t .Lang "tpro.email"}}" required></label>
+          <button class="btn btn-ghost">{{t .Lang "plans.find"}}</button>
+        </form>
+        {{with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+        {{if .HolderID}}
+        <div class="card card-flush">
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "tpro.length"}}</th><th>{{t .Lang "plans.starts"}}</th><th>{{t .Lang "plans.ends"}}</th><th>{{t .Lang "tpro.given"}}</th><th>{{t .Lang "admin.common.status"}}</th></tr>
+              {{range .Periods}}
+              <tr>
+                <td>{{.Length}}</td>
+                <td>{{.Starts}}</td>
+                <td>{{.Ends}}</td>
+                <td>{{.Given}}</td>
+                <td>{{.Status}}</td>
+              </tr>
+              {{else}}
+              <tr><td colspan="5">{{t .Lang "tpro.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+        <p class="form-foot">
+          <a class="btn btn-ghost" href="/admin/teachers-pro/{{.HolderID}}/give/month">{{t .Lang "tpro.give.month"}}</a>
+          <a class="btn btn-ghost" href="/admin/teachers-pro/{{.HolderID}}/give/year">{{t .Lang "tpro.give.year"}}</a>
+        </p>
+        {{end}}
+      </div>
+    </div>
+{{end}}

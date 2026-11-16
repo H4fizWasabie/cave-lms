@@ -1,0 +1,57 @@
+{{define "title"}}{{t .Lang "teachers.nav.rph"}} · {{.DSKP.Subject}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/teachers/dskps/{{.DSKP.ID}}">{{.DSKP.Subject}}</a></p>
+      <div class="page-head">
+        <h1>{{t .Lang "teachers.nav.rph"}}</h1>
+        <p>{{.DSKP.Subject}} · {{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}}</p>
+        <p role="status">{{tn .Lang "teachers.rph.left" .Left}}</p>
+      </div>
+      {{- with .Error}}<p class="field-err" role="alert">{{.}}</p>{{end}}
+      <form class="form" method="post" action="/teachers/dskps/{{.DSKP.ID}}/rph">
+        <p>{{t .Lang "teachers.rph.pick"}}</p>
+        {{- range .SKs}}
+        <fieldset class="field dskp-sk">
+          <legend><strong>{{t $.Lang "dskps.sk"}} {{.Code}}</strong> {{.Text}}</legend>
+          {{- if or .Group .Topic}}<p class="muted">{{.Group}}{{if and .Group .Topic}} · {{end}}{{.Topic}}</p>{{end}}
+          {{- range .SPs}}
+          <label><input type="checkbox" name="sp" value="{{.ID}}"{{if .Checked}} checked{{end}}> <strong>{{t $.Lang "dskps.sp"}} {{.Code}}</strong> {{.Text}}</label>
+          {{- else}}
+          <p class="muted">{{t $.Lang "dskps.no-sp"}}</p>
+          {{- end}}
+        </fieldset>
+        {{- end}}
+        <div class="field">
+          <label for="rph-date">{{t .Lang "teachers.rph.date"}}</label>
+          <input id="rph-date" type="date" name="date" value="{{.Date}}" required>
+        </div>
+        <div class="field">
+          <label for="rph-time">{{t .Lang "teachers.rph.time"}}</label>
+          <input id="rph-time" type="text" name="time" value="{{.Time}}" maxlength="60" autocomplete="off" required>
+          <small>{{t .Lang "teachers.rph.time-hint"}}</small>
+        </div>
+        <div class="field">
+          <label for="rph-class">{{t .Lang "teachers.rph.class"}}</label>
+          <input id="rph-class" type="text" name="class" value="{{.Class}}" maxlength="60" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label for="rph-students">{{t .Lang "teachers.rph.students"}}</label>
+          <input id="rph-students" type="number" name="students" value="{{.Students}}" min="1" max="200" required>
+        </div>
+        <div class="field">
+          <label for="rph-notes">{{t .Lang "teachers.rph.notes"}}</label>
+          <textarea id="rph-notes" name="notes" rows="3" maxlength="1000">{{.Notes}}</textarea>
+          <small>{{t .Lang "teachers.rph.notes-hint"}}</small>
+        </div>
+        <div class="field">
+          <label for="rph-language">{{t .Lang "teachers.rph.language"}}</label>
+          <select id="rph-language" name="language">
+            <option value="ms"{{if eq .Language "ms"}} selected{{end}}>{{t .Lang "dskps.language.ms"}}</option>
+            <option value="en"{{if eq .Language "en"}} selected{{end}}>{{t .Lang "dskps.language.en"}}</option>
+          </select>
+        </div>
+        <button class="btn btn-solid">{{t .Lang "teachers.rph.make"}}</button>
+        <p><small>{{t .Lang "teachers.rph.count-note"}}</small></p>
+      </form>
+    </div>
+{{end}}

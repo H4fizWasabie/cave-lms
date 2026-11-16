@@ -56,6 +56,9 @@ type Config struct {
 	// configured, writes Lesson text and marks Written answers by hand.
 	OpenRouterAPIKey string
 	OpenRouterModel  string
+	// OpenRouterDSKPModel, from OPENROUTER_DSKP_MODEL, reads DSKP PDFs for the Teachers Portal. It is apart from OpenRouterModel,
+	// as it needs a model that takes PDFs; unset, DSKP reading is off and the Admin and Teachers are told so.
+	OpenRouterDSKPModel string
 	// OpenRouterWebSearch, from OPENROUTER_WEB_SEARCH (true or false, true when unset), turns on OpenRouter's web search.
 	OpenRouterWebSearch bool
 	// Production, from CAVE_ENV (production when unset, or staging or development), hides what is not ready for the
@@ -83,6 +86,7 @@ func Load() (Config, error) {
 
 		OpenRouterAPIKey:    strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
 		OpenRouterModel:     strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")),
+		OpenRouterDSKPModel: strings.TrimSpace(os.Getenv("OPENROUTER_DSKP_MODEL")),
 		OpenRouterWebSearch: true,
 	}
 	if v := strings.TrimSpace(os.Getenv("OPENROUTER_WEB_SEARCH")); v != "" {

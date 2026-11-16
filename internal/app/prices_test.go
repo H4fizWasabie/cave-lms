@@ -16,6 +16,8 @@ func priceForm() url.Values {
 		"cavetext-pro_price": {"25"}, "cavetext-pro_normal": {""}, "cavetext-pro_link": {""},
 		"lab-plan_price": {"89"}, "lab-plan_normal": {""}, "lab-plan_link": {""},
 		"pro-plan_price": {"99"}, "pro-plan_normal": {"119"}, "pro-plan_link": {""},
+		"teachers-month_price": {"15"}, "teachers-month_normal": {""}, "teachers-month_link": {""},
+		"teachers-year_price": {"150"}, "teachers-year_normal": {""}, "teachers-year_link": {""},
 	}
 }
 

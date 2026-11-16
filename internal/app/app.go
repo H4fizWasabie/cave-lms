@@ -79,6 +79,10 @@ type App struct {
 	emailing  sync.WaitGroup
 	// mailingLater holds the emails sent after their request answered (mailLater); Close waits for them.
 	mailingLater sync.WaitGroup
+	// reading holds the DSKP reads running in the background (readDSKP); Close ends them through readCtx and waits for them.
+	reading     sync.WaitGroup
+	readCtx     context.Context
+	stopReading context.CancelFunc
 	// uploading holds the IDs of Learners with a Submission upload in flight, so each sends one at a time and holds
 	// at most one request's files (5 x 20 MB) in memory.
 	// ponytail: per process; many Learners at once still each hold up to 100 MB. Streaming files to storage instead of
@@ -152,6 +156,14 @@ type page struct {
 
 func (p *page) learnerField() **learner { return &p.Learner }
 
+// PortalNext is Next when it leads into the Teachers Portal, which the login page's Register link carries on, else "".
+func (p *page) PortalNext() string {
+	if p.CaveText || !inPortal(p.Next) {
+		return ""
+	}
+	return p.Next
+}
+
 // pageBase holds what layout.html reads. A page struct embeds it
 // and is passed to render as a pointer, so render can fill in the Learner.
 type pageBase struct {
@@ -215,6 +227,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.dataset = dataset.New(db, datasets, func() time.Time { return a.now() })
 	if len(cfg.EmailAllowlist) > 0 {
 		a.mailer = allowlistMailer{next: mailer, allowed: cfg.EmailAllowlist, hold: a.logInfo}
+	}
+	a.readCtx, a.stopReading = context.WithCancel(context.Background())
+	if err = a.failInterruptedDSKPReads(ctx); err != nil {
+		return nil, err
 	}
 	a.dailyPrune(ctx)
 	a.checkBCLToken(ctx)
@@ -478,6 +494,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/cavetext/payments/done", a.admin(a.paymentDone))
 	mux.HandleFunc("GET /admin/prices", a.admin(a.adminPrices))
 	mux.HandleFunc("POST /admin/prices", a.admin(a.savePrices))
+	mux.HandleFunc("GET /admin/teachers-pro", a.admin(a.adminTeachersPro))
+	mux.HandleFunc("GET /admin/teachers-pro/{id}/give/{length}", a.admin(a.confirmGiveTeacherPro))
+	mux.HandleFunc("POST /admin/teachers-pro/{id}/give/{length}", a.admin(a.giveTeacherProByHand))
 	mux.HandleFunc("GET /admin/promos", a.admin(a.adminPromos))
 	mux.HandleFunc("POST /admin/promos", a.admin(a.addPromo))
 	mux.HandleFunc("GET /admin/promos/{id}/end", a.admin(a.confirmEndPromo))
@@ -485,6 +504,33 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/cavetext/settings", a.admin(a.caveTextSettingsForm))
 	mux.HandleFunc("POST /admin/cavetext/settings", a.admin(a.saveCaveTextSettings))
 	mux.HandleFunc("POST /admin/cavetext/master-prompts", a.admin(a.saveCaveTextMasterPrompts))
+	mux.HandleFunc("GET /admin/dskps", a.admin(a.adminDSKPs))
+	mux.HandleFunc("POST /admin/dskps", a.admin(a.uploadDSKP))
+	mux.HandleFunc("GET /admin/dskps/teacher-uploads", a.admin(a.adminTeacherUploads))
+	mux.HandleFunc("GET /admin/dskps/{id}", a.admin(a.adminDSKP))
+	mux.HandleFunc("POST /admin/dskps/{id}/publish", a.admin(a.publishDSKP))
+	mux.HandleFunc("POST /admin/dskps/{id}/unpublish", a.admin(a.unpublishDSKP))
+	mux.HandleFunc("POST /admin/dskps/{id}/discard", a.admin(a.discardDSKP))
+	mux.HandleFunc("GET /admin/dskps/{id}/edit", a.admin(a.adminDSKPEdit))
+	mux.HandleFunc("POST /admin/dskps/{id}/sks", a.admin(a.editDSKP(addSK)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sks/{sk}", a.admin(a.editDSKP(changeSK)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sks/{sk}/sps", a.admin(a.editDSKP(addSP)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sks/{sk}/delete", a.admin(a.editDSKP(deleteSK)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sps/{sp}/delete", a.admin(a.editDSKP(deleteSP)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sks/{sk}/move", a.admin(a.editDSKP(moveSK)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sks/{sk}/rename", a.admin(a.editDSKP(renameSK)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sps/{sp}/move", a.admin(a.editDSKP(moveSP)))
+	mux.HandleFunc("POST /admin/dskps/{id}/sps/{sp}", a.admin(a.editDSKP(changeSP)))
+	mux.HandleFunc("GET "+portalPath+"/dskps", a.teacherPage(a.teacherDSKPs))
+	mux.HandleFunc("POST "+portalPath+"/dskps", a.teacherPage(a.teacherUploadDSKP))
+	mux.HandleFunc("POST "+portalPath+"/dskps/{id}/delete", a.teacherPage(a.deleteOwnDSKP))
+	mux.HandleFunc("GET "+portalPath+"/dskps/{id}", a.teacherPage(a.teacherDSKP))
+	mux.HandleFunc("GET "+portalPath+"/dskps/{id}/rph", a.teacherPage(a.rphForm))
+	mux.HandleFunc("POST "+portalPath+"/dskps/{id}/rph", a.teacherPage(a.makeRPHPrompt))
+	mux.HandleFunc("POST "+portalPath+"/rph/snippet", a.teacherPage(a.saveRPHSnippet))
+	mux.HandleFunc("GET "+portalPath, a.teachersHome)
+	mux.HandleFunc("GET "+portalPath+"/profile", a.requireLearner(a.teacherProfileForm))
+	mux.HandleFunc("POST "+portalPath+"/profile", a.requireLearner(a.saveTeacherProfile))
 	mux.HandleFunc("GET /cavetext", a.caveTextHome)
 	mux.HandleFunc("GET /pricing", a.pricing)
 	mux.HandleFunc("GET /plans", func(w http.ResponseWriter, r *http.Request) { // the Pricing page's old address
@@ -557,6 +603,8 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) Close() error {
 	close(a.done)
+	a.stopReading()
+	a.reading.Wait()      // the reads record their end in the database
 	a.emailing.Wait()     // the sender of owed emails reads the database
 	a.mailingLater.Wait() // the emails sent after their request answered
 	return a.db.Close()
@@ -785,6 +833,11 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 		// A message page (not found, refused, an error) has no sidebar, so it keeps the site's header to lead somewhere.
 		l := *withLearner.learnerField()
 		c.chromeField().Shell = l != nil && l.IsAdmin && strings.HasPrefix(r.URL.Path, "/admin") && name != "message"
+		portal := strings.HasPrefix(name, "teachers_")
+		if p, ok := data.(interface{ inPortal() bool }); ok {
+			portal = p.inPortal()
+		}
+		c.chromeField().Portal = !c.chromeField().CaveText && portal
 		if l != nil {
 			acc, err := a.labAccessOf(r.Context(), l)
 			if err != nil {

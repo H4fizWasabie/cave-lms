@@ -1,7 +1,8 @@
-// Package aiwriter asks an AI to write Exam questions, mark Written answers and write Lesson text. Only the topic,
+// Package aiwriter asks an AI to write Exam questions, mark Written answers, write Lesson text and read a DSKP's
+// standards from its PDF. Only the topic,
 // format, language, count, Difficulty, the Admin's key points and the Question bank's existing prompts on the topic
 // go out for questions; only the question, model answer and answer for a mark; and only the Course title, the
-// Lesson title, its Objectives, the other Lessons' titles and the language for a Lesson. No Learner data goes out.
+// Lesson title, its Objectives, the other Lessons' titles and the language for a Lesson, and only the DSKP's PDF and its language for a DSKP. No Learner data goes out.
 package aiwriter
 
 import (
@@ -65,8 +66,31 @@ type LessonRequest struct {
 	Language    string   // "ms" or "en"
 }
 
-// Writer is an AI that writes Exam questions, marks Written answers and writes Lesson text. Callers go through
-// Questions, Mark and Lesson, which check the reply's shape.
+// DSKPRequest is everything the AI is told to read a DSKP: the PDF and the language it is written in. Nothing about
+// the Admin or a Teacher goes out (ADR 0006).
+type DSKPRequest struct {
+	PDF      []byte
+	Language string // "ms" or "en"
+}
+
+// SK is one Standard Kandungan as the DSKP groups it: under a Grouping (tema or bidang) and a Topic (tajuk), with the
+// Standard Pembelajaran that belong to it.
+type SK struct {
+	Grouping string `json:"grouping"`
+	Topic    string `json:"topic"`
+	Code     string `json:"code"`
+	Text     string `json:"text"`
+	SPs      []SP   `json:"sps"`
+}
+
+// SP is one Standard Pembelajaran.
+type SP struct {
+	Code string `json:"code"`
+	Text string `json:"text"`
+}
+
+// Writer is an AI that writes Exam questions, marks Written answers, writes Lesson text and reads a DSKP. Callers go
+// through Questions, Mark, Lesson and ReadDSKP, which check the reply's shape.
 type Writer interface {
 	// WriteQuestions writes r.Count questions. A reply that cannot be read is ErrBadShape.
 	WriteQuestions(context.Context, Request) ([]Question, error)
@@ -74,6 +98,10 @@ type Writer interface {
 	MarkAnswer(context.Context, MarkRequest) (Marking, error)
 	// WriteLesson writes r's Lesson text in Markdown. A reply that cannot be read is ErrBadShape.
 	WriteLesson(context.Context, LessonRequest) (string, error)
+	// ReadsDSKP reports whether reading a DSKP is set up: it has its own model, apart from the Exams one.
+	ReadsDSKP() bool
+	// ReadDSKP reads the standards from r's PDF. A reply that cannot be read is ErrBadShape.
+	ReadDSKP(context.Context, DSKPRequest) ([]SK, error)
 }
 
 // Unconfigured is the Writer when no AI is set up: every call is ErrNotConfigured.
@@ -89,6 +117,32 @@ func (Unconfigured) MarkAnswer(context.Context, MarkRequest) (Marking, error) {
 
 func (Unconfigured) WriteLesson(context.Context, LessonRequest) (string, error) {
 	return "", ErrNotConfigured
+}
+
+func (Unconfigured) ReadsDSKP() bool { return false }
+
+func (Unconfigured) ReadDSKP(context.Context, DSKPRequest) ([]SK, error) {
+	return nil, ErrNotConfigured
+}
+
+// ReadDSKP asks w for r's standards, asking once more when no SK has an SP or any SK or SP lacks its code or text. A
+// second wrong shape is ErrBadShape.
+func ReadDSKP(ctx context.Context, w Writer, r DSKPRequest) ([]SK, error) {
+	return askTwice(func() ([]SK, error) { return w.ReadDSKP(ctx, r) }, func(sks []SK) bool {
+		sps := 0
+		for _, sk := range sks {
+			if strings.TrimSpace(sk.Code) == "" || strings.TrimSpace(sk.Text) == "" {
+				return false
+			}
+			for _, sp := range sk.SPs {
+				if strings.TrimSpace(sp.Code) == "" || strings.TrimSpace(sp.Text) == "" {
+					return false
+				}
+			}
+			sps += len(sk.SPs)
+		}
+		return sps > 0
+	})
 }
 
 // Lesson asks w for r's Lesson text, asking once more when it is not 300 to 1500 words (the prompt asks for 500 to
@@ -111,12 +165,13 @@ func Mark(ctx context.Context, w Writer, r MarkRequest) (Marking, error) {
 	})
 }
 
-// New is the OpenRouter writer, or Unconfigured when the key or model is unset.
-func New(apiKey, model string, webSearch bool) Writer {
-	if apiKey == "" || model == "" {
+// New is the OpenRouter writer, or Unconfigured when the key or both models are unset. model writes and marks Exam
+// questions and writes Lessons; dskpModel reads DSKPs; each is off while its own model is unset.
+func New(apiKey, model, dskpModel string, webSearch bool) Writer {
+	if apiKey == "" || (model == "" && dskpModel == "") {
 		return Unconfigured{}
 	}
-	return OpenRouter{APIKey: apiKey, Model: model, WebSearch: webSearch}
+	return OpenRouter{APIKey: apiKey, Model: model, DSKPModel: dskpModel, WebSearch: webSearch}
 }
 
 // Questions asks w for r's questions, asking once more when the reply is the wrong shape. A second wrong shape

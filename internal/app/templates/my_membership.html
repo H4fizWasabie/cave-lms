@@ -3,9 +3,10 @@
     <div class="wrap wrap-narrow page-pad">
       <div class="page-head">
         <h1>{{t .Lang "my-membership.title"}}</h1>
-        <p>{{t .Lang "my-membership.intro"}}</p>
+        <p>{{if .TeacherOnly}}{{t .Lang "my-membership.intro-teacher"}}{{else}}{{t .Lang "my-membership.intro"}}{{end}}</p>
       </div>
       <dl class="acct-list">
+        {{- if not .TeacherOnly}}
         {{- if .PlanUntil}}
         <div><dt>{{t .Lang "my-membership.plan"}}</dt><dd><strong>{{t .Lang "plans.lab"}}</strong><span>{{t .Lang "my-membership.until" .PlanUntil}}</span></dd></div>
         {{- else}}
@@ -17,6 +18,16 @@
         {{- else}}
         <div><dt>CaveText Pro</dt><dd><strong>{{t .Lang "cavetext.free"}}</strong></dd></div>
         <div><dt>{{t .Lang "my-membership.cap"}}</dt><dd>{{if .CaveText}}<strong>{{tn .Lang "cavetext.snippet-count" .Cap.Cap}}</strong>{{else}}<span>{{t .Lang "my-membership.cap-later"}}</span>{{end}}</dd></div>
+        {{- end}}
+        {{- end}}
+        {{- if .TrialUntil}}
+        <div><dt>{{t .Lang "my-membership.teacher-trial"}}</dt><dd><strong>{{t .Lang "my-membership.until" .TrialUntil}}</strong></dd></div>
+        {{- end}}
+        {{- if .TeachersProUntil}}
+        <div><dt>Teachers Portal Pro</dt><dd><strong>{{t .Lang "my-membership.until" .TeachersProUntil}}</strong></dd></div>
+        {{- end}}
+        {{- if .TeacherLapsed}}
+        <div><dt>Teachers Portal</dt><dd><strong>{{if .Access.HadPro}}{{t .Lang "teachers.pro.ended"}}{{else}}{{t .Lang "teachers.trial.ended"}}{{end}}</strong><a class="link-more" href="/teachers">{{t .Lang "my-membership.get-teachers-pro"}}</a></dd></div>
         {{- end}}
       </dl>
     </div>

@@ -1,0 +1,65 @@
+{{define "title"}}{{.DSKP.Subject}} · {{t .Lang "dskps.title"}} · {{t .Lang "admin.common.admin"}} · CAVELMS{{end}}
+{{define "content"}}
+    <div class="adm">
+      {{template "admin-side" (side "dskps" $.Learner $.Lang $.Here)}}
+      <div class="adm-main">
+        <p class="crumbs"><a href="/admin/dskps">{{t .Lang "dskps.back"}}</a></p>
+        <div class="adm-head">
+          <div>
+            <h1>{{.DSKP.Subject}}</h1>
+            <p>{{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}} · {{t .Lang (print "dskps.state." .DSKP.State)}}</p>
+          </div>
+          {{- if .DSKP.Draft}}
+          <div class="adm-head-actions"><form method="post" action="/admin/dskps/{{.DSKP.ID}}/publish"><button class="btn btn-solid">{{t .Lang "dskps.publish"}}</button></form></div>
+          {{- else if .DSKP.Published}}
+          <div class="adm-head-actions"><form method="post" action="/admin/dskps/{{.DSKP.ID}}/unpublish"><button class="btn btn-quiet">{{t .Lang "dskps.unpublish"}}</button></form></div>
+          {{- end}}
+        </div>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        {{- with .Replaces}}
+        <div class="card">
+          <p role="status">{{t $.Lang "dskps.edition-of"}} <a href="/admin/dskps/{{.ID}}">{{.Subject}} · {{t $.Lang (print "teachers.year." .Year)}}</a>. {{if .Published}}{{t $.Lang "dskps.edition-keep"}}{{else}}{{t $.Lang "dskps.edition-takes"}}{{end}}</p>
+          <form method="post" action="/admin/dskps/{{$.DSKP.ID}}/discard"><button class="btn btn-danger btn-sm">{{t $.Lang "dskps.discard"}}</button></form>
+        </div>
+        {{- end}}
+        {{- with .Edition}}
+        <div class="card"><p role="status">{{t $.Lang (print "dskps.edition." .State)}} <a href="/admin/dskps/{{.ID}}">{{t $.Lang "dskps.open"}}</a></p></div>
+        {{- end}}
+        {{- if .DSKP.Reading}}
+        <div class="card"><p role="status">{{t .Lang "dskps.reading"}}</p></div>
+        {{- else if .DSKP.Failed}}
+        <div class="card"><p class="up-err" role="alert">{{t .Lang "dskps.failed" (t .Lang (print "dskps.failure." .DSKP.Failure))}}</p></div>
+        {{- else}}
+        <p role="status">{{if .DSKP.Draft}}{{t .Lang "dskps.draft"}}{{else}}{{t .Lang "dskps.published"}}{{end}}</p>
+        <p><a class="btn btn-ghost btn-sm" href="/admin/dskps/{{.DSKP.ID}}/edit">{{t .Lang "dskps.edit"}}</a></p>
+        <div class="card">{{template "dskp-standards" .}}</div>
+        {{- end}}
+        {{- if .CanReplace}}
+        <div class="card">
+          <h2>{{t .Lang "dskps.replace"}}</h2>
+          <p>{{t .Lang "dskps.replace.lede"}}</p>
+          <form class="form" method="post" action="/admin/dskps?replaces={{.DSKP.ID}}" enctype="multipart/form-data">
+            <div class="field-grid field-grid-2">
+              <div class="field"><label for="subject">{{t .Lang "dskps.subject"}}</label><input id="subject" type="text" name="subject" value="{{.DSKP.Subject}}" maxlength="100" required></div>
+              <div class="field"><label for="year">{{t .Lang "dskps.year"}}</label>
+                <select id="year" name="year" required>
+                  {{- range .Years}}
+                  <option value="{{.}}"{{if eq . $.DSKP.Year}} selected{{end}}>{{t $.Lang (print "teachers.year." .)}}</option>
+                  {{- end}}
+                </select>
+              </div>
+              <div class="field"><label for="language">{{t .Lang "dskps.language"}}</label>
+                <select id="language" name="language" required>
+                  <option value="ms"{{if eq .DSKP.Language "ms"}} selected{{end}}>{{t .Lang "dskps.language.ms"}}</option>
+                  <option value="en"{{if eq .DSKP.Language "en"}} selected{{end}}>{{t .Lang "dskps.language.en"}}</option>
+                </select>
+              </div>
+              <div class="field"><label for="file">{{t .Lang "dskps.file"}}</label><input id="file" type="file" name="file" accept="application/pdf" required></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-solid"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "dskps.read"}}</button></div>
+          </form>
+        </div>
+        {{- end}}
+      </div>
+    </div>
+{{end}}

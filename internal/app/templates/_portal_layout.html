@@ -1,0 +1,74 @@
+{{/* The layout of the Teachers Portal's pages (ADR 0029): CAVELMS's stylesheet, with a header of the portal's own sections, one
+   link to the rest of CAVELMS and the account called a Teachers Portal account, and no Course, Lab or Classroom menus. */}}
+{{/* teachers-prices lists a portal page's .Offers, Teachers Portal Pro by the month and by the year, with each price, its Normal
+price crossed out, its Promo price, and for a logged-in account Buy to the payment link (Contact us without one). */}}
+{{define "teachers-prices"}}
+      <ul class="offers">
+        {{- range .Offers}}
+        <li class="offer">
+          <h3>{{t $.Lang (print "prices." .Product)}}</h3>
+          <p class="offer-price"><strong>{{.Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
+          {{- with .Promo}}
+          <p class="offer-promo">{{t $.Lang "offers.promo" .}}</p>
+          {{- end}}
+          {{- if $.Learner}}
+          {{- if .PaymentLink}}
+          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang "offers.buy" (t $.Lang (print "prices." .Product))}}</a>
+          {{- else}}
+          <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang "offers.contact-buy" (t $.Lang (print "prices." .Product))}}</a>
+          {{- end}}
+          {{- end}}
+        </li>
+        {{- end}}
+      </ul>
+{{end}}
+
+{{define "portal-layout"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="{{static "favicon.png"}}">
+  <link rel="stylesheet" href="{{static "cavelms.css"}}">
+  <title>{{template "title" .}}</title>
+</head>
+<body>
+  <a class="skip" href="#main">{{t .Lang "header.skip"}}</a>
+  <header class="site-header">
+    <div class="wrap site-header-in">
+      <a class="brand" href="/teachers"><img src="{{static "cavelms-logo.webp"}}" alt="{{t .Lang "teachers.brand-alt"}}" class="brand-logo" width="922" height="160"></a>
+      <nav class="site-nav" aria-label="{{t .Lang "teachers.nav"}}">
+        {{- if and .Learner (not .Access.Lapsed)}}
+        <a class="hdr-link" href="/teachers"{{if eq .Section "rph"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.rph"}}</a>
+        <a class="hdr-link" href="/teachers/dskps"{{if eq .Section "dskps"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.dskps"}}</a>
+        <a class="hdr-link" href="/teachers/profile"{{if eq .Section "profile"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.profile"}}</a>
+        <a class="hdr-link" href="/my-membership"{{if eq .Section "membership"}} aria-current="page"{{end}}>{{t .Lang "nav.my-membership"}}</a>
+        {{- end}}
+        <a class="hdr-link" href="/">{{t .Lang "teachers.to-cavelms"}}</a>
+      </nav>
+      <div class="site-header-right">
+        <form class="lang-switch" method="post" action="/language" aria-label="{{t .Lang "header.language"}}">
+          <input type="hidden" name="next" value="{{.Here}}">
+          <button name="lang" value="ms" lang="ms" title="Bahasa Melayu"{{if eq .Lang "ms"}} aria-pressed="true"{{end}}>BM</button>
+          <span aria-hidden="true">|</span>
+          <button name="lang" value="en" lang="en" title="English"{{if eq .Lang "en"}} aria-pressed="true"{{end}}>EN</button>
+        </form>
+        {{- if .Learner}}
+        <span class="hdr-who">{{t .Lang "teachers.account" .Learner.Name}}</span>
+        <form method="post" action="/logout"><button class="btn btn-quiet btn-sm">{{t .Lang "header.log-out"}}</button></form>
+        {{- else}}
+        <a class="hdr-link" href="/login?next=%2Fteachers">{{t .Lang "header.log-in"}}</a>
+        <a class="btn btn-solid btn-sm" href="/register?next=%2Fteachers">{{t .Lang "header.register"}}</a>
+        {{- end}}
+      </div>
+    </div>
+  </header>
+  <main id="main">
+    {{template "content" .}}
+  </main>
+  <footer class="site-footer">
+    <div class="wrap footer-base">© 2026 The Cave Consult · <a href="/privacy">{{t .Lang "privacy.link"}}</a></div>
+  </footer>
+</body>
+</html>
+{{end}}

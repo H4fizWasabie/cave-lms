@@ -88,10 +88,14 @@ func (a *App) registerForm(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "register", page{Next: a.verifyNext(r, r.URL.Query().Get("next"))})
 }
 
-// verifyNext is next if it is the connect page of a listed extension on the CaveText host, else "": the only next a
-// registration carries through its emails, so a newcomer from the extension ends signed in to it.
+// verifyNext is next if it is the connect page of a listed extension on the CaveText host, or a page of the Teachers
+// Portal on the main host, else "": the only nexts a registration carries through its emails, so a newcomer from the
+// extension ends signed in to it and one from the portal ends back in it.
 func (a *App) verifyNext(r *http.Request, next string) string {
-	if localPath(next) == "" || a.connectTarget(r, next) == "" {
+	if localPath(next) == "" {
+		return ""
+	}
+	if a.connectTarget(r, next) == "" && (a.onCaveTextHost(r) || !inPortal(next)) {
 		return ""
 	}
 	return next
@@ -537,9 +541,13 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 		a.connectExtension(w, r, ext, id)
 		return
 	}
-	// Without a next, everyone lands on the home page, Learner and Admin alike.
+	// Without a next, everyone lands on the home page, except a Teacher with nothing else on CAVELMS, who lands on the portal.
 	if next == "" {
-		next = "/"
+		var err error
+		if next, err = a.landingAfterLogin(r, id); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }

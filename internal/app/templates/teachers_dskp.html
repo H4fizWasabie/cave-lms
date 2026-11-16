@@ -1,0 +1,24 @@
+{{define "title"}}{{.DSKP.Subject}} · {{t .Lang "teachers.nav.dskps"}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <p class="crumbs"><a href="/teachers/dskps">{{t .Lang "teachers.dskps.back"}}</a></p>
+      <div class="page-head">
+        <h1>{{.DSKP.Subject}}</h1>
+        <p>{{t .Lang (print "teachers.year." .DSKP.Year)}} · {{t .Lang (print "dskps.language." .DSKP.Language)}}</p>
+      </div>
+      {{- if .Own}}
+      <form method="post" action="/teachers/dskps/{{.DSKP.ID}}/delete"><button class="btn btn-quiet btn-sm">{{t .Lang "teachers.dskps.delete"}}</button></form>
+      {{- end}}
+      {{- if .DSKP.Reading}}
+      <p role="status">{{t .Lang "dskps.reading"}}</p>
+      {{- else if .DSKP.Failed}}
+      <p class="up-err" role="alert">{{t .Lang "dskps.failed" (t .Lang (print "dskps.failure." .DSKP.Failure))}}</p>
+      {{- else}}
+      {{- if .Own}}
+      <p role="status"><strong>{{t .Lang "teachers.dskps.unchecked"}}</strong> {{t .Lang "teachers.dskps.unchecked-note"}}</p>
+      {{- end}}
+      <p><a class="btn btn-solid" href="/teachers/dskps/{{.DSKP.ID}}/rph">{{t .Lang "teachers.rph.make-from"}}</a></p>
+      {{template "dskp-standards" .}}
+      {{- end}}
+    </div>
+{{end}}

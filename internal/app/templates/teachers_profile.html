@@ -1,0 +1,25 @@
+{{define "title"}}{{t .Lang "teachers.nav.profile"}} · {{t .Lang "teachers.title"}}{{end}}
+{{define "content"}}
+    <div class="wrap wrap-narrow page-pad">
+      <div class="page-head">
+        <h1>{{t .Lang "teachers.nav.profile"}}</h1>
+        <p>{{if .Access.Profile}}{{t .Lang "teachers.profile.intro-edit"}}{{else}}{{t .Lang "teachers.profile.intro-new"}}{{end}}</p>
+      </div>
+      <form class="form" method="post" action="/teachers/profile">
+        <div class="field">
+          <label for="subjects">{{t .Lang "teachers.profile.subjects"}}</label>
+          <input id="subjects" type="text" name="subjects" value="{{.Subjects}}" autocomplete="off" required{{if .SubjectsError}} aria-invalid="true" aria-describedby="subjects-err"{{end}}>
+          {{with .SubjectsError}}<p class="field-err" id="subjects-err" role="alert">{{.}}</p>{{end}}
+          <small>{{t .Lang "teachers.profile.subjects-hint"}}</small>
+        </div>
+        <fieldset class="field"{{if .YearsError}} aria-invalid="true" aria-describedby="years-err"{{end}}>
+          <legend>{{t .Lang "teachers.profile.years"}}</legend>
+          {{- range .YearOptions}}
+          <label><input type="checkbox" name="years" value="{{.Code}}"{{if .Checked}} checked{{end}}> {{t $.Lang (print "teachers.year." .Code)}}</label>
+          {{- end}}
+          {{with .YearsError}}<p class="field-err" id="years-err" role="alert">{{.}}</p>{{end}}
+        </fieldset>
+        <button class="btn btn-solid">{{if .Access.Profile}}{{t .Lang "teachers.profile.save"}}{{else}}{{t .Lang "teachers.profile.start"}}{{end}}</button>
+      </form>
+    </div>
+{{end}}

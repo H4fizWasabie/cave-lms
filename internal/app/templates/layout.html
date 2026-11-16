@@ -1,4 +1,4 @@
-{{define "layout"}}{{if .CaveText}}{{template "cavetext-layout" .}}{{else}}<!doctype html>
+{{define "layout"}}{{if .CaveText}}{{template "cavetext-layout" .}}{{else if .Portal}}{{template "portal-layout" .}}{{else}}<!doctype html>
 <html lang="{{.Lang}}">
 <head>
   <meta charset="utf-8">
@@ -143,6 +143,7 @@
           {{- with .Learner}}
           <span class="hdr-who">{{t $.Lang "header.logged-in-as" .Name}}</span>
           <a class="hdr-link" href="/my-courses">{{t $.Lang "nav.my-courses"}}</a>
+          <a class="hdr-link" href="/teachers">{{t $.Lang "nav.teachers"}}</a>
           {{if .IsAdmin}}<a class="btn btn-solid btn-sm" href="/admin">{{t $.Lang "header.admin-area"}}</a>{{end}}
           <form method="post" action="/logout"><button class="btn btn-quiet btn-sm">{{t $.Lang "header.log-out"}}</button></form>
           {{- else}}
@@ -189,6 +190,7 @@ switch and Log out. */}}
             <a href="/admin/results"{{if eq .Section "results"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-list-checks"/></svg><span>{{t .Lang "admin.side.results"}}</span></a>
             <a href="/admin/gallery"{{if eq .Section "gallery"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-images"/></svg><span>{{t .Lang "admin.side.gallery"}}</span></a>
             <a href="/admin/programmes"{{if eq .Section "programmes"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-calendar-dots"/></svg><span>{{t .Lang "admin.side.programmes"}}</span></a>
+            <a href="/admin/dskps"{{if eq .Section "dskps"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-chalkboard-teacher"/></svg><span>{{t .Lang "admin.side.dskps"}}</span></a>
           </div>
           <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.certify"}}">
             <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.certify"}}</span>
@@ -200,6 +202,7 @@ switch and Log out. */}}
             <span class="adm-group-h" aria-hidden="true">{{t .Lang "admin.group.sell"}}</span>
             <a href="/admin/plans"{{if eq .Section "plans"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-lock-simple"/></svg><span>{{t .Lang "admin.side.plans"}}</span></a>
             <a href="/admin/prices"{{if eq .Section "prices"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-tag"/></svg><span>{{t .Lang "admin.side.prices"}}</span></a>
+            <a href="/admin/teachers-pro"{{if eq .Section "teachers-pro"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-graduation-cap"/></svg><span>{{t .Lang "admin.side.teachers-pro"}}</span></a>
             <a href="/admin/promos"{{if eq .Section "promos"}} aria-current="page"{{end}}><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-seal-percent"/></svg><span>{{t .Lang "admin.side.promos"}}</span></a>
           </div>
           <div class="adm-group" role="group" aria-label="{{t .Lang "admin.group.cavetext"}}">

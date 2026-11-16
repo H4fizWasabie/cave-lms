@@ -1,0 +1,3 @@
+# Teachers share the CAVELMS account
+
+A Teacher logs in to the Teachers Portal with the same account as CAVELMS and CaveText, not a separate teacher account. Learner, Teacher and Admin are what an Account holder does, not different kinds of account, so the `learners` table holds every Account holder, Teachers who never touch a Course included. The table keeps its name: renaming it touches most of the code for no change in behaviour. The split lives in what each area calls the person and shows them: the Teachers Portal never says Pelajar and a Teacher who is not a Learner lands on it. A separate account system was turned down because a Teacher who later joins a Course would hold two accounts, and login, password reset and Payments would be built twice.

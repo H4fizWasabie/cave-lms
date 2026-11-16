@@ -3,7 +3,7 @@
     <div class="wrap auth-page">
       <div class="auth-box">
         <h1>{{t .Lang "header.log-in"}}</h1>
-        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.login.sub"}}{{else}}{{t .Lang "login.sub"}}{{end}}</p>
+        <p class="auth-sub">{{if .CaveText}}{{t .Lang "cavetext.login.sub"}}{{else if .PortalNext}}{{t .Lang "teachers.login.sub"}}{{else}}{{t .Lang "login.sub"}}{{end}}</p>
         <form class="form" method="post" action="{{.Prefix}}/login">
           {{with .Next}}<input type="hidden" name="next" value="{{.}}">{{end}}
           <div class="field"><label for="email">{{t .Lang "account.email"}}</label><input id="email" type="email" name="email" value="{{.Email}}" autocomplete="email" required></div>
@@ -16,7 +16,7 @@
           <a class="auth-forgot" href="{{.Prefix}}/forgot-password{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{end}}">{{t .Lang "account.forgot"}}</a>
         </form>
         {{if .CaveText}}<p class="auth-alt">{{t .Lang "cavetext.have-cavelms"}}</p>{{end}}
-        <p class="auth-alt">{{t .Lang "login.new"}} <a href="{{.Prefix}}/register{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{end}}">{{t .Lang "header.register"}}</a>.</p>
+        <p class="auth-alt">{{t .Lang "login.new"}} <a href="{{.Prefix}}/register{{if .CaveText}}{{with .Next}}?next={{.}}{{end}}{{else}}{{with .PortalNext}}?next={{.}}{{end}}{{end}}">{{t .Lang "header.register"}}</a>.</p>
       </div>
     </div>
 {{end}}
