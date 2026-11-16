@@ -2172,6 +2172,28 @@ var catalog = map[string]entry{
 	"admin.common.status":   {en: "Status", ms: "Status"},
 	"admin.common.saved":    {en: "Saved.", ms: "Disimpan."},
 
+	// OPR styles
+	"admin.side.opr-styles": {en: "OPR styles", ms: "Gaya OPR"},
+	"opr.styles.title":      {en: "OPR styles", ms: "Gaya OPR"},
+	"opr.styles.intro":      {en: "The five OPR styles Teachers pick from when they make an OPR prompt. Each starts as a placeholder: write its name and prompt text, and hide one that is not ready.", ms: "Lima gaya OPR yang dipilih Guru apabila membuat prompt OPR. Setiap satu bermula sebagai ruang letak: tulis nama dan teks promptnya, dan sembunyikan yang belum siap."},
+	"opr.styles.status":     {en: "Status", ms: "Status"},
+	"opr.styles.shown":      {en: "Shown", ms: "Dipaparkan"},
+	"opr.styles.hidden":     {en: "Hidden", ms: "Disembunyikan"},
+	"opr.styles.hide":       {en: "Hide", ms: "Sembunyikan"},
+	"opr.styles.show":       {en: "Show", ms: "Paparkan"},
+	"opr.styles.edit":       {en: "Edit OPR style %d", ms: "Sunting gaya OPR %d"},
+	"opr.styles.back":       {en: "Back to OPR styles", ms: "Kembali ke gaya OPR"},
+	"opr.styles.text":       {en: "Prompt text", ms: "Teks prompt"},
+	"opr.styles.text-hint":  {en: "Added to the OPR prompt when a Teacher picks this style. The prompt's own rules stay the same for every style.", ms: "Ditambah pada prompt OPR apabila Guru memilih gaya ini. Peraturan prompt itu sendiri sama bagi setiap gaya."},
+
+	"opr.styles.err.name":      {en: "Enter a name.", ms: "Masukkan nama."},
+	"opr.styles.err.name-long": {en: "The name can be at most %d characters.", ms: "Nama boleh sehingga %d aksara."},
+	"opr.styles.err.text":      {en: "Enter the prompt text.", ms: "Masukkan teks prompt."},
+	"opr.styles.err.text-long": {en: "The prompt text can be at most %s characters.", ms: "Teks prompt boleh sehingga %s aksara."},
+
+	"opr.styles.not-found.title": {en: "OPR style not found", ms: "Gaya OPR tidak dijumpai"},
+	"opr.styles.not-found":       {en: "There is no OPR style there. The five are on the OPR styles page.", ms: "Tiada gaya OPR di situ. Kelima-limanya ada di halaman gaya OPR."},
+
 	// Plans and Plan periods
 	"plans.title":             {en: "Plans", ms: "Pelan"},
 	"plans.heading":           {en: "Admin: Plans", ms: "Pentadbir: Pelan"},
