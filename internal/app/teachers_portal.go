@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
@@ -36,19 +37,24 @@ type teacherState int
 const (
 	teacherNone   teacherState = iota // no Teacher profile: the portal asks for one
 	teacherTrial                      // the Teacher trial is running
-	teacherLapsed                     // the Teacher trial has ended
+	teacherPro                        // a month or a year of Teachers Portal Pro is running
+	teacherLapsed                     // the Teacher trial and any Teachers Portal Pro have ended
 	teacherAdmin                      // the Admin, who needs no profile or trial
 )
 
-// teacherAccess is the portal's access check for one account: its state, its Teacher profile when it has one, and the
-// days left in the trial while it runs.
+// teacherAccess is the portal's access check for one account: its state, its Teacher profile when it has one, the days
+// left in the trial while it runs, when the trial ends, and when the last Teachers Portal Pro period, running or queued
+// after the trial, ends (zero when there is none).
 type teacherAccess struct {
-	State    teacherState
-	Profile  *teacherProfile
-	DaysLeft int
+	State     teacherState
+	Profile   *teacherProfile
+	DaysLeft  int
+	TrialEnds time.Time
+	ProUntil  time.Time
 }
 
 func (t teacherAccess) Trial() bool  { return t.State == teacherTrial }
+func (t teacherAccess) Pro() bool    { return t.State == teacherPro }
 func (t teacherAccess) Lapsed() bool { return t.State == teacherLapsed }
 func (t teacherAccess) Admin() bool  { return t.State == teacherAdmin }
 
@@ -58,17 +64,21 @@ type teacherProfile struct {
 	Years    []string
 }
 
-// teacherAccessOf is the check every portal page goes through. The Admin passes without a profile or trial.
+// teacherAccessOf is the check every portal page goes through. The Admin passes without a profile or trial. An account
+// with no Teacher profile is asked for one first, even with Teachers Portal Pro running.
 func (a *App) teacherAccessOf(ctx context.Context, l *learner) (teacherAccess, error) {
 	var (
-		acc   teacherAccess
-		p     teacherProfile
-		years string
-		days  int
+		acc      teacherAccess
+		p        teacherProfile
+		years    string
+		days     int
+		proUntil sql.NullTime
+		pro      bool
 	)
 	err := a.db.QueryRowContext(ctx, `
-		SELECT subjects, years, ceil(extract(epoch FROM trial_started_at + make_interval(days => $2) - now()) / 86400)::int
-		FROM teacher_profiles WHERE learner_id = $1`, l.ID, teacherTrialDays).Scan(&p.Subjects, &years, &days)
+		SELECT subjects, years, ceil(extract(epoch FROM trial_started_at + make_interval(days => $2) - now()) / 86400)::int,
+			trial_started_at + make_interval(days => $2)
+		FROM teacher_profiles WHERE learner_id = $1`, l.ID, teacherTrialDays).Scan(&p.Subjects, &years, &days, &acc.TrialEnds)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		acc.State = teacherNone
@@ -80,6 +90,14 @@ func (a *App) teacherAccessOf(ctx context.Context, l *learner) (teacherAccess, e
 		acc.State, acc.DaysLeft = teacherLapsed, 0
 		if days > 0 {
 			acc.State, acc.DaysLeft = teacherTrial, days
+		}
+		if err := a.db.QueryRowContext(ctx, `SELECT max(ends_at), COALESCE(bool_or(starts_at <= now()), false)
+			FROM teacher_pro_periods WHERE learner_id = $1 AND ends_at > now()`, l.ID).Scan(&proUntil, &pro); err != nil {
+			return acc, fmt.Errorf("look up Teachers Portal Pro: %w", err)
+		}
+		acc.ProUntil = proUntil.Time
+		if pro {
+			acc.State, acc.DaysLeft = teacherPro, 0
 		}
 	}
 	if l.IsAdmin {
@@ -99,6 +117,8 @@ type portalPage struct {
 	pageBase
 	Section       string // "rph" or "profile": the current one in the portal's navigation
 	Access        teacherAccess
+	Offers        []offer      // Teachers Portal Pro by the month and by the year, on the public page and the pay page
+	ProUntil      string       // when Teachers Portal Pro ends, in the page's language, while it runs
 	Subjects      string       // the Teacher profile form's subjects as typed or saved
 	YearOptions   []yearOption // and its years
 	SubjectsError string
@@ -113,20 +133,38 @@ func (a *App) teachersHome(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	if l == nil {
-		a.render(w, r, http.StatusOK, "teachers_public", &portalPage{})
-		return
-	}
-	acc, err := a.teacherAccessOf(r.Context(), l)
+	lang, err := a.language(r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if acc.State == teacherNone {
+	var acc teacherAccess
+	if l != nil {
+		if acc, err = a.teacherAccessOf(r.Context(), l); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	p := &portalPage{Section: "rph", Access: acc}
+	switch {
+	case l == nil || acc.Lapsed():
+		if p.Offers, err = a.offersOf(r.Context(), teachersMonthProduct, teachersYearProduct); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+		page := "teachers_pay"
+		if l == nil {
+			page = "teachers_public"
+		}
+		a.render(w, r, http.StatusOK, page, p)
+		return
+	case acc.State == teacherNone:
 		http.Redirect(w, r, portalPath+"/profile", http.StatusSeeOther)
 		return
+	case acc.Pro():
+		p.ProUntil = text.Date(lang, acc.ProUntil.In(malaysia))
 	}
-	a.render(w, r, http.StatusOK, "teachers_home", &portalPage{Section: "rph", Access: acc})
+	a.render(w, r, http.StatusOK, "teachers_home", p)
 }
 
 // teacherProfileForm is the Teacher profile form, filled in with the saved profile.
@@ -139,6 +177,10 @@ func (a *App) teacherProfileForm(w http.ResponseWriter, r *http.Request) {
 	acc, err := a.teacherAccessOf(r.Context(), l)
 	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if acc.Lapsed() { // only the pay page is left, and the profile is kept as it is
+		http.Redirect(w, r, portalPath, http.StatusSeeOther)
 		return
 	}
 	p := &portalPage{Section: "profile", Access: acc}
@@ -174,6 +216,10 @@ func (a *App) saveTeacherProfile(w http.ResponseWriter, r *http.Request) {
 	acc, err := a.teacherAccessOf(r.Context(), l)
 	if err != nil {
 		a.serverError(w, r, err)
+		return
+	}
+	if acc.Lapsed() {
+		http.Redirect(w, r, portalPath, http.StatusSeeOther)
 		return
 	}
 	subjects, subjectsOK := cleanSubjects(r.PostFormValue("subjects"))

@@ -116,20 +116,24 @@ func TestTheFirstVisitAsksForSubjectsAndYearsAndSavingStartsTheTrialOnce(t *test
 	expectRedirect(t, res, body, "/teachers")
 	_, body = s.get("/teachers")
 	expectAll(t, body, "4 days left in your free trial.", "Bahasa Melayu", "Year 6")
-	expectNone(t, body, "Sains")
+	expectNone(t, body, "<dd>Sains</dd>")
 
 	s.ageTrial(13)
 	_, body = s.get("/teachers")
 	expectAll(t, body, "1 day left in your free trial.")
 	s.ageTrial(14)
 	_, body = s.get("/teachers")
-	expectAll(t, body, "Your free trial has ended.", "Bahasa Melayu")
+	expectAll(t, body, "Your free trial has ended.")
 	expectNone(t, body, "left in your free trial")
-	// A lapsed Teacher can still change what they teach, and it does not bring the trial back.
+	// A lapsed Teacher is left with the pay page: the profile is kept as it is, and saving does not bring the trial back.
 	res, body = s.saveTeacherProfile("Sains", "Y1")
 	expectRedirect(t, res, body, "/teachers")
 	_, body = s.get("/teachers")
 	expectAll(t, body, "Your free trial has ended.")
+	s.ageTrial(0) // the profile came through unchanged
+	_, body = s.get("/teachers")
+	expectAll(t, body, "<dd>Bahasa Melayu</dd>", "Year 6")
+	expectNone(t, body, "<dd>Sains</dd>")
 }
 
 func TestOnlyAnAccountHolderWhoIsLoggedInReachesTheProfileForm(t *testing.T) {

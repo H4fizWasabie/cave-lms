@@ -10,6 +10,8 @@
         <li>{{t .Lang "teachers.public.prompt"}}</li>
         <li>{{t .Lang "teachers.public.trial"}}</li>
       </ul>
+      <h2>{{t .Lang "teachers.public.prices"}}</h2>
+      {{- template "teachers-prices" .}}
       <div class="cta-row">
         <a class="btn btn-solid btn-lg" href="/register?next=%2Fteachers">{{t .Lang "teachers.public.register"}}</a>
         <a class="btn btn-ghost btn-lg" href="/login?next=%2Fteachers">{{t .Lang "header.log-in"}}</a>

@@ -43,7 +43,7 @@
                 <td>{{with .CAVELMSEmail}}{{.}}{{else}}-{{end}}</td>
                 <td>{{.Paid}}</td>
                 <td class="product">{{with .Product}}{{t $.Lang (printf "prices.%s" .)}}{{else}}-{{end}}</td>
-                <td class="actions"><form method="post" action="/admin/cavetext/payments/done"><input type="hidden" name="order" value="{{.Order}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.payments.done"}}</button></form></td>
+                <td class="actions">{{if or (eq .Product "teachers-month") (eq .Product "teachers-year")}}<a class="btn btn-ghost btn-sm" href="/admin/teachers-pro?email={{or .CAVELMSEmail .PayerEmail}}">{{t $.Lang "ctadmin.payments.give-teachers"}}</a> {{end}}<form method="post" action="/admin/cavetext/payments/done"><input type="hidden" name="order" value="{{.Order}}"><button class="btn btn-ghost btn-sm">{{t $.Lang "ctadmin.payments.done"}}</button></form></td>
               </tr>
               {{end}}
             </table>

@@ -15,9 +15,15 @@ const (
 	caveTextProProduct = "cavetext-pro"
 	labPlanProduct     = "lab-plan"
 	proPlanProduct     = "pro-plan"
+
+	teachersMonthProduct = "teachers-month" // a month of Teachers Portal Pro (ADR 0029)
+	teachersYearProduct  = "teachers-year"  // and a year of it
 )
 
-var products = []string{caveTextProProduct, labPlanProduct, proPlanProduct}
+// learnerProducts are the products CAVELMS's Pricing page offers. The Teachers Portal sells its own two on its own pages.
+var learnerProducts = []string{caveTextProProduct, labPlanProduct, proPlanProduct}
+
+var products = append(slices.Clone(learnerProducts), teachersMonthProduct, teachersYearProduct)
 
 // storageAddOns are the Storage add-ons, keyed in the prices table too but kept out of products: they are not sold, so
 // no Promo, payment link or webhook may name them and the Admin may leave their price at 0, which means no price set.
@@ -216,7 +222,7 @@ type storageAddOn struct{ Product, Price string }
 
 // pricing is the public Pricing page: the three products the Admin sells, as offers, and the Storage add-ons.
 func (a *App) pricing(w http.ResponseWriter, r *http.Request) {
-	offers, err := a.offersOf(r.Context(), products...)
+	offers, err := a.offersOf(r.Context(), learnerProducts...)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -255,5 +261,5 @@ func (a *App) pricing(w http.ResponseWriter, r *http.Request) {
 		Offers []offer
 		AddOns []storageAddOn
 		Pro    offer // the comparison's CAVELMS column
-	}{pageBase: pageBase{Learner: learner}, Offers: offers, AddOns: addOns, Pro: offers[slices.Index(products, proPlanProduct)]})
+	}{pageBase: pageBase{Learner: learner}, Offers: offers, AddOns: addOns, Pro: offers[slices.Index(learnerProducts, proPlanProduct)]})
 }

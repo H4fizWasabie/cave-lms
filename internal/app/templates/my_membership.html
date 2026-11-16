@@ -18,6 +18,15 @@
         <div><dt>CaveText Pro</dt><dd><strong>{{t .Lang "cavetext.free"}}</strong></dd></div>
         <div><dt>{{t .Lang "my-membership.cap"}}</dt><dd>{{if .CaveText}}<strong>{{tn .Lang "cavetext.snippet-count" .Cap.Cap}}</strong>{{else}}<span>{{t .Lang "my-membership.cap-later"}}</span>{{end}}</dd></div>
         {{- end}}
+        {{- if .TrialUntil}}
+        <div><dt>{{t .Lang "my-membership.teacher-trial"}}</dt><dd><strong>{{t .Lang "my-membership.until" .TrialUntil}}</strong></dd></div>
+        {{- end}}
+        {{- if .TeachersProUntil}}
+        <div><dt>Teachers Portal Pro</dt><dd><strong>{{t .Lang "my-membership.until" .TeachersProUntil}}</strong></dd></div>
+        {{- end}}
+        {{- if .TeacherLapsed}}
+        <div><dt>Teachers Portal</dt><dd><strong>{{t .Lang "teachers.trial.ended"}}</strong><a class="link-more" href="/teachers">{{t .Lang "my-membership.get-teachers-pro"}}</a></dd></div>
+        {{- end}}
       </dl>
     </div>
 {{end}}

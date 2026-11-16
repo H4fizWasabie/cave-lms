@@ -1,5 +1,28 @@
 {{/* The layout of the Teachers Portal's pages (ADR 0029): CAVELMS's stylesheet, with a header of the portal's own sections, one
    link to the rest of CAVELMS and the account called a Teachers Portal account, and no Course, Lab or Classroom menus. */}}
+{{/* teachers-prices lists a portal page's .Offers, Teachers Portal Pro by the month and by the year, with each price, its Normal
+price crossed out, its Promo price, and for a logged-in account Buy to the payment link (Contact us without one). */}}
+{{define "teachers-prices"}}
+      <ul class="offers">
+        {{- range .Offers}}
+        <li class="offer">
+          <h3>{{t $.Lang (print "prices." .Product)}}</h3>
+          <p class="offer-price"><strong>{{.Price}}</strong>{{with .Normal}} <s><span class="sr">{{t $.Lang "offers.normal"}} </span>{{.}}</s>{{end}}</p>
+          {{- with .Promo}}
+          <p class="offer-promo">{{t $.Lang "offers.promo" .}}</p>
+          {{- end}}
+          {{- if $.Learner}}
+          {{- if .PaymentLink}}
+          <a class="btn btn-solid" href="{{.PaymentLink}}">{{t $.Lang "offers.buy" (t $.Lang (print "prices." .Product))}}</a>
+          {{- else}}
+          <a class="btn btn-ghost" href="mailto:adam.caveconsult@gmail.com?subject={{t "en" (print "prices." .Product)}}">{{t $.Lang "offers.contact-buy" (t $.Lang (print "prices." .Product))}}</a>
+          {{- end}}
+          {{- end}}
+        </li>
+        {{- end}}
+      </ul>
+{{end}}
+
 {{define "portal-layout"}}<!doctype html>
 <html lang="{{.Lang}}">
 <head>
@@ -15,7 +38,7 @@
     <div class="wrap site-header-in">
       <a class="brand" href="/teachers"><img src="{{static "cavelms-logo.webp"}}" alt="{{t .Lang "teachers.brand-alt"}}" class="brand-logo" width="922" height="160"></a>
       <nav class="site-nav" aria-label="{{t .Lang "teachers.nav"}}">
-        {{- if .Learner}}
+        {{- if and .Learner (not .Access.Lapsed)}}
         <a class="hdr-link" href="/teachers"{{if eq .Section "rph"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.rph"}}</a>
         <a class="hdr-link" href="/teachers/profile"{{if eq .Section "profile"}} aria-current="page"{{end}}>{{t .Lang "teachers.nav.profile"}}</a>
         {{- end}}
