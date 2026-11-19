@@ -38,6 +38,25 @@ func newCaveHostKey(kind string) (string, error) {
 	return caveHostKeyPrefix + kind + "-" + token[:22], nil
 }
 
+// caveHostIDs is the ids a query of deployments returns, one column and no other rows; the rows are read before the first id is
+// worked on, so the connection is free for that.
+func (a *App) caveHostIDs(ctx context.Context, query string, args ...any) ([]int64, error) {
+	rows, err := a.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 // caveHostDeployments lists the Learner's CaveHost Deployments, oldest first, with their times in lang.
 func (a *App) caveHostDeployments(ctx context.Context, lang string, learnerID int64) ([]deployment, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT `+caveHostColumns+` FROM deployments dep
@@ -196,7 +215,7 @@ func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 			learner.ID, name, newLinkKey()).Scan(&id); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(r.Context(), `INSERT INTO cavehost_deployments (deployment_id, spreadsheet_id, gid, workbook_key)
+		if _, err := tx.ExecContext(r.Context(), `INSERT INTO cavehost_deployments (deployment_id, spreadsheet_id, gid, xlsx_key)
 			VALUES ($1, $2, $3, $4)`, id, spreadsheet, gid, key); err != nil {
 			return err
 		}
@@ -243,7 +262,7 @@ type caveHostView struct {
 	deployment
 	ID          int64
 	Spreadsheet string
-	WorkbookKey string // the fetched xlsx, until the first sheet is confirmed
+	XlsxKey string // the fetched xlsx, until the first sheet is confirmed
 	Sheets      []caveHostSheetView
 	Pending     *caveHostSheetView // the first ticked sheet whose Clean-up waits for the Learner to confirm, first or after Reset columns
 	Confirmed   bool               // a ticked sheet is confirmed, so there is data for a page to read
@@ -269,13 +288,13 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 	var reason, changes []byte
 	var syncedAt sql.NullTime
 	var status sql.NullString
-	dep, err := a.scanDeployment(lang, a.db.QueryRowContext(r.Context(), `SELECT dep.id, ch.spreadsheet_id, COALESCE(ch.workbook_key, ''),
+	dep, err := a.scanDeployment(lang, a.db.QueryRowContext(r.Context(), `SELECT dep.id, ch.spreadsheet_id, COALESCE(ch.xlsx_key, ''),
 			EXISTS (SELECT 1 FROM cavehost_pages pg WHERE pg.deployment_id = dep.id AND pg.current),
 			ch.synced_at, ch.sync_status, ch.sync_reason, ch.sync_changes, `+caveHostColumns+`
 		FROM deployments dep
 		JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
 		WHERE dep.name = $1 AND dep.learner_id = $2`, r.PathValue("name"), learner.ID),
-		&v.ID, &v.Spreadsheet, &v.WorkbookKey, &v.HasPage, &syncedAt, &status, &reason, &changes)
+		&v.ID, &v.Spreadsheet, &v.XlsxKey, &v.HasPage, &syncedAt, &status, &reason, &changes)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return nil, false
@@ -377,8 +396,8 @@ func caveHostSettings(r *http.Request, sheet string) lab.Settings {
 func (a *App) caveHostPreview(r *http.Request, v *caveHostView, settings lab.Settings) (*lab.CleanUp, error) {
 	var data []byte
 	var err error
-	if v.WorkbookKey != "" {
-		data, err = a.store.Get(r.Context(), v.WorkbookKey)
+	if v.XlsxKey != "" {
+		data, err = a.store.Get(r.Context(), v.XlsxKey)
 	} else {
 		data, err = a.fetchSpreadsheet(r.Context(), v.Spreadsheet)
 	}
@@ -387,7 +406,7 @@ func (a *App) caveHostPreview(r *http.Request, v *caveHostView, settings lab.Set
 		return nil, lab.Problem{Key: "cavehost.err.closed"}
 	case errors.Is(err, errSpreadsheetTooBig):
 		return nil, lab.Problem{Key: "cavehost.err.too-big"}
-	case err != nil && v.WorkbookKey == "":
+	case err != nil && v.XlsxKey == "":
 		a.logError(r, err)
 		return nil, lab.Problem{Key: "cavehost.err.unreachable"}
 	case err != nil:
@@ -510,7 +529,7 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		confirmed = true
-		_, err = tx.ExecContext(r.Context(), `UPDATE cavehost_deployments SET workbook_key = NULL WHERE deployment_id = $1`, v.ID)
+		_, err = tx.ExecContext(r.Context(), `UPDATE cavehost_deployments SET xlsx_key = NULL WHERE deployment_id = $1`, v.ID)
 		return err
 	})
 	if err != nil || !confirmed {
@@ -523,8 +542,8 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 	if confirmed && replaced.Valid {
 		_ = a.store.Delete(context.WithoutCancel(r.Context()), replaced.String)
 	}
-	if confirmed && v.WorkbookKey != "" { // the fetched file is not kept once a sheet's rows are
-		_ = a.store.Delete(context.WithoutCancel(r.Context()), v.WorkbookKey)
+	if confirmed && v.XlsxKey != "" { // the fetched file is not kept once a sheet's rows are
+		_ = a.store.Delete(context.WithoutCancel(r.Context()), v.XlsxKey)
 	}
 	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
 }

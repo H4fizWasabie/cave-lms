@@ -2489,6 +2489,7 @@ var catalog = map[string]entry{
 	"deployments.link":               {en: "Link", ms: "Pautan"},
 	"deployments.name":               {en: "Name", ms: "Nama"},
 	"deployments.deleted":            {en: "Deleted by the Learner", ms: "Dipadam oleh Pelajar"},
+	"deployments.deleted-lapsed":     {en: "Deleted: the CaveHost Plan ended over 90 days ago", ms: "Dipadam: Pelan CaveHost telah tamat lebih 90 hari lalu"},
 	"deployments.awake":              {en: "Awake", ms: "Aktif"},
 	"deployments.taken-down":         {en: "Taken down %s", ms: "Diturunkan %s"},
 	"deployments.reason-was":         {en: "Reason: %s", ms: "Sebab: %s"},

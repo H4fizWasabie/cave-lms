@@ -463,13 +463,14 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 	}
 }
 
-// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when the Learner deleted it, or for a CaveHost
+// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when it was deleted, or for a CaveHost
 // Deployment, which has none.
 type adminDeployment struct {
 	deployment
 	ID        int64
 	Dashboard string
 	CaveHost  bool
+	Lapsed    bool // a CaveHost Deployment deleted 90 days after its Learner's last CaveHost Plan period, not by the Learner
 	Learner   string
 	Email     string
 }
@@ -496,7 +497,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 		msg = text.T(lang, msgKey)
 	}
 	// A CaveHost Deployment is awake by its Learner's CaveHost Plan, a Lab one by their Plan.
-	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), ch.deployment_id IS NOT NULL, l.name, l.email,
+	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), ch.deployment_id IS NOT NULL, COALESCE(dep.deleted_by = 'lapsed', false), l.name, l.email,
 		`+deploymentColumnsFrom+`CASE WHEN ch.deployment_id IS NOT NULL THEN `+caveHostAwakeSQL+` ELSE `+deploymentAwakeSQL+` END`+deploymentColumnsTo+`
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id
@@ -512,7 +513,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	for rows.Next() {
 		var dep adminDeployment
 		var err error
-		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.CaveHost, &dep.Learner, &dep.Email); err != nil {
+		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.CaveHost, &dep.Lapsed, &dep.Learner, &dep.Email); err != nil {
 			a.serverError(w, r, err)
 			return
 		}

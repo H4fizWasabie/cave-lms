@@ -44,8 +44,8 @@ func TestALearnerDeletesACaveHostDeploymentAfterConfirmingAndItsNameIsNeverGiven
 	// Another Learner cannot delete it.
 	other := ada.second()
 	other.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
-	if res, _ := other.get("/cavehost/jualan-ada/delete"); res.StatusCode != http.StatusForbidden {
-		t.Fatalf("a Learner without CaveHost opening the delete got %d, want 403", res.StatusCode)
+	if res, _ := other.get("/cavehost/jualan-ada/delete"); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("another Learner opening the delete got %d, want 404", res.StatusCode)
 	}
 
 	res, body = ada.post("/cavehost/jualan-ada/delete", url.Values{"confirm": {"yes"}})
@@ -63,6 +63,34 @@ func TestALearnerDeletesACaveHostDeploymentAfterConfirmingAndItsNameIsNeverGiven
 	// Its name is never given to another Deployment, not by CaveHost and not by the Lab.
 	res, body = ada.linkSheet(sheetLink, "jualan-ada")
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "already taken")
+}
+
+func TestALearnerWithoutAnActiveCaveHostPlanCanStillDeleteTheirSleepingDeployment(t *testing.T) {
+	t.Parallel()
+	google := newFakeGoogle(t, salesSheet(t))
+	admin := newSite(t, func(c *config.Config) { c.GoogleSheetsBaseURL = google.server.URL })
+	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	ada := admin.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	admin.assignCaveHost("ada@example.com", 30)
+	link := onlineSales(t, ada, "jualan-ada")
+	bob := admin.second()
+	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	admin.ageAllCaveHostPeriods(31) // asleep, within its 90 days
+
+	res, body := ada.get("/cavehost/jualan-ada/delete")
+	expectStatus(t, res, body, http.StatusOK, "Delete jualan-ada")
+	// Another Learner, who has no CaveHost either, still finds nothing to delete.
+	if res, _ := bob.post("/cavehost/jualan-ada/delete", url.Values{"confirm": {"yes"}}); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("another Learner deleting got %d, want 404", res.StatusCode)
+	}
+	res, body = ada.post("/cavehost/jualan-ada/delete", url.Values{"confirm": {"yes"}})
+	expectRedirect(t, res, body, "/cavehost")
+	res, body = ada.second().get(link)
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	if files := storedFiles(ada); len(files) != 0 {
+		t.Errorf("the store holds %v after the delete, want nothing", files)
+	}
 }
 
 func TestOnlyTheOwnerOfACaveHostDeploymentCanDeleteIt(t *testing.T) {
@@ -227,4 +255,48 @@ func TestDeploymentsSleepWhenTheLastPeriodEndsWakeAtTheSameLinksAndAreDeletedAft
 	admin.assignCaveHost("bob@example.com", 30)
 	res, body = bob.linkSheet(sheetLink, "jualan-bob")
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "already taken")
+}
+
+// adminRowOf is the Admin's Deployments list row of the Deployment called name.
+func adminRowOf(t *testing.T, list, name string) string {
+	t.Helper()
+	for _, row := range strings.Split(list, "</tr>") {
+		if strings.Contains(row, "<code>"+name+"</code>") {
+			return row
+		}
+	}
+	t.Fatalf("the list has no row for %s: %s", name, list)
+	return ""
+}
+
+func TestTheAdminsListSaysWhetherTheLearnerOrThe90DaysDeletedACaveHostDeployment(t *testing.T) {
+	t.Parallel()
+	google := newFakeGoogle(t, salesSheet(t))
+	admin := newSite(t, func(c *config.Config) { c.GoogleSheetsBaseURL = google.server.URL })
+	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	ada, bob := admin.second(), admin.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	bob.loginAsNewLearner("Bob", "bob@example.com", "correct horse battery")
+	for _, email := range []string{"ada@example.com", "bob@example.com"} {
+		admin.assignCaveHost(email, 30)
+	}
+	onlineSales(t, ada, "jualan-ada")
+	onlineSales(t, bob, "jualan-bob")
+	res, body := ada.post("/cavehost/jualan-ada/delete", url.Values{"confirm": {"yes"}})
+	expectRedirect(t, res, body, "/cavehost")
+	admin.ageAllCaveHostPeriods(30 + 91)
+	admin.application.RunDailyPrune(context.Background())
+
+	_, list := admin.get("/admin/deployments")
+	if row := adminRowOf(t, list, "jualan-ada"); !strings.Contains(row, "Deleted by the Learner") {
+		t.Errorf("a Deployment its Learner deleted does not say so: %s", row)
+	}
+	row := adminRowOf(t, list, "jualan-bob")
+	if strings.Contains(row, "Deleted by the Learner") || !strings.Contains(row, "Deleted: the CaveHost Plan ended over 90 days ago") {
+		t.Errorf("a Deployment the 90 days deleted does not say so: %s", row)
+	}
+	_, list = admin.getAsking("/admin/deployments", "ms")
+	if row := adminRowOf(t, list, "jualan-bob"); !strings.Contains(row, "Dipadam: Pelan CaveHost telah tamat lebih 90 hari lalu") {
+		t.Errorf("the Malay list does not say the 90 days deleted it: %s", row)
+	}
 }

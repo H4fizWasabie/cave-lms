@@ -84,25 +84,9 @@ func (a *App) syncCaveHostEveryHour(done <-chan struct{}) {
 // syncCaveHostDeployments Syncs every awake CaveHost Deployment with a confirmed sheet, one at a time, the one Synced longest ago
 // first and those never Synced before all. One that fails or panics does not stop the others.
 func (a *App) syncCaveHostDeployments(ctx context.Context) {
-	rows, err := a.db.QueryContext(ctx, `SELECT dep.id FROM deployments dep JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
+	ids, err := a.caveHostIDs(ctx, `SELECT dep.id FROM deployments dep JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
 		WHERE `+caveHostAwakeSQL+` AND EXISTS (SELECT 1 FROM cavehost_sheets sh WHERE sh.deployment_id = dep.id AND sh.ticked AND NOT sh.reset AND sh.rows_key IS NOT NULL)
 		ORDER BY ch.synced_at NULLS FIRST, dep.id`)
-	if err != nil {
-		a.logError(nil, err)
-		return
-	}
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err = rows.Scan(&id); err != nil {
-			break
-		}
-		ids = append(ids, id)
-	}
-	rows.Close()
-	if err == nil {
-		err = rows.Err()
-	}
 	if err != nil {
 		a.logError(nil, err)
 		return

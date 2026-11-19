@@ -16,7 +16,7 @@
               <tr><th>Dashboard</th><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "deployments.name"}}</th><th>{{t .Lang "deployments.link"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Deployments}}
               <tr{{if not .Awake}} class="is-revoked"{{end}}>
-                <td>{{if .CaveHost}}{{t $.Lang "deployments.cavehost"}}{{else if .Dashboard}}{{.Dashboard}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
+                <td>{{if .CaveHost}}{{t $.Lang "deployments.cavehost"}}{{else if .Dashboard}}{{.Dashboard}}{{else if .Lapsed}}{{t $.Lang "deployments.deleted-lapsed"}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
                 <td><code>{{.Name}}</code></td>
                 <td><a href="{{.Link}}" target="_blank" rel="noopener">{{.Link}}</a></td>
