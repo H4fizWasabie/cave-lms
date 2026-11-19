@@ -130,6 +130,9 @@ func (a *App) syncCaveHost(ctx context.Context, id int64) {
 	if data, err := a.fetchSpreadsheet(ctx, spreadsheet); err != nil {
 		failures = append(failures, syncFailure{err: err})
 	} else {
+		if err := a.addNewCaveHostSheets(ctx, id, data); err != nil { // a Spreadsheet that does not open fails each sheet below too
+			a.logError(nil, err)
+		}
 		for _, sh := range sheets { // one sheet failing does not stop the next
 			changes, err := a.syncCaveHostSheet(ctx, data, sh)
 			if err != nil {
@@ -216,7 +219,16 @@ func (a *App) syncCaveHostSheet(ctx context.Context, data []byte, sh caveHostShe
 	if err != nil {
 		return nil, err
 	}
-	if _, err = a.db.ExecContext(ctx, `UPDATE cavehost_sheets SET rows_key = $2 WHERE id = $1`, sh.id, key); err != nil {
+	// The sheet may have been unticked while it was read: then its rows are gone for good and these are dropped.
+	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_sheets SET rows_key = $2 WHERE id = $1 AND ticked AND rows_key IS NOT NULL`, sh.id, key)
+	if err == nil {
+		var n int64
+		if n, err = set.RowsAffected(); err == nil && n == 0 {
+			_ = a.store.Delete(context.WithoutCancel(ctx), key)
+			return nil, nil
+		}
+	}
+	if err != nil {
 		_ = a.store.Delete(context.WithoutCancel(ctx), key)
 		return nil, err
 	}
