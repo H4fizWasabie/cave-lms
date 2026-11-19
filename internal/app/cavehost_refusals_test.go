@@ -64,8 +64,8 @@ func TestEveryKindOfGoogleSpreadsheetLinkReadsTheSameID(t *testing.T) {
 		res, body := ada.linkSheet(link, "jualan-ada")
 		expectStatus(t, res, body, http.StatusSeeOther, "")
 		for _, got := range google.requests() {
-			if got != "/spreadsheets/d/1AbC-dEf_123/export?format=xlsx" {
-				t.Errorf("Google was asked for %q, want the export of the ID alone", got)
+			if got != "/spreadsheets/d/1AbC-dEf_123/export?format=xlsx" && got != sheetListPath { // the sheet list is asked for when the link has a gid
+				t.Errorf("Google was asked for %q, want the export of the ID, and the sheet list of the ID", got)
 			}
 		}
 	}
