@@ -249,6 +249,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
 	go a.syncCaveHostEveryHour(a.done)
+	go a.deleteLapsedCaveHostEvery(a.done)
 	a.emailing.Add(1)
 	go a.sendEmailsWhenKicked()
 	a.kickEmails() // whatever a restart left owed
@@ -309,6 +310,8 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /cavehost/{name}/page", a.caveHost(a.uploadCaveHostPage))
 	mux.HandleFunc("POST /cavehost/{name}/pages/{pg}/restore", a.caveHost(a.restoreCaveHostPage))
 	mux.HandleFunc("POST /cavehost/{name}/sync", a.caveHost(a.syncCaveHostNow))
+	mux.HandleFunc("GET /cavehost/{name}/delete", a.caveHost(a.confirmDeleteCaveHost))
+	mux.HandleFunc("POST /cavehost/{name}/delete", a.caveHost(a.deleteCaveHostDeployment))
 	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
 	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
 	mux.HandleFunc("GET /lab/demo/", toPricing)
