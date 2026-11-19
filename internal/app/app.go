@@ -289,6 +289,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/reports", a.admin(a.adminReports))
 	mux.HandleFunc("POST /admin/reports/{id}/dismiss", a.admin(a.dismissReport))
 	mux.HandleFunc("GET /lab", a.lab)
+	mux.HandleFunc("GET /cavehost", a.caveHost(a.caveHostHome))
 	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
 	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
 	mux.HandleFunc("GET /lab/demo/", toPricing)
@@ -475,6 +476,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/plans/periods", a.admin(a.assignPlan))
 	mux.HandleFunc("GET /admin/plans/periods/{id}/end", a.admin(a.confirmEndPlanPeriod))
 	mux.HandleFunc("POST /admin/plans/periods/{id}/end", a.admin(a.endPlanPeriod))
+	mux.HandleFunc("POST /admin/plans/periods/cavehost", a.admin(a.assignCaveHostPlan))
+	mux.HandleFunc("GET /admin/plans/periods/cavehost/{id}/end", a.admin(a.confirmEndCaveHostPlanPeriod))
+	mux.HandleFunc("POST /admin/plans/periods/cavehost/{id}/end", a.admin(a.endCaveHostPlanPeriod))
 	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
 	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
 	mux.HandleFunc("GET /admin/log", a.requireOwner(a.systemLog))
@@ -853,6 +857,10 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 				return
 			}
 			c.chromeField().Lab = acc.Open()
+			if c.chromeField().CaveHost, err = a.caveHostOpen(r.Context(), l); err != nil {
+				a.serverError(w, r, err)
+				return
+			}
 		}
 	}
 	var buf bytes.Buffer

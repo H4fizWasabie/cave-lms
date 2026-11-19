@@ -2322,6 +2322,24 @@ var catalog = map[string]entry{
 	"plans.period.not-found.title": {en: "Plan period not found", ms: "Tempoh Pelan tidak dijumpai"},
 	"plans.period.not-found":       {en: "There is no Plan period at this address.", ms: "Tiada Tempoh Pelan di alamat ini."},
 
+	// CaveHost Plan and access
+	"nav.cavehost":                    {en: "CaveHost", ms: "CaveHost"},
+	"cavehost.title":                  {en: "CaveHost", ms: "CaveHost"},
+	"cavehost.open":                   {en: "CaveHost is open to you. Putting a page online with its data in a Google Spreadsheet will be here soon.", ms: "CaveHost dibuka untuk anda. Meletakkan halaman dalam talian dengan datanya dalam Hamparan Google akan tersedia di sini tidak lama lagi."},
+	"cavehost.locked.title":           {en: "CaveHost comes with the Pro Plan", ms: "CaveHost disertakan dengan Pelan Pro"},
+	"cavehost.locked":                 {en: "CaveHost puts your own HTML page online with its data kept in a Google Spreadsheet. Get the Pro Plan to open it.", ms: "CaveHost meletakkan halaman HTML anda sendiri dalam talian dengan datanya disimpan dalam Hamparan Google. Dapatkan Pelan Pro untuk membukanya."},
+	"cavehost.locked.buy":             {en: "Get the Pro Plan", ms: "Dapatkan Pelan Pro"},
+	"cavehost.periods.heading":        {en: "CaveHost Plan periods", ms: "Tempoh Pelan CaveHost"},
+	"cavehost.periods.none":           {en: "No CaveHost Plan periods yet.", ms: "Belum ada Tempoh Pelan CaveHost."},
+	"cavehost.assign-heading":         {en: "Assign a CaveHost Plan", ms: "Tetapkan Pelan CaveHost"},
+	"cavehost.days":                   {en: "Length in days", ms: "Tempoh dalam hari"},
+	"cavehost.assign-note":            {en: "The period starts now, or when the Learner's last CaveHost Plan period ends if that is later. It gives CaveHost only, not the Lab.", ms: "Tempoh bermula sekarang, atau apabila Tempoh Pelan CaveHost terakhir Pelajar tamat jika itu lebih lewat. Ia memberi CaveHost sahaja, bukan Lab."},
+	"cavehost.err.days":               {en: "Enter the length as a whole number of days, 1 to 3650.", ms: "Masukkan tempoh sebagai nombor bulat hari, 1 hingga 3650."},
+	"cavehost.period.end":             {en: "End CaveHost Plan period", ms: "Tamatkan Tempoh Pelan CaveHost"},
+	"cavehost.period.end-ask":         {en: "End the CaveHost Plan period for %s now? It stops at once. This cannot be undone, but you can assign a CaveHost Plan again.", ms: "Tamatkan Tempoh Pelan CaveHost bagi %s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan CaveHost semula."},
+	"cavehost.period.not-found.title": {en: "CaveHost Plan period not found", ms: "Tempoh Pelan CaveHost tidak dijumpai"},
+	"cavehost.period.not-found":       {en: "There is no CaveHost Plan period at this address.", ms: "Tiada Tempoh Pelan CaveHost di alamat ini."},
+
 	// Deployments and Takedowns
 	"deployments.heading": {en: "Admin: Deployments", ms: "Pentadbir: Deployment"},
 	"deployments.intro": {

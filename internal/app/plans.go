@@ -212,6 +212,7 @@ type planPeriodsPage struct {
 	HolderID   int64
 	HolderName string
 	Periods    []planPeriod
+	CaveHost   []caveHostPeriod // the Learner's CaveHost Plan periods, kept beside their Plan periods
 	Plans      []plan
 	Matches    []learnerMatch // several Learners fit the part of a name or email searched for
 }
@@ -408,7 +409,11 @@ func (a *App) planPeriodsPage(r *http.Request, email string) (*planPeriodsPage, 
 		}
 		p.Periods = append(p.Periods, pp)
 	}
-	return p, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	p.CaveHost, err = a.caveHostPeriods(r.Context(), lang, p.HolderID)
+	return p, err
 }
 
 // adminNotFound writes the Not found page with the title and message under these keys, in the page's language.

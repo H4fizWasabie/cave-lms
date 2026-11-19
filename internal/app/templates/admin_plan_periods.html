@@ -47,6 +47,35 @@
             </table>
           </div>
         </div>
+        <div class="card card-flush">
+          <div class="card-head card-head-pad"><h2>{{t .Lang "cavehost.periods.heading"}}</h2></div>
+          <div class="table-wrap">
+            <table class="table">
+              <tr><th>{{t .Lang "plans.starts"}}</th><th>{{t .Lang "plans.ends"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
+              {{range .CaveHost}}
+              <tr class="cavehost-period">
+                <td>{{.Starts}}</td>
+                <td>{{.Ends}}</td>
+                <td>{{.Shown}}</td>
+                <td class="actions">{{if or (eq .Status "active") (eq .Status "upcoming")}}<a class="btn btn-danger btn-sm" href="/admin/plans/periods/cavehost/{{.ID}}/end">{{t $.Lang "plans.end-now"}}</a>{{end}}</td>
+              </tr>
+              {{else}}
+              <tr><td colspan="4">{{t $.Lang "cavehost.periods.none"}}</td></tr>
+              {{end}}
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>{{t .Lang "cavehost.assign-heading"}}</h2></div>
+          <form class="form" method="post" action="/admin/plans/periods/cavehost">
+            <input type="hidden" name="email" value="{{.Email}}">
+            <div class="field"><label for="days">{{t .Lang "cavehost.days"}}</label>
+              <input id="days" type="number" name="days" min="1" max="3650" value="365" required>
+            </div>
+            <p class="note">{{t .Lang "cavehost.assign-note"}}</p>
+            <div class="form-foot"><button class="btn btn-solid">{{t .Lang "plans.assign"}}</button></div>
+          </form>
+        </div>
         <div class="card">
           <div class="card-head"><h2>{{t .Lang "plans.assign-heading"}}</h2></div>
           {{if .Plans}}

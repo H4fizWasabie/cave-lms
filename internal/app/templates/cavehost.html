@@ -1,0 +1,17 @@
+{{define "title"}}{{if .Locked}}{{t .Lang "cavehost.locked.title"}}{{else}}{{t .Lang "cavehost.title"}}{{end}} · CAVELMS{{end}}
+{{define "content"}}
+    {{if .Locked}}
+    <div class="wrap notice-page">
+      <div class="notice">
+        <h1>{{t .Lang "cavehost.locked.title"}}</h1>
+        <p class="notice-msg">{{t .Lang "cavehost.locked"}}</p>
+        <p><a class="btn btn-solid" href="/pricing">{{t .Lang "cavehost.locked.buy"}}</a></p>
+      </div>
+    </div>
+    {{else}}
+    <div class="wrap">
+      <h1>{{t .Lang "cavehost.title"}}</h1>
+      <p>{{t .Lang "cavehost.open"}}</p>
+    </div>
+    {{end}}
+{{end}}
