@@ -20,7 +20,7 @@ import (
 // Username redirect (ADR 0023, ADR 0027), plus its cavehost_deployments row for the Spreadsheet, its cavehost_sheets rows and
 // its cavehost_pages. Its data and page live in the local Disk store (ADR 0025), under keys that start with caveHostKeyPrefix.
 // ponytail: this ticket links one Spreadsheet's first sheet and puts a page online, replaced and restored as on the Lab; ticking more
-// sheets, Sync, the cap, sleep and delete are the later tickets of #536, and a deleted record leaves its stored files until then.
+// sheets and the cap are later tickets of #536. Deleting one, by its Learner or 90 days after their last period, is in cavehost_end.go.
 const caveHostKeyPrefix = "cavehost-"
 
 // caveHostAwakeSQL is an SQL condition, true for an awake CaveHost Deployment aliased dep: it is not taken down, and its Learner
