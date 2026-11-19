@@ -52,20 +52,21 @@ func TestOnlyAGoogleSpreadsheetLinkIsAcceptedAndNothingElseIsEverFetched(t *test
 
 func TestEveryKindOfGoogleSpreadsheetLinkReadsTheSameID(t *testing.T) {
 	t.Parallel()
-	ada, google := caveHostLearner(t, salesSheet(t))
-	for i, link := range []string{
+	for _, link := range []string{
 		"https://docs.google.com/spreadsheets/d/1AbC-dEf_123",
 		"https://docs.google.com/spreadsheets/d/1AbC-dEf_123/",
 		"https://docs.google.com/spreadsheets/d/1AbC-dEf_123/edit?usp=sharing",
 		"https://docs.google.com/spreadsheets/d/1AbC-dEf_123/edit#gid=7",
 		"  https://DOCS.google.com/spreadsheets/d/1AbC-dEf_123/htmlview  ",
 	} {
-		res, body := ada.linkSheet(link, "jualan-"+strings.Repeat("a", i+1))
+		// A Learner of its own for each link: a Learner may have at most 3 CaveHost Deployments.
+		ada, google := caveHostLearner(t, salesSheet(t))
+		res, body := ada.linkSheet(link, "jualan-ada")
 		expectStatus(t, res, body, http.StatusSeeOther, "")
-	}
-	for _, got := range google.requests() {
-		if got != "/spreadsheets/d/1AbC-dEf_123/export?format=xlsx" {
-			t.Errorf("Google was asked for %q, want the export of the ID alone", got)
+		for _, got := range google.requests() {
+			if got != "/spreadsheets/d/1AbC-dEf_123/export?format=xlsx" {
+				t.Errorf("Google was asked for %q, want the export of the ID alone", got)
+			}
 		}
 	}
 }

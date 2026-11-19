@@ -16,6 +16,9 @@ import (
 // maxCaveHostDays is the longest CaveHost Plan period the Admin can assign: ten years, well inside what a timestamp holds.
 const maxCaveHostDays = 3650
 
+// maxCaveHostDeployments is how many CaveHost Deployments a Learner may have (ADR 0030); the Admin has no cap.
+const maxCaveHostDeployments = 3
+
 // caveHostOpen reports whether CaveHost is open to the Learner: a CaveHost Plan period is running, or they are the Admin,
 // who uses CaveHost without one. A Visitor (nil) has none. The Lab's Plan gives no CaveHost, and this gives no Lab.
 func (a *App) caveHostOpen(ctx context.Context, l *learner) (bool, error) {
@@ -83,6 +86,18 @@ func giveCaveHostPlan(ctx context.Context, db execer, learnerID int64, days int)
 		SELECT $1, s.at, s.at + make_interval(days => $2) FROM `+nextCaveHostStart, learnerID, days)
 	if err != nil {
 		return fmt.Errorf("give CaveHost Plan: %w", err)
+	}
+	return nil
+}
+
+// giveCaveHostLikeLabPlan gives the Learner a CaveHost Plan period as long as the Lab Plan's, queued after nextCaveHostStart.
+// Only giveProPlan calls it, once giveLabPlan has found a Lab Plan.
+func giveCaveHostLikeLabPlan(ctx context.Context, db execer, learnerID int64) error {
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO cavehost_plan_periods (learner_id, starts_at, ends_at)
+		SELECT $1, s.at, s.at + make_interval(days => p.days) FROM plans p, `+nextCaveHostStart+` WHERE p.lab`, learnerID)
+	if err != nil {
+		return fmt.Errorf("give CaveHost Plan with the Pro Plan: %w", err)
 	}
 	return nil
 }
