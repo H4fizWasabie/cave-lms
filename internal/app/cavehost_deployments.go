@@ -126,6 +126,19 @@ func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 		refuse(http.StatusUnprocessableEntity, text.T(lang, "lab.dep.err.right"))
 		return
 	}
+	// ponytail: two links sent at once could both pass and make a 4th; fine at one Learner's pace.
+	var have int
+	if !learner.IsAdmin {
+		if err := a.db.QueryRowContext(r.Context(), `SELECT count(*) FROM deployments dep JOIN cavehost_deployments ch
+			ON ch.deployment_id = dep.id WHERE dep.learner_id = $1`, learner.ID).Scan(&have); err != nil {
+			a.serverError(w, r, err)
+			return
+		}
+	}
+	if have >= maxCaveHostDeployments {
+		refuse(http.StatusUnprocessableEntity, text.T(lang, "cavehost.err.cap", maxCaveHostDeployments))
+		return
+	}
 	var taken bool
 	if err := a.db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM deployments WHERE name = $1)`, name).Scan(&taken); err != nil {
 		a.serverError(w, r, err)
