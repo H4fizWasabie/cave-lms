@@ -2393,6 +2393,31 @@ var catalog = map[string]entry{
 		ms: "Pelan CaveHost orang yang berkongsi pautan ini telah tamat. Tiada apa yang dipadam; tanya mereka mengenainya.",
 	},
 
+	// CaveHost Sync: the Spreadsheet read again every hour, or by Sync now
+	"cavehost.sync.heading": {en: "Sync", ms: "Sync"},
+	"cavehost.sync.about": {
+		en: "Cave reads your Spreadsheet again every hour and replaces the sheet's rows with what it finds, so rows you delete in the Spreadsheet disappear from your page.",
+		ms: "Cave membaca Hamparan anda semula setiap jam dan menggantikan baris helaian dengan apa yang ditemuinya, jadi baris yang anda padam dalam Hamparan hilang daripada halaman anda.",
+	},
+	"cavehost.sync.never":   {en: "No Sync yet. The first one runs within the hour, or press Sync now.", ms: "Belum ada Sync. Yang pertama berjalan dalam masa sejam, atau tekan Sync now."},
+	"cavehost.sync.last":    {en: "Last Sync: %s.", ms: "Sync terakhir: %s."},
+	"cavehost.sync.worked":  {en: "It worked.", ms: "Ia berjaya."},
+	"cavehost.sync.failed":  {en: "It failed. Your page keeps its last rows.", ms: "Ia gagal. Halaman anda mengekalkan baris terakhirnya."},
+	"cavehost.sync.now":     {en: "Sync now", ms: "Sync now"},
+	"cavehost.sync.running": {en: "Reading your Spreadsheet again. A large one can take a minute.", ms: "Sedang membaca Hamparan anda semula. Hamparan yang besar boleh mengambil masa seminit."},
+	"cavehost.sync.err.sheet": {
+		en: "The sheet %s is not in the Spreadsheet any more, or Cave cannot read it as before.",
+		ms: "Helaian %s tiada lagi dalam Hamparan, atau Cave tidak dapat membacanya seperti dahulu.",
+	},
+	"cavehost.sync.err.columns": {
+		en: "The sheet lacks columns it had when you confirmed it. Missing: %s. Put them back in the Spreadsheet.",
+		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan.",
+	},
+	"cavehost.sync.err.other": {
+		en: "Cave could not finish reading the Spreadsheet this time. It tries again in the next hour, or press Sync now.",
+		ms: "Cave tidak dapat menghabiskan pembacaan Hamparan kali ini. Ia mencuba lagi dalam jam seterusnya, atau tekan Sync now.",
+	},
+
 	// Deployments and Takedowns
 	"deployments.heading": {en: "Admin: Deployments", ms: "Pentadbir: Deployment"},
 	"deployments.intro": {

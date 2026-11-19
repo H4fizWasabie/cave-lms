@@ -70,11 +70,14 @@ type App struct {
 	googleSheetsURL      string        // where CaveHost fetches Spreadsheets from, without a trailing slash (googleSheetsURL const unless configured)
 	spreadsheets         *http.Client  // fetches them, following redirects only to Google
 	production           bool          // the live site: hides the home page's placeholders (CAVE_ENV)
-	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
+	done                 chan struct{} // closed by Close, to stop the daily System log prune, the Result release and the CaveHost Sync
 	// releasing is held by a run of releaseResults, so two runs never release at once.
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
+	// caveHostSyncing holds the id of each CaveHost Deployment with a Sync running, so a Deployment never Syncs twice at once.
+	// ponytail: in-process, like releasing.
+	caveHostSyncing sync.Map
 	// emailKick wakes the background sender of the emails a Result release leaves owed (sendOwedEmails); sending is
 	// held while it sends, so sends stay serial; emailing is held by the sender's loop, so Close waits for it.
 	emailKick chan struct{}
@@ -245,6 +248,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
+	go a.syncCaveHostEveryHour(a.done)
 	a.emailing.Add(1)
 	go a.sendEmailsWhenKicked()
 	a.kickEmails() // whatever a restart left owed
@@ -303,6 +307,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /cavehost/{name}", a.caveHost(a.caveHostDeploymentPage))
 	mux.HandleFunc("POST /cavehost/{name}/confirm", a.caveHost(a.confirmCaveHostSheet))
 	mux.HandleFunc("POST /cavehost/{name}/page", a.caveHost(a.uploadCaveHostPage))
+	mux.HandleFunc("POST /cavehost/{name}/sync", a.caveHost(a.syncCaveHostNow))
 	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
 	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
 	mux.HandleFunc("GET /lab/demo/", toPricing)

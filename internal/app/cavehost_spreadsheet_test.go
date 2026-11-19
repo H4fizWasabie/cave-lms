@@ -18,8 +18,9 @@ type fakeGoogle struct {
 	server *httptest.Server
 	mu     sync.Mutex
 	file   []byte
-	status int    // the status to answer with; 0 for 200
-	to     string // an address to redirect to instead
+	status int           // the status to answer with; 0 for 200
+	to     string        // an address to redirect to instead
+	hold   chan struct{} // when set, an answer waits until it is closed
 	asked  []string
 }
 
@@ -33,8 +34,11 @@ func newFakeGoogle(t *testing.T, file []byte) *fakeGoogle {
 func (g *fakeGoogle) serve(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	g.asked = append(g.asked, r.URL.RequestURI())
-	file, status, to := g.file, g.status, g.to
+	file, status, to, hold := g.file, g.status, g.to, g.hold
 	g.mu.Unlock()
+	if hold != nil {
+		<-hold
+	}
 	switch {
 	case to != "" && strings.HasPrefix(r.URL.Path, "/spreadsheets/"):
 		http.Redirect(w, r, to, http.StatusSeeOther)
@@ -43,6 +47,13 @@ func (g *fakeGoogle) serve(w http.ResponseWriter, r *http.Request) {
 	default:
 		_, _ = w.Write(file)
 	}
+}
+
+// swap changes the file the Spreadsheet serves from now on, as an edit does.
+func (g *fakeGoogle) swap(file []byte) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.file = file
 }
 
 // requests is every address the fake was asked for, as path and query.
