@@ -6,11 +6,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/lab"
+	"github.com/H4fizWasabie/cave-lms/internal/mailer"
 	"github.com/H4fizWasabie/cave-lms/internal/text"
 )
 
@@ -18,9 +21,9 @@ import (
 // confirmed, reads it with the saved Recipe, without asking, and replaces the sheet's rows with what it reads. No history is
 // kept. Every hour the ticker Syncs each awake Deployment, the oldest Sync first; Sync now Syncs one. At most one Sync runs per
 // Deployment at a time (caveHostSyncing).
-// ponytail: a failed Sync only records its status and reason and leaves the rows as they were; keeping last good rows per
-// sheet by the failure rules, and the failure email, are #542. Syncs run one after another; a worker pool if one hour stops
-// being enough for all of them.
+// A sheet that fails (syncFailure) keeps its last good rows and the others still Sync; the Sync records the reasons, and the first
+// failing Sync of a run of them emails the Learner, once, until a Sync works (recordSync).
+// ponytail: Syncs run one after another; a worker pool if one hour stops being enough for all of them.
 const caveHostSyncEvery = time.Hour
 
 // syncNote is one of Clean-up's changes in a Sync, with the sheet it was made to.
@@ -39,6 +42,11 @@ type syncFailure struct {
 func (f syncFailure) in(lang string) string {
 	var problem lab.Problem
 	var msg string
+	if errors.As(f.err, &problem) && problem.Key == "lab.err.on-sheet" { // the sheet is named in front of the reason already
+		if inner, ok := problem.Args[1].(lab.Problem); ok {
+			problem, f.err = inner, inner
+		}
+	}
 	switch {
 	case errors.Is(f.err, errSpreadsheetClosed):
 		msg = text.T(lang, "cavehost.err.closed")
@@ -46,6 +54,8 @@ func (f syncFailure) in(lang string) string {
 		msg = text.T(lang, "cavehost.err.too-big")
 	case errors.As(f.err, &problem) && problem.Key == "lab.err.add-columns":
 		msg = text.T(lang, "cavehost.sync.err.columns", problem.Args...)
+	case errors.As(f.err, &problem) && problem.Key == "lab.err.too-many-rows":
+		msg = text.T(lang, "cavehost.sync.err.rows", problem.Args[0], problem.Args[1])
 	case errors.As(f.err, &problem):
 		msg = problem.In(lang)
 	default:
@@ -75,7 +85,7 @@ func (a *App) syncCaveHostEveryHour(done <-chan struct{}) {
 // first and those never Synced before all. One that fails or panics does not stop the others.
 func (a *App) syncCaveHostDeployments(ctx context.Context) {
 	rows, err := a.db.QueryContext(ctx, `SELECT dep.id FROM deployments dep JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
-		WHERE `+caveHostAwakeSQL+` AND EXISTS (SELECT 1 FROM cavehost_sheets sh WHERE sh.deployment_id = dep.id AND sh.ticked AND sh.rows_key IS NOT NULL)
+		WHERE `+caveHostAwakeSQL+` AND EXISTS (SELECT 1 FROM cavehost_sheets sh WHERE sh.deployment_id = dep.id AND sh.ticked AND NOT sh.reset AND sh.rows_key IS NOT NULL)
 		ORDER BY ch.synced_at NULLS FIRST, dep.id`)
 	if err != nil {
 		a.logError(nil, err)
@@ -155,7 +165,7 @@ func (a *App) caveHostSheetsToSync(ctx context.Context, id int64) (spreadsheet s
 		return "", nil, err
 	}
 	rows, err := a.db.QueryContext(ctx, `SELECT id, name, rows_key, columns, settings FROM cavehost_sheets
-		WHERE deployment_id = $1 AND ticked AND rows_key IS NOT NULL ORDER BY position`, id)
+		WHERE deployment_id = $1 AND ticked AND NOT reset AND rows_key IS NOT NULL ORDER BY position`, id)
 	if err != nil {
 		return "", nil, err
 	}
@@ -204,6 +214,9 @@ func (a *App) syncCaveHostSheet(ctx context.Context, data []byte, sh caveHostShe
 	if err != nil {
 		return nil, err
 	}
+	if p, ok := mostlyEmptied(more, changes); ok { // a column the Spreadsheet no longer fills as it did: not a change to apply by itself
+		return nil, p
+	}
 	day := res.PartDate
 	if day == "" {
 		day = a.now().In(malaysia).Format(time.DateOnly)
@@ -219,8 +232,8 @@ func (a *App) syncCaveHostSheet(ctx context.Context, data []byte, sh caveHostShe
 	if err != nil {
 		return nil, err
 	}
-	// The sheet may have been unticked while it was read: then its rows are gone for good and these are dropped.
-	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_sheets SET rows_key = $2 WHERE id = $1 AND ticked AND rows_key IS NOT NULL`, sh.id, key)
+	// The sheet may have been unticked, or reset, while it was read: then these rows are dropped, and what was online stays.
+	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_sheets SET rows_key = $2 WHERE id = $1 AND ticked AND NOT reset AND rows_key IS NOT NULL`, sh.id, key)
 	if err == nil {
 		var n int64
 		if n, err = set.RowsAffected(); err == nil && n == 0 {
@@ -236,16 +249,41 @@ func (a *App) syncCaveHostSheet(ctx context.Context, data []byte, sh caveHostShe
 	return append(append(res.Changes, mapChanges...), changes...), nil
 }
 
-// recordSync saves a Sync on its Deployment: when it ran, whether it worked, the reason in each language if not, and its change notes.
+// mostlyEmptied is a Problem when a column of the Sync's rows has had more than half of its filled cells left empty by AddPart
+// because they do not fit the column's confirmed type, from its changes; a Learner who typed text into a number column would
+// otherwise blank their charts without knowing.
+func mostlyEmptied(rows *lab.Dataset, changes []lab.Change) (lab.Problem, bool) {
+	for _, c := range changes {
+		if !strings.HasPrefix(c.Key, "lab.clean.not-") {
+			continue
+		}
+		i := slices.IndexFunc(rows.Columns, func(col lab.Column) bool { return col.Name == c.Column })
+		if i < 0 {
+			continue
+		}
+		kept := 0
+		for _, row := range rows.Rows {
+			if row[i] != nil {
+				kept++
+			}
+		}
+		if n := c.Args[0]; n*2 > kept+n {
+			return lab.Problem{Key: "cavehost.sync.err.emptied", Args: []any{c.Column, n, kept + n}}, true
+		}
+	}
+	return lab.Problem{}, false
+}
+
+// recordSync saves a Sync on its Deployment: when it ran, whether it worked, the reason in each language if not, and its change
+// notes. The first failing Sync of a run of them emails the Learner (emailSyncFailure); a Sync that works ends the run.
 func (a *App) recordSync(ctx context.Context, id int64, notes []syncNote, failures []syncFailure) error {
 	changes, err := json.Marshal(notes)
 	if err != nil {
 		return err
 	}
-	status, reason := "ok", []byte(nil)
+	status, reason, in := "ok", []byte(nil), map[string]string{}
 	if len(failures) > 0 {
 		status = "failed"
-		in := map[string]string{}
 		for _, lang := range text.Languages {
 			var parts []string
 			for _, f := range failures {
@@ -263,9 +301,34 @@ func (a *App) recordSync(ctx context.Context, id int64, notes []syncNote, failur
 			}
 		}
 	}
-	_, err = a.db.ExecContext(ctx, `UPDATE cavehost_deployments SET synced_at = $2, sync_status = $3, sync_reason = $4, sync_changes = $5
-		WHERE deployment_id = $1`, id, a.now(), status, reason, changes)
+	var emailed bool // the Learner was emailed about this run of failures already
+	err = a.db.QueryRowContext(ctx, `UPDATE cavehost_deployments SET synced_at = $2, sync_status = $3, sync_reason = $4, sync_changes = $5,
+		failure_emailed = failure_emailed AND $3 = 'failed' WHERE deployment_id = $1 RETURNING failure_emailed`,
+		id, a.now(), status, reason, changes).Scan(&emailed)
+	if err == nil && status == "failed" && !emailed && a.emailSyncFailure(ctx, id, in) {
+		_, err = a.db.ExecContext(ctx, `UPDATE cavehost_deployments SET failure_emailed = true WHERE deployment_id = $1`, id)
+	}
 	return err
+}
+
+// emailSyncFailure emails the Learner who owns the Deployment that its Sync failed, with the reason (in is the reason in each
+// language) in their language, and reports whether it went. A failed email is only logged: the page shows the failure, and the
+// next failing Sync tries again.
+func (a *App) emailSyncFailure(ctx context.Context, id int64, in map[string]string) bool {
+	var learner, email, lang, name string
+	err := a.db.QueryRowContext(ctx, `SELECT l.name, l.email, COALESCE(l.language, ''), dep.name FROM deployments dep
+		JOIN learners l ON l.id = dep.learner_id WHERE dep.id = $1`, id).Scan(&learner, &email, &lang, &name)
+	if err == nil {
+		if !text.Supported(lang) {
+			lang = text.Languages[0]
+		}
+		err = a.mailer.Send(ctx, mailer.Message{To: email, Subject: text.T(lang, "email.cavehost.sync-failed.subject", name),
+			Body: text.T(lang, "email.cavehost.sync-failed.body", learner, name, in[lang], a.publicBaseURL+"/cavehost/"+name)})
+	}
+	if err != nil {
+		a.logError(nil, fmt.Errorf("send CaveHost Sync failure email for Deployment %d: %w", id, err))
+	}
+	return err == nil
 }
 
 // syncCaveHostNow is Sync now: it Syncs the Learner's Deployment at once, and shows the CaveHost page of it with the result.

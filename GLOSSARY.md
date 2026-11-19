@@ -416,7 +416,7 @@ _Malay_: Hamparan
 _Avoid_: Workbook (an Excel file in the Lab), Google Sheet, data source, tab
 
 **Sync**:
-Cave fetching a Spreadsheet again, every hour or when the Learner presses Sync now, and cleaning each ticked sheet with the recipe its first Clean-up set. Each Sync replaces the sheet's rows; Cave keeps only the last good one. A Sync that fails for a sheet (the Spreadsheet made private, a column renamed or gone, a column mostly emptied, too big) leaves its last good rows online and emails the Learner once until a Sync works again.
+Cave fetching a Spreadsheet again, every hour or when the Learner presses Sync now, and cleaning each ticked sheet with the recipe its first Clean-up set. Each Sync replaces the sheet's rows; Cave keeps only the last good one. A Sync that fails for a sheet (the Spreadsheet made private, a column renamed or gone, a column mostly emptied, too big) leaves its last good rows online, and the other sheets still Sync; the Learner is emailed once until a Sync works again, and sees the reason on the CaveHost page. **Reset columns** on a sheet, for one the Learner restructured on purpose, keeps its last good rows online and makes the Learner confirm a new Clean-up preview in place of Syncing it.
 _Malay_: Penyegerakan
 _Avoid_: Refresh, import, upload, Part
 

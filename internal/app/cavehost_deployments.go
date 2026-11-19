@@ -217,6 +217,7 @@ type caveHostSheetView struct {
 	Name      string
 	Ticked    bool // the page may read it
 	Confirmed bool // its first Clean-up is confirmed
+	Reset     bool // Reset columns was pressed: its rows stay online until a new Clean-up is confirmed
 	Columns   []lab.Column
 }
 
@@ -233,7 +234,7 @@ type caveHostView struct {
 	Spreadsheet string
 	WorkbookKey string // the fetched xlsx, until the first sheet is confirmed
 	Sheets      []caveHostSheetView
-	Pending     *caveHostSheetView // the first ticked sheet whose Clean-up waits for the Learner to confirm
+	Pending     *caveHostSheetView // the first ticked sheet whose Clean-up waits for the Learner to confirm, first or after Reset columns
 	Confirmed   bool               // a ticked sheet is confirmed, so there is data for a page to read
 	HasPage     bool
 	Pages       []htmlPage   // the earlier pages, newest first
@@ -291,7 +292,7 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 // loadCaveHostSheets fills in the sheets of v, in order, and what follows from them: the one waiting to be confirmed, and whether a
 // ticked sheet is confirmed.
 func (a *App) loadCaveHostSheets(ctx context.Context, v *caveHostView) error {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, name, ticked, rows_key IS NOT NULL, COALESCE(columns, '[]'::jsonb) FROM cavehost_sheets
+	rows, err := a.db.QueryContext(ctx, `SELECT id, name, ticked, rows_key IS NOT NULL, reset, COALESCE(columns, '[]'::jsonb) FROM cavehost_sheets
 		WHERE deployment_id = $1 ORDER BY position, id`, v.ID)
 	if err != nil {
 		return err
@@ -300,7 +301,7 @@ func (a *App) loadCaveHostSheets(ctx context.Context, v *caveHostView) error {
 	for rows.Next() {
 		var sh caveHostSheetView
 		var columns []byte
-		if err := rows.Scan(&sh.ID, &sh.Name, &sh.Ticked, &sh.Confirmed, &columns); err != nil {
+		if err := rows.Scan(&sh.ID, &sh.Name, &sh.Ticked, &sh.Confirmed, &sh.Reset, &columns); err != nil {
 			return err
 		}
 		if err := json.Unmarshal(columns, &sh.Columns); err != nil {
@@ -309,10 +310,10 @@ func (a *App) loadCaveHostSheets(ctx context.Context, v *caveHostView) error {
 		v.Sheets = append(v.Sheets, sh)
 	}
 	for i, sh := range v.Sheets {
-		switch {
-		case sh.Ticked && sh.Confirmed:
+		if sh.Ticked && sh.Confirmed {
 			v.Confirmed = true
-		case sh.Ticked && v.Pending == nil:
+		}
+		if sh.Ticked && (!sh.Confirmed || sh.Reset) && v.Pending == nil {
 			v.Pending = &v.Sheets[i]
 		}
 	}
@@ -485,14 +486,16 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	confirmed := false
+	var replaced sql.NullString // the rows of a sheet after Reset columns, which these replace
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		// Two confirms at once: the first sets the rows, the second finds them set and changes nothing.
-		set, err := tx.ExecContext(r.Context(), `UPDATE cavehost_sheets SET columns = $2, settings = $3, rows_key = $4 WHERE id = $1 AND ticked AND rows_key IS NULL`,
-			v.Pending.ID, columns, saved, key)
-		if err != nil {
-			return err
+		err := tx.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET columns = $2, settings = $3, rows_key = $4, reset = false
+			FROM (SELECT id, rows_key FROM cavehost_sheets WHERE id = $1 AND ticked AND (rows_key IS NULL OR reset) FOR UPDATE) old
+			WHERE sh.id = old.id RETURNING old.rows_key`, v.Pending.ID, columns, saved, key).Scan(&replaced)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
 		}
-		if n, err := set.RowsAffected(); err != nil || n == 0 {
+		if err != nil {
 			return err
 		}
 		confirmed = true
@@ -505,6 +508,9 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.serverError(w, r, err)
 		return
+	}
+	if confirmed && replaced.Valid {
+		_ = a.store.Delete(context.WithoutCancel(r.Context()), replaced.String)
 	}
 	if confirmed && v.WorkbookKey != "" { // the fetched file is not kept once a sheet's rows are
 		_ = a.store.Delete(context.WithoutCancel(r.Context()), v.WorkbookKey)

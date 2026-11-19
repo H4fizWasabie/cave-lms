@@ -46,9 +46,13 @@
         <ul class="ds-earlier">
           {{- range .Sheets}}
           <li><div><strong>{{.Name}}</strong>
-              {{- if and .Ticked .Confirmed}}<span class="muted">{{t $.Lang "cavehost.sheet-ready" .Name}} {{t $.Lang "lab.data.columns" .ColumnList}}</span>
+              {{- if and .Ticked .Confirmed (not .Reset)}}<span class="muted">{{t $.Lang "cavehost.sheet-ready" .Name}} {{t $.Lang "lab.data.columns" .ColumnList}}</span>
+              {{- else if and .Ticked .Reset}}<span class="muted">{{t $.Lang "cavehost.sheet.reset"}}</span>
               {{- else if .Ticked}}<span class="muted">{{t $.Lang "cavehost.sheet.waiting"}}</span>
               {{- else}}<span class="muted">{{t $.Lang "cavehost.sheet.unticked"}}</span>{{end}}</div>
+            {{- if and .Ticked .Confirmed (not .Reset)}}
+            <form method="post" action="/cavehost/{{$.Name}}/reset"><input type="hidden" name="sheet" value="{{.Name}}"><button class="btn btn-ghost" title="{{t $.Lang "cavehost.reset.hint"}}">{{t $.Lang "cavehost.reset"}}</button></form>
+            {{- end}}
             <form method="post" action="/cavehost/{{$.Name}}/{{if .Ticked}}untick{{else}}tick{{end}}"><input type="hidden" name="sheet" value="{{.Name}}"><button class="btn btn-ghost">{{if .Ticked}}{{t $.Lang "cavehost.untick"}}{{else}}{{t $.Lang "cavehost.tick"}}{{end}}</button></form></li>
           {{- end}}
         </ul>

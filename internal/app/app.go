@@ -308,6 +308,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /cavehost/{name}/confirm", a.caveHost(a.confirmCaveHostSheet))
 	mux.HandleFunc("POST /cavehost/{name}/tick", a.caveHost(a.tickCaveHostSheet))
 	mux.HandleFunc("POST /cavehost/{name}/untick", a.caveHost(a.untickCaveHostSheet))
+	mux.HandleFunc("POST /cavehost/{name}/reset", a.caveHost(a.resetCaveHostSheet))
 	mux.HandleFunc("POST /cavehost/{name}/page", a.caveHost(a.uploadCaveHostPage))
 	mux.HandleFunc("POST /cavehost/{name}/pages/{pg}/restore", a.caveHost(a.restoreCaveHostPage))
 	mux.HandleFunc("POST /cavehost/{name}/sync", a.caveHost(a.syncCaveHostNow))

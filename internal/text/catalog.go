@@ -2158,6 +2158,13 @@ var catalog = map[string]entry{
 		en: "To keep the ebooks, download them here. These links work for %[1]d days:\n\n%[2]s",
 		ms: "Untuk menyimpan ebook, muat turun di sini. Pautan ini sah selama %[1]d hari:\n\n%[2]s",
 	},
+	// CaveHost Sync failure (spec #536): sent once when Syncs start failing. The body takes the Learner's name, the Deployment's
+	// name, the reason and the link to the Deployment's CaveHost page.
+	"email.cavehost.sync-failed.subject": {en: "CaveHost: the Sync of %s failed", ms: "CaveHost: Sync %s gagal"},
+	"email.cavehost.sync-failed.body": {
+		en: "Hi %[1]s,\n\nCave could not Sync your CaveHost Deployment %[2]s.\n\n%[3]s\n\nYour page keeps its last good rows online. Cave tries again every hour, and you can press Sync now on the Deployment's page:\n\n%[4]s\n\nYou will not get another email about this until a Sync works again.\n",
+		ms: "Hai %[1]s,\n\nCave tidak dapat Sync Deployment CaveHost anda %[2]s.\n\n%[3]s\n\nHalaman anda mengekalkan baris baik terakhirnya dalam talian. Cave mencuba lagi setiap jam, dan anda boleh menekan Sync now pada halaman Deployment itu:\n\n%[4]s\n\nAnda tidak akan menerima e-mel lain tentang ini sehingga Sync berjaya semula.\n",
+	},
 	// Renewal reminders (ADR 0026). The item names, then a line for each item ending (its name, then its date). Each
 	// body takes the Learner's name, those lines, the Pricing link and the My membership link.
 	"email.renewal.item.lab-plan":     {en: "Lab Plan", ms: "Pelan Lab"},
@@ -2394,9 +2401,18 @@ var catalog = map[string]entry{
 	},
 	"cavehost.sheet.waiting":  {en: "Ticked. Check how Cave reads it above and confirm it.", ms: "Ditandakan. Semak cara Cave membacanya di atas dan sahkan."},
 	"cavehost.sheet.unticked": {en: "Not ticked. Your page cannot read it.", ms: "Tidak ditandakan. Halaman anda tidak dapat membacanya."},
-	"cavehost.tick":           {en: "Tick", ms: "Tandakan"},
-	"cavehost.untick":         {en: "Untick", ms: "Nyahtanda"},
-	"cavehost.chatbot.label":  {en: "Tell your AI chatbot where the data is", ms: "Beritahu chatbot AI anda di mana data berada"},
+	"cavehost.sheet.reset": {
+		en: "Columns reset. Your page keeps its last rows until you confirm how Cave reads the sheet above.",
+		ms: "Lajur ditetapkan semula. Halaman anda mengekalkan baris terakhirnya sehingga anda mengesahkan cara Cave membaca helaian di atas.",
+	},
+	"cavehost.reset": {en: "Reset columns", ms: "Reset columns"},
+	"cavehost.reset.hint": {
+		en: "Use this after you restructure the sheet on purpose: the next Sync shows a new preview to confirm.",
+		ms: "Gunakan ini selepas anda menyusun semula helaian dengan sengaja: Sync seterusnya menunjukkan pratonton baharu untuk disahkan.",
+	},
+	"cavehost.tick":          {en: "Tick", ms: "Tandakan"},
+	"cavehost.untick":        {en: "Untick", ms: "Nyahtanda"},
+	"cavehost.chatbot.label": {en: "Tell your AI chatbot where the data is", ms: "Beritahu chatbot AI anda di mana data berada"},
 	"cavehost.chatbot": {
 		en: "My page gets its data from JSON files next to it, so fetch them with these relative addresses: %s. Each file is a list of rows, one object per row, with the column names as keys.",
 		ms: "Halaman saya mendapat datanya daripada fail JSON di sebelahnya, jadi ambil dengan alamat relatif ini: %s. Setiap fail ialah senarai baris, satu objek bagi setiap baris, dengan nama lajur sebagai kunci.",
@@ -2429,8 +2445,16 @@ var catalog = map[string]entry{
 		ms: "Helaian %s tiada lagi dalam Hamparan, atau Cave tidak dapat membacanya seperti dahulu.",
 	},
 	"cavehost.sync.err.columns": {
-		en: "The sheet lacks columns it had when you confirmed it. Missing: %s. Put them back in the Spreadsheet.",
-		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan.",
+		en: "The sheet lacks columns it had when you confirmed it. Missing: %s. Put them back in the Spreadsheet, or use Reset columns if you changed it on purpose.",
+		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan, atau gunakan Reset columns jika anda mengubahnya dengan sengaja.",
+	},
+	"cavehost.sync.err.emptied": {
+		en: "More than half of the cells in the column %[1]s (%[2]d of %[3]d) would be left empty, as they are no longer what the column held when you confirmed it. Fix them in the Spreadsheet, or use Reset columns if you changed it on purpose.",
+		ms: "Lebih separuh sel dalam lajur %[1]s (%[2]d daripada %[3]d) akan dibiarkan kosong, kerana ia bukan lagi apa yang lajur itu ada semasa anda mengesahkannya. Betulkan dalam Hamparan, atau gunakan Reset columns jika anda mengubahnya dengan sengaja.",
+	},
+	"cavehost.sync.err.rows": {
+		en: "This sheet has %s rows. CaveHost reads up to %s rows. Delete some rows in the Spreadsheet.",
+		ms: "Helaian ini ada %s baris. CaveHost membaca sehingga %s baris. Padam beberapa baris dalam Hamparan.",
 	},
 	"cavehost.sync.err.unknown": {
 		en: "Cave could not finish reading the Spreadsheet this time. It tries again in the next hour, or press Sync now.",

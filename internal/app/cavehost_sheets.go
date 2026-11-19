@@ -37,7 +37,7 @@ func (a *App) untickCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var rowsKey sql.NullString
-	err := a.db.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET ticked = false, columns = NULL, settings = NULL, rows_key = NULL
+	err := a.db.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET ticked = false, reset = false, columns = NULL, settings = NULL, rows_key = NULL
 		FROM (SELECT id, rows_key FROM cavehost_sheets WHERE deployment_id = $1 AND name = $2 AND ticked FOR UPDATE) old
 		WHERE sh.id = old.id RETURNING old.rows_key`, v.ID, r.PostFormValue("sheet")).Scan(&rowsKey)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -48,6 +48,22 @@ func (a *App) untickCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 		if err := a.store.Delete(context.WithoutCancel(r.Context()), rowsKey.String); err != nil {
 			a.logError(r, err)
 		}
+	}
+	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
+}
+
+// resetCaveHostSheet is Reset columns: the confirmed sheet called by the form's sheet is read afresh. Its last good rows stay online
+// and Sync leaves it alone, while its page shows a new Clean-up preview to confirm, which sets its columns and Recipe again. For a
+// Learner who restructured the sheet on purpose, whose Syncs would fail on the columns they confirmed. Another sheet is left as it is.
+func (a *App) resetCaveHostSheet(w http.ResponseWriter, r *http.Request) {
+	v, ok := a.caveHostViewOf(w, r)
+	if !ok {
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE cavehost_sheets SET reset = true WHERE deployment_id = $1 AND name = $2 AND ticked AND rows_key IS NOT NULL`,
+		v.ID, r.PostFormValue("sheet")); err != nil {
+		a.serverError(w, r, err)
+		return
 	}
 	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
 }
