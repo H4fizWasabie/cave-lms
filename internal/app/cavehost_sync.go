@@ -232,8 +232,9 @@ func (a *App) syncCaveHostSheet(ctx context.Context, data []byte, sh caveHostShe
 	if err != nil {
 		return nil, err
 	}
-	// The sheet may have been unticked, or reset, while it was read: then these rows are dropped, and what was online stays.
-	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_sheets SET rows_key = $2 WHERE id = $1 AND ticked AND NOT reset AND rows_key IS NOT NULL`, sh.id, key)
+	// The sheet may have been unticked, reset or confirmed again while it was read: then these rows are dropped, and what was
+	// online stays.
+	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_sheets SET rows_key = $2 WHERE id = $1 AND ticked AND NOT reset AND rows_key = $3`, sh.id, key, sh.rowsKey)
 	if err == nil {
 		var n int64
 		if n, err = set.RowsAffected(); err == nil && n == 0 {
