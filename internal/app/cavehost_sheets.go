@@ -8,7 +8,7 @@ import (
 )
 
 // A CaveHost Deployment lists every sheet of its Spreadsheet (spec #536). The Learner ticks the ones the page may read; only the
-// first starts ticked, and a sheet added to the Spreadsheet later is listed unticked by the next Sync (addNewCaveHostSheets).
+// sheet in the pasted link starts ticked (the first when Cave cannot match it), and a sheet added to the Spreadsheet later is listed unticked by the next Sync (addNewCaveHostSheets).
 // A ticked sheet shows the Clean-up preview of its first read for the Learner to confirm, as the first sheet does, and is served at
 // sheets/<sheet name>.json once confirmed. Unticking takes it offline and drops its rows and Recipe, so ticking it again asks again.
 // ponytail: a sheet taken out of the Spreadsheet stays in the list; a ticked one fails its Sync (#542), an unticked one reads as

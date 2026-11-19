@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"time"
 )
+
+// maxSheetListSize caps the sheet list page read from Google (about 70 KB for a small Spreadsheet).
+const maxSheetListSize = 5 << 20
 
 // A CaveHost Spreadsheet is fetched from Google by Cave, as one xlsx file, on the server (ADR 0025). The fetch is cut off
 // after spreadsheetTimeout, and a file over maxSpreadsheetSize is refused, so one huge Spreadsheet cannot take the VPS down.
@@ -109,4 +113,46 @@ func (a *App) fetchSpreadsheet(ctx context.Context, id string) ([]byte, error) {
 		return nil, errSpreadsheetClosed
 	}
 	return data, nil
+}
+
+// sheetListItem is one sheet in Google's public sheet list, the Spreadsheet's htmlview page: its script has an
+// items.push({name: "...", pageUrl: "...", gid: "...", ...}) per sheet, the name a JavaScript string. The gid is there and in
+// no xlsx file. The pattern is loose on purpose: the other keys, their order and the spacing may change without breaking it.
+var sheetListItem = regexp.MustCompile(`items\.push\(\{\s*name:\s*"((?:[^"\\]|\\.)*)"[^}]*?\bgid:\s*"(-?[0-9]+)"`)
+
+// jsHexEscape finds \x3d, a JavaScript string escape that JSON does not have (nor \', which sheetNameOfGid also reads).
+var jsHexEscape = regexp.MustCompile(`\\x([0-9a-fA-F]{2})`)
+
+// sheetNameOfGid asks Google's public sheet list of the Spreadsheet with this ID for the name of the sheet with this gid. It is
+// only a hint for which sheet starts ticked, so any failure, or a gid that is not in the list, is an error for the caller to ignore.
+func (a *App) sheetNameOfGid(ctx context.Context, id, gid string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.googleSheetsURL+"/spreadsheets/d/"+url.PathEscape(id)+"/htmlview", nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := a.spreadsheets.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fetch sheet list: %w", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("fetch sheet list: Google answered %s", res.Status)
+	}
+	page, err := io.ReadAll(io.LimitReader(res.Body, maxSheetListSize))
+	if err != nil {
+		return "", fmt.Errorf("fetch sheet list: %w", err)
+	}
+	for _, m := range sheetListItem.FindAllSubmatch(page, -1) {
+		if string(m[2]) != gid {
+			continue
+		}
+		// A sheet name cannot hold a backslash, so every backslash in it starts an escape.
+		lit := strings.ReplaceAll(jsHexEscape.ReplaceAllString(string(m[1]), `\u00$1`), `\'`, `'`)
+		var name string
+		if err := json.Unmarshal([]byte(`"`+lit+`"`), &name); err != nil {
+			return "", fmt.Errorf("read sheet list: %w", err)
+		}
+		return name, nil
+	}
+	return "", errors.New("the gid is not in the sheet list")
 }

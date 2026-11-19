@@ -15,13 +15,15 @@ import (
 // fakeGoogle stands in for Google's Sheets export (spec #536, seam 1): it serves one xlsx file for any Spreadsheet ID, or
 // the answer a test sets, and remembers every address asked for.
 type fakeGoogle struct {
-	server *httptest.Server
-	mu     sync.Mutex
-	file   []byte
-	status int           // the status to answer with; 0 for 200
-	to     string        // an address to redirect to instead
-	hold   chan struct{} // when set, an answer waits until it is closed
-	asked  []string
+	server     *httptest.Server
+	mu         sync.Mutex
+	file       []byte
+	status     int           // the status to answer with; 0 for 200
+	to         string        // an address to redirect to instead
+	hold       chan struct{} // when set, an answer waits until it is closed
+	page       string        // the sheet list page, as htmlview serves it; a 404 when empty
+	listStatus int           // the status the sheet list answers with instead of the page; 0 for the page
+	asked      []string
 }
 
 func newFakeGoogle(t *testing.T, file []byte) *fakeGoogle {
@@ -34,12 +36,18 @@ func newFakeGoogle(t *testing.T, file []byte) *fakeGoogle {
 func (g *fakeGoogle) serve(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	g.asked = append(g.asked, r.URL.RequestURI())
-	file, status, to, hold := g.file, g.status, g.to, g.hold
+	file, status, to, hold, page, listStatus := g.file, g.status, g.to, g.hold, g.page, g.listStatus
 	g.mu.Unlock()
 	if hold != nil {
 		<-hold
 	}
 	switch {
+	case strings.HasSuffix(r.URL.Path, "/htmlview") && listStatus != 0:
+		w.WriteHeader(listStatus)
+	case strings.HasSuffix(r.URL.Path, "/htmlview") && page == "":
+		http.NotFound(w, r)
+	case strings.HasSuffix(r.URL.Path, "/htmlview"):
+		_, _ = w.Write([]byte(page))
 	case to != "" && strings.HasPrefix(r.URL.Path, "/spreadsheets/"):
 		http.Redirect(w, r, to, http.StatusSeeOther)
 	case status != 0:
@@ -63,7 +71,8 @@ func (g *fakeGoogle) requests() []string {
 	return append([]string(nil), g.asked...)
 }
 
-const sheetLink = "https://docs.google.com/spreadsheets/d/1AbC-dEf_123/edit?gid=0#gid=0"
+// sheetLink has no gid, so linking it asks Google for the export alone; the gid of a sheet is in gidLink.
+const sheetLink = "https://docs.google.com/spreadsheets/d/1AbC-dEf_123/edit"
 
 // caveHostLearner is Ada, with a CaveHost Plan and no Lab Plan, on a site whose Google is the fake serving file.
 func caveHostLearner(t *testing.T, file []byte) (ada *site, google *fakeGoogle) {

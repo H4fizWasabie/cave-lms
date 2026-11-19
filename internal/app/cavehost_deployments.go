@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -92,8 +93,8 @@ func (a *App) sheetNamesOf(ctx context.Context, data []byte) ([]string, error) {
 }
 
 // createCaveHostDeployment links a Spreadsheet: it takes the pasted link and the name picked, and with the Learner's word that
-// they may show its data to anyone with the Deployment's link, fetches the Spreadsheet and keeps it with all its sheets, the first
-// ticked. The Deployment takes its name only once all that works; the Learner then checks how Clean-up reads the first sheet, on
+// they may show its data to anyone with the Deployment's link, fetches the Spreadsheet and keeps it with all its sheets, the one
+// in the link ticked (the first, when Cave cannot tell which). The Deployment takes its name only once all that works; the Learner then checks how Clean-up reads it, on
 // the Deployment's page, and confirms it. Anything refused saves nothing.
 func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 	lang, err := a.language(r)
@@ -170,6 +171,16 @@ func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The sheet in the link starts ticked. The xlsx has no gids, so Google's sheet list names it; any failure leaves the first.
+	first := 0
+	if gid != "" {
+		if name, err := a.sheetNameOfGid(r.Context(), spreadsheet, gid); err == nil {
+			if i := slices.Index(sheets, name); i >= 0 {
+				first = i
+			}
+		}
+	}
+
 	key, err := newCaveHostKey("xlsx")
 	if err == nil {
 		err = a.store.Put(r.Context(), key, data)
@@ -189,9 +200,9 @@ func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 			VALUES ($1, $2, $3, $4)`, id, spreadsheet, gid, key); err != nil {
 			return err
 		}
-		for i, sheet := range sheets { // only the first sheet starts ticked
+		for i, sheet := range sheets { // only one sheet starts ticked
 			if _, err := tx.ExecContext(r.Context(), `INSERT INTO cavehost_sheets (deployment_id, name, position, ticked) VALUES ($1, $2, $3, $4)`,
-				id, sheet, i, i == 0); err != nil {
+				id, sheet, i, i == first); err != nil {
 				return err
 			}
 		}
