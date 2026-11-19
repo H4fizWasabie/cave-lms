@@ -75,8 +75,15 @@ const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at 
 	WHERE owner.id = dep.learner_id AND (owner.is_admin OR EXISTS (SELECT 1 FROM plan_periods pp WHERE pp.learner_id = owner.id
 		AND ` + activePeriodSQL + `))))`
 
-// deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
-const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason, dep.link_key`
+// deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them. A CaveHost Deployment's are
+// caveHostColumns, which differ in when it is awake.
+const (
+	deploymentColumns = deploymentColumnsFrom + deploymentAwakeSQL + deploymentColumnsTo
+	caveHostColumns   = deploymentColumnsFrom + caveHostAwakeSQL + deploymentColumnsTo
+
+	deploymentColumnsFrom = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, `
+	deploymentColumnsTo   = ` AS awake, dep.taken_down_at, dep.takedown_reason, dep.link_key`
+)
 
 // deploymentLink is the full link to share for the Deployment called name of the Learner with this Username, with its
 // Link key; linkKey is "" for a Deployment made before Link keys, whose link has none (ADR 0027).
@@ -395,6 +402,12 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		depName, linkKey := r.PathValue("name"), r.PathValue("linkkey")
 		w.Header().Set("Cache-Control", "no-store")
+		if served, err := a.serveCaveHost(w, r, depName, linkKey, name); served || err != nil {
+			if err != nil {
+				a.serverError(w, r, err)
+			}
+			return
+		}
 		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments dep
 			WHERE dep.name = $1 AND COALESCE(dep.link_key, '') = $2 AND `+deploymentAwakeSQL+`)`, depName, linkKey)
 		if err != nil {
@@ -457,7 +470,8 @@ func (a *App) adminDeployments(w http.ResponseWriter, r *http.Request) {
 	a.renderAdminDeployments(w, r, http.StatusOK, "")
 }
 
-// ponytail: lists every Deployment on one page; add paging when the list gets long.
+// ponytail: lists every Deployment on one page; add paging when the list gets long. CaveHost Deployments are not in it yet
+// (the Admin's takedown of them is its own ticket).
 // renderAdminDeployments shows the list, with the error under msgKey ("" for none) in the page's language.
 func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msgKey string) {
 	lang, err := a.language(r)
@@ -474,6 +488,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id
 		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
+		WHERE NOT EXISTS (SELECT 1 FROM cavehost_deployments ch WHERE ch.deployment_id = dep.id)
 		ORDER BY awake DESC, dep.id DESC`)
 	if err != nil {
 		a.serverError(w, r, err)

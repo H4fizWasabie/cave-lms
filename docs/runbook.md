@@ -28,7 +28,7 @@ Once per VPS. Run as root on the VPS.
 
    Then add `RESEND_API_KEY=re_...` with an editor (`nano /etc/cave-lms/env`) so the key stays out of shell history. Use a Resend API key with "Sending access" only. Without it the app starts but sends no email (see `docs/deploy.md`, Email).
 
-   `PAGES_BASE_URL` (the Deployments host, ADR 0024) is optional: unset, it is `https://pages.` in front of `PUBLIC_BASE_URL`'s host, `https://pages.cavelms.com` here. Set it only to put Deployments on another host, which needs its own Caddy block and A record. It must be a host of its own, with no path.
+   `PAGES_BASE_URL` (the Deployments host, ADR 0024) is optional: unset, it is `https://pages.` in front of `PUBLIC_BASE_URL`'s host, `https://pages.cavelms.com` here. Set it only to put Deployments on another host, which needs its own Caddy block and A record. It must be a host of its own, with no path. `GOOGLE_SHEETS_BASE_URL` (default `https://docs.google.com`) is where CaveHost fetches a Spreadsheet's xlsx export from (ADR 0025); it is for tests only.
 
    `CAVETEXT_BASE_URL` (the CaveText website's host, ADR 0028) is optional in the same way: unset, it is `https://cavetext.` in front of `PUBLIC_BASE_URL`'s host, `https://cavetext.cavelms.com` here. The app answers only its account, connect and pricing pages there (and under `/ms/`); Caddy sends just those paths to it, from the CaveText repo's `deploy/cavetext.caddy` (staging: `deploy/cave-lms-staging.caddy`).
 

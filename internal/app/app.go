@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -66,6 +67,8 @@ type App struct {
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
 	bclAPIToken          string        // a BCL API Read token to confirm orders with; empty confirms none
 	bclAPIURL            string        // BCL's API, without a trailing slash
+	googleSheetsURL      string        // where CaveHost fetches Spreadsheets from, without a trailing slash (googleSheetsURL const unless configured)
+	spreadsheets         *http.Client  // fetches them, following redirects only to Google
 	production           bool          // the live site: hides the home page's placeholders (CAVE_ENV)
 	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
 	// releasing is held by a run of releaseResults, so two runs never release at once.
@@ -218,6 +221,12 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("PagesBaseURL must be an absolute URL, got %q", cfg.PagesBaseURL)
 	}
 	a.pagesHost = strings.ToLower(pagesURL.Host)
+	a.googleSheetsURL = strings.TrimRight(cmp.Or(cfg.GoogleSheetsBaseURL, googleSheetsURL), "/")
+	sheetsURL, err := url.Parse(a.googleSheetsURL)
+	if err != nil || sheetsURL.Host == "" {
+		return nil, fmt.Errorf("GoogleSheetsBaseURL must be an absolute URL, got %q", cfg.GoogleSheetsBaseURL)
+	}
+	a.spreadsheets = newSpreadsheetClient(sheetsURL)
 	caveTextURL, err := url.Parse(cfg.CaveTextBaseURL)
 	if err != nil || caveTextURL.Host == "" {
 		return nil, fmt.Errorf("CaveTextBaseURL must be an absolute URL, got %q", cfg.CaveTextBaseURL)
@@ -290,6 +299,10 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/reports/{id}/dismiss", a.admin(a.dismissReport))
 	mux.HandleFunc("GET /lab", a.lab)
 	mux.HandleFunc("GET /cavehost", a.caveHost(a.caveHostHome))
+	mux.HandleFunc("POST /cavehost", a.caveHost(a.createCaveHostDeployment))
+	mux.HandleFunc("GET /cavehost/{name}", a.caveHost(a.caveHostDeploymentPage))
+	mux.HandleFunc("POST /cavehost/{name}/confirm", a.caveHost(a.confirmCaveHostSheet))
+	mux.HandleFunc("POST /cavehost/{name}/page", a.caveHost(a.uploadCaveHostPage))
 	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
 	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
 	mux.HandleFunc("GET /lab/demo/", toPricing)

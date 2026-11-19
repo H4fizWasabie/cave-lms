@@ -60,6 +60,11 @@ func (a *App) servePage(w http.ResponseWriter, r *http.Request, p *htmlPage) {
 		a.serverError(w, r, fmt.Errorf("get page %s: %w", p.Key, err))
 		return
 	}
+	a.writePage(w, data)
+}
+
+// writePage writes a Deployment's page, a Dashboard's or a CaveHost Deployment's, under pageCSP with the same caching.
+func (a *App) writePage(w http.ResponseWriter, data []byte) {
 	w.Header().Set("Content-Security-Policy", a.pageCSP())
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")

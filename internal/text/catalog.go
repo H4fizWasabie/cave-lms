@@ -2325,7 +2325,7 @@ var catalog = map[string]entry{
 	// CaveHost Plan and access
 	"nav.cavehost":                    {en: "CaveHost", ms: "CaveHost"},
 	"cavehost.title":                  {en: "CaveHost", ms: "CaveHost"},
-	"cavehost.open":                   {en: "CaveHost is open to you. Putting a page online with its data in a Google Spreadsheet will be here soon.", ms: "CaveHost dibuka untuk anda. Meletakkan halaman dalam talian dengan datanya dalam Hamparan Google akan tersedia di sini tidak lama lagi."},
+	"cavehost.open":                   {en: "CaveHost is open to you. Put your own HTML page online with its data kept in a Google Spreadsheet.", ms: "CaveHost dibuka untuk anda. Letakkan halaman HTML anda sendiri dalam talian dengan datanya disimpan dalam Hamparan Google."},
 	"cavehost.locked.title":           {en: "CaveHost comes with the Pro Plan", ms: "CaveHost disertakan dengan Pelan Pro"},
 	"cavehost.locked":                 {en: "CaveHost puts your own HTML page online with its data kept in a Google Spreadsheet. Get the Pro Plan to open it.", ms: "CaveHost meletakkan halaman HTML anda sendiri dalam talian dengan datanya disimpan dalam Hamparan Google. Dapatkan Pelan Pro untuk membukanya."},
 	"cavehost.locked.buy":             {en: "Get the Pro Plan", ms: "Dapatkan Pelan Pro"},
@@ -2339,6 +2339,59 @@ var catalog = map[string]entry{
 	"cavehost.period.end-ask":         {en: "End the CaveHost Plan period for %s now? It stops at once. This cannot be undone, but you can assign a CaveHost Plan again.", ms: "Tamatkan Tempoh Pelan CaveHost bagi %s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan CaveHost semula."},
 	"cavehost.period.not-found.title": {en: "CaveHost Plan period not found", ms: "Tempoh Pelan CaveHost tidak dijumpai"},
 	"cavehost.period.not-found":       {en: "There is no CaveHost Plan period at this address.", ms: "Tiada Tempoh Pelan CaveHost di alamat ini."},
+
+	// CaveHost Deployments: linking a Spreadsheet, its first sheet's Clean-up and the page
+	"cavehost.list":         {en: "Your CaveHost Deployments", ms: "Deployment CaveHost anda"},
+	"cavehost.link.heading": {en: "Link a Spreadsheet", ms: "Pautkan Hamparan"},
+	"cavehost.link.body": {
+		en: "Paste the link of a Google Spreadsheet shared as \"anyone with the link can view\", and pick a name for your page. Cave reads the Spreadsheet's first sheet; you check how it reads before anything goes online.",
+		ms: "Tampal pautan Hamparan Google yang dikongsi sebagai \"sesiapa yang mempunyai pautan boleh melihat\", dan pilih nama untuk halaman anda. Cave membaca helaian pertama Hamparan; anda semak cara ia dibaca sebelum apa-apa diletakkan dalam talian.",
+	},
+	"cavehost.link.label": {en: "Spreadsheet link", ms: "Pautan Hamparan"},
+	"cavehost.link.go":    {en: "Link Spreadsheet", ms: "Pautkan Hamparan"},
+	"cavehost.warn":       {en: "Anyone with the link can see this data.", ms: "Sesiapa yang mempunyai pautan boleh melihat data ini."},
+	"cavehost.warn-body": {
+		en: "A CaveHost Deployment shows its data to anyone who has its link, not only to the people you share the Spreadsheet with. Do not link a Spreadsheet with personal data you may not put online, such as IC numbers or salaries.",
+		ms: "Deployment CaveHost menunjukkan datanya kepada sesiapa yang mempunyai pautannya, bukan hanya kepada orang yang anda kongsikan Hamparan itu. Jangan pautkan Hamparan yang mengandungi data peribadi yang tidak boleh anda letakkan dalam talian, seperti nombor IC atau gaji.",
+	},
+	"cavehost.reading":       {en: "Fetching your Spreadsheet. A large one can take a minute.", ms: "Sedang mengambil Hamparan anda. Hamparan yang besar boleh mengambil masa seminit."},
+	"cavehost.reading-lines": {en: "Asking Google for the Spreadsheet|Opening the sheets|Tidying the columns", ms: "Meminta Hamparan daripada Google|Membuka helaian|Mengemas lajur"},
+	"cavehost.err.link": {
+		en: "That is not a Google Spreadsheet link. Paste the link from your browser while the Spreadsheet is open; it starts with https://docs.google.com/spreadsheets/d/.",
+		ms: "Itu bukan pautan Hamparan Google. Tampal pautan dari pelayar anda semasa Hamparan dibuka; ia bermula dengan https://docs.google.com/spreadsheets/d/.",
+	},
+	"cavehost.err.closed": {
+		en: "Cave cannot open this Spreadsheet. In Google Sheets, press Share, under General access choose \"Anyone with the link\", set it to Viewer, press Done, then paste the link here again.",
+		ms: "Cave tidak dapat membuka Hamparan ini. Dalam Google Sheets, tekan Share, di bawah General access pilih \"Anyone with the link\", tetapkan kepada Viewer, tekan Done, kemudian tampal pautan di sini semula.",
+	},
+	"cavehost.err.too-big": {
+		en: "This Spreadsheet is over 50 MB, which is too big for CaveHost. Remove what the page does not need, or split it into smaller Spreadsheets.",
+		ms: "Hamparan ini melebihi 50 MB, terlalu besar untuk CaveHost. Buang apa yang tidak diperlukan oleh halaman, atau pecahkannya kepada Hamparan yang lebih kecil.",
+	},
+	"cavehost.err.unreachable": {
+		en: "Cave could not reach Google to fetch the Spreadsheet. Wait a minute and try again.",
+		ms: "Cave tidak dapat menghubungi Google untuk mengambil Hamparan. Tunggu seminit dan cuba lagi.",
+	},
+	"cavehost.err.sheet": {
+		en: "Cave cannot read the sheet %s as a list of rows under a header yet. Pick its header row below.",
+		ms: "Cave belum dapat membaca helaian %s sebagai senarai baris di bawah tajuk lajur. Pilih baris tajuk lajurnya di bawah.",
+	},
+	"cavehost.preview":      {en: "Check %s before your page reads it", ms: "Semak %s sebelum halaman anda membacanya"},
+	"cavehost.reread":       {en: "Read again", ms: "Baca semula"},
+	"cavehost.confirm":      {en: "Confirm this sheet", ms: "Sahkan helaian ini"},
+	"cavehost.sheet-ready":  {en: "Sheet %s is ready", ms: "Helaian %s sudah sedia"},
+	"cavehost.data-at":      {en: "Your page reads this sheet's rows at ./data.json.", ms: "Halaman anda membaca baris helaian ini di ./data.json."},
+	"cavehost.page.heading": {en: "Put your page online", ms: "Letakkan halaman anda dalam talian"},
+	"cavehost.page.body": {
+		en: "Paste the HTML your AI chatbot wrote, or pick the .html file. It goes online at the link above, and reads the rows with ./data.json.",
+		ms: "Tampal HTML yang ditulis oleh chatbot AI anda, atau pilih fail .html. Ia diletakkan dalam talian di pautan di atas, dan membaca baris dengan ./data.json.",
+	},
+	"cavehost.page.go":        {en: "Put page online", ms: "Letakkan halaman dalam talian"},
+	"cavehost.sleeping.title": {en: "This CaveHost page is asleep", ms: "Halaman CaveHost ini sedang tidur"},
+	"cavehost.sleeping": {
+		en: "The CaveHost Plan of the person who shared it has ended. Nothing has been deleted; ask them about it.",
+		ms: "Pelan CaveHost orang yang berkongsi pautan ini telah tamat. Tiada apa yang dipadam; tanya mereka mengenainya.",
+	},
 
 	// Deployments and Takedowns
 	"deployments.heading": {en: "Admin: Deployments", ms: "Pentadbir: Deployment"},

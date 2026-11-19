@@ -1,0 +1,65 @@
+{{define "title"}}{{.Name}} · CaveHost · CAVELMS{{end}}
+{{define "content"}}
+    <div class="wrap page-pad lab-page">
+      <p class="crumbs"><a href="/cavehost">CaveHost</a> / {{.Name}}</p>
+      <div class="page-head"><h1>{{.Name}}</h1></div>
+      {{- if .Preview}}
+      <section class="card ds-preview">
+        <div>
+          <h2 class="h-md">{{t .Lang "cavehost.preview" .Sheet}}</h2>
+          <p class="muted">{{tn .Lang "lab.w.read" (len .Preview.Dataset.Rows)}}</p>
+          <p>{{t .Lang "lab.data.columns" .ColumnList}}</p>
+        </div>
+        {{- if .Preview.Changes}}
+        <div>
+          <h3 class="h-sm">{{t .Lang "lab.w.changes"}}</h3>
+          <ul>{{range .Preview.Changes}}<li>{{.In $.Lang}}</li>{{end}}</ul>
+        </div>
+        {{- else}}
+        <p>{{t .Lang "lab.w.no-changes"}}</p>
+        {{- end}}
+        <div class="table-wrap"><table class="table">
+          <thead><tr>{{range .Preview.Dataset.Columns}}<th scope="col">{{.Name}}<br><small class="muted">{{t $.Lang (print "lab.type." .Type)}}</small></th>{{end}}</tr></thead>
+          <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
+        </table></div>
+      </section>
+      {{- end}}
+      {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+      {{- if not .Confirmed}}
+      <section class="card lab-card">
+        <form class="form" method="get" action="/cavehost/{{.Name}}">
+          <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{if .Header}} value="{{.Header}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
+          <label class="check"><input type="checkbox" name="two-row" value="on"{{if .TwoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
+          <div class="form-foot"><button class="btn btn-ghost">{{t .Lang "cavehost.reread"}}</button></div>
+        </form>
+        <form class="form" method="post" action="/cavehost/{{.Name}}/confirm">
+          {{- if .Header}}<input type="hidden" name="header" value="{{.Header}}">{{end}}
+          {{- if .TwoRow}}<input type="hidden" name="two-row" value="on">{{end}}
+          <div class="form-foot"><button class="btn btn-solid"{{if not .Preview}} disabled{{end}}>{{t .Lang "cavehost.confirm"}}</button></div>
+        </form>
+      </section>
+      {{- else}}
+      <section class="card lab-card">
+        <h2 class="h-md"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-globe-simple"/></svg>{{t .Lang "cavehost.sheet-ready" .Sheet}}</h2>
+        <p>{{t .Lang "lab.data.columns" .ColumnList}}</p>
+        <div class="dep-link">
+          <label class="sr" for="dep-url">{{t .Lang "lab.dep.link"}}</label>
+          <input id="dep-url" type="text" readonly value="{{.Link}}" title="{{t .Lang "lab.dep.select-link"}}">
+          {{- if .HasPage}}<a class="btn btn-ghost btn-sm" href="{{.Link}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t .Lang "lab.open"}}</a>{{end}}
+        </div>
+        <p class="muted">{{t .Lang "cavehost.data-at"}}</p>
+        {{- if .HasPage}}
+        <p class="muted">{{t .Lang "lab.page.share"}}</p>
+        {{- else}}
+        <h2 class="h-md">{{t .Lang "cavehost.page.heading"}}</h2>
+        <p class="muted">{{t .Lang "cavehost.page.body"}}</p>
+        <form class="form" method="post" action="/cavehost/{{.Name}}/page" enctype="multipart/form-data">
+          <div class="field"><label for="html">{{t .Lang "lab.new.paste"}}</label><textarea class="lab-code" id="html" name="html" rows="8" spellcheck="false" autocapitalize="none">{{.HTML}}</textarea></div>
+          <div class="field lab-drop"><label for="file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
+          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "cavehost.page.go"}}</button></div>
+        </form>
+        {{- end}}
+      </section>
+      {{- end}}
+    </div>
+{{end}}

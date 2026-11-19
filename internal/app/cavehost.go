@@ -32,9 +32,13 @@ func (a *App) caveHostOpen(ctx context.Context, l *learner) (bool, error) {
 }
 
 // caveHostPage is /cavehost. Locked is set for a Learner without a CaveHost Plan: it says CaveHost comes with the Pro Plan.
+// Otherwise it lists the Learner's Deployments under the form that links a Spreadsheet, with the values of one it refused.
 type caveHostPage struct {
 	pageBase
-	Locked bool
+	Locked      bool
+	Deployments []deployment
+	Prefix      string // the start of every link of the Learner's, for the name's hint
+	Link, Name  string // the form's values
 }
 
 // caveHost is CaveHost for those it is open to. A Visitor logs in first; a Learner without a CaveHost Plan is told CaveHost
@@ -56,10 +60,6 @@ func (a *App) caveHost(h http.HandlerFunc) http.HandlerFunc {
 			h(w, r)
 		}
 	})
-}
-
-func (a *App) caveHostHome(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, http.StatusOK, "cavehost", &caveHostPage{})
 }
 
 // caveHostPeriod is one CaveHost Plan period of a Learner, as the Admin sees it.
