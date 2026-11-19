@@ -303,6 +303,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /cavehost/{name}", a.caveHost(a.caveHostDeploymentPage))
 	mux.HandleFunc("POST /cavehost/{name}/confirm", a.caveHost(a.confirmCaveHostSheet))
 	mux.HandleFunc("POST /cavehost/{name}/page", a.caveHost(a.uploadCaveHostPage))
+	mux.HandleFunc("POST /cavehost/{name}/pages/{pg}/restore", a.caveHost(a.restoreCaveHostPage))
 	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
 	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
 	mux.HandleFunc("GET /lab/demo/", toPricing)

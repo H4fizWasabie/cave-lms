@@ -2386,8 +2386,10 @@ var catalog = map[string]entry{
 		en: "Paste the HTML your AI chatbot wrote, or pick the .html file. It goes online at the link above, and reads the rows with ./data.json.",
 		ms: "Tampal HTML yang ditulis oleh chatbot AI anda, atau pilih fail .html. Ia diletakkan dalam talian di pautan di atas, dan membaca baris dengan ./data.json.",
 	},
-	"cavehost.page.go":        {en: "Put page online", ms: "Letakkan halaman dalam talian"},
-	"cavehost.sleeping.title": {en: "This CaveHost page is asleep", ms: "Halaman CaveHost ini sedang tidur"},
+	"cavehost.page.go":         {en: "Put page online", ms: "Letakkan halaman dalam talian"},
+	"cavehost.page.replace":    {en: "Replace your page", ms: "Gantikan halaman anda"},
+	"cavehost.page.replace-go": {en: "Replace page", ms: "Gantikan halaman"},
+	"cavehost.sleeping.title":  {en: "This CaveHost page is asleep", ms: "Halaman CaveHost ini sedang tidur"},
 	"cavehost.sleeping": {
 		en: "The CaveHost Plan of the person who shared it has ended. Nothing has been deleted; ask them about it.",
 		ms: "Pelan CaveHost orang yang berkongsi pautan ini telah tamat. Tiada apa yang dipadam; tanya mereka mengenainya.",

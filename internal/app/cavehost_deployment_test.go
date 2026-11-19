@@ -158,7 +158,7 @@ func TestADeploymentWhoseCaveHostPlanEndedShowsTheInactivePageAndStaysOnItsLink(
 	}
 }
 
-func TestAPageNeedsAConfirmedSheetIsTakenOnceAndMustBeAnHTMLPage(t *testing.T) {
+func TestAPageNeedsAConfirmedSheetAndMustBeAnHTMLPage(t *testing.T) {
 	t.Parallel()
 	ada, _ := caveHostLearner(t, salesSheet(t))
 	ada.linkSheet(sheetLink, "jualan-ada")
@@ -178,16 +178,12 @@ func TestAPageNeedsAConfirmedSheetIsTakenOnceAndMustBeAnHTMLPage(t *testing.T) {
 	res, body = ada.post("/cavehost/jualan-ada/page", url.Values{"html": {strings.Repeat("a", 5<<20+1)}})
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "")
 
-	// A picked .html file works as a pasted page does; a second page is not taken here (replacing it is a later ticket).
+	// A picked .html file works as a pasted page does.
 	res, body = ada.postFile("/cavehost/jualan-ada/page", "page.html", []byte(myPage))
 	expectRedirect(t, res, body, "/cavehost/jualan-ada")
 	link := ada.caveHostLink("jualan-ada")
 	res, body = ada.second().get(link)
 	expectStatus(t, res, body, http.StatusOK, "Jualan bulan ini")
-	ada.putPageOnline("jualan-ada", "<p>another</p>")
-	if _, body = ada.second().get(link); strings.Contains(body, "another") {
-		t.Fatalf("a second page replaced the first: %s", body)
-	}
 }
 
 func TestCaveHostScreensAndMessagesReadInMalay(t *testing.T) {
@@ -217,6 +213,12 @@ func TestCaveHostScreensAndMessagesReadInMalay(t *testing.T) {
 	ada.confirmSheet("jualan-ada", nil)
 	res, body = ada.getAsking("/cavehost/jualan-ada", "ms")
 	for _, want := range []string{"Helaian Sales sudah sedia", "Letakkan halaman dalam talian"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	ada.putPageOnline("jualan-ada", versionOf(1))
+	ada.putPageOnline("jualan-ada", versionOf(2))
+	res, body = ada.getAsking("/cavehost/jualan-ada", "ms")
+	for _, want := range []string{"Gantikan halaman anda", "Gantikan halaman", "Halaman terdahulu", "Pulihkan", "Dimuat naik"} {
 		expectStatus(t, res, body, http.StatusOK, want)
 	}
 }

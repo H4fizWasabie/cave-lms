@@ -18,8 +18,8 @@ import (
 // A CaveHost Deployment (spec #536) is a row of deployments with no Dashboard, so it shares the Lab's names, Link keys and
 // Username redirect (ADR 0023, ADR 0027), plus its cavehost_deployments row for the Spreadsheet, its cavehost_sheets rows and
 // its cavehost_pages. Its data and page live in the local Disk store (ADR 0025), under keys that start with caveHostKeyPrefix.
-// ponytail: this ticket links one Spreadsheet's first sheet and puts one page online; ticking more sheets, Sync, replacing the
-// page, the cap, sleep and delete are the later tickets of #536, and a deleted record leaves its stored files until then.
+// ponytail: this ticket links one Spreadsheet's first sheet and puts a page online, replaced and restored as on the Lab; ticking more
+// sheets, Sync, the cap, sleep and delete are the later tickets of #536, and a deleted record leaves its stored files until then.
 const caveHostKeyPrefix = "cavehost-"
 
 // caveHostAwakeSQL is an SQL condition, true for an awake CaveHost Deployment aliased dep: it is not taken down, and its Learner
@@ -207,6 +207,7 @@ type caveHostView struct {
 	Confirmed   bool // the sheet's first Clean-up is confirmed
 	Columns     []lab.Column
 	HasPage     bool
+	Pages       []htmlPage // the earlier pages, newest first
 }
 
 // caveHostViewOf loads the CaveHost Deployment called {name} that belongs to the Learner asking; when there is none it writes the
@@ -244,6 +245,12 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 		return nil, false
 	}
 	v.deployment = dep
+	if v.HasPage {
+		if v.Pages, err = a.earlierPages(r.Context(), caveHostPages, v.ID); err != nil {
+			a.serverError(w, r, err)
+			return nil, false
+		}
+	}
 	return v, true
 }
 
@@ -409,14 +416,15 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 }
 
 // uploadCaveHostPage puts the Learner's page online at the Deployment's link: the picked .html file, else the pasted HTML, as on
-// the Lab's Deploy tab. It takes one page for now, once the sheet is confirmed.
+// the Lab's Deploy tab, once the sheet is confirmed. A page already online turns earlier, and past keepEarlier the oldest earlier
+// one goes, from the store too.
 func (a *App) uploadCaveHostPage(w http.ResponseWriter, r *http.Request) {
 	tooBig := parsePageForm(w, r)
 	v, ok := a.caveHostViewOf(w, r)
 	if !ok {
 		return
 	}
-	if !v.Confirmed || v.HasPage {
+	if !v.Confirmed {
 		http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
 		return
 	}
@@ -443,11 +451,47 @@ func (a *App) uploadCaveHostPage(w http.ResponseWriter, r *http.Request) {
 		a.renderCaveHostDeployment(w, r, http.StatusServiceUnavailable, v, text.T(lang, "lab.d.upload-failed"))
 		return
 	}
-	_, err = a.db.ExecContext(r.Context(), `INSERT INTO cavehost_pages (deployment_id, storage_key, size, current) VALUES ($1, $2, $3, true)`, v.ID, key, len(html))
+	var dropped []string
+	err = a.inTx(r.Context(), func(tx *sql.Tx) (err error) {
+		if dropped, err = caveHostPages.replaceCurrent(r.Context(), tx, v.ID); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(r.Context(), `INSERT INTO cavehost_pages (deployment_id, storage_key, size, current) VALUES ($1, $2, $3, true)`, v.ID, key, len(html))
+		return err
+	})
 	if err != nil {
 		_ = a.store.Delete(context.WithoutCancel(r.Context()), key)
 	}
 	if err != nil && !isUniqueViolation(err) { // a unique violation is another upload getting in first
+		a.serverError(w, r, err)
+		return
+	}
+	for _, old := range dropped { // the Disk store has no queue of its own, as the Lab's has
+		if err := a.store.Delete(context.WithoutCancel(r.Context()), old); err != nil {
+			a.logError(r, err)
+		}
+	}
+	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
+}
+
+// restoreCaveHostPage makes an earlier page live again at once, POST /cavehost/{name}/pages/{pg}/restore; the live one turns
+// earlier. It asks nothing first: the page it replaces is kept.
+func (a *App) restoreCaveHostPage(w http.ResponseWriter, r *http.Request) {
+	v, ok := a.caveHostViewOf(w, r)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("pg"), 10, 64)
+	if err != nil {
+		a.notFound(w, r)
+		return
+	}
+	err = a.inTx(r.Context(), func(tx *sql.Tx) error { return caveHostPages.restore(r.Context(), tx, v.ID, id) })
+	if errors.Is(err, errNotEarlier) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}

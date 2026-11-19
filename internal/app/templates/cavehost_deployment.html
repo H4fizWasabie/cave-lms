@@ -50,14 +50,26 @@
         <p class="muted">{{t .Lang "cavehost.data-at"}}</p>
         {{- if .HasPage}}
         <p class="muted">{{t .Lang "lab.page.share"}}</p>
+        <h2 class="h-md">{{t .Lang "cavehost.page.replace"}}</h2>
+        <p class="muted">{{t .Lang "lab.page.new-body"}}</p>
         {{- else}}
         <h2 class="h-md">{{t .Lang "cavehost.page.heading"}}</h2>
         <p class="muted">{{t .Lang "cavehost.page.body"}}</p>
+        {{- end}}
         <form class="form" method="post" action="/cavehost/{{.Name}}/page" enctype="multipart/form-data">
           <div class="field"><label for="html">{{t .Lang "lab.new.paste"}}</label><textarea class="lab-code" id="html" name="html" rows="8" spellcheck="false" autocapitalize="none">{{.HTML}}</textarea></div>
           <div class="field lab-drop"><label for="file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
-          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "cavehost.page.go"}}</button></div>
+          <div class="form-foot"><button class="btn btn-solid">{{if .HasPage}}{{t .Lang "cavehost.page.replace-go"}}{{else}}{{t .Lang "cavehost.page.go"}}{{end}}</button></div>
         </form>
+        {{- with .Pages}}
+        <h2 class="h-md">{{t $.Lang "lab.page.earlier"}}</h2>
+        <p class="muted">{{t $.Lang "lab.page.earlier-body"}}</p>
+        <ul class="ds-earlier">
+          {{- range .}}
+          <li><div><strong>{{t $.Lang "lab.page.uploaded" (dateTime $.Lang .Uploaded)}}</strong><span class="muted">{{.SizeText}}</span></div>
+            <form method="post" action="/cavehost/{{$.Name}}/pages/{{.ID}}/restore"><button class="btn btn-ghost">{{t $.Lang "lab.w.restore"}}</button></form></li>
+          {{- end}}
+        </ul>
         {{- end}}
       </section>
       {{- end}}

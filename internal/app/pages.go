@@ -213,10 +213,63 @@ func (a *App) createPageDashboard(w http.ResponseWriter, r *http.Request, acc la
 	http.Redirect(w, r, dashboardURL(&dashboard{ID: id}), http.StatusSeeOther)
 }
 
-// earlierPages lists the Dashboard's earlier pages, newest first.
-func (a *App) earlierPages(ctx context.Context, dashboardID int64) ([]htmlPage, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, storage_key, size, uploaded_at FROM dashboard_pages
-		WHERE dashboard_id = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC`, dashboardID)
+// pageTable is a table of page records, a Dashboard's or a CaveHost Deployment's: its name, and the column that says whose a page
+// is. Both have the same other columns, so replacing and restoring a page work the same on either.
+type pageTable struct{ name, owner string }
+
+var (
+	labPages      = pageTable{"dashboard_pages", "dashboard_id"}
+	caveHostPages = pageTable{"cavehost_pages", "deployment_id"}
+)
+
+// errNotEarlier is restore's error when the page asked for is not an earlier page of that owner.
+var errNotEarlier = errors.New("not an earlier page")
+
+// replaceCurrent makes room for a new page of owner id: the current page turns earlier, so keepEarlier-1 of the earlier ones stay
+// and the rest go, as replacedPage counts. It returns the store keys of the ones that went, for a store that does not queue them.
+// The new page is inserted after it, as the one-current index is checked row by row.
+func (t pageTable) replaceCurrent(ctx context.Context, tx *sql.Tx, id int64) (dropped []string, err error) {
+	rows, err := tx.QueryContext(ctx, `DELETE FROM `+t.name+` WHERE id IN (SELECT id FROM `+t.name+`
+		WHERE `+t.owner+` = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC OFFSET $2) RETURNING storage_key`, id, keepEarlier-1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		dropped = append(dropped, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close() // the transaction's connection is busy until then
+	_, err = tx.ExecContext(ctx, `UPDATE `+t.name+` SET current = false WHERE `+t.owner+` = $1 AND current`, id)
+	return dropped, err
+}
+
+// restore makes the earlier page pageID of owner id the current one; the current one turns earlier. It is errNotEarlier if that
+// is not an earlier page of the owner.
+func (t pageTable) restore(ctx context.Context, tx *sql.Tx, id, pageID int64) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE `+t.name+` SET current = false WHERE `+t.owner+` = $1 AND current AND id <> $2`, id, pageID); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `UPDATE `+t.name+` SET current = true WHERE id = $1 AND `+t.owner+` = $2 AND NOT current`, pageID, id)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return cmp.Or(err, errNotEarlier)
+	}
+	return nil
+}
+
+// earlierPages lists the earlier pages of the Dashboard or Deployment with this id, newest first.
+func (a *App) earlierPages(ctx context.Context, t pageTable, id int64) ([]htmlPage, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT id, storage_key, size, uploaded_at FROM `+t.name+`
+		WHERE `+t.owner+` = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -274,13 +327,8 @@ func (a *App) uploadPage(w http.ResponseWriter, r *http.Request, d *dashboard) {
 		return
 	}
 	err = a.storePage(r.Context(), r, html, acc, learner.ID, replacedPage(d.ID), func(tx *sql.Tx) (int64, error) {
-		// The current page turns earlier, so keepEarlier-1 of the earlier ones stay; the rest go, as replacedPage counts.
-		if _, err := tx.ExecContext(r.Context(), `DELETE FROM dashboard_pages WHERE id IN (SELECT id FROM dashboard_pages
-			WHERE dashboard_id = $1 AND NOT current ORDER BY uploaded_at DESC, id DESC OFFSET $2)`, d.ID, keepEarlier-1); err != nil {
-			return 0, err
-		}
-		// Two statements, as the one-current index is checked row by row: this one, then storePage's insert.
-		if _, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = false WHERE dashboard_id = $1 AND current`, d.ID); err != nil {
+		// The dropped pages' files are queued as their records go, so the keys are not needed.
+		if _, err := labPages.replaceCurrent(r.Context(), tx, d.ID); err != nil {
 			return 0, err
 		}
 		_, err := tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
@@ -313,22 +361,14 @@ func (a *App) restorePage(w http.ResponseWriter, r *http.Request, d *dashboard) 
 		a.notFound(w, r)
 		return
 	}
-	gone := errors.New("not an earlier page")
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = false WHERE dashboard_id = $1 AND current AND id <> $2`, d.ID, id); err != nil {
+		if err := labPages.restore(r.Context(), tx, d.ID, id); err != nil {
 			return err
 		}
-		res, err := tx.ExecContext(r.Context(), `UPDATE dashboard_pages SET current = true WHERE id = $1 AND dashboard_id = $2 AND NOT current`, id, d.ID)
-		if err != nil {
-			return err
-		}
-		if n, err := res.RowsAffected(); err != nil || n == 0 {
-			return cmp.Or(err, gone)
-		}
-		_, err = tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
+		_, err := tx.ExecContext(r.Context(), `UPDATE dashboards SET updated_at = now() WHERE id = $1`, d.ID)
 		return err
 	})
-	if errors.Is(err, gone) {
+	if errors.Is(err, errNotEarlier) {
 		a.notFound(w, r)
 		return
 	}

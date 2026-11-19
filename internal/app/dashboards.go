@@ -548,7 +548,7 @@ func (a *App) renderDashboard(w http.ResponseWriter, r *http.Request, status int
 	}
 	if p.Tab == "page" { // a page Dashboard's Page screen lists its earlier pages
 		var err error
-		if p.Pages, err = a.earlierPages(r.Context(), d.ID); err != nil {
+		if p.Pages, err = a.earlierPages(r.Context(), labPages, d.ID); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
