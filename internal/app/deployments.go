@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -273,7 +274,8 @@ func (a *App) deploymentCSP() string {
 }
 
 // deploymentFileOf names the file asked for by the path segments after a Deployment's name: "" for the name alone,
-// "index.html", "data.json", "charts.js", or "data" with its key. ok is false for any other path.
+// "index.html", "data.json", "charts.js", "data" with its key, or "sheets" with a CaveHost sheet's name as its key (sheets/<name>.json).
+// ok is false for any other path.
 func deploymentFileOf(tail []string) (file, key string, ok bool) {
 	switch {
 	case len(tail) == 0:
@@ -284,6 +286,9 @@ func deploymentFileOf(tail []string) (file, key string, ok bool) {
 		return tail[0], "", true
 	case len(tail) == 2 && tail[0] == "data" && tail[1] != "":
 		return "data", tail[1], true
+	case len(tail) >= 2 && tail[0] == "sheets" && strings.HasSuffix(tail[len(tail)-1], ".json"): // a sheet's name may hold a slash
+		sheet := strings.TrimSuffix(strings.Join(tail[1:], "/"), ".json")
+		return "sheets", sheet, sheet != ""
 	}
 	return "", "", false
 }
@@ -363,6 +368,8 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 		switch file {
 		case "data":
 			to += "data/" + key
+		case "sheets":
+			to += "sheets/" + url.PathEscape(key) + ".json"
 		case "data.json", "charts.js":
 			to += file
 		}
@@ -406,6 +413,10 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 			if err != nil {
 				a.serverError(w, r, err)
 			}
+			return
+		}
+		if name == "sheets" { // only a CaveHost Deployment has sheets
+			a.notFound(w, r)
 			return
 		}
 		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments dep
