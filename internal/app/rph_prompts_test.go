@@ -134,6 +134,7 @@ func TestAnRPHPromptIsBuiltFromTheTickedStandardsAndTheLessonDetailsWithNoAICall
 func TestThePromptIsInTheDSKPsLanguageUnlessTheTeacherSwitchesIt(t *testing.T) {
 	t.Parallel()
 	admin, teacher, id := rphTeacher(t)
+	admin.atMYT("2026-11-17 09:00") // a fixed day, so the later "next day" is one whatever today's date
 	res, body := admin.uploadDSKP("Science", "Y5", "en", "science.pdf", pdfFile)
 	expectStatus(t, res, body, http.StatusSeeOther, "")
 	admin.application.WaitForDSKPReads()
