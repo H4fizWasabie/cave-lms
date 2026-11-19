@@ -65,15 +65,26 @@ func TestALearnerDeletesACaveHostDeploymentAfterConfirmingAndItsNameIsNeverGiven
 	expectStatus(t, res, body, http.StatusUnprocessableEntity, "already taken")
 }
 
-func TestAnotherCaveHostLearnerCannotDeleteACaveHostDeployment(t *testing.T) {
+func TestOnlyTheOwnerOfACaveHostDeploymentCanDeleteIt(t *testing.T) {
 	t.Parallel()
-	ada, _ := caveHostLearner(t, salesSheet(t))
+	google := newFakeGoogle(t, salesSheet(t))
+	admin := newSite(t, func(c *config.Config) { c.GoogleSheetsBaseURL = google.server.URL })
+	admin.loginAsNewAdmin("Abah", "admin@example.com", "correct horse battery")
+	ada := admin.second()
+	ada.loginAsNewLearner("Ada", "ada@example.com", "correct horse battery")
+	admin.assignCaveHost("ada@example.com", 30)
 	link := onlineSales(t, ada, "jualan-ada")
+
+	// The Admin has CaveHost, but the Deployment is not theirs; a Visitor is sent to log in.
+	res, body := admin.get("/cavehost/jualan-ada/delete")
+	expectStatus(t, res, body, http.StatusNotFound, "")
+	res, body = admin.post("/cavehost/jualan-ada/delete", url.Values{"confirm": {"yes"}})
+	expectStatus(t, res, body, http.StatusNotFound, "")
 	if res, _ := ada.second().post("/cavehost/jualan-ada/delete", url.Values{"confirm": {"yes"}}); res.StatusCode != http.StatusSeeOther {
 		t.Fatalf("a Visitor deleting got %d, want a redirect to log in", res.StatusCode)
 	}
 	if res, _ := ada.second().get(link); res.StatusCode != http.StatusOK {
-		t.Fatalf("the link answers %d after a Visitor's delete, want 200", res.StatusCode)
+		t.Fatalf("the link answers %d after the others' deletes, want 200", res.StatusCode)
 	}
 }
 

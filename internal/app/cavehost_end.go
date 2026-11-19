@@ -54,21 +54,7 @@ func (a *App) deleteCaveHost(ctx context.Context, id int64) error {
 	return nil
 }
 
-// deleteLapsedCaveHostEvery runs deleteLapsedCaveHost once an hour until done is closed.
-func (a *App) deleteLapsedCaveHostEvery(done <-chan struct{}) {
-	tick := time.NewTicker(time.Hour)
-	defer tick.Stop()
-	for {
-		select {
-		case <-done:
-			return
-		case <-tick.C:
-			a.survive("CaveHost deletion", func() { a.deleteLapsedCaveHost(context.Background()) })
-		}
-	}
-}
-
-// deleteLapsedCaveHost deletes every CaveHost Deployment whose Learner's last CaveHost Plan period ended more than 90 days ago,
+// deleteLapsedCaveHost, a step of the daily prune, deletes every CaveHost Deployment whose Learner's last CaveHost Plan period ended more than 90 days ago,
 // or was ended early that long ago. A Learner with a period running or queued, and the Admin, who has none, keep theirs; so does
 // one with no period at all, as nothing says when theirs ended. One that fails does not stop the others.
 func (a *App) deleteLapsedCaveHost(ctx context.Context) {
