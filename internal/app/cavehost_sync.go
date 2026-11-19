@@ -49,7 +49,7 @@ func (f syncFailure) in(lang string) string {
 	case errors.As(f.err, &problem):
 		msg = problem.In(lang)
 	default:
-		msg = text.T(lang, "cavehost.sync.err.other")
+		msg = text.T(lang, "cavehost.sync.err.unknown")
 	}
 	if f.sheet != "" {
 		return f.sheet + ": " + msg

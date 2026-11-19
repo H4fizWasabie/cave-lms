@@ -2413,7 +2413,7 @@ var catalog = map[string]entry{
 		en: "The sheet lacks columns it had when you confirmed it. Missing: %s. Put them back in the Spreadsheet.",
 		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan.",
 	},
-	"cavehost.sync.err.other": {
+	"cavehost.sync.err.unknown": {
 		en: "Cave could not finish reading the Spreadsheet this time. It tries again in the next hour, or press Sync now.",
 		ms: "Cave tidak dapat menghabiskan pembacaan Hamparan kali ini. Ia mencuba lagi dalam jam seterusnya, atau tekan Sync now.",
 	},
