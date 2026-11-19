@@ -158,7 +158,7 @@ const cleanUpWaitLog = 3 * time.Second
 // clean runs Clean-up on an upload once one of the maxCleanUps turns is free; until then it waits, unless the
 // Learner gives up.
 func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.CleanUp, error) {
-	release, err := a.waitForCleanUp(r)
+	release, err := a.waitForCleanUp(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +167,12 @@ func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.Clean
 }
 
 // waitForCleanUp waits for one of the maxCleanUps turns to read a workbook and returns the function that gives it back.
-func (a *App) waitForCleanUp(r *http.Request) (release func(), err error) {
+func (a *App) waitForCleanUp(ctx context.Context) (release func(), err error) {
 	start := time.Now()
 	select {
 	case a.cleaning <- struct{}{}:
-	case <-r.Context().Done():
-		return nil, r.Context().Err()
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 	if waited := time.Since(start); waited > a.cleanUpWaitLog {
 		a.logInfo("An upload waited %s for its turn to be read", waited.Round(time.Millisecond))

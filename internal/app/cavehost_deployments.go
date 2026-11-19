@@ -82,7 +82,7 @@ func (a *App) renderCaveHostHome(w http.ResponseWriter, r *http.Request, status 
 
 // firstSheetOf is the name of the first sheet of the xlsx file data.
 func (a *App) firstSheetOf(r *http.Request, data []byte) (string, error) {
-	release, err := a.waitForCleanUp(r) // opening a workbook takes as much memory as reading it
+	release, err := a.waitForCleanUp(r.Context()) // opening a workbook takes as much memory as reading it
 	if err != nil {
 		return "", err
 	}
@@ -207,7 +207,8 @@ type caveHostView struct {
 	Confirmed   bool // the sheet's first Clean-up is confirmed
 	Columns     []lab.Column
 	HasPage     bool
-	Pages       []htmlPage // the earlier pages, newest first
+	Pages       []htmlPage   // the earlier pages, newest first
+	Sync        caveHostSync // the last Sync
 }
 
 // caveHostViewOf loads the CaveHost Deployment called {name} that belongs to the Learner asking; when there is none it writes the
@@ -224,21 +225,27 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 		return nil, false
 	}
 	v := &caveHostView{}
-	var columns []byte
+	var columns, reason, changes []byte
+	var syncedAt sql.NullTime
+	var status sql.NullString
 	dep, err := a.scanDeployment(lang, a.db.QueryRowContext(r.Context(), `SELECT dep.id, ch.spreadsheet_id, COALESCE(ch.workbook_key, ''),
 			sh.id, sh.name, sh.rows_key IS NOT NULL, COALESCE(sh.columns, '[]'::jsonb),
-			EXISTS (SELECT 1 FROM cavehost_pages pg WHERE pg.deployment_id = dep.id AND pg.current), `+caveHostColumns+`
+			EXISTS (SELECT 1 FROM cavehost_pages pg WHERE pg.deployment_id = dep.id AND pg.current),
+			ch.synced_at, ch.sync_status, ch.sync_reason, ch.sync_changes, `+caveHostColumns+`
 		FROM deployments dep
 		JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
 		JOIN cavehost_sheets sh ON sh.deployment_id = dep.id AND sh.position = 0
 		WHERE dep.name = $1 AND dep.learner_id = $2`, r.PathValue("name"), learner.ID),
-		&v.ID, &v.Spreadsheet, &v.WorkbookKey, &v.SheetID, &v.Sheet, &v.Confirmed, &columns, &v.HasPage)
+		&v.ID, &v.Spreadsheet, &v.WorkbookKey, &v.SheetID, &v.Sheet, &v.Confirmed, &columns, &v.HasPage, &syncedAt, &status, &reason, &changes)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return nil, false
 	}
 	if err == nil {
 		err = json.Unmarshal(columns, &v.Columns)
+	}
+	if err == nil {
+		v.Sync, err = caveHostSyncOf(lang, syncedAt, status, reason, changes)
 	}
 	if err != nil {
 		a.serverError(w, r, err)

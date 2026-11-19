@@ -110,6 +110,9 @@ func (a *App) WaitForMail() { a.mailingLater.Wait() }
 // SetClock makes the app read the time from now, for tests.
 func (a *App) SetClock(now func() time.Time) { a.now = now }
 
+// SyncCaveHostDeployments runs the hourly CaveHost Sync now, for tests.
+func (a *App) SyncCaveHostDeployments(ctx context.Context) { a.syncCaveHostDeployments(ctx) }
+
 // Routes lists every registered pattern, such as "GET /admin/plans", for tests.
 func (a *App) Routes() []string { return a.routes }
 

@@ -72,6 +72,29 @@
         </ul>
         {{- end}}
       </section>
+      <section class="card lab-card">
+        <h2 class="h-md">{{t .Lang "cavehost.sync.heading"}}</h2>
+        <p class="muted">{{t .Lang "cavehost.sync.about"}}</p>
+        {{- if not .Sync.At}}
+        <p>{{t .Lang "cavehost.sync.never"}}</p>
+        {{- else}}
+        <p>{{t .Lang "cavehost.sync.last" .Sync.At}} {{if .Sync.Failed}}{{t .Lang "cavehost.sync.failed"}}{{else}}{{t .Lang "cavehost.sync.worked"}}{{end}}</p>
+        {{- if .Sync.Failed}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.Sync.Reason}}</p>{{end}}
+        {{- if .Sync.Changes}}
+        <h3 class="h-sm">{{t .Lang "lab.w.changes"}}</h3>
+        <ul>{{range .Sync.Changes}}<li>{{.}}</li>{{end}}</ul>
+        {{- else if not .Sync.Failed}}
+        <p>{{t .Lang "lab.w.no-changes"}}</p>
+        {{- end}}
+        {{- end}}
+        {{- if .Awake}}
+        <form class="form" method="post" action="/cavehost/{{.Name}}/sync" data-busy>
+          <div class="form-foot"><button class="btn btn-ghost">{{t .Lang "cavehost.sync.now"}}</button></div>
+          {{template "cave-loader" (loader (t .Lang "cavehost.sync.running") (t .Lang "cavehost.reading-lines"))}}
+        </form>
+        <script src="{{static "forms.js"}}" defer></script>
+        {{- end}}
+      </section>
       {{- end}}
     </div>
 {{end}}
