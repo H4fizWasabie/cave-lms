@@ -1,5 +1,5 @@
 ---
-status: accepted, departs from ADR 0008 for CaveHost only
+status: accepted, departs from ADR 0008 for CaveHost only; amended by ADR 0030
 ---
 
 # CaveHost fetches the Spreadsheet, and its data stays on the VPS

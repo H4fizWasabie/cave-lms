@@ -261,7 +261,7 @@ _Malay_: Pelan Lab
 _Avoid_: Lab subscription, hosting plan
 
 **Pro Plan**:
-CaveText Pro and the Lab Plan together, bought in one Payment, at a price the Admin sets, no more than the two bought apart. It gives nothing the two do not give separately.
+CaveText Pro, the Lab Plan and a CaveHost Plan together, bought in one Payment or given by the Admin, at a price the Admin sets, no more than CaveText Pro and the Lab Plan bought apart. The CaveHost Plan is the one thing it gives that the two do not: buying them apart gives no CaveHost. Every Pro Plan gives it, at its price or a Promo's.
 _Malay_: Pelan Pro
 _Avoid_: Bundle, package, combo
 
@@ -406,7 +406,7 @@ _Malay_: CaveHost (kept in English)
 _Avoid_: Live Data, Lab, live course, hosting plan
 
 **CaveHost Plan**:
-Access to CaveHost for a set period, given to selected Learners by the Admin by hand and never sold on its own page. It has no Storage allowance and no cap on Spreadsheets. When its last period ends, its Deployments sleep and stop Syncing, and are deleted 90 days later unless a new period has started. The Admin uses CaveHost without one.
+Access to CaveHost for a set period, given with every Pro Plan for as long as its Lab Plan period, or by the Admin by hand. It is never sold on its own; `/pricing` shows it only as part of the Pro Plan. Each period starts when any running one ends. It has no Storage allowance, and a Learner may have at most 3 CaveHost Deployments. When its last period ends, its Deployments sleep and stop Syncing, and are deleted 90 days later unless a new period has started. The Admin uses CaveHost without one.
 _Malay_: Pelan CaveHost
 _Avoid_: Plan (which means the Lab), premium plan, subscription
 
