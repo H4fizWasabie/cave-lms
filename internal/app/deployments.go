@@ -463,11 +463,13 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 	}
 }
 
-// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when the Learner deleted it.
+// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when the Learner deleted it, or for a CaveHost
+// Deployment, which has none.
 type adminDeployment struct {
 	deployment
 	ID        int64
 	Dashboard string
+	CaveHost  bool
 	Learner   string
 	Email     string
 }
@@ -481,8 +483,7 @@ func (a *App) adminDeployments(w http.ResponseWriter, r *http.Request) {
 	a.renderAdminDeployments(w, r, http.StatusOK, "")
 }
 
-// ponytail: lists every Deployment on one page; add paging when the list gets long. CaveHost Deployments are not in it yet
-// (the Admin's takedown of them is its own ticket).
+// ponytail: lists every Deployment on one page; add paging when the list gets long.
 // renderAdminDeployments shows the list, with the error under msgKey ("" for none) in the page's language.
 func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, status int, msgKey string) {
 	lang, err := a.language(r)
@@ -494,12 +495,13 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	if msgKey != "" {
 		msg = text.T(lang, msgKey)
 	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), l.name, l.email,
-		`+deploymentColumns+`
+	// A CaveHost Deployment is awake by its Learner's CaveHost Plan, a Lab one by their Plan.
+	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), ch.deployment_id IS NOT NULL, l.name, l.email,
+		`+deploymentColumnsFrom+`CASE WHEN ch.deployment_id IS NOT NULL THEN `+caveHostAwakeSQL+` ELSE `+deploymentAwakeSQL+` END`+deploymentColumnsTo+`
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id
 		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
-		WHERE NOT EXISTS (SELECT 1 FROM cavehost_deployments ch WHERE ch.deployment_id = dep.id)
+		LEFT JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
 		ORDER BY awake DESC, dep.id DESC`)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -510,7 +512,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	for rows.Next() {
 		var dep adminDeployment
 		var err error
-		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.Learner, &dep.Email); err != nil {
+		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.CaveHost, &dep.Learner, &dep.Email); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -523,7 +525,8 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	a.render(w, r, status, "admin_deployments", p)
 }
 
-// takeDown puts a Deployment to sleep for good and records why; the Learner's Dashboard stays.
+// takeDown puts a Deployment, a Lab one or a CaveHost one, to sleep for good and records why; the Learner's Dashboard, or CaveHost
+// data, stays.
 func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	if reason == "" {
@@ -536,7 +539,8 @@ func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE deployments SET taken_down_at = now(), takedown_reason = $2
-		WHERE id = $1 AND dashboard_id IS NOT NULL AND taken_down_at IS NULL`, id, reason); err != nil {
+		WHERE id = $1 AND (dashboard_id IS NOT NULL OR EXISTS (SELECT 1 FROM cavehost_deployments ch WHERE ch.deployment_id = deployments.id))
+			AND taken_down_at IS NULL`, id, reason); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

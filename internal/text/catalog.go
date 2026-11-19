@@ -2412,6 +2412,22 @@ var catalog = map[string]entry{
 		ms: "Pelan CaveHost orang yang berkongsi pautan ini telah tamat. Tiada apa yang dipadam; tanya mereka mengenainya.",
 	},
 
+	"cavehost.taken-down-body": {
+		en: "Your data and pages are still here, and the link now says it is inactive. You can still delete this Deployment.",
+		ms: "Data dan halaman anda masih di sini, dan pautan itu kini menyatakan ia tidak aktif. Anda masih boleh memadam Deployment ini.",
+	},
+
+	// Deleting a CaveHost Deployment
+	"cavehost.delete": {en: "Delete Deployment", ms: "Padam Deployment"},
+	"cavehost.delete-body": {
+		en: "Deleting takes your data and your pages offline for good and removes them from Cave. The link will say \"not found\" and its name is never given to another Deployment.",
+		ms: "Pemadaman menurunkan data dan halaman anda secara kekal dan membuangnya daripada Cave. Pautan itu akan menyatakan \"tidak dijumpai\" dan namanya tidak akan diberikan kepada Deployment lain.",
+	},
+	"cavehost.delete-ask": {
+		en: "Delete %s? Its data and every page, the earlier ones too, are removed from Cave and its link will say \"not found\". Deleting does not give the name back. This cannot be undone.",
+		ms: "Padam %s? Datanya dan setiap halaman, termasuk yang terdahulu, dibuang daripada Cave dan pautannya akan menyatakan \"tidak dijumpai\". Pemadaman tidak memulangkan nama itu. Tindakan ini tidak boleh dibatalkan.",
+	},
+
 	// CaveHost Sync: the Spreadsheet read again every hour, or by Sync now
 	"cavehost.sync.heading": {en: "Sync", ms: "Sync"},
 	"cavehost.sync.about": {
@@ -2440,9 +2456,11 @@ var catalog = map[string]entry{
 	// Deployments and Takedowns
 	"deployments.heading": {en: "Admin: Deployments", ms: "Pentadbir: Deployment"},
 	"deployments.intro": {
-		en: "Every Dashboard a Learner put online, awake ones first. After a complaint, take one down with a reason: its link goes inactive at once, and the Learner keeps the Dashboard and sees the reason.",
-		ms: "Setiap Dashboard yang diletakkan dalam talian oleh Pelajar, yang masih aktif dahulu. Selepas aduan, turunkannya dengan sebab: pautannya terus tidak aktif, dan Pelajar tetap menyimpan Dashboard itu dan melihat sebabnya.",
+		en: "Every Dashboard and CaveHost page a Learner put online, awake ones first. After a complaint, take one down with a reason: its link goes inactive at once, and the Learner keeps the Dashboard or CaveHost data and sees the reason.",
+		ms: "Setiap Dashboard dan halaman CaveHost yang diletakkan dalam talian oleh Pelajar, yang masih aktif dahulu. Selepas aduan, turunkannya dengan sebab: pautannya terus tidak aktif, dan Pelajar tetap menyimpan Dashboard atau data CaveHost itu dan melihat sebabnya.",
 	},
+	"deployments.cavehost":           {en: "CaveHost", ms: "CaveHost"},
+	"deployments.asleep-cavehost":    {en: "Asleep: the Learner has no active CaveHost Plan", ms: "Tidur: Pelajar tiada Pelan CaveHost aktif"},
 	"deployments.learner":            {en: "Learner", ms: "Pelajar"},
 	"deployments.link":               {en: "Link", ms: "Pautan"},
 	"deployments.name":               {en: "Name", ms: "Nama"},
