@@ -35,7 +35,7 @@
       {{- if .Pending}}
       <section class="card lab-card">
         <form class="form" method="get" action="/cavehost/{{.Name}}">
-          <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{if .Header}} value="{{.Header}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "lab.w.header-help"}}</small></div>
+          <div class="field"><label for="header">{{t .Lang "lab.w.header-row"}}</label><input id="header" type="number" name="header"{{if .Header}} value="{{.Header}}"{{end}} min="1" inputmode="numeric" placeholder="{{t .Lang "lab.w.header-auto"}}"><small>{{t .Lang "cavehost.header-help"}}</small></div>
           <label class="check"><input type="checkbox" name="two-row" value="on"{{if .TwoRow}} checked{{end}}> {{t .Lang "lab.w.two-row"}}</label>
           <div class="form-foot"><button class="btn btn-ghost">{{t .Lang "cavehost.reread"}}</button></div>
         </form>
@@ -53,7 +53,8 @@
         <ul class="ds-earlier">
           {{- range .Sheets}}
           <li><div><strong>{{.Name}}</strong>
-              {{- if and .Ticked .Confirmed (not .Reset)}}<span class="muted">{{t $.Lang "cavehost.sheet-ready" .Name}} {{t $.Lang "lab.data.columns" .ColumnList}}</span>
+              {{- if and .Ticked .Confirmed (not .Reset) .SyncFailed}}<span class="muted">{{t $.Lang "cavehost.sheet.sync-failed" .Name}} {{t $.Lang "lab.data.columns" .ColumnList}}</span>
+              {{- else if and .Ticked .Confirmed (not .Reset)}}<span class="muted">{{t $.Lang "cavehost.sheet-ready" .Name}} {{t $.Lang "lab.data.columns" .ColumnList}}</span>
               {{- else if and .Ticked .Reset}}<span class="muted">{{t $.Lang "cavehost.sheet.reset"}}</span>
               {{- else if .Ticked}}<span class="muted">{{t $.Lang "cavehost.sheet.waiting"}}</span>
               {{- else}}<span class="muted">{{t $.Lang "cavehost.sheet.unticked"}}</span>{{end}}</div>
@@ -83,7 +84,7 @@
         {{- end}}
         <form class="form" method="post" action="/cavehost/{{.Name}}/page" enctype="multipart/form-data">
           <div class="field"><label for="html">{{t .Lang "lab.new.paste"}}</label><textarea class="lab-code" id="html" name="html" rows="8" spellcheck="false" autocapitalize="none">{{.HTML}}</textarea></div>
-          <div class="field lab-drop"><label for="file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "lab.new.page-hint"}}</small></div>
+          <div class="field lab-drop"><label for="file"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-upload-simple"/></svg>{{t .Lang "lab.new.file"}}</label><input id="file" type="file" name="file" accept=".html,text/html"><small>{{t .Lang "cavehost.page-hint"}}</small></div>
           <div class="form-foot"><button class="btn btn-solid">{{if .HasPage}}{{t .Lang "cavehost.page.replace-go"}}{{else}}{{t .Lang "cavehost.page.go"}}{{end}}</button></div>
         </form>
         {{- with .Pages}}
