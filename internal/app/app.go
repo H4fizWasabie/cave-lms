@@ -248,7 +248,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
-	go a.syncCaveHostEveryHour(a.done)
+	go a.syncCaveHostLoop(a.done, caveHostFirstSync, caveHostSyncEvery)
 	a.emailing.Add(1)
 	go a.sendEmailsWhenKicked()
 	a.kickEmails() // whatever a restart left owed

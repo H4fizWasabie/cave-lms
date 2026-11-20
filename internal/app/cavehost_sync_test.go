@@ -22,6 +22,36 @@ func (s *site) syncNow(name string) (*http.Response, string) {
 // syncDue runs the step the hourly ticker runs: Sync every awake CaveHost Deployment.
 func (s *site) syncDue() { s.application.SyncCaveHostDeployments(context.Background()) }
 
+func TestTheSyncLoopRunsOneRoundShortlyAfterStartThenEveryInterval(t *testing.T) {
+	t.Parallel()
+	ada, google := caveHostLearner(t, salesSheet(t))
+	link := onlineSales(t, ada, "jualan-ada")
+	visitor := ada.second()
+	rowCount := func() int { return len(visitor.dataRowsOf(link)) }
+	waitForRows := func(want int) {
+		t.Helper()
+		for i := 0; i < 500 && rowCount() != want; i++ {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if got := rowCount(); got != want {
+			t.Fatalf("data.json has %d rows, want %d after the loop's round", got, want)
+		}
+	}
+
+	done, stopped := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(stopped)
+		ada.application.RunCaveHostSyncLoop(done, 20*time.Millisecond, 20*time.Millisecond)
+	}()
+	defer func() { close(done); <-stopped }()
+
+	// The first round comes at the short first delay, not after a whole interval; the next ones follow every interval.
+	google.swap(testutil.Workbook(t, testutil.Sheet{Name: "Sales", Rows: [][]any{{"Item", "Qty"}, {"Pen", 4}}}))
+	waitForRows(1)
+	google.swap(testutil.Workbook(t, testutil.Sheet{Name: "Sales", Rows: [][]any{{"Item", "Qty"}, {"Pen", 4}, {"Cap", 9}}}))
+	waitForRows(2)
+}
+
 // onlineSales links the Sales Spreadsheet as the Deployment called name, confirms its sheet and returns its link.
 func onlineSales(t *testing.T, ada *site, name string) string {
 	t.Helper()

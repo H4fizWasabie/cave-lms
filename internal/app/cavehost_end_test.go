@@ -209,8 +209,8 @@ func TestTheDeleteOfACaveHostDeploymentReadsInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "Padam jualan-ada? Datanya dan setiap halaman")
 }
 
-// deleteLapsed runs the step the ticker runs: delete the Deployments of Learners whose CaveHost Plan ended 90 days ago.
-func (s *site) deleteLapsed() { s.application.DeleteLapsedCaveHost(context.Background()) }
+// deleteLapsed runs the daily prune, which deletes the Deployments of Learners whose CaveHost Plan ended 90 days ago.
+func (s *site) deleteLapsed() { s.application.RunDailyPrune(context.Background()) }
 
 func TestDeploymentsSleepWhenTheLastPeriodEndsWakeAtTheSameLinksAndAreDeletedAfter90DaysUnlessANewPeriodStarted(t *testing.T) {
 	t.Parallel()

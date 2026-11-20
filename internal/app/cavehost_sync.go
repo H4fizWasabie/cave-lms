@@ -19,12 +19,15 @@ import (
 
 // Sync (spec #536) fetches a CaveHost Deployment's Spreadsheet again and, for each of its ticked sheets whose first Clean-up was
 // confirmed, reads it with the saved Recipe, without asking, and replaces the sheet's rows with what it reads. No history is
-// kept. Every hour the ticker Syncs each awake Deployment, the oldest Sync first; Sync now Syncs one. At most one Sync runs per
+// kept. A minute after start, then every hour, the ticker Syncs each awake Deployment, the oldest Sync first; Sync now Syncs one. At most one Sync runs per
 // Deployment at a time (caveHostSyncing).
 // A sheet that fails (syncFailure) keeps its last good rows and the others still Sync; the Sync records the reasons, and the first
 // failing Sync of a run of them emails the Learner, once, until a Sync works (recordSync).
 // ponytail: Syncs run one after another; a worker pool if one hour stops being enough for all of them.
-const caveHostSyncEvery = time.Hour
+const (
+	caveHostFirstSync = time.Minute
+	caveHostSyncEvery = time.Hour
+)
 
 // syncNote is one of Clean-up's changes in a Sync, with the sheet it was made to.
 type syncNote struct {
@@ -66,16 +69,18 @@ func (f syncFailure) in(lang string) string {
 	return msg
 }
 
-// syncCaveHostEveryHour runs syncCaveHostDeployments once an hour until done is closed.
-func (a *App) syncCaveHostEveryHour(done <-chan struct{}) {
-	tick := time.NewTicker(caveHostSyncEvery)
-	defer tick.Stop()
+// syncCaveHostLoop runs syncCaveHostDeployments first after first and then every every, until done is closed. The first round is
+// soon after start, not an hour on, so a server that is deployed often still Syncs.
+func (a *App) syncCaveHostLoop(done <-chan struct{}, first, every time.Duration) {
+	timer := time.NewTimer(first)
+	defer timer.Stop()
 	for {
 		select {
 		case <-done:
 			return
-		case <-tick.C:
+		case <-timer.C:
 			a.survive("CaveHost Sync", func() { a.syncCaveHostDeployments(context.Background()) })
+			timer.Reset(every)
 		}
 	}
 }

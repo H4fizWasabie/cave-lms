@@ -113,8 +113,10 @@ func (a *App) SetClock(now func() time.Time) { a.now = now }
 // SyncCaveHostDeployments runs the hourly CaveHost Sync now, for tests.
 func (a *App) SyncCaveHostDeployments(ctx context.Context) { a.syncCaveHostDeployments(ctx) }
 
-// DeleteLapsedCaveHost runs the daily prune's deletion of CaveHost Deployments whose Plan ended 90 days ago now, for tests.
-func (a *App) DeleteLapsedCaveHost(ctx context.Context) { a.deleteLapsedCaveHost(ctx) }
+// RunCaveHostSyncLoop runs the CaveHost Sync loop, its first round after first and then one every every, until done is closed, for tests.
+func (a *App) RunCaveHostSyncLoop(done <-chan struct{}, first, every time.Duration) {
+	a.syncCaveHostLoop(done, first, every)
+}
 
 // Routes lists every registered pattern, such as "GET /admin/plans", for tests.
 func (a *App) Routes() []string { return a.routes }

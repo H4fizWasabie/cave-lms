@@ -212,7 +212,7 @@ func TestAFailingSheetKeepsItsRowsWhileTheOtherSheetsOfTheSpreadsheetStillSync(t
 func (s *site) syncFailureEmails(to, name string) []mailer.Message {
 	var found []mailer.Message
 	for _, m := range s.mail.Messages() {
-		if m.To == to && (m.Subject == "CaveHost: the Sync of "+name+" failed" || m.Subject == "CaveHost: Sync "+name+" gagal") {
+		if m.To == to && (m.Subject == "CaveHost: the Sync of "+name+" failed" || m.Subject == "CaveHost: Penyegerakan "+name+" gagal") {
 			found = append(found, m)
 		}
 	}
@@ -276,7 +276,7 @@ func TestTheFailureEmailIsInTheLearnersLanguage(t *testing.T) {
 	google.swap(salesWith(t, []any{"Item", "Price"}, []any{"Pen", 2}))
 	ada.syncNow("jualan-ada")
 	got := ada.syncFailureEmails("ada@example.com", "jualan-ada")
-	if len(got) != 1 || got[0].Subject != "CaveHost: Sync jualan-ada gagal" {
+	if len(got) != 1 || got[0].Subject != "CaveHost: Penyegerakan jualan-ada gagal" {
 		t.Fatalf("failure emails = %v, want one in Malay", got)
 	}
 	if !strings.Contains(got[0].Body, "Hilang: Qty") {

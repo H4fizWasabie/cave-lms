@@ -170,12 +170,12 @@ var giveKinds = []giveKind{
 
 // giveEnd is when the gives would end for a Learner: the year of CaveText Pro starts now or when their Pro ends, the Lab
 // Plan period (Lab invalid when no Plan is marked as the Lab Plan, LabDays long) starts now or when their Plan periods end,
-// and the CaveHost Plan period as long as it (Host, valid with Lab) starts now or when their CaveHost periods end.
+// and the CaveHost Plan period as long as it (CaveHost, valid with Lab) starts now or when their CaveHost periods end.
 type giveEnd struct {
-	Pro     time.Time
-	Lab     sql.NullTime
-	Host    sql.NullTime
-	LabDays int
+	Pro      time.Time
+	Lab      sql.NullTime
+	CaveHost sql.NullTime
+	LabDays  int
 }
 
 // giveEnds reads giveEnd for the Learner, with the starts the gives use.
@@ -186,7 +186,7 @@ func (a *App) giveEnds(ctx context.Context, learnerID int64) (giveEnd, error) {
 		SELECT (SELECT s.at + '`+proLength+`'::interval FROM `+nextProStart+`),
 			(SELECT s.at + make_interval(days => p.days) FROM plans p, `+nextPlanStart+` WHERE p.lab),
 			(SELECT s.at + make_interval(days => p.days) FROM plans p, `+nextCaveHostStart+` WHERE p.lab),
-			(SELECT p.days FROM plans p WHERE p.lab)`, learnerID).Scan(&e.Pro, &e.Lab, &e.Host, &days)
+			(SELECT p.days FROM plans p WHERE p.lab)`, learnerID).Scan(&e.Pro, &e.Lab, &e.CaveHost, &days)
 	e.Pro, e.LabDays = e.Pro.UTC(), int(days.Int64)
 	return e, err
 }
@@ -198,11 +198,11 @@ func (k giveKind) What(lang string, e giveEnd) string {
 	case !k.Plan:
 		return text.T(lang, "ctadmin.learners.what.pro", d(e.Pro))
 	case k.Ebooks && e.Lab.Valid:
-		return text.T(lang, "ctadmin.learners.what.combo", d(e.Pro), e.LabDays, d(e.Lab.Time), e.LabDays, d(e.Host.Time), d(e.Pro))
+		return text.T(lang, "ctadmin.learners.what.combo", d(e.Pro), e.LabDays, d(e.Lab.Time), e.LabDays, d(e.CaveHost.Time), d(e.Pro))
 	case k.Ebooks:
 		return text.T(lang, "ctadmin.learners.what.combo-no-lab", d(e.Pro))
 	case e.Lab.Valid:
-		return text.T(lang, "ctadmin.learners.what.pro-plan", d(e.Pro), e.LabDays, d(e.Lab.Time), e.LabDays, d(e.Host.Time))
+		return text.T(lang, "ctadmin.learners.what.pro-plan", d(e.Pro), e.LabDays, d(e.Lab.Time), e.LabDays, d(e.CaveHost.Time))
 	}
 	return text.T(lang, "ctadmin.learners.what.pro-plan-no-lab", d(e.Pro))
 }
