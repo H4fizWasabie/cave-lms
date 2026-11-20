@@ -1598,7 +1598,7 @@ var catalog = map[string]entry{
 	// The CaveText website's pricing page
 	"cavetext.account.name-hint":     {en: "CaveText shows it when you are signed in.", ms: "CaveText memaparkannya semasa anda log masuk."},
 	"cavetext.account.username-hint": {en: "Do not use your real name. 3 to 40 lowercase letters, numbers and dashes.", ms: "Jangan gunakan nama sebenar anda. 3 hingga 40 huruf kecil, nombor dan sempang."},
-	"cavetext.offers.intro":          {en: "CaveText Pro, or CaveText Pro with the Lab in the Pro Plan.", ms: "CaveText Pro, atau CaveText Pro bersama Lab dalam Pelan Pro."},
+	"cavetext.offers.intro":          {en: "CaveText Pro, or CaveText Pro with the Lab and CaveHost in the Pro Plan.", ms: "CaveText Pro, atau CaveText Pro bersama Lab dan CaveHost dalam Pelan Pro."},
 	"cavetext.pricing.visitor":       {en: "Log in or register to buy, so your payment is matched to your account.", ms: "Log masuk atau daftar untuk membeli, supaya bayaran anda dipadankan dengan akaun anda."},
 	"offers.pro-plan.lab-on-cavelms": {en: "The Lab is used on CAVELMS, with the same account.", ms: "Lab digunakan di CAVELMS dengan akaun yang sama."},
 
@@ -2352,8 +2352,8 @@ var catalog = map[string]entry{
 	"cavehost.list":         {en: "Your CaveHost Deployments", ms: "Deployment CaveHost anda"},
 	"cavehost.link.heading": {en: "Link a Spreadsheet", ms: "Pautkan Hamparan"},
 	"cavehost.link.body": {
-		en: "Paste the link of a Google Spreadsheet shared as \"anyone with the link can view\", and pick a name for your page. Cave lists every sheet of the Spreadsheet and starts with the first one ticked; you check how a sheet reads before anything goes online.",
-		ms: "Tampal pautan Hamparan Google yang dikongsi sebagai \"sesiapa yang mempunyai pautan boleh melihat\", dan pilih nama untuk halaman anda. Cave menyenaraikan setiap helaian Hamparan dan bermula dengan helaian pertama ditandakan; anda semak cara sesuatu helaian dibaca sebelum apa-apa diletakkan dalam talian.",
+		en: "Paste the link of a Google Spreadsheet shared as \"anyone with the link can view\", and pick a name for your page. Cave lists every sheet of the Spreadsheet and ticks the sheet in your link, or the first one if the link has none; you check how a sheet reads before anything goes online.",
+		ms: "Tampal pautan Hamparan Google yang dikongsi sebagai \"sesiapa yang mempunyai pautan boleh melihat\", dan pilih nama untuk halaman anda. Cave menyenaraikan setiap helaian Hamparan dan menandakan helaian dalam pautan anda, atau yang pertama jika pautan tiada helaian; anda semak cara sesuatu helaian dibaca sebelum apa-apa diletakkan dalam talian.",
 	},
 	"cavehost.link.label": {en: "Spreadsheet link", ms: "Pautan Hamparan"},
 	"cavehost.link.go":    {en: "Link Spreadsheet", ms: "Pautkan Hamparan"},
@@ -2384,10 +2384,15 @@ var catalog = map[string]entry{
 		en: "Cave cannot read the sheet %s as a list of rows under a header yet. Pick its header row below.",
 		ms: "Cave belum dapat membaca helaian %s sebagai senarai baris di bawah tajuk lajur. Pilih baris tajuk lajurnya di bawah.",
 	},
-	"cavehost.preview":      {en: "Check %s before your page reads it", ms: "Semak %s sebelum halaman anda membacanya"},
-	"cavehost.reread":       {en: "Read again", ms: "Baca semula"},
-	"cavehost.confirm":      {en: "Confirm this sheet", ms: "Sahkan helaian ini"},
-	"cavehost.sheet-ready":  {en: "Sheet %s is ready", ms: "Helaian %s sudah sedia"},
+	"cavehost.preview":     {en: "Check %s before your page reads it", ms: "Semak %s sebelum halaman anda membacanya"},
+	"cavehost.reread":      {en: "Read again", ms: "Baca semula"},
+	"cavehost.confirm":     {en: "Confirm this sheet", ms: "Sahkan helaian ini"},
+	"cavehost.sheet-ready": {en: "Sheet %s is ready", ms: "Helaian %s sudah sedia"},
+	"cavehost.header-help": {
+		en: "Cave finds the row with your column names. If the preview shows the wrong one, type its row number and press Read again.",
+		ms: "Cave mencari baris yang mengandungi nama lajur anda. Jika pratonton menunjukkan baris yang salah, taip nombor barisnya dan tekan Baca semula.",
+	},
+	"cavehost.page-hint":    {en: "One page of at most 5 MB.", ms: "Satu halaman, paling besar 5 MB."},
 	"cavehost.online":       {en: "Your link", ms: "Pautan anda"},
 	"cavehost.page.heading": {en: "Put your page online", ms: "Letakkan halaman anda dalam talian"},
 	"cavehost.page.body": {
@@ -2398,6 +2403,10 @@ var catalog = map[string]entry{
 	"cavehost.sheets.body": {
 		en: "Tick the sheets your page may read. Anyone with your link can see every ticked sheet, so leave salaries and personal data unticked. A sheet you add to the Spreadsheet later is listed here, unticked, after the next Sync.",
 		ms: "Tandakan helaian yang boleh dibaca oleh halaman anda. Sesiapa yang mempunyai pautan anda boleh melihat setiap helaian yang ditandakan, jadi biarkan gaji dan data peribadi tidak ditandakan. Helaian yang anda tambah ke Hamparan kemudian disenaraikan di sini, tidak ditandakan, selepas Penyegerakan seterusnya.",
+	},
+	"cavehost.sheet.sync-failed": {
+		en: "Last Sync of %s failed, see Sync below. Your page keeps its last rows.",
+		ms: "Penyegerakan terakhir %s gagal, lihat Penyegerakan di bawah. Halaman anda mengekalkan baris terakhirnya.",
 	},
 	"cavehost.sheet.waiting":  {en: "Ticked. Check how Cave reads it above and confirm it.", ms: "Ditandakan. Semak cara Cave membacanya di atas dan sahkan."},
 	"cavehost.sheet.unticked": {en: "Not ticked. Your page cannot read it.", ms: "Tidak ditandakan. Halaman anda tidak dapat membacanya."},
@@ -2558,7 +2567,7 @@ var catalog = map[string]entry{
 	"ctadmin.learners.not-found.title":      {en: "Learner not found", ms: "Pelajar tidak dijumpai"},
 	"ctadmin.learners.not-found":            {en: "No CaveText Learner has this address.", ms: "Tiada Pelajar CaveText di alamat ini."},
 
-	"offers.intro":         {en: "CaveText Pro, the Lab Plan, or both in the Pro Plan.", ms: "CaveText Pro, Pelan Lab, atau kedua-duanya dalam Pelan Pro."},
+	"offers.intro":         {en: "CaveText Pro, the Lab Plan, or both plus CaveHost in the Pro Plan.", ms: "CaveText Pro, Pelan Lab, atau kedua-duanya serta CaveHost dalam Pelan Pro."},
 	"offers.heading":       {en: "Choose what to buy", ms: "Pilih apa yang hendak dibeli"},
 	"offers.price":         {en: "%s a year", ms: "%s setahun"},
 	"offers.normal":        {en: "Normal price", ms: "Harga biasa"},

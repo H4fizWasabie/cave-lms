@@ -142,7 +142,17 @@ func (a *App) syncCaveHost(ctx context.Context, id int64) {
 			}
 		}
 	}
-	if err := a.recordSync(ctx, id, notes, failures); err != nil {
+	failed := []string{} // the sheets whose Sync failed: each of them when the Spreadsheet itself did not open
+	for _, f := range failures {
+		if f.sheet != "" {
+			failed = append(failed, f.sheet)
+			continue
+		}
+		for _, sh := range sheets {
+			failed = append(failed, sh.name)
+		}
+	}
+	if err := a.recordSync(ctx, id, notes, failures, failed); err != nil {
 		a.logError(nil, err)
 	}
 }
@@ -259,10 +269,14 @@ func mostlyEmptied(rows *lab.Dataset, changes []lab.Change) (lab.Problem, bool) 
 	return lab.Problem{}, false
 }
 
-// recordSync saves a Sync on its Deployment: when it ran, whether it worked, the reason in each language if not, and its change
-// notes. The first failing Sync of a run of them emails the Learner (emailSyncFailure); a Sync that works ends the run.
-func (a *App) recordSync(ctx context.Context, id int64, notes []syncNote, failures []syncFailure) error {
+// recordSync saves a Sync on its Deployment: when it ran, whether it worked, the reason in each language if not, the sheets that
+// failed, and its change notes. The first failing Sync of a run of them emails the Learner (emailSyncFailure); a Sync that works ends the run.
+func (a *App) recordSync(ctx context.Context, id int64, notes []syncNote, failures []syncFailure, failedSheets []string) error {
 	changes, err := json.Marshal(notes)
+	if err != nil {
+		return err
+	}
+	failed, err := json.Marshal(failedSheets)
 	if err != nil {
 		return err
 	}
@@ -287,9 +301,9 @@ func (a *App) recordSync(ctx context.Context, id int64, notes []syncNote, failur
 		}
 	}
 	var emailed bool // the Learner was emailed about this run of failures already
-	err = a.db.QueryRowContext(ctx, `UPDATE cavehost_deployments SET synced_at = $2, sync_status = $3, sync_reason = $4, sync_changes = $5,
+	err = a.db.QueryRowContext(ctx, `UPDATE cavehost_deployments SET synced_at = $2, sync_status = $3, sync_reason = $4, sync_changes = $5, sync_failed_sheets = $6,
 		failure_emailed = failure_emailed AND $3 = 'failed' WHERE deployment_id = $1 RETURNING failure_emailed`,
-		id, a.now(), status, reason, changes).Scan(&emailed)
+		id, a.now(), status, reason, changes, failed).Scan(&emailed)
 	if err == nil && status == "failed" && !emailed && a.emailSyncFailure(ctx, id, in) {
 		_, err = a.db.ExecContext(ctx, `UPDATE cavehost_deployments SET failure_emailed = true WHERE deployment_id = $1`, id)
 	}

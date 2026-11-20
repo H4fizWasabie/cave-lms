@@ -240,12 +240,13 @@ func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 
 // caveHostSheetView is one sheet of a CaveHost Deployment's Spreadsheet.
 type caveHostSheetView struct {
-	ID        int64
-	Name      string
-	Ticked    bool // the page may read it
-	Confirmed bool // its first Clean-up is confirmed
-	Reset     bool // Reset columns was pressed: its rows stay online until a new Clean-up is confirmed
-	Columns   []lab.Column
+	ID         int64
+	Name       string
+	Ticked     bool // the page may read it
+	Confirmed  bool // its first Clean-up is confirmed
+	Reset      bool // Reset columns was pressed: its rows stay online until a new Clean-up is confirmed
+	Columns    []lab.Column
+	SyncFailed bool // the last Sync could not read it
 
 	confirmedAt time.Time // when it was first confirmed
 }
@@ -285,16 +286,16 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 		return nil, false
 	}
 	v := &caveHostView{}
-	var reason, changes []byte
+	var reason, changes, failedSheets []byte
 	var syncedAt sql.NullTime
 	var status sql.NullString
 	dep, err := a.scanDeployment(lang, a.db.QueryRowContext(r.Context(), `SELECT dep.id, ch.spreadsheet_id, COALESCE(ch.xlsx_key, ''),
 			EXISTS (SELECT 1 FROM cavehost_pages pg WHERE pg.deployment_id = dep.id AND pg.current),
-			ch.synced_at, ch.sync_status, ch.sync_reason, ch.sync_changes, `+caveHostColumns+`
+			ch.synced_at, ch.sync_status, ch.sync_reason, ch.sync_changes, ch.sync_failed_sheets, `+caveHostColumns+`
 		FROM deployments dep
 		JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
 		WHERE dep.name = $1 AND dep.learner_id = $2`, r.PathValue("name"), learner.ID),
-		&v.ID, &v.Spreadsheet, &v.XlsxKey, &v.HasPage, &syncedAt, &status, &reason, &changes)
+		&v.ID, &v.Spreadsheet, &v.XlsxKey, &v.HasPage, &syncedAt, &status, &reason, &changes, &failedSheets)
 	if errors.Is(err, sql.ErrNoRows) {
 		a.notFound(w, r)
 		return nil, false
@@ -304,6 +305,14 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 	}
 	if err == nil {
 		v.Sync, err = caveHostSyncOf(lang, syncedAt, status, reason, changes)
+	}
+	if err == nil {
+		var failed []string
+		if err = json.Unmarshal(failedSheets, &failed); err == nil {
+			for i := range v.Sheets {
+				v.Sheets[i].SyncFailed = v.Sync.Failed && slices.Contains(failed, v.Sheets[i].Name)
+			}
+		}
 	}
 	if err != nil {
 		a.serverError(w, r, err)
@@ -696,7 +705,7 @@ func (a *App) serveCaveHost(w http.ResponseWriter, r *http.Request, name, linkKe
 	}
 	switch {
 	case takenDown:
-		a.pagesMessage(w, r, http.StatusOK, "lab.dep.sleeping.title", "lab.dep.sleeping-taken")
+		a.pagesMessage(w, r, http.StatusOK, "cavehost.sleeping.title", "lab.dep.sleeping-taken")
 		return true, nil
 	case !awake:
 		a.pagesMessage(w, r, http.StatusOK, "cavehost.sleeping.title", "cavehost.sleeping")
@@ -716,6 +725,9 @@ func (a *App) serveCaveHost(w http.ResponseWriter, r *http.Request, name, linkKe
 		err = sql.ErrNoRows
 	}
 	if errors.Is(err, sql.ErrNoRows) {
+		if file != "index.html" { // a sandboxed page's origin is null: without this it sees a network error, not "not ticked"
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		a.notFound(w, r)
 		return true, nil
 	}
