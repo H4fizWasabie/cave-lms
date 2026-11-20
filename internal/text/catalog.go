@@ -2158,6 +2158,13 @@ var catalog = map[string]entry{
 		en: "To keep the ebooks, download them here. These links work for %[1]d days:\n\n%[2]s",
 		ms: "Untuk menyimpan ebook, muat turun di sini. Pautan ini sah selama %[1]d hari:\n\n%[2]s",
 	},
+	// CaveHost Sync failure (spec #536): sent once when Syncs start failing. The body takes the Learner's name, the Deployment's
+	// name, the reason and the link to the Deployment's CaveHost page.
+	"email.cavehost.sync-failed.subject": {en: "CaveHost: the Sync of %s failed", ms: "CaveHost: Penyegerakan %s gagal"},
+	"email.cavehost.sync-failed.body": {
+		en: "Hi %[1]s,\n\nCave could not Sync your CaveHost Deployment %[2]s.\n\n%[3]s\n\nYour page keeps its last good rows online. Cave tries again every hour, and you can press Sync now on the Deployment's page:\n\n%[4]s\n\nYou will not get another email about this until a Sync works again.\n",
+		ms: "Hai %[1]s,\n\nCave tidak dapat menyegerakkan Deployment CaveHost anda %[2]s.\n\n%[3]s\n\nHalaman anda mengekalkan baris baik terakhirnya dalam talian. Cave mencuba lagi setiap jam, dan anda boleh menekan Segerakkan sekarang pada halaman Deployment itu:\n\n%[4]s\n\nAnda tidak akan menerima e-mel lain tentang ini sehingga Penyegerakan berjaya semula.\n",
+	},
 	// Renewal reminders (ADR 0026). The item names, then a line for each item ending (its name, then its date). Each
 	// body takes the Learner's name, those lines, the Pricing link and the My membership link.
 	"email.renewal.item.lab-plan":     {en: "Lab Plan", ms: "Pelan Lab"},
@@ -2322,16 +2329,171 @@ var catalog = map[string]entry{
 	"plans.period.not-found.title": {en: "Plan period not found", ms: "Tempoh Pelan tidak dijumpai"},
 	"plans.period.not-found":       {en: "There is no Plan period at this address.", ms: "Tiada Tempoh Pelan di alamat ini."},
 
+	// CaveHost Plan and access
+	"nav.cavehost":                    {en: "CaveHost", ms: "CaveHost"},
+	"cavehost.title":                  {en: "CaveHost", ms: "CaveHost"},
+	"cavehost.open":                   {en: "CaveHost is open to you. Put your own HTML page online with its data kept in a Google Spreadsheet.", ms: "CaveHost dibuka untuk anda. Letakkan halaman HTML anda sendiri dalam talian dengan datanya disimpan dalam Hamparan Google."},
+	"cavehost.locked.title":           {en: "CaveHost comes with the Pro Plan", ms: "CaveHost disertakan dengan Pelan Pro"},
+	"cavehost.locked":                 {en: "CaveHost puts your own HTML page online with its data kept in a Google Spreadsheet. Get the Pro Plan to open it.", ms: "CaveHost meletakkan halaman HTML anda sendiri dalam talian dengan datanya disimpan dalam Hamparan Google. Dapatkan Pelan Pro untuk membukanya."},
+	"cavehost.locked.buy":             {en: "Get the Pro Plan", ms: "Dapatkan Pelan Pro"},
+	"cavehost.periods.heading":        {en: "CaveHost Plan periods", ms: "Tempoh Pelan CaveHost"},
+	"cavehost.periods.none":           {en: "No CaveHost Plan periods yet.", ms: "Belum ada Tempoh Pelan CaveHost."},
+	"cavehost.assign-heading":         {en: "Assign a CaveHost Plan", ms: "Tetapkan Pelan CaveHost"},
+	"cavehost.days":                   {en: "Length in days", ms: "Tempoh dalam hari"},
+	"cavehost.assign-note":            {en: "The period starts now, or when the Learner's last CaveHost Plan period ends if that is later. It gives CaveHost only, not the Lab.", ms: "Tempoh bermula sekarang, atau apabila Tempoh Pelan CaveHost terakhir Pelajar tamat jika itu lebih lewat. Ia memberi CaveHost sahaja, bukan Lab."},
+	"cavehost.err.days":               {en: "Enter the length as a whole number of days, 1 to 3650.", ms: "Masukkan tempoh sebagai nombor bulat hari, 1 hingga 3650."},
+	"cavehost.err.cap":                {en: "You can have at most %d CaveHost Deployments, and you have that many already.", ms: "Anda boleh mempunyai paling banyak %d Deployment CaveHost, dan anda sudah mempunyai sebanyak itu."},
+	"cavehost.period.end":             {en: "End CaveHost Plan period", ms: "Tamatkan Tempoh Pelan CaveHost"},
+	"cavehost.period.end-ask":         {en: "End the CaveHost Plan period for %s now? It stops at once. This cannot be undone, but you can assign a CaveHost Plan again.", ms: "Tamatkan Tempoh Pelan CaveHost bagi %s sekarang? Ia berhenti serta-merta. Tindakan ini tidak boleh dibuat asal, tetapi anda boleh menetapkan Pelan CaveHost semula."},
+	"cavehost.period.not-found.title": {en: "CaveHost Plan period not found", ms: "Tempoh Pelan CaveHost tidak dijumpai"},
+	"cavehost.period.not-found":       {en: "There is no CaveHost Plan period at this address.", ms: "Tiada Tempoh Pelan CaveHost di alamat ini."},
+
+	// CaveHost Deployments: linking a Spreadsheet, its first sheet's Clean-up and the page
+	"cavehost.list":         {en: "Your CaveHost Deployments", ms: "Deployment CaveHost anda"},
+	"cavehost.link.heading": {en: "Link a Spreadsheet", ms: "Pautkan Hamparan"},
+	"cavehost.link.body": {
+		en: "Paste the link of a Google Spreadsheet shared as \"anyone with the link can view\", and pick a name for your page. Cave lists every sheet of the Spreadsheet and starts with the first one ticked; you check how a sheet reads before anything goes online.",
+		ms: "Tampal pautan Hamparan Google yang dikongsi sebagai \"sesiapa yang mempunyai pautan boleh melihat\", dan pilih nama untuk halaman anda. Cave menyenaraikan setiap helaian Hamparan dan bermula dengan helaian pertama ditandakan; anda semak cara sesuatu helaian dibaca sebelum apa-apa diletakkan dalam talian.",
+	},
+	"cavehost.link.label": {en: "Spreadsheet link", ms: "Pautan Hamparan"},
+	"cavehost.link.go":    {en: "Link Spreadsheet", ms: "Pautkan Hamparan"},
+	"cavehost.warn":       {en: "Anyone with the link can see this data.", ms: "Sesiapa yang mempunyai pautan boleh melihat data ini."},
+	"cavehost.warn-body": {
+		en: "A CaveHost Deployment shows its data to anyone who has its link, not only to the people you share the Spreadsheet with. Do not link a Spreadsheet with personal data you may not put online, such as IC numbers or salaries.",
+		ms: "Deployment CaveHost menunjukkan datanya kepada sesiapa yang mempunyai pautannya, bukan hanya kepada orang yang anda kongsikan Hamparan itu. Jangan pautkan Hamparan yang mengandungi data peribadi yang tidak boleh anda letakkan dalam talian, seperti nombor IC atau gaji.",
+	},
+	"cavehost.reading":       {en: "Fetching your Spreadsheet. A large one can take a minute.", ms: "Sedang mengambil Hamparan anda. Hamparan yang besar boleh mengambil masa seminit."},
+	"cavehost.reading-lines": {en: "Asking Google for the Spreadsheet|Opening the sheets|Tidying the columns", ms: "Meminta Hamparan daripada Google|Membuka helaian|Mengemas lajur"},
+	"cavehost.err.link": {
+		en: "That is not a Google Spreadsheet link. Paste the link from your browser while the Spreadsheet is open; it starts with https://docs.google.com/spreadsheets/d/.",
+		ms: "Itu bukan pautan Hamparan Google. Tampal pautan dari pelayar anda semasa Hamparan dibuka; ia bermula dengan https://docs.google.com/spreadsheets/d/.",
+	},
+	"cavehost.err.closed": {
+		en: "Cave cannot open this Spreadsheet. In Google Sheets, press Share, under General access choose \"Anyone with the link\", set it to Viewer, press Done, then paste the link here again.",
+		ms: "Cave tidak dapat membuka Hamparan ini. Dalam Google Sheets, tekan Share, di bawah General access pilih \"Anyone with the link\", tetapkan kepada Viewer, tekan Done, kemudian tampal pautan di sini semula.",
+	},
+	"cavehost.err.too-big": {
+		en: "This Spreadsheet is over 50 MB, which is too big for CaveHost. Remove what the page does not need, or split it into smaller Spreadsheets.",
+		ms: "Hamparan ini melebihi 50 MB, terlalu besar untuk CaveHost. Buang apa yang tidak diperlukan oleh halaman, atau pecahkannya kepada Hamparan yang lebih kecil.",
+	},
+	"cavehost.err.unreachable": {
+		en: "Cave could not reach Google to fetch the Spreadsheet. Wait a minute and try again.",
+		ms: "Cave tidak dapat menghubungi Google untuk mengambil Hamparan. Tunggu seminit dan cuba lagi.",
+	},
+	"cavehost.err.sheet": {
+		en: "Cave cannot read the sheet %s as a list of rows under a header yet. Pick its header row below.",
+		ms: "Cave belum dapat membaca helaian %s sebagai senarai baris di bawah tajuk lajur. Pilih baris tajuk lajurnya di bawah.",
+	},
+	"cavehost.preview":      {en: "Check %s before your page reads it", ms: "Semak %s sebelum halaman anda membacanya"},
+	"cavehost.reread":       {en: "Read again", ms: "Baca semula"},
+	"cavehost.confirm":      {en: "Confirm this sheet", ms: "Sahkan helaian ini"},
+	"cavehost.sheet-ready":  {en: "Sheet %s is ready", ms: "Helaian %s sudah sedia"},
+	"cavehost.online":       {en: "Your link", ms: "Pautan anda"},
+	"cavehost.page.heading": {en: "Put your page online", ms: "Letakkan halaman anda dalam talian"},
+	"cavehost.page.body": {
+		en: "Paste the HTML your AI chatbot wrote, or pick the .html file. It goes online at the link above, and reads the rows of the ticked sheet you confirmed first with ./data.json and of each ticked sheet with ./sheets/<sheet name>.json.",
+		ms: "Tampal HTML yang ditulis oleh chatbot AI anda, atau pilih fail .html. Ia diletakkan dalam talian di pautan di atas, dan membaca baris helaian ditandakan yang anda sahkan dahulu dengan ./data.json dan baris setiap helaian yang ditandakan dengan ./sheets/<nama helaian>.json.",
+	},
+	"cavehost.sheets.heading": {en: "Sheets", ms: "Helaian"},
+	"cavehost.sheets.body": {
+		en: "Tick the sheets your page may read. Anyone with your link can see every ticked sheet, so leave salaries and personal data unticked. A sheet you add to the Spreadsheet later is listed here, unticked, after the next Sync.",
+		ms: "Tandakan helaian yang boleh dibaca oleh halaman anda. Sesiapa yang mempunyai pautan anda boleh melihat setiap helaian yang ditandakan, jadi biarkan gaji dan data peribadi tidak ditandakan. Helaian yang anda tambah ke Hamparan kemudian disenaraikan di sini, tidak ditandakan, selepas Penyegerakan seterusnya.",
+	},
+	"cavehost.sheet.waiting":  {en: "Ticked. Check how Cave reads it above and confirm it.", ms: "Ditandakan. Semak cara Cave membacanya di atas dan sahkan."},
+	"cavehost.sheet.unticked": {en: "Not ticked. Your page cannot read it.", ms: "Tidak ditandakan. Halaman anda tidak dapat membacanya."},
+	"cavehost.sheet.reset": {
+		en: "Columns reset. Your page keeps its last rows until you confirm how Cave reads the sheet above.",
+		ms: "Lajur ditetapkan semula. Halaman anda mengekalkan baris terakhirnya sehingga anda mengesahkan cara Cave membaca helaian di atas.",
+	},
+	"cavehost.reset": {en: "Reset columns", ms: "Set semula lajur"},
+	"cavehost.reset.hint": {
+		en: "Use this after you restructure the sheet on purpose. You get a new preview at once to confirm. Until you do, your page keeps the last good rows and Sync skips this sheet.",
+		ms: "Gunakan ini selepas anda menyusun semula helaian dengan sengaja. Anda mendapat pratonton baharu serta-merta untuk disahkan. Sehingga anda mengesahkannya, halaman anda mengekalkan baris baik terakhir dan Penyegerakan melangkau helaian ini.",
+	},
+	"cavehost.tick":   {en: "Tick", ms: "Tandakan"},
+	"cavehost.untick": {en: "Untick", ms: "Nyahtanda"},
+	"cavehost.untick.hint": {
+		en: "Unticking takes this sheet offline at once and drops its Clean-up choices, so ticking it again asks you to confirm it again.",
+		ms: "Menyahtanda menurunkan helaian ini daripada talian serta-merta dan membuang pilihan Pembersihannya, jadi menandakannya semula meminta anda mengesahkannya sekali lagi.",
+	},
+	"cavehost.chatbot.label": {en: "Tell your AI chatbot where the data is", ms: "Beritahu chatbot AI anda di mana data berada"},
+	"cavehost.chatbot": {
+		en: "My page gets its data from JSON files next to it, so fetch them with these relative addresses: %s. Each file is a list of rows, one object per row, with the column names as keys.",
+		ms: "Halaman saya mendapat datanya daripada fail JSON di sebelahnya, jadi ambil dengan alamat relatif ini: %s. Setiap fail ialah senarai baris, satu objek bagi setiap baris, dengan nama lajur sebagai kunci.",
+	},
+	"cavehost.chatbot.data":    {en: "./data.json (the same rows as the sheet %s)", ms: "./data.json (baris yang sama dengan helaian %s)"},
+	"cavehost.chatbot.sheet":   {en: "%s (columns: %s)", ms: "%s (lajur: %s)"},
+	"cavehost.page.go":         {en: "Put page online", ms: "Letakkan halaman dalam talian"},
+	"cavehost.page.replace":    {en: "Replace your page", ms: "Gantikan halaman anda"},
+	"cavehost.page.replace-go": {en: "Replace page", ms: "Gantikan halaman"},
+	"cavehost.sleeping.title":  {en: "This CaveHost page is asleep", ms: "Halaman CaveHost ini sedang tidur"},
+	"cavehost.sleeping": {
+		en: "The CaveHost Plan of the person who shared it has ended. Nothing has been deleted; ask them about it.",
+		ms: "Pelan CaveHost orang yang berkongsi pautan ini telah tamat. Tiada apa yang dipadam; tanya mereka mengenainya.",
+	},
+
+	"cavehost.taken-down-body": {
+		en: "Your data and pages are still here, and the link now says it is inactive. You can still delete this Deployment.",
+		ms: "Data dan halaman anda masih di sini, dan pautan itu kini menyatakan ia tidak aktif. Anda masih boleh memadam Deployment ini.",
+	},
+
+	// Deleting a CaveHost Deployment
+	"cavehost.delete": {en: "Delete Deployment", ms: "Padam Deployment"},
+	"cavehost.delete-body": {
+		en: "Deleting takes your data and your pages offline for good and removes them from Cave. The link will say \"not found\" and its name is never given to another Deployment.",
+		ms: "Pemadaman menurunkan data dan halaman anda secara kekal dan membuangnya daripada Cave. Pautan itu akan menyatakan \"tidak dijumpai\" dan namanya tidak akan diberikan kepada Deployment lain.",
+	},
+	"cavehost.delete-ask": {
+		en: "Delete %s? Its data and every page, the earlier ones too, are removed from Cave and its link will say \"not found\". Deleting does not give the name back. This cannot be undone.",
+		ms: "Padam %s? Datanya dan setiap halaman, termasuk yang terdahulu, dibuang daripada Cave dan pautannya akan menyatakan \"tidak dijumpai\". Pemadaman tidak memulangkan nama itu. Tindakan ini tidak boleh dibatalkan.",
+	},
+
+	// CaveHost Sync: the Spreadsheet read again every hour, or by Sync now
+	"cavehost.sync.heading": {en: "Sync", ms: "Penyegerakan"},
+	"cavehost.sync.about": {
+		en: "Cave reads your Spreadsheet again every hour and replaces the sheet's rows with what it finds, so rows you delete in the Spreadsheet disappear from your page.",
+		ms: "Cave membaca Hamparan anda semula setiap jam dan menggantikan baris helaian dengan apa yang ditemuinya, jadi baris yang anda padam dalam Hamparan hilang daripada halaman anda.",
+	},
+	"cavehost.sync.never":   {en: "No Sync yet. The first one runs within the hour, or press Sync now.", ms: "Belum ada Penyegerakan. Yang pertama berjalan dalam masa sejam, atau tekan Segerakkan sekarang."},
+	"cavehost.sync.last":    {en: "Last Sync: %s.", ms: "Penyegerakan terakhir: %s."},
+	"cavehost.sync.worked":  {en: "It worked.", ms: "Ia berjaya."},
+	"cavehost.sync.failed":  {en: "It failed. Your page keeps its last rows.", ms: "Ia gagal. Halaman anda mengekalkan baris terakhirnya."},
+	"cavehost.sync.now":     {en: "Sync now", ms: "Segerakkan sekarang"},
+	"cavehost.sync.running": {en: "Reading your Spreadsheet again. A large one can take a minute.", ms: "Sedang membaca Hamparan anda semula. Hamparan yang besar boleh mengambil masa seminit."},
+	"cavehost.sync.err.sheet": {
+		en: "The sheet %s is not in the Spreadsheet any more, or Cave cannot read it as before.",
+		ms: "Helaian %s tiada lagi dalam Hamparan, atau Cave tidak dapat membacanya seperti dahulu.",
+	},
+	"cavehost.sync.err.columns": {
+		en: "The sheet lacks columns it had when you confirmed it. Missing: %s. Put them back in the Spreadsheet, or use Reset columns if you changed it on purpose.",
+		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan, atau gunakan Set semula lajur jika anda mengubahnya dengan sengaja.",
+	},
+	"cavehost.sync.err.emptied": {
+		en: "More than half of the cells in the column %[1]s (%[2]d of %[3]d) would be left empty, as they are no longer what the column held when you confirmed it. Fix them in the Spreadsheet, or use Reset columns if you changed it on purpose.",
+		ms: "Lebih separuh sel dalam lajur %[1]s (%[2]d daripada %[3]d) akan dibiarkan kosong, kerana ia bukan lagi apa yang lajur itu ada semasa anda mengesahkannya. Betulkan dalam Hamparan, atau gunakan Set semula lajur jika anda mengubahnya dengan sengaja.",
+	},
+	"cavehost.sync.err.rows": {
+		en: "This sheet has %s rows. CaveHost reads up to %s rows. Delete some rows in the Spreadsheet.",
+		ms: "Helaian ini ada %s baris. CaveHost membaca sehingga %s baris. Padam beberapa baris dalam Hamparan.",
+	},
+	"cavehost.sync.err.unknown": {
+		en: "Cave could not finish reading the Spreadsheet this time. It tries again in the next hour, or press Sync now.",
+		ms: "Cave tidak dapat menghabiskan pembacaan Hamparan kali ini. Ia mencuba lagi dalam jam seterusnya, atau tekan Segerakkan sekarang.",
+	},
+
 	// Deployments and Takedowns
 	"deployments.heading": {en: "Admin: Deployments", ms: "Pentadbir: Deployment"},
 	"deployments.intro": {
-		en: "Every Dashboard a Learner put online, awake ones first. After a complaint, take one down with a reason: its link goes inactive at once, and the Learner keeps the Dashboard and sees the reason.",
-		ms: "Setiap Dashboard yang diletakkan dalam talian oleh Pelajar, yang masih aktif dahulu. Selepas aduan, turunkannya dengan sebab: pautannya terus tidak aktif, dan Pelajar tetap menyimpan Dashboard itu dan melihat sebabnya.",
+		en: "Every Dashboard and CaveHost page a Learner put online, awake ones first. After a complaint, take one down with a reason: its link goes inactive at once, and the Learner keeps the Dashboard or CaveHost data and sees the reason.",
+		ms: "Setiap Dashboard dan halaman CaveHost yang diletakkan dalam talian oleh Pelajar, yang masih aktif dahulu. Selepas aduan, turunkannya dengan sebab: pautannya terus tidak aktif, dan Pelajar tetap menyimpan Dashboard atau data CaveHost itu dan melihat sebabnya.",
 	},
+	"deployments.cavehost":           {en: "CaveHost", ms: "CaveHost"},
+	"deployments.asleep-cavehost":    {en: "Asleep: the Learner has no active CaveHost Plan", ms: "Tidur: Pelajar tiada Pelan CaveHost aktif"},
 	"deployments.learner":            {en: "Learner", ms: "Pelajar"},
 	"deployments.link":               {en: "Link", ms: "Pautan"},
 	"deployments.name":               {en: "Name", ms: "Nama"},
 	"deployments.deleted":            {en: "Deleted by the Learner", ms: "Dipadam oleh Pelajar"},
+	"deployments.deleted-lapsed":     {en: "Deleted: the CaveHost Plan ended over 90 days ago", ms: "Dipadam: Pelan CaveHost telah tamat lebih 90 hari lalu"},
 	"deployments.awake":              {en: "Awake", ms: "Aktif"},
 	"deployments.taken-down":         {en: "Taken down %s", ms: "Diturunkan %s"},
 	"deployments.reason-was":         {en: "Reason: %s", ms: "Sebab: %s"},
@@ -2374,8 +2536,8 @@ var catalog = map[string]entry{
 	"ctadmin.learners.product.combo":        {en: "COMBO Pro Plan", ms: "Pelan Pro COMBO"},
 	"ctadmin.learners.give-ask":             {en: "Give %s %s? It gives %s.", ms: "Berikan %[2]s kepada %[1]s? Ia memberi %[3]s."},
 	"ctadmin.learners.what.pro":             {en: "a year of CaveText Pro, until %s", ms: "setahun CaveText Pro, hingga %s"},
-	"ctadmin.learners.what.pro-plan":        {en: "a year of CaveText Pro, until %s, and %d days of the Lab Plan, until %s", ms: "setahun CaveText Pro, hingga %s, dan %d hari Pelan Lab, hingga %s"},
-	"ctadmin.learners.what.combo":           {en: "a year of CaveText Pro, until %s, %d days of the Lab Plan, until %s, and a year of Ebook access, until %s", ms: "setahun CaveText Pro, hingga %s, %d hari Pelan Lab, hingga %s, dan setahun akses Ebook, hingga %s"},
+	"ctadmin.learners.what.pro-plan":        {en: "a year of CaveText Pro, until %s, %d days of the Lab Plan, until %s, and %d days of CaveHost, until %s", ms: "setahun CaveText Pro, hingga %s, %d hari Pelan Lab, hingga %s, dan %d hari CaveHost, hingga %s"},
+	"ctadmin.learners.what.combo":           {en: "a year of CaveText Pro, until %s, %d days of the Lab Plan, until %s, %d days of CaveHost, until %s, and a year of Ebook access, until %s", ms: "setahun CaveText Pro, hingga %s, %d hari Pelan Lab, hingga %s, %d hari CaveHost, hingga %s, dan setahun akses Ebook, hingga %s"},
 	"ctadmin.learners.what.pro-plan-no-lab": {en: "a year of CaveText Pro, until %s, with no Lab Plan because no Plan is marked as the Lab Plan", ms: "setahun CaveText Pro, hingga %s, tanpa Pelan Lab kerana tiada Pelan ditanda sebagai Pelan Lab"},
 	"ctadmin.learners.what.combo-no-lab":    {en: "a year of CaveText Pro and Ebook access, until %s, with no Lab Plan because no Plan is marked as the Lab Plan", ms: "setahun CaveText Pro dan akses Ebook, hingga %s, tanpa Pelan Lab kerana tiada Pelan ditanda sebagai Pelan Lab"},
 	"ctadmin.learners.email-ebook":          {en: "Email ebook link", ms: "E-mel pautan ebook"},
@@ -2422,6 +2584,7 @@ var catalog = map[string]entry{
 	"offers.pro-plan.ebooks":        {en: "Ebooks", ms: "Ebook"},
 	"offers.pro-plan.deploy":        {en: "Your own Dashboard deployment", ms: "Deployment Dashboard anda sendiri"},
 	"offers.pro-plan.storage":       {en: "0.5 GB of storage", ms: "Had storan 0.5 GB"},
+	"offers.pro-plan.cavehost":      {en: "CaveHost: your own HTML page online, with its data from a Google Spreadsheet", ms: "CaveHost: halaman HTML anda sendiri dalam talian, dengan datanya daripada Hamparan Google"},
 	"offers.combo":                  {en: "COMBO Pro Plan", ms: "Pelan Pro COMBO"},
 	"offers.combo.tag":              {en: "Promo", ms: "Promo"},
 	"offers.combo.characters":       {en: "Unlimited characters", ms: "Aksara tanpa had"},

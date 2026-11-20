@@ -100,8 +100,11 @@ func (p *pendingDataset) Grid() *struct{ Month, Year int } {
 func (p *pendingDataset) UsedList() string { return strings.Join(p.Used, ", ") }
 
 // Rows are the first previewRows cleaned rows as the preview shows them.
-func (p *pendingDataset) Rows() [][]string {
-	rows := p.Dataset.Rows
+func (p *pendingDataset) Rows() [][]string { return previewCells(p.Dataset) }
+
+// previewCells are the first previewRows rows of d as the preview shows them.
+func previewCells(d *lab.Dataset) [][]string {
+	rows := d.Rows
 	var out [][]string
 	for _, row := range rows[:min(len(rows), previewRows)] {
 		cells := make([]string, len(row))
@@ -155,17 +158,26 @@ const cleanUpWaitLog = 3 * time.Second
 // clean runs Clean-up on an upload once one of the maxCleanUps turns is free; until then it waits, unless the
 // Learner gives up.
 func (a *App) clean(r *http.Request, file io.Reader, s lab.Settings) (*lab.CleanUp, error) {
+	release, err := a.waitForCleanUp(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	return lab.Clean(file, s)
+}
+
+// waitForCleanUp waits for one of the maxCleanUps turns to read a workbook and returns the function that gives it back.
+func (a *App) waitForCleanUp(ctx context.Context) (release func(), err error) {
 	start := time.Now()
 	select {
 	case a.cleaning <- struct{}{}:
-	case <-r.Context().Done():
-		return nil, r.Context().Err()
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	defer func() { <-a.cleaning }()
 	if waited := time.Since(start); waited > a.cleanUpWaitLog {
 		a.logInfo("An upload waited %s for its turn to be read", waited.Round(time.Millisecond))
 	}
-	return lab.Clean(file, s)
+	return func() { <-a.cleaning }, nil
 }
 
 // errDatasetStore is keepWorkbook's error when the store refuses the Workbook, and the Dataset module's when it refuses

@@ -169,11 +169,13 @@ var giveKinds = []giveKind{
 }
 
 // giveEnd is when the gives would end for a Learner: the year of CaveText Pro starts now or when their Pro ends, the Lab
-// Plan period (Lab invalid when no Plan is marked as the Lab Plan, LabDays long) starts now or when their Plan periods end.
+// Plan period (Lab invalid when no Plan is marked as the Lab Plan, LabDays long) starts now or when their Plan periods end,
+// and the CaveHost Plan period as long as it (CaveHost, valid with Lab) starts now or when their CaveHost periods end.
 type giveEnd struct {
-	Pro     time.Time
-	Lab     sql.NullTime
-	LabDays int
+	Pro      time.Time
+	Lab      sql.NullTime
+	CaveHost sql.NullTime
+	LabDays  int
 }
 
 // giveEnds reads giveEnd for the Learner, with the starts the gives use.
@@ -183,7 +185,8 @@ func (a *App) giveEnds(ctx context.Context, learnerID int64) (giveEnd, error) {
 	err := a.db.QueryRowContext(ctx, `
 		SELECT (SELECT s.at + '`+proLength+`'::interval FROM `+nextProStart+`),
 			(SELECT s.at + make_interval(days => p.days) FROM plans p, `+nextPlanStart+` WHERE p.lab),
-			(SELECT p.days FROM plans p WHERE p.lab)`, learnerID).Scan(&e.Pro, &e.Lab, &days)
+			(SELECT s.at + make_interval(days => p.days) FROM plans p, `+nextCaveHostStart+` WHERE p.lab),
+			(SELECT p.days FROM plans p WHERE p.lab)`, learnerID).Scan(&e.Pro, &e.Lab, &e.CaveHost, &days)
 	e.Pro, e.LabDays = e.Pro.UTC(), int(days.Int64)
 	return e, err
 }
@@ -195,11 +198,11 @@ func (k giveKind) What(lang string, e giveEnd) string {
 	case !k.Plan:
 		return text.T(lang, "ctadmin.learners.what.pro", d(e.Pro))
 	case k.Ebooks && e.Lab.Valid:
-		return text.T(lang, "ctadmin.learners.what.combo", d(e.Pro), e.LabDays, d(e.Lab.Time), d(e.Pro))
+		return text.T(lang, "ctadmin.learners.what.combo", d(e.Pro), e.LabDays, d(e.Lab.Time), e.LabDays, d(e.CaveHost.Time), d(e.Pro))
 	case k.Ebooks:
 		return text.T(lang, "ctadmin.learners.what.combo-no-lab", d(e.Pro))
 	case e.Lab.Valid:
-		return text.T(lang, "ctadmin.learners.what.pro-plan", d(e.Pro), e.LabDays, d(e.Lab.Time))
+		return text.T(lang, "ctadmin.learners.what.pro-plan", d(e.Pro), e.LabDays, d(e.Lab.Time), e.LabDays, d(e.CaveHost.Time))
 	}
 	return text.T(lang, "ctadmin.learners.what.pro-plan-no-lab", d(e.Pro))
 }
@@ -308,15 +311,18 @@ func (a *App) giveCaveTextPlan(w http.ResponseWriter, r *http.Request, ebooks bo
 	})
 }
 
-// giveProPlan gives the Learner the Pro Plan: a year of CaveText Pro, as givePro does, and a period of the Lab Plan,
-// as giveLabPlan does. With ebooks, that year of CaveText Pro gives Ebook access: the COMBO Pro Plan. planned is
-// false when no Plan is marked as the Lab Plan, so only CaveText Pro was given: the caller writes warnNoLabPlan once
-// its transaction has committed.
+// giveProPlan gives the Learner the Pro Plan: a year of CaveText Pro, as givePro does, a period of the Lab Plan, as
+// giveLabPlan does, and a CaveHost Plan period as long as that Lab Plan period (ADR 0030). With ebooks, that year of
+// CaveText Pro gives Ebook access: the COMBO Pro Plan. planned is false when no Plan is marked as the Lab Plan, so only
+// CaveText Pro was given, with no CaveHost either: the caller writes warnNoLabPlan once its transaction has committed.
 func giveProPlan(ctx context.Context, db execer, learnerID int64, ebooks bool) (planned bool, err error) {
 	if err := givePro(ctx, db, learnerID, ebooks); err != nil {
 		return false, err
 	}
-	return giveLabPlan(ctx, db, learnerID)
+	if planned, err = giveLabPlan(ctx, db, learnerID); err != nil || !planned {
+		return false, err
+	}
+	return true, giveCaveHostLikeLabPlan(ctx, db, learnerID)
 }
 
 // warnNoLabPlan writes to the System log that the Learner got the Pro Plan's CaveText Pro without its Plan period,

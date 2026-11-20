@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -66,12 +67,17 @@ type App struct {
 	bclTestPayments      bool          // count BCL Test Mode orders and ignore live ones (staging)
 	bclAPIToken          string        // a BCL API Read token to confirm orders with; empty confirms none
 	bclAPIURL            string        // BCL's API, without a trailing slash
+	googleSheetsURL      string        // where CaveHost fetches Spreadsheets from, without a trailing slash (googleSheetsURL const unless configured)
+	spreadsheets         *http.Client  // fetches them, following redirects only to Google
 	production           bool          // the live site: hides the home page's placeholders (CAVE_ENV)
-	done                 chan struct{} // closed by Close, to stop the daily System log prune and the Result release
+	done                 chan struct{} // closed by Close, to stop the daily System log prune, the Result release and the CaveHost Sync
 	// releasing is held by a run of releaseResults, so two runs never release at once.
 	// ponytail: an in-process lock, right for one process only; take a Postgres advisory lock instead if the app
 	// ever runs more than one instance.
 	releasing sync.Mutex
+	// caveHostSyncing holds the id of each CaveHost Deployment with a Sync running, so a Deployment never Syncs twice at once.
+	// ponytail: in-process, like releasing.
+	caveHostSyncing sync.Map
 	// emailKick wakes the background sender of the emails a Result release leaves owed (sendOwedEmails); sending is
 	// held while it sends, so sends stay serial; emailing is held by the sender's loop, so Close waits for it.
 	emailKick chan struct{}
@@ -218,6 +224,12 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 		return nil, fmt.Errorf("PagesBaseURL must be an absolute URL, got %q", cfg.PagesBaseURL)
 	}
 	a.pagesHost = strings.ToLower(pagesURL.Host)
+	a.googleSheetsURL = strings.TrimRight(cmp.Or(cfg.GoogleSheetsBaseURL, googleSheetsURL), "/")
+	sheetsURL, err := url.Parse(a.googleSheetsURL)
+	if err != nil || sheetsURL.Host == "" {
+		return nil, fmt.Errorf("GoogleSheetsBaseURL must be an absolute URL, got %q", cfg.GoogleSheetsBaseURL)
+	}
+	a.spreadsheets = newSpreadsheetClient(sheetsURL)
 	caveTextURL, err := url.Parse(cfg.CaveTextBaseURL)
 	if err != nil || caveTextURL.Host == "" {
 		return nil, fmt.Errorf("CaveTextBaseURL must be an absolute URL, got %q", cfg.CaveTextBaseURL)
@@ -236,6 +248,7 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	a.checkBCLToken(ctx)
 	go a.pruneDaily(a.done)
 	go a.releaseEveryMinute(a.done)
+	go a.syncCaveHostLoop(a.done, caveHostFirstSync, caveHostSyncEvery)
 	a.emailing.Add(1)
 	go a.sendEmailsWhenKicked()
 	a.kickEmails() // whatever a restart left owed
@@ -289,6 +302,19 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("GET /admin/reports", a.admin(a.adminReports))
 	mux.HandleFunc("POST /admin/reports/{id}/dismiss", a.admin(a.dismissReport))
 	mux.HandleFunc("GET /lab", a.lab)
+	mux.HandleFunc("GET /cavehost", a.caveHost(a.caveHostHome))
+	mux.HandleFunc("POST /cavehost", a.caveHost(a.createCaveHostDeployment))
+	mux.HandleFunc("GET /cavehost/{name}", a.caveHost(a.caveHostDeploymentPage))
+	mux.HandleFunc("POST /cavehost/{name}/confirm", a.caveHost(a.confirmCaveHostSheet))
+	mux.HandleFunc("POST /cavehost/{name}/tick", a.caveHost(a.tickCaveHostSheet))
+	mux.HandleFunc("POST /cavehost/{name}/untick", a.caveHost(a.untickCaveHostSheet))
+	mux.HandleFunc("POST /cavehost/{name}/reset", a.caveHost(a.resetCaveHostSheet))
+	mux.HandleFunc("POST /cavehost/{name}/page", a.caveHost(a.uploadCaveHostPage))
+	mux.HandleFunc("POST /cavehost/{name}/pages/{pg}/restore", a.caveHost(a.restoreCaveHostPage))
+	mux.HandleFunc("POST /cavehost/{name}/sync", a.caveHost(a.syncCaveHostNow))
+	// Deleting needs no CaveHost Plan: a Learner may delete a sleeping Deployment during its 90 days.
+	mux.HandleFunc("GET /cavehost/{name}/delete", a.requireLearner(a.confirmDeleteCaveHost))
+	mux.HandleFunc("POST /cavehost/{name}/delete", a.requireLearner(a.deleteCaveHostDeployment))
 	// The public demo and the Samples are gone (ADR 0019); old links land on the Plans.
 	toPricing := func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/pricing", http.StatusSeeOther) }
 	mux.HandleFunc("GET /lab/demo/", toPricing)
@@ -475,6 +501,9 @@ func New(ctx context.Context, cfg config.Config, mailer mailer.Mailer, writer ai
 	mux.HandleFunc("POST /admin/plans/periods", a.admin(a.assignPlan))
 	mux.HandleFunc("GET /admin/plans/periods/{id}/end", a.admin(a.confirmEndPlanPeriod))
 	mux.HandleFunc("POST /admin/plans/periods/{id}/end", a.admin(a.endPlanPeriod))
+	mux.HandleFunc("POST /admin/plans/periods/cavehost", a.admin(a.assignCaveHostPlan))
+	mux.HandleFunc("GET /admin/plans/periods/cavehost/{id}/end", a.admin(a.confirmEndCaveHostPlanPeriod))
+	mux.HandleFunc("POST /admin/plans/periods/cavehost/{id}/end", a.admin(a.endCaveHostPlanPeriod))
 	mux.HandleFunc("GET /admin/deployments", a.admin(a.adminDeployments))
 	mux.HandleFunc("POST /admin/deployments/{id}/takedown", a.admin(a.takeDown))
 	mux.HandleFunc("GET /admin/log", a.requireOwner(a.systemLog))
@@ -774,7 +803,7 @@ var sitePages = sync.OnceValues(parsePages)
 func parsePages() (map[string]*template.Template, error) {
 	layout, err := template.New("layout.html").Funcs(template.FuncMap{"static": staticURL, "side": adminSide, "loader": loader, "courseTab": courseTab, "classroomTab": classroomTab, "difficulties": func() []string { return difficulties }, "tile": tile, "card": card, "certPreview": newCertPreview, "submissionLimits": submissionLimits, "t": text.T, "tn": text.N, "size": sizeText, "dateTime": dateTimeIn, "inc": func(i int) int { return i + 1 }, "args": func(v ...any) []any { return v },
 		"writtenMarks": func() int { return writtenMarks }, "maxWrittenAnswer": func() int { return maxWrittenAnswer }, "maxKeyPoints": func() int { return maxKeyPoints },
-		"maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }, "resultDelayMinutes": func() int { return resultDelayMinutes }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
+		"maxCaveHostDays": func() int { return maxCaveHostDays }, "maxMessageLength": func() int { return maxMessageLength }, "maxReportReason": func() int { return maxReportReason }, "resultDelayMinutes": func() int { return resultDelayMinutes }}).ParseFS(appFiles, "templates/layout.html", "templates/_*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse layout: %w", err)
 	}
@@ -853,6 +882,10 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, status int, name st
 				return
 			}
 			c.chromeField().Lab = acc.Open()
+			if c.chromeField().CaveHost, err = a.caveHostOpen(r.Context(), l); err != nil {
+				a.serverError(w, r, err)
+				return
+			}
 		}
 	}
 	var buf bytes.Buffer

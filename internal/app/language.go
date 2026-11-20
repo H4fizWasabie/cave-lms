@@ -27,6 +27,7 @@ type chrome struct {
 	Shell          bool     // the page is in the admin shell: an Admin's admin page, with the sidebar in place of the header and footer
 	Latest         []course // the 3 newest open Courses
 	Lab            bool     // the Lab is open to the logged-in Learner, so the header and footer link to it (ADR 0018)
+	CaveHost       bool     // CaveHost is open to the logged-in Learner, so the header and footer link to it
 	CertBackground string   // the uploaded Certificate background's address, "" for the built-in artwork
 }
 

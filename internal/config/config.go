@@ -42,6 +42,9 @@ type Config struct {
 	BCLAPIToken string
 	// BCLAPIURL, from BCL_API_URL, is BCL's API; https://bcl.my/api when unset. Tests point it elsewhere.
 	BCLAPIURL string
+	// GoogleSheetsBaseURL, from GOOGLE_SHEETS_BASE_URL, is where CaveHost fetches a Spreadsheet's xlsx export from; Cave builds the
+	// whole address from it and the Spreadsheet's ID (spec #536). Optional: unset, https://docs.google.com. Tests point it at a fake.
+	GoogleSheetsBaseURL string
 	// EmailAllowlist, from EMAIL_ALLOWLIST (comma-separated addresses, or "@domain" for a whole domain), is set on
 	// staging only: email goes to these alone, and every other message is kept in the System log. Empty: email goes to all.
 	EmailAllowlist []string
@@ -84,6 +87,7 @@ func Load() (Config, error) {
 		BCLAPIURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("BCL_API_URL")), "/"),
 		MaxUploadBytes:  2 << 30,
 
+		GoogleSheetsBaseURL: strings.TrimRight(strings.TrimSpace(os.Getenv("GOOGLE_SHEETS_BASE_URL")), "/"),
 		OpenRouterAPIKey:    strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
 		OpenRouterModel:     strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")),
 		OpenRouterDSKPModel: strings.TrimSpace(os.Getenv("OPENROUTER_DSKP_MODEL")),

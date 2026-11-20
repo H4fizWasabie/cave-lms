@@ -146,6 +146,7 @@ func (a *App) dailyPrune(ctx context.Context) {
 	if err := a.sendRenewalReminders(ctx); err != nil {
 		a.logError(nil, fmt.Errorf("send renewal reminders: %w", err))
 	}
+	a.deleteLapsedCaveHost(ctx)
 	n, err := a.pruneDatasets(ctx)
 	if err != nil {
 		a.logError(nil, fmt.Errorf("prune Parts: %w", err))

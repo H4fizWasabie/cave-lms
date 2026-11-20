@@ -1,0 +1,39 @@
+{{define "title"}}{{if .Locked}}{{t .Lang "cavehost.locked.title"}}{{else}}{{t .Lang "cavehost.title"}}{{end}} · CAVELMS{{end}}
+{{define "content"}}
+    {{if .Locked}}
+    <div class="wrap notice-page">
+      <div class="notice">
+        <h1>{{t .Lang "cavehost.locked.title"}}</h1>
+        <p class="notice-msg">{{t .Lang "cavehost.locked"}}</p>
+        <p><a class="btn btn-solid" href="/pricing">{{t .Lang "cavehost.locked.buy"}}</a></p>
+      </div>
+    </div>
+    {{else}}
+    <div class="wrap page-pad lab-page">
+      <div class="page-head"><h1>{{t .Lang "cavehost.title"}}</h1><p>{{t .Lang "cavehost.open"}}</p></div>
+      {{- if .Deployments}}
+      <section class="card lab-card">
+        <h2 class="h-md">{{t .Lang "cavehost.list"}}</h2>
+        <ul>{{range .Deployments}}<li><a href="/cavehost/{{.Name}}">{{.Name}}</a></li>{{end}}</ul>
+      </section>
+      {{- end}}
+      <section class="card lab-card">
+        <h2 class="h-md">{{t .Lang "cavehost.link.heading"}}</h2>
+        <p class="muted">{{t .Lang "cavehost.link.body"}}</p>
+        <div class="ds-err" role="note">
+          <p><strong>{{t .Lang "cavehost.warn"}}</strong></p>
+          <p>{{t .Lang "cavehost.warn-body"}}</p>
+        </div>
+        {{with .Error}}<p class="up-err" role="alert"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-warning-circle"/></svg>{{.}}</p>{{end}}
+        <form class="form" method="post" action="/cavehost" data-busy>
+          <div class="field"><label for="link">{{t .Lang "cavehost.link.label"}}</label><input id="link" type="url" name="link" value="{{.Link}}" placeholder="https://docs.google.com/spreadsheets/d/..." autocomplete="off" required></div>
+          <div class="field"><label for="name">{{t .Lang "lab.dep.name"}}</label><input id="name" type="text" name="name" value="{{.Name}}" minlength="3" maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" autocomplete="off" autocapitalize="none" spellcheck="false" required><small>{{t .Lang "lab.dep.name-hint" .Prefix}}</small></div>
+          <label class="check-card"><input type="checkbox" name="right" value="yes" required><span><strong>{{t .Lang "lab.dep.right"}}</strong><small>{{t .Lang "lab.dep.right-sub"}}</small></span></label>
+          <div class="form-foot"><button class="btn btn-solid">{{t .Lang "cavehost.link.go"}}</button></div>
+          {{template "cave-loader" (loader (t .Lang "cavehost.reading") (t .Lang "cavehost.reading-lines"))}}
+        </form>
+      </section>
+      <script src="{{static "forms.js"}}" defer></script>
+    </div>
+    {{end}}
+{{end}}

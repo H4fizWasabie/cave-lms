@@ -72,8 +72,8 @@ func TestAPaidGiveAsksOnItsConfirmationPageAndGivesNothingUntilConfirmed(t *test
 
 	for _, c := range []struct{ action, heading, question string }{
 		{"pro", "Give CaveText Pro", "Give Ada Lovelace CaveText Pro? It gives a year of CaveText Pro, until " + year + "."},
-		{"pro-plan", "Give Pro Plan", "Give Ada Lovelace Pro Plan? It gives a year of CaveText Pro, until " + year + ", and 30 days of the Lab Plan, until " + month + "."},
-		{"combo", "Give COMBO Pro Plan", "Give Ada Lovelace COMBO Pro Plan? It gives a year of CaveText Pro, until " + year + ", 30 days of the Lab Plan, until " + month + ", and a year of Ebook access, until " + year + "."},
+		{"pro-plan", "Give Pro Plan", "Give Ada Lovelace Pro Plan? It gives a year of CaveText Pro, until " + year + ", 30 days of the Lab Plan, until " + month + ", and 30 days of CaveHost, until " + month + "."},
+		{"combo", "Give COMBO Pro Plan", "Give Ada Lovelace COMBO Pro Plan? It gives a year of CaveText Pro, until " + year + ", 30 days of the Lab Plan, until " + month + ", 30 days of CaveHost, until " + month + ", and a year of Ebook access, until " + year + "."},
 	} {
 		page := s.proAction("ada@example.com", c.action)
 		res, body := s.post(page, nil)
@@ -115,8 +115,8 @@ func TestTheManagePageShowsWhatALearnerHasAndTheGivesInPlainWords(t *testing.T) 
 	expectStatus(t, res, body, http.StatusOK, "<h1>Ada Lovelace</h1>")
 	expectAll(t, body, "Free: no Pro, Lab Plan or Ebook access.",
 		"Gives a year of CaveText Pro, until "+year+".",
-		"Gives a year of CaveText Pro, until "+year+", and 30 days of the Lab Plan, until "+month+".",
-		"Gives a year of CaveText Pro, until "+year+", 30 days of the Lab Plan, until "+month+", and a year of Ebook access, until "+year+".")
+		"Gives a year of CaveText Pro, until "+year+", 30 days of the Lab Plan, until "+month+", and 30 days of CaveHost, until "+month+".",
+		"Gives a year of CaveText Pro, until "+year+", 30 days of the Lab Plan, until "+month+", 30 days of CaveHost, until "+month+", and a year of Ebook access, until "+year+".")
 	expectNone(t, body, "Email ebook link", "End Pro now")
 
 	s.givePro("ada@example.com")

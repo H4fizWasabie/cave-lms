@@ -60,6 +60,9 @@
         {{- if .Lab}}
         <a href="/lab">{{t .Lang "nav.lab"}}</a>
         {{- end}}
+        {{- if .CaveHost}}
+        <a href="/cavehost">{{t .Lang "nav.cavehost"}}</a>
+        {{- end}}
         <a href="/gallery">{{t .Lang "nav.gallery"}}</a>
         <a href="/cavetext">{{t .Lang "nav.cavetext"}}</a>
         <a href="/certificates">{{t .Lang "nav.check-cert"}}</a>
@@ -113,6 +116,9 @@
         </div></details>
         {{- if .Lab}}
         <a class="hdr-link" href="/lab">{{t .Lang "nav.lab"}}</a>
+        {{- end}}
+        {{- if .CaveHost}}
+        <a class="hdr-link" href="/cavehost">{{t .Lang "nav.cavehost"}}</a>
         {{- end}}
         <details class="hdr-drop" name="hdr"><summary class="hdr-link">{{t .Lang "nav.classroom"}}<svg class="i hdr-caret" aria-hidden="true"><use href="/static/icons.svg#i-caret-right"/></svg></summary><div class="hdr-panel">
           <a href="/my-courses">{{t .Lang "nav.my-courses"}}</a>

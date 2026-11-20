@@ -245,6 +245,16 @@ func openWorkbook(r io.Reader) (*excelize.File, error) {
 	return f, nil
 }
 
+// SheetNames are the names of an .xlsx file's sheets, in order. A file that is not one, or is over the size limits, gives a Problem.
+func SheetNames(r io.Reader) ([]string, error) {
+	f, err := openWorkbook(r)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return f.GetSheetList(), nil
+}
+
 // columnsOf names the columns from a header row; the first blank or repeated name is a Problem. Types come later.
 func columnsOf(header []string) ([]Column, error) {
 	var cols []Column

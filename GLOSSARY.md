@@ -336,7 +336,7 @@ _Malay_: Tema
 _Avoid_: Template, skin, style, look
 
 **Deployment**:
-A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link is on its own host, `pages.cavelms.com`, and carries the Learner's Username and a name the Learner picks when deploying; that name never changes and is never given to another Deployment. The link also carries a Link key, so it cannot be guessed. Old links at `cavelms.com/d/...` redirect to it.
+A Dashboard put online for anyone with its link. A Dashboard has at most one. Its page may read the Dashboard's current Dataset, so a new Dataset updates it; a new page replaces it at the same link, and the 3 earlier pages are kept to restore. It is awake while the Learner has an active Plan period. When the period ends it sleeps: its link shows it as inactive and nothing is deleted. It wakes, at the same link, when the Learner's next Plan period starts. Its link is on its own host, `pages.cavelms.com`, and carries the Learner's Username and a name the Learner picks when deploying; that name never changes and is never given to another Deployment. The link also carries a Link key, so it cannot be guessed. Old links at `cavelms.com/d/...` redirect to it. A CaveHost Deployment is a Deployment too, but has no Dashboard: its page reads a Spreadsheet instead. It shares the same names and Link keys, so a name is never given to another Deployment of either kind, and it sleeps and wakes by the Learner's CaveHost Plan, not their Plan.
 _Malay_: Deployment (kept in English)
 _Avoid_: Publish (that is for Course content), hosting, site, web app
 
@@ -346,7 +346,7 @@ _Malay_: Kunci pautan
 _Avoid_: Token, password, passcode, secret
 
 **Takedown**:
-The Admin putting a Deployment to sleep early, with a recorded reason. The Dashboard itself stays.
+The Admin putting a Deployment, a Lab one or a CaveHost one, to sleep early, with a recorded reason. The Dashboard, or the CaveHost data, stays. A later Plan period does not wake it.
 _Malay_: Penurunan
 _Avoid_: Ban, removal, unpublish
 
@@ -416,7 +416,7 @@ _Malay_: Hamparan
 _Avoid_: Workbook (an Excel file in the Lab), Google Sheet, data source, tab
 
 **Sync**:
-Cave fetching a Spreadsheet again, every hour or when the Learner presses Sync now, and cleaning each ticked sheet with the recipe its first Clean-up set. Each Sync replaces the sheet's rows; Cave keeps only the last good one. A Sync that fails for a sheet (the Spreadsheet made private, a column renamed or gone, a column mostly emptied, too big) leaves its last good rows online and emails the Learner once until a Sync works again.
+Cave fetching a Spreadsheet again, every hour or when the Learner presses Sync now, and cleaning each ticked sheet with the recipe its first Clean-up set. Each Sync replaces the sheet's rows; Cave keeps only the last good one. A Sync that fails for a sheet (the Spreadsheet made private, a column renamed or gone, a column mostly emptied, too big) leaves its last good rows online, and the other sheets still Sync; the Learner is emailed once until a Sync works again, and sees the reason on the CaveHost page. **Reset columns** on a sheet, for one the Learner restructured on purpose, keeps its last good rows online and makes the Learner confirm a new Clean-up preview in place of Syncing it.
 _Malay_: Penyegerakan
 _Avoid_: Refresh, import, upload, Part
 

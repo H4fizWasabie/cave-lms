@@ -16,12 +16,12 @@
               <tr><th>Dashboard</th><th>{{t .Lang "deployments.learner"}}</th><th>{{t .Lang "deployments.name"}}</th><th>{{t .Lang "deployments.link"}}</th><th>{{t .Lang "admin.common.status"}}</th><th class="actions"><span class="sr">{{t .Lang "admin.common.actions"}}</span></th></tr>
               {{range .Deployments}}
               <tr{{if not .Awake}} class="is-revoked"{{end}}>
-                <td>{{if .Dashboard}}{{.Dashboard}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
+                <td>{{if .CaveHost}}{{t $.Lang "deployments.cavehost"}}{{else if .Dashboard}}{{.Dashboard}}{{else if .Lapsed}}{{t $.Lang "deployments.deleted-lapsed"}}{{else}}{{t $.Lang "deployments.deleted"}}{{end}}</td>
                 <td>{{.Learner}}<br><small>{{.Email}}</small></td>
                 <td><code>{{.Name}}</code></td>
                 <td><a href="{{.Link}}" target="_blank" rel="noopener">{{.Link}}</a></td>
-                <td>{{if .Awake}}{{t $.Lang "deployments.awake"}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .TakenDown}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else}}{{t $.Lang "deployments.asleep"}}{{end}}</td>
-                <td class="actions">{{if and .Dashboard (not .TakenDown)}}
+                <td>{{if .Awake}}{{t $.Lang "deployments.awake"}}{{else if .TakenDown}}{{t $.Lang "deployments.taken-down" .TakenDown}}<br><small>{{t $.Lang "deployments.reason-was" .Reason}}</small>{{else if .CaveHost}}{{t $.Lang "deployments.asleep-cavehost"}}{{else}}{{t $.Lang "deployments.asleep"}}{{end}}</td>
+                <td class="actions">{{if and (or .Dashboard .CaveHost) (not .TakenDown)}}
                   <form class="takedown" method="post" action="/admin/deployments/{{.ID}}/takedown">
                     <label class="sr" for="reason-{{.ID}}">{{t $.Lang "deployments.reason-for" .Name}}</label>
                     <input id="reason-{{.ID}}" type="text" name="reason" maxlength="1000" placeholder="{{t $.Lang "deployments.reason-placeholder"}}" required>

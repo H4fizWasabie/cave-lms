@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -75,8 +76,15 @@ const deploymentAwakeSQL = `(dep.dashboard_id IS NOT NULL AND dep.taken_down_at 
 	WHERE owner.id = dep.learner_id AND (owner.is_admin OR EXISTS (SELECT 1 FROM plan_periods pp WHERE pp.learner_id = owner.id
 		AND ` + activePeriodSQL + `))))`
 
-// deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them.
-const deploymentColumns = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, ` + deploymentAwakeSQL + ` AS awake, dep.taken_down_at, dep.takedown_reason, dep.link_key`
+// deploymentColumns select a deployment from deployments aliased dep; scanDeployment reads them. A CaveHost Deployment's are
+// caveHostColumns, which differ in when it is awake.
+const (
+	deploymentColumns = deploymentColumnsFrom + deploymentAwakeSQL + deploymentColumnsTo
+	caveHostColumns   = deploymentColumnsFrom + caveHostAwakeSQL + deploymentColumnsTo
+
+	deploymentColumnsFrom = `dep.name, (SELECT usr.username FROM learners usr WHERE usr.id = dep.learner_id), dep.deployed_at, `
+	deploymentColumnsTo   = ` AS awake, dep.taken_down_at, dep.takedown_reason, dep.link_key`
+)
 
 // deploymentLink is the full link to share for the Deployment called name of the Learner with this Username, with its
 // Link key; linkKey is "" for a Deployment made before Link keys, whose link has none (ADR 0027).
@@ -266,7 +274,8 @@ func (a *App) deploymentCSP() string {
 }
 
 // deploymentFileOf names the file asked for by the path segments after a Deployment's name: "" for the name alone,
-// "index.html", "data.json", "charts.js", or "data" with its key. ok is false for any other path.
+// "index.html", "data.json", "charts.js", "data" with its key, or "sheets" with a CaveHost sheet's name as its key (sheets/<name>.json).
+// ok is false for any other path.
 func deploymentFileOf(tail []string) (file, key string, ok bool) {
 	switch {
 	case len(tail) == 0:
@@ -277,6 +286,9 @@ func deploymentFileOf(tail []string) (file, key string, ok bool) {
 		return tail[0], "", true
 	case len(tail) == 2 && tail[0] == "data" && tail[1] != "":
 		return "data", tail[1], true
+	case len(tail) >= 2 && tail[0] == "sheets" && strings.HasSuffix(tail[len(tail)-1], ".json"): // a sheet's name may hold a slash
+		sheet := strings.TrimSuffix(strings.Join(tail[1:], "/"), ".json")
+		return "sheets", sheet, sheet != ""
 	}
 	return "", "", false
 }
@@ -356,6 +368,8 @@ func (a *App) deploymentRoute(w http.ResponseWriter, r *http.Request) {
 		switch file {
 		case "data":
 			to += "data/" + key
+		case "sheets":
+			to += "sheets/" + url.PathEscape(key) + ".json"
 		case "data.json", "charts.js":
 			to += file
 		}
@@ -395,6 +409,16 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		depName, linkKey := r.PathValue("name"), r.PathValue("linkkey")
 		w.Header().Set("Cache-Control", "no-store")
+		if served, err := a.serveCaveHost(w, r, depName, linkKey, name); served || err != nil {
+			if err != nil {
+				a.serverError(w, r, err)
+			}
+			return
+		}
+		if name == "sheets" { // only a CaveHost Deployment has sheets
+			a.notFound(w, r)
+			return
+		}
 		d, err := a.loadDashboard(r.Context(), `id = (SELECT dashboard_id FROM deployments dep
 			WHERE dep.name = $1 AND COALESCE(dep.link_key, '') = $2 AND `+deploymentAwakeSQL+`)`, depName, linkKey)
 		if err != nil {
@@ -439,11 +463,14 @@ func (a *App) deploymentFile(name string) http.HandlerFunc {
 	}
 }
 
-// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when the Learner deleted it.
+// adminDeployment is one row of the Admin's Deployments list. Dashboard is empty when it was deleted, or for a CaveHost
+// Deployment, which has none.
 type adminDeployment struct {
 	deployment
 	ID        int64
 	Dashboard string
+	CaveHost  bool
+	Lapsed    bool // a CaveHost Deployment deleted 90 days after its Learner's last CaveHost Plan period, not by the Learner
 	Learner   string
 	Email     string
 }
@@ -469,11 +496,13 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	if msgKey != "" {
 		msg = text.T(lang, msgKey)
 	}
-	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), l.name, l.email,
-		`+deploymentColumns+`
+	// A CaveHost Deployment is awake by its Learner's CaveHost Plan, a Lab one by their Plan.
+	rows, err := a.db.QueryContext(r.Context(), `SELECT dep.id, COALESCE(d.name, ''), ch.deployment_id IS NOT NULL, COALESCE(dep.deleted_by = 'lapsed', false), l.name, l.email,
+		`+deploymentColumnsFrom+`CASE WHEN ch.deployment_id IS NOT NULL THEN `+caveHostAwakeSQL+` ELSE `+deploymentAwakeSQL+` END`+deploymentColumnsTo+`
 		FROM deployments dep
 		JOIN learners l ON l.id = dep.learner_id
 		LEFT JOIN dashboards d ON d.id = dep.dashboard_id
+		LEFT JOIN cavehost_deployments ch ON ch.deployment_id = dep.id
 		ORDER BY awake DESC, dep.id DESC`)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -484,7 +513,7 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	for rows.Next() {
 		var dep adminDeployment
 		var err error
-		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.Learner, &dep.Email); err != nil {
+		if dep.deployment, err = a.scanDeployment(lang, rows, &dep.ID, &dep.Dashboard, &dep.CaveHost, &dep.Lapsed, &dep.Learner, &dep.Email); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -497,7 +526,8 @@ func (a *App) renderAdminDeployments(w http.ResponseWriter, r *http.Request, sta
 	a.render(w, r, status, "admin_deployments", p)
 }
 
-// takeDown puts a Deployment to sleep for good and records why; the Learner's Dashboard stays.
+// takeDown puts a Deployment, a Lab one or a CaveHost one, to sleep for good and records why; the Learner's Dashboard, or CaveHost
+// data, stays.
 func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(r.PostFormValue("reason"))
 	if reason == "" {
@@ -510,7 +540,8 @@ func (a *App) takeDown(w http.ResponseWriter, r *http.Request) {
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if _, err := a.db.ExecContext(r.Context(), `UPDATE deployments SET taken_down_at = now(), takedown_reason = $2
-		WHERE id = $1 AND dashboard_id IS NOT NULL AND taken_down_at IS NULL`, id, reason); err != nil {
+		WHERE id = $1 AND (dashboard_id IS NOT NULL OR EXISTS (SELECT 1 FROM cavehost_deployments ch WHERE ch.deployment_id = deployments.id))
+			AND taken_down_at IS NULL`, id, reason); err != nil {
 		a.serverError(w, r, err)
 		return
 	}

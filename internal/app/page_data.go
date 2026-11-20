@@ -3,6 +3,8 @@ package app
 import (
 	"net/http"
 	"strings"
+
+	"github.com/H4fizWasabie/cave-lms/internal/lab"
 )
 
 // dataTab is the screen a Dashboard's Dataset is uploaded on: the data screen for a page Dashboard (ADR 0018), the
@@ -31,9 +33,12 @@ func dataURL(d *dashboard) string {
 }
 
 // ColumnList is the pending Dataset's column names, for the data screen's preview.
-func (p *pendingDataset) ColumnList() string {
-	names := make([]string, len(p.Dataset.Columns))
-	for i, c := range p.Dataset.Columns {
+func (p *pendingDataset) ColumnList() string { return columnList(p.Dataset.Columns) }
+
+// columnList is the names of cols, comma separated.
+func columnList(cols []lab.Column) string {
+	names := make([]string, len(cols))
+	for i, c := range cols {
 		names[i] = c.Name
 	}
 	return strings.Join(names, ", ")
