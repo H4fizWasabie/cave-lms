@@ -352,7 +352,7 @@ func TestTheCaveHostPageGivesTheFailureReasonAndResetColumnsInMalay(t *testing.T
 	google.swap(salesWith(t, []any{"Item", "Price"}, []any{"Pen", 2}))
 	ada.syncNow("jualan-ada")
 	_, body = ada.get("/cavehost/jualan-ada")
-	for _, want := range []string{"Ia gagal", "Hilang: Qty", ">Reset columns<"} {
+	for _, want := range []string{"Ia gagal", "Hilang: Qty", ">Set semula lajur<"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page in Malay lacks %q: %s", want, body)
 		}

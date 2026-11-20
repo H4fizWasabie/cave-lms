@@ -36,17 +36,30 @@ func (a *App) untickCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var rowsKey sql.NullString
-	err := a.db.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET ticked = false, reset = false, columns = NULL, settings = NULL, rows_key = NULL
-		FROM (SELECT id, rows_key FROM cavehost_sheets WHERE deployment_id = $1 AND name = $2 AND ticked FOR UPDATE) old
-		WHERE sh.id = old.id RETURNING old.rows_key`, v.ID, r.PostFormValue("sheet")).Scan(&rowsKey)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var rowsKey, xlsx sql.NullString // the sheet's rows, and the fetched file if no ticked sheet waits now
+	err := a.inTx(r.Context(), func(tx *sql.Tx) error {
+		err := tx.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET ticked = false, reset = false, columns = NULL, settings = NULL, rows_key = NULL,
+				confirmed_at = NULL
+			FROM (SELECT id, rows_key FROM cavehost_sheets WHERE deployment_id = $1 AND name = $2 AND ticked FOR UPDATE) old
+			WHERE sh.id = old.id RETURNING old.rows_key`, v.ID, r.PostFormValue("sheet")).Scan(&rowsKey)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		xlsx, err = dropCaveHostXlsx(r.Context(), tx, v.ID)
+		return err
+	})
+	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	if rowsKey.Valid {
-		if err := a.store.Delete(context.WithoutCancel(r.Context()), rowsKey.String); err != nil {
-			a.logError(r, err)
+	for _, key := range []sql.NullString{rowsKey, xlsx} {
+		if key.Valid {
+			if err := a.store.Delete(context.WithoutCancel(r.Context()), key.String); err != nil {
+				a.logError(r, err)
+			}
 		}
 	}
 	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
@@ -66,6 +79,19 @@ func (a *App) resetCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
+}
+
+// dropCaveHostXlsx forgets the fetched Spreadsheet file of the Deployment with this id once no ticked sheet waits for its Clean-up to
+// be confirmed, whether a first one or after Reset columns, and gives the file's key to delete from the store, if it was kept.
+func dropCaveHostXlsx(ctx context.Context, tx *sql.Tx, id int64) (key sql.NullString, err error) {
+	err = tx.QueryRowContext(ctx, `UPDATE cavehost_deployments ch SET xlsx_key = NULL
+		FROM (SELECT xlsx_key FROM cavehost_deployments WHERE deployment_id = $1 FOR UPDATE) old
+		WHERE ch.deployment_id = $1 AND NOT EXISTS (SELECT 1 FROM cavehost_sheets sh WHERE sh.deployment_id = $1 AND sh.ticked AND (sh.rows_key IS NULL OR sh.reset))
+		RETURNING old.xlsx_key`, id).Scan(&key)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = nil
+	}
+	return key, err
 }
 
 // addNewCaveHostSheets lists the sheets of the fetched Spreadsheet data that the Deployment does not list yet, unticked and after

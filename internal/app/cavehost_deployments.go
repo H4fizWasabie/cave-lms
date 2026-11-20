@@ -20,8 +20,8 @@ import (
 // A CaveHost Deployment (spec #536) is a row of deployments with no Dashboard, so it shares the Lab's names, Link keys and
 // Username redirect (ADR 0023, ADR 0027), plus its cavehost_deployments row for the Spreadsheet, its cavehost_sheets rows and
 // its cavehost_pages. Its data and page live in the local Disk store (ADR 0025), under keys that start with caveHostKeyPrefix.
-// ponytail: this ticket links one Spreadsheet's first sheet and puts a page online, replaced and restored as on the Lab; ticking more
-// sheets and the cap are later tickets of #536. Deleting one, by its Learner or 90 days after their last period, is in cavehost_end.go.
+// Ticking sheets is in cavehost_sheets.go, Sync in cavehost_sync.go, and deleting one, by its Learner or 90 days after their last
+// period, in cavehost_end.go.
 const caveHostKeyPrefix = "cavehost-"
 
 // caveHostAwakeSQL is an SQL condition, true for an awake CaveHost Deployment aliased dep: it is not taken down, and its Learner
@@ -167,14 +167,11 @@ func (a *App) createCaveHostDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := a.fetchSpreadsheet(r.Context(), spreadsheet)
-	switch {
-	case errors.Is(err, errSpreadsheetClosed):
-		refuse(http.StatusUnprocessableEntity, text.T(lang, "cavehost.err.closed"))
+	if problem, ok := spreadsheetProblem(err); ok {
+		refuse(http.StatusUnprocessableEntity, problem.In(lang))
 		return
-	case errors.Is(err, errSpreadsheetTooBig):
-		refuse(http.StatusUnprocessableEntity, text.T(lang, "cavehost.err.too-big"))
-		return
-	case err != nil:
+	}
+	if err != nil {
 		a.logError(r, err)
 		refuse(http.StatusBadGateway, text.T(lang, "cavehost.err.unreachable"))
 		return
@@ -249,6 +246,8 @@ type caveHostSheetView struct {
 	Confirmed bool // its first Clean-up is confirmed
 	Reset     bool // Reset columns was pressed: its rows stay online until a new Clean-up is confirmed
 	Columns   []lab.Column
+
+	confirmedAt time.Time // when it was first confirmed
 }
 
 // Path is where the page reads the sheet's rows, the name URL-encoded.
@@ -262,9 +261,10 @@ type caveHostView struct {
 	deployment
 	ID          int64
 	Spreadsheet string
-	XlsxKey string // the fetched xlsx, until the first sheet is confirmed
+	XlsxKey     string // the fetched xlsx, kept while a ticked sheet waits for the Learner to confirm it
 	Sheets      []caveHostSheetView
 	Pending     *caveHostSheetView // the first ticked sheet whose Clean-up waits for the Learner to confirm, first or after Reset columns
+	Data        *caveHostSheetView // the sheet data.json is: the ticked, confirmed sheet that was confirmed first
 	Confirmed   bool               // a ticked sheet is confirmed, so there is data for a page to read
 	HasPage     bool
 	Pages       []htmlPage   // the earlier pages, newest first
@@ -322,7 +322,7 @@ func (a *App) caveHostViewOf(w http.ResponseWriter, r *http.Request) (*caveHostV
 // loadCaveHostSheets fills in the sheets of v, in order, and what follows from them: the one waiting to be confirmed, and whether a
 // ticked sheet is confirmed.
 func (a *App) loadCaveHostSheets(ctx context.Context, v *caveHostView) error {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, name, ticked, rows_key IS NOT NULL, reset, COALESCE(columns, '[]'::jsonb) FROM cavehost_sheets
+	rows, err := a.db.QueryContext(ctx, `SELECT id, name, ticked, rows_key IS NOT NULL, reset, COALESCE(columns, '[]'::jsonb), confirmed_at FROM cavehost_sheets
 		WHERE deployment_id = $1 ORDER BY position, id`, v.ID)
 	if err != nil {
 		return err
@@ -331,9 +331,11 @@ func (a *App) loadCaveHostSheets(ctx context.Context, v *caveHostView) error {
 	for rows.Next() {
 		var sh caveHostSheetView
 		var columns []byte
-		if err := rows.Scan(&sh.ID, &sh.Name, &sh.Ticked, &sh.Confirmed, &sh.Reset, &columns); err != nil {
+		var confirmedAt sql.NullTime
+		if err := rows.Scan(&sh.ID, &sh.Name, &sh.Ticked, &sh.Confirmed, &sh.Reset, &columns, &confirmedAt); err != nil {
 			return err
 		}
+		sh.confirmedAt = confirmedAt.Time
 		if err := json.Unmarshal(columns, &sh.Columns); err != nil {
 			return err
 		}
@@ -342,6 +344,9 @@ func (a *App) loadCaveHostSheets(ctx context.Context, v *caveHostView) error {
 	for i, sh := range v.Sheets {
 		if sh.Ticked && sh.Confirmed {
 			v.Confirmed = true
+			if v.Data == nil || sh.confirmedAt.Before(v.Data.confirmedAt) {
+				v.Data = &v.Sheets[i]
+			}
 		}
 		if sh.Ticked && (!sh.Confirmed || sh.Reset) && v.Pending == nil {
 			v.Pending = &v.Sheets[i]
@@ -367,19 +372,16 @@ type caveHostDeploymentPage struct {
 func (p *caveHostDeploymentPage) ColumnList() string { return columnList(p.Preview.Dataset.Columns) }
 
 // caveHostChatbot is the sentence the Learner gives their AI chatbot, listing where the page reads each confirmed, ticked sheet:
-// ./data.json for the first, and ./sheets/<sheet name>.json for each.
+// ./data.json for the one confirmed first, and ./sheets/<sheet name>.json for each.
 func caveHostChatbot(lang string, v *caveHostView) string {
-	var files []string
+	if v.Data == nil {
+		return ""
+	}
+	files := []string{text.T(lang, "cavehost.chatbot.data", v.Data.Name)}
 	for _, sh := range v.Sheets {
 		if sh.Ticked && sh.Confirmed {
-			if len(files) == 0 {
-				files = append(files, text.T(lang, "cavehost.chatbot.data", sh.Name))
-			}
 			files = append(files, text.T(lang, "cavehost.chatbot.sheet", sh.Path(), columnList(sh.Columns)))
 		}
-	}
-	if len(files) == 0 {
-		return ""
 	}
 	return text.T(lang, "cavehost.chatbot", strings.Join(files, "; "))
 }
@@ -390,30 +392,79 @@ func caveHostSettings(r *http.Request, sheet string) lab.Settings {
 	return lab.Settings{Sheet: sheet, Alone: true, HeaderRow: max(header, 0), TwoRowHeader: r.FormValue("two-row") == "on"}
 }
 
-// caveHostPreview reads the sheet waiting to be confirmed from the Spreadsheet, as settings say: from the file fetched when it was
-// linked while that is kept, else fetched again. Google failing is a Problem for the Learner to read, as it is when linking.
-// ponytail: a sheet ticked later is fetched on every view of its preview; keep the file for the preview if Google gets slow.
-func (a *App) caveHostPreview(r *http.Request, v *caveHostView, settings lab.Settings) (*lab.CleanUp, error) {
-	var data []byte
-	var err error
-	if v.XlsxKey != "" {
-		data, err = a.store.Get(r.Context(), v.XlsxKey)
-	} else {
-		data, err = a.fetchSpreadsheet(r.Context(), v.Spreadsheet)
-	}
+// spreadsheetProblem is the Problem for the Learner to read when fetchSpreadsheet failed with err because of the Spreadsheet
+// (closed or too big); ok is false for Google or the network failing, which they cannot fix.
+func spreadsheetProblem(err error) (problem lab.Problem, ok bool) {
 	switch {
 	case errors.Is(err, errSpreadsheetClosed):
-		return nil, lab.Problem{Key: "cavehost.err.closed"}
+		return lab.Problem{Key: "cavehost.err.closed"}, true
 	case errors.Is(err, errSpreadsheetTooBig):
-		return nil, lab.Problem{Key: "cavehost.err.too-big"}
-	case err != nil && v.XlsxKey == "":
+		return lab.Problem{Key: "cavehost.err.too-big"}, true
+	}
+	return lab.Problem{}, false
+}
+
+// caveHostXlsx is the Spreadsheet's file for a preview: the one kept while a ticked sheet waits, else fetched now and kept until
+// no ticked sheet waits (dropCaveHostXlsx), so a page refresh does not fetch again. Google failing is a Problem for the Learner
+// to read, as it is when linking.
+// ponytail: a preview reads the file fetched at the first view, so edits made in the Spreadsheet since do not show until the sheet is
+// confirmed or unticked; Read again could fetch afresh if that confuses Learners.
+func (a *App) caveHostXlsx(r *http.Request, v *caveHostView) ([]byte, error) {
+	if v.XlsxKey != "" {
+		return a.store.Get(r.Context(), v.XlsxKey)
+	}
+	data, err := a.fetchSpreadsheet(r.Context(), v.Spreadsheet)
+	if problem, ok := spreadsheetProblem(err); ok {
+		return nil, problem
+	}
+	if err != nil {
 		a.logError(r, err)
 		return nil, lab.Problem{Key: "cavehost.err.unreachable"}
-	case err != nil:
+	}
+	if err := a.keepCaveHostXlsx(r.Context(), v, data); err != nil { // not kept, so the next view fetches again
+		a.logError(r, err)
+	}
+	return data, nil
+}
+
+// keepCaveHostXlsx puts the fetched file data in the Disk store and names it on the Deployment, unless another view kept its file first.
+func (a *App) keepCaveHostXlsx(ctx context.Context, v *caveHostView, data []byte) error {
+	key, err := newCaveHostKey("xlsx")
+	if err != nil {
+		return err
+	}
+	if err = a.store.Put(ctx, key, data); err != nil {
+		return err
+	}
+	var n int64
+	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_deployments SET xlsx_key = $2 WHERE deployment_id = $1 AND xlsx_key IS NULL`, v.ID, key)
+	if err == nil {
+		n, err = set.RowsAffected()
+	}
+	if err != nil || n == 0 {
+		_ = a.store.Delete(context.WithoutCancel(ctx), key)
+		return err
+	}
+	v.XlsxKey = key
+	return nil
+}
+
+// partDay is the Part date of a sheet's rows: the date the sheet names, else the day of this read.
+func (a *App) partDay(named string) string {
+	if named != "" {
+		return named
+	}
+	return a.now().In(malaysia).Format(time.DateOnly)
+}
+
+// caveHostPreview reads the sheet waiting to be confirmed from the Spreadsheet, as settings say.
+func (a *App) caveHostPreview(r *http.Request, v *caveHostView, settings lab.Settings) (*lab.CleanUp, error) {
+	data, err := a.caveHostXlsx(r, v)
+	if err != nil {
 		return nil, err
 	}
 	res, err := a.clean(r, bytes.NewReader(data), settings)
-	if err == nil && res.PickedSheet != settings.Sheet { // Clean-up could not read the sheet and read another instead
+	if err == nil && !strings.EqualFold(res.PickedSheet, settings.Sheet) { // Clean-up could not read the sheet and read another instead
 		return nil, lab.Problem{Key: "cavehost.err.sheet", Args: []any{settings.Sheet}}
 	}
 	return res, err
@@ -486,11 +537,7 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	day := res.PartDate
-	if day == "" { // the sheet names no date: the day of this read
-		day = a.now().In(malaysia).Format(time.DateOnly)
-	}
-	rows, err := lab.PartRows(res.Dataset, day)
+	rows, err := lab.PartRows(res.Dataset, a.partDay(res.PartDate))
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -516,10 +563,11 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	confirmed := false
-	var replaced sql.NullString // the rows of a sheet after Reset columns, which these replace
+	var replaced, xlsx sql.NullString // the rows of a sheet after Reset columns, which these replace; the fetched file, if nothing waits now
 	err = a.inTx(r.Context(), func(tx *sql.Tx) error {
 		// Two confirms at once: the first sets the rows, the second finds them set and changes nothing.
-		err := tx.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET columns = $2, settings = $3, rows_key = $4, reset = false
+		err := tx.QueryRowContext(r.Context(), `UPDATE cavehost_sheets sh SET columns = $2, settings = $3, rows_key = $4, reset = false,
+				confirmed_at = COALESCE(sh.confirmed_at, now())
 			FROM (SELECT id, rows_key FROM cavehost_sheets WHERE id = $1 AND ticked AND (rows_key IS NULL OR reset) FOR UPDATE) old
 			WHERE sh.id = old.id RETURNING old.rows_key`, v.Pending.ID, columns, saved, key).Scan(&replaced)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -529,7 +577,7 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		confirmed = true
-		_, err = tx.ExecContext(r.Context(), `UPDATE cavehost_deployments SET xlsx_key = NULL WHERE deployment_id = $1`, v.ID)
+		xlsx, err = dropCaveHostXlsx(r.Context(), tx, v.ID)
 		return err
 	})
 	if err != nil || !confirmed {
@@ -542,8 +590,8 @@ func (a *App) confirmCaveHostSheet(w http.ResponseWriter, r *http.Request) {
 	if confirmed && replaced.Valid {
 		_ = a.store.Delete(context.WithoutCancel(r.Context()), replaced.String)
 	}
-	if confirmed && v.XlsxKey != "" { // the fetched file is not kept once a sheet's rows are
-		_ = a.store.Delete(context.WithoutCancel(r.Context()), v.XlsxKey)
+	if confirmed && xlsx.Valid {
+		_ = a.store.Delete(context.WithoutCancel(r.Context()), xlsx.String)
 	}
 	http.Redirect(w, r, "/cavehost/"+v.Name, http.StatusSeeOther)
 }
@@ -632,7 +680,7 @@ func (a *App) restoreCaveHostPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveCaveHost serves the file of a CaveHost Deployment named name, with this Link key, at its link on the Deployments host: the
-// page at the link, the first ticked sheet's rows at data.json and each ticked sheet's at sheets/<sheet name>.json. served is false when no CaveHost Deployment has that name
+// page at the link, the rows of the ticked sheet confirmed first at data.json and each ticked sheet's at sheets/<sheet name>.json. served is false when no CaveHost Deployment has that name
 // and key. An asleep or taken down Deployment shows the inactive page, as a Lab one does.
 func (a *App) serveCaveHost(w http.ResponseWriter, r *http.Request, name, linkKey, file string) (served bool, err error) {
 	var id int64
@@ -658,9 +706,9 @@ func (a *App) serveCaveHost(w http.ResponseWriter, r *http.Request, name, linkKe
 	switch file {
 	case "index.html":
 		err = a.db.QueryRowContext(r.Context(), `SELECT storage_key FROM cavehost_pages WHERE deployment_id = $1 AND current`, id).Scan(&key)
-	case "data.json": // the first ticked sheet that has rows
+	case "data.json": // the ticked sheet confirmed first, so confirming another later does not switch a live page's data
 		err = a.db.QueryRowContext(r.Context(), `SELECT rows_key FROM cavehost_sheets
-			WHERE deployment_id = $1 AND ticked AND rows_key IS NOT NULL ORDER BY position LIMIT 1`, id).Scan(&key)
+			WHERE deployment_id = $1 AND ticked AND rows_key IS NOT NULL ORDER BY confirmed_at, position LIMIT 1`, id).Scan(&key)
 	case "sheets": // the ticked sheet the file is named for, if it has rows
 		err = a.db.QueryRowContext(r.Context(), `SELECT rows_key FROM cavehost_sheets
 			WHERE deployment_id = $1 AND name = $2 AND ticked AND rows_key IS NOT NULL`, id, r.PathValue("key")).Scan(&key)

@@ -3,6 +3,7 @@ package app_test
 import (
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -37,6 +38,55 @@ func (s *site) sheetJSON(link, sheet string) int {
 	s.t.Helper()
 	res, _ := s.get(link + "sheets/" + url.PathEscape(sheet) + ".json")
 	return res.StatusCode
+}
+
+// xlsxFiles lists the fetched Spreadsheets the Disk store holds.
+func xlsxFiles(s *site) []string {
+	files, _ := filepath.Glob(filepath.Join(s.storageDir, "cavehost-xlsx-*"))
+	return files
+}
+
+func TestASheetTickedAfterTheFirstConfirmFetchesTheSpreadsheetOnceUntilItIsConfirmedOrUnticked(t *testing.T) {
+	t.Parallel()
+	ada, google := caveHostLearner(t, threeSheets(t))
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil)
+	if files := xlsxFiles(ada); len(files) != 0 {
+		t.Fatalf("the store keeps the fetched Spreadsheet %v with nothing waiting to be confirmed", files)
+	}
+	asked := len(google.requests())
+
+	// Every view of the preview, and the confirm itself, read the file kept after the first fetch.
+	ada.tickSheet("jualan-ada", "Staff")
+	for range 3 {
+		res, body := ada.get("/cavehost/jualan-ada")
+		expectStatus(t, res, body, http.StatusOK, "Check Staff before your page reads it")
+	}
+	if got := len(google.requests()) - asked; got != 1 {
+		t.Fatalf("Google was asked %d times for three views of a ticked sheet, want 1", got)
+	}
+	if files := xlsxFiles(ada); len(files) != 1 {
+		t.Fatalf("the store holds %v while a sheet waits, want the fetched Spreadsheet", files)
+	}
+	ada.confirmSheet("jualan-ada", nil)
+	if got := len(google.requests()) - asked; got != 1 {
+		t.Errorf("confirming asked Google again: %d requests since ticking, want 1", got)
+	}
+	if files := xlsxFiles(ada); len(files) != 0 {
+		t.Errorf("the store holds %v once the sheet is confirmed, want the fetched Spreadsheet gone", files)
+	}
+
+	// Unticking a sheet that waits drops it too, and ticking again fetches afresh.
+	ada.tickSheet("jualan-ada", "Cost Q1")
+	ada.get("/cavehost/jualan-ada")
+	ada.get("/cavehost/jualan-ada")
+	if got := len(google.requests()) - asked; got != 2 {
+		t.Errorf("Google was asked %d times after ticking a second sheet, want 2 in all", got)
+	}
+	ada.untickSheet("jualan-ada", "Cost Q1")
+	if files := xlsxFiles(ada); len(files) != 0 {
+		t.Errorf("the store holds %v after the waiting sheet was unticked, want the fetched Spreadsheet gone", files)
+	}
 }
 
 func TestEverySheetIsListedByNameAndOnlyTheFirstStartsTicked(t *testing.T) {
@@ -119,6 +169,41 @@ func TestTickingASheetShowsItsPreviewToConfirmAndItIsServedAtItsOwnLinkWhileData
 	}
 }
 
+func TestDataJSONStaysTheSheetConfirmedFirstWhateverIsConfirmedLaterUntilItIsUnticked(t *testing.T) {
+	t.Parallel()
+	ada, _ := caveHostLearner(t, threeSheets(t))
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil) // Sales
+	ada.tickSheet("jualan-ada", "Cost Q1")
+	ada.confirmSheet("jualan-ada", nil)
+	ada.untickSheet("jualan-ada", "Sales")
+	link := ada.caveHostLink("jualan-ada")
+	visitor := ada.second()
+	if got := visitor.dataRowsOf(link); len(got) != 1 || got[0]["Cost"] != 1.5 {
+		t.Fatalf("data.json with only Cost Q1 ticked = %v, want its rows", got)
+	}
+
+	// Sales is first in the list, but it is confirmed after Cost Q1, so the live page's data does not move.
+	ada.tickSheet("jualan-ada", "Sales")
+	ada.confirmSheet("jualan-ada", nil)
+	if got := visitor.dataRowsOf(link); len(got) != 1 || got[0]["Cost"] != 1.5 {
+		t.Errorf("data.json after confirming an earlier sheet later = %v, want still the Cost Q1 rows", got)
+	}
+	_, body := ada.get("/cavehost/jualan-ada")
+	if !strings.Contains(body, "./data.json (the same rows as the sheet Cost Q1)") {
+		t.Errorf("the chatbot sentence does not name Cost Q1 as data.json's sheet: %s", body)
+	}
+	if got := visitor.sheetJSON(link, "Sales"); got != http.StatusOK {
+		t.Errorf("sheets/Sales.json = %d, want 200", got)
+	}
+
+	// It changes when that sheet is unticked: to the one confirmed next.
+	ada.untickSheet("jualan-ada", "Cost Q1")
+	if got := visitor.dataRowsOf(link); len(got) != 2 || got[0]["Item"] != "Pen" {
+		t.Errorf("data.json after unticking Cost Q1 = %v, want the Sales rows", got)
+	}
+}
+
 func TestEachSyncReadsEveryTickedSheetWithItsOwnRecipeAndANewSheetAppearsUnticked(t *testing.T) {
 	t.Parallel()
 	ada, google := caveHostLearner(t, testutil.Workbook(t,
@@ -176,6 +261,26 @@ func TestThePageGivesTheChatbotASentenceListingDataJSONAndEveryTickedSheetsLink(
 	}
 	if strings.Contains(body, "./sheets/Staff.json") {
 		t.Errorf("the chatbot sentence lists the unticked Staff sheet: %s", body)
+	}
+}
+
+func TestTheSheetListSaysWhatResetColumnsAndUntickingDoAndSyncReadsInMalay(t *testing.T) {
+	t.Parallel()
+	ada, _ := caveHostLearner(t, threeSheets(t))
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil)
+
+	res, body := ada.get("/cavehost/jualan-ada")
+	for _, want := range []string{"You get a new preview at once to confirm", "your page keeps the last good rows and Sync skips this sheet",
+		"Unticking takes this sheet offline at once and drops its Clean-up choices"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	res, body = ada.getAsking("/cavehost/jualan-ada", "ms")
+	for _, want := range []string{">Set semula lajur<", ">Segerakkan sekarang<", ">Penyegerakan<", "Penyegerakan melangkau helaian ini", "membuang pilihan Pembersihannya"} {
+		expectStatus(t, res, body, http.StatusOK, want)
+	}
+	if strings.Contains(body, "Reset columns") || strings.Contains(body, "Sync now") {
+		t.Errorf("the Malay page still has English controls: %s", body)
 	}
 }
 

@@ -70,7 +70,7 @@
           <form class="form" method="post" action="/admin/plans/periods/cavehost">
             <input type="hidden" name="email" value="{{.Email}}">
             <div class="field"><label for="days">{{t .Lang "cavehost.days"}}</label>
-              <input id="days" type="number" name="days" min="1" max="3650" value="365" required>
+              <input id="days" type="number" name="days" min="1" max="{{maxCaveHostDays}}" value="365" required>
             </div>
             <p class="note">{{t .Lang "cavehost.assign-note"}}</p>
             <div class="form-foot"><button class="btn btn-solid">{{t .Lang "plans.assign"}}</button></div>

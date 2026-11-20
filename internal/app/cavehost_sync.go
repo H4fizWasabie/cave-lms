@@ -42,16 +42,15 @@ type syncFailure struct {
 func (f syncFailure) in(lang string) string {
 	var problem lab.Problem
 	var msg string
+	if p, ok := spreadsheetProblem(f.err); ok {
+		f.err = p
+	}
 	if errors.As(f.err, &problem) && problem.Key == "lab.err.on-sheet" { // the sheet is named in front of the reason already
 		if inner, ok := problem.Args[1].(lab.Problem); ok {
 			problem, f.err = inner, inner
 		}
 	}
 	switch {
-	case errors.Is(f.err, errSpreadsheetClosed):
-		msg = text.T(lang, "cavehost.err.closed")
-	case errors.Is(f.err, errSpreadsheetTooBig):
-		msg = text.T(lang, "cavehost.err.too-big")
 	case errors.As(f.err, &problem) && problem.Key == "lab.err.add-columns":
 		msg = text.T(lang, "cavehost.sync.err.columns", problem.Args...)
 	case errors.As(f.err, &problem) && problem.Key == "lab.err.too-many-rows":
@@ -201,11 +200,7 @@ func (a *App) syncCaveHostSheet(ctx context.Context, data []byte, sh caveHostShe
 	if p, ok := mostlyEmptied(more, changes); ok { // a column the Spreadsheet no longer fills as it did: not a change to apply by itself
 		return nil, p
 	}
-	day := res.PartDate
-	if day == "" {
-		day = a.now().In(malaysia).Format(time.DateOnly)
-	}
-	rows, err := lab.PartRows(more, day)
+	rows, err := lab.PartRows(more, a.partDay(res.PartDate))
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +276,7 @@ func (a *App) recordSync(ctx context.Context, id int64, notes []syncNote, failur
 		}
 		for _, f := range failures {
 			var problem lab.Problem
-			if !errors.Is(f.err, errSpreadsheetClosed) && !errors.Is(f.err, errSpreadsheetTooBig) && !errors.As(f.err, &problem) {
+			if _, ok := spreadsheetProblem(f.err); !ok && !errors.As(f.err, &problem) {
 				a.logError(nil, f.err) // Google or the store failing, not something the Learner can fix
 			}
 		}

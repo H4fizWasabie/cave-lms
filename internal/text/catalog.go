@@ -2160,10 +2160,10 @@ var catalog = map[string]entry{
 	},
 	// CaveHost Sync failure (spec #536): sent once when Syncs start failing. The body takes the Learner's name, the Deployment's
 	// name, the reason and the link to the Deployment's CaveHost page.
-	"email.cavehost.sync-failed.subject": {en: "CaveHost: the Sync of %s failed", ms: "CaveHost: Sync %s gagal"},
+	"email.cavehost.sync-failed.subject": {en: "CaveHost: the Sync of %s failed", ms: "CaveHost: Penyegerakan %s gagal"},
 	"email.cavehost.sync-failed.body": {
 		en: "Hi %[1]s,\n\nCave could not Sync your CaveHost Deployment %[2]s.\n\n%[3]s\n\nYour page keeps its last good rows online. Cave tries again every hour, and you can press Sync now on the Deployment's page:\n\n%[4]s\n\nYou will not get another email about this until a Sync works again.\n",
-		ms: "Hai %[1]s,\n\nCave tidak dapat Sync Deployment CaveHost anda %[2]s.\n\n%[3]s\n\nHalaman anda mengekalkan baris baik terakhirnya dalam talian. Cave mencuba lagi setiap jam, dan anda boleh menekan Sync now pada halaman Deployment itu:\n\n%[4]s\n\nAnda tidak akan menerima e-mel lain tentang ini sehingga Sync berjaya semula.\n",
+		ms: "Hai %[1]s,\n\nCave tidak dapat menyegerakkan Deployment CaveHost anda %[2]s.\n\n%[3]s\n\nHalaman anda mengekalkan baris baik terakhirnya dalam talian. Cave mencuba lagi setiap jam, dan anda boleh menekan Segerakkan sekarang pada halaman Deployment itu:\n\n%[4]s\n\nAnda tidak akan menerima e-mel lain tentang ini sehingga Penyegerakan berjaya semula.\n",
 	},
 	// Renewal reminders (ADR 0026). The item names, then a line for each item ending (its name, then its date). Each
 	// body takes the Learner's name, those lines, the Pricing link and the My membership link.
@@ -2391,13 +2391,13 @@ var catalog = map[string]entry{
 	"cavehost.online":       {en: "Your link", ms: "Pautan anda"},
 	"cavehost.page.heading": {en: "Put your page online", ms: "Letakkan halaman anda dalam talian"},
 	"cavehost.page.body": {
-		en: "Paste the HTML your AI chatbot wrote, or pick the .html file. It goes online at the link above, and reads the rows of the first ticked sheet with ./data.json and of each ticked sheet with ./sheets/<sheet name>.json.",
-		ms: "Tampal HTML yang ditulis oleh chatbot AI anda, atau pilih fail .html. Ia diletakkan dalam talian di pautan di atas, dan membaca baris helaian pertama yang ditandakan dengan ./data.json dan baris setiap helaian yang ditandakan dengan ./sheets/<nama helaian>.json.",
+		en: "Paste the HTML your AI chatbot wrote, or pick the .html file. It goes online at the link above, and reads the rows of the ticked sheet you confirmed first with ./data.json and of each ticked sheet with ./sheets/<sheet name>.json.",
+		ms: "Tampal HTML yang ditulis oleh chatbot AI anda, atau pilih fail .html. Ia diletakkan dalam talian di pautan di atas, dan membaca baris helaian ditandakan yang anda sahkan dahulu dengan ./data.json dan baris setiap helaian yang ditandakan dengan ./sheets/<nama helaian>.json.",
 	},
 	"cavehost.sheets.heading": {en: "Sheets", ms: "Helaian"},
 	"cavehost.sheets.body": {
 		en: "Tick the sheets your page may read. Anyone with your link can see every ticked sheet, so leave salaries and personal data unticked. A sheet you add to the Spreadsheet later is listed here, unticked, after the next Sync.",
-		ms: "Tandakan helaian yang boleh dibaca oleh halaman anda. Sesiapa yang mempunyai pautan anda boleh melihat setiap helaian yang ditandakan, jadi biarkan gaji dan data peribadi tidak ditandakan. Helaian yang anda tambah ke Hamparan kemudian disenaraikan di sini, tidak ditandakan, selepas Sync seterusnya.",
+		ms: "Tandakan helaian yang boleh dibaca oleh halaman anda. Sesiapa yang mempunyai pautan anda boleh melihat setiap helaian yang ditandakan, jadi biarkan gaji dan data peribadi tidak ditandakan. Helaian yang anda tambah ke Hamparan kemudian disenaraikan di sini, tidak ditandakan, selepas Penyegerakan seterusnya.",
 	},
 	"cavehost.sheet.waiting":  {en: "Ticked. Check how Cave reads it above and confirm it.", ms: "Ditandakan. Semak cara Cave membacanya di atas dan sahkan."},
 	"cavehost.sheet.unticked": {en: "Not ticked. Your page cannot read it.", ms: "Tidak ditandakan. Halaman anda tidak dapat membacanya."},
@@ -2405,19 +2405,23 @@ var catalog = map[string]entry{
 		en: "Columns reset. Your page keeps its last rows until you confirm how Cave reads the sheet above.",
 		ms: "Lajur ditetapkan semula. Halaman anda mengekalkan baris terakhirnya sehingga anda mengesahkan cara Cave membaca helaian di atas.",
 	},
-	"cavehost.reset": {en: "Reset columns", ms: "Reset columns"},
+	"cavehost.reset": {en: "Reset columns", ms: "Set semula lajur"},
 	"cavehost.reset.hint": {
-		en: "Use this after you restructure the sheet on purpose: the next Sync shows a new preview to confirm.",
-		ms: "Gunakan ini selepas anda menyusun semula helaian dengan sengaja: Sync seterusnya menunjukkan pratonton baharu untuk disahkan.",
+		en: "Use this after you restructure the sheet on purpose. You get a new preview at once to confirm. Until you do, your page keeps the last good rows and Sync skips this sheet.",
+		ms: "Gunakan ini selepas anda menyusun semula helaian dengan sengaja. Anda mendapat pratonton baharu serta-merta untuk disahkan. Sehingga anda mengesahkannya, halaman anda mengekalkan baris baik terakhir dan Penyegerakan melangkau helaian ini.",
 	},
-	"cavehost.tick":          {en: "Tick", ms: "Tandakan"},
-	"cavehost.untick":        {en: "Untick", ms: "Nyahtanda"},
+	"cavehost.tick":   {en: "Tick", ms: "Tandakan"},
+	"cavehost.untick": {en: "Untick", ms: "Nyahtanda"},
+	"cavehost.untick.hint": {
+		en: "Unticking takes this sheet offline at once and drops its Clean-up choices, so ticking it again asks you to confirm it again.",
+		ms: "Menyahtanda menurunkan helaian ini daripada talian serta-merta dan membuang pilihan Pembersihannya, jadi menandakannya semula meminta anda mengesahkannya sekali lagi.",
+	},
 	"cavehost.chatbot.label": {en: "Tell your AI chatbot where the data is", ms: "Beritahu chatbot AI anda di mana data berada"},
 	"cavehost.chatbot": {
 		en: "My page gets its data from JSON files next to it, so fetch them with these relative addresses: %s. Each file is a list of rows, one object per row, with the column names as keys.",
 		ms: "Halaman saya mendapat datanya daripada fail JSON di sebelahnya, jadi ambil dengan alamat relatif ini: %s. Setiap fail ialah senarai baris, satu objek bagi setiap baris, dengan nama lajur sebagai kunci.",
 	},
-	"cavehost.chatbot.data":    {en: "./data.json (the same rows as the first sheet, %s)", ms: "./data.json (baris yang sama dengan helaian pertama, %s)"},
+	"cavehost.chatbot.data":    {en: "./data.json (the same rows as the sheet %s)", ms: "./data.json (baris yang sama dengan helaian %s)"},
 	"cavehost.chatbot.sheet":   {en: "%s (columns: %s)", ms: "%s (lajur: %s)"},
 	"cavehost.page.go":         {en: "Put page online", ms: "Letakkan halaman dalam talian"},
 	"cavehost.page.replace":    {en: "Replace your page", ms: "Gantikan halaman anda"},
@@ -2445,16 +2449,16 @@ var catalog = map[string]entry{
 	},
 
 	// CaveHost Sync: the Spreadsheet read again every hour, or by Sync now
-	"cavehost.sync.heading": {en: "Sync", ms: "Sync"},
+	"cavehost.sync.heading": {en: "Sync", ms: "Penyegerakan"},
 	"cavehost.sync.about": {
 		en: "Cave reads your Spreadsheet again every hour and replaces the sheet's rows with what it finds, so rows you delete in the Spreadsheet disappear from your page.",
 		ms: "Cave membaca Hamparan anda semula setiap jam dan menggantikan baris helaian dengan apa yang ditemuinya, jadi baris yang anda padam dalam Hamparan hilang daripada halaman anda.",
 	},
-	"cavehost.sync.never":   {en: "No Sync yet. The first one runs within the hour, or press Sync now.", ms: "Belum ada Sync. Yang pertama berjalan dalam masa sejam, atau tekan Sync now."},
-	"cavehost.sync.last":    {en: "Last Sync: %s.", ms: "Sync terakhir: %s."},
+	"cavehost.sync.never":   {en: "No Sync yet. The first one runs within the hour, or press Sync now.", ms: "Belum ada Penyegerakan. Yang pertama berjalan dalam masa sejam, atau tekan Segerakkan sekarang."},
+	"cavehost.sync.last":    {en: "Last Sync: %s.", ms: "Penyegerakan terakhir: %s."},
 	"cavehost.sync.worked":  {en: "It worked.", ms: "Ia berjaya."},
 	"cavehost.sync.failed":  {en: "It failed. Your page keeps its last rows.", ms: "Ia gagal. Halaman anda mengekalkan baris terakhirnya."},
-	"cavehost.sync.now":     {en: "Sync now", ms: "Sync now"},
+	"cavehost.sync.now":     {en: "Sync now", ms: "Segerakkan sekarang"},
 	"cavehost.sync.running": {en: "Reading your Spreadsheet again. A large one can take a minute.", ms: "Sedang membaca Hamparan anda semula. Hamparan yang besar boleh mengambil masa seminit."},
 	"cavehost.sync.err.sheet": {
 		en: "The sheet %s is not in the Spreadsheet any more, or Cave cannot read it as before.",
@@ -2462,11 +2466,11 @@ var catalog = map[string]entry{
 	},
 	"cavehost.sync.err.columns": {
 		en: "The sheet lacks columns it had when you confirmed it. Missing: %s. Put them back in the Spreadsheet, or use Reset columns if you changed it on purpose.",
-		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan, atau gunakan Reset columns jika anda mengubahnya dengan sengaja.",
+		ms: "Helaian ini tiada lajur yang ada semasa anda mengesahkannya. Hilang: %s. Letakkan semula dalam Hamparan, atau gunakan Set semula lajur jika anda mengubahnya dengan sengaja.",
 	},
 	"cavehost.sync.err.emptied": {
 		en: "More than half of the cells in the column %[1]s (%[2]d of %[3]d) would be left empty, as they are no longer what the column held when you confirmed it. Fix them in the Spreadsheet, or use Reset columns if you changed it on purpose.",
-		ms: "Lebih separuh sel dalam lajur %[1]s (%[2]d daripada %[3]d) akan dibiarkan kosong, kerana ia bukan lagi apa yang lajur itu ada semasa anda mengesahkannya. Betulkan dalam Hamparan, atau gunakan Reset columns jika anda mengubahnya dengan sengaja.",
+		ms: "Lebih separuh sel dalam lajur %[1]s (%[2]d daripada %[3]d) akan dibiarkan kosong, kerana ia bukan lagi apa yang lajur itu ada semasa anda mengesahkannya. Betulkan dalam Hamparan, atau gunakan Set semula lajur jika anda mengubahnya dengan sengaja.",
 	},
 	"cavehost.sync.err.rows": {
 		en: "This sheet has %s rows. CaveHost reads up to %s rows. Delete some rows in the Spreadsheet.",
@@ -2474,7 +2478,7 @@ var catalog = map[string]entry{
 	},
 	"cavehost.sync.err.unknown": {
 		en: "Cave could not finish reading the Spreadsheet this time. It tries again in the next hour, or press Sync now.",
-		ms: "Cave tidak dapat menghabiskan pembacaan Hamparan kali ini. Ia mencuba lagi dalam jam seterusnya, atau tekan Sync now.",
+		ms: "Cave tidak dapat menghabiskan pembacaan Hamparan kali ini. Ia mencuba lagi dalam jam seterusnya, atau tekan Segerakkan sekarang.",
 	},
 
 	// Deployments and Takedowns

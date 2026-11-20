@@ -60,7 +60,7 @@
             {{- if and .Ticked .Confirmed (not .Reset)}}
             <form method="post" action="/cavehost/{{$.Name}}/reset"><input type="hidden" name="sheet" value="{{.Name}}"><button class="btn btn-ghost" title="{{t $.Lang "cavehost.reset.hint"}}">{{t $.Lang "cavehost.reset"}}</button></form>
             {{- end}}
-            <form method="post" action="/cavehost/{{$.Name}}/{{if .Ticked}}untick{{else}}tick{{end}}"><input type="hidden" name="sheet" value="{{.Name}}"><button class="btn btn-ghost">{{if .Ticked}}{{t $.Lang "cavehost.untick"}}{{else}}{{t $.Lang "cavehost.tick"}}{{end}}</button></form></li>
+            <form method="post" action="/cavehost/{{$.Name}}/{{if .Ticked}}untick{{else}}tick{{end}}"><input type="hidden" name="sheet" value="{{.Name}}"><button class="btn btn-ghost"{{if .Ticked}} title="{{t $.Lang "cavehost.untick.hint"}}"{{end}}>{{if .Ticked}}{{t $.Lang "cavehost.untick"}}{{else}}{{t $.Lang "cavehost.tick"}}{{end}}</button></form></li>
           {{- end}}
         </ul>
       </section>
