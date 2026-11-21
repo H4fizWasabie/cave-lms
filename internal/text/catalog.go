@@ -2442,8 +2442,8 @@ var catalog = map[string]entry{
 	"cavehost.chatbot.type.number": {en: "number", ms: "nombor"},
 	"cavehost.chatbot.type.date":   {en: "date, YYYY-MM-DD", ms: "tarikh, YYYY-MM-DD"},
 	"cavehost.chatbot.shape": {
-		en: "Each file is a JSON list of rows: one object per row, with the column names as keys. Every row also has a %q key, the date of those rows as YYYY-MM-DD. A number is a JSON number, a date is text as YYYY-MM-DD, and an empty cell is null.",
-		ms: "Setiap fail ialah senarai JSON baris: satu objek bagi setiap baris, dengan nama lajur sebagai kunci. Setiap baris juga mempunyai kunci %q, tarikh baris itu sebagai YYYY-MM-DD. Nombor ialah nombor JSON, tarikh ialah teks sebagai YYYY-MM-DD, dan sel kosong ialah null.",
+		en: "Each file is a JSON list of rows: one object per row, with the column names as keys. Every row also has a %q key, the date of those rows as YYYY-MM-DD. A number is a JSON number, a date is text as YYYY-MM-DD, and an empty cell is null. CAVELMS already serves these JSON files next to my page; I only upload the HTML, so do not tell me to upload them.",
+		ms: "Setiap fail ialah senarai JSON baris: satu objek bagi setiap baris, dengan nama lajur sebagai kunci. Setiap baris juga mempunyai kunci %q, tarikh baris itu sebagai YYYY-MM-DD. Nombor ialah nombor JSON, tarikh ialah teks sebagai YYYY-MM-DD, dan sel kosong ialah null. CAVELMS sudah menyediakan fail JSON ini di sebelah halaman saya; saya hanya memuat naik HTML, jadi jangan suruh saya memuat naiknya.",
 	},
 	"cavehost.chatbot.rules": {
 		en: "Rules. My page is sandboxed, and the browser blocks anything else:\n" +
@@ -2452,14 +2452,16 @@ var catalog = map[string]entry{
 			"- No forms that send anywhere, no logins, no <base> tag, and no localStorage or cookies.\n" +
 			"- When a file is empty or missing, show \"No data yet\" in place of what it would show.\n" +
 			"- The data changes every hour (Sync), so read it each time the page opens and never copy it into the page.\n" +
-			"- Put everything in one HTML file under 5 MB.",
+			"- Put everything in one HTML file under 5 MB.\n" +
+			"- Reply with the whole HTML in one code block in your answer, not as a file to download.",
 		ms: "Peraturan. Halaman saya berada dalam kotak pasir, dan pelayar menyekat yang lain:\n" +
 			"- Muatkan data dengan fetch() daripada alamat relatif di atas sahaja, seperti fetch(\"./data.json\"). Jangan ambil apa-apa lagi daripada internet.\n" +
 			"- Muatkan skrip, gaya dan fon hanya daripada CDN ini: %s. Fon juga boleh datang daripada fonts.googleapis.com dan fonts.gstatic.com. Contohnya, muatkan Chart.js daripada cdn.jsdelivr.net. <script> dan <style> sebaris dibenarkan, dan imej boleh berupa data: atau https.\n" +
 			"- Tiada borang yang menghantar ke mana-mana, tiada log masuk, tiada tag <base>, dan tiada localStorage atau kuki.\n" +
 			"- Apabila sesuatu fail kosong atau tiada, paparkan \"Belum ada data\" di tempat apa yang sepatutnya dipaparkan.\n" +
 			"- Data berubah setiap jam (Penyegerakan), jadi baca ia setiap kali halaman dibuka dan jangan salin ke dalam halaman.\n" +
-			"- Letakkan semuanya dalam satu fail HTML kurang daripada 5 MB.",
+			"- Letakkan semuanya dalam satu fail HTML kurang daripada 5 MB.\n" +
+			"- Balas dengan seluruh HTML dalam satu blok kod dalam jawapan anda, bukan sebagai fail untuk dimuat turun.",
 	},
 	"cavehost.chatbot.ask": {
 		en: "What I want the dashboard to show: [for example, total sales by month as a bar chart, and a table of the top 10 items]",

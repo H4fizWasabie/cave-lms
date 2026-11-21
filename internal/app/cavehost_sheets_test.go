@@ -283,6 +283,8 @@ func TestThePageGivesTheChatbotAPromptWithEveryConfirmedSheetsFileColumnsAndType
 		"cdn.jsdelivr.net", "cdnjs.cloudflare.com", "unpkg.com", "fonts.googleapis.com", "fonts.gstatic.com",
 		"Chart.js", "Do not fetch anything else", "No data yet", "every hour", "under 5 MB", "No forms that send", "no logins",
 		"What I want the dashboard to show: [for example,",
+		"CAVELMS already serves these JSON files", "I only upload the HTML",
+		"one code block in your answer, not as a file",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("the prompt lacks %q:\n%s", want, prompt)
@@ -335,6 +337,7 @@ func TestThePromptReadsInMalay(t *testing.T) {
 		`./data.json mempunyai baris yang sama dengan helaian saya "Sales"`,
 		`./sheets/Sales.json: "Item" (teks), "Qty" (nombor), "Sold" (tarikh, YYYY-MM-DD)`,
 		"Belum ada data", "cdn.jsdelivr.net", "Apa yang saya mahu papan pemuka tunjukkan: [contohnya,",
+		"CAVELMS sudah menyediakan fail JSON ini", "satu blok kod dalam jawapan anda, bukan sebagai fail",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("the Malay prompt lacks %q:\n%s", want, prompt)
