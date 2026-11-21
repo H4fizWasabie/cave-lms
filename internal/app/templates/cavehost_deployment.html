@@ -73,7 +73,10 @@
           <input id="dep-url" type="text" readonly value="{{.Link}}" title="{{t .Lang "lab.dep.select-link"}}">
           {{- if .HasPage}}<a class="btn btn-ghost btn-sm" href="{{.Link}}" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/static/icons.svg#i-arrow-square-out"/></svg>{{t .Lang "lab.open"}}</a>{{end}}
         </div>
-        <div class="field"><label for="chatbot">{{t .Lang "cavehost.chatbot.label"}}</label><textarea id="chatbot" rows="4" readonly>{{.Chatbot}}</textarea></div>
+        <div class="field"><label for="chatbot">{{t .Lang "cavehost.chatbot.label"}}</label><textarea id="chatbot" rows="24" readonly>{{.Chatbot}}</textarea>
+          <small>{{t .Lang "cavehost.chatbot.note"}}</small>
+          <p><button class="btn btn-solid" type="button" data-copy="chatbot">{{t .Lang "cavehost.chatbot.copy"}}</button></p></div>
+        <script src="{{static "forms.js"}}" defer></script>
         {{- if .HasPage}}
         <p class="muted">{{t .Lang "lab.page.share"}}</p>
         <h2 class="h-md">{{t .Lang "cavehost.page.replace"}}</h2>
@@ -118,7 +121,6 @@
           <div class="form-foot"><button class="btn btn-ghost">{{t .Lang "cavehost.sync.now"}}</button></div>
           {{template "cave-loader" (loader (t .Lang "cavehost.sync.running") (t .Lang "cavehost.reading-lines"))}}
         </form>
-        <script src="{{static "forms.js"}}" defer></script>
         {{- end}}
       </section>
       {{- end}}

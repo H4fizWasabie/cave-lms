@@ -374,25 +374,33 @@ type caveHostDeploymentPage struct {
 	Header  int          // the header row the Learner typed; 0 lets Cave find it
 	TwoRow  bool
 	HTML    string // the pasted page, when it was refused
-	Chatbot string // the sentence to give the chatbot, once a ticked sheet is confirmed
+	Chatbot string // the prompt to give the chatbot, once a ticked sheet is confirmed
 }
 
 // ColumnList is the columns of the sheet waiting to be confirmed, as the preview reads them.
 func (p *caveHostDeploymentPage) ColumnList() string { return columnList(p.Preview.Dataset.Columns) }
 
-// caveHostChatbot is the sentence the Learner gives their AI chatbot, listing where the page reads each confirmed, ticked sheet:
-// ./data.json for the one confirmed first, and ./sheets/<sheet name>.json for each.
+// caveHostChatbot is the prompt the Learner gives their AI chatbot, so the page it writes reads the data Cave serves without the
+// chatbot ever seeing a row: ./data.json for the sheet confirmed first and ./sheets/<sheet name>.json for each confirmed, ticked
+// sheet, each with its columns and their types, then the rules pageCSP enforces.
 func caveHostChatbot(lang string, v *caveHostView) string {
 	if v.Data == nil {
 		return ""
 	}
-	files := []string{text.T(lang, "cavehost.chatbot.data", v.Data.Name)}
+	lines := []string{text.T(lang, "cavehost.chatbot.open"), "", text.T(lang, "cavehost.chatbot.files"), text.T(lang, "cavehost.chatbot.data", v.Data.Name)}
 	for _, sh := range v.Sheets {
-		if sh.Ticked && sh.Confirmed {
-			files = append(files, text.T(lang, "cavehost.chatbot.sheet", sh.Path(), columnList(sh.Columns)))
+		if !sh.Ticked || !sh.Confirmed {
+			continue
 		}
+		cols := make([]string, len(sh.Columns))
+		for i, c := range sh.Columns {
+			cols[i] = strconv.Quote(c.Name) + " (" + text.T(lang, "cavehost.chatbot.type."+string(c.Type)) + ")"
+		}
+		lines = append(lines, text.T(lang, "cavehost.chatbot.sheet", sh.Path(), strings.Join(cols, ", ")))
 	}
-	return text.T(lang, "cavehost.chatbot", strings.Join(files, "; "))
+	cdns := strings.Join(strings.Fields(strings.ReplaceAll(pageCDNs, "https://", "")), ", ")
+	lines = append(lines, "", text.T(lang, "cavehost.chatbot.shape", lab.PartDateKey), "", text.T(lang, "cavehost.chatbot.rules", cdns), "", text.T(lang, "cavehost.chatbot.ask"))
+	return strings.Join(lines, "\n")
 }
 
 // caveHostSettings is how Clean-up reads the sheet called sheet: alone, with the header choices on the form.

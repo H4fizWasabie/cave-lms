@@ -1,12 +1,14 @@
 package app_test
 
 import (
+	"html"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/H4fizWasabie/cave-lms/internal/testutil"
 )
@@ -189,10 +191,6 @@ func TestDataJSONStaysTheSheetConfirmedFirstWhateverIsConfirmedLaterUntilItIsUnt
 	if got := visitor.dataRowsOf(link); len(got) != 1 || got[0]["Cost"] != 1.5 {
 		t.Errorf("data.json after confirming an earlier sheet later = %v, want still the Cost Q1 rows", got)
 	}
-	_, body := ada.get("/cavehost/jualan-ada")
-	if !strings.Contains(body, "./data.json (the same rows as the sheet Cost Q1)") {
-		t.Errorf("the chatbot sentence does not name Cost Q1 as data.json's sheet: %s", body)
-	}
 	if got := visitor.sheetJSON(link, "Sales"); got != http.StatusOK {
 		t.Errorf("sheets/Sales.json = %d, want 200", got)
 	}
@@ -242,25 +240,114 @@ func TestEachSyncReadsEveryTickedSheetWithItsOwnRecipeAndANewSheetAppearsUnticke
 	}
 }
 
-func TestThePageGivesTheChatbotASentenceListingDataJSONAndEveryTickedSheetsLink(t *testing.T) {
+// chatbotPrompt is the text of the prompt field on a CaveHost Deployment's page, as the browser reads it; "" when the page has none.
+func chatbotPrompt(body string) string {
+	_, rest, found := strings.Cut(body, `<textarea id="chatbot"`)
+	if !found {
+		return ""
+	}
+	_, rest, _ = strings.Cut(rest, ">")
+	rest, _, _ = strings.Cut(rest, "</textarea>")
+	return html.UnescapeString(rest)
+}
+
+// promptWorkbook is a Spreadsheet whose rows have values that appear nowhere else, so a prompt that leaks one is caught.
+func promptWorkbook(t *testing.T) []byte {
+	day := time.Date(2026, 3, 9, 0, 0, 0, 0, time.UTC)
+	return testutil.Workbook(t,
+		testutil.Sheet{Name: "Sales", Rows: [][]any{{"Item", "Qty", "Sold"}, {"Pensil-Rahsia", 7351, day}, {"Dakwat-Biru", 8842, day}}},
+		testutil.Sheet{Name: "Staff", Rows: [][]any{{"Name", "Salary"}, {"Ali-Rahsia", 3000}}},
+		testutil.Sheet{Name: "Cost Q1", Rows: [][]any{{"Item", "Cost"}, {"Pensil-Rahsia", 1.5}}},
+	)
+}
+
+func TestThePageGivesTheChatbotAPromptWithEveryConfirmedSheetsFileColumnsAndTypesButNoRows(t *testing.T) {
 	t.Parallel()
-	ada, _ := caveHostLearner(t, threeSheets(t))
+	ada, _ := caveHostLearner(t, promptWorkbook(t))
 	ada.linkSheet(sheetLink, "jualan-ada")
 	if _, body := ada.get("/cavehost/jualan-ada"); strings.Contains(body, "./data.json") {
-		t.Fatalf("the page gives the chatbot a sentence before any sheet is confirmed: %s", body)
+		t.Fatalf("the page gives the chatbot a prompt before any sheet is confirmed: %s", body)
 	}
 	ada.confirmSheet("jualan-ada", nil)
 	ada.tickSheet("jualan-ada", "Cost Q1")
 	ada.confirmSheet("jualan-ada", nil)
 
 	_, body := ada.get("/cavehost/jualan-ada")
-	for _, want := range []string{"./data.json", "./sheets/Sales.json", "./sheets/Cost%20Q1.json"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the chatbot sentence lacks %q: %s", want, body)
+	prompt := chatbotPrompt(body)
+	for _, want := range []string{
+		"Write one HTML file for a dashboard.", "must not contain any of my data", "loads its data when it opens",
+		`./data.json has the same rows as my sheet "Sales"`,
+		`./sheets/Sales.json: "Item" (text), "Qty" (number), "Sold" (date, YYYY-MM-DD)`,
+		`./sheets/Cost%20Q1.json: "Item" (text), "Cost" (number)`,
+		`"Part date"`,
+		"cdn.jsdelivr.net", "cdnjs.cloudflare.com", "unpkg.com", "fonts.googleapis.com", "fonts.gstatic.com",
+		"Chart.js", "Do not fetch anything else", "No data yet", "every hour", "under 5 MB", "No forms that send", "no logins",
+		"What I want the dashboard to show: [for example,",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("the prompt lacks %q:\n%s", want, prompt)
+		}
+	}
+	for _, leak := range []string{"Pensil-Rahsia", "Dakwat-Biru", "7351", "8842", "2026-03-09", "Staff", "Ali-Rahsia"} {
+		if strings.Contains(prompt, leak) {
+			t.Errorf("the prompt has %q, a row value or an unticked sheet:\n%s", leak, prompt)
+		}
+	}
+	unescaped := html.UnescapeString(body)
+	for _, want := range []string{"Prompt for your AI chatbot", `data-copy="chatbot"`, `src="/static/forms.js`,
+		"You don't need to give your chatbot your Spreadsheet. This prompt is enough, and your rows stay in CAVELMS."} {
+		if !strings.Contains(unescaped, want) {
+			t.Errorf("the page lacks %q: %s", want, body)
 		}
 	}
 	if strings.Contains(body, "./sheets/Staff.json") {
-		t.Errorf("the chatbot sentence lists the unticked Staff sheet: %s", body)
+		t.Errorf("the page lists the unticked Staff sheet: %s", body)
+	}
+}
+
+func TestThePromptNamesTheSheetConfirmedFirstAsDataJSONWhateverIsConfirmedLater(t *testing.T) {
+	t.Parallel()
+	ada, _ := caveHostLearner(t, promptWorkbook(t))
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil) // Sales
+	ada.tickSheet("jualan-ada", "Cost Q1")
+	ada.confirmSheet("jualan-ada", nil)
+	ada.untickSheet("jualan-ada", "Sales")
+	ada.tickSheet("jualan-ada", "Sales")
+	ada.confirmSheet("jualan-ada", nil) // Sales is first in the list but confirmed after Cost Q1
+
+	_, body := ada.get("/cavehost/jualan-ada")
+	if prompt := chatbotPrompt(body); !strings.Contains(prompt, `./data.json has the same rows as my sheet "Cost Q1"`) {
+		t.Errorf("the prompt does not name Cost Q1 as data.json's sheet:\n%s", prompt)
+	}
+}
+
+func TestThePromptReadsInMalay(t *testing.T) {
+	t.Parallel()
+	ada, _ := caveHostLearner(t, promptWorkbook(t))
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil)
+
+	_, body := ada.getAsking("/cavehost/jualan-ada", "ms")
+	prompt := chatbotPrompt(body)
+	for _, want := range []string{
+		"Tulis satu fail HTML untuk papan pemuka.", "tidak boleh mengandungi sebarang data saya",
+		`./data.json mempunyai baris yang sama dengan helaian saya "Sales"`,
+		`./sheets/Sales.json: "Item" (teks), "Qty" (nombor), "Sold" (tarikh, YYYY-MM-DD)`,
+		"Belum ada data", "cdn.jsdelivr.net", "Apa yang saya mahu papan pemuka tunjukkan: [contohnya,",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("the Malay prompt lacks %q:\n%s", want, prompt)
+		}
+	}
+	unescaped := html.UnescapeString(body)
+	for _, want := range []string{"Gesaan untuk chatbot AI anda", "Anda tidak perlu memberi Hamparan anda kepada chatbot anda. Gesaan ini sudah cukup, dan baris anda kekal dalam CAVELMS."} {
+		if !strings.Contains(unescaped, want) {
+			t.Errorf("the Malay page lacks %q: %s", want, body)
+		}
+	}
+	if strings.Contains(prompt, "Write one HTML file") || strings.Contains(body, "Prompt for your AI chatbot") {
+		t.Errorf("the Malay page still has English text: %s", body)
 	}
 }
 
@@ -298,5 +385,5 @@ func TestSeveralSheetsReadInMalay(t *testing.T) {
 	ada.confirmSheet("jualan-ada", nil)
 	res, body = ada.getAsking("/cavehost/jualan-ada", "ms")
 	expectStatus(t, res, body, http.StatusOK, "./sheets/Staff.json")
-	expectStatus(t, res, body, http.StatusOK, "Beritahu chatbot AI anda")
+	expectStatus(t, res, body, http.StatusOK, "Gesaan untuk chatbot AI anda")
 }
