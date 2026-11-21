@@ -2425,13 +2425,46 @@ var catalog = map[string]entry{
 		en: "Unticking takes this sheet offline at once and drops its Clean-up choices, so ticking it again asks you to confirm it again.",
 		ms: "Menyahtanda menurunkan helaian ini daripada talian serta-merta dan membuang pilihan Pembersihannya, jadi menandakannya semula meminta anda mengesahkannya sekali lagi.",
 	},
-	"cavehost.chatbot.label": {en: "Tell your AI chatbot where the data is", ms: "Beritahu chatbot AI anda di mana data berada"},
-	"cavehost.chatbot": {
-		en: "My page gets its data from JSON files next to it, so fetch them with these relative addresses: %s. Each file is a list of rows, one object per row, with the column names as keys.",
-		ms: "Halaman saya mendapat datanya daripada fail JSON di sebelahnya, jadi ambil dengan alamat relatif ini: %s. Setiap fail ialah senarai baris, satu objek bagi setiap baris, dengan nama lajur sebagai kunci.",
+	"cavehost.chatbot.label": {en: "Prompt for your AI chatbot", ms: "Gesaan untuk chatbot AI anda"},
+	"cavehost.chatbot.copy":  {en: "Copy", ms: "Salin"},
+	"cavehost.chatbot.note": {
+		en: "You don't need to give your chatbot your Spreadsheet. This prompt is enough, and your rows stay in CAVELMS.",
+		ms: "Anda tidak perlu memberi Hamparan anda kepada chatbot anda. Gesaan ini sudah cukup, dan baris anda kekal dalam CAVELMS.",
 	},
-	"cavehost.chatbot.data":    {en: "./data.json (the same rows as the sheet %s)", ms: "./data.json (baris yang sama dengan helaian %s)"},
-	"cavehost.chatbot.sheet":   {en: "%s (columns: %s)", ms: "%s (lajur: %s)"},
+	"cavehost.chatbot.open": {
+		en: "Write one HTML file for a dashboard. The file must not contain any of my data: no rows, names or numbers typed into it. It loads its data when it opens, from JSON files next to it.",
+		ms: "Tulis satu fail HTML untuk papan pemuka. Fail itu tidak boleh mengandungi sebarang data saya: tiada baris, nama atau nombor ditaip di dalamnya. Ia memuatkan datanya apabila dibuka, daripada fail JSON di sebelahnya.",
+	},
+	"cavehost.chatbot.files":       {en: "The data files, with the columns each has and the type of each column:", ms: "Fail data, dengan lajur setiap fail dan jenis setiap lajur:"},
+	"cavehost.chatbot.data":        {en: "- ./data.json has the same rows as my sheet %q.", ms: "- ./data.json mempunyai baris yang sama dengan helaian saya %q."},
+	"cavehost.chatbot.sheet":       {en: "- %s: %s", ms: "- %s: %s"},
+	"cavehost.chatbot.type.text":   {en: "text", ms: "teks"},
+	"cavehost.chatbot.type.number": {en: "number", ms: "nombor"},
+	"cavehost.chatbot.type.date":   {en: "date, YYYY-MM-DD", ms: "tarikh, YYYY-MM-DD"},
+	"cavehost.chatbot.shape": {
+		en: "Each file is a JSON list of rows: one object per row, with the column names as keys. Every row also has a %q key, the date of those rows as YYYY-MM-DD. A number is a JSON number, a date is text as YYYY-MM-DD, and an empty cell is null.",
+		ms: "Setiap fail ialah senarai JSON baris: satu objek bagi setiap baris, dengan nama lajur sebagai kunci. Setiap baris juga mempunyai kunci %q, tarikh baris itu sebagai YYYY-MM-DD. Nombor ialah nombor JSON, tarikh ialah teks sebagai YYYY-MM-DD, dan sel kosong ialah null.",
+	},
+	"cavehost.chatbot.rules": {
+		en: "Rules. My page is sandboxed, and the browser blocks anything else:\n" +
+			"- Load the data with fetch() from the relative addresses above only, such as fetch(\"./data.json\"). Do not fetch anything else from the internet.\n" +
+			"- Load scripts, styles and fonts only from these CDNs: %s. Fonts may also come from fonts.googleapis.com and fonts.gstatic.com. For example, load Chart.js from cdn.jsdelivr.net. Inline <script> and <style> are fine, and images may be data: or https.\n" +
+			"- No forms that send anywhere, no logins, no <base> tag, and no localStorage or cookies.\n" +
+			"- When a file is empty or missing, show \"No data yet\" in place of what it would show.\n" +
+			"- The data changes every hour (Sync), so read it each time the page opens and never copy it into the page.\n" +
+			"- Put everything in one HTML file under 5 MB.",
+		ms: "Peraturan. Halaman saya berada dalam kotak pasir, dan pelayar menyekat yang lain:\n" +
+			"- Muatkan data dengan fetch() daripada alamat relatif di atas sahaja, seperti fetch(\"./data.json\"). Jangan ambil apa-apa lagi daripada internet.\n" +
+			"- Muatkan skrip, gaya dan fon hanya daripada CDN ini: %s. Fon juga boleh datang daripada fonts.googleapis.com dan fonts.gstatic.com. Contohnya, muatkan Chart.js daripada cdn.jsdelivr.net. <script> dan <style> sebaris dibenarkan, dan imej boleh berupa data: atau https.\n" +
+			"- Tiada borang yang menghantar ke mana-mana, tiada log masuk, tiada tag <base>, dan tiada localStorage atau kuki.\n" +
+			"- Apabila sesuatu fail kosong atau tiada, paparkan \"Belum ada data\" di tempat apa yang sepatutnya dipaparkan.\n" +
+			"- Data berubah setiap jam (Penyegerakan), jadi baca ia setiap kali halaman dibuka dan jangan salin ke dalam halaman.\n" +
+			"- Letakkan semuanya dalam satu fail HTML kurang daripada 5 MB.",
+	},
+	"cavehost.chatbot.ask": {
+		en: "What I want the dashboard to show: [for example, total sales by month as a bar chart, and a table of the top 10 items]",
+		ms: "Apa yang saya mahu papan pemuka tunjukkan: [contohnya, jumlah jualan mengikut bulan sebagai carta bar, dan jadual 10 item teratas]",
+	},
 	"cavehost.page.go":         {en: "Put page online", ms: "Letakkan halaman dalam talian"},
 	"cavehost.page.replace":    {en: "Replace your page", ms: "Gantikan halaman anda"},
 	"cavehost.page.replace-go": {en: "Replace page", ms: "Gantikan halaman"},
