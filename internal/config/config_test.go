@@ -15,6 +15,7 @@ func setValidEnvironment(t *testing.T) {
 	t.Setenv("LISTEN_ADDR", "")
 	t.Setenv("STORAGE_DIR", "/var/lib/cave-lms/uploads")
 	t.Setenv("RESEND_API_KEY", "")
+	t.Setenv("BREVO_API_KEY", "")
 	t.Setenv("CAVETEXT_EXTENSION_IDS", "")
 	t.Setenv("BCL_WEBHOOK_KEY", "")
 	t.Setenv("OPENROUTER_API_KEY", "")
@@ -99,6 +100,21 @@ func TestLoadReadsOptionalResendKey(t *testing.T) {
 	cfg, err = Load()
 	if err != nil || cfg.ResendAPIKey != "re_test_key" {
 		t.Fatalf("with a key: cfg.ResendAPIKey = %q, err = %v; want re_test_key, nil", cfg.ResendAPIKey, err)
+	}
+}
+
+func TestLoadReadsOptionalBrevoKey(t *testing.T) {
+	setValidEnvironment(t)
+
+	cfg, err := Load()
+	if err != nil || cfg.BrevoAPIKey != "" {
+		t.Fatalf("without a key: cfg.BrevoAPIKey = %q, err = %v; want empty, nil", cfg.BrevoAPIKey, err)
+	}
+
+	t.Setenv("BREVO_API_KEY", " xkeysib-test ")
+	cfg, err = Load()
+	if err != nil || cfg.BrevoAPIKey != "xkeysib-test" {
+		t.Fatalf("with a key: cfg.BrevoAPIKey = %q, err = %v; want xkeysib-test, nil", cfg.BrevoAPIKey, err)
 	}
 }
 
