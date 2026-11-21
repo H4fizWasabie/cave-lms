@@ -39,17 +39,28 @@ func run(args []string, stdin io.Reader) error {
 	}
 }
 
+// newMailer sends through Brevo when BREVO_API_KEY is set, else Resend when RESEND_API_KEY is set, and names the
+// provider ("" when neither).
+func newMailer(cfg config.Config) (mailer.Mailer, string) {
+	switch {
+	case cfg.BrevoAPIKey != "":
+		return mailer.Brevo{APIKey: cfg.BrevoAPIKey, From: cfg.EmailFrom}, "Brevo"
+	case cfg.ResendAPIKey != "":
+		return mailer.Resend{APIKey: cfg.ResendAPIKey, From: cfg.EmailFrom}, "Resend"
+	}
+	return mailer.Unconfigured{}, ""
+}
+
 func serve() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
-	var m mailer.Mailer = mailer.Unconfigured{}
-	if cfg.ResendAPIKey != "" {
-		m = mailer.Resend{APIKey: cfg.ResendAPIKey, From: cfg.EmailFrom}
-		log.Printf("Sending email through Resend as %s", cfg.EmailFrom)
+	m, provider := newMailer(cfg)
+	if provider == "" {
+		log.Print("BREVO_API_KEY and RESEND_API_KEY are not set: emails will not be sent")
 	} else {
-		log.Print("RESEND_API_KEY is not set: emails will not be sent")
+		log.Printf("Sending email through %s as %s", provider, cfg.EmailFrom)
 	}
 	w := aiwriter.New(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, cfg.OpenRouterDSKPModel, cfg.OpenRouterWebSearch)
 	if cfg.OpenRouterAPIKey == "" || cfg.OpenRouterModel == "" {

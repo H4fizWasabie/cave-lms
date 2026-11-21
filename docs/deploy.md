@@ -155,9 +155,13 @@ There is no built-in model: with the key or model unset the app starts, the Exam
 
 ## Email
 
-Verification and password reset emails go through [Resend](https://resend.com) when `RESEND_API_KEY` is set; the start-up log says which. Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records on Cloudflare (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
+Verification and password reset emails go through [Brevo](https://www.brevo.com) when `BREVO_API_KEY` is set, else through [Resend](https://resend.com) when `RESEND_API_KEY` is set; `BREVO_API_KEY` takes precedence, and the start-up log says which provider is used. To switch back to Resend, unset `BREVO_API_KEY` and restart.
 
-A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with Resend's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
+Brevo's free plan: 300 emails a day (transactional emails over the limit wait in Brevo's retry queue for the next day), 20 MB per email and 4 MB per attachment. The only attachments are certificate and answer-sheet PDFs. The sending domain is authenticated in Brevo (Senders, Domains & Dedicated IPs) through DNS records on Cloudflare; Brevo's dashboard lists the exact records. To rotate the Brevo key, create a new one in Brevo (SMTP & API, API keys), replace `BREVO_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
+
+Resend (used when `BREVO_API_KEY` is unset): Free plan as of 2026-10-20: 3000 emails a month, 100 a day, 3 domains. The sending domain `cavelms.com` is verified in Resend through DNS records on Cloudflare (DKIM `resend._domainkey`, CNAMEs `send` and `rsend`, and `_dmarc`). Resend's dashboard lists the exact records.
+
+A send that fails is logged (`journalctl -u cave-lms | grep "send .* email"`) with the provider's reason, for example an unverified domain or the daily limit. To rotate the key, create a new one in Resend, replace `RESEND_API_KEY` in `/etc/cave-lms/env`, `systemctl restart cave-lms`, then delete the old key.
 
 ## Query statistics
 

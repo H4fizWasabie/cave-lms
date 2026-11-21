@@ -20,7 +20,9 @@ type Config struct {
 	// (ADR 0028). Optional: unset, it is "cavetext." in front of PublicBaseURL's host.
 	CaveTextBaseURL string
 	EmailFrom       string
-	// ResendAPIKey is optional; when set, email is sent through Resend.
+	// BrevoAPIKey is optional; when set, email is sent through Brevo, ahead of Resend.
+	BrevoAPIKey string
+	// ResendAPIKey is optional; when set (and BrevoAPIKey is not), email is sent through Resend.
 	ResendAPIKey string
 	ListenAddr   string
 	// StorageDir holds uploaded Gallery files. It must never be a public static path.
@@ -78,6 +80,7 @@ func Load() (Config, error) {
 		PagesBaseURL:    strings.TrimRight(strings.TrimSpace(os.Getenv("PAGES_BASE_URL")), "/"),
 		CaveTextBaseURL: strings.TrimRight(strings.TrimSpace(os.Getenv("CAVETEXT_BASE_URL")), "/"),
 		EmailFrom:       strings.TrimSpace(os.Getenv("EMAIL_FROM")),
+		BrevoAPIKey:     strings.TrimSpace(os.Getenv("BREVO_API_KEY")),
 		ResendAPIKey:    strings.TrimSpace(os.Getenv("RESEND_API_KEY")),
 		ListenAddr:      strings.TrimSpace(os.Getenv("LISTEN_ADDR")),
 		StorageDir:      strings.TrimSpace(os.Getenv("STORAGE_DIR")),
