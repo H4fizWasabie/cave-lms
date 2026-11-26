@@ -482,6 +482,11 @@ func (a *App) caveHostPreview(r *http.Request, v *caveHostView, settings lab.Set
 	}
 	res, err := a.clean(r, bytes.NewReader(data), settings)
 	if err == nil && !strings.EqualFold(res.PickedSheet, settings.Sheet) { // Clean-up could not read the sheet and read another instead
+		for _, sh := range res.Sheets { // say why, not to pick a header row that cannot help
+			if p, ok := sh.Problem.(lab.Problem); ok && sh.Name == settings.Sheet {
+				return nil, lab.Problem{Key: "lab.err.on-sheet", Args: []any{sh.Name, p}}
+			}
+		}
 		return nil, lab.Problem{Key: "cavehost.err.sheet", Args: []any{settings.Sheet}}
 	}
 	return res, err
