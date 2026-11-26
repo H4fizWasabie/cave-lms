@@ -390,3 +390,22 @@ func TestSeveralSheetsReadInMalay(t *testing.T) {
 	expectStatus(t, res, body, http.StatusOK, "./sheets/Staff.json")
 	expectStatus(t, res, body, http.StatusOK, "Gesaan untuk chatbot AI anda")
 }
+
+func TestATickedSheetCleanUpCannotReadShowsWhyNotAskForAHeaderRow(t *testing.T) {
+	t.Parallel()
+	ada, _ := caveHostLearner(t, testutil.Workbook(t,
+		testutil.Sheet{Name: "Sales", Rows: [][]any{{"Item", "Qty"}, {"Pen", 3}}},
+		testutil.Sheet{Name: "Notes", Rows: [][]any{{"Item", "Qty"}, {"Pen", 3}, {"Ink", 5, "reorder"}}},
+	))
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil)
+	ada.tickSheet("jualan-ada", "Notes")
+	_, body := ada.get("/cavehost/jualan-ada")
+	body = html.UnescapeString(body)
+	if !strings.Contains(body, "Sheet Notes: Column C has data but no name in the header, row 1.") {
+		t.Errorf("page = %s, want the sheet's own reason", body)
+	}
+	if strings.Contains(body, "Pick its header row below") {
+		t.Errorf("page asks for a header row that cannot help: %s", body)
+	}
+}

@@ -101,6 +101,7 @@ type Sheet struct {
 	CanCombine bool   `json:"canCombine,omitempty"` // it has the picked sheet's columns, so it can be ticked to join it
 	ReasonKey  string `json:"reason,omitempty"`     // the text catalog key (lab.clean.sheet-*) saying why it cannot join the picked sheet
 	Fits       bool   `json:"fits,omitempty"`       // under a Recipe: it has the Dataset's columns, so it can be picked
+	Problem    error  `json:"-"`                    // why Clean-up cannot read it, when it cannot
 }
 
 // MaxCleanRows is the most rows Clean-up keeps and MaxColumns the most columns, both counted on the Dataset as
@@ -202,7 +203,7 @@ func Clean(r io.Reader, s Settings) (*CleanUp, error) {
 		}
 	}
 	for i, name := range names {
-		sh := Sheet{Name: name, ReasonKey: "lab.clean.sheet-unreadable"}
+		sh := Sheet{Name: name, ReasonKey: "lab.clean.sheet-unreadable", Problem: problems[i]}
 		if tb := tables[i]; tb != nil {
 			sh = Sheet{Name: name, Rows: len(tb.raw), Readable: true}
 		}
