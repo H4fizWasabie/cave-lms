@@ -409,3 +409,48 @@ func TestATickedSheetCleanUpCannotReadShowsWhyNotAskForAHeaderRow(t *testing.T) 
 		t.Errorf("page asks for a header row that cannot help: %s", body)
 	}
 }
+
+func TestReadAgainFetchesTheSpreadsheetAfreshAndAPlainViewKeepsTheLastFetchedOne(t *testing.T) {
+	t.Parallel()
+	broken := testutil.Workbook(t,
+		testutil.Sheet{Name: "Sales", Rows: [][]any{{"Item", "Qty"}, {"Pen", 3}}},
+		testutil.Sheet{Name: "Notes", Rows: [][]any{{"Item", "Qty"}, {"Pen", 3}, {"Ink", 5, "reorder"}}},
+	)
+	fixed := testutil.Workbook(t,
+		testutil.Sheet{Name: "Sales", Rows: [][]any{{"Item", "Qty"}, {"Pen", 3}}},
+		testutil.Sheet{Name: "Notes", Rows: [][]any{{"Item", "Qty", "Note"}, {"Pen", 3, "ok"}, {"Ink", 5, "reorder"}}},
+	)
+	ada, google := caveHostLearner(t, broken)
+	ada.linkSheet(sheetLink, "jualan-ada")
+	ada.confirmSheet("jualan-ada", nil)
+	ada.tickSheet("jualan-ada", "Notes")
+	_, body := ada.get("/cavehost/jualan-ada")
+	if !strings.Contains(html.UnescapeString(body), "Column C has data but no name") {
+		t.Fatalf("page = %s, want the unreadable sheet's reason", body)
+	}
+	old := xlsxFiles(ada)
+	asked := len(google.requests())
+
+	// The Learner fixes the Spreadsheet: a plain view still reads the file kept, Read again reads the new one.
+	google.swap(fixed)
+	_, body = ada.get("/cavehost/jualan-ada")
+	if !strings.Contains(html.UnescapeString(body), "Column C has data but no name") || len(google.requests()) != asked {
+		t.Errorf("a plain view fetched again or changed: %d requests since, page = %s", len(google.requests())-asked, body)
+	}
+	res, body := ada.get("/cavehost/jualan-ada?header=")
+	expectStatus(t, res, body, http.StatusOK, "Check Notes before your page reads it")
+	if got := len(google.requests()) - asked; got != 1 {
+		t.Errorf("Read again asked Google %d times, want 1", got)
+	}
+	if files := xlsxFiles(ada); len(files) != 1 || files[0] == old[0] {
+		t.Errorf("the store holds %v after Read again, want the new file alone instead of %v", files, old)
+	}
+
+	// Confirming reads the file kept by Read again, without asking Google.
+	ada.confirmSheet("jualan-ada", nil)
+	if got := len(google.requests()) - asked; got != 1 {
+		t.Errorf("confirming asked Google again: %d requests since the fix, want 1", got)
+	}
+	res, body = ada.second().get(ada.caveHostLink("jualan-ada") + "sheets/Notes.json")
+	expectStatus(t, res, body, http.StatusOK, `"Note": "reorder"`)
+}

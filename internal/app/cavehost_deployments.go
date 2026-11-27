@@ -422,12 +422,12 @@ func spreadsheetProblem(err error) (problem lab.Problem, ok bool) {
 }
 
 // caveHostXlsx is the Spreadsheet's file for a preview: the one kept while a ticked sheet waits, else fetched now and kept until
-// no ticked sheet waits (dropCaveHostXlsx), so a page refresh does not fetch again. Google failing is a Problem for the Learner
-// to read, as it is when linking.
-// ponytail: a preview reads the file fetched at the first view, so edits made in the Spreadsheet since do not show until the sheet is
-// confirmed or unticked; Read again could fetch afresh if that confuses Learners.
+// no ticked sheet waits (dropCaveHostXlsx), so a page refresh does not fetch again. Read again (a page view with a header choice
+// on the request) fetches afresh and keeps that file in place of the old one, so the Spreadsheet's edits show and a confirm reads
+// the file last previewed. Google failing is a Problem for the Learner to read, as it is when linking.
 func (a *App) caveHostXlsx(r *http.Request, v *caveHostView) ([]byte, error) {
-	if v.XlsxKey != "" {
+	fresh := r.Method == http.MethodGet && r.URL.Query().Has("header")
+	if v.XlsxKey != "" && !fresh {
 		return a.store.Get(r.Context(), v.XlsxKey)
 	}
 	data, err := a.fetchSpreadsheet(r.Context(), v.Spreadsheet)
@@ -438,14 +438,15 @@ func (a *App) caveHostXlsx(r *http.Request, v *caveHostView) ([]byte, error) {
 		a.logError(r, err)
 		return nil, lab.Problem{Key: "cavehost.err.unreachable"}
 	}
-	if err := a.keepCaveHostXlsx(r.Context(), v, data); err != nil { // not kept, so the next view fetches again
+	if err := a.keepCaveHostXlsx(r.Context(), v, data, fresh); err != nil { // not kept, so the next view fetches again
 		a.logError(r, err)
 	}
 	return data, nil
 }
 
-// keepCaveHostXlsx puts the fetched file data in the Disk store and names it on the Deployment, unless another view kept its file first.
-func (a *App) keepCaveHostXlsx(ctx context.Context, v *caveHostView, data []byte) error {
+// keepCaveHostXlsx puts the fetched file data in the Disk store and names it on the Deployment, in place of the file it kept before
+// if replace, else unless another view kept its file first.
+func (a *App) keepCaveHostXlsx(ctx context.Context, v *caveHostView, data []byte, replace bool) error {
 	key, err := newCaveHostKey("xlsx")
 	if err != nil {
 		return err
@@ -453,14 +454,19 @@ func (a *App) keepCaveHostXlsx(ctx context.Context, v *caveHostView, data []byte
 	if err = a.store.Put(ctx, key, data); err != nil {
 		return err
 	}
-	var n int64
-	set, err := a.db.ExecContext(ctx, `UPDATE cavehost_deployments SET xlsx_key = $2 WHERE deployment_id = $1 AND xlsx_key IS NULL`, v.ID, key)
-	if err == nil {
-		n, err = set.RowsAffected()
-	}
-	if err != nil || n == 0 {
+	var old sql.NullString
+	err = a.db.QueryRowContext(ctx, `UPDATE cavehost_deployments ch SET xlsx_key = $2
+		FROM (SELECT xlsx_key FROM cavehost_deployments WHERE deployment_id = $1 FOR UPDATE) old
+		WHERE ch.deployment_id = $1 AND ($3 OR old.xlsx_key IS NULL) RETURNING old.xlsx_key`, v.ID, key, replace).Scan(&old)
+	if err != nil {
 		_ = a.store.Delete(context.WithoutCancel(ctx), key)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = nil
+		}
 		return err
+	}
+	if old.Valid {
+		_ = a.store.Delete(context.WithoutCancel(ctx), old.String)
 	}
 	v.XlsxKey = key
 	return nil
